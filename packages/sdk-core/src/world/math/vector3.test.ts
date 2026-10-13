@@ -4,10 +4,8 @@ import { Vector3, readVec3 } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Quaternion } from './quaternion.ts'
 import { listen } from '../observed.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
-
-const near = (actual: number[], expected: number[]) => within(actual, expected, 'vector', 1e-10)
 
 test('vector arithmetic preserves every component and supports in-place operands', () => {
   const a = new Vector3(2, -3, 4),
@@ -29,8 +27,8 @@ test('vector arithmetic preserves every component and supports in-place operands
   assert.deepEqual(new Vector3().crossVectors(a, b).toArray(), [-22, 24, 29])
   assert.equal(a.lengthSq(), 29)
   assert.equal(new Vector3(3, 4, 12).length(), 13)
-  near(new Vector3(3, 4, 0).normalize().toArray(), [0.6, 0.8, 0])
-  near(new Vector3(3, 4, 0).setLength(10).toArray(), [6, 8, 0])
+  near(new Vector3(3, 4, 0).normalize().toArray(), [0.6, 0.8, 0], 'vector', 1e-10)
+  near(new Vector3(3, 4, 0).setLength(10).toArray(), [6, 8, 0], 'vector', 1e-10)
   assert.deepEqual(new Vector3().normalize().toArray(), [0, 0, 0])
   assert.equal(a.distanceToSquared(b), 145)
   assert.equal(new Vector3(3, 4, 12).distanceTo(new Vector3()), 13)
@@ -75,16 +73,18 @@ test('vector writes notify owners only when values change and copies own their s
 test('point, direction and rotation transforms have distinct physical meanings', () => {
   const affine = new Matrix4().makeScale(2, 3, 4).setPosition(10, 20, 30)
   assert.deepEqual(new Vector3(1, 2, 3).applyMatrix4(affine).toArray(), [12, 26, 42])
-  near(new Vector3(1, 0, 0).transformDirection(affine).toArray(), [1, 0, 0])
+  near(new Vector3(1, 0, 0).transformDirection(affine).toArray(), [1, 0, 0], 'vector', 1e-10)
   assert.deepEqual(new Vector3().setFromMatrixPosition(affine).toArray(), [10, 20, 30])
   const projective = new Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1)
-  near(new Vector3(2, 4, 1).applyMatrix4(projective).toArray(), [1, 2, 0.5])
+  near(new Vector3(2, 4, 1).applyMatrix4(projective).toArray(), [1, 2, 0.5], 'vector', 1e-10)
   const linear = new Matrix3().set(2, 0, 0, 0, 3, 0, 0, 0, 4)
   assert.deepEqual(new Vector3(1, 2, 3).applyMatrix3(linear).toArray(), [2, 6, 12])
   const turn = new Quaternion(0, 0, Math.SQRT1_2, Math.SQRT1_2)
-  near(new Vector3(1, 0, 0).applyQuaternion(turn).toArray(), [0, 1, 0])
+  near(new Vector3(1, 0, 0).applyQuaternion(turn).toArray(), [0, 1, 0], 'vector', 1e-10)
   near(
     new Vector3().setFromSpherical({ radius: 2, phi: HALF_PI, theta: HALF_PI }).toArray(),
     [2, 0, 0],
+    'vector',
+    1e-10,
   )
 })

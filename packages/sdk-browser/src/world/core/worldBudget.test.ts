@@ -10,13 +10,15 @@ import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import { bounceProbeBytes } from '../../bounce/limits.ts'
-import { poolWindowSizes } from '../../vsm/layout.ts'
+import { poolWindowSizes, vsmLayout } from '../../vsm/layout.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../../residency/shadowBudgetBytes.ts'
-import {
-  DEFAULT_GPU_BUDGET,
-  EFFECT_TARGET_BYTES,
-  oneSunShadowMaps,
-} from '../../residency/budget.fixture.ts'
+import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts'
+
+/** The virtual shadow maps of one sun at the default pool when this golden was taken, every part
+ *  the shadow share sums (`shadowBudgetBytes.ts`): the set's buffers, the raster's pair and command
+ *  lists at their ceiling, the coloured transmission's first atlas. A change to any of them moves
+ *  this number, and the share must be retaken with it. */
+const ONE_SUN_SHADOW_MAP_BYTES = 422_727_824
 
 const budget = (
   frame: Partial<FrameMetrics> | null,
@@ -68,7 +70,8 @@ test("the default totals split into each pool's own default", () => {
 })
 
 test('the shadow share holds the virtual shadow maps of one sun, within a MiB', () => {
-  const { layout, bytes } = oneSunShadowMaps()
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }),
+    bytes = ONE_SUN_SHADOW_MAP_BYTES
   // One page-table row; 2048 physical pages a slice, each slice one 128 MiB window.
   assert.equal(layout.pageTableRows, 1)
   assert.equal(layout.poolPages, 2048)
@@ -109,7 +112,7 @@ test('a GPU total redraws every pool by the split, and the pools never sum past 
 // lets the pools sum past it.
 test('the shadow maps fit their share on any device, and totals below 512 MiB never overflow', () => {
   const { shadowPool } = budget(null).split
-  assert.ok(oneSunShadowMaps().bytes <= shadowPool)
+  assert.ok(ONE_SUN_SHADOW_MAP_BYTES <= shadowPool)
   for (const total of [64 * MIB, 256 * MIB, 511 * MIB, FIXED - 1]) {
     const pools = worldPools()
     const handle = budget(null, {}, pools)

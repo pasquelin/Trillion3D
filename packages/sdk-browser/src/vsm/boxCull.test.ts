@@ -1,16 +1,22 @@
-// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`) gives each of
-// them, bit for bit, what its own cull gave (`boxCullBefore.fixture.ts`): the frustum cull of a
-// box, its rect in pixels and the mip level covering a rect, over seeded boxes and views with
-// their edges — boxes flush with the frustum's sides and its near and far planes, corners at
-// w = 0, empty extents, the f32 limits, infinities and NaN.
+// The box cull the cache invalidation and the render cull share (`boxCullWgsl.ts`), held to a
+// golden of its every bit: the frustum cull of a box, its rect in pixels and the mip level covering
+// a rect, over seeded boxes and views with their edges — boxes flush with the frustum's sides and
+// its near and far planes, corners at w = 0, empty extents, the f32 limits, infinities and NaN.
+// The goldens were taken when the shared cull was proved, case for case, the culls it replaced.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
-import { INVALIDATION_BOX_CULL, RENDER_BOX_CULL } from './boxCullBefore.fixture.ts'
 import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts'
-import { inputs, sameBits } from './sameBits.fixture.ts'
+import { bitsDigest, inputs } from './sameBits.fixture.ts'
 
 const CULL_KEYS = ['clipLow', 'clipHigh', 'pastFar', 'pastNear', 'inMapView']
+/** The digests of the runs below (`bitsDigest`). */
+const GOLDEN = {
+  invalidation: 'f46b83814219d58c38450516a061636971ee0a282653ca54a09c9434f30aa36c',
+  render: 'ee8d409e53b48fa8868bc55d010c27205c51622fbb67bab7b1ae7cb24f358b51',
+  rect: '757a3921f99f6795e8577b3213f2bb4792bb0849361834b7f614678ec934b444',
+  level: '6e9be750dfee4a40a942c2dfb6061f0c9c6c72945350d32c0bd754d76f7b7ba5',
+}
 const CASES = 12000
 
 /** A matrix of exact values — a diagonal, a translation and a w row (w = 1, or w = z) from a
@@ -40,63 +46,52 @@ const tally = (counts: number[], cull: Record<string, unknown>) => {
   counts[1] += Number(cull.pastNear === true)
 }
 
-test("the invalidation's box cull is its own, bit for bit, the side-culled bit no one read gone", () => {
+test("the invalidation's box cull keeps its golden bits, the side-culled bit no one read gone", () => {
   // That bit was only ever written: neither the invalidation's pages nor its kernel read it.
   assert.ok(!INVALIDATION.includes('offSide'))
-  const before = run(INVALIDATION_BOX_CULL, [
-    ...[
-      'vsmShiftedBoxInView',
-      'vsmShiftedBoxOrtho',
-      'vsmShiftedBoxPerspective',
-      'vsmMin3v2',
-      'vsmMax3v2',
-    ],
-  ])
   const after = run(INVALIDATION, [
     ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
   ])
-  const counts = [0, 0]
+  const counts = [0, 0],
+    digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const d = inputs(1000 + k),
       exact = k % 3 === 0
     const { center, extent } = box(d, exact)
     const args = [center, extent, matrix(d, exact), matrix(d, exact), matrix(d, exact)]
     const flags = [d.bool(), d.bool()]
-    const was = before.vsmShiftedBoxInView(...args, ...flags) as Record<string, unknown>,
-      is = after.vsmBoxInMapView(...args, ...flags) as Record<string, unknown>
-    assert.ok(sameBits(was, is, CULL_KEYS), `case ${k}: ${JSON.stringify([was, is])}`)
+    const is = after.vsmBoxInMapView(...args, ...flags) as Record<string, unknown>
+    digest.add(is, CULL_KEYS)
     tally(counts, is)
   }
+  assert.equal(digest.hex(), GOLDEN.invalidation)
   assert.ok(counts[0] > CASES / 10 && counts[1] > CASES / 20, `${counts}`)
 })
 
-test("the render cull's box cull is its own, bit for bit", () => {
-  const names = ['vsmShiftedBoxInView', 'vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective']
-  const before = run(RENDER_BOX_CULL, names),
-    after = run(RENDER, [
-      ...names,
-      'vsmBoxInOrthoView',
-      'vsmBoxInPerspectiveView',
-      'perspectiveDivide',
-    ])
-  const counts = [0, 0]
+test("the render cull's box cull keeps its golden bits", () => {
+  const after = run(RENDER, [
+    ...['vsmShiftedBoxInView', 'vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective'],
+    ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
+  ])
+  const counts = [0, 0],
+    digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const d = inputs(2000 + k),
       exact = k % 3 === 0
     const { center, extent } = box(d, exact)
     const args = [center, extent, matrix(d, exact), matrix(d, exact), d.bool(), d.bool()]
-    const was = before.vsmShiftedBoxInView(...args) as Record<string, unknown>,
-      is = after.vsmShiftedBoxInView(...args) as Record<string, unknown>
-    assert.ok(sameBits(was, is, CULL_KEYS), `case ${k}: ${JSON.stringify([was, is])}`)
+    const is = after.vsmShiftedBoxInView(...args) as Record<string, unknown>
+    digest.add(is, CULL_KEYS)
     tally(counts, is)
   }
+  assert.equal(digest.hex(), GOLDEN.render)
   assert.ok(counts[0] > CASES / 10 && counts[1] > CASES / 20, `${counts}`)
 })
 
-test("a culled box's rect in pixels is each cull's own, bit for bit", () => {
-  const invalidation = run(INVALIDATION_BOX_CULL, ['vsmPixelRectOf', 'vsmLevelHoldingRect']),
-    render = run(RENDER_BOX_CULL, ['vsmRectPixels'])
-  const shared = run(INVALIDATION, ['vsmRectPixels'])
+test("a culled box's rect in pixels keeps its golden bits, the same in both modules", () => {
+  const render = run(RENDER, ['vsmRectPixels']),
+    shared = run(INVALIDATION, ['vsmRectPixels'])
+  const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const d = inputs(3000 + k)
     // A mip's view of the full map, or a view rect anywhere; the rect drawn about the frustum.
@@ -106,22 +101,17 @@ test("a culled box's rect in pixels is each cull's own, bit for bit", () => {
     const viewRect = [x, y, x + dim, y + dim]
     const near = () => (k % 2 ? d.pick([-1, -0.5, 0, 0.5, 1, 1 + 2 ** -20]) : d.f())
     const cull = { clipLow: d.vec(3, near), clipHigh: d.vec(3, near) }
-    const was = (
-      invalidation.vsmPixelRectOf(viewRect, cull.clipLow, cull.clipHigh, 4) as {
-        pixels: number[]
-      }
-    ).pixels
     const is = shared.vsmRectPixels(viewRect, cull)
-    assert.ok(sameBits(was, is), `case ${k}: ${JSON.stringify([was, is])}`)
-    assert.ok(sameBits(render.vsmRectPixels(viewRect, cull), is), `case ${k}`)
+    digest.add(is)
+    assert.deepEqual(render.vsmRectPixels(viewRect, cull), is, `case ${k}`)
   }
+  assert.equal(digest.hex(), GOLDEN.rect)
 })
 
-test("the mip level covering a rect is each cull's own, bit for bit", () => {
-  const name = ['vsmLevelHoldingRect']
-  const invalidation = run(INVALIDATION_BOX_CULL, name),
-    render = run(RENDER_BOX_CULL, name),
-    shared = [INVALIDATION, RENDER].map((text) => run(text, [...name, 'floorLog2']))
+test('the mip level covering a rect keeps its golden, the same in both modules', () => {
+  const name = ['vsmLevelHoldingRect', 'floorLog2']
+  const [invalidation, render] = [INVALIDATION, RENDER].map((text) => run(text, name))
+  const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
     const d = inputs(4000 + k)
     // Rects of pixels or pages, from one texel to the whole map, a few empty or reversed.
@@ -130,8 +120,9 @@ test("the mip level covering a rect is each cull's own, bit for bit", () => {
       size = () => (d.int(0, 15) === 0 ? -d.int(0, 8) : d.int(0, 2 ** d.int(0, 14)))
     const rect = [x, y, x + size(), y + size()],
       footprint = d.pick([1, 2, 4, 8, 16])
-    const was = invalidation.vsmLevelHoldingRect(rect, footprint)
-    assert.equal(render.vsmLevelHoldingRect(rect, footprint), was, `case ${k}`)
-    for (const after of shared) assert.equal(after.vsmLevelHoldingRect(rect, footprint), was)
+    const level = invalidation.vsmLevelHoldingRect(rect, footprint)
+    digest.add(level)
+    assert.equal(render.vsmLevelHoldingRect(rect, footprint), level, `case ${k}`)
   }
+  assert.equal(digest.hex(), GOLDEN.level)
 })

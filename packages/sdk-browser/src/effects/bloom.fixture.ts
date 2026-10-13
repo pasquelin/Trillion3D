@@ -1,5 +1,6 @@
 import type { BloomTap } from './bloomFilter.ts'
 import { bloomBlend, bloomLevelSizes } from './bloomFilter.ts'
+import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
 /**
  * The filters, rebuilt from their definition rather than copied from the engine's
@@ -43,23 +44,9 @@ export const tapWords = (taps: readonly BloomTap[]) =>
 
 export type Image = { data: Float64Array; w: number; h: number }
 
-/** A bilinear read at texel coordinates `(x, y)`, clamped to the edge, as the samplers read; with
- *  `weightBits`, the sampler's own rounding: each weight's fraction held to that many bits. */
-export function bilinear({ data, w, h }: Image, x: number, y: number, weightBits?: number) {
-  const fx = x - 0.5,
-    fy = y - 0.5
-  const x0 = Math.floor(fx),
-    y0 = Math.floor(fy)
-  const held = (t: number) => (weightBits ? Math.round(t * 2 ** weightBits) / 2 ** weightBits : t)
-  const tx = held(fx - x0),
-    ty = held(fy - y0)
-  const at = (i: number, j: number) =>
-    data[Math.min(h - 1, Math.max(0, j)) * w + Math.min(w - 1, Math.max(0, i))]
-  return (
-    (at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) +
-    (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty
-  )
-}
+/** A bilinear read of `image` at texel coordinates `(x, y)` (`bilinearRead`). */
+export const bilinear = ({ data, w, h }: Image, x: number, y: number, weightBits?: number) =>
+  bilinearRead((i, j) => data[j * w + i], w, h, x, y, weightBits)
 
 /** The taps' weighted bilinear reads of `from` around `(x, y)` texels, offsets scaled by `stride`. */
 export function tapSum(

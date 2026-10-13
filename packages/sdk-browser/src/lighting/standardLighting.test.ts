@@ -10,11 +10,15 @@ import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
 import { STANDARD_LIGHTING_WGSL as STANDARD_LIGHTING } from './standardLighting.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { unit } from '../../../math/src/vector/vectorTuple.ts'
+import { linearToSrgb8 } from '../../../math/src/color/color.ts'
 
 /** The standard lobe as a program holds it, its library declarations included. */
 const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
 
 type V3 = number[]
+type T3 = [number, number, number]
 const { standardLighting } = shaderRun<{
   standardLighting: (rgb: V3, metal: number, rough: number, N: V3, V: V3, light: V3) => V3
 }>(
@@ -34,22 +38,20 @@ const { standardLighting } = shaderRun<{
   F32_SCOPE,
 )
 
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const unit = (a: V3) => a.map((x) => x / Math.hypot(...a))
 const along = (n: V3, side: V3, t: number) =>
-  unit(n.map((x, k) => x * Math.cos(t) + side[k] * Math.sin(t)))
+  unit(n.map((x, k) => x * Math.cos(t) + side[k] * Math.sin(t)) as T3)
 
 /** The metal lobe in f64: D (with the sine of the half-vector from a cross product), the
  *  height-correlated visibility and the Fresnel term, as the shader writes them. */
 function metalLobe(rough: number, N: V3, V: V3, L: V3) {
-  const [n, v, l] = [N, V, L].map(unit)
-  const H = unit([0, 1, 2].map((k) => l[k] + v[k]))
-  const [c, nl, nv] = [dot(n, H), dot(n, l), dot(n, v)]
+  const [n, v, l] = [N, V, L].map((x) => unit([...x] as T3))
+  const H = unit([0, 1, 2].map((k) => l[k] + v[k]) as T3)
+  const [c, nl, nv] = [dotVector3(n, H), dotVector3(n, l), dotVector3(n, v)]
   const a2 = rough ** 4
   const D = a2 / (Math.PI * (1 - c * c + c * c * a2) ** 2)
   const vis =
     0.5 / (nl * Math.sqrt(nv * nv * (1 - a2) + a2) + nv * Math.sqrt(nl * nl * (1 - a2) + a2) + 1e-7)
-  return D * vis * (0.5 + 0.5 * (1 - dot(v, H)) ** 5) * nl
+  return D * vis * (0.5 + 0.5 * (1 - dotVector3(v, H)) ** 5) * nl
 }
 
 test('a sharp highlight is the GGX distribution, to f32, through its core', () => {
@@ -68,7 +70,7 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
       [0, 1, 2].map((k) => T[k] * Math.cos(phi) + B[k] * Math.sin(phi)),
       (alpha * i) / 5000,
     )
-    const L = [0, 1, 2].map((k) => Math.fround(2 * dot(V, H) * H[k] - V[k]))
+    const L = [0, 1, 2].map((k) => Math.fround(2 * dotVector3(V, H) * H[k] - V[k]))
     const got = standardLighting([0.5, 0.5, 0.5], 1, rough, N, V, [...L, 1])[0]
     worst = Math.max(worst, Math.abs(got / metalLobe(rough, N, V, L) - 1))
     values.add(got)
@@ -80,10 +82,7 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
 })
 
 /** The displayed byte of a linear value: clamped, sRGB-encoded, quantised to 8 bits. */
-const byte = (x: number) => {
-  const c = saturate(x)
-  return Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055))
-}
+const byte = (x: number) => linearToSrgb8(saturate(x))
 
 test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
   const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);'

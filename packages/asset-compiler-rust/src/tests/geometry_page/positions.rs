@@ -5,6 +5,7 @@
 //! random meshes, the signed zeros, NaN and infinities, the empty page and the largest one.
 
 use crate::tests::random::Xorshift;
+use crate::tests::vectors::cross_f32;
 use sha2::{Digest, Sha256};
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
@@ -38,11 +39,7 @@ fn field(rng: &mut Xorshift, side: usize, flat: bool, flags: u32) -> Mesh {
                 [0, 1, 2].map(|k| b[k] - a[k]),
                 [0, 1, 2].map(|k| c[k] - a[k]),
             );
-            let n = [
-                u[1] * v[2] - u[2] * v[1],
-                u[2] * v[0] - u[0] * v[2],
-                u[0] * v[1] - u[1] * v[0],
-            ];
+            let n = cross_f32(u, v);
             for p in [a, b, c] {
                 indices.push((positions.len() / 3) as u32);
                 positions.extend(p);

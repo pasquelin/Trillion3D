@@ -29,7 +29,6 @@ const U32_SCOPE = {
         : op === '+' || op === '-'
           ? (builtins.$b(op, a, b) as number) >>> 0
           : builtins.$b(op, a, b),
-  countLeadingZeros: (x: number) => Math.clz32(x),
 }
 
 const WORDS = [

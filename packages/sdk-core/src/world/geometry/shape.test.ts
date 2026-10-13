@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { Path, Shape } from '../math/curves.ts'
 import { extrude, shape } from './shape.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { crossVector3, dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 type G = ReturnType<typeof shape>
 const arrays = (g: G) => ({
@@ -18,10 +19,7 @@ function volume(g: G) {
   let sum = 0
   for (let t = 0; t < index.length; t += 3) {
     const [a, b, c] = [index[t], index[t + 1], index[t + 2]].map((i) => p.slice(3 * i, 3 * i + 3))
-    sum +=
-      a[0] * (b[1] * c[2] - b[2] * c[1]) -
-      a[1] * (b[0] * c[2] - b[2] * c[0]) +
-      a[2] * (b[0] * c[1] - b[1] * c[0])
+    sum += dotVector3(a, crossVector3([0, 0, 0], b, c))
   }
   return sum / 6
 }

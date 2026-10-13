@@ -27,9 +27,6 @@ export const DOUBLE_HELPERS = [
   'dMul',
 ]
 
-/** The built-in those functions call. */
-export const countLeadingZeros = (x: number) => Math.clz32(x)
-
 /** `x` as the shader holds it (`packDoubles`). */
 export const pair = (x: number): Pair => {
   const out = new Uint32Array(2)

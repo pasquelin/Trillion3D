@@ -11,11 +11,12 @@ import { refreshBlendScene } from './resources.ts'
 import { refreshWebgpuMaterials } from '../pages/io/refreshMaterials.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const RECORD = BLEND_ITEM_WORDS * 4
 
 /** Four unpaged items in a row, their records allocated as `prepareBlendResources` does, and the
- *  spans the queue is sent. */
+ *  spans the queue is sent (`fakeDevice`). */
 function scene() {
   const matrices = [0, 1, 2, 3].map((i) => new G.Matrix4().makeTranslation(i, 0, 0))
   const items = matrices.map(
@@ -33,11 +34,7 @@ function scene() {
   blendState.itemPacked = new Float32Array(items.length * BLEND_ITEM_WORDS)
   blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer)
   blendState.itemBuffer = {} as GPUBuffer
-  const writes: { offset: number; size: number }[] = []
-  const queue = {
-    writeBuffer: (_: GPUBuffer, offset: number, _data: unknown, _at: number, size: number) =>
-      void writes.push({ offset, size }),
-  }
+  const gpu = fakeDevice()
   const rt = {
     blendState,
     vis: { mapLayer: new Map(), dataLayer: new Map() },
@@ -45,21 +42,26 @@ function scene() {
     layout: { rows: { tableEpoch: 0, materialEpoch: 0 } },
     run: { gate: { movedInPlace() {} } },
   } as unknown as WebgpuPagesRuntime
-  return { matrices, items, blendState, writes, device: { queue } as unknown as GPUDevice, rt }
+  /** The spans the queue was sent since the last `clear`. */
+  const writes = {
+    spans: () => gpu.writes.map(({ offset, size }) => ({ offset, size })),
+    clear: () => void (gpu.writes.length = 0),
+  }
+  return { matrices, items, blendState, writes, device: gpu.device, rt }
 }
 
 test('a moved pose sends its sixteen words alone, a moved material every record', () => {
   const { matrices, items, blendState, writes, device, rt } = scene()
   refreshBlendScene(rt, device)
-  assert.deepEqual(writes, [{ offset: 0, size: items.length * RECORD }])
+  assert.deepEqual(writes.spans(), [{ offset: 0, size: items.length * RECORD }])
   const whole = blendState.itemPacked.slice()
-  writes.length = 0
+  writes.clear()
   refreshBlendScene(rt, device, true)
-  assert.deepEqual(writes, [], 'no pose moved: nothing is sent')
+  assert.deepEqual(writes.spans(), [], 'no pose moved: nothing is sent')
   matrices[1].makeTranslation(5, 1, 0)
   matrices[2].makeTranslation(7, 0, 2)
   refreshBlendScene(rt, device, true)
-  assert.deepEqual(writes, [{ offset: RECORD, size: 2 * RECORD }])
+  assert.deepEqual(writes.spans(), [{ offset: RECORD, size: 2 * RECORD }])
   for (let i = 0; i < items.length; i++) {
     const record = blendState.itemPacked.subarray(i * BLEND_ITEM_WORDS, (i + 1) * BLEND_ITEM_WORDS)
     const pose = Array.from(matrices[i].elements, (x) => Math.fround(x))
@@ -70,8 +72,8 @@ test('a moved pose sends its sixteen words alone, a moved material every record'
       `item ${i}: the rest of its record as it was`,
     )
   }
-  writes.length = 0
+  writes.clear()
   refreshWebgpuMaterials(rt, true)
   refreshBlendScene(rt, device, true)
-  assert.deepEqual(writes, [{ offset: 0, size: items.length * RECORD }])
+  assert.deepEqual(writes.spans(), [{ offset: 0, size: items.length * RECORD }])
 })

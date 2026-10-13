@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { eulerFromRotationMatrix } from './euler.ts'
+import { near } from '../float/near.fixture.ts'
 
 /** 3×3 rotations written out by hand, as rows. */
 const rx = (a: number) => [
@@ -25,22 +26,17 @@ const times = (a: number[][], b: number[][]) =>
 const columnMajor = (r: number[][]) =>
   Float64Array.from([...[0, 1, 2].flatMap((c) => [r[0][c], r[1][c], r[2][c], 0]), 4, 5, 6, 1])
 
-const near = (got: ArrayLike<number>, want: number[]) => {
-  for (let i = 0; i < 3; i++)
-    assert.ok(Math.abs(got[i] - want[i]) <= 1e-12, `${i}: ${got[i]} vs ${want[i]}`)
-}
-
 test('XYZ: the angles of Rx · Ry · Rz come back, the first letter outermost', () => {
   const [x, y, z] = [0.4, -0.7, 1.1]
   const m = columnMajor(times(times(rx(x), ry(y)), rz(z)))
-  near(eulerFromRotationMatrix(new Float64Array(3), m), [x, y, z])
-  near(eulerFromRotationMatrix(new Float64Array(3), m, 'XYZ'), [x, y, z])
+  near(eulerFromRotationMatrix(new Float64Array(3), m), [x, y, z], 'angles', 1e-12)
+  near(eulerFromRotationMatrix(new Float64Array(3), m, 'XYZ'), [x, y, z], 'angles', 1e-12)
 })
 
 test('ZYX: the angles of Rz · Ry · Rx come back', () => {
   const [x, y, z] = [-1.2, 0.5, 2.3]
   const m = columnMajor(times(times(rz(z), ry(y)), rx(x)))
-  near(eulerFromRotationMatrix(new Float64Array(3), m, 'ZYX'), [x, y, z])
+  near(eulerFromRotationMatrix(new Float64Array(3), m, 'ZYX'), [x, y, z], 'angles', 1e-12)
 })
 
 test('the other four orders give their angles back too', () => {
@@ -49,7 +45,7 @@ test('the other four orders give their angles back too', () => {
   for (const order of ['YXZ', 'ZXY', 'YZX', 'XZY'] as const) {
     const [a, b, c] = [...order] as ('X' | 'Y' | 'Z')[]
     const m = columnMajor(times(times(r[a], r[b]), r[c]))
-    near(eulerFromRotationMatrix(new Float64Array(3), m, order), [x, y, z])
+    near(eulerFromRotationMatrix(new Float64Array(3), m, order), [x, y, z], 'angles', 1e-12)
   }
 })
 
@@ -58,6 +54,6 @@ test('Ry(π/2) takes the pole branch: the middle angle at π/2, the outer two lo
   // The sine of the pitch rounds to 1, past the pole.
   assert.equal(m[8], 1)
   const out = eulerFromRotationMatrix([9, 9, 9], m)
-  near(out, [0, Math.PI / 2, 0])
+  near(out, [0, Math.PI / 2, 0], 'angles', 1e-12)
   assert.equal(out[2], 0)
 })

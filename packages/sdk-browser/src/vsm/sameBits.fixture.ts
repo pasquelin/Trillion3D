@@ -1,11 +1,11 @@
-// What a test of a shader rewrite runs both texts with (`shaderRun`, in doubles) and compares
-// them by: seeded f32 inputs with their edges — signed zeros, ones, the f32 limits, infinities,
-// NaN —, the bit-for-bit equality of two results, and the built-ins of the VSM helpers that
+// What a test of a shipped shader text runs it with (`shaderRun`, in doubles) and holds it by:
+// seeded f32 inputs with their edges — signed zeros, ones, the f32 limits, infinities, NaN —, a
+// digest of every bit of its results for a golden, and the built-ins of the VSM helpers that
 // `shaderRunBuiltins.fixture.ts` lacks.
+import { createHash } from 'node:crypto'
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { builtins, each } from '../texture/shaderRunBuiltins.fixture.ts'
-import { unit } from './pageWorld.fixture.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
@@ -37,24 +37,28 @@ export function inputs(seed: number, { edge = 8, span = 16, nonFinite = true } =
   }
 }
 
-/** Whether two results are the same bits: numbers by `Object.is` (NaN is NaN, −0 is not 0),
- *  vectors, matrices and structures member by member (`keys`, else all of `a`'s). */
-export function sameBits(a: unknown, b: unknown, keys?: readonly string[]): boolean {
-  if (typeof a === 'number' || typeof b === 'number') return Object.is(a, b)
-  if (a instanceof Mat && b instanceof Mat) return sameBits(a.m, b.m)
-  if (Array.isArray(a) || Array.isArray(b))
-    return (
-      Array.isArray(a) &&
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((x, i) => sameBits(x, b[i]))
-    )
-  if (a && b && typeof a === 'object' && typeof b === 'object') {
-    const x = a as Record<string, unknown>,
-      y = b as Record<string, unknown>
-    return (keys ?? Object.keys(x)).every((key) => key in y && sameBits(x[key], y[key]))
+/** A digest of results, bit for bit: numbers by their exact shortest form (−0 and NaN apart),
+ *  vectors, matrices and structures member by member (`keys`, else all of the value's own), so
+ *  that a golden holds every bit a run gave. */
+export function bitsDigest() {
+  const hash = createHash('sha256')
+  const add = (value: unknown, keys?: readonly string[]): void => {
+    if (typeof value === 'number') hash.update(Object.is(value, -0) ? '-0;' : `${value};`)
+    else if (value instanceof Mat) add(value.m)
+    else if (Array.isArray(value)) {
+      hash.update('[')
+      for (const item of value) add(item)
+      hash.update(']')
+    } else if (value && typeof value === 'object') {
+      hash.update('{')
+      for (const key of keys ?? Object.keys(value)) {
+        hash.update(`${key}:`)
+        add((value as Record<string, unknown>)[key])
+      }
+      hash.update('}')
+    } else hash.update(`${String(value)};`)
   }
-  return a === b
+  return { add, hex: () => hash.digest('hex') }
 }
 
 /** The built-ins of the VSM helpers that `shaderRun` lacks: a signed `firstLeadingBit`,
@@ -62,7 +66,6 @@ export function sameBits(a: unknown, b: unknown, keys?: readonly string[]): bool
  *  a vector), `arrayLength` and the `array<T,N>(…)` lists of `withArrays`. */
 export const MORE_BUILTINS = {
   firstLeadingBit: each((x) => floorLog2(Number(x) < 0 ? ~Number(x) : Number(x))),
-  countLeadingZeros: each((x) => Math.clz32(Number(x))),
   inverseSqrt: each((x) => 1 / Math.sqrt(Number(x))),
   mat4x4f: (...columns: number[][]) => new Mat(columns.flat()),
   $b: (op: string, a: unknown, b: unknown) =>
@@ -76,7 +79,3 @@ export const MORE_BUILTINS = {
 /** A WGSL text whose `array<T,N>(…)` lists run as JavaScript arrays (`arrayOf`). */
 export const withArrays = (source: string) =>
   source.replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf(')
-
-/** A 32-bit word of a list of integers (`pageWorld.fixture.ts`'s hash), to stand in for a table's
- *  word at an address. */
-export const hashWord = (...words: number[]) => unit(...words) * 2 ** 32

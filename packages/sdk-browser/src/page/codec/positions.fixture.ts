@@ -8,6 +8,7 @@ import { encodePage } from './encodePage.fixture.ts'
 import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
 import { decodeGeometryPage } from './geometryPage.ts'
 import { xorshiftRandom } from '../../../../math/src/sequence/random.ts'
+import { crossVector3 } from '../../../../math/src/vector/vector.ts'
 
 export type Mesh = { indices: number[]; attributes: PageAttributes; exponent: number }
 
@@ -31,7 +32,7 @@ function field(rand: () => number, side: number, flat: boolean, uv: boolean, col
       const [a, b, c] = [0, 1, 2].map((k) => corner(grid[t + k]))
       const u = b.map((v, k) => v - a[k]),
         v = c.map((w, k) => w - a[k])
-      const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
+      const n = crossVector3([0, 0, 0], u, v)
       for (const p of [a, b, c]) {
         positions.push(...p)
         normals.push(...n)

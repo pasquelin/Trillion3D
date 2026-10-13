@@ -12,13 +12,14 @@ import {
 import { packFog, type SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
+import { distanceVector3, length3 } from '../../../math/src/vector/vector.ts'
 
 type V3 = [number, number, number]
-const length = (v: V3) => Math.hypot(v[0], v[1], v[2])
 
 /** The oracle: the fog law at `P` seen from `eye`, the optical depth summed over 20 000 steps. */
 function oracle(fog: SceneFog, eye: V3, P: V3) {
-  const d = length(sub(P, eye))
+  const d = distanceVector3(P, eye)
   if ('near' in fog) return saturate((fog.far - d) / (fog.far - fog.near))
   const { density, heightFalloff = 0, baseHeight = 0 } = fog
   let tau = 0
@@ -39,7 +40,7 @@ const BUILTINS = {
   clamp,
   select: (no: unknown, yes: unknown, when: boolean) => (when ? yes : no),
   mix: (a: V3, b: V3, t: number) => a.map((value, i) => lerp(value, b[i], t)),
-  length,
+  length: (v: V3) => length3(v[0], v[1], v[2]),
   sub,
   ...{ exp: Math.exp, abs: Math.abs, min: Math.min, max: Math.max },
 }
@@ -75,15 +76,11 @@ const expected = (fog: SceneFog, P: V3, eye: V3) => {
   const t = oracle(fog, eye, P)
   return RGB.map((value, i) => lerp(COLOR[i], value, t))
 }
-const close = (actual: number[], wanted: number[], label: string) =>
-  actual.forEach((value, i) =>
-    assert.ok(Math.abs(value - wanted[i]) < 2e-5, `${label}: ${value} ≠ ${wanted[i]}`),
-  )
 /** The shader at every point against the oracle. */
 function lawHolds(fog: SceneFog, eye: V3, points: V3[]) {
   for (const P of points) {
     const want = expected(fog, P, eye)
-    close(wgslFogged(fog, RGB, P, eye), want, `WGSL ${JSON.stringify({ fog, P })}`)
+    near(wgslFogged(fog, RGB, P, eye), want, `WGSL ${JSON.stringify({ fog, P })}`, 2e-5)
   }
 }
 
@@ -98,8 +95,8 @@ test('linear fog: untouched before near, half-way between, the fog colour alone 
     [3, 2, 300],
   ])
   const half = RGB.map((v, i) => (v + COLOR[i]) / 2)
-  close(wgslFogged(fog, RGB, [3, 2, 56], eye), half, 'half')
-  close(wgslFogged(fog, RGB, [3, 2, 300], eye), COLOR, 'far')
+  near(wgslFogged(fog, RGB, [3, 2, 56], eye), half, 'half', 2e-5)
+  near(wgslFogged(fog, RGB, [3, 2, 300], eye), COLOR, 'far', 2e-5)
 })
 
 test('exponential fog: exp(−density·d) at every height when nothing falls off', () => {
@@ -113,7 +110,12 @@ test('exponential fog: exp(−density·d) at every height when nothing falls off
       [0, 80, -40],
     ],
   )
-  close(wgslFogged(fog, RGB, [0, 5, 50], [0, 5, 0]), expected(fog, [0, 5, 50], [0, 5, 0]), 'e⁻¹')
+  near(
+    wgslFogged(fog, RGB, [0, 5, 50], [0, 5, 0]),
+    expected(fog, [0, 5, 50], [0, 5, 0]),
+    'e⁻¹',
+    2e-5,
+  )
 })
 
 test('height fog: the integrated density, looking level, up and down, from above and below', () => {

@@ -10,6 +10,7 @@ import {
   planeBarycentric,
 } from '../../../../math/src/wgsl/barycentric.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 type V = number[]
 type F = (...args: unknown[]) => V
@@ -19,8 +20,6 @@ const run = shaderRun<Record<string, F>>(
   {},
 )
 const edge = run.edgeFunction as unknown as (a: V, b: V, p: V) => number
-const near = (a: V, b: V, what: string) =>
-  a.forEach((x, i) => assert.ok(Math.abs(x - b[i]) <= 1e-9, `${what}: ${a} vs ${b}`))
 /** `n` draws of the seeded sequence, in [-1, 1). */
 const take = (rand: () => number, n: number) => Array.from({ length: n }, () => 2 * rand() - 1)
 const weigh = (w: V, corners: V[]) =>

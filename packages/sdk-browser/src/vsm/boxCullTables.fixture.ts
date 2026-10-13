@@ -9,9 +9,11 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { vsmInvalidationWgsl } from './invalidationWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
-import { MORE_BUILTINS, hashWord, inputs, withArrays } from './sameBits.fixture.ts'
+import { MORE_BUILTINS, inputs, withArrays } from './sameBits.fixture.ts'
+import { hash } from './pageWorld.fixture.ts'
 import { vsmLayout } from './layout.ts'
 import { TAU } from '../../../math/src/constants.ts'
+import { crossVector3 } from '../../../math/src/vector/vector.ts'
 
 export type Draw = ReturnType<typeof inputs>
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
@@ -25,7 +27,7 @@ type Offset = { tableXY: number[] }
  *  pixel radii a box gets (now and then an edge). */
 export function tables(seed: number, d: Draw) {
   const mask = d.pick([1, 3, 9, 15, 0xffffffff])
-  const word = (...w: number[]) => hashWord(seed, ...w) & hashWord(seed + 1, ...w) & mask
+  const word = (...w: number[]) => hash(seed, ...w) & hash(seed + 1, ...w) & mask
   const offset = (id: number, level: number, page: number[]) => ({
     tableXY: [(page[0] + 3 * level + id) >>> 0, (page[1] + 5 * level) >>> 0],
   })
@@ -50,7 +52,7 @@ export function tables(seed: number, d: Draw) {
     vsmPageMarkWord: (o: Offset) => word(...o.tableXY, 9),
     vsmGatherPageMarks: (t: number[], m: number) => [0, 1, 2, 3].map((i) => word(...t, m, i)),
     vsmGatherCover: (t: number[], m: number) =>
-      [0, 1, 2, 3].map((i) => hashWord(seed, 7, ...t, m, i) & 0xffff),
+      [0, 1, 2, 3].map((i) => hash(seed, 7, ...t, m, i) & 0xffff),
     vsmHandleIsValid: (h: { id: number }) => h.id !== 0xffffffff,
     vsmMarkStale: (o: Offset, flags: number) => void writes.push([...o.tableXY, flags]),
   }
@@ -113,7 +115,7 @@ export function lightView(d: Draw, k: number) {
   )
   const x = [ca * cb, sa * cb, -sb],
     y = [ca * sb * sc - sa * cc, sa * sb * sc + ca * cc, cb * sc]
-  const z = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]]
+  const z = crossVector3([0, 0, 0], x, y)
   const at = d.vec(3, () => (d.random() - 0.5) * 8)
   const view = new Mat([...x, 0, ...y, 0, ...z, 0, ...at, 1])
   const s = directional ? 1 / d.int(4, 64) : 1 / Math.tan(d.random() + 0.3)

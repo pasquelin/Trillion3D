@@ -7,12 +7,7 @@ import { memberBox, refitLevels, TREE_SPAN, type PlacementTree } from './placeme
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 import { treeRefitWgsl, WHOLE_LAYOUT, type RefitLayout } from './treeRefitWgsl.ts'
-import {
-  DOUBLE_HELPERS,
-  countLeadingZeros,
-  pair,
-  type Pair,
-} from '../../placement/composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.fixture.ts'
 import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type PackedDag } from './types.ts'
 
 /** `words` as the parts of `per` records of `width` words each, the last taking the rest. */
@@ -68,7 +63,6 @@ export function refitTree(
       ...['nodeWord', 'setNodeWord', 'coldAt', 'frameWord', 'writeBox', 'fitGroup', 'fitCell'],
     ],
     {
-      countLeadingZeros,
       params,
       ...tables,
       members: Array.from({ length: count * 6 }, (_, k) => pair(tree.boxes[k]) as Pair),

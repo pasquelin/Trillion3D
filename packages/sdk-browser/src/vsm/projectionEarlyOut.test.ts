@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
-import { CODE, IDENTITY, ref, unit } from './pageWorld.fixture.ts'
+import { CODE, IDENTITY, ref, keyedRandom } from './pageWorld.fixture.ts'
 import {
   earlyOutWorld,
   rayRun,
@@ -20,7 +20,7 @@ const PAGE = 1 / 128
 /** Ray `k` of world `seed`: a level of the sun, a start anywhere (on page corners, across the
  *  clipmap's edge), a reach of a fifth of a page to four, a reference depth on the 2^-10 grid. */
 function ray(seed: number, k: number): RayState {
-  const r = (j: number) => unit(seed, k, j)
+  const r = (j: number) => keyedRandom(seed, k, j)
   const kind = k % 3,
     start =
       kind === 0
@@ -48,7 +48,7 @@ test('a first ray the proof accepts, the march misses: 24 000 rays over six worl
       run = rayRun(world.scope)
     for (let k = 0; k < 4000; k++, rays++) {
       const steps = k % 7 === 0 ? k % 13 : 8,
-        offset = unit(seed, k, 8),
+        offset = keyedRandom(seed, k, 8),
         extrapolate = k % 2 === 0
       const before = { ...world.reads },
         proof = run.vsmSunRayMisses(ref(ray(seed, k)), steps, offset)
@@ -135,7 +135,7 @@ function traces(
     vsmMappedLevel: (h: { id: number }) => ({ id: h.id + 2, isSinglePage: false }),
     vsmProjectionOf: pd,
     vsmRayNoise4: (p: number[], f: number, i: number) =>
-      [1, 2, 3, 4].map((k) => unit(seed, ...p, i, k)),
+      [1, 2, 3, 4].map((k) => keyedRandom(seed, ...p, i, k)),
     vsmSunDiskRayDirection: (d: number[], _: number, e: number[]) => {
       const v = [d[0] + 0.06 * (e[0] - 0.5), d[1] + 0.06 * (e[1] - 0.5), d[2]]
       return v.map((x) => x / Math.hypot(...v))
@@ -144,7 +144,7 @@ function traces(
     vsmGroupVoted: (voted: boolean) => voted,
   })
   return Array.from({ length: pixels }, (_, k) => {
-    const r = (j: number) => unit(seed, k, j)
+    const r = (j: number) => keyedRandom(seed, k, j)
     // Points over the level, a depth from 16 m below the grounds to 36 m above.
     const p = [(r(1) - 0.5) * 12, (r(2) - 0.5) * 12, (r(3) - 0.2) * 40]
     const light = { direction: [0, 0, 1], sourceRadius: 0.0047 }

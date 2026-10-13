@@ -11,7 +11,7 @@ import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { maxStretch } from '../../../sdk-core/src/index.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
-import { DOUBLE_HELPERS, countLeadingZeros, generated } from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated } from './composeDoubles.fixture.ts'
 
 const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
   wgslProgram('', [STRETCH_WGSL]),
@@ -20,7 +20,7 @@ const run = shaderRun<{ maxStretchBits(w: number[]): number }>(
     ...['dDiv', 'dLess', 'dRsqrt', 'dSqrt', 'toF32', 'fromF32', 'chebyshevRoot', 'maxStretchOf'],
     'maxStretchBits',
   ],
-  { countLeadingZeros },
+  {},
 )
 
 /** The words of a world's single-precision row, and what the CPU stores for its stretch. */

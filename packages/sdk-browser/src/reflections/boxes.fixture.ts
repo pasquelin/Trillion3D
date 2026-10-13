@@ -1,32 +1,17 @@
 // Synthetic views for the reflection's tests: opaque boxes, the exact ray cast of them, a reversed
 // infinite perspective camera, and the boxes rasterized into a reversed depth.
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
-import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
+import { cross, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { slabCut } from '../../../math/src/geometry/slab.ts'
 
 export type V3 = [number, number, number]
 export type Box = { low: V3; high: V3 }
 
-const norm = (a: V3): V3 => {
-  const l = Math.hypot(...a)
-  return [a[0] / l, a[1] / l, a[2] / l]
-}
 /** Where the ray `o + d·t`, t > `from`, enters `box`, `from` when it starts inside, or Infinity. */
 function rayBox(o: V3, d: V3, box: Box, from = 0) {
-  let near = -Infinity,
-    far = Infinity
-  for (let k = 0; k < 3; k++) {
-    if (Math.abs(d[k]) < 1e-12) {
-      if (o[k] < box.low[k] || o[k] > box.high[k]) return Infinity
-      continue
-    }
-    const a = (box.low[k] - o[k]) / d[k],
-      b = (box.high[k] - o[k]) / d[k]
-    near = Math.max(near, Math.min(a, b))
-    far = Math.min(far, Math.max(a, b))
-  }
-  if (near > far || far <= from) return Infinity
-  return Math.max(near, from)
+  const span = new Float64Array([from, Infinity])
+  return slabCut(span, box.low, 0, box.high, 0, o, d) ? span[0] : Infinity
 }
 
 /** The first of `boxes` the ray meets, and which. */
@@ -57,8 +42,8 @@ export function camera(
   fov = Math.PI / 3,
   near = 0.1,
 ) {
-  const f = norm(subtract(target, eye)),
-    r = norm(cross(f, [0, 1, 0])),
+  const f = unit(subtract(target, eye)),
+    r = unit(cross(f, [0, 1, 0])),
     u = cross(r, f)
   const F = 1 / Math.tan(fov / 2),
     a = width / height
@@ -85,7 +70,7 @@ export function camera(
   const ray = (x: number, y: number): V3 => {
     const nx = (x / width) * 2 - 1,
       ny = 1 - (y / height) * 2
-    return norm([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) / F) as V3)
+    return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) / F) as V3)
   }
   return {
     eye,

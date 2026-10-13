@@ -3,11 +3,8 @@ import assert from 'node:assert/strict'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Vector3 } from './vector3.ts'
 import { Quaternion } from './quaternion.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
-
-const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
-  within(actual, Array.from(expected), 'matrix', 1e-10)
 
 test('matrix storage, transpose and copying preserve all sixteen independent entries', () => {
   const row = new Matrix4().set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
@@ -39,15 +36,22 @@ test('composition and decomposition recover independently specified poses and mi
       q = new Quaternion(),
       s = new Vector3()
     assert.equal(matrix.decompose(p, q, s), matrix)
-    close(p.toArray(), position.toArray())
-    close(s.toArray(), scale.toArray())
-    close(new Matrix4().compose(p, q, s).elements, matrix.elements)
-    close(matrix.clone().multiply(matrix.clone().invert()).elements, new Matrix4().elements)
+    near(p.toArray(), position.toArray(), 'matrix', 1e-10)
+    near(s.toArray(), scale.toArray(), 'matrix', 1e-10)
+    near(new Matrix4().compose(p, q, s).elements, matrix.elements, 'matrix', 1e-10)
+    near(
+      matrix.clone().multiply(matrix.clone().invert()).elements,
+      new Matrix4().elements,
+      'matrix',
+      1e-10,
+    )
     assert.ok(Math.abs(matrix.determinant() - (scale.x < 0 ? -24 : 24)) < 1e-10)
     assert.ok(Math.abs(matrix.getMaxScaleOnAxis() - 4) < 1e-10)
-    close(
+    near(
       new Vector3(1, 2, 3).applyMatrix4(matrix).applyMatrix4(matrix.clone().invert()).toArray(),
       [1, 2, 3],
+      'matrix',
+      1e-10,
     )
   }
 })
@@ -69,15 +73,19 @@ test('multiplication order changes the position and cardinal rotations orient ea
     [new Matrix4().makeRotationZ(HALF_PI), [1, 0, 0], [0, 1, 0]],
   ] as const
   for (const [matrix, point, expected] of fixtures)
-    close(new Vector3(...point).applyMatrix4(matrix).toArray(), expected)
-  close(
+    near(new Vector3(...point).applyMatrix4(matrix).toArray(), expected, 'matrix', 1e-10)
+  near(
     new Matrix4().makeRotationAxis({ x: 0, y: 0, z: 7 }, HALF_PI).elements,
     fixtures[2][0].elements,
+    'matrix',
+    1e-10,
   )
-  close(
+  near(
     new Matrix4().makeRotationFromQuaternion(new Quaternion(0, 0, Math.SQRT1_2, Math.SQRT1_2))
       .elements,
     fixtures[2][0].elements,
+    'matrix',
+    1e-10,
   )
   for (const magnitudes of [
     [7, 2, 3],
@@ -95,7 +103,7 @@ test('linear and normal matrices preserve directions under a nonuniform affine t
   const linear = new Matrix3().setFromMatrix4(affine)
   assert.deepEqual(linear.toArray(), [2, 0, 0, 0, 4, 0, 0, 0, 8])
   const normal = new Matrix3().getNormalMatrix(affine)
-  close(normal.elements, [0.5, 0, 0, 0, 0.25, 0, 0, 0, 0.125])
+  near(normal.elements, [0.5, 0, 0, 0, 0.25, 0, 0, 0, 0.125], 'matrix', 1e-10)
   const source = new Matrix3().set(1, 2, 3, 4, 5, 6, 7, 8, 9)
   assert.deepEqual(source.toArray(), [1, 4, 7, 2, 5, 8, 3, 6, 9])
   const copy = source.clone()

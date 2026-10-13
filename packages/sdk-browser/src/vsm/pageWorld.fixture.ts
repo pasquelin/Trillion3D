@@ -4,6 +4,8 @@
 // drawn the same way), projection records per map, pool words per texel — each a hash of its
 // address, so a word read twice is the same word. The world counts the page-table words read.
 import { f32Bits } from '../../../math/src/float/bits.ts'
+import { mixWord } from '../../../math/src/scalar/integers.ts'
+import { GOLDEN_U32, WORD_RANGE } from '../../../math/src/constants.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
@@ -15,15 +17,11 @@ const { VSM_ENTRY_MAPPED_BIT: ANY, VSM_ENTRY_DRAWABLE_BIT: RENDER } =
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
 export const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 
-/** A 32-bit hash of integers: the same for the same ones. */
-function hash(...words: number[]) {
-  let h = 0x9e3779b9
-  for (const w of words) h = Math.imul(h ^ (w >>> 0), 0x85ebca6b) ^ (h >>> 13)
-  h = Math.imul(h ^ (h >>> 16), 0xc2b2ae35)
-  return (h ^ (h >>> 15)) >>> 0
-}
+/** A 32-bit hash of integers, the engine's `mixWord` folded over them: the same for the same ones. */
+export const hash = (...words: number[]) =>
+  words.reduce((h, w) => mixWord((h ^ w) >>> 0), GOLDEN_U32)
 /** A hash in [0, 1). */
-export const unit = (...words: number[]) => hash(...words) / 2 ** 32
+export const keyedRandom = (...words: number[]) => hash(...words) / WORD_RANGE
 
 /** Each structure `source` declares, as its constructor: the arguments in member order. */
 export function constructors(source: string) {
@@ -37,7 +35,7 @@ export function constructors(source: string) {
 
 /** The page-table word of entry `i`: unmapped (1 in 10), mapped (11 in 20), or falling back. */
 function entry(seed: number, i: number) {
-  const r = unit(seed, i, 1)
+  const r = keyedRandom(seed, i, 1)
   const physical = (hash(seed, i, 2) & 0x7f) | ((hash(seed, i, 3) & 31) << 10)
   if (r < 0.1) return 0
   if (r < 0.65) return (ANY | RENDER | physical) >>> 0
@@ -49,7 +47,7 @@ export function vsmWorld(seed: number) {
   const reads = { pageTable: 0 }
   const record = (id: number) => {
     const m: number[] = Array.from({ length: 16 }, (_, k) => (k % 5 === 0 ? 1 : 0))
-    m[14] = unit(seed, id, 7)
+    m[14] = keyedRandom(seed, id, 7)
     return {
       cornerSteps: [(hash(seed, id, 5) % 9) - 4, (hash(seed, id, 6) % 9) - 4],
       lightViewToClip: new Mat(m),
@@ -65,7 +63,7 @@ export function vsmWorld(seed: number) {
     },
     vsmProjectionData: new Proxy({}, { get: (_, id) => record(Number(id)) }),
     vsmPageTableLoad: (i: number) => (reads.pageTable++, entry(seed, i)),
-    vsmPoolLoad: (t: number[], slice: number) => f32Bits(unit(seed, t[0], t[1], slice, 8)),
+    vsmPoolLoad: (t: number[], slice: number) => f32Bits(keyedRandom(seed, t[0], t[1], slice, 8)),
     // `bitcast<vec2u>` of a signed vector (`vsmCoarserLevelPage`): its words.
     bitcast_vec2u: (v: number[]) => v.map((x) => x >>> 0),
   }

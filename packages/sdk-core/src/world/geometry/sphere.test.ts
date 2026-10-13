@@ -1,10 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sphereArrays, turnPoint } from './sphere.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
-
-const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`)
 
 test('whole turns place cardinal axes exactly even before and after the first turn', () => {
   for (const offset of [-2, -1, 0, 1, 2]) {
@@ -13,12 +11,12 @@ test('whole turns place cardinal axes exactly even before and after the first tu
     assert.deepEqual(turnPoint(offset + 0.5), [-1, 0])
     assert.deepEqual(turnPoint(offset + 0.75), [0, -1])
   }
-  near(turnPoint(1 / 8)[0], Math.SQRT1_2)
-  near(turnPoint(1 / 8)[1], Math.SQRT1_2)
-  near(turnPoint(0.25, HALF_PI, Math.PI)[0], -Math.SQRT1_2)
-  near(turnPoint(0.25, HALF_PI, Math.PI)[1], Math.SQRT1_2)
-  near(turnPoint(0.5, 0, Math.PI)[0], 0)
-  near(turnPoint(0.5, 0, Math.PI)[1], 1)
+  near(turnPoint(1 / 8)[0], Math.SQRT1_2, 'turned point', 1e-10)
+  near(turnPoint(1 / 8)[1], Math.SQRT1_2, 'turned point', 1e-10)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[0], -Math.SQRT1_2, 'turned point', 1e-10)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[1], Math.SQRT1_2, 'turned point', 1e-10)
+  near(turnPoint(0.5, 0, Math.PI)[0], 0, 'turned point', 1e-10)
+  near(turnPoint(0.5, 0, Math.PI)[1], 1, 'turned point', 1e-10)
 })
 
 test('offset sphere has exact poles and equator, unique nondegenerate outward faces and seam UVs', () => {
@@ -30,7 +28,7 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
       5, 2, -7, 5, 2, -7, 5, 2, -7, 5, 2, -7, 5, 2, -7, 5,
     ],
   )
-  within(
+  near(
     s.normals,
     [
       0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, -1, 1, 0, 0, 0,
@@ -60,8 +58,10 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
         defaultSphere.positions[i + 2] - 3,
       ),
       2,
+      'radius',
+      1e-10,
     )
-    near(Math.hypot(...defaultSphere.normals.slice(i, i + 3)), 1)
+    near(Math.hypot(...defaultSphere.normals.slice(i, i + 3)), 1, 'unit normal', 1e-10)
   }
 })
 

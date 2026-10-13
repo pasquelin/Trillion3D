@@ -19,12 +19,11 @@ import {
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { nearRelative } from '../../../../math/src/float/near.fixture.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
+import { subtract } from '../../../../math/src/vector/vectorTuple.ts'
 
 type V = number[]
-const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const sub = (a: V, b: V) => a.map((x, i) => x - b[i])
-const near = (a: number, b: number, what: string) =>
-  assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${what}: ${a} vs ${b}`)
 /** `n` draws of the seeded sequence, in [-1, 1). */
 const take = (rand: () => number, n: number) => Array.from({ length: n }, () => 2 * rand() - 1)
 
@@ -62,10 +61,14 @@ test('the face normal is across both edges, twice the area long', () => {
   for (let i = 0; i < 50; i++) {
     const [p0, p1, p2] = [take(g, 3), take(g, 3), take(g, 3)]
     const n = run.faceNormal(p0, p1, p2) as V
-    near(dot(n, sub(p1, p0)), 0, 'edge 1')
-    near(dot(n, sub(p2, p0)), 0, 'edge 2')
-    const [a, b] = [sub(p1, p0), sub(p2, p0)]
-    near(dot(n, n), dot(a, a) * dot(b, b) - dot(a, b) ** 2, 'length² = (2·area)²')
+    nearRelative(dotVector3(n, subtract(p1, p0)), 0, 'edge 1')
+    nearRelative(dotVector3(n, subtract(p2, p0)), 0, 'edge 2')
+    const [a, b] = [subtract(p1, p0), subtract(p2, p0)]
+    nearRelative(
+      dotVector3(n, n),
+      dotVector3(a, a) * dotVector3(b, b) - dotVector3(a, b) ** 2,
+      'length² = (2·area)²',
+    )
   }
 })
 
@@ -74,17 +77,21 @@ test('the rejection is across the normal and leaves v along it', () => {
   for (let i = 0; i < 50; i++) {
     const v = take(g, 3),
       raw = take(g, 3),
-      N = raw.map((x) => x / Math.sqrt(dot(raw, raw)))
+      N = raw.map((x) => x / Math.sqrt(dotVector3(raw, raw)))
     const t = run.vectorRejection(v, N) as V
-    near(dot(t, N), 0, 'across')
-    near(dot(sub(v, t), sub(v, t)), dot(v, N) ** 2, 'what remains is along N')
+    nearRelative(dotVector3(t, N), 0, 'across')
+    nearRelative(
+      dotVector3(subtract(v, t), subtract(v, t)),
+      dotVector3(v, N) ** 2,
+      'what remains is along N',
+    )
   }
 })
 
 test('the sine from the cosine is the sine of its angle; the floored one is 0 past ±1', () => {
   for (let a = 0; a <= Math.PI; a += Math.PI / 64) {
-    near(run.sinFromCos(Math.cos(a)) as number, Math.sin(a), `floored ${a}`)
-    near(run.sinFromCosUnclamped(Math.cos(a)) as number, Math.sin(a), `unfloored ${a}`)
+    nearRelative(run.sinFromCos(Math.cos(a)) as number, Math.sin(a), `floored ${a}`)
+    nearRelative(run.sinFromCosUnclamped(Math.cos(a)) as number, Math.sin(a), `unfloored ${a}`)
   }
   assert.equal(run.sinFromCos(1 + 2 ** -20), 0)
   assert.ok(Number.isNaN(run.sinFromCosUnclamped(1 + 2 ** -20)))
@@ -112,11 +119,14 @@ test('a box behind a plane is what the frustum test culls; a sphere, by its cent
     )
     assert.equal(run.boxBehindPlane(plane, bmin, bmax), twin, `box ${i}`)
     culled += Number(twin)
-    const length = Math.sqrt(dot(plane, plane))
+    const length = Math.sqrt(dotVector3(plane, plane))
     const unit = plane.map((x) => x / length)
     const centre = take(g, 3),
       radius = Math.abs(2 * g() - 1)
-    assert.equal(run.sphereBehindPlane(unit, centre, radius), dot(unit, centre) + unit[3] < -radius)
+    assert.equal(
+      run.sphereBehindPlane(unit, centre, radius),
+      dotVector3(unit, centre) + unit[3] < -radius,
+    )
   }
   assert.ok(culled > 50 && culled < 350, `both verdicts met: ${culled}`)
 })
@@ -130,13 +140,13 @@ test('the slab entry is where the slab cut starts, from 0 on, or past the limit 
     const origin = take(g, 3).map((x) => 3 * x)
     // Aimed at a point of the box grown twice about its centre: about half the rays hit it.
     const aim = take(g, 3).map((x, k) => (low[k] + high[k]) / 2 + x * (high[k] - low[k]))
-    const direction = sub(aim, origin).map((x) => (Math.abs(x) < 0.01 ? 0.5 : x))
+    const direction = subtract(aim, origin).map((x) => (Math.abs(x) < 0.01 ? 0.5 : x))
     const limit = 4
     const span = Float64Array.from([0, limit])
     const inverse = run.rayInverseDirection(direction) as V
     const entry = run.rayBoxEntry(low, high, origin, inverse, limit) as number
     if (slabCut(span, low, 0, high, 0, origin, direction)) {
-      near(entry, span[0], `entry ${i}`)
+      nearRelative(entry, span[0], `entry ${i}`)
       hits++
     } else assert.ok(entry > limit, `miss ${i}`)
   }
@@ -156,22 +166,22 @@ test('the ray meets the triangle where the ray meets its plane inside its corner
     // Aimed at the triangle's plane through weights in [-0.5, 1.5]: about half fall inside.
     const [u, v] = take(g, 2).map((x) => 0.5 + x)
     const aim = a.map((x, k) => x + u * (b[k] - x) + v * (c[k] - x))
-    const direction = sub(aim, origin)
+    const direction = subtract(aim, origin)
     const got = run.rayTriangleDistance(origin, direction, a, b, c, limit) as number
     // Independent: the plane's distance along the ray, then the point's side of each edge.
     const n = run.faceNormal(a, b, c) as V
-    const t = dot(n, sub(a, origin)) / dot(n, direction)
+    const t = dotVector3(n, subtract(a, origin)) / dotVector3(n, direction)
     const p = origin.map((x, k) => x + t * direction[k])
     const sides = [
       [a, b],
       [b, c],
       [c, a],
-    ].map(([u, w]) => dot(run.faceNormal(u, w, p) as V, n))
+    ].map(([u, w]) => dotVector3(run.faceNormal(u, w, p) as V, n))
     const inside = sides.every((s) => s >= 0) || sides.every((s) => s <= 0)
     const want = inside && t > 1e-4 && t < limit ? t : limit
     // A ray grazing an edge may fall either side of it in rounding: those are left out.
     if (Math.min(...sides.map(Math.abs)) < 1e-9) continue
-    near(got, want, `ray ${i}`)
+    nearRelative(got, want, `ray ${i}`)
     hits += Number(want < limit)
   }
   assert.ok(hits > 20, `hits met: ${hits}`)

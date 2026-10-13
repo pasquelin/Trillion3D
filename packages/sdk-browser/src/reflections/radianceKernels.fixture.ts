@@ -2,6 +2,7 @@
 // images of texels read as the sampler reads them, bilinear, their edge clamped.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { RADIANCE_SHADER } from './radiance.ts'
+import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
 export type Image = { width: number; height: number; texels: number[][] }
 export const image = (
@@ -16,25 +17,11 @@ export const image = (
 const blank = (width: number, height: number) =>
   image(Math.max(1, width), Math.max(1, height), () => [0, 0, 0, 0])
 
-/** An image's bilinear read at `uv`, as the sampler reads it, its edge clamped. */
-export function bilinear(level: Image, uv: number[]) {
-  const u = uv[0] * level.width - 0.5,
-    v = uv[1] * level.height - 0.5
-  const x0 = Math.floor(u),
-    y0 = Math.floor(v),
-    fx = u - x0,
-    fy = v - y0
-  const texel = (i: number, j: number) =>
-    level.texels[
-      Math.min(Math.max(j, 0), level.height - 1) * level.width +
-        Math.min(Math.max(i, 0), level.width - 1)
-    ]
-  return [0, 1, 2, 3].map(
-    (c) =>
-      (1 - fy) * ((1 - fx) * texel(x0, y0)[c] + fx * texel(x0 + 1, y0)[c]) +
-      fy * ((1 - fx) * texel(x0, y0 + 1)[c] + fx * texel(x0 + 1, y0 + 1)[c]),
+/** An image's bilinear read at `uv`, as the sampler reads it, its edge clamped (`bilinearRead`). */
+export const bilinear = ({ width, height, texels }: Image, uv: number[]) =>
+  [0, 1, 2, 3].map((c) =>
+    bilinearRead((i, j) => texels[j * width + i][c], width, height, uv[0] * width, uv[1] * height),
   )
-}
 
 /** The shipped kernels over `finer` into `coarser`, `coarsest`, `drawn` the image's drawn size. A workgroup runs as the device runs it: every thread's tents (`radianceFill`) into
  *  its tile, then — past the barrier — every thread's sum (`radianceSum`) from it. */

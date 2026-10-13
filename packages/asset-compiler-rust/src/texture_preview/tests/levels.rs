@@ -1,15 +1,6 @@
 use super::*;
-
-/// Independent sRGB byte → linear decode, used only to *verify* the pyramid's output; the
-/// production table lives in `reduce::srgb_table` and is never called from a test.
-fn linear(byte: u8) -> f32 {
-    let c = byte as f32 / 255.0;
-    if c <= 0.04045 {
-        c / 12.92
-    } else {
-        ((c + 0.055) / 1.055).powf(2.4)
-    }
-}
+use trillion3d_math::color::srgb_to_linear_f32;
+use trillion3d_math::scalar::byte_to_unit_f32;
 
 // Behavior 2: level after first is exact 2x2 average of previous,
 // linear premultiplied — alpha 255 everywhere, premultiplied == linear directly.
@@ -41,11 +32,13 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
                     for dy in 0..2 {
                         for dx in 0..2 {
                             let at = ((row * 2 + dy) * side + column * 2 + dx) * 4 + channel;
-                            sum += linear(fine[at]);
+                            sum += srgb_to_linear_f32(byte_to_unit_f32(fine[at]));
                         }
                     }
                     let expected = sum * 0.25;
-                    let actual = linear(coarse[(row * next_side + column) * 4 + channel]);
+                    let actual = srgb_to_linear_f32(byte_to_unit_f32(
+                        coarse[(row * next_side + column) * 4 + channel],
+                    ));
                     assert!(
                         (expected - actual).abs() <= 0.02,
                         "level {fine_side} to {coarse_side}, texel ({row},{column}) channel {channel}: expected {expected}, got {actual}"

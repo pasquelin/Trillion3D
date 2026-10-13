@@ -7,8 +7,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
-import { CODE, constructors, IDENTITY, unit } from './pageWorld.fixture.ts'
+import { CODE, constructors, IDENTITY, keyedRandom } from './pageWorld.fixture.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { cross, unit } from '../../../math/src/vector/vectorTuple.ts'
 
 const W = 1920,
   H = 1080,
@@ -44,13 +46,7 @@ const { vsmSunRaySpread } = shaderRun<{
   },
 })
 
-const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const norm = (v: number[]) => v.map((x) => x / Math.hypot(...v))
-const cross = (a: number[], b: number[]) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
+type V3 = [number, number, number]
 /** A view point's pixel. */
 function pixel(p: number[]) {
   const m = VIEW_TO_CLIP.m,
@@ -60,26 +56,26 @@ function pixel(p: number[]) {
 
 test('no displacement across the light lands farther on screen than the spread says', () => {
   for (let k = 0; k < 400; k++) {
-    const r = (j: number) => unit(1468, k, j)
-    const l = norm([r(1) - 0.5, r(2) - 0.5, r(3) - 0.5])
+    const r = (j: number) => keyedRandom(1468, k, j)
+    const l = unit([r(1) - 0.5, r(2) - 0.5, r(3) - 0.5])
     // A normal at an angle to the light from 0 to about 87°.
-    const side = norm(cross(l, [r(4) - 0.5, r(5) - 0.5, r(6) - 0.5]))
+    const side = unit(cross(l, [r(4) - 0.5, r(5) - 0.5, r(6) - 0.5]))
     const angle = r(7) * 1.52,
-      n = l.map((x, i) => x * Math.cos(angle) + side[i] * Math.sin(angle))
+      n = l.map((x, i) => x * Math.cos(angle) + side[i] * Math.sin(angle)) as V3
     const z = 0.5 + 60 * r(8),
       v = [(r(9) - 0.5) * 1.6 * z, (r(10) - 0.5) * 0.9 * z, z]
     const [perDepth, dither] = vsmSunRaySpread(l, 0.0047, n, v, 3e-4, 0.25)
     const sigma = perDepth / (2 * 0.0047)
     assert.ok(Math.abs(dither / (sigma * Math.SQRT2 * (3e-4 / 0.25)) - 1) < 1e-5)
-    const a = norm(cross(l, side)),
+    const a = unit(cross(l, side)),
       b = cross(l, a),
       eps = 1e-5 * z,
       from = pixel(v)
     let most = 0
     for (let d = 0; d < 256; d++) {
       const t = (Math.PI * d) / 256,
-        e = a.map((x, i) => x * Math.cos(t) + b[i] * Math.sin(t)),
-        onPlane = e.map((x, i) => x - (l[i] * dot(n, e)) / dot(n, l)),
+        e = a.map((x, i) => x * Math.cos(t) + b[i] * Math.sin(t)) as V3,
+        onPlane = e.map((x, i) => x - (l[i] * dotVector3(n, e)) / dotVector3(n, l)),
         to = pixel(v.map((x, i) => x + eps * onPlane[i])),
         stretch = Math.hypot(to[0] - from[0], to[1] - from[1]) / eps
       assert.ok(stretch <= sigma * 1.001, `receiver ${k}: ${stretch} past ${sigma}`)

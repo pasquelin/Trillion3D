@@ -15,6 +15,7 @@ import {
   orthographicProjection,
   perspectiveProjection,
 } from '../../../math/src/projection/camera.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 
 const NEAR = 0.1,
   FAR = 100,
@@ -52,26 +53,25 @@ function resolveRamp(weights: Float32Array, clip: { z: number; w: number }) {
   return saturate(resolveOf({ x, y, z }, clip.w, clip.z))
 }
 
-const close = (actual: number[], label: string) =>
-  actual.forEach((value, i) =>
-    assert.ok(Math.abs(value - EXPECTED[i]) < 1e-5, `${label}: ${value}`),
-  )
-
 test('WebGPU, perspective: the reversed depth still shows white near, black far', () => {
   const projection = perspectiveProjection(new Float64Array(16), 50, 1, NEAR, 1)
   const weights = writeDepthRamp(new Float32Array(3), 0, NEAR, FAR, 1)
-  close(
+  near(
     DISTANCES.map((d) => resolveRamp(weights, clipOf(projection, d))),
+    EXPECTED,
     'perspective',
+    1e-5,
   )
 })
 
 test('WebGPU, orthographic: the same ramp from the affine depth', () => {
   const projection = orthographicProjection(new Float64Array(16), -1, 1, -1, 1, NEAR, FAR)
   const weights = writeDepthRamp(new Float32Array(3), 0, NEAR, FAR, 0)
-  close(
+  near(
     DISTANCES.map((d) => resolveRamp(weights, clipOf(projection, d))),
+    EXPECTED,
     'orthographic',
+    1e-5,
   )
 })
 

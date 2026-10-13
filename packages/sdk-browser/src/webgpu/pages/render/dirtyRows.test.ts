@@ -12,18 +12,12 @@ import assert from 'node:assert/strict'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-
-interface Write {
-  /** The byte offset in the table the run starts at. */
-  at: number
-  /** How many bytes of it were written. */
-  bytes: number
-}
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** A session whose page table is a real buffer and whose queue records every write, so the test
  *  reads what the frame sent rather than how many times it was asked to send it. */
 const session = (marks: number[], length = 8) => {
-  const writes: Write[] = []
+  const { device, writes } = fakeDevice()
   const floats = new Float32Array(marks.length * PAGE_INFO_STRIDE)
   let cleared = 0
   const dirty = createDirtyRows()
@@ -43,19 +37,7 @@ const session = (marks: number[], length = 8) => {
       },
     },
     vis: { pageTable: {} as GPUBuffer },
-    gpu: {
-      device: {
-        queue: {
-          writeBuffer: (
-            _buffer: GPUBuffer,
-            byteOffset: number,
-            _src: ArrayBuffer,
-            _from: number,
-            bytes: number,
-          ) => writes.push({ at: byteOffset, bytes }),
-        },
-      },
-    },
+    gpu: { device },
     timing: { encodeCounts: { rowsUploaded: 0 } },
   } as unknown as WebgpuPagesRuntime
   return { rt, writes, floats, cleared: () => cleared, length }
@@ -72,8 +54,8 @@ test('one marked row is written once, and the count is the rows it wrote', () =>
   const { rt, writes } = session([0, 0, 1, 0, 0])
   uploadDirtyRows(rt)
   assert.equal(writes.length, 1)
-  assert.equal(writes[0].at, 2 * PAGE_INFO_STRIDE, 'the marked row, not the whole table')
-  assert.equal(writes[0].bytes, PAGE_INFO_STRIDE, 'one row of bytes')
+  assert.equal(writes[0].offset, 2 * PAGE_INFO_STRIDE, 'the marked row, not the whole table')
+  assert.equal(writes[0].size, PAGE_INFO_STRIDE, 'one row of bytes')
   assert.equal(rt.timing.encodeCounts.rowsUploaded, 1)
 })
 
@@ -82,12 +64,12 @@ test('two runs of marked rows are two writes, not one that spans the gap between
   uploadDirtyRows(rt)
   assert.equal(writes.length, 2, 'each run is written on its own')
   assert.deepEqual(
-    writes.map((w) => w.at),
+    writes.map((w) => w.offset),
     [0, 4 * PAGE_INFO_STRIDE],
     'at the rows they hold',
   )
   assert.deepEqual(
-    writes.map((w) => w.bytes),
+    writes.map((w) => w.size),
     [2 * PAGE_INFO_STRIDE, PAGE_INFO_STRIDE],
   )
   assert.equal(rt.timing.encodeCounts.rowsUploaded, 3, 'every row of both runs')
@@ -107,8 +89,8 @@ test('a run that reaches the last row is written whole: there is no zero after i
   const { rt, writes } = session([0, 1, 1])
   uploadDirtyRows(rt)
   assert.equal(writes.length, 1)
-  assert.equal(writes[0].at, PAGE_INFO_STRIDE, 'from the first marked row')
-  assert.equal(writes[0].bytes, 2 * PAGE_INFO_STRIDE, 'both rows of the run')
+  assert.equal(writes[0].offset, PAGE_INFO_STRIDE, 'from the first marked row')
+  assert.equal(writes[0].size, 2 * PAGE_INFO_STRIDE, 'both rows of the run')
 })
 
 test('no page table yet: nothing is written, and no table is required to ask', () => {

@@ -5,20 +5,13 @@
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { cpuHashUnit } from '../../../math/src/scalar/hashUnit.fixture.ts'
 
 /** `pack2x16float`: two half floats, the first in the low 16 bits. */
 const pack2x16float = (v: number[]) => (toHalf(v[0]) | (toHalf(v[1]) << 16)) >>> 0
 
 /** `unpack2x16float`: the two half floats of a word, the low 16 bits first. */
 const unpack2x16float = (word: number) => [fromHalf(word & 0xffff), fromHalf(word >>> 16)]
-
-/** `hashUnit`, as the maths library's `hashUnit` computes it in `u32`. */
-function hashUnit(seed: number) {
-  let x = (Math.imul(seed >>> 0, 747796405) + 2891336453) >>> 0
-  x = Math.imul(((x >>> ((x >>> 28) + 4)) ^ x) >>> 0, 277803737) >>> 0
-  x = ((x >>> 22) ^ x) >>> 0
-  return Math.fround(Math.fround(x) * Math.fround(2.3283064e-10))
-}
 
 /** The flicker measure's structure (`SHADING_HISTORY_WGSL`), built by member name. */
 const ShadingMoire = (
@@ -44,7 +37,7 @@ const TaaNearest = (depth: number, slope: number, id: number) => ({ depth, slope
 export const taaBuiltins = {
   pack2x16float,
   unpack2x16float,
-  hashUnit,
+  hashUnit: cpuHashUnit,
   ShadingMoire,
   TaaPage,
   TaaNearest,

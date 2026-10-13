@@ -1,16 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { cross, subtract } from '../../../../math/src/vector/vectorTuple.ts'
+import { cross, subtract, unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 type V = number[]
+type T3 = [number, number, number]
 const { shadingPointOffset } = shaderRun<{
   shadingPointOffset: (...vectors: V[]) => V
 }>(SHADING_POINT_WGSL, ['shadingPointOffset', 'faceNormal'], {})
-const dot = (a: V, b: V) => a.reduce((v, x, i) => v + x * b[i], 0)
-const unit = (a: V) => a.map((x) => x / Math.hypot(...a))
 
 test('receiver projects onto interpolated vertex tangent planes and keeps flat surfaces exact', () => {
   const vertices = [
@@ -33,7 +33,7 @@ test('receiver projects onto interpolated vertex tangent planes and keeps flat s
   const actual = shadingPointOffset(P, bary, ...vertices, ...normals)
   // Independent construction: each tangent-plane projection, then barycentric interpolation.
   const projected = vertices.map((v, i) => {
-    const signedDistance = dot(
+    const signedDistance = dotVector3(
       P.map((x, j) => x - v[j]),
       normals[i],
     )
@@ -102,17 +102,17 @@ test('the receiver never falls behind its triangle: a concave patch keeps its po
   for (let i = 0; i < 500; i++) {
     const p = [0, 1, 2].map(() => [random(), random(), random()].map((x) => x * 4))
     const face = cross(subtract(p[1], p[0]), subtract(p[2], p[0]))
-    const n = [0, 1, 2].map(() => unit(face.map((x) => x + random() * Math.hypot(...face))))
+    const n = [0, 1, 2].map(() => unit(face.map((x) => x + random() * Math.hypot(...face)) as T3))
     const w = [Math.abs(random()), Math.abs(random()), Math.abs(random())]
     const bary = w.map((x) => x / (w[0] + w[1] + w[2]))
     const P = [0, 1, 2].map((j) => bary.reduce((v, b, k) => v + b * p[k][j], 0))
     const offset = shadingPointOffset(P, bary, ...p, ...n)
     const front = Math.sign(
-      dot(
+      dotVector3(
         face,
         n[0].map((x, j) => x + n[1][j] + n[2][j]),
       ),
     )
-    assert.ok(front * dot(offset, face) >= 0, `triangle ${i}: receiver behind its surface`)
+    assert.ok(front * dotVector3(offset, face) >= 0, `triangle ${i}: receiver behind its surface`)
   }
 })

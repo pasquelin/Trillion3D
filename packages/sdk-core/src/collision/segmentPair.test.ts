@@ -1,13 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closestBetweenSegments } from './segmentPair.ts'
-import { onSegment as within } from './segment.fixture.ts'
+import { onSegment } from './segment.fixture.ts'
 
 // The closed form against a dense sampling of both segments: the true distance is never above the
 // nearest sampled pair, nor further below it than the sampling step; the pair lies on the segments.
 
 const STEPS = 400
-const onSegment = (p: ArrayLike<number>, s: number[]) => within(p, s, 1e-12, 1e-18)
 const at = (s: number[], t: number) => [0, 1, 2].map((k) => s[k] + t * (s[3 + k] - s[k]))
 
 function sampled(first: number[], second: number[]) {
@@ -42,8 +41,14 @@ test('two segments: the distance and the pair of their nearest points, degenerat
     const expected = sampled(first, second)
     assert.ok(distance <= expected + 1e-12, `${label}: ${distance} above ${expected}`)
     assert.ok(distance >= expected - 0.02, `${label}: ${distance} below ${expected}`)
-    assert.ok(onSegment(out.subarray(0, 3), first), `${label}: first point off its segment`)
-    assert.ok(onSegment(out.subarray(3, 6), second), `${label}: second point off its segment`)
+    assert.ok(
+      onSegment(out.subarray(0, 3), first, 1e-12, 1e-18),
+      `${label}: first point off its segment`,
+    )
+    assert.ok(
+      onSegment(out.subarray(3, 6), second, 1e-12, 1e-18),
+      `${label}: second point off its segment`,
+    )
     const gap = Math.hypot(out[0] - out[3], out[1] - out[4], out[2] - out[5])
     assert.ok(Math.abs(gap - distance) < 1e-12, `${label}: the pair is at the distance`)
   }

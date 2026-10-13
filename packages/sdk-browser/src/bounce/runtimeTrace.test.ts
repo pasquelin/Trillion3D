@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { stream, world } from './runtimeScene.fixture.ts'
+import { world } from './runtimeScene.fixture.ts'
+import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import type { Spent } from './runtimeOracle.fixture.ts'
 import { bruteForce, traceScene } from './runtimeSceneOracle.fixture.ts'
@@ -14,7 +15,7 @@ for (const count of [5, 64, 65, 400]) {
   test(`${count} placements: the two-level walk finds what every triangle finds`, () => {
     const world = scene(count, count)
     assert.equal(!!world.packed.placementTree, count > 64, 'the tree starts above 64 placements')
-    const random = stream(7)
+    const random = lcgRandom(7)
     const side = Math.ceil(Math.sqrt(count)) * 3
     let hits = 0
     for (let ray = 0; ray < 300; ray++) {
@@ -43,7 +44,7 @@ for (const count of [5, 64, 65, 400]) {
 
 test('a ray never spends more than its budget, whatever it crosses', () => {
   const world = scene(400, 3)
-  const random = stream(11)
+  const random = lcgRandom(11)
   for (let ray = 0; ray < 200; ray++) {
     const origin: [number, number, number] = [random() * 60, 2, random() * 60]
     const direction: [number, number, number] = [

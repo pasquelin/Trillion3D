@@ -6,7 +6,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
 import { along, ahead, counters, makeStore, origin, runOver } from './runtimeRun.fixture.ts'
-import { world, type Vec } from './runtimeScene.fixture.ts'
+import { world } from './runtimeScene.fixture.ts'
+import type { Vec } from './runtimeOracle.fixture.ts'
 
 const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
 

@@ -7,8 +7,7 @@ import {
   uniformScaleMatrix4,
 } from './matrix4Trs.ts'
 import { determinantMatrix4 } from './matrix4.ts'
-
-const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
+import { nearly } from '../float/near.fixture.ts'
 
 test('composeMatrix4: identity and translation only, last row (0,0,0,1) exact', () => {
   const out = composeMatrix4(new Float64Array(16), [1, 2, 3], [0, 0, 0, 1], [1, 1, 1])
@@ -18,9 +17,9 @@ test('composeMatrix4: identity and translation only, last row (0,0,0,1) exact', 
 test('composeMatrix4: 90° rotation around z, x and y columns swapped and signed', () => {
   const s = Math.SQRT1_2 // quaternion (0, 0, sin45, cos45)
   const out = composeMatrix4(new Float64Array(16), [0, 0, 0], [0, 0, s, s], [1, 1, 1])
-  assert.ok(near(out[0], 0) && near(out[1], 1), 'column x becomes +y')
-  assert.ok(near(out[4], -1) && near(out[5], 0), 'column y becomes -x')
-  assert.ok(near(out[10], 1))
+  assert.ok(nearly(out[0], 0) && nearly(out[1], 1), 'column x becomes +y')
+  assert.ok(nearly(out[4], -1) && nearly(out[5], 0), 'column y becomes -x')
+  assert.ok(nearly(out[10], 1))
 })
 
 test('decomposeMatrix4: round-trip on a rigid pose (non-uniform scale, arbitrary rotation)', () => {
@@ -35,16 +34,16 @@ test('decomposeMatrix4: round-trip on a rigid pose (non-uniform scale, arbitrary
     s2 = new Float64Array(3)
   decomposeMatrix4(m, p2, q2, s2)
   assert.ok(
-    [...p2].every((v, i) => near(v, position[i])),
+    [...p2].every((v, i) => nearly(v, position[i])),
     'position',
   )
   assert.ok(
-    [...s2].every((v, i) => near(v, scale[i])),
+    [...s2].every((v, i) => nearly(v, scale[i])),
     'scale',
   )
   const recompose = composeMatrix4(new Float64Array(16), p2, q2, s2)
   assert.ok(
-    [...recompose].every((v, i) => near(v, m[i], 1e-6)),
+    [...recompose].every((v, i) => nearly(v, m[i], 1e-6)),
     'recomposition without shear',
   )
 })

@@ -6,7 +6,13 @@
 // is not below 0 or NaN, as `vsmTileDepthsBuild` writes them (`projectionEarlyOut.test.ts`).
 import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { CODE, PAGE_FUNCTIONS, unit, vsmWorld, type Ptr as PtrOf } from './pageWorld.fixture.ts'
+import {
+  CODE,
+  PAGE_FUNCTIONS,
+  keyedRandom,
+  vsmWorld,
+  type Ptr as PtrOf,
+} from './pageWorld.fixture.ts'
 import { VSM_PAGE_TEXELS, VSM_TILE_DEPTHS_PER_PAGE } from './constants.ts'
 
 /** The words no depth is, one texel in 200 each. */
@@ -20,9 +26,9 @@ function poolWord(seed: number, x: number, y: number) {
     py = y >> 7,
     u = x & 127,
     v = y & 127
-  const odd = unit(seed, x, y, 11)
+  const odd = keyedRandom(seed, x, y, 11)
   if (odd < 0.015) return ODD[Math.floor(odd / 0.005)]
-  const r = (k: number) => unit(seed, px, py, k)
+  const r = (k: number) => keyedRandom(seed, px, py, k)
   if (r(1) < 0.1) return 0 // an empty page
   let depth = 0.25 + 0.4 * r(2) + (r(3) - 0.5) * 0.004 * u + (r(4) - 0.5) * 0.004 * v
   // Up to three boxes a page, raised toward the light.

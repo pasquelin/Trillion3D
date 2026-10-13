@@ -16,8 +16,8 @@ import { particleTargets } from '../particles/particleTargets.ts'
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
-import { clamp } from '../../../math/src/scalar/reals.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number }
 const { currentShare } = shaderRun<Share>(wgslSource(CURRENT_SHARE_WGSL), ['currentShare'], {})
@@ -66,11 +66,8 @@ test('a moving history keeps four samples beside the current one at a pixel a fr
 /** A history of 8×8 texels read bilinearly, clamped to its edge: a step from 0 to 1 at column 4,
  *  every row the same. */
 const step = (x: number) => (x < 4 ? 0 : 1)
-function bilinear([u]: number[]) {
-  const x = clamp(u * 8 - 0.5, 0, 7)
-  const x0 = Math.floor(x),
-    fx = x - x0
-  const value = step(x0) * (1 - fx) + step(Math.min(x0 + 1, 7)) * fx
+function bilinear([u, v]: number[]) {
+  const value = bilinearRead(step, 8, 8, u * 8, v * 8)
   return [value, value, value, 1]
 }
 /** A row's centre: the vertical taps land on it. */
