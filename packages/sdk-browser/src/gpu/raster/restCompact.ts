@@ -8,6 +8,10 @@ import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { computeBufferEntry, sequentialEntries } from '../core/computeBindings.ts'
+import {
+  createWebgpuBindIdentity,
+  type WebgpuBindIdentity,
+} from '../../webgpu/core/bindIdentity.ts'
 
 export type GpuRestCompact = {
   /**
@@ -73,8 +77,9 @@ export async function createGpuRestCompact(
       // The copy covers the instance list's own range; the counts and tile words follow it.
       copyWords: sources.instances.size / 4,
       uniData: new Uint32Array(4),
-      ...{ disposed: false, work: undefined, bound: undefined },
-      ...{ bindGroup: undefined, argsGroup: undefined },
+      ...{ disposed: false, work: undefined },
+      ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined },
+      ...{ argsBound: createWebgpuBindIdentity(), argsGroup: undefined },
     })
   } catch {
     cleanupFailedHiz(owned)
@@ -93,9 +98,12 @@ type RestState = NonNullable<Awaited<ReturnType<typeof restPipelines>>> & {
   uniData: Uint32Array<ArrayBuffer>
   disposed: boolean
   work: GPUBuffer | undefined
-  bound: { pages: GPUBuffer; work: GPUBuffer } | undefined
+  /** The stages' group over the sources, the pages and the work buffer, made again when one of
+   *  them moved (`createWebgpuBindIdentity`). */
+  bound: WebgpuBindIdentity
   bindGroup: GPUBindGroup | undefined
   /** Group 0 of `restArgs` alone: the uniform, the partition's state and the arguments. */
+  argsBound: WebgpuBindIdentity
   argsGroup: GPUBindGroup | undefined
 }
 
@@ -158,8 +166,7 @@ function restCompactOps(c: RestState): GpuRestCompact {
     rebind(next) {
       c.buffers = next
       c.copyWords = next.instances.size / 4
-      // The group and the uniform are made again at the next encode.
-      c.bound = c.argsGroup = undefined
+      // The uniform is written again at the next encode, the groups over what moved made again.
       c.uniData[0] = 0
     },
     dispose() {
@@ -186,33 +193,32 @@ function encodeRest(
     c.work = workBuffer(device, words)
     c.owned = [uniforms, c.tileArgs, c.work]
   }
-  const work = c.work
-  if (c.bound?.pages !== pages || c.bound.work !== work) {
-    c.bound = { pages, work }
-    c.bindGroup = bounceGroup(device, c.layout, [
-      buffers.instances,
-      buffers.indirect,
-      buffers.slotOffsets,
-      pages,
-      buffers.flags,
-      work,
-      uniforms,
-    ])
-  }
-  c.argsGroup ??= device.createBindGroup({
-    layout: c.argsLayout,
-    entries: sequentialEntries(
-      [{ buffer: uniforms }, { buffer: buffers.state }, { buffer: c.tileArgs }],
-      6,
-    ),
-  })
+  // What the group names, in its bindings' order: the list its group is made of.
+  const { next } = c.bound
+  next[0] = buffers.instances
+  next[1] = buffers.indirect
+  next[2] = buffers.slotOffsets
+  next[3] = pages
+  next[4] = buffers.flags
+  next[5] = c.work
+  next[6] = uniforms
+  if (c.bound.moved()) c.bindGroup = bounceGroup(device, c.layout, next as GPUBuffer[])
+  c.argsBound.next[0] = buffers.state
+  if (c.argsBound.moved())
+    c.argsGroup = device.createBindGroup({
+      layout: c.argsLayout,
+      entries: sequentialEntries(
+        [{ buffer: uniforms }, { buffer: buffers.state }, { buffer: c.tileArgs }],
+        6,
+      ),
+    })
   // Slots and tiles are fixed by preparation: the uniform is written only when they change.
   if (uniData[0] !== restSlots || uniData[1] !== tiles) {
     uniData.set([restSlots, tiles, c.copyWords, buffers.perRow])
     device.queue.writeBuffer(uniforms, 0, uniData)
   }
   const pass = open.pass
-  pass.setBindGroup(0, c.argsGroup)
+  pass.setBindGroup(0, c.argsGroup!)
   pass.setPipeline(c.argsPipeline)
   pass.dispatchWorkgroups(1)
   // A slot up z, its tiles in rows along x and y, as many as the tested rows can fill.

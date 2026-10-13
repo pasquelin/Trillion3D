@@ -75,7 +75,8 @@ import {
   type VsmRenderScene,
 } from './renderPass.ts'
 import {
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -346,8 +347,9 @@ export interface VsmTransmissionContext extends VsmChunkKernels {
   bound: WebgpuBindIdentity
   /** The chunk groups over those alone, made again when one of them moved. */
   lists?: ChunkLists
-  /** The chunk groups over the tables of a frame set (`res.current`), made once a set. */
-  tables: WeakMap<VsmFrameBuffers, ChunkTables>
+  /** The chunk groups over the tables of a frame set (`res.current`, the two in turn) and
+   *  `lists`, made again when one of them moved. */
+  tables: VsmPerFrameSet<ChunkTables>
   /** Where the blended rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
@@ -356,7 +358,7 @@ export interface VsmTransmissionContext extends VsmChunkKernels {
 interface TransmissionGroups {
   trans: VsmTransmission
   /** The clear's group of the VSM tables, by the frame's tables it binds. */
-  clear0: WeakMap<VsmFrameBuffers, GPUBindGroup>
+  clear0: VsmPerFrameSet<GPUBindGroup>
   clear1: GPUBindGroup
   number: GPUBindGroup
   place: GPUBindGroup
@@ -479,7 +481,7 @@ function context(trans: VsmTransmission, device: GPUDevice): VsmTransmissionCont
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
-    ...vsmChunkContext(TRANSMISSION_LABEL, device.limits, existing),
+    ...vsmChunkContext<ChunkTables>(TRANSMISSION_LABEL, device.limits, existing),
   }
   trans.context = ctx
   return ctx
@@ -547,7 +549,7 @@ export function encodeVsmTransmission(
   const bin = plan?.within.size ? binLists(encoder, ctx, trans, res, scene, plan) : undefined
   const pass = encoder.beginComputePass(TRANSMISSION_PASS)
   pass.setPipeline(ctx.clear.pipeline)
-  pass.setBindGroup(0, clearTablesGroup(device, ctx, groups, res))
+  pass.setBindGroup(0, vsmPerFrameSet(groups.clear0, res, clearTables, ctx))
   pass.setBindGroup(1, groups.clear1)
   // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
@@ -588,7 +590,7 @@ function transmissionGroups(
   const { uniform, build, table, pool, links } = trans
   return (ctx.groups = {
     trans,
-    clear0: new WeakMap(),
+    clear0: vsmFrameSetHeld(),
     clear1: vsmBufferGroup(device, ctx.clear.groups[1], [uniform, build, table, pool, links]),
     number: vsmBufferGroup(device, ctx.number.groups[0], [uniform, build, trans.args]),
     place: vsmBufferGroup(device, ctx.place.groups[0], [uniform, build]),
@@ -604,23 +606,12 @@ function transmissionGroups(
   })
 }
 
-/** The clear's group of the VSM tables this frame reads (`res.current`), made once per set. */
-function clearTablesGroup(
-  device: GPUDevice,
-  ctx: VsmTransmissionContext,
-  groups: TransmissionGroups,
-  res: VsmResources,
-) {
-  let group = groups.clear0.get(res.current)
-  if (!group) {
-    group = device.createBindGroup({
-      layout: ctx.clear.groups[0],
-      entries: vsmBindGroupEntries(res, VSM_TRANSMISSION_CLEAR_SPECS),
-    })
-    groups.clear0.set(res.current, group)
-  }
-  return group
-}
+/** The clear's group of the VSM tables this frame reads (`res.current`, `vsmPerFrameSet`). */
+const clearTables = (res: VsmResources, ctx: VsmTransmissionContext) =>
+  ctx.device.createBindGroup({
+    layout: ctx.clear.groups[0],
+    entries: vsmBindGroupEntries(res, VSM_TRANSMISSION_CLEAR_SPECS),
+  })
 
 /** The transmission's lists for a chunk of `rows` of its `used` blended rows, by buffer: the
  *  render lists, their parameter slots `slots`, its page list holding a header a
@@ -737,12 +728,9 @@ function chunkGroups(
   bound[11] = trans.uniform
   bound[12] = trans.build
   bound[13] = trans.args
-  if (vsmSceneRowsMoved(ctx.bound, scene, b, 3)) {
-    ctx.lists = undefined
-    ctx.tables = new WeakMap()
-  }
+  if (vsmSceneRowsMoved(ctx.bound, scene, b, 3)) ctx.lists = undefined
   const lists = (ctx.lists ??= chunkLists(ctx, trans, bound))
-  return { lists, tables: vsmPerFrameSet(ctx.tables, res, chunkTables, ctx) }
+  return { lists, tables: vsmPerFrameSet(ctx.tables, res, chunkTables, ctx, lists) }
 }
 
 /** The frame's bin: the blended rows' chunks the GPU budget's room holds (`vsmChunkRowsWithin`),

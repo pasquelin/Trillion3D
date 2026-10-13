@@ -38,7 +38,8 @@ import {
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
@@ -174,7 +175,7 @@ interface Pipe {
   pipe: VsmComputePipe
   device: GPUDevice
   /** Group 0 over the tables of a frame set (`res.current`, the two in turn), made once a set. */
-  tables: WeakMap<VsmFrameBuffers, GPUBindGroup>
+  tables: VsmPerFrameSet<GPUBindGroup>
 }
 /** What the invalidation of a set holds (`VsmResources.invalidation`): the pipe it was given, its
  *  WGSL built and looked up once, not every frame, and the upload buffers of its phase slots. */
@@ -189,7 +190,7 @@ function pipe(device: GPUDevice, res: VsmResources): Pipe {
   return (invalidationOf(res).pipe ??= {
     pipe: vsmInvalidationPipe(device, res.layout),
     device,
-    tables: new WeakMap(),
+    tables: vsmFrameSetHeld(),
   })
 }
 

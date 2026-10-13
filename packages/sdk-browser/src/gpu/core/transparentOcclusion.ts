@@ -6,6 +6,10 @@ import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './co
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
+import {
+  createWebgpuBindIdentity,
+  type WebgpuBindIdentity,
+} from '../../webgpu/core/bindIdentity.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -50,7 +54,7 @@ export async function createTransparentOcclusion(
     }
     o = {
       ...{ device, entryCount, sources, ...buffers, ...made },
-      ...{ bound: undefined, verdicts: undefined, bindGroup: undefined, disposed: false },
+      ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
       // A thread an entry.
       groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
     }
@@ -77,7 +81,6 @@ export async function createTransparentOcclusion(
         destroy()
         Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
         o.groups = workgroupCount(entries, PARTITION_WORKGROUP)
-        o.bindGroup = undefined
         return true
       },
       /**
@@ -109,10 +112,10 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   corners: GPUBuffer
   unculledBits: Uint32Array<ArrayBuffer>
   unculled: GPUBuffer
-  /** The pyramid changes identity on every target resize: the bind group follows it, and a
-   *  frame without a pyramid encodes nothing rather than reading a dead buffer. */
-  bound: GPUTextureView | undefined
-  verdicts: GPUBuffer | undefined
+  /** What the bind group names (`createWebgpuBindIdentity`): the pyramid, which changes identity on
+   *  every target resize, the verdicts and the buffers a growth makes over; a frame without a
+   *  pyramid encodes nothing rather than reading a dead buffer. */
+  bound: WebgpuBindIdentity
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
   groups: number
@@ -176,9 +179,13 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
     return
   }
   const occluded = sources.occluded()
-  if (pyramid !== o.bound || occluded !== o.verdicts || !o.bindGroup) {
-    o.bound = pyramid
-    o.verdicts = occluded
+  const { next } = o.bound
+  next[0] = pyramid
+  next[1] = occluded
+  next[2] = o.corners
+  next[3] = o.unculled
+  next[4] = sources.uniforms
+  if (o.bound.moved())
     o.bindGroup = o.device.createBindGroup({
       layout: o.layout,
       entries: sequentialEntries([
@@ -189,10 +196,9 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
         { buffer: o.unculled },
       ]),
     })
-  }
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
   pass.setPipeline(o.pipeline)
-  pass.setBindGroup(0, o.bindGroup)
+  pass.setBindGroup(0, o.bindGroup!)
   dispatchRows(pass, o.groups)
   pass.end()
 }

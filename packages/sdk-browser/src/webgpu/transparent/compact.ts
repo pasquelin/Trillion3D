@@ -6,6 +6,7 @@ import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -73,9 +74,9 @@ function compactPasses(
         ].map((buffer) => ({ buffer })),
       ),
     })
-  let boundMask: GPUBuffer | undefined,
-    boundTo: Held | undefined,
-    bindGroup: GPUBindGroup | undefined
+  // The group over the mask and the held buffers, made again when either moved.
+  const bound = createWebgpuBindIdentity()
+  let bindGroup: GPUBindGroup | undefined
   const uniData = new Uint32Array(UNIFORM_WORDS)
   return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
     const made = held()
@@ -88,11 +89,12 @@ function compactPasses(
     uniData[2] = table.pagedItems.length
     uniData[3] = maskOffset
     uniData[4] = table.maxVertexWords
-    if (!bindGroup || mask !== boundMask || made !== boundTo)
-      bindGroup = bindTo((boundMask = mask), (boundTo = made))
+    bound.next[0] = mask
+    bound.next[1] = made
+    if (bound.moved()) bindGroup = bindTo(mask, made)
     device.queue.writeBuffer(made.uniforms, 0, uniData)
     const pass = encoder.beginComputePass({ label: TRANSPARENT_COMPACTION_PASS })
-    pass.setBindGroup(0, bindGroup)
+    pass.setBindGroup(0, bindGroup!)
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step])
       dispatchRows(pass, launches[step])

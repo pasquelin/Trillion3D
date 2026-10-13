@@ -77,6 +77,8 @@ import {
   remakeSlotBox,
 } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { liveBuffer } from '../webgpu/core/liveEntries.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { createMirroredKeys, mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import { COMPOSE_MEMBERS_PASS, COMPOSE_ROOTS_PASS, COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import type { ComposedLeaves } from '../gpu/dag/treeFollow.ts'
@@ -88,6 +90,91 @@ const heldGroup = () => ({
   group: undefined as GPUBindGroup | undefined,
 })
 type HeldGroup = ReturnType<typeof heldGroup>
+
+/** `held`'s group over its entries (`identity.entries[0]`, read live) on `pipeline`'s group 0,
+ *  made again when the pipeline or a resource they name moved (`entriesMoved`); whether it was. */
+function composeGroup(device: GPUDevice, held: HeldGroup, pipeline: GPUComputePipeline) {
+  const moved = held.identity.entriesMoved(pipeline)
+  if (moved)
+    held.group = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(0),
+      entries: held.identity.entries[0],
+    })
+  return moved
+}
+
+/** The world range `r` of the cut this frame, and its first `count` worlds' words as a binding
+ *  of `bytes` each. */
+const rangeOf = (gpu: ComposeGpu, r: number) => gpu.frame.ranges[r]
+const rangeBytes = (gpu: ComposeGpu, r: number, bytes: number) => () =>
+  rangeOf(gpu, r).count * bytes
+
+/** The roots pass's entries over range `r` (`COMPOSE_ROOTS_WGSL`), read live: its parameters'
+ *  slot, the links, the parents, its worlds, the motion and its mode, the previous worlds, its
+ *  frames, the roots' boxes and their list. */
+const rootEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
+  sequentialEntries([
+    liveBuffer(
+      () => gpu.rootParams.buffer,
+      () => r * uniformStride(device.limits),
+      () => 16,
+    ),
+    liveBuffer(() => gpu.locals),
+    liveBuffer(() => gpu.parentOf),
+    liveBuffer(() => gpu.parents),
+    liveBuffer(
+      () => rangeOf(gpu, r).buffer,
+      undefined,
+      rangeBytes(gpu, r, 64 + WORLD_ORIGIN_BYTES),
+    ),
+    liveBuffer(() => gpu.frame.motion ?? gpu.noMotion),
+    liveBuffer(() => gpu.motionMode),
+    liveBuffer(() => gpu.previous),
+    liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
+    liveBuffer(() => gpu.rootInputs),
+    liveBuffer(() => gpu.rootBoxes),
+    liveBuffer(() => gpu.rankList),
+  ])
+
+/** The members pass's entries over range `r`, read live: its parameters' slot, the links, the
+ *  parents, its frames, the tree's members and the composed roots' list. */
+const memberEntries = (device: GPUDevice, gpu: ComposeGpu, r: number) =>
+  sequentialEntries([
+    liveBuffer(
+      () => gpu.memberParams.buffer,
+      () => r * uniformStride(device.limits),
+      () => 16,
+    ),
+    liveBuffer(() => gpu.locals),
+    liveBuffer(() => gpu.parentOf),
+    liveBuffer(() => gpu.parents),
+    liveBuffer(() => rangeOf(gpu, r).frames, undefined, rangeBytes(gpu, r, PRIMITIVE_BYTES)),
+    liveBuffer(() => gpu.frame.members),
+    liveBuffer(() => gpu.rankList),
+  ])
+
+/** The rows pass's entries, read live: its parameters, the links, the parents, the page table, the
+ *  parts it writes and reads, and the composed rows' list. */
+const rowEntries = (gpu: ComposeGpu) => {
+  const { frame } = gpu
+  return sequentialEntries([
+    liveBuffer(
+      () => gpu.rowParams,
+      undefined,
+      () => 16,
+    ),
+    liveBuffer(() => gpu.locals),
+    liveBuffer(() => gpu.parentOf),
+    liveBuffer(() => gpu.parents),
+    liveBuffer(() => frame.table),
+    liveBuffer(() => frame.spheres),
+    liveBuffer(() => frame.inputs),
+    liveBuffer(() => gpu.rootBoxes),
+    liveBuffer(() => frame.corners),
+    liveBuffer(() => frame.lods),
+    liveBuffer(() => gpu.rowList),
+  ])
+}
 
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
@@ -626,6 +713,19 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
     memberGroups: [] as HeldGroup[],
     memberNodes: heldGroup(),
     rowsGroup: heldGroup(),
+    /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
+     *  world ranges, the motion the roots bind, the members the tree's fit hands, the rows' table
+     *  and the parts they write — a stand-in each where the part is not made. */
+    frame: {
+      ranges: [] as GpuSelection['worldRanges'],
+      motion: undefined as GPUBuffer | undefined,
+      members: undefined as GPUBuffer | undefined,
+      table: undefined as GPUBuffer | undefined,
+      spheres: undefined as GPUBuffer | undefined,
+      inputs: undefined as GPUBuffer | undefined,
+      corners: undefined as GPUBuffer | undefined,
+      lods: undefined as GPUBuffer | undefined,
+    },
     dispose() {
       locals.destroy()
       parentOf.destroy()
@@ -657,7 +757,8 @@ const rangeParams = (label: string) => ({
 })
 type RangeParams = ReturnType<typeof rangeParams>
 
-/** `params` written for `ranges`, `roots` roots and `listed` composed ones; their slot's stride. */
+/** `params` written for `ranges`, `roots` roots and `listed` composed ones, a slot of the device's
+ *  stride (`uniformStride`) each. */
 function writeRangeParams(
   device: GPUDevice,
   params: RangeParams,
@@ -678,7 +779,7 @@ function writeRangeParams(
         params.words[at + 2] === ranges[r].count &&
         params.words[at + 3] === listed
     }
-    if (same) return stride
+    if (same) return
   }
   params.words = resized(params.words, words)
   if (!params.buffer || params.buffer.size < words * 4) {
@@ -698,7 +799,6 @@ function writeRangeParams(
   }
   device.queue.writeBuffer(params.buffer, 0, params.words, 0, words)
   params.written = words
-  return stride
 }
 
 /** The roots' and the rows' kernels, once a device, compiled off the thread: asked at a frame's
@@ -758,8 +858,8 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
       const listed = state.rankList.set.count
       if (!gpu?.parents || !gpu.rankList || !listed) return
       const pipeline = memberKernels(device).of(nodeLayout(nodeParts)).ask().get(),
-        ranges = selection.worldRanges,
-        stride = writeRangeParams(device, gpu.memberParams, ranges, state.roots, listed)
+        ranges = selection.worldRanges
+      writeRangeParams(device, gpu.memberParams, ranges, state.roots, listed)
       const nodes = gpu.memberNodes,
         named = nodes.identity.next
       named.length = 0
@@ -775,39 +875,13 @@ export function composedLeaves(rt: WebgpuPagesRuntime): ComposedLeaves {
       const pass = encoder.beginComputePass({ label: COMPOSE_MEMBERS_PASS })
       pass.setPipeline(pipeline)
       pass.setBindGroup(1, nodes.group)
+      gpu.frame.ranges = ranges
+      gpu.frame.members = members
       for (let r = 0; r < ranges.length; r++) {
-        const { count, frames } = ranges[r],
-          held = (gpu.memberGroups[r] ??= heldGroup()),
-          next = held.identity.next
-        next[0] = pipeline
-        next[1] = gpu.memberParams.buffer
-        next[2] = gpu.parents
-        next[3] = frames
-        next[4] = count
-        next[5] = members
-        next[6] = gpu.rankList
-        next[7] = gpu.locals
-        next[8] = gpu.parentOf
-        if (held.identity.moved() || !held.group)
-          held.group = device.createBindGroup({
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [
-              {
-                binding: 0,
-                resource: { buffer: gpu.memberParams.buffer!, offset: r * stride, size: 16 },
-              },
-              { binding: 1, resource: { buffer: gpu.locals } },
-              { binding: 2, resource: { buffer: gpu.parentOf } },
-              { binding: 3, resource: { buffer: gpu.parents } },
-              {
-                binding: 4,
-                resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES },
-              },
-              { binding: 5, resource: { buffer: members } },
-              { binding: 6, resource: { buffer: gpu.rankList } },
-            ],
-          })
-        pass.setBindGroup(0, held.group)
+        const held = (gpu.memberGroups[r] ??= heldGroup())
+        held.identity.entries[0] ??= memberEntries(device, gpu, r)
+        composeGroup(device, held, pipeline)
+        pass.setBindGroup(0, held.group!)
         dispatchRows(pass, ceilDiv(listed, 64))
       }
       pass.end()
@@ -918,48 +992,15 @@ export function encodeComposedRoots(
   if (state.moving) selection.worldsMovedOnGpu(state.rankList.set.list.subarray(0, listed))
   const motionBuffer = rt.gpu.temporal?.frame.active ? rt.gpu.temporal.motion.buffer : undefined
   const ranges = selection.worldRanges,
-    pipeline = composeKernels(device).roots.get(),
-    stride = writeRangeParams(device, gpu.rootParams, ranges, state.roots, listed)
+    pipeline = composeKernels(device).roots.get()
+  writeRangeParams(device, gpu.rootParams, ranges, state.roots, listed)
+  gpu.frame.ranges = ranges
+  gpu.frame.motion = motionBuffer
   let bound = false
   for (let r = 0; r < ranges.length; r++) {
-    const { count, buffer, frames } = ranges[r],
-      held = (gpu.rootGroups[r] ??= heldGroup()),
-      next = held.identity.next
-    next[0] = pipeline
-    next[1] = gpu.rootParams.buffer
-    next[2] = gpu.parents
-    next[3] = buffer
-    next[4] = count
-    next[5] = motionBuffer ?? gpu.noMotion
-    next[6] = frames
-    next[7] = gpu.rootInputs
-    next[8] = gpu.rootBoxes
-    next[9] = gpu.rankList
-    next[10] = gpu.locals
-    next[11] = gpu.parentOf
-    if (held.identity.moved() || !held.group) {
-      bound = true
-      held.group = device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-          {
-            binding: 0,
-            resource: { buffer: gpu.rootParams.buffer!, offset: r * stride, size: 16 },
-          },
-          { binding: 1, resource: { buffer: gpu.locals } },
-          { binding: 2, resource: { buffer: gpu.parentOf } },
-          { binding: 3, resource: { buffer: gpu.parents } },
-          { binding: 4, resource: { buffer, offset: 0, size: count * (64 + WORLD_ORIGIN_BYTES) } },
-          { binding: 5, resource: { buffer: motionBuffer ?? gpu.noMotion } },
-          { binding: 6, resource: { buffer: gpu.motionMode } },
-          { binding: 7, resource: { buffer: gpu.previous } },
-          { binding: 8, resource: { buffer: frames, offset: 0, size: count * PRIMITIVE_BYTES } },
-          { binding: 9, resource: { buffer: gpu.rootInputs } },
-          { binding: 10, resource: { buffer: gpu.rootBoxes } },
-          { binding: 11, resource: { buffer: gpu.rankList } },
-        ],
-      })
-    }
+    const held = (gpu.rootGroups[r] ??= heldGroup())
+    held.identity.entries[0] ??= rootEntries(device, gpu, r)
+    if (composeGroup(device, held, pipeline)) bound = true
   }
   // Every word this pass writes is the one it wrote last, unless something it reads moved, a host
   // write put its own words there (`frameWrites`), or the motion is not settled: a still view of a
@@ -1024,39 +1065,14 @@ export function encodeComposedRows(
   if (!listed) return
   const pipeline = composeKernels(device).rows.get()
   const held = gpu.rowsGroup,
-    next = held.identity.next,
-    sphereWorlds = spheres?.buffer ?? gpu.absent[0],
-    cornerWords = corners ?? gpu.absent[1],
-    lodWords = lods ?? gpu.absent[2]
-  next[0] = pipeline
-  next[1] = gpu.parents
-  next[2] = table
-  next[3] = sphereWorlds
-  next[4] = inputs.buffer
-  next[5] = gpu.rootBoxes
-  next[6] = cornerWords
-  next[7] = lodWords
-  next[8] = gpu.rowList
-  next[9] = gpu.locals
-  next[10] = gpu.parentOf
-  const bound = held.identity.moved() || !held.group
-  if (bound)
-    held.group = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: gpu.rowParams, offset: 0, size: 16 } },
-        { binding: 1, resource: { buffer: gpu.locals } },
-        { binding: 2, resource: { buffer: gpu.parentOf } },
-        { binding: 3, resource: { buffer: gpu.parents } },
-        { binding: 4, resource: { buffer: table } },
-        { binding: 5, resource: { buffer: sphereWorlds } },
-        { binding: 6, resource: { buffer: inputs.buffer } },
-        { binding: 7, resource: { buffer: gpu.rootBoxes } },
-        { binding: 8, resource: { buffer: cornerWords } },
-        { binding: 9, resource: { buffer: lodWords } },
-        { binding: 10, resource: { buffer: gpu.rowList } },
-      ],
-    })
+    { frame } = gpu
+  frame.table = table
+  frame.spheres = spheres?.buffer ?? gpu.absent[0]
+  frame.inputs = inputs.buffer
+  frame.corners = corners ?? gpu.absent[1]
+  frame.lods = lods ?? gpu.absent[2]
+  held.identity.entries[0] ??= rowEntries(gpu)
+  const bound = composeGroup(device, held, pipeline)
   // The rows it writes hold what it wrote last unless a parent or a link moved, or the host wrote
   // a row since (`rowsWritten`, the table's age): a still view writes none.
   if (

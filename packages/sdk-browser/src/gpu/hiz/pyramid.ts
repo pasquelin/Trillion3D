@@ -1,4 +1,5 @@
 import { arrayView } from '../core/textureViews.ts'
+import type { WebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { pyramidBytes } from './oracle.ts'
@@ -79,9 +80,9 @@ export type Pyramid = HizPyramid & {
   frontView: GPUTextureView
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
-  /** Its bind group, and the `attach` generation it was made for. */
+  /** Its bind group, and the identity of what it names (`bindHiz`). */
   group?: GPUBindGroup
-  bindings?: number
+  bound?: WebgpuBindIdentity
   /** What its readers of the whole depth bind (`GpuHiz.depth`), made at the first ask. */
   depth?: HizDepth
 }

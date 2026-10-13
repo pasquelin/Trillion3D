@@ -1,27 +1,32 @@
 const none = () => undefined
 
-/** Entry descriptors read live resources; their arrays, bindings and readers are allocated once. */
-export function bufferEntry(
-  binding: number,
+/** A buffer binding read live: its buffer, offset and size resolved from their owners when read,
+ *  its readers allocated once. */
+export function liveBuffer(
   buffer: () => GPUBuffer | undefined,
   offset: () => number | undefined = none,
   size: () => number | undefined = none,
-): GPUBindGroupEntry {
+): GPUBufferBinding {
   return {
-    binding,
-    resource: {
-      get buffer() {
-        return buffer()!
-      },
-      get offset() {
-        return offset()
-      },
-      get size() {
-        return size()
-      },
+    get buffer() {
+      return buffer()!
+    },
+    get offset() {
+      return offset()
+    },
+    get size() {
+      return size()
     },
   }
 }
+
+/** Entry descriptors read live resources; their arrays, bindings and readers are allocated once. */
+export const bufferEntry = (
+  binding: number,
+  buffer: () => GPUBuffer | undefined,
+  offset?: () => number | undefined,
+  size?: () => number | undefined,
+): GPUBindGroupEntry => ({ binding, resource: liveBuffer(buffer, offset, size) })
 export function resourceEntry(
   binding: number,
   resource: () => GPUBindingResource | undefined,

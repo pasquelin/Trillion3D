@@ -104,7 +104,6 @@ function hizState(
     disposed: false,
     at: undefined,
     bindGroup: undefined,
-    bindings: 0,
     bounds: idle,
     state: idle,
     flags,
@@ -136,7 +135,6 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
       h.bounds = nextBounds
       h.state = nextState
-      h.bindings++
       bindHiz(h)
     },
     growFlags: (rows) => hizGrowFlags(h, gpu, rows),

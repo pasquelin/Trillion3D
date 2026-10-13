@@ -32,7 +32,7 @@ import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   type VsmBindingSpec,
-  type VsmFrameBuffers,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
@@ -452,7 +452,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     }
   }
 
-  const tables = new WeakMap<VsmFrameBuffers, TableGroups>()
+  const tables = vsmFrameSetHeld<TableGroups>()
   const tableGroups = () => vsmPerFrameSet(tables, res, newTableGroups, undefined)
   /** Group 0 of `p` over the tables `specs` name and the parameters at `paramsBinding`. */
   const tablesGroup = (

@@ -29,7 +29,12 @@
  *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import {
+  preparedPipeline,
+  preparedPipelines,
+  type PreparedPipeline,
+} from '../lighting/deferred/fullscreen.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   VSM_MIPS,
@@ -82,7 +87,8 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import {
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -192,9 +198,9 @@ export interface VsmRenderContext extends VsmChunkKernels {
   bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
   groups?: ReturnType<typeof vsmChunkListGroups>
-  /** The groups over the tables of a frame set (`res.current`, the two in turn), made once a set
+  /** The groups over the tables of a frame set (`res.current`, the two in turn) and `groups`,
    *  and again when the lists moved. */
-  tables: WeakMap<VsmFrameBuffers, RasterTables>
+  tables: VsmPerFrameSet<RasterTables>
   /** Where the rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
@@ -280,31 +286,18 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   }
 }
 
-/** Each device's raster pipelines, by the shadow page group's layout and the raster's text. */
-const RASTERS = new WeakMap<
-  GPUDevice,
-  WeakMap<GPUBindGroupLayout, Map<string, VsmRenderContext['raster']>>
->()
+/** What a raster pipeline is made for: the raster's text of a layout, on the shadow page group. */
+interface RasterSource {
+  code: string
+  layout: VsmLayout
+  pageLayout: GPUBindGroupLayout
+}
 
-/**
- * The raster's render pipeline for `layout` on the shadow page group `pageLayout`
- * (`webgpu/shadow/pageGroup.ts`, made at load) and its group 1's layout: described once a device,
- * page layout and raster text, compiled the engine's one way (`preparedPipeline`) — by the prepare
- * step for the set the casting lights are first granted (`prepareVsmPipelines`), at once by a frame
- * that binds it unprepared. `pipeline` is read where it is bound.
- */
-export function vsmRasterPipe(
+/** The raster's render pipeline of `code` and its group 1's layout (`vsmRasterPipe`). */
+function makeRaster(
   device: GPUDevice,
-  layout: VsmLayout,
-  pageLayout: GPUBindGroupLayout,
+  { code, layout, pageLayout }: RasterSource,
 ): VsmRenderContext['raster'] {
-  let byPage = RASTERS.get(device)
-  if (!byPage) RASTERS.set(device, (byPage = new WeakMap()))
-  let byCode = byPage.get(pageLayout)
-  if (!byCode) byPage.set(pageLayout, (byCode = new Map()))
-  const code = vsmRenderRasterWgsl(layout)
-  const held = byCode.get(code)
-  if (held) return held
   const layout1 = device.createBindGroupLayout({
     label: `${RENDER_LABEL}.raster1`,
     entries: [
@@ -330,16 +323,37 @@ export function vsmRasterPipe(
       depthCompare: 'always',
     },
   })
-  const raster = {
+  return {
     layout1,
     prepared,
     get pipeline() {
       return prepared.get()
     },
   }
-  byCode.set(code, raster)
-  return raster
 }
+
+/** Each device's raster pipelines, by the raster's text, made once a device. */
+const rasters = oncePerDevice((device: GPUDevice) =>
+  preparedPipelines(
+    (source: RasterSource) => makeRaster(device, source),
+    ({ code }) => code,
+  ),
+)
+
+/**
+ * The raster's render pipeline for `layout` on the shadow page group `pageLayout` — the device's
+ * one (`shadowPageLayout`, `webgpu/shadow/pageGroup.ts`, made once a device) — and its group 1's
+ * layout: described once a device and raster text, compiled the engine's one way
+ * (`preparedPipeline`) — by the prepare step for the set the casting lights are first granted
+ * (`prepareVsmPipelines`), at once by a frame that binds it unprepared. `pipeline` is read where
+ * it is bound.
+ */
+export const vsmRasterPipe = (
+  device: GPUDevice,
+  layout: VsmLayout,
+  pageLayout: GPUBindGroupLayout,
+): VsmRenderContext['raster'] =>
+  rasters(device).of({ code: vsmRenderRasterWgsl(layout), layout, pageLayout })
 
 function context(
   res: VsmResources,
@@ -367,7 +381,7 @@ function context(
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
-    ...vsmChunkContext(RENDER_LABEL, device.limits, existing),
+    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device.limits, existing),
   }
   res.render = ctx
   return ctx
@@ -834,7 +848,7 @@ export function vsmSetChunking(
 /** What a pass named `label` holds of its chunk lists on a device of `limits`: the chunks'
  *  parameter slots at the device's dynamic-offset alignment, their passes, the bind identity, the
  *  tables, and the row bound `existing` kept. */
-export function vsmChunkContext(
+export function vsmChunkContext<Tables>(
   label: string,
   limits: GPUSupportedLimits,
   existing?: { rowBound: VsmRowBound },
@@ -844,7 +858,7 @@ export function vsmChunkContext(
     slots,
     passes: vsmChunkPasses(label, slots),
     bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
+    tables: vsmFrameSetHeld<Tables>(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
   }
 }
@@ -1055,12 +1069,10 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
  * again only when one of them moved, those over the VSM tables once a frame set (`rasterTables`).
  */
 function renderGroups(ctx: VsmRenderContext, res: VsmResources, scene: VsmRenderScene) {
-  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<VsmRenderContext['buffers']>)) {
+  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<VsmRenderContext['buffers']>))
     ctx.groups = undefined
-    ctx.tables = new WeakMap()
-  }
   ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], ctx.bound.next)
-  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx)
+  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx, ctx.groups)
 }
 
 /**

@@ -1,7 +1,7 @@
 // The steady cadence (`cadence.ts`) on a generated display: a GPU that cannot hold 120 Hz is drawn
 // on every second refresh, each image shown for the same time; one that holds it is drawn on every
 // refresh, untouched; between the two bounds of the hysteresis the divisor stays; a lone spike,
-// frames late for the CPU, or a 60 Hz display move nothing.
+// frames late for the CPU, or a 60 Hz display move nothing; another render scale starts it again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createScaleControl } from './scaleControl.ts'
@@ -143,4 +143,14 @@ test('a GPU time read as a lower bound slows the cadence as a whole one does, an
   // The same light images timed whole: back to every refresh.
   run(control, 4, () => 3, r.at)
   assert.equal(control.cadence, 1, 'risen on whole times')
+})
+
+test('another render scale starts the cadence again at every refresh, with the scale knowing nothing', () => {
+  // A fixed page the GPU cannot hold at 120 Hz takes every second refresh; an auto scale asked
+  // then answers first: the loop draws on every refresh until the floor proves it cannot.
+  const control = createScaleControl(undefined)
+  run(control, 1, () => 9.7)
+  assert.equal(control.cadence, 2, 'taken at 9.7 ms')
+  control.set('auto')
+  assert.equal(control.cadence, 1, 'every refresh again')
 })

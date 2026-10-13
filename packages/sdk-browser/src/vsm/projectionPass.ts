@@ -18,6 +18,8 @@ import {
 } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import type { HizDepth } from '../gpu/hiz/types.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
@@ -69,7 +71,8 @@ import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
 } from './resources.ts'
 import { poolWindowSizes, type VsmLayout } from './layout.ts'
@@ -324,8 +327,9 @@ function writeVsmProjectionView(
   return 4 * words
 }
 
-/** The projection's module, layouts and bind groups for one layout, vote and receiver variant, and
- *  its pipelines by their constants (`pipelineFor`): the variants share all but their pipeline. */
+/** The projection's module and layouts for one layout, vote and receiver variant, and its
+ *  pipelines by their constants (`pipelineFor`): the variants share all but their pipeline; the
+ *  groups are each set's (`VsmProjectionState`). */
 interface Pipelines {
   module: GPUShaderModule
   layout: GPUPipelineLayout
@@ -333,9 +337,6 @@ interface Pipelines {
   passLayout: GPUBindGroupLayout
   receiverLayout: GPUBindGroupLayout | undefined
   device: GPUDevice
-  /** Group 0 by frame set (`vsmPerFrameSet`). */
-  vsmGroups: WeakMap<VsmFrameBuffers, GPUBindGroup>
-  receiverGroups: WeakMap<GPUTextureView, GPUBindGroup>
   /** By 2 · VSM_PROJECTION_KINDS + VSM_PROJECTION_ONE_LIGHT, each compiled off the frame; the
    *  pipeline every pass can run (`TWIN`) the prepare step awaits (`vsmProjectionTwin`), every
    *  other started once, when first made: one the device refuses is not asked again, the twin
@@ -343,24 +344,22 @@ interface Pipelines {
   variants: PreparedPipelines<number, GPUComputePipeline>
 }
 
-/** The pass group and what it binds: made again only when one of them changes. */
-interface PassGroup {
-  group: GPUBindGroup
-  layout: GPUBindGroupLayout
-  depth: GPUTextureView
-  hizDepth: HizDepth
-  normalRough: GPUTextureView
-  flags: GPUTextureView
-  mask: GPUTextureView
-  maskTiles: GPUTextureView
-}
-
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
  *  (`releaseVsmProjection`): never shared by two sessions on one device. The engine projects once a
  *  frame into its one mask: one view uniform and one pass group. */
 export interface VsmProjectionState {
   uniform?: GPUBuffer
-  group?: PassGroup
+  /** Group 0 over the tables of a frame set and the layout (`vsmPerFrameSet`), the two sets in
+   *  turn. */
+  tables: VsmPerFrameSet<GPUBindGroup>
+  /** The pass group over the layout and the frame's views (`passGroupFor`), made again when one
+   *  of them moved. */
+  pass: WebgpuBindIdentity
+  passGroup?: GPUBindGroup
+  /** The receiver group over its layout and view (`receiverGroupFor`): one kept, made again when
+   *  one of them moved. */
+  receiver: WebgpuBindIdentity
+  receiverGroup?: GPUBindGroup
   /** The view uniform's image, uploaded each frame, and its words. */
   staging: ArrayBuffer
   words: ViewWords
@@ -368,9 +367,6 @@ export interface VsmProjectionState {
   blueNoise?: GPUTexture
   blueNoiseView?: GPUTextureView
 }
-
-/** The device's projection pipelines, by the layout and variant they were compiled for. */
-const pipelines = new WeakMap<GPUDevice, Map<string, Pipelines>>()
 
 /** Bytes the projection of `res` holds — its view uniform and blue noise —, which freeing the
  *  set gives back (`releaseVsmProjection`; the pass draws into the engine's mask). */
@@ -426,6 +422,9 @@ function projectionState(res: VsmResources) {
   const staging = new ArrayBuffer(VSM_PROJECTION_VIEW_BYTES)
   return (res.projection = {
     staging,
+    tables: vsmFrameSetHeld(),
+    pass: createWebgpuBindIdentity(),
+    receiver: createWebgpuBindIdentity(),
     words: {
       f: new Float32Array(staging),
       u: new Uint32Array(staging),
@@ -484,13 +483,18 @@ function projectionPassLayout(device: GPUDevice) {
   })
 }
 
-/** The projection's module, layouts and bind groups for these variants. */
-function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
-  let made = pipelines.get(device)
-  if (!made) pipelines.set(device, (made = new Map()))
-  const key = `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`
-  let p = made.get(key)
-  if (p) return p
+/** What decides a projection's module and layouts: the pool's layout, the votes and the receiver. */
+interface ProjectionVariant {
+  layout: VsmLayout
+  subgroups: boolean
+  receiver: boolean
+}
+
+/** The projection's module, layouts and pipelines for these variants. */
+function makePipelines(
+  device: GPUDevice,
+  { layout, subgroups, receiver }: ProjectionVariant,
+): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
@@ -511,15 +515,13 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
       ? [vsmLayout, passLayout, receiverLayout]
       : [vsmLayout, passLayout],
   })
-  p = {
+  return {
     device,
     module,
     layout: pipelineLayout,
     vsmLayout,
     passLayout,
     receiverLayout,
-    vsmGroups: new WeakMap(),
-    receiverGroups: new WeakMap(),
     variants: preparedPipelines((key: number) => {
       const variant = preparedComputePipeline(
         device,
@@ -528,9 +530,25 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
       return key === TWIN ? variant : started(variant)
     }),
   }
-  made.set(key, p)
-  return p
 }
+
+/** The device's projections, by the variant they were compiled for (`ProjectionVariant`), made
+ *  once a device. */
+const projections = oncePerDevice((device: GPUDevice) =>
+  preparedPipelines(
+    (variant: ProjectionVariant) => makePipelines(device, variant),
+    ({ layout, subgroups, receiver }) =>
+      `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
+  ),
+)
+
+/** The projection of `device` for these variants (`projections`). */
+const pipelinesFor = (
+  device: GPUDevice,
+  layout: VsmLayout,
+  subgroups: boolean,
+  receiver: boolean,
+) => projections(device).of({ layout, subgroups, receiver })
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
 const tablesGroup = (res: VsmResources, p: Pipelines) =>
@@ -571,68 +589,60 @@ function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
 }
 
 /** The pass group of `state` over the frame's inputs: made again only when the layout or one of
- *  the views it binds changes. */
+ *  the views it binds moved (`createWebgpuBindIdentity`). */
 function passGroupFor(
   device: GPUDevice,
   state: VsmProjectionState,
   p: Pipelines,
   inputs: VsmProjectionInputs,
 ) {
-  const { mask, maskTiles } = inputs
-  let passGroup = state.group
-  if (
-    !passGroup ||
-    passGroup.layout !== p.passLayout ||
-    passGroup.depth !== inputs.depth ||
-    passGroup.hizDepth !== inputs.hizDepth ||
-    passGroup.normalRough !== inputs.normalRough ||
-    passGroup.flags !== inputs.flags ||
-    passGroup.mask !== mask ||
-    passGroup.maskTiles !== maskTiles
-  ) {
-    state.group = passGroup = {
-      group: device.createBindGroup({
-        label: 'vsm.projection.pass',
-        layout: p.passLayout,
-        entries: [
-          ...namedEntries(VSM_PROJECTION_BINDING, {
-            view: { buffer: state.uniform! },
-            sceneDepth: inputs.depth,
-            normalRough: inputs.normalRough,
-            flags: inputs.flags,
-            blueNoise: state.blueNoiseView!,
-          }),
-          ...hizDepthBindEntries(VSM_PROJECTION_BINDING.hizDepth, inputs.hizDepth),
-          ...namedEntries(VSM_PROJECTION_BINDING, {
-            shadowMask: mask,
-            shadowMaskTiles: maskTiles,
-          }),
-        ],
-      }),
+  const { next } = state.pass
+  next[0] = p.passLayout
+  next[1] = inputs.depth
+  next[2] = inputs.hizDepth
+  next[3] = inputs.normalRough
+  next[4] = inputs.flags
+  next[5] = inputs.mask
+  next[6] = inputs.maskTiles
+  if (state.pass.moved())
+    state.passGroup = device.createBindGroup({
+      label: 'vsm.projection.pass',
       layout: p.passLayout,
-      depth: inputs.depth,
-      hizDepth: inputs.hizDepth,
-      normalRough: inputs.normalRough,
-      flags: inputs.flags,
-      mask,
-      maskTiles,
-    }
-  }
-  return passGroup
+      entries: [
+        ...namedEntries(VSM_PROJECTION_BINDING, {
+          view: { buffer: state.uniform! },
+          sceneDepth: inputs.depth,
+          normalRough: inputs.normalRough,
+          flags: inputs.flags,
+          blueNoise: state.blueNoiseView!,
+        }),
+        ...hizDepthBindEntries(VSM_PROJECTION_BINDING.hizDepth, inputs.hizDepth),
+        ...namedEntries(VSM_PROJECTION_BINDING, {
+          shadowMask: inputs.mask,
+          shadowMaskTiles: inputs.maskTiles,
+        }),
+      ],
+    })
+  return state.passGroup!
 }
 
-/** The receiver group of `p` over `receiver`, made once a view. */
-function receiverGroupFor(p: Pipelines, layout: GPUBindGroupLayout, receiver: GPUTextureView) {
-  let group = p.receiverGroups.get(receiver)
-  if (!group) {
-    group = p.device.createBindGroup({
+/** The receiver group of `state` over `receiver` on `layout`, made again when one of them moved. */
+function receiverGroupFor(
+  device: GPUDevice,
+  state: VsmProjectionState,
+  layout: GPUBindGroupLayout,
+  receiver: GPUTextureView,
+) {
+  const { next } = state.receiver
+  next[0] = layout
+  next[1] = receiver
+  if (state.receiver.moved())
+    state.receiverGroup = device.createBindGroup({
       label: 'vsm.projection.receiver',
       layout,
       entries: sequentialEntries([receiver]),
     })
-    p.receiverGroups.set(receiver, group)
-  }
-  return group
+  return state.receiverGroup!
 }
 
 /**
@@ -659,16 +669,16 @@ export function encodeVirtualShadowProjection(
   const bytes = writeVsmProjectionView(state.words, inputs, lights)
   device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
 
-  const vsmGroup = vsmPerFrameSet(p.vsmGroups, res, tablesGroup, p)
+  const vsmGroup = vsmPerFrameSet(state.tables, res, tablesGroup, p, p.vsmLayout)
   const passGroup = passGroupFor(device, state, p, inputs)
   const pass = encoder.beginComputePass({ label: VSM_PROJECTION_PASS })
   pass.setPipeline(pipelineFor(p, lights))
   pass.setBindGroup(0, vsmGroup)
-  pass.setBindGroup(1, passGroup.group)
+  pass.setBindGroup(1, passGroup)
   if (p.receiverLayout && inputs.receiver)
     pass.setBindGroup(
       VSM_PROJECTION_RECEIVER_GROUP,
-      receiverGroupFor(p, p.receiverLayout, inputs.receiver),
+      receiverGroupFor(device, state, p.receiverLayout, inputs.receiver),
     )
   pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
   pass.end()

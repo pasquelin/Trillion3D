@@ -2,6 +2,7 @@ import { core } from '../../impostor/borrowed.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
 import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 
 /**
  * The card pipelines (#1335) and their three group layouts: the image's (view uniform, card
@@ -77,10 +78,13 @@ async function makeCardPipelines(device: GPUDevice) {
   }
 }
 
-const checked = new WeakMap<GPUDevice, Awaited<ReturnType<typeof makeCardPipelines>>>()
+/** The device's card pipelines once its prepare checked them (`prepareImpostorPipelines`). */
+const checked = oncePerDevice(
+  (): { pipelines?: Awaited<ReturnType<typeof makeCardPipelines>> } => ({}),
+)
 
 /** The device's card pipelines, those its prepare checked (`prepareImpostorPipelines`). */
-export const cardPipelines = (device: GPUDevice) => checked.get(device)!
+export const cardPipelines = (device: GPUDevice) => checked(device).pipelines!
 
 /**
  * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE (#1336): compiled under the device's validation
@@ -93,8 +97,9 @@ export async function prepareImpostorPipelines(
   device: GPUDevice,
   onFailure: (phase: string, error: unknown) => void,
 ) {
+  const held = checked(device)
   try {
-    checked.set(device, await core.scoped(device, () => makeCardPipelines(device)))
+    held.pipelines ??= await core.scoped(device, () => makeCardPipelines(device))
     return true
   } catch (error) {
     onFailure('impostor-card-program-failed', error)

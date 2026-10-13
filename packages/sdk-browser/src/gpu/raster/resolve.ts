@@ -5,6 +5,10 @@ import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
 import { sequentialEntries, computeBufferEntry } from '../core/computeBindings.ts'
+import {
+  createWebgpuBindIdentity,
+  type WebgpuBindIdentity,
+} from '../../webgpu/core/bindIdentity.ts'
 
 const RESOLVE_DEPTH = {
   format: DEPTH_FORMAT,
@@ -32,7 +36,7 @@ export function createRasterResolves(
 ) {
   const z: Resolves = {
     ...{ device, work, targetBytes, ...resolvePipelines(device, code) },
-    group: undefined,
+    ...{ bound: createWebgpuBindIdentity(), group: undefined },
     ...{ idsFor: undefined, depthFor: undefined, hizFor: undefined },
     ...{ hizPass: undefined, finalPass: undefined },
   }
@@ -65,6 +69,8 @@ type Resolves = ReturnType<typeof resolvePipelines> & {
   device: GPUDevice
   work: GPUBuffer
   targetBytes: number
+  /** The group over the raster's target and the view uniform, made again when the uniform moved. */
+  bound: WebgpuBindIdentity
   group: GPUBindGroup | undefined
   /**
    * The two pass descriptors, kept as-is until the next set of views. They depend only on the
@@ -117,14 +123,18 @@ function resolvePipelines(device: GPUDevice, code: string) {
   return { layout, one, two, hizOnly }
 }
 
-const bound = (z: Resolves, uniform: GPUBuffer) =>
-  (z.group ??= z.device.createBindGroup({
-    layout: z.layout,
-    entries: sequentialEntries([
-      { buffer: z.work, offset: 0, size: z.targetBytes },
-      { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES },
-    ]),
-  }))
+function bound(z: Resolves, uniform: GPUBuffer) {
+  z.bound.next[0] = uniform
+  if (z.bound.moved())
+    z.group = z.device.createBindGroup({
+      layout: z.layout,
+      entries: sequentialEntries([
+        { buffer: z.work, offset: 0, size: z.targetBytes },
+        { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES },
+      ]),
+    })
+  return z.group!
+}
 
 /** A colour attachment kept as the hardware raster left it. */
 const kept = (view: GPUTextureView) => ({

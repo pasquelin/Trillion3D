@@ -10,6 +10,7 @@ import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
 import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
@@ -56,7 +57,6 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     views: GPUTextureView[] = [],
     groups: GPUBindGroup[] = [],
     blends: FusedBlend[] = [],
-    inputs = new WeakMap<GPUTextureView, { level: GPUBindGroup; scene: GPUBindGroup }>(),
     blend: FusedBlend | undefined,
     // The uniform's slots, the device's alignment apart, and their words laid as the buffer.
     slots = uniformSlots(device.limits, 0, SLOT_WORDS),
@@ -66,21 +66,28 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     held = new Float64Array(0),
     levelBytes = 0,
     passes = 0
+  // The input's groups over its view and the uniform: four held, what a bloom of the chain reads —
+  // the image, of the two HDR targets taking turns, or either of the chain's own targets
+  // (`webgpuEffects.ts`).
+  const inputs = createWebgpuBindIdentity(4),
+    inputSlots: { level: GPUBindGroup; scene: GPUBindGroup }[] = []
   const levelGroup = (view: GPUTextureView) =>
     device.createBindGroup({
       layout: layouts.level,
       entries: sequentialEntries([view, sampler, { buffer: uniform!, size: BLOOM_UNIFORM_BYTES }]),
     })
   const inputGroups = (view: GPUTextureView) => {
-    let bound = inputs.get(view)
-    if (!bound) {
-      const scene = device.createBindGroup({
-        layout: layouts.scene,
-        entries: sequentialEntries([view]),
-      })
-      inputs.set(view, (bound = { level: levelGroup(view), scene }))
-    }
-    return bound
+    inputs.next[0] = view
+    inputs.next[1] = uniform
+    if (inputs.moved())
+      inputSlots[inputs.slot] = {
+        level: levelGroup(view),
+        scene: device.createBindGroup({
+          layout: layouts.scene,
+          entries: sequentialEntries([view]),
+        }),
+      }
+    return inputSlots[inputs.slot]
   }
   /** The one descriptor every pass begins with, rewritten in place: a pass reads it when it
    *  begins, so a frame allocates none (11 passes at 6 levels); each slot's dynamic offset is made
@@ -98,7 +105,6 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     views = []
     groups = []
     blends = []
-    inputs = new WeakMap()
     levelBytes = passes = 0
   }
   /** Writes uniform slot `index`, at its place in the buffer's image: inverse sizes written and

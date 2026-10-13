@@ -5,6 +5,7 @@ import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { GUIDE_PASS } from '../stage/passLabels.ts'
 import { sequentialEntries, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
 
@@ -58,17 +59,19 @@ export function createWebgpuGuidePass(device: GPUDevice) {
   let uniform: GPUBuffer | undefined,
     instances: GPUBuffer | undefined,
     group: GPUBindGroup | undefined,
-    boundDepth: GPUTextureView | undefined,
     uploaded: unknown
   const view = new Float32Array(GUIDE_UNIFORM_FLOATS)
-  /** The group binds the depth target, made again when a resize gave it a new view. */
+  /** The group binds the uniform and the depth target, made again when one moved — a resize gives
+   *  the depth a new view (`createWebgpuBindIdentity`). */
+  const bound = createWebgpuBindIdentity()
   const bind = (depth: GPUTextureView) => {
-    if (boundDepth === depth) return
-    group = device.createBindGroup({
-      layout,
-      entries: sequentialEntries([{ buffer: uniform! }, depth]),
-    })
-    boundDepth = depth
+    bound.next[0] = uniform
+    bound.next[1] = depth
+    if (bound.moved())
+      group = device.createBindGroup({
+        layout,
+        entries: sequentialEntries([{ buffer: uniform! }, depth]),
+      })
   }
   /** The instances, uploaded again only when the set packed anew; the buffer grows by doubling. */
   const upload = (packed: ReturnType<GuideSet['pack']>) => {
@@ -129,7 +132,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     dispose() {
       uniform?.destroy()
       instances?.destroy()
-      uniform = instances = group = boundDepth = uploaded = undefined
+      uniform = instances = group = uploaded = undefined
     },
   }
 }
