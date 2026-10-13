@@ -10,8 +10,9 @@ export const SIDE = BOUNCE_SETTINGS.cascadeSize,
 /** Points a run reads: a cache sweep's ceiling. */
 export const POINTS = BOUNCE_SETTINGS.surfaceTexelsPerFrame
 
-/** `count` lights over the lattice: lamps and spots of every range, a rectangle, a sun. */
-export function lightsOf(count: number, r: () => number): SceneLight[] {
+/** `count` lights over the lattice, ranges from 0.5 m to `reach`, spread evenly in log: lamps and
+ *  spots, a rectangle, a sun. */
+export function lightsOf(count: number, reach: number, r: () => number): SceneLight[] {
   const half = (SIDE * SPACING) / 2
   const at = (): [number, number, number] => [0, 1, 2].map(() => (r() * 2 - 1) * half) as never
   return Array.from({ length: count }, (_, k): SceneLight => {
@@ -21,7 +22,7 @@ export function lightsOf(count: number, r: () => number): SceneLight[] {
       intensity: 1 + k,
       castsShadow: false,
     }
-    const range = Math.exp(Math.log(0.5) + r() * Math.log(40))
+    const range = Math.exp(Math.log(0.5) + r() * Math.log(reach / 0.5))
     if (k === 1) return { ...base, kind: 'directional', direction: [0.3, -0.9, 0.2] }
     if (k === 2)
       return {

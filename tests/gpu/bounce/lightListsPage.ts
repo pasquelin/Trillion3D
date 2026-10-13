@@ -52,7 +52,7 @@ fn main(@builtin(global_invocation_id) id:vec3u){
 /** Runs a dispatch is timed over. */
 const TIMED = 9
 
-export async function run(counts: number[]) {
+export async function run(sets: { count: number; reach: number }[]) {
   const opened = await openGpuDevice(['timestamp-query'])
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const
   const { device } = opened
@@ -102,9 +102,9 @@ export async function run(counts: number[]) {
     return ms.length ? ms.sort((a, b) => a - b)[ms.length >> 1] : null
   }
   const runs = []
-  for (const count of counts) {
+  for (const { count, reach } of sets) {
     const store = createSceneLightStore()
-    for (const light of lightsOf(count, r)) store.add(light)
+    for (const light of lightsOf(count, reach, r)) store.add(light)
     const lights = createWebgpuLightState(store)
     lights.buffer = createSceneLightContractBuffer(device, store)
     uploadSceneLights(device, lights)
@@ -151,6 +151,7 @@ export async function run(counts: number[]) {
     }
     runs.push({
       count,
+      reach,
       listWallMs: wall.sort((a, b) => a - b)[TIMED >> 1],
       all: results[0],
       listed: results[1],
