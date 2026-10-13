@@ -77,9 +77,9 @@ function firstPast(limit: (e: number) => number, out: Uint32Array = new Uint32Ar
   return out
 }
 
-/** Where each table starts in `rowBinTables`' words: the pages first, at 0. */
-export const TABLE_DEPTH = BIN_SPAN,
-  TABLE_PAIR_EDGES = TABLE_DEPTH + E_BINS,
+/** Where each table starts in `rowBinTables`' words: the pages first, at 0, the depth cut at
+ *  `BIN_SPAN`. */
+export const TABLE_PAIR_EDGES = BIN_SPAN + E_BINS,
   TABLE_MEET_EDGES = TABLE_PAIR_EDGES + PAIR_EDGES.length
 const TABLE_WORDS = TABLE_MEET_EDGES + MEET_EDGES.length
 
@@ -92,7 +92,7 @@ export function rowBinTables() {
   const words = new Uint32Array(TABLE_WORDS)
   for (let j = 0; j < S_BINS; j++)
     for (let k = 0; k < E_BINS; k++) words[j * E_BINS + k] = mapPages(j, k)
-  firstPast((e) => 2 * e, words.subarray(TABLE_DEPTH, TABLE_DEPTH + E_BINS))
+  firstPast((e) => 2 * e, words.subarray(BIN_SPAN, BIN_SPAN + E_BINS))
   const edge = (v: number) => Math.min(v, 0xffffffff)
   PAIR_EDGES.forEach((v, i) => (words[TABLE_PAIR_EDGES + i] = edge(v)))
   MEET_EDGES.forEach((v, i) => (words[TABLE_MEET_EDGES + i] = edge(v)))

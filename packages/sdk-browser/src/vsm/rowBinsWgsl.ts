@@ -31,7 +31,6 @@ import {
   PAIR_EDGES,
   ROOM,
   S_TOP,
-  TABLE_DEPTH,
   TABLE_MEET_EDGES,
   TABLE_PAIR_EDGES,
   UNIT,
@@ -118,7 +117,7 @@ fn main(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:
   let j=bin/${E_BINS}u;
   let k=bin%${E_BINS}u;
   if(j>=params[at+${ROW_BINS_SHAPE}u+k]){continue;}
-  let met=select(select(6u,3u,j>=tables[${TABLE_DEPTH}u+k]),1u,params[at+17u]!=0u);
+  let met=select(select(6u,3u,j>=tables[${BIN_SPAN}u+k]),1u,params[at+17u]!=0u);
   meets+=met;
   pairs+=met*tables[bin];
  }

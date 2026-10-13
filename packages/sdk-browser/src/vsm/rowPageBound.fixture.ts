@@ -36,7 +36,7 @@ export const emptyRowSpheres = (): VsmRowSpheres => ({ motion: createRowMotion()
 export type SceneRows = { packed: Float32Array; moving: Uint8Array; spheres: VsmRowSpheres }
 
 /** `n` rows: centre `at(i)` (world metres, double), radius `radius(i)`, packed as the engine's. */
-export function sphereRows(
+function sphereRows(
   n: number,
   at: (i: number) => number[],
   radius: (i: number) => number,

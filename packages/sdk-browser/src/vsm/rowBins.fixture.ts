@@ -13,7 +13,6 @@ import {
   ROOM,
   rowBinTables,
   S_TOP,
-  TABLE_DEPTH,
   TABLE_MEET_EDGES,
   TABLE_PAIR_EDGES,
   UNIT,
@@ -85,7 +84,7 @@ export function binRows(params: Uint32Array, rows: SceneRows, words: number) {
       const j = Math.floor(bin / E_BINS),
         k = bin % E_BINS
       if (j >= params[at + ROW_BINS_SHAPE + k]) continue
-      const met = params[at + 17] ? 1 : j >= tables[TABLE_DEPTH + k] ? 3 : 6
+      const met = params[at + 17] ? 1 : j >= tables[BIN_SPAN + k] ? 3 : 6
       meets += met
       pairs += met * tables[bin]
     }
