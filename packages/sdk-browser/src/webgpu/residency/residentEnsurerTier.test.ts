@@ -2,7 +2,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
+import { MAIN_THREAD_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
 import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 import { stubPage } from '../../world/render/frameQueue.fixture.ts'
@@ -10,7 +10,7 @@ import { stubPage } from '../../world/render/frameQueue.fixture.ts'
 /** A pool whose every load spends `cost` of the main-thread share (a whole one by default), on a
  *  clock the test owns. `perTask` counts the loads between two yields: each posts one message
  *  (`yieldToEventLoop`). */
-function slowCache(slots: number, cost = STREAMING_FRAME_MS) {
+function slowCache(slots: number, cost = MAIN_THREAD_FRAME_MS) {
   let clock = 0
   mock.method(performance, 'now', () => clock)
   const yields = mock.method(MessagePort.prototype, 'postMessage')
@@ -54,7 +54,7 @@ test('a barrier, which passes no camera probe, posts every caster before it reso
 
 test('a task starts no page past the published share', async () => {
   const { pages, tracking } = burst()
-  const cost = STREAMING_FRAME_MS * 0.3
+  const cost = MAIN_THREAD_FRAME_MS * 0.3
   try {
     const { cache, perTask } = slowCache(16, cost)
     await tierEnsurer(tracking, cache, () => [])(pages, 1, 1)
@@ -62,7 +62,7 @@ test('a task starts no page past the published share', async () => {
     assert.equal(cache.resident.size, 12, 'every page admitted')
     assert.ok(tasks.length > 1, `across several tasks (${tasks.join(' ')})`)
     // A page starts only within the share: the share's worth, and the one begun at its edge.
-    for (const count of tasks) assert.ok(count <= ceilDiv(STREAMING_FRAME_MS, cost), `${count}`)
+    for (const count of tasks) assert.ok(count <= ceilDiv(MAIN_THREAD_FRAME_MS, cost), `${count}`)
   } finally {
     mock.restoreAll()
   }

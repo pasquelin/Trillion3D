@@ -9,7 +9,7 @@ import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { createPageAdmission } from './admission.ts'
 import type { LowerList, LowerPassOptions } from './lowerTier.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
-import { STREAMING_FRAME_MS } from '../../engine/common.ts'
+import { MAIN_THREAD_FRAME_MS } from '../../engine/common.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 
 /** Fields the residency ensurer never reads: shared across every fixture page. */
@@ -141,7 +141,7 @@ export function lowerPassOptions(
   return {
     ...options,
     admit: createPageAdmission(options),
-    budget: createFrameBudget(STREAMING_FRAME_MS),
+    budget: createFrameBudget(MAIN_THREAD_FRAME_MS),
     nextShare: async () => {},
     readAhead: undefined,
   }

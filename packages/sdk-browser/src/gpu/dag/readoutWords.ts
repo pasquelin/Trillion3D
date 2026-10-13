@@ -16,8 +16,8 @@ export const SELECTION_HEADER_WORDS = 8
 /** Word of `out` where the eviction queue's header starts, behind the drawn list. */
 export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap)
 
-/** Victims one readback hands the cache, a chosen margin over what one frame's 1 ms admission share
- *  (`STREAMING_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
+/** Victims one readback hands the cache, a chosen margin over what one frame's main-thread share
+ *  (`MAIN_THREAD_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
 export const EVICTION_BURST = 1024
 
 /** Word of `out` where the camera's requests are counted by admission bucket, behind the eviction

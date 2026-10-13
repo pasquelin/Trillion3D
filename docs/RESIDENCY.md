@@ -95,8 +95,9 @@ never whole (`partition/`, `world/scene/partitionFrame.ts`).
 | Cells held far, by their super-roots        | `partition/farCells.ts`, `partition/superRoots.ts`       |
 
 - The error target never shortens the reach: a cell left unread would be missing, not coarser.
-- The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals
-  and row records share one integration budget per frame (`ARRIVAL_BUDGET_MS`).
+- The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals,
+  row records, texture tiles and the residency queue spend one main-thread clock per frame, in that
+  order (`MAIN_THREAD_FRAME_MS`).
 - Rows are sized by reach, cell size and stretch, never by the world; outgrown, they grow in place
   (`growsInPlace`): the new placements appended into the room the GPU cut's tables kept, O(added)
   (`gpu/dag/pack.ts`, `appendDagRoots`), or, past it, the cut made again over every root beside

@@ -18,20 +18,17 @@ export const DEFAULT_FOV = 55,
   PAGE_REQUEST_BATCH = 256,
   /** Cache pages a frame queues at most in the arrival queue. */
   ARRIVAL_QUEUE_BATCH = 64,
-  /** Milliseconds a frame spends at most integrating arrived pages. */
-  ARRIVAL_BUDGET_MS = 2,
   /**
-   * The residency queue's PUBLISHED main-thread share, in milliseconds: past it its admissions start
-   * no page and yield a task (`../page/integration/frameBudget.ts`), so a due frame waits on
-   * streaming no longer than the share and the page begun within it. The next task resumes at once,
-   * in a visible tab as in a hidden one, where no frame comes. Half of the programme's 2 ms
-   * main-thread frame; the cut, the physics page stage and the encode share the other half.
-   * Fetching and decoding run in workers and spend none of it.
+   * The main thread's share of a frame, in milliseconds: ONE CLOCK its streaming stages spend in
+   * priority order — the arrived pages integrated, the row records and texture tiles, then the
+   * residency queue in the tasks before the next frame (`../page/integration/frameBudget.ts`) —,
+   * each stage's first piece always admitted. The programme's 2 ms main-thread frame. Fetching and
+   * decoding run in workers and spend none of it.
    */
-  STREAMING_FRAME_MS = 1,
+  MAIN_THREAD_FRAME_MS = 2,
   /**
-   * Shares of `STREAMING_FRAME_MS` the residency queue opens at most between two frames of a visible
-   * page, 2 ms cumulated: past them it waits for the next frame, so no burst of shares holds
+   * Shares the residency queue opens at most between two frames of a visible page, each on what
+   * the frame's clock left (`MAIN_THREAD_FRAME_MS`): past them it waits for the next frame, so no burst of shares holds
    * a frame back. A hidden page, where no frame comes, or a visible one whose frames stopped, keeps
    * opening one per task.
    */

@@ -2,7 +2,7 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts'
 import { createWebgpuTileAtlas } from './atlas.ts'
 import type { TileTexture } from './tileTexture.ts'
-import { createFrameBudget } from '../../page/integration/frameBudget.ts'
+import { createFrameBudget, type FrameClock } from '../../page/integration/frameBudget.ts'
 import { createWebgpuTileFeedback } from './feedback.ts'
 import { createTileSources } from './sources.ts'
 import { createWebgpuTileReduce } from './reduce.ts'
@@ -36,8 +36,12 @@ export function createWebgpuTileStreamer(options: {
   encoding: PoolEncoding
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number
-  /** Milliseconds a pass may spend copying tiles outside a barrier; the rest is deferred. */
+  /** Milliseconds a pass may spend copying tiles outside a barrier, the host's ceiling; the rest is
+   *  deferred. */
   budgetMs: number
+  /** The session's one main-thread clock (`EngineContext.frameBudget`): a pass is a stage of it,
+   *  after the arrivals, and stops where it is spent too. Absent, the ceiling alone. */
+  clock?: FrameClock
   /** Clock the budget is read on; `performance.now` unless a test drives it. */
   now?: () => number
   readLevel?: TextureLevelReader
@@ -102,7 +106,9 @@ export function createWebgpuTileStreamer(options: {
      * pool refusal is neither — nothing will come, the coarse level holds — and is counted.
      */
     pump(frame: number, unbounded = false) {
-      const started = budget.open()
+      const started = budget.open(),
+        { clock } = options
+      clock?.stage()
       let served = 0,
         waiting = 0,
         bytes = 0,
@@ -129,7 +135,10 @@ export function createWebgpuTileStreamer(options: {
           bytes += request.atlas.poolOf(request.key.slot).tileBytes
           if (request.atlas === color) colorChanged.add(request.key.slot)
           budget.spend()
-          stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits())
+          clock?.spend()
+          stop =
+            !unbounded &&
+            (bytes >= options.budgetBytes || !budget.admits() || clock?.admits() === false)
         }
       }
       sources.endPass(encoder, at)
@@ -142,6 +151,7 @@ export function createWebgpuTileStreamer(options: {
       // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
       if (colorChanged.size) options.onColorChanged(colorChanged)
       counters.pass(now() - started, unbounded)
+      clock?.pause()
       return { served, pending: counters.pending }
     },
     /** Follows the atlases' records, writes the headers that moved and copies a moved host picture
