@@ -6,14 +6,8 @@ import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
-import {
-  NODE_CHILD_COUNT,
-  NODE_FIRST_CHILD,
-  NODE_KIND,
-  NODE_MAX,
-  NODE_MIN,
-} from '../gpu/dag/nodeLayout.ts'
-import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
+import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
+import { PLACEMENT_TREE_WALK_WGSL, placementTreeWalk } from '../gpu/dag/treeWalkWgsl.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
 import {
@@ -30,9 +24,6 @@ import {
 /** The binding of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
  *  the placement tree it walks and every placement's world (`gpu/dag/frameRanges.ts`, one range). */
 export type SceneBindings = { group: number; proxy: number }
-
-/** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
-const TREE_DEPTH = 8
 
 /**
  * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
@@ -55,6 +46,7 @@ export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
     [
       RUNTIME_PROXY_WGSL,
       WIDE_TRAVERSAL_WGSL,
+      PLACEMENT_TREE_WALK_WGSL,
       toF32,
       invTranspose3Prep,
       worldMatrix3,
@@ -66,15 +58,10 @@ ${wgslConsts({
   RT_WORK: RAY_WORK,
   RT_TRIANGLES: RAY_TRIANGLES,
   RT_STEPS: BOUNCE_SETTINGS.traversalSteps,
-  RT_TREE_DEPTH: TREE_DEPTH,
   RT_TREE_STEPS: 2 * RAY_WORK,
   RT_TREE_FLOATS: DAG_NODE_FLOATS,
-  RT_TREE_GROUP: TREE_GROUP,
   RT_NODE_MIN: NODE_MIN,
   RT_NODE_MAX: NODE_MAX,
-  RT_NODE_FIRST: NODE_FIRST_CHILD,
-  RT_NODE_COUNT: NODE_CHILD_COUNT,
-  RT_NODE_KIND: NODE_KIND,
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
   RT_INSTANCE_NODE: INSTANCE.node,
   RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
@@ -189,42 +176,18 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
    if(rtAnyHit&&best.found){return best;}
   }
  }else{
-  var at:array<u32,RT_TREE_DEPTH>;
-  var next:array<u32,RT_TREE_DEPTH>;
-  var level=0u;
-  var done=false;
-  at[0]=rtProxy.treeRoot;
-  next[0]=0u;
-  for(var step=0u;step<RT_TREE_STEPS;step++){
-   if(rtSpent()){done=true;break;}
-   let node=at[level];
-   let count=rtTreeWord(node,RT_NODE_COUNT);
-   let k=next[level];
-   if(k>=count){
-    if(level==0u){done=true;break;}
-    level--;
-    continue;
-   }
-   next[level]=k+1u;
-   rtWork+=1u;
-   let first=rtTreeWord(node,RT_NODE_FIRST);
-   if(rtTreeWord(node,RT_NODE_KIND)==RT_TREE_GROUP){
-    let w=rtProxy.words[rtProxy.membersWord+first+k];
-    if(w!=RT_NONE){
-     best=rtEnter(w,origin,direction,inverse,best);
-     if(rtAnyHit&&best.found){return best;}
-    }
-   }else{
-    let child=first+k;
-    if(rayBoxEntry(rtTreeLow(child),rtTreeHigh(child),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
-     level++;
-     at[level]=child;
-     next[level]=0u;
-    }
-   }
-  }
-  // A walk that ran out of steps, not of tree, is a spent ray as well: it answers nothing.
-  if(!done){rtWork=RT_WORK;}
+${placementTreeWalk({
+  root: 'rtProxy.treeRoot',
+  word: 'rtTreeWord',
+  low: 'rtTreeLow',
+  high: 'rtTreeHigh',
+  member: (slot) => `rtProxy.words[rtProxy.membersWord+${slot}]`,
+  enter: 'best=rtEnter(w,origin,direction,inverse,best);if(rtAnyHit&&best.found){return best;}',
+  stop: 'if(rtSpent()){done=true;break;}',
+  visit: 'rtWork+=1u;',
+  steps: 'RT_TREE_STEPS',
+  cut: 'rtWork=RT_WORK;',
+})}
  }
  // The blended copies, members after the placements: each tried in turn, a unit apiece.
  for(var k=0u;k<rtProxy.copies;k++){
