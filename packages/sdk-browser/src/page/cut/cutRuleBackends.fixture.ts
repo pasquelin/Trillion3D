@@ -17,6 +17,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import type { ClusterRoot, PageRec } from '../selection/types.ts'
 import { packedWorldsToRenderOrigin } from '../../gpu/dag/pack.fixture.ts'
 import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts'
+import { crossVector3 } from '../../../../math/src/vector/vector.ts'
 
 export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: number[] }
 
@@ -31,11 +32,7 @@ export function stripCamera(dag: RuleDag) {
   // x = up × z, y = z × x, with up = +y.
   const xl = Math.hypot(back[2], back[0]),
     right = [back[2] / xl, 0, -back[0] / xl]
-  const up = [
-    back[1] * right[2] - back[2] * right[1],
-    back[2] * right[0] - back[0] * right[2],
-    back[0] * right[1] - back[1] * right[0],
-  ]
+  const up = crossVector3([0, 0, 0], back, right)
   const cam = createEngineCamera()
   cam.world.set([...right, 0, ...up, 0, ...back, 0, ...eye, 1])
   return writeEngineCamera(cam, { fov: 70, aspect: 16 / 9, near: 0.1, far: 4000, zoom: 1 })

@@ -61,11 +61,6 @@ const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
     'colorSample',
   ],
   {
-    cross: (a: number[], b: number[]) => [
-      a[1] * b[2] - a[2] * b[1],
-      a[2] * b[0] - a[0] * b[2],
-      a[0] * b[1] - a[1] * b[0],
-    ],
     mat3x3f: (...columns: number[][]) => columns,
     mix: (a: number[], b: number[], t: number) => a.map((v, i) => v * (1 - t) + b[i] * t),
   },

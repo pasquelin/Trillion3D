@@ -12,8 +12,11 @@ import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
+import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 
 type V = number[]
+type V3 = [number, number, number]
 type View = { a: V; b: V; c: V; d: V; window: number }
 const shader = shaderRun<{
   rectView: (light: object, P: V) => View
@@ -29,25 +32,22 @@ const shader = shaderRun<{
     Outline: (F: V, exit: V, entry: V) => ({ F, exit, entry }),
   },
 )
-const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const cross = (a: V, b: V) =>
-  [0, 1, 2].map((i) => a[(i + 1) % 3] * b[(i + 2) % 3] - a[(i + 2) % 3] * b[(i + 1) % 3])
-const unit = (a: V) => a.map((x) => x / Math.hypot(...a))
 
 /** The form factor of the polygon (corners relative to the point) about `up`, in f64. */
 function clipped(polygon: V[], up: V) {
   const kept: V[] = []
   polygon.forEach((a, i) => {
     const b = polygon[(i + 1) % polygon.length],
-      [ha, hb] = [dot(a, up), dot(b, up)]
+      [ha, hb] = [dotVector3(a, up), dotVector3(b, up)]
     if (ha > 0) kept.push(a)
     if (ha > 0 !== hb > 0) kept.push(a.map((x, k) => x + (ha / (ha - hb)) * (b[k] - x)))
   })
   let sum = 0
   kept.forEach((a, i) => {
-    const c = cross(a, kept[(i + 1) % kept.length]),
+    const c = cross(a as V3, kept[(i + 1) % kept.length] as V3),
       s = Math.hypot(...c)
-    if (s > 0) sum += (dot(c, up) / s) * Math.atan2(s, dot(a, kept[(i + 1) % kept.length]))
+    if (s > 0)
+      sum += (dotVector3(c, up) / s) * Math.atan2(s, dotVector3(a, kept[(i + 1) % kept.length]))
   })
   return Math.abs(sum) / TAU
 }
@@ -55,7 +55,7 @@ function clipped(polygon: V[], up: V) {
 const random = lcgRandom(831)
 const sphere = () => {
   const [z, t] = [2 * random() - 1, TAU * random()]
-  return [Math.sqrt(1 - z * z) * Math.cos(t), Math.sqrt(1 - z * z) * Math.sin(t), z]
+  return [Math.sqrt(1 - z * z) * Math.cos(t), Math.sqrt(1 - z * z) * Math.sin(t), z] as V3
 }
 
 /** A light as the scene declares it (f32), `distance` from a point P near `origin`, P in front
@@ -63,9 +63,9 @@ const sphere = () => {
 function light(distance: number, size: number, origin = 0) {
   const P = sphere().map((x) => Math.fround(origin + 3 * x))
   const n = unit(sphere()).map(Math.fround)
-  const toP = unit(sphere().map((x, k) => x + 1.2 * n[k]))
-  const C = P.map((x, k) => Math.fround(x - (dot(toP, n) > 0.05 ? toP : n)[k] * distance))
-  const U = unit(cross(n, sphere())).map((x) => Math.fround(x * size * (0.3 + random())))
+  const toP = unit(sphere().map((x, k) => x + 1.2 * n[k]) as V3)
+  const C = P.map((x, k) => Math.fround(x - (dotVector3(toP, n) > 0.05 ? toP : n)[k] * distance))
+  const U = unit(cross(n as V3, sphere())).map((x) => Math.fround(x * size * (0.3 + random())))
   const h = Math.fround(size * (0.3 + random()))
   const W = F32_SCOPE.normalize(F32_SCOPE.cross(U, n)).map((x) => Math.fround(x * h))
   const record = { positionRange: [...C, 1e30], directionCone: [...n, 0], shape: [...U, h] }
@@ -76,7 +76,7 @@ function light(distance: number, size: number, origin = 0) {
   return {
     corners,
     quad: [view.a, view.b, view.c, view.d] as [V, V, V, V],
-    toward: unit(corners[0].map((x, k) => x + corners[2][k])),
+    toward: unit(corners[0].map((x, k) => x + corners[2][k]) as V3),
   }
 }
 
@@ -91,20 +91,20 @@ test('the f64 reference is the integral of the clamped cosine over the rectangle
       corners[1].map((x, k) => x - corners[0][k]),
       corners[3].map((x, k) => x - corners[0][k]),
     ]
-    const area = Math.hypot(...cross(e, g)),
-      normal = unit(cross(e, g))
+    const area = Math.hypot(...cross(e as V3, g as V3)),
+      normal = unit(cross(e as V3, g as V3))
     let sum = 0
     const samples = 200000
     // A point o + u e + v g of the rectangle: its height over the horizon, its depth along the
     // rectangle's normal and its squared distance, each a polynomial in (u, v).
-    const [h, z] = [up, normal].map((n) => [dot(o, n), dot(e, n), dot(g, n)])
+    const [h, z] = [up, normal].map((n) => [dotVector3(o, n), dotVector3(e, n), dotVector3(g, n)])
     const [oo, oe, og, ee, eg, gg] = [
-      dot(o, o),
-      dot(o, e),
-      dot(o, g),
-      dot(e, e),
-      dot(e, g),
-      dot(g, g),
+      dotVector3(o, o),
+      dotVector3(o, e),
+      dotVector3(o, g),
+      dotVector3(e, e),
+      dotVector3(e, g),
+      dotVector3(g, g),
     ]
     for (let s = 0; s < samples; s++) {
       const [u, v] = [random(), random()]
@@ -126,9 +126,11 @@ test('a rectangle cut by the horizon is integrated to f32, whole above, cut or w
   for (let i = 0; i < 1500; i++) {
     const { corners, quad, toward } = light(0.2 + 4 * random(), 0.1 + random())
     const up = unit(sphere()).map(Math.fround)
-    cut += Number(corners.some((q) => dot(q, up) > 0) && corners.some((q) => dot(q, up) <= 0))
+    cut += Number(
+      corners.some((q) => dotVector3(q, up) > 0) && corners.some((q) => dotVector3(q, up) <= 0),
+    )
     const exact = clipped(corners, up)
-    if (corners.every((q) => dot(q, up) <= 0))
+    if (corners.every((q) => dotVector3(q, up) <= 0))
       assert.equal(shader.polygonFormFactor(...quad, up)[3], 0)
     // In units of the irradiance of a face turned to the light: the proxy sphere was 24 % off.
     else
@@ -159,16 +161,16 @@ test('a far light in the mirror direction keeps its glint: the fitted lobe, clip
   const errors = Array.from({ length: 400 }, () => {
     const { corners, quad, toward } = light(500 * (0.5 + random()), 0.5)
     const V = sphere(),
-      N = unit(toward.map((x, k) => x + V[k])).map(Math.fround)
-    const T1 = unit(V.map((x, k) => x - N[k] * dot(N, V))).map(Math.fround),
+      N = unit(toward.map((x, k) => x + V[k]) as V3).map(Math.fround)
+    const T1 = unit(V.map((x, k) => x - N[k] * dotVector3(N, V)) as V3).map(Math.fround),
       T2 = F32_SCOPE.cross(N, T1)
-    const cell = [0.0525 + 0.5 * random(), Math.sqrt(1 - Math.max(dot(N, V), 1e-4))]
+    const cell = [0.0525 + 0.5 * random(), Math.sqrt(1 - Math.max(dotVector3(N, V), 1e-4))]
       .map((x) => Math.min(Math.round(x * (LTC_SIZE - 1)), LTC_SIZE - 1))
       .reduce((x, y) => y * LTC_SIZE + x)
     const m = Array.from(table.subarray(cell * 8, cell * 8 + 4))
     const moved = (q: V) => {
-      const [x, z] = [dot(q, T1), dot(q, N)]
-      return [m[0] * x + m[1] * z, dot(q, T2), m[2] * x + m[3] * z]
+      const [x, z] = [dotVector3(q, T1), dotVector3(q, N)]
+      return [m[0] * x + m[1] * z, dotVector3(q, T2), m[2] * x + m[3] * z]
     }
     const exact = clipped(corners.map(moved), [0, 0, 1])
     const lobe = shader.polygonFormFactor(

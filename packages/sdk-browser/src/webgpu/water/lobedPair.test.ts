@@ -17,6 +17,8 @@ import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
+import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
@@ -41,22 +43,26 @@ const SHARED = [
 const LOBE = ['lobeLight', 'anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
 const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
-const unit = (v: number[]) => v.map((x) => x / (Math.hypot(...v) || 1))
-const cross = (a: number[], b: number[]) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
+type V3 = [number, number, number]
 
 /** A pixel's lobes as `setLobes` leaves them: a strength along a direction across `N`, a coat. */
 function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: number[], V: number[]) {
-  const T = unit(cross(N, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
+  const T = unit(cross(N as V3, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
   const strength = r() < 0.3 ? 0 : u(0, 1),
     coat = r() < 0.3 ? 0 : u(0, 1)
-  const coatN = unit(N.map((n) => n + u(-0.2, 0.2)))
-  const facing = Math.max(coatN[0] * V[0] + coatN[1] * V[1] + coatN[2] * V[2], 0)
+  const coatN = unit(N.map((n) => n + u(-0.2, 0.2)) as V3)
+  const facing = Math.max(dotVector3(coatN, V), 0)
   const grazing = saturate(1 - facing)
-  return { on: true, strength, T, B: cross(N, T), coat, coatRough: u(0.06, 1), coatN, grazing }
+  return {
+    on: true,
+    strength,
+    T,
+    B: cross(N as V3, T),
+    coat,
+    coatRough: u(0.06, 1),
+    coatN,
+    grazing,
+  }
 }
 
 test('the lobed pair gives the two sums of two lobed walks, its specular on a dielectric', () => {
@@ -76,11 +82,10 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     const { grazing, ...set } = lobesOf(u, r, N, V)
     const alpha = rough * rough
     const at = alpha + (1 - alpha) * set.strength * set.strength
-    const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
     // What `setLobes` shares of them: the surface's own and the null albedo's are each loop's
     // (`lobeSurface`), the coat's is the lobes'.
     const coatAlpha2 = set.coatRough ** 4,
-      coatNdotV = Math.max(dot(set.coatN, V), 1e-4)
+      coatNdotV = Math.max(dotVector3(set.coatN, V), 1e-4)
     const lobes = {
       ...set,
       skewed: set.strength > 0,
@@ -90,7 +95,11 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
       invAt: 1 / at,
       invAb: 1 / alpha,
       dScale: 1 / (Math.PI * at * alpha),
-      viewLength: Math.hypot(at * dot(set.T, V), alpha * dot(set.B, V), Math.max(dot(N, V), 1e-4)),
+      viewLength: Math.hypot(
+        at * dotVector3(set.T, V),
+        alpha * dotVector3(set.B, V),
+        Math.max(dotVector3(N, V), 1e-4),
+      ),
       coatSurface: {
         f0: [0.04, 0.04, 0.04],
         diffuse: [0, 0, 0],

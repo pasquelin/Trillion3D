@@ -12,11 +12,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { haltonSpan } from '../../../../../../math/src/sequence/sweep.fixture.ts'
 import { sweptSamples, transform, viewDepth } from './vsmProject.fixture.ts'
-
-const dot = (a: number[], b: number[]) =>
-  Math.fround(
-    Math.fround(Math.fround(a[0] * b[0]) + Math.fround(a[1] * b[1])) + Math.fround(a[2] * b[2]),
-  )
+import { dot } from '../../../../../../../tests/gpu/math/f32Vec3.ts'
+import { crossVector3 } from '../../../../../../math/src/vector/vector.ts'
 
 /** `vsmPixelWorldSize` at view depth `depth` under header `h`, in f32. */
 function pixelWorld(h: Float32Array, depth: number) {
@@ -85,7 +82,7 @@ function stretch(h: Float32Array, l: number[], n: number[], p: number[]) {
 /** Sample `key`'s receiver normal: 0 to 87° off the light `l`, toward a swept side. */
 function normalOff(l: number[], key: number) {
   const r = [47, 53, 59].map((b) => haltonSpan(key, b, -1, 1)),
-    side = [l[1] * r[2] - l[2] * r[1], l[2] * r[0] - l[0] * r[2], l[0] * r[1] - l[1] * r[0]],
+    side = crossVector3([0, 0, 0], l, r),
     length = Math.hypot(side[0], side[1], side[2]),
     angle = haltonSpan(key, 61, 0, 1.52)
   return l.map((x, q) => Math.fround(x * Math.cos(angle) + (side[q] / length) * Math.sin(angle)))

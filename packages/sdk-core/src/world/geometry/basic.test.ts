@@ -4,6 +4,7 @@ import { box, plane, circle, ring, cylinder, cone, sphere } from './basic.ts'
 import type { Geometry } from './geometry.ts'
 import { RECIPES } from './recipes.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { crossVector3 } from '../../../../math/src/vector/vector.ts'
 
 function verify(g: Geometry, vertices: number, triangles: number) {
   const p = g.attributes.position,
@@ -23,11 +24,7 @@ function verify(g: Geometry, vertices: number, triangles: number) {
     assert.ok([a, b, c].every((v) => Number.isInteger(v) && v >= 0 && v < vertices))
     const ab = [p.getX(b) - p.getX(a), p.getY(b) - p.getY(a), p.getZ(b) - p.getZ(a)]
     const ac = [p.getX(c) - p.getX(a), p.getY(c) - p.getY(a), p.getZ(c) - p.getZ(a)]
-    const cross = [
-      ab[1] * ac[2] - ab[2] * ac[1],
-      ab[2] * ac[0] - ab[0] * ac[2],
-      ab[0] * ac[1] - ab[1] * ac[0],
-    ]
+    const cross = crossVector3([0, 0, 0], ab, ac)
     assert.ok(cross[0] * n.getX(a) + cross[1] * n.getY(a) + cross[2] * n.getZ(a) >= -1e-9)
   }
 }

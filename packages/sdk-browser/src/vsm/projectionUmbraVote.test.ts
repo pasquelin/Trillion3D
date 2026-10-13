@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { IDENTITY, constructors, unit } from './pageWorld.fixture.ts'
+import { IDENTITY, constructors, keyedRandom } from './pageWorld.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
@@ -35,10 +35,11 @@ const PD = {
  *  most, few, half). */
 const CHANCES = [0, 1, 1, 0.5, 0.9, 0.1]
 const hits = (g: number, lane: number, ray: number) => {
-  const kind = unit(g, lane >> 5, 1) < 0.6 ? unit(g, lane >> 5, 2) : unit(g, lane, 3)
-  return unit(g, lane, ray, 4) < CHANCES[Math.floor(kind * CHANCES.length)]
+  const kind =
+    keyedRandom(g, lane >> 5, 1) < 0.6 ? keyedRandom(g, lane >> 5, 2) : keyedRandom(g, lane, 3)
+  return keyedRandom(g, lane, ray, 4) < CHANCES[Math.floor(kind * CHANCES.length)]
 }
-const participating = (g: number, lane: number) => unit(g, lane, 5) > 0.1
+const participating = (g: number, lane: number) => keyedRandom(g, lane, 5) > 0.1
 const settings = (g: number) => ({
   voteAfter: 1 + (g % 3),
   rayCount: [7, 4, 2][Math.floor(g / 3) % 3],
@@ -70,10 +71,11 @@ function sun(code: string, votes: object, at: Cursor) {
       vsmSunDiskRayDirection: (d: number[]) => d,
       vsmSunRayBegin: () => ({}),
       // The proof accepts half the first rays that miss: never one the march hits.
-      vsmSunRayMisses: () => !hits(at.group, at.lane, at.ray) && unit(at.group, at.lane, 6) < 0.5,
+      vsmSunRayMisses: () =>
+        !hits(at.group, at.lane, at.ray) && keyedRandom(at.group, at.lane, 6) < 0.5,
       vsmMarchSun: () => ({
         hitFound: hits(at.group, at.lane, at.ray),
-        occluderDepth: 0.5 + (unit(at.group, at.lane, at.ray, 7) - 0.5) * 0.5,
+        occluderDepth: 0.5 + (keyedRandom(at.group, at.lane, at.ray, 7) - 0.5) * 0.5,
       }),
     },
   )
@@ -97,7 +99,7 @@ function local(code: string, votes: object, at: Cursor, spot: boolean) {
       vsmHandleInvalid: () => ({ id: -1 }),
       // The light's face, then each ray's start and end faces.
       vsmCubeFace: () =>
-        at.ray < 0 || at.face++ === 0 ? 0 : +(unit(at.group, at.lane, at.ray, 8) < 0.3),
+        at.ray < 0 || at.face++ === 0 ? 0 : +(keyedRandom(at.group, at.lane, at.ray, 8) < 0.3),
       vsmProjectionOf: () => PD,
       vsmSubtractHighLow: () => NO,
       vsmLocalDepthGradientUv: () => [0, 0],

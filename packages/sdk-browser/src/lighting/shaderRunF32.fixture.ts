@@ -9,6 +9,7 @@ import {
   vector,
   type Vec,
 } from '../texture/shaderRunBuiltins.fixture.ts'
+import { cross } from '../../../../tests/gpu/math/f32Vec3.ts'
 type Value = number | boolean | Vec
 const rounded = (v: Value): Value =>
   typeof v === 'number' ? Math.fround(v) : Array.isArray(v) ? v.map((x) => rounded(x) as number) : v
@@ -30,13 +31,7 @@ export const F32_SCOPE = {
   vec3f: vector(3, (x) => Math.fround(Number(x))),
   vec4f: vector(4, (x) => Math.fround(Number(x))),
   dot,
-  cross: (a: Value, b: Value) => {
-    const [x, y] = [num(a), num(b)]
-    return [1, 2, 0].map((i, k) => {
-      const j = (k + 2) % 3
-      return Math.fround(Math.fround(x[i] * y[j]) - Math.fround(x[j] * y[i]))
-    })
-  },
+  cross: (a: Value, b: Value) => cross(num(a), num(b)),
   length: (v: Value) => Math.fround(Math.sqrt(dot(v, v))),
   normalize: (v: Value) => {
     const r = Math.fround(1 / Math.sqrt(dot(v, v)))

@@ -19,6 +19,8 @@ import {
   perspectiveDivide,
   transformHomogeneousPoint,
 } from '../../../../math/src/wgsl/projection.ts'
+import { nearRelative } from '../../../../math/src/float/near.fixture.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 type V = number[]
 type F = (...args: never[]) => never
@@ -47,9 +49,6 @@ const run = shaderRun<Record<string, F>>(
   ],
   { Frame3: (x: V, y: V, z: V) => ({ x, y, z }), mat3x3f: (...columns: V[]) => columns },
 ) as unknown as Record<string, (...args: unknown[]) => never>
-const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-const close = (a: number, b: number, what: string) =>
-  assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)), `${what}: ${a} vs ${b}`)
 /** Unit vectors spread over the sphere, both hemispheres and the poles. */
 const UNITS = [
   ...Array.from({ length: 64 }, (_, i) => {
@@ -67,9 +66,9 @@ const UNITS = [
 test('the tangent across is across the direction and x, null along ±x', () => {
   for (const N of UNITS) {
     const t: V = run.tangentAcross(N)
-    close(dot(t, N), 0, 'across')
+    nearRelative(dotVector3(t, N), 0, 'across')
     const axis = Math.abs(N[0]) > 1e-6 ? 0 : 1
-    close(dot(t, t), 1 - N[axis] ** 2, `length at ${N}`)
+    nearRelative(dotVector3(t, t), 1 - N[axis] ** 2, `length at ${N}`)
   }
   assert.deepEqual(run.tangentAcross([1, 0, 0]), [0, 0, 0])
 })
@@ -85,16 +84,16 @@ test('the frame around an axis is orthonormal, right-handed, its z the axis', ()
       [m.x, m.z, 0],
       [m.y, m.z, 0],
     ] as [V, V, number][])
-      close(dot(a, b), want, `frame of ${N}`)
+      nearRelative(dotVector3(a, b), want, `frame of ${N}`)
     const xy = [
       m.x[1] * m.y[2] - m.x[2] * m.y[1],
       m.x[2] * m.y[0] - m.x[0] * m.y[2],
       m.x[0] * m.y[1] - m.x[1] * m.y[0],
     ]
-    close(dot(xy, N), 1, `right-handed at ${N}`)
+    nearRelative(dotVector3(xy, N), 1, `right-handed at ${N}`)
     const v = [0.3, -1.7, 2.2]
     const back: V = run.outOfFrame(run.intoFrame(m, v), m)
-    back.forEach((x, i) => close(x, v[i], 'into then out of the frame'))
+    back.forEach((x, i) => nearRelative(x, v[i], 'into then out of the frame'))
   }
 })
 
@@ -105,14 +104,14 @@ test('the cofactor matrix is det · M⁻ᵀ: each column of M against it gives d
     [-0.4, 1.1, 1.5],
   ]
   const C: V[] = run.cofactor3(a, b, c)
-  const det = dot(a, C[0])
-  close(
+  const det = dotVector3(a, C[0])
+  nearRelative(
     det,
     2 * (3 * 1.5 - 0.7 * 1.1) - 0.3 * (0.5 * 1.5 + 1 * 1.1) - 0.4 * (0.5 * 0.7 + 1 * 3),
     'det',
   )
   ;[a, b, c].forEach((column, i) =>
-    C.forEach((row, j) => close(dot(column, row), i === j ? det : 0, `${i}${j}`)),
+    C.forEach((row, j) => nearRelative(dotVector3(column, row), i === j ? det : 0, `${i}${j}`)),
   )
 })
 
@@ -124,7 +123,7 @@ test('the flipped pixel is the pixel ndcToPixel gives, the unflipped uv keeps y'
   ]) {
     const flip: V = run.ndcToPixelFlip(ndc, [640, 360])
     const other: V = run.ndcToPixel(ndc, [640, 360])
-    flip.forEach((x, i) => close(x, other[i], `${ndc}`))
+    flip.forEach((x, i) => nearRelative(x, other[i], `${ndc}`))
   }
   assert.deepEqual(run.ndcToPixelFlip([-1, 1], [640, 360]), [0, 0])
   const m = new Mat([2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 1, 5, 6, 7, 0])

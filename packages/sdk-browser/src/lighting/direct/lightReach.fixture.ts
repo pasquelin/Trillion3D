@@ -4,6 +4,7 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts'
 import { SCENE_LIGHT_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { writeLightFields } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 
 export type V3 = [number, number, number]
 /** A light as the light buffer holds it (`DirectLight`). */
@@ -17,15 +18,6 @@ const RANGE_MARGIN = 1e-3,
   PLANE_MARGIN = 1e-2
 
 const rand = lcgRandom(1521)
-const unit = (v: readonly number[]) => {
-  const l = Math.hypot(...v)
-  return v.map((x) => x / l) as V3
-}
-const cross = (a: readonly number[], b: readonly number[]): V3 => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
 const sphere = () => unit([rand() - 0.5, rand() - 0.5, rand() - 0.5])
 /** A unit direction `angle` radians off `f`, about a random axis. */
 const along = (f: V3, angle: number) => {
@@ -87,7 +79,7 @@ export interface Case {
 export function casesOf(light: SceneLight, r: LightRecord): Case[] {
   const C = r.positionRange.slice(0, 3),
     range = r.positionRange[3],
-    f = unit(r.directionCone.slice(0, 3))
+    f = unit(r.directionCone.slice(0, 3) as V3)
   const at = (u: V3, d: number) => C.map((c, k) => Math.fround(c + u[k] * d)) as V3
   const out: Case[] = []
   for (let i = 0; i < 6; i++) {

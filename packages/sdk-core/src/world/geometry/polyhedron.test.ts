@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { polyhedron } from './polyhedron.ts'
+import { crossVector3, dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 test('polyhedron subdivision covers a spherical octant without duplicate or reversed faces', () => {
   const vertices = [1, 0, 0, 0, 1, 0, 0, 0, 1]
@@ -33,12 +34,7 @@ test('polyhedron subdivision covers a spherical octant without duplicate or reve
       const [a, b, c] = points,
         ab = b.map((v, k) => v - a[k]),
         ac = c.map((v, k) => v - a[k])
-      const cross = [
-        ab[1] * ac[2] - ab[2] * ac[1],
-        ab[2] * ac[0] - ab[0] * ac[2],
-        ab[0] * ac[1] - ab[1] * ac[0],
-      ]
-      assert.ok(cross.reduce((s, v, k) => s + v * a[k], 0) > 0)
+      assert.ok(dotVector3(crossVector3([0, 0, 0], ab, ac), a) > 0)
     }
     assert.equal(faces.size, (detail + 1) ** 2)
   }

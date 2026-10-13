@@ -5,7 +5,6 @@
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { builtins, each } from '../texture/shaderRunBuiltins.fixture.ts'
-import { unit } from './pageWorld.fixture.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
@@ -76,7 +75,3 @@ export const MORE_BUILTINS = {
 /** A WGSL text whose `array<T,N>(…)` lists run as JavaScript arrays (`arrayOf`). */
 export const withArrays = (source: string) =>
   source.replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf(')
-
-/** A 32-bit word of a list of integers (`pageWorld.fixture.ts`'s hash), to stand in for a table's
- *  word at an address. */
-export const hashWord = (...words: number[]) => unit(...words) * 2 ** 32
