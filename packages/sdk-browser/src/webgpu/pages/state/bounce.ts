@@ -1,3 +1,4 @@
+import type { SceneProxy } from '../../../../../sdk-core/src/index.ts'
 import type { GpuBounceProbes } from '../../../bounce/probes.ts'
 
 /**
@@ -6,6 +7,8 @@ import type { GpuBounceProbes } from '../../../bounce/probes.ts'
  */
 export interface WebgpuBounceState {
   probes: GpuBounceProbes | undefined
+  /** The scene's proxy as the cache object carried it, once read: its sizes are published. */
+  proxy: SceneProxy | undefined
   /** In-flight load of the resident proxy; it is launched only once, at the first light. */
   pending: Promise<unknown> | undefined
   /** What the host asked. */
@@ -41,6 +44,7 @@ export function bounceState(bounce: WebgpuBounceState) {
 export function createWebgpuBounceState(wanted: boolean, budgetMs: number): WebgpuBounceState {
   return {
     probes: undefined,
+    proxy: undefined,
     pending: undefined,
     wanted,
     budgetMs,

@@ -2,9 +2,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { residentProxyWgsl } from './nodeWgsl.ts'
-import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
-import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
+import { runtimeRadianceWgsl } from './runtimeTraceWgsl.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
@@ -14,6 +12,9 @@ import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irrad
 import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
+/** The proxy in the probe pass: its buffer and the culling's world matrices, on the slots after the pass's own. */
+export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 6 } as const
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64
@@ -45,9 +46,9 @@ fn queuedProbe(entry:u32)->QueuedProbe{
 /**
  * Update of the cascade irradiance probes.
  *
- * A probe fires a fixed budget of rays against the resident proxy and reads, at the hit
- * texel, the radiance the surface cache already holds there — direct, shadows and bounce
- * of the previous round. It accumulates it all in **order-2** spherical harmonics, nine
+ * A probe fires a fixed budget of rays against the proxy and reads, at the hit, the radiance the
+ * surface is lit to there — direct, shadows traced against the proxy, and the bounce the grid
+ * already holds (`rtProbeRay`). It accumulates it all in **order-2** spherical harmonics, nine
  * coefficients: one constant term, three linear and five quadratic, which make a much
  * sharper irradiance field than an order-1 basis on the same ray spend.
  *
@@ -72,7 +73,6 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
-@group(0) @binding(6) var surface:texture_2d<f32>;
 @group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
 ${wgslConsts({
   RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
@@ -121,7 +121,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // thread chained them one after another and left the GPU idle.
  for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP){
   let d=rayDirection(ray,jitter,rotation);
-  let sample=rayRadiance(origin,d,reach);
+  let sample=rtProbeRay(origin,d,reach);
   let span=sample.w;
   travelled+=span;
   ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
@@ -183,16 +183,14 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`,
   [
-    residentProxyWgsl(1),
+    runtimeRadianceWgsl(PROBE_PROXY),
     DIRECT_LIGHT_WGSL,
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
-    BOUNCE_TRACE_WGSL,
     TWO_PI,
     GOLDEN_ANGLE,
     hashUnit,
     sinFromCos,
-    SURFACE_RAY_WGSL,
   ],
 )
 

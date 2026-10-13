@@ -18,7 +18,6 @@ import { RESOLVE, rasterSource } from '../raster/shader.ts'
 import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
-import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
@@ -106,7 +105,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
-  BOUNCE_SURFACE_SHADER,
   AS_IS_SHARE_SHADER,
   BLOOM_WGSL,
   GUIDE_WGSL,

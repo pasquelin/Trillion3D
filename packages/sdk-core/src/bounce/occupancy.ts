@@ -1,5 +1,3 @@
-import type { SceneProxy } from '../contracts/proxy.ts'
-import { proxyTriangleBoxes } from '../scene/core/proxyBoxes.ts'
 import type { BounceCascades } from './cascades.ts'
 import { cellsOf, dilate, mark, reduce, repeats } from './occupancyCells.ts'
 import { alignDown } from '../../../math/src/scalar/integers.ts'
@@ -13,7 +11,7 @@ import { alignDown } from '../../../math/src/scalar/integers.ts'
  * at construction and again once moved geometry settles, valid for all positions mobile levels
  * take later.
  *
- * The finest level map is marked by bounding boxes of proxy triangles plus a one-cell
+ * The finest level map is marked by the world boxes of the placements' proxies plus a one-cell
  * boundary: eight corners of an occupied cell are always retained, so nothing useful is lost.
  * Subsequent levels are exact reductions — two cells to one per axis, since spacings are
  * power-of-two multiples of the finest — then dilated by one cell for the same reason.
@@ -21,7 +19,7 @@ import { alignDown } from '../../../math/src/scalar/integers.ts'
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
 export interface BounceOccupancy {
-  /** Owners moved: `boxes` holds six world bounds per proxy triangle, `changed` flags the moved. */
+  /** Placements moved: `boxes` holds six world bounds per placement, `changed` flags the moved. */
   moved(boxes: ArrayLike<number>, changed: ArrayLike<number>): void
   /** Once per frame: the first frame after motion stopped rebuilds the exact map on `extent`. */
   settle(boxes: ArrayLike<number>, extent: readonly number[]): void
@@ -37,7 +35,7 @@ export interface BounceOccupancy {
 
 type LevelMap = { map: Uint8Array; dims: number[]; origin: number[] }
 
-/** Every level's map from triangle boxes (six bounds each) over an extent, on the current plan. */
+/** Every level's map from placement boxes (six bounds each) over an extent, on the current plan. */
 function build(cascades: BounceCascades, extent: readonly number[], boxes: ArrayLike<number>) {
   const spacing = cascades.levels[0].spacing
   // Origin and dimensions are aligned to the largest reduction: otherwise a coarse level cell
@@ -76,14 +74,15 @@ function build(cascades: BounceCascades, extent: readonly number[], boxes: Array
 
 /** Marks which probe cells hold geometry, so empty space gets no probe. */
 export function createBounceOccupancy(
-  proxy: SceneProxy,
+  bounds: readonly number[],
+  boxes: ArrayLike<number>,
   cascades: BounceCascades,
 ): BounceOccupancy {
-  // Motion never switches the map off for good. While owners move, the cells their triangles now
+  // Motion never switches the map off for good. While placements move, the cells their boxes now
   // cover join the map at once (old cells stay: conservative, never dark); a lattice the map no
   // longer matches schedules every cell. The first frame without motion rebuilds the exact map
   // from the current poses; its cells per axis are bounded by the cascade plan, whatever the extent.
-  let state = build(cascades, proxy.bounds, proxyTriangleBoxes(proxy.data.triangles))
+  let state = build(cascades, bounds, boxes)
   /** Every cell eligible until the next rebuild: the lattice or the extent outgrew the map. */
   let all = false
   /** Settles left before the rebuild: a frame that moved skips one, the next still one rebuilds. */

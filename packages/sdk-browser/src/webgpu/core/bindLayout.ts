@@ -102,8 +102,9 @@ export const BLEND_BINDINGS = {
   /** Per-tile light lists, the very ones the opaque resolve reads: the blend pass reads its own
    *  depth slice there, from the near plane to the opaque background. */
   tileLights: 23,
-  /** Resident proxy, the very one the opaque resolve binds, on a single binding. */
+  /** The proxy's buffer and the culling's world matrices, which the reflection of the forward programs traces. */
   proxy: 24,
+  worlds: 31,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
    *  the six maps and their factors. They do not depend on the frame, so a draw has no
    *  dynamic offset or a bind group of its own. */

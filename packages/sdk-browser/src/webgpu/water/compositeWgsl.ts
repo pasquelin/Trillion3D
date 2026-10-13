@@ -11,7 +11,6 @@ import {
 } from '../../lighting/direct/lightingWgsl.ts'
 import { CONTRACT_TRACE_BINDINGS } from '../../lighting/direct/shadowWgsl.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
-import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
 import { WATER_LOBELESS_WGSL, WATER_LOBES_WGSL } from './waterLobesWgsl.ts'
 import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
@@ -39,7 +38,9 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  proxy: RESIDENT_PROXY_BINDING,
+  /** The proxy's buffer and the culling's world matrices, which the reflection traces. */
+  proxy: 13,
+  worlds: 36,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
@@ -90,7 +91,6 @@ export const waterCompositeShader = (
 ) => {
   const lobes = !key.lobeless
   const bindings = {
-    proxy: WATER_BINDINGS.proxy,
     transmittance: WATER_BINDINGS.shadowTransmittance,
     trace: CONTRACT_TRACE_BINDINGS,
   }
@@ -112,7 +112,11 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       declaredLightingWgsl(bindings, key, { pair: true }),
       bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes),
       ...(lobes ? [WATER_LOBES_WGSL] : []),
-      forwardReflectionWgsl(REFLECTION_GROUP, lobes),
+      forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
+        group: 0,
+        proxy: WATER_BINDINGS.proxy,
+        worlds: WATER_BINDINGS.worlds,
+      }),
       WATER_COLOR_WGSL,
       VIEW_WGSL,
       BLEND_VIEW_WGSL,

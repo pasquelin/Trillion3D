@@ -47,7 +47,7 @@ export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
   const { services, bounce } = rt,
     impostors = rt.gpu.impostors
   const tier = impostors ? impostorCardsBytes(impostors) : 0
-  return services.hostTableBytes() + (bounce.probes?.proxy.hostBytes ?? 0) + tier
+  return services.hostTableBytes() + tier
 }
 
 /**

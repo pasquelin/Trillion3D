@@ -139,6 +139,22 @@ pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>
     Ok((reached, hidden))
 }
 
+/// Triangles of the meshes the chosen nodes place, each mesh once: what the proxies of a scene weigh together,
+/// a mesh being one proxy whatever the nodes that place it.
+pub(super) fn unique_triangles(g: &Value, chosen: &BTreeSet<usize>) -> Result<usize> {
+    let nodes = values(g, "nodes")?;
+    let mut seen = BTreeSet::new();
+    let mut total = 0usize;
+    for id in chosen {
+        let node = &nodes[*id];
+        let mesh = required_index(node.get("mesh"), "node.mesh")?;
+        if seen.insert(mesh) {
+            total += node_triangles(g, node)?;
+        }
+    }
+    Ok(total)
+}
+
 pub(super) fn select_nodes(
     o: &Options,
     g: &Value,

@@ -110,7 +110,9 @@ export async function cutRuntimePrimitive(
   kind: DrawnShape,
 ): Promise<RuntimePrimitive> {
   const deformation = runtimeDeformation(unpackDrawn(packed).drawn)
-  const result = servePrimitive(await cutPagesOffThread(packed), kind)
+  const cut = await cutPagesOffThread(packed)
+  const result = servePrimitive(cut, kind)
   if (deformation) result.primitive.deformation = deformation
+  if (cut.proxy) result.primitive.runtimeProxy = cut.proxy
   return result
 }

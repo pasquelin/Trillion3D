@@ -1,5 +1,5 @@
 // The engine side of the reflection proofs: a synthetic still frame — the surface flags and normals,
-// the base colour, the depth, the lit image, the physical lobes and the resident proxy of the scene
+// the base colour, the depth, the lit image, the physical lobes and the proxy of the scene
 // where it has them — laid in the engine's own inputs, then the engine's kernels run on it as an
 // image runs them: the depth pyramid the trace marches (`gpu/hiz`, as the visibility builds it),
 // the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
@@ -7,6 +7,7 @@
 // HDR target takes its turn (`adoptRadianceImage`): each image lays the lit image in the HDR
 // target of its turn, as an image's lighting draws it. Consecutive still images, whose reflection
 // targets are read back to the bit.
+import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import {
   createReflectionPipelines,
@@ -21,8 +22,6 @@ import {
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
-import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
-import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import {
@@ -73,7 +72,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
-  const reflection = createScreenReflection(device, width, height, true)
+  const reflection = createScreenReflection(device, width, height, true, !!frame.proxy)
   // The HDR target of the image's turn, and the lit image each image lays in it.
   const targets = { hdrTexture: hdr, hdrView: hdr.createView(), reflection }
   let lit = frame.radiance
@@ -93,22 +92,14 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     direct,
     0,
   )
-  // The resident proxy and its surfaces' radiance; else no proxy, a header of zeros, which reads as
-  // a tree with no node, and one texel of surface cache.
-  const resident = frame.proxy && createGpuBounceProxy(device, frame.proxy.scene)
-  const proxy =
-    resident?.buffer ??
-    device.createBuffer({ size: PROXY_HEADER_BYTES + 16, usage: GPUBufferUsage.STORAGE })
-  const texels = frame.proxy ? frame.proxy.surface.length / 4 : 1
-  const surface = texture('rgba32float', sampled, [texels, 1])
-  if (frame.proxy) write(surface, frame.proxy.surface, 16, [texels, 1])
-  const over = { lightView: lightView.buffer, surface: surface.createView() }
+  // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
+  // no placement.
+  const over = { lightView: lightView.buffer }
   // No bounce probes: an empty grid (no level, no light list read) holding a proxy ray's reach.
   const bounceGrid = device.createBuffer({
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(bounceGrid, 0, new Float32Array([frame.proxy?.reach ?? 0]))
   const probes = emptyAtlas(device, 'reflection proof probes', PROBE_TEXELS)
   const inputs = {
     base: base.createView(),
@@ -118,7 +109,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lights,
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
-    proxy,
+    ...rigProxy(device, reflection, frame.proxy?.faces),
     lightView: lightView.buffer,
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
@@ -132,7 +123,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           viewProjection: frame.viewProjection,
           size: frame.size,
           depthDrawn: true,
-          proxyError: resident?.errorMetres ?? 0,
+          proxyError: 0,
         },
         reflection.radiance.held,
         reflection.radiance.levels,
@@ -159,7 +150,12 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           frame.viewProjection,
         )
         build.end()
-        reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.held.still)
+        reflection.settle.image(
+          encoder,
+          reflection.tiles.args,
+          reflection.tiles.list,
+          reflection.radiance.held.still,
+        )
       }
       device.queue.submit([encoder.finish()])
       reflection.settle.submitted()
@@ -194,11 +190,9 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       probes.destroy()
       hiz.dispose()
       lightView.dispose()
-      if (resident) resident.dispose()
-      else proxy.destroy()
       for (const made of partition) made.destroy()
       // The HDR target of the next turn: the rig's own, or the one the pyramid gave back.
-      for (const made of [base, flags, normals, targets.hdrTexture, lobes, surface]) made.destroy()
+      for (const made of [base, flags, normals, targets.hdrTexture, lobes]) made.destroy()
     },
   }
 }

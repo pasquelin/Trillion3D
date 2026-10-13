@@ -13,7 +13,7 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
  *   model's;
  * - `irradiance`, what a point of the bounce cache receives (`declaredIrradiance`, `../../bounce/`),
  *   wherever in the world, mostly off screen: its shadow one ray through the resident proxy
- *   (`proxyBlocked`), whatever the view, and its response the cosine alone — the cache multiplies
+ *   (`rtBlocked`), whatever the view, and its response the cosine alone — the cache multiplies
  *   by its albedo over π. The maps would leave an off-screen point unshadowed, or draw pages no
  *   view asks for: each term's visibility is the one its points can read.
  * The incidence, the range, the rectangle's irradiance and the light's colour and intensity are
@@ -92,7 +92,7 @@ const IRRADIANCE_TERM = `
  if(all(lit==vec3f(0.0))){return lit;}
  if(light.params.z>0.5){
   let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-  if(proxyBlocked(P+N*1e-3,incidence.xyz,span)){return vec3f(0.0);}
+  if(rtBlocked(P+N*1e-3,incidence.xyz,span)){return vec3f(0.0);}
  }
  return lit;`
 

@@ -51,7 +51,7 @@ test('a narrowed run mutates the sources it names, never their tests or fixtures
   ]) {
     assert.equal(mutated(globs, 'packages/sdk-core/src/contracts/cache.ts'), true)
     assert.equal(mutated(globs, 'packages/sdk-core/src/contracts/cache.test.ts'), false)
-    assert.equal(mutated(globs, 'packages/sdk-core/src/scene/core/proxy.fixture.ts'), false)
+    assert.equal(mutated(globs, 'packages/sdk-core/src/scene/core/nodeAttach.fixture.ts'), false)
   }
   assert.equal(
     mutated(mutationTargets(['packages/math/src/']), 'packages/math/src/float/hypot.ts'),

@@ -26,6 +26,7 @@ import {
   uvGridExponent,
 } from './cutGrid.ts'
 import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
+import { buildCutProxy } from './runtimeProxy.ts'
 import { buildCullingHierarchy } from '../../page/codec/cullingHierarchy.ts'
 
 /**
@@ -153,5 +154,15 @@ export async function cutDrawnTriangles(
       }),
     ),
   )
-  return { pages, culling, positionExponent, uvExponent, maxPositionError }
+  // What a ray can meet: faces. A deforming cut brings what poses them (`runtimeDeform.ts`), so that its placement
+  // is traced at its pose; a blended one keeps its opacity at the surface, which lets the rest of the light
+  // through. Lines and sprites have no area.
+  return {
+    pages,
+    culling,
+    positionExponent,
+    uvExponent,
+    maxPositionError,
+    ...(cones && { proxy: buildCutProxy(module, indices, positions, drawn.deformation) }),
+  }
 }

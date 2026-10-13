@@ -31,6 +31,16 @@ export type SdkWasm = {
    *  page waiting for `encode_page_take`; 1 refused, its code in the answer block. */
   encode_page(request: number, answer: number): number
   encode_page_take(out: number): void
+  /** The proxy of a run-time cut (`../world/page/runtimeProxy.ts`): 0 built, the columns waiting
+   *  for `proxy_build_take`. */
+  proxy_build(
+    indices: number,
+    indexCount: number,
+    positions: number,
+    vertexCount: number,
+    answer: number,
+  ): number
+  proxy_build_take(out: number): void
   /** The page decoder (`../page/codec/geometryPage.ts`): `page_check` gates a page's header and
    *  answers its counts, `page_unpack` writes its indices and attributes into a block of the
    *  decoded bytes; each 0 when it succeeds, 1 with the refusal's code in the answer block. */

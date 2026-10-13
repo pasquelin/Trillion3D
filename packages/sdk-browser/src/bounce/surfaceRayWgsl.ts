@@ -3,30 +3,14 @@ import { BOUNCE_LIGHT_CELL_WGSL } from './lightCellWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 
-/** Posed hits read the surface cache, an atlas (`atlas.ts`) whose padding texels, never written,
- *  hold zero — what a texel past the cache returns. An owned leaf's hit evaluates the lighting at
- *  its owner's transformed centroid: no stale coowner cell, no owner-sized radiance allocation —
- *  walking the lights of its cell (`bounceLightSlice`), in every program that traces it (the probes,
- *  the reflections), each binding the light grid's buffer as `tileLights`. */
+/** The radiance a surface of diffuse \`albedo\` returns from a point \`P\` of normal \`N\`: the lights' irradiance
+ *  there — walking the lights of its cell (\`bounceLightSlice\`), shadows traced against the proxy — and the
+ *  bounce the cascades hold, Lambert's. Every program that traces binds the light grid's buffer as \`tileLights\`. */
 export const SURFACE_RAY_WGSL = wgslBlock(
   'SURFACE_RAY_WGSL',
   [INVERSE_PI_BOUNCE, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
   `
-fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- let hit=traceProxy(origin,direction,reach);
- if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
- let geometric=proxyOwnerNormal(hit.triangle,hit.owner);
- let face=select(0u,1u,dot(geometric,direction)>0.0);
- if(hit.owner!=PROXY_POSED){
-  let normal=select(geometric,-geometric,face==1u);
-  let point=proxyOwnerCentre(hit.triangle,hit.owner);
-  let lighting=lightsIrradiance(point,normal,reach)+sampleBounce(point,normal);
-  return vec4f(proxyOwnerAlbedo(hit.owner)*lighting*INVERSE_PI_BOUNCE,hit.distance);
- }
- let texel=hit.triangle*2u+face;
- let size=textureDimensions(surface);
- if(texel>=size.x*size.y){return vec4f(0.0,0.0,0.0,hit.distance);}
- return vec4f(textureLoad(surface,vec2u(texel%size.x,texel/size.x),0).rgb,hit.distance);
+fn surfaceLit(albedo:vec3f,P:vec3f,N:vec3f,reach:f32)->vec3f{
+ return albedo*(lightsIrradiance(P,N,reach)+sampleBounce(P,N))*INVERSE_PI_BOUNCE;
 }`,
 )

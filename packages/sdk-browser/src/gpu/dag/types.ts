@@ -10,6 +10,7 @@ import type { PlacementTree } from './placementTree.ts'
 import type { PackedWorld } from './worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
 import type { PlacementIndex } from '../../page/selection/placements.ts'
+import type { RootProxy } from '../../page/selection/types.ts'
 import type { createRecordTable } from './packRecords.ts'
 import type { ContentKeys } from './evict.ts'
 
@@ -59,6 +60,9 @@ export type DagRoot = {
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
    *  among all placements of a primitive; without them, the layout derives them itself. */
   culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array; links?: CullingLinks }
+  /** The proxy of its cut and the surface it wears, what a ray meets of it beyond the visible cut
+   *  (`ClusterRoot.proxy`): a run-time cut's alone. */
+  proxy?: RootProxy
   /** Group links: what the cut rule's residency is derived from (`../../page/cut/readiness.ts`). */
   structure?: ClusterStructureIndex
   /** The world DAG's alone (`scene/worldSuperRoots.ts`): per rank, the table object an object

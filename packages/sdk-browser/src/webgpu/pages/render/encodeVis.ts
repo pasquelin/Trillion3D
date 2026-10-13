@@ -8,6 +8,7 @@ import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encode
 import { encodeComposedRows } from '../../../placement/gpuCompose.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import { followLobes } from '../prepare/lobesTarget.ts'
+import { followProxyStore } from '../prepare/proxyStore.ts'
 import {
   encodeEmptySurfaces,
   computeRasterStages,
@@ -44,6 +45,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const [width, height] = gpu.targetSize
   encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))
   followLobes(rt) // Every image's, one of transmissive lobed surfaces alone too.
+  followProxyStore(rt)
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget)
   ensureGpuRaster(rt, device)
   // Corners of the widest page of the catalogue, never the slot's word count: the slot holds a

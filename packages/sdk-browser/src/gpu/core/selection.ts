@@ -12,6 +12,7 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
+import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
@@ -157,6 +158,24 @@ export type GpuSelection = {
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
    *  (`../dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
+  /** The two buffers a program reads the proxy through (`../dag/proxyInstances.ts`): none until a placement
+   *  wears one. */
+  proxyBuffers(): { proxy: GPUBuffer; worlds: GPUBuffer } | undefined
+  /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
+  proxyMirror(encoder: GPUCommandEncoder): void
+  /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
+   *  first program of the image that traces them (`../dag/proxyPose.ts`). */
+  proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void
+  /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
+  proxyArrived(): void
+  /** The world boxes of the placements that wear a proxy, and which are new or moved since the last call. */
+  proxyBoxes(): { boxes: Float64Array; changed: Uint8Array }
+  /** The blended copies the forward family draws, members of the same proxy after the placements
+   *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
+  proxyCopies(copies: readonly ProxyCopy[]): void
+  /** The revision of the run-time proxy's buffer and of the cut's poses, which move when what a ray can
+   *  meet did (`../../reflections/proxyStore.ts`). */
+  proxyRevision(): number
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */

@@ -3,12 +3,15 @@
 // numbers of the manifest's binary, the resident proxy, the cutout answer sheet and the impostor
 // section, and `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers,
 // which re-export the ones their module is the home of.
+import { posix } from 'node:path'
 import { REPOSITORY_ROOT } from '../repository-files.ts'
 import { comment, header } from './statements.ts'
 import { type RustConstant, rustConstants, rustString } from './rust.ts'
 import { git } from '../git-paths.ts'
 
 const COMPILER = 'packages/asset-compiler-rust/src'
+/** A written file's path from the repository root: the compiler's own, or a sibling crate's (`../../`). */
+const located = (file: string) => posix.normalize(`${COMPILER}/${file}`)
 
 /** Each Rust file and the constants it owns: the Rust name, then the name the readers know it by
  *  when they differ. */
@@ -17,12 +20,10 @@ const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, 
     'manifest_binary/version.rs',
     ['MANIFEST_BINARY_VERSION', 'MANIFEST_BINARY_MAGIC', 'MANIFEST_BINARY_HEADER_WORDS'],
   ],
+  ['proxy.rs', ['SCENE_PROXY_VERSION', 'SCENE_PROXY_MAGIC', 'SCENE_PROXY_HEADER_WORDS']],
   [
-    'proxy.rs',
+    '../../page-codec-wasm/src/proxy.rs',
     [
-      'SCENE_PROXY_VERSION',
-      'SCENE_PROXY_MAGIC',
-      'SCENE_PROXY_HEADER_WORDS',
       'PROXY_TRIANGLE_FLOATS',
       'PROXY_NODE_FLOATS',
       'PROXY_CHILDREN',
@@ -58,9 +59,9 @@ function joltCommit() {
 
 /** The written formats' constants, printed for the runtime's readers. */
 export function writtenFormatsTs() {
-  const files = WRITTEN.map(([file]) => `${COMPILER}/${file}`)
+  const files = WRITTEN.map(([file]) => located(file))
   const declarations = WRITTEN.flatMap(([file, names]) => {
-    const path = `${COMPILER}/${file}`
+    const path = located(file)
     const constants = rustConstants(path)
     return names.map((entry) => {
       const [rust, name] = typeof entry === 'string' ? [entry, entry] : entry

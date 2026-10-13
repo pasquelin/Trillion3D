@@ -1,7 +1,7 @@
 // A synthetic still frame for the reflection proofs (`rig.ts`): what the engine's targets hold, as
 // arrays of the image's pixels.
 import { toHalf } from '../../../packages/math/src/float/half.ts'
-import type { SceneProxy } from '../../../packages/sdk-core/src/index.ts'
+import type { RigFace } from './rigRuntime.ts'
 
 /** A synthetic still frame of `size` pixels: what the engine's targets hold, as arrays of the
  *  image's pixels, `normals`, `base` and `radiance` four floats each (the normal and the roughness,
@@ -18,10 +18,8 @@ export type RigFrame = {
   /** The physical lobes' texel of every pixel, four words each (`physicalTexel`), for a frame
    *  whose pixels carry them (`PHYSICAL_SURFACE_FLAG`). */
   lobes?: Uint32Array<ArrayBuffer>
-  /** The resident proxy of the scene, and the radiance of its surfaces: one texel a face of each
-   *  triangle, the two faces of a triangle after one another (`SURFACE_RAY_WGSL`), four floats
-   *  each. `reach` is how far a ray traces it, in metres. */
-  proxy?: { scene: SceneProxy; surface: Float32Array<ArrayBuffer>; reach: number }
+  /** The proxy of the scene: its faces, two triangles each, and the radiance each gives (`rigRuntime.ts`). */
+  proxy?: { faces: RigFace[] }
   /** The background, `0xrrggbb`, as the display shows it: black by default. */
   background?: number
   /** The irradiance of a light declared around the scene: nine RGB coefficients, 27 numbers

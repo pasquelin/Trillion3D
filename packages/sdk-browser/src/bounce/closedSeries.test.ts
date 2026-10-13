@@ -1,11 +1,10 @@
 // `hold.ts` lets a frame hold once the bounce series has closed (`working` false). That loses
-// no image only if a closed series writes nothing more: every probe, the surface cache and the
+// no image only if a closed series writes nothing more: every probe and the
 // grid uniform a redraw would read are then the ones the held frame read, so the redraw would
 // draw the same pixels. Driven here on the engine's own probes, over a recording device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { createGpuBounceProbes } from './probes.ts'
 
 test('a closed bounce series encodes and writes nothing: a redraw reads what the held frame read', async () => {
@@ -13,7 +12,18 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
   const lights = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
-  const probes = await createGpuBounceProbes(gpu.device, floorProxy(8, 4), () => lights, 1000)
+  // One placement wears a proxy: its two buffers, and its box over the floor the probes keep.
+  const scene = {
+    buffers: () => ({ proxy: lights, worlds: lights }),
+    boxes: () => ({ boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]), changed: Uint8Array.of(0) }),
+  }
+  const probes = await createGpuBounceProbes(
+    gpu.device,
+    [0, 0, 0, 8, 0.1, 4],
+    scene,
+    () => lights,
+    1000,
+  )
   const work: string[] = []
   const pass = {
     setPipeline() {},
