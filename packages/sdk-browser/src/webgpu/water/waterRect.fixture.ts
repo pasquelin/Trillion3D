@@ -1,6 +1,9 @@
+// The water rectangle walked item by item on the CPU, in doubles, as the frame once computed it:
+// the model the GPU rectangle (`rectWgsl.ts`) is compared with word for word — by its JavaScript
+// run (`rectWgsl.test.ts`) and by the Dawn proofs' readback.
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxCornersInto, IDENTITY_MATRIX4, invertMatrix4 } from '../../../../sdk-core/src/index.ts'
-import { projectCornersInto } from '../../hiz/corners.ts'
+import { projectCornersInto } from '../../hiz/projection.fixture.ts'
 import { readHostBox } from '../../host/world/bounds.ts'
 import type { HostBox } from '../../host/resources.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
@@ -9,7 +12,7 @@ import type { BlendGpuItem } from '../blend/state.ts'
 import { VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
 import { encloseTransform, ROUND, widenBox } from './precision.ts'
 
-export function createWaterBounds() {
+function createWaterBounds() {
   return {
     active: false,
     width: 0,
@@ -31,9 +34,9 @@ export function createWaterBounds() {
     rect: new Float64Array(4),
   }
 }
-export type WaterBounds = ReturnType<typeof createWaterBounds>
+type WaterBounds = ReturnType<typeof createWaterBounds>
 
-export function beginWaterBounds(
+function beginWaterBounds(
   b: WaterBounds,
   camera?: EngineCamera,
   projection?: ArrayLike<number>,
@@ -97,14 +100,9 @@ function affineSurface(b: WaterBounds, local: HostBox, matrix: ArrayLike<number>
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1
 }
 
-/** Scissors `pass` to `rect` (min x, min y, max x, max y). */
-export function scissorTo(pass: GPURenderPassEncoder, rect: Float64Array) {
-  pass.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1])
-}
-
-/** Called only for the frustum walk's kept transmissive items. Unknown/deformed geometry
+/** Called only for the kept transmissive items that draw. Unknown/deformed geometry
  * keeps full coverage, including unsupported quantized-page water. */
-export function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
+function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
   if (!b.active) return
   const local = item.sourceGeometry?.boundingBox
   if (
@@ -146,5 +144,38 @@ export function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Fl
   else {
     union(b.backdrop, b.rect)
     union(b.backdrop, b.surface)
+  }
+}
+
+/**
+ * What the water pass of an image draws over, as the CPU walk and freeze chose it: each water item
+ * whose rank `waterDraws` marks folded in (`includeWaterItem`), then the rectangle — the surfaces'
+ * union, or the full target when none was folded in — and the backdrop copy's origin and size;
+ * `drawn` whether any item drew.
+ */
+export function waterRectCpu(
+  blendState: { blendGpu: readonly BlendGpuItem[]; volumePacked: Float32Array },
+  camera: EngineCamera,
+  projection: ArrayLike<number>,
+  size: readonly number[],
+  waterDraws: ArrayLike<number>,
+) {
+  const b = createWaterBounds()
+  beginWaterBounds(b, camera, projection, size)
+  let drawn = false
+  for (const item of blendState.blendGpu) {
+    const rank = waterRankOf(item.flags)
+    if (!rank || !waterDraws[rank - 1]) continue
+    drawn = true
+    includeWaterItem(b, item, blendState.volumePacked)
+  }
+  const full = [0, 0, size[0], size[1]]
+  const bounded = b.surface[2] > b.surface[0]
+  const rect = bounded ? Array.from(b.surface) : full,
+    copied = bounded ? Array.from(b.backdrop) : full
+  return {
+    drawn,
+    rect,
+    copy: [copied[0], copied[1], copied[2] - copied[0], copied[3] - copied[1]],
   }
 }

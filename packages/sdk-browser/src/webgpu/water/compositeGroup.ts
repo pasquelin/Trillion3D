@@ -7,14 +7,21 @@ import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
-/** What the composite's group is made of (`createWaterCompositeLayout`). */
-type Sources = { gpu: WebgpuGpuState; uniform: GPUBuffer; lighting: BlendLighting }
-/** A binding's layout past its number and stage, the fragment's. */
-type Layout = Omit<GPUBindGroupLayoutEntry, 'binding' | 'visibility'>
+/** What the composite's group is made of (`createWaterCompositeLayout`): the frame's targets,
+ *  the blend view, the lighting and the verdict whose rectangle the quad covers. */
+export type WaterSources = {
+  gpu: WebgpuGpuState
+  uniform: GPUBuffer
+  lighting: BlendLighting
+  verdict: GPUBuffer
+}
+/** A binding's layout past its number, and its stage when the vertex's (the fragment's
+ *  otherwise). */
+type Layout = Omit<GPUBindGroupLayoutEntry, 'binding' | 'visibility'> & { vertex?: true }
 /** One binding of the composite past its surfaces: its number, what it holds, and its layout where
  *  it is the composite's own — else the opaque resolve's on the same number
  *  (`deferredLayoutEntries`), a surface lit there read as the resolve reads it. */
-type Held = readonly [binding: number, of: (sources: Sources) => unknown, layout?: Layout]
+type Held = readonly [binding: number, of: (sources: WaterSources) => unknown, layout?: Layout]
 
 const b = WATER_BINDINGS
 /** The composite's bindings past the material surfaces, in one list: the layout
@@ -22,8 +29,8 @@ const b = WATER_BINDINGS
  *  identity (`nameWaterResources`) are all made of it. The water word — a colour, in the surface
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
- *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the probes and the proxy with the worlds it is placed by in it, the frozen backdrop and its depth, the blend view
- *  and the volumes. */
+ *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the probes and the proxy with the worlds it is placed by in it, the frozen backdrop and its depth, the blend view,
+ *  the volumes and, for the vertex stage, the verdict its quad reads the rectangle from. */
 const HELD: readonly Held[] = [
   [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
   [b.depth, ({ gpu }) => gpu.backdrop!.waterDepthView],
@@ -48,6 +55,7 @@ const HELD: readonly Held[] = [
   [b.backdropDepth, ({ gpu }) => gpu.depthView, { texture: { sampleType: 'depth' } }],
   [b.uniform, ({ uniform }) => uniform, { buffer: { type: 'uniform' } }],
   [b.volumes, ({ gpu }) => gpu.volumeBuffer, { buffer: readOnly }],
+  [b.rect, ({ verdict }) => verdict, { buffer: readOnly, vertex: true }],
 ]
 
 /** The material surfaces the composite reads first, on the resolve's numbers. */
@@ -69,9 +77,15 @@ export function waterCompositeLayoutEntries(): GPUBindGroupLayoutEntry[] {
   }
   return [
     ...resolve.filter(({ binding }) => binding < SURFACES),
-    ...HELD.map(([binding, , own]) =>
-      own ? { binding, visibility: GPUShaderStage.FRAGMENT, ...own } : shared(binding),
-    ),
+    ...HELD.map(([binding, , own]) => {
+      if (!own) return shared(binding)
+      const { vertex, ...layout } = own
+      return {
+        binding,
+        visibility: vertex ? GPUShaderStage.VERTEX : GPUShaderStage.FRAGMENT,
+        ...layout,
+      }
+    }),
     PHYSICAL_LOBES_TARGET.layoutEntry(),
   ]
 }
@@ -83,36 +97,20 @@ const buffersOf = () =>
     .slice(SURFACES, SURFACES + HELD.length)
     .map((entry) => entry.buffer !== undefined))
 
-/** The sources the frame names, reused: naming them allocates nothing. */
-const named = {} as Sources
-
 /** Writes into `next` (`createWebgpuBindIdentity`) what the frame's water group names: its
  *  surfaces — the material targets and the lobes target — and every binding of `HELD`; not the HDR
  *  target it lights into, an attachment, one of two that take turns. A still frame finds the
- *  same, and allocates nothing. */
-export function nameWaterResources(
-  next: unknown[],
-  gpu: WebgpuGpuState,
-  uniform: GPUBuffer,
-  lighting: BlendLighting,
-) {
-  named.gpu = gpu
-  named.uniform = uniform
-  named.lighting = lighting
-  next[0] = gpu.surfaces
-  for (let i = 0; i < HELD.length; i++) next[i + 1] = HELD[i][1](named)
+ *  same, and allocates nothing: `sources` is the frame's, rewritten in place. */
+export function nameWaterResources(next: unknown[], sources: WaterSources) {
+  next[0] = sources.gpu.surfaces
+  for (let i = 0; i < HELD.length; i++) next[i + 1] = HELD[i][1](sources)
 }
 
 /** The composite's bind group entries (`createWaterCompositeLayout`), on the targets `bind` found
  *  (`frame.ts`): the three material surfaces, the bindings of `HELD`, and the lobes target the
  *  lobed stage left, or the opaque resolve (`waterLobesWgsl.ts`). */
-export function waterCompositeEntries(
-  gpu: WebgpuGpuState,
-  uniform: GPUBuffer,
-  lighting: BlendLighting,
-): GPUBindGroupEntry[] {
-  const surfaces = gpu.surfaces!,
-    sources = { gpu, uniform, lighting },
+export function waterCompositeEntries(sources: WaterSources): GPUBindGroupEntry[] {
+  const surfaces = sources.gpu.surfaces!,
     buffer = buffersOf()
   return [
     ...sequentialEntries(surfaces.views().slice(0, SURFACES)),

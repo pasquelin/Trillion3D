@@ -1,6 +1,6 @@
 // The water-cost scene: controlled water coverage, its geometry identical with the tile
 // parked offscreen. Measured by `bench/dawn/waterCost.ts` (`waterCostPage.ts`), bounded by
-// `packages/sdk-browser/src/webgpu/water/bounds.test.ts`.
+// `packages/sdk-browser/src/webgpu/water/rectWgsl.test.ts`.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { batisseur } from '../kit/sharedSceneProof.ts'
 import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts'

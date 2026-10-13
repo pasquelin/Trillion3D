@@ -46,7 +46,7 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
     assert.equal(writes[4] === surfaces.lobesView, lobed, `${waterLobed}, ${hasLobes}`)
     assert.ok(!writes.includes(surfaces.lobesView) || lobed)
     const entry = lobed ? 'fsWaterLobed' : 'fsWater'
-    assert.deepEqual(commands.slice(0, 3), ['pipeline:restore_fs', 'draw', `pipeline:${entry}`])
+    assert.deepEqual(commands.slice(0, 3), ['pipeline:restore_fs', 'indirect', `pipeline:${entry}`])
   }
   // The lobed stage and its restore list the targets its pass attaches, the restore writing none.
   const lobedTargets = waterSurfaceTargets(true, true)

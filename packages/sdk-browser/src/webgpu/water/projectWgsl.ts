@@ -7,12 +7,12 @@ import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
 
 /**
- * THE SCREEN RECTANGLE OF A BOX, IN EMULATED DOUBLES: the CPU's `project` of the water bounds —
- * the box's enclosure under the projection, its eight corners through `projectCornersInto`
- * (`../../hiz/corners.ts`: the view depth against the near plane, the clip `w`, the divided
- * coordinates, floor and ceil of their pixels), then each side pushed out by the enclosure's error
- * and one pixel, clamped to the target — operation for operation, so the rectangle is the CPU's to
- * the bit. A refused one (a corner at or behind the near plane, a refused enclosure, a non-finite
+ * THE SCREEN RECTANGLE OF A BOX, IN EMULATED DOUBLES: the CPU's `project` of the water bounds
+ * (`waterRect.fixture.ts`) — the box's enclosure under the projection, its eight corners through
+ * `projectCornersInto` (`../../hiz/projection.fixture.ts`: the view depth against the near plane,
+ * the clip `w`, the divided coordinates, floor and ceil of their pixels), then each side pushed out
+ * by the enclosure's error and one pixel, clamped to the target — operation for operation, so the
+ * rectangle is the CPU's to the bit. A refused one (a corner at or behind the near plane, a refused enclosure, a non-finite
  * side) returns a NaN first side. The enclosure of the last box projected stays in `projectNdc`,
  * where the backdrop's reconstruction starts from it, as the CPU's scratch does.
  */

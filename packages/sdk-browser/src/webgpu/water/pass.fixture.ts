@@ -15,6 +15,7 @@ import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRen
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
+import { verdictWords } from '../blend/verdictLayout.ts'
 
 /** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
  *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
@@ -91,9 +92,19 @@ export function prepared() {
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
-  // The image sort posts the keys, the frustum verdict and the slices the pass encodes (the copies
-  // share one place: equal keys, split by source order).
+  // The image sort posts the keys and the slices the pass encodes (the copies share one place:
+  // equal keys, split by source order); the GPU's verdict bound the water's rectangle this image.
   orderBlendPasses(blendState, [0, 0, 0])
+  const verdict = device.createBuffer({
+    size: verdictWords(blendState.transmissive) * 4,
+    usage:
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.INDIRECT |
+      GPUBufferUsage.COPY_SRC |
+      GPUBufferUsage.COPY_DST,
+  })
+  blendState.expand = { buffers: { verdict } } as never
+  blendState.waterBound = true
   blendState.visibleBlend.push(...blendState.blendGpu)
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
   // The indirect arguments the draws read, as the kit's indirect draws do.
@@ -133,8 +144,6 @@ export function targets(gpu: WebgpuGpuState) {
 const anyPipelines = (): unknown => ({ at: () => ({}), lit: anyPipelines, reach: () => undefined })
 /** The views pass `pass` writes, slot by slot (an empty one undefined). */
 export const writesOf = (pass: FakePass) => pass.colors.map((color) => color?.view)
-/** Each scissor rectangle `pass` set, in order. */
-export const scissorsOf = (pass: FakePass) => commandArgs(pass.commands, 'setScissorRect')
 /** What `pass` draws with, in order: `pipeline:<fragment entry>`, `draw` and `indirect`. */
 export const stepsOf = (pass: FakePass) =>
   pass.commands.flatMap(([name, [pipeline]]) =>

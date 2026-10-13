@@ -13,7 +13,7 @@ import type { WebgpuBlendState } from '../blend/state.ts'
  * where they are.
  */
 export const WATER_ITEM_WORDS = 16
-export const WATER_ITEM = { item: 12, crops: 13 } as const
+const WATER_ITEM = { item: 12, crops: 13 } as const
 
 /** The record's layout as the rectangle kernel names it. */
 export const WATER_ITEM_WGSL = wgslBlock(
