@@ -147,6 +147,9 @@ fn frontScatter(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocatio
 fn frontFold(@builtin(global_invocation_id) id:vec3u){
  let texel=vec2u(atomicLoad(&box[${BOX.union}u]),atomicLoad(&box[${BOX.union + 1}u]))+id.xy;
  if(texel.x>=atomicLoad(&box[${BOX.union + 2}u])||texel.y>=atomicLoad(&box[${BOX.union + 3}u])){return;}
+ // A texel of the last image's box past this image's size (a smaller drawn size since) holds no
+ // word of this image's rows: it is cleared alone.
+ if(any(texel>=reflectionView.traced.yz)){textureStore(folded,texel,vec4f(0.0));return;}
  let at=texel.y*reflectionView.traced.w+texel.x;
  textureStore(folded,texel,vec4f(bitcast<f32>(atomicLoad(&carried[at])),0.0,0.0,0.0));
  atomicStore(&carried[at],0u);
