@@ -2,7 +2,12 @@ import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { shaderFailed } from '../gpu/core/shaderModule.ts'
-import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
@@ -47,16 +52,12 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     entries: [
-      {
-        binding: 0,
-        visibility,
-        buffer: { type: 'uniform', minBindingSize: REFLECTION_VIEW_BYTES },
-      },
-      { binding: 1, visibility, texture: { sampleType: 'float' } },
+      computeUniformEntry(0, { minBindingSize: REFLECTION_VIEW_BYTES }, visibility),
+      computeTextureEntry(1, 'float', '2d', visibility),
       { binding: 2, visibility, sampler: { type: 'filtering' } },
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
-      { binding: REFLECTION_IMAGE_BINDING, visibility, texture: { sampleType: 'float' } },
+      computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
     ],
   })
 })
