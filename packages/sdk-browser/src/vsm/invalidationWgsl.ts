@@ -27,6 +27,7 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
+import { VSM_STALE_BOXES_WGSL } from './staleBoxesWgsl.ts'
 
 /** Bytes per `VsmInvalidationInstance`. */
 export const VSM_INVALIDATION_INSTANCE_BYTES = 96
@@ -46,12 +47,7 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 0, prev: true, name: 'vsm' },
   { resource: 'projectionData', binding: 1, prev: true, name: 'vsmProjectionData' },
   { resource: 'pageMarks', binding: 2, prev: true, name: 'vsmPageMarks' },
-  {
-    resource: 'mappedRects',
-    binding: 3,
-    prev: true,
-    name: 'vsmMappedRects',
-  },
+  { resource: 'mappedRects', binding: 3, prev: true, name: 'vsmMappedRects' },
   {
     resource: 'pageRequests',
     binding: 4,
@@ -80,15 +76,6 @@ struct VsmInvalidationInstance{
 ${wgslConsts({ VSM_BOX_CASTS, VSM_BOX_MOVING })}
 `,
 )
-
-/** Group 1: 0 params (uniform), 1 instances, 2 items. */
-const VSM_INVALIDATION_GROUP1_WGSL = /* wgsl */ `
-struct VsmInvalidationParams{invItemCount:u32,boxCount:u32,pad:vec2u,}
-struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
-@group(1) @binding(0) var<uniform> vsmInv:VsmInvalidationParams;
-@group(1) @binding(1) var<storage,read> vsmInvInstances:array<VsmInvalidationInstance>;
-@group(1) @binding(2) var<storage,read> vsmInvItems:array<VsmInvalidationItem>;
-`
 
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the
  *  shared `VSM_BOX_CULL_WGSL`'s), then the stale of one instance's pages (`vsmStaleBoxPages`): what
@@ -184,34 +171,6 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
 `,
 )
 
-/** The load-balanced entry point: one thread per (item, instance of the item), in rows. */
-const VSM_STALE_BOXES_WGSL = /* wgsl */ `
-@compute @workgroup_size(WORKGROUP_THREADS)
-fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
- let thread=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lidx;
- if(thread>=vsmInv.boxCount||vsmInv.invItemCount==0u){return;}
- // Item of this thread: the last whose prefix is <= thread.
- var lo=0u;
- var hi=vsmInv.invItemCount-1u;
- while(lo<hi){
-  let mid=(lo+hi+1u)>>1u;
-  if(vsmInvItems[mid].prefix<=thread){lo=mid;}else{hi=mid-1u;}
- }
- let item=vsmInvItems[lo];
- let indexInItem=thread-item.prefix;
- if(indexInItem>=item.boxCount){return;}
- let boxIndex=item.firstBox+indexInItem;
- if(boxIndex>=arrayLength(&vsmInvInstances)){return;}
- let inst=vsmInvInstances[boxIndex];
- // A valid instance that casts shadows.
- if((inst.flags&VSM_BOX_CASTS)==0u){return;}
- let mapId=item.payload;
- if(mapId>=arrayLength(&vsmProjectionData)){return;}
- let pd=vsmProjectionOf(vsmHandleFromId(mapId));
- vsmStaleBoxPages(pd,inst);
-}
-`
-
 /** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its own
  *  group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of an
  *  instance's pages they call (`vsmStaleBoxPages`). */
@@ -237,4 +196,4 @@ export function vsmInvalidationProgram(
 
 /** The whole instance invalidation module (entry `vsmStaleBoxes`). */
 export const vsmInvalidationWgsl = (layout: VsmLayout) =>
-  vsmInvalidationProgram(layout, VSM_INVALIDATION_GROUP1_WGSL + VSM_STALE_BOXES_WGSL)
+  vsmInvalidationProgram(layout, VSM_STALE_BOXES_WGSL)
