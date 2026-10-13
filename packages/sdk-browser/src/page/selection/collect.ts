@@ -184,8 +184,7 @@ export function createCollector(
     sources.push(draw)
     // One root per placement: the node's pose, or each row that places the source (`placementsOf`).
     const placed = placementsOf({ placements: draw.rows ?? undefined }, () => worlds.of(draw.node!))
-    // The surface the declaration wears, read at the boundary into the engine's own record:
-    // from here on this collection and everything it feeds hold records, not host materials.
+    // The surface record the source wears: this collection and everything it feeds hold it.
     const surface = sourceSurface(draw)
     if (drawsCopies(primitive, surface)) {
       blendCopiesOf({ source: draw, primitive, surface }, placed, order++, into.blendCopies)

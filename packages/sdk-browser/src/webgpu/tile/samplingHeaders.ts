@@ -1,5 +1,6 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts'
 import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts'
@@ -32,13 +33,15 @@ export const HEADERS_WRITTEN = 1,
  * appended. Colour slots whose header moved are added to `colorMoved`; the result is a mask of
  * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same visit hands `copies` each host-image slot
  * whose picture moved since — a new version of its record —, for its places in the pool to be
- * copied again; one copied counts as a written header. A still scene costs one size test and a
- * reread of its host colour maps' readers (`coverageRules`).
+ * copied again; one copied counts as a written header. The readers of the host colour maps
+ * follow the surfaces written since (`surfaces`, `../../page/surfaceWrites.ts`), and nothing else
+ * (`coverageRules`): a still scene costs one size test.
  */
 export function samplingHeaders(
   color: WebgpuTileAtlas,
   data: WebgpuTileAtlas,
   journal: ReadonlySet<Texture> & { clear(): void },
+  surfaces: ReadonlySet<PageSurface> & { clear(): void },
 ) {
   const coverage = coverageRules(color)
   const atlasHeaders = (atlas: WebgpuTileAtlas, copied?: (slot: number) => void) => {
@@ -106,7 +109,7 @@ export function samplingHeaders(
   return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
     // The readers first: a picture copied again below reduces under the rule they declare now.
     if (force) coverage.sync()
-    if (copies) coverage.follow()
+    if (copies) coverage.follow(surfaces)
     let result = 0
     if (force || journal.size) {
       result = colour(force, colorMoved, copies) | other(force, undefined, copies)
@@ -121,7 +124,6 @@ export function samplingHeaders(
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined
   const hosts = new Map<number, { map: Texture; rule?: number }>()
-  let maps: Texture[] = []
   const ruleOf = (map: Texture) => readers?.cutoff(map)
   // Preserve the last uploaded rule for unchanged slots; retirement removes every strong map
   // reference, and reuse starts with the rule its new tail was actually reduced under.
@@ -134,12 +136,15 @@ function coverageRules(atlas: WebgpuTileAtlas) {
       if (hosts.get(slot)?.map !== source.map)
         hosts.set(slot, { map: source.map, rule: ruleOf(source.map) })
     }
-    maps = [...hosts.values()].map(({ map }) => map)
   }
   sync()
   return {
     sync,
-    follow: () => readers?.follow(maps),
+    /** The readers follow the surfaces written since the last follow, then forget them. */
+    follow(surfaces: ReadonlySet<PageSurface> & { clear(): void }) {
+      readers?.follow(surfaces)
+      surfaces.clear()
+    },
     copied(slot: number) {
       const host = hosts.get(slot)
       if (host) host.rule = ruleOf(host.map)

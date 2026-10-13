@@ -1,4 +1,4 @@
-import { refreshSurface, type PageSurface } from './surface.ts'
+import type { PageSurface } from './surface.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rowsMoved, rowsUnread, type RowsReading } from '../webgpu/row/dirty.ts'
 
@@ -47,7 +47,7 @@ export function someRowSurface(question: SurfaceQuestion) {
     const surfaces = surfacesOfRows(rows)
     let answer = answers.get(surfaces)
     if (answer === undefined) {
-      answer = surfaces.some((surface) => !!question(refreshSurface(surface)))
+      answer = surfaces.some((surface) => !!question(surface))
       answers.set(surfaces, answer)
     }
     return answer

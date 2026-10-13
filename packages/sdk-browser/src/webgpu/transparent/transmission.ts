@@ -1,5 +1,4 @@
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
-import { refreshSurface } from '../../page/surface.ts'
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
@@ -92,7 +91,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const rank = waterRankOf(item.flags)
     if (!rank) continue
     const base = (rank - 1) * VOLUME_WORDS,
-      mat = refreshSurface(item.surface)
+      mat = item.surface
     const reflectance = (mat.ior - 1) / (mat.ior + 1)
     packed[base] = mat.transmission
     packed[base + 1] = 1 / Math.max(mat.ior, 1e-3)

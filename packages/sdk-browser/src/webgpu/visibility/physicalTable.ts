@@ -46,7 +46,7 @@ export function createPhysicalTable() {
   const table = {
     view: undefined as GPUTextureView | undefined,
     /** The row word of `mat`: its record's rank plus one, or 0 without a lobe. A surface of a
-     *  version (`refreshSurface`) whose atlas slots held since its last write keeps its word. */
+     *  version (`surfaceWritten`) whose atlas slots held since its last write keeps its word. */
     rowWord: (mat: Surface, dataLayer: Layers) => rowWord(p, mat, dataLayer),
     /** The data atlas's slots moved — a census, a texture appended or released: every surface's
      *  record is rewritten at its next row. */

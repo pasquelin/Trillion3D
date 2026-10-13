@@ -1,6 +1,6 @@
 import { ceilDiv, bitWords } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
-import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts'
+import { surfaceSide, type PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
@@ -86,7 +86,7 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   const draws = new Uint32Array(Math.max(1, items.length) * 4)
   // The two passes expand their instances into TWO disjoint regions of the same list. Their size
   // is that of the WORST CASE — two plan entries per item — not that of the current plan:
-  // `sidesOf` reads the item's surface RECORD, refilled in place by its declaration, and a material switched
+  // `sidesOf` reads the item's surface RECORD, written in place by its owner, and a material switched
   // to double-sided between two frames would overflow the list and push the transmission region
   // past its end. Out-of-bounds kernel writes are dropped silently: transparent geometry would
   // vanish without an error.
@@ -143,9 +143,9 @@ function sidesOf(item: BlendGpuItem) {
   const renverse = matrixWindingCw(item.matrix.elements)
   const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
     back = renverse ? PIPELINE_BACK : PIPELINE_FRONT
-  // The record is reread here: the host writes `side` on the declaration it shares with its
-  // mesh, and the plan is what must see it (see the room reserved above).
-  const surface = refreshSurface(item.surface)
+  // The record is read here, as its owner wrote it last: the plan is what must see a side
+  // switched in place (see the room reserved above).
+  const surface = item.surface
   const side = surfaceSide(surface),
     base = modeBase(surface, !!item.transmissive)
   if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front]

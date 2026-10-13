@@ -31,7 +31,7 @@ import { longestColumn, sameMatrixFloat32 } from '../../../../math/src/matrix/ma
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
-import { refreshSurface, type PageSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
 import { createSpans } from '../../bounce/spans.ts'
@@ -398,11 +398,10 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
 
   /** A surface's slot under a tint (`NO_TINT`: its own), its words written the first time and each time
    *  its record moved on. */
-  function surfaceSlot(host: PageSurface, tint: number) {
-    // The record the host last wrote: read again when its version moved.
-    const surface = refreshSurface(host)
-    let tints = surfaces.get(host)
-    if (!tints) surfaces.set(host, (tints = new Map()))
+  function surfaceSlot(surface: PageSurface, tint: number) {
+    // The record as its owner last wrote it: its words written again when its version moved.
+    let tints = surfaces.get(surface)
+    if (!tints) surfaces.set(surface, (tints = new Map()))
     let held = tints.get(tint)
     if (!held) {
       if (surfaceCount === surfaceCapacity) relayout({ surfaces: surfaceCapacity * 2 })
