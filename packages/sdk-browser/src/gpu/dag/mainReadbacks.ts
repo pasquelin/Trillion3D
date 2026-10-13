@@ -28,7 +28,8 @@ export function createMainReadbacks(
   const funded = {
     createBuffer(descriptor: GPUBufferDescriptor) {
       // The ring counts its own once made; while it makes its first buffers, they are counted here.
-      const held = cutBytes({ buffers: cut.buffers, readbacks: made.ring }) + (made.ring ? 0 : first)
+      const held =
+        cutBytes({ buffers: cut.buffers, readbacks: made.ring }) + (made.ring ? 0 : first)
       try {
         const buffer = madeAsked(device, made.ring ? asked : cut.admit, held, cut.share, descriptor)
         if (!made.ring) first += buffer.size
