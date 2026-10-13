@@ -3,10 +3,9 @@ import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
 import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import { type ClusterRoot } from '../../page/selection/selection.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { dagLevel, dagRoots } from '../../engine/pagesEngine.fixture.ts'
@@ -97,8 +96,8 @@ export function coarseQuadScene(error = 1) {
   }
 }
 
-/** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
- *  survives in the visibility identifiers. */
+/** The GPU image of the occluder scene equals the CPU raster of the cut (one placement, every shown
+ *  page placed by root 0), and only the front page survives in the visibility identifiers. */
 export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesEngine>,
   shown: PageRec[],
@@ -110,7 +109,6 @@ export function assertOccluderImage(
   const visPages = shown
     .filter((page) => page.array)
     .map((page) => ({ ...page, array: page.array! }))
-  // One placement: every shown page is placed by root 0.
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),
