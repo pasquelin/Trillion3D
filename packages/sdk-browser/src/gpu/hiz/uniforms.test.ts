@@ -1,3 +1,4 @@
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_SLOT_WORDS, hizTestSlot, hizUniformSlots } from './uniforms.ts'
@@ -14,7 +15,7 @@ const STRIDE_WORDS = 64
  *  frame. */
 function slotBefore(width: number, height: number, rows: number, counting = 0) {
   const packed = new Float32Array(STRIDE_WORDS)
-  const bias = new Uint32Array(new Float32Array([0]).buffer)[0]
+  const bias = f32Bits(0)
   new Uint32Array(packed.buffer).set([width, height, rows, bias, 0, counting])
   return [...new Uint32Array(packed.buffer)]
 }

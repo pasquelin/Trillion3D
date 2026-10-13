@@ -1,3 +1,4 @@
+import { f32Bits } from './float/bits.ts'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
@@ -74,7 +75,7 @@ test('the golden salt, the octahedral byte step and the least normal float32', (
   assert.ok(Math.abs(Math.fround(Math.fround(255 * OCT_BYTE_STEP) - 1) - 1) <= 2 ** -23)
   assert.equal(FLOAT32_MIN_NORMAL, 2 ** -126)
   assert.equal(Math.fround(FLOAT32_MIN_NORMAL), FLOAT32_MIN_NORMAL)
-  assert.equal(new Uint32Array(new Float32Array([FLOAT32_MIN_NORMAL]).buffer)[0], 0x00800000)
+  assert.equal(f32Bits(FLOAT32_MIN_NORMAL), 0x00800000)
 })
 
 test('the half-float bounds: the greatest finite half, and where a half turns infinite', () => {

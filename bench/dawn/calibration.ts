@@ -1,7 +1,7 @@
 // The bench's unit: a fixed copy kernel timed alone on the engine's device, whose duration says how
 // fast the GPU runs right now. A frame's cost divided by it compares across days and clock states.
+import { readGpuBuffer } from '../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { BenchGpu } from './device.ts'
-import { readBuffer } from '../../tests/gpu/kit/computeReadback.ts'
 import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
 import { validationScope } from '../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
@@ -70,9 +70,9 @@ export async function createCalibration(gpu: BenchGpu, device: GPUDevice) {
         pass.end()
         encoder.resolveQuerySet(set, 0, 2, resolved, 0)
         device.queue.submit([encoder.finish()])
-        return readBuffer(device, resolved, 0, 16)
+        return readGpuBuffer(device, resolved, 16)
       })
-      const [begin, end] = new BigInt64Array(stamps.buffer)
+      const [begin, end] = new BigInt64Array(stamps!.buffer)
       return Number(end - begin) / 1e6
     },
     destroy() {

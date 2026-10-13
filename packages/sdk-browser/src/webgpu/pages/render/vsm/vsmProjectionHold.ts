@@ -3,11 +3,13 @@
 // the shadow pages (their version, once settled) and the stochastic phase of the rays. A drawn
 // frame whose inputs all equal those of the frame that wrote the mask rewrites the same mask: the
 // projection is not run, and the mask the last one wrote is read again.
+import { copyMatrix4 } from '../../../../../../math/src/matrix/matrix4.ts'
+import { sameValues } from '../../../../../../math/src/matrix/matrixElements.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 
-/** The words of a key: the view and the projection, the revisions and epochs, the sizes, the
- *  phase, the light count and the lights' first ids. */
-const KEY_WORDS = 16 + 16 + 10 + VSM_PROJECTION_MAX_PASS_LIGHTS
+/** The words of a key, in `write`'s order: the view and the projection, the three revisions, the
+ *  two epochs, the phase, the two sizes, the light count and the lights' first ids. */
+const KEY_WORDS = 16 + 16 + 9 + VSM_PROJECTION_MAX_PASS_LIGHTS
 
 /** What a projection was drawn from. */
 export interface VsmProjectionInputs {
@@ -32,8 +34,8 @@ export function createVsmProjectionHold() {
   const kept = new Float64Array(KEY_WORDS),
     next = new Float64Array(KEY_WORDS),
     inputs: VsmProjectionInputs = {
-      view: kept,
-      projection: kept,
+      view: new Float64Array(16),
+      projection: new Float64Array(16),
       revisions: { view: 0, scene: 0, resources: 0 },
       lightsEpoch: 0,
       shadowEpoch: 0,
@@ -47,9 +49,7 @@ export function createVsmProjectionHold() {
     /** Whether `inputs`, read into the mask `target`, are what the last projection ran from. */
     held(target: object) {
       write(next, inputs)
-      if (mask !== target) return false
-      for (let k = 0; k < KEY_WORDS; k++) if (next[k] !== kept[k]) return false
-      return true
+      return mask === target && sameValues(next, kept)
     },
     /** The projection ran from the inputs of the last `held` question, into `target`. */
     keep(target: object) {
@@ -61,19 +61,18 @@ export function createVsmProjectionHold() {
 
 function write(key: Float64Array, inputs: VsmProjectionInputs) {
   key.fill(0)
-  for (let k = 0; k < 16; k++) {
-    key[k] = inputs.view[k]
-    key[16 + k] = inputs.projection[k]
-  }
-  const { revisions, size } = inputs
-  key[32] = revisions.view
-  key[33] = revisions.scene
-  key[34] = revisions.resources
-  key[35] = inputs.lightsEpoch
-  key[36] = inputs.shadowEpoch
-  key[37] = inputs.phase
-  key[38] = size[0]
-  key[39] = size[1]
-  key[40] = inputs.lights.length
-  for (let k = 0; k < inputs.lights.length; k++) key[41 + k] = inputs.lights[k].mapId
+  copyMatrix4(key, inputs.view, 0)
+  copyMatrix4(key, inputs.projection, 16)
+  const { revisions, size, lights } = inputs
+  let at = 32
+  key[at++] = revisions.view
+  key[at++] = revisions.scene
+  key[at++] = revisions.resources
+  key[at++] = inputs.lightsEpoch
+  key[at++] = inputs.shadowEpoch
+  key[at++] = inputs.phase
+  key[at++] = size[0]
+  key[at++] = size[1]
+  key[at++] = lights.length
+  for (let k = 0; k < lights.length; k++) key[at++] = lights[k].mapId
 }

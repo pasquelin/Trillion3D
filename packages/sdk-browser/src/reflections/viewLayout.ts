@@ -22,8 +22,9 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
  *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with;
- *  - `surroundings`, the background as the view shows it, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`), written on the
- *    GPU from the background, the exposure and the display curve (`BEGIN_SHADER`).
+ *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
+ *    the background the screen draws, through the exposure and the display curve
+ *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
@@ -41,8 +42,8 @@ const LAYOUT = fieldLayout('ReflectionView', [
 export const REFLECTION_VIEW_AT = LAYOUT.at
 /** Bytes of the reflection's view uniform. */
 export const REFLECTION_VIEW_BYTES = LAYOUT.words * 4
-/** Words of it the CPU writes: all but `surroundings`, which the GPU writes. */
-export const REFLECTION_VIEW_WRITTEN_WORDS = LAYOUT.at.surroundings
+/** Words of the reflection's view, every one the CPU's. */
+export const REFLECTION_VIEW_WORDS = LAYOUT.words
 export const REFLECTION_VIEW_WGSL = wgslBlock('REFLECTION_VIEW_WGSL', [], LAYOUT.wgsl)
 
 /** The bind group the reflection's resources take in every program that marches: the opaque

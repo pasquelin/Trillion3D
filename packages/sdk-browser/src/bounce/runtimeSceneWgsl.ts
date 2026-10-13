@@ -1,7 +1,11 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
+import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
 import {
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
@@ -12,7 +16,16 @@ import {
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
-import { INSTANCE_WORDS, RAY_TRIANGLES, RAY_WORK, RUNTIME_NONE } from './runtimeLayout.ts'
+import {
+  INSTANCE,
+  INSTANCE_WORDS,
+  RAY_TRIANGLES,
+  RAY_WORK,
+  RUNTIME_NONE,
+  RUNTIME_ORIGIN_WORDS,
+  RUNTIME_PROXY_WGSL,
+  RUNTIME_WORLD_WORDS,
+} from './runtimeLayout.ts'
 
 /** The bindings of the proxy in a program that casts its rays: its own buffer (`runtimeLayout.ts`), which holds
  *  the placement tree it walks, and the world matrices of the first range (`gpu/dag/frameRanges.ts`). */
@@ -33,13 +46,13 @@ const TREE_DEPTH = 8
  * the nearest, and returns at the first surface.
  *
  * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box tested at either level, every node
- * visited and every triangle spends from the same counters; a ray that spends them is `exhausted`
- * and answers nothing (`rtScene`, `rtRadiance`): the next stage of the chain answers, never a miss.
+ * visited and every triangle spends from the same counters; a ray that spends them, or whose shadow
+ * ray spends its own (`rtLost`), is exhausted and carries zero weight (`runtimeLayout.ts`).
  */
 export const runtimeSceneWgsl = ({ group, proxy }: SceneBindings) =>
   wgslBlock(
     `runtimeSceneWgsl(${group}, ${proxy})`,
-    [WIDE_TRAVERSAL_WGSL],
+    [WIDE_TRAVERSAL_WGSL, toF32, invTranspose3Prep, worldMatrix3, transformHalfExtent],
     `
 ${wgslConsts({
   RT_NONE: RUNTIME_NONE,
@@ -56,16 +69,15 @@ ${wgslConsts({
   RT_NODE_COUNT: NODE_CHILD_COUNT,
   RT_NODE_KIND: NODE_KIND,
   RT_INSTANCE_WORDS: INSTANCE_WORDS,
-  RT_WORLD_WORDS: 16,
+  RT_INSTANCE_NODE: INSTANCE.node,
+  RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
+  RT_INSTANCE_SURFACE: INSTANCE.surface,
+  RT_INSTANCE_MARK: INSTANCE.mark,
+  RT_WORLD_WORDS: RUNTIME_WORLD_WORDS,
+  RT_ORIGIN_WORDS: RUNTIME_ORIGIN_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
-struct RuntimeProxy{
- instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
- copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
- treeFirst:u32,treeWord:u32,membersWord:u32,members:u32,
- worldsWord:u32,worldRows:u32,error:f32,copies:u32,
- words:array<u32>,
-}
+${RUNTIME_PROXY_WGSL}
 @group(${group}) @binding(${proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
@@ -74,6 +86,9 @@ var<private> rtTests:u32;
 var<private> rtExtra:u32;
 /** Whether \`rtScene\` answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
+/** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
+ *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
+var<private> rtLost:bool;
 fn rtSpent()->bool{return rtWork>=RT_WORK||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
@@ -97,47 +112,49 @@ ${wideTraversal({
      let distance=rayTriangleDistance(origin,direction,rtVertex(tri0+index,0u),rtVertex(tri0+index,1u),rtVertex(tri0+index,2u),best.distance);
      if(distance<best.distance){best=RtHit(distance,placement,tri0+index,true);if(rtAnyHit){return best;}}`,
   answer: 'best',
+  overflow: 'rtWork=RT_WORK;',
 })}
-/** Placement \`w\`'s world: its linear columns \`a\`, \`b\`, \`c\` and its translation \`t\`. */
-struct RtWorld{a:vec3f,b:vec3f,c:vec3f,t:vec3f,}
-fn rtWorldOf(w:u32)->RtWorld{
- // A placement's world is the culling's, mirrored in the proxy's buffer; a blended copy's, the proxy's own,
- // past the placements.
- let at=select(rtProxy.worldsWord+w*RT_WORLD_WORDS,rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS,w>=rtProxy.instances);
- return RtWorld(
-  vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u)),
-  vec3f(rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u)),
-  vec3f(rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u)),
-  vec3f(rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u)));
+/** One coordinate of a placement's exact translation, three doubles in their words, as the single-precision
+ *  value a host write of its world holds. */
+fn rtOrigin(at:u32,k:u32)->f32{return bitcast<f32>(toF32(vec2u(rtProxy.words[at+2u*k],rtProxy.words[at+2u*k+1u])));}
+/** Placement \`w\`'s world, column-major: a placement's is the culling's, mirrored in the proxy's buffer,
+ *  its translation the exact one behind the matrices (the matrices' own are no cut's); a blended copy's,
+ *  the proxy's own, past the placements. */
+fn rtWorldOf(w:u32)->mat4x4f{
+ if(w>=rtProxy.instances){
+  let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
+  return mat4x4f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u),0.0,
+   rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u),0.0,
+   rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
+   rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),1.0);
+ }
+ let at=rtProxy.worldsWord+w*RT_WORLD_WORDS;
+ let o=rtProxy.originsWord+w*RT_ORIGIN_WORDS;
+ return mat4x4f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u),0.0,
+  rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u),0.0,
+  rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
+  rtOrigin(o,0u),rtOrigin(o,1u),rtOrigin(o,2u),1.0);
 }
-/** The rows of the inverse of a world's linear part, over its determinant: \`inverse * v\` is the dot
- *  of each with \`v\`. Zero where the world is singular. */
-struct RtInverse{r0:vec3f,r1:vec3f,r2:vec3f,}
-fn rtInverseOf(m:RtWorld)->RtInverse{
- let r0=cross(m.b,m.c);
- let det=dot(m.a,r0);
- if(abs(det)<1e-30){return RtInverse(vec3f(0.0),vec3f(0.0),vec3f(0.0));}
- let scale=1.0/det;
- return RtInverse(r0*scale,cross(m.c,m.a)*scale,cross(m.a,m.b)*scale);
-}
-fn rtInverseApply(i:RtInverse,v:vec3f)->vec3f{return vec3f(dot(i.r0,v),dot(i.r1,v),dot(i.r2,v));}
 fn rtInstanceWord(w:u32,k:u32)->u32{return rtProxy.words[rtProxy.instancesWord+w*RT_INSTANCE_WORDS+k];}
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
- let node0=rtInstanceWord(w,0u);
+ let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
  if(node0==RT_NONE||(w<rtProxy.instances&&w>=rtProxy.worldRows)){return best;}
  let m=rtWorldOf(w);
+ let linear=worldMatrix3(m);
  let local=rtBox(node0);
- let centre=(local.low+local.high)*0.5;
- let half=(local.high-local.low)*0.5;
- let c=m.a*centre.x+m.b*centre.y+m.c*centre.z+m.t;
- let extent=abs(m.a)*half.x+abs(m.b)*half.y+abs(m.c)*half.z;
+ let c=linear*((local.low+local.high)*0.5)+m[3].xyz;
+ let extent=transformHalfExtent(m,(local.high-local.low)*0.5);
  if(rayBoxEntry(c-extent,c+extent,origin,inverse,best.distance)>best.distance){return best;}
- let back=rtInverseOf(m);
- let o=rtInverseApply(back,origin-m.t);
- let d=rtInverseApply(back,direction);
- let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,1u),w);
+ // The ray taken to the mesh's space by the inverse of the world's linear part: a row vector times
+ // the engine's inverse-transpose (\`invTranspose3Prep\`). A singular world holds no volume a ray
+ // can enter.
+ let back=invTranspose3Prep(linear);
+ if(!back.regular){return best;}
+ let o=(origin-m[3].xyz)*back.adj*back.scale;
+ let d=direction*back.adj*back.scale;
+ let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
@@ -214,8 +231,8 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
 }
 /** Whether anything of the proxy stands on the segment of length \`span\` from \`origin\` along \`direction\`: the
  *  first surface met answers, not the nearest. The ray has its own budget; what it spent is charged to the
- *  ray the lighting is cast for (\`rtExtra\`). A ray that spends its budget reports no blocker, which lights what
- *  should be dark and never darkens what should be lit. */
+ *  ray the lighting is cast for (\`rtExtra\`). A ray that spends its budget marks that ray lost (\`rtLost\`):
+ *  its answer carries zero weight, and this one reports a blocker, which spares the rest of its lighting. */
 fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  let work=rtWork;
  let tests=rtTests;
@@ -224,10 +241,12 @@ fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  rtAnyHit=true;
  let hit=rtScene(origin,direction,span);
  rtAnyHit=false;
+ let lost=rtSpent();
+ rtLost=rtLost||lost;
  rtExtra+=rtWork;
  rtWork=work;
  rtTests=tests;
- return hit.found;
+ return hit.found||lost;
 }
 `,
   )

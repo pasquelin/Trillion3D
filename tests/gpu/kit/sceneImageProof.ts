@@ -68,13 +68,13 @@ export function drawnPixels(pixels: ArrayLike<number>) {
 }
 
 /** True when the pixel at `i` carries the tile's red and not the background's blue. */
-export const estRouge = (pixels: Uint8Array | number[], i: number): boolean =>
+export const isRed = (pixels: Uint8Array | number[], i: number): boolean =>
   pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40
 
 /** The number of pixels that carry the tile's red rather than the background's blue. */
 export function redCount(pixels: Uint8Array | number[]): number {
   let n = 0
-  for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++
+  for (let i = 0; i < pixels.length; i += 4) if (isRed(pixels, i)) n++
   return n
 }
 

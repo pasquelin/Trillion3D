@@ -163,12 +163,8 @@ export function createWebgpuTileStreamer(options: {
       size: [number, number],
       every: boolean,
     ) {
-      if (target) reduce?.encode(encoder, target, feedback, size, feedback.phaseWord(every))
+      if (target) reduce.encode(encoder, target, feedback, size, feedback.phaseWord(every))
       feedback.encode(encoder)
-    },
-    /** False on a device without a compute stage: no pixel asks for a tile. */
-    get requestReduce() {
-      return reduce !== undefined
     },
     ...createTileGrowth(options, {
       color,
@@ -189,7 +185,7 @@ export function createWebgpuTileStreamer(options: {
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       sources.destroy()
-      reduce?.destroy()
+      reduce.destroy()
       feedback.destroy()
       color.destroy()
       data.destroy()

@@ -3,6 +3,7 @@
 //! what the DAG builder guarantees on it, `cache.rs` what the compiled cache guarantees, and
 //! `run.rs` asserts both on every case of every family.
 use super::*;
+use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 mod attributes;
 mod cache;
@@ -125,8 +126,8 @@ impl Case {
     /// material samples.
     fn carried(&self, flag: u32) -> bool {
         match flag {
-            encode::FLAG_UV => self.sampled[0],
-            encode::FLAG_UV1 => self.sampled[1],
+            FLAG_UV => self.sampled[0],
+            FLAG_UV1 => self.sampled[1],
             _ => true,
         }
     }
@@ -149,9 +150,7 @@ impl Case {
     pub fn uv_sets(&self) -> Vec<(&'static str, &[f32])> {
         encode::PAGE_ATTRIBUTES
             .iter()
-            .filter(|&&(_, _, flag)| {
-                (flag == encode::FLAG_UV || flag == encode::FLAG_UV1) && self.carried(flag)
-            })
+            .filter(|&&(_, _, flag)| (flag == FLAG_UV || flag == FLAG_UV1) && self.carried(flag))
             .filter_map(|&(name, _, _)| Some((name, self.values(name)?.1)))
             .collect()
     }

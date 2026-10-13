@@ -3,6 +3,7 @@
 // depth pyramid and does not darken the floor behind it — a pane's shadow is the maps' transmission
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { createFrontDepth } from '../../../packages/sdk-browser/src/reflections/frontDepth.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
@@ -23,7 +24,7 @@ import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/project
 import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
-import { bufferHolding, readBuffer } from '../kit/computeReadback.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 const WIDTH = 64,
@@ -157,7 +158,7 @@ export async function testGlassContact(): Promise<GlassContact> {
     run.dispatchWorkgroups(1)
     run.end()
     device.queue.submit([encoder.finish()])
-    return Array.from(new Float32Array((await readBuffer(device, result, 0, 32)).buffer))
+    return Array.from(new Float32Array((await readGpuBuffer(device, result, 32))!.buffer))
   }
   const floor = await cast('floor'),
     wall = await cast('wall'),

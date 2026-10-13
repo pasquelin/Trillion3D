@@ -14,7 +14,7 @@
  * (`poolWindowSizes`), its texels page by page (`vsmPoolTexelIndexWgsl`): WebGPU's guaranteed
  * binding, so the same buffers and the same addressing on every device. The VSM passes bind every
  * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: blended
- * surfaces, water) every window of the first (`vsmForwardPoolBinding`).
+ * surfaces, water) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
  */
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
@@ -437,20 +437,17 @@ export function vsmBindingsWgsl(
 /** The layout's numbers a module's text reads: the pool's windows, its row shift. */
 const layoutKey = (layout: VsmLayout) => `${poolWindowSizes(layout).length}/${layout.poolRowShift}`
 
-/** The layout a reader outside the VSM passes (blend, water) is compiled for, before any pool is
- *  granted: the largest pool the engine grants (`VSM_POOL_PAGES`), whose windows and row shift are
- *  every smaller pool's text too — one window, the table's fixed width. */
+/**
+ * The layout a reader outside the VSM passes (blend, water) is compiled for, before any pool is
+ * granted: the largest pool the engine grants (`VSM_POOL_PAGES`), whose windows and row shift are
+ * every smaller pool's text too. Its slice is one window — 2048 pages of 64 KiB, WebGPU's
+ * guaranteed binding of 128 MiB —, so such a reader binds every window of the slice it reads in
+ * one binding, as its layout declares it. The engine's constants hold it, checked once here: a
+ * pool past one window would need the bindings and the storage buffers its stages do not hold.
+ */
 export const VSM_FORWARD_LAYOUT = vsmLayout({ fullMapCapacity: 0 })
-
-/** The binding such a reader declares the pool's first slice at, `first`: one window, one binding.
- *  A pool grown past one window gives those layouts a number a window, which this refuses until
- *  they hold them. */
-export function vsmForwardPoolBinding(first: number) {
-  const windows = poolWindowSizes(VSM_FORWARD_LAYOUT).length
-  if (windows !== 1)
-    throw new Error(`VSM: the pool spans ${windows} windows, a forward pass binds one`)
-  return first
-}
+if (poolWindowSizes(VSM_FORWARD_LAYOUT).length !== 1)
+  throw new Error('VSM: the largest pool spans more than one window, which a forward read binds')
 
 /** The slices a pool spec binds. */
 const slicesOf = (spec: VsmBindingSpec) => spec.slices ?? VSM_POOL_SLICES

@@ -1,7 +1,13 @@
-import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { mipLevelCountFor } from '../texture/tiles.ts'
 import { levelViews } from '../texture/mipGroups.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { ceilDiv, mipSize } from '../../../math/src/scalar/integers.ts'
+import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -10,17 +16,17 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
 import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { storageEntry } from './bindings.ts'
-import { REFLECTION_FORMAT, REFLECTION_SIDE as SIDE } from './constants.ts'
+import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
 /** Levels of the radiance pyramid, level 0 and two a dispatch (`RADIANCE_SHADER`): its coarsest
  *  texel spans 2^(levels − 1) pixels, the widest footprint a reflection reads before it is the
  *  environment's (`reflectionLevelTrust`). */
 const RADIANCE_LEVELS = 9
-/** Texels of a level one workgroup makes of the level two finer: `SIDE`, each reading the four
- *  texels of the level between that surround it — a tile of `2 · SIDE` and a texel of halo each
- *  side. */
-const TILE = 2 * SIDE + 2
+/** Texels of a level one workgroup makes of the level two finer: `REFLECTION_SIDE`, each reading
+ *  the four texels of the level between that surround it — a tile of `2 · REFLECTION_SIDE` and a
+ *  texel of halo each side. */
+const TILE = 2 * REFLECTION_SIDE + 2
 
 /**
  * The radiance pyramid: the lit image of the frame, before the temporal resolve, and its filtered
@@ -41,7 +47,7 @@ const TILE = 2 * SIDE + 2
  * drew, 0 on the background, at most 1 at every level), which the reflection divides by, so a
  * footprint never darkens toward the background.
  *
- * Two levels a dispatch: a workgroup makes the tents of the level between for its `SIDE × SIDE`
+ * Two levels a dispatch: a workgroup makes the tents of the level between for the `REFLECTION_SIDE`²
  * texels of the coarsest level, and of the texel of halo around them, in workgroup memory (each
  * once, its own threads' share, `radianceFill`), writes those it owns, and after one barrier each
  * thread sums the 4 × 4 of them around its texel (`radianceSum`). `radianceFirst` does so from the
@@ -83,13 +89,13 @@ fn radianceTent(q:vec2i,bounds:vec2i)->vec4f{
 }
 fn radianceFill(lane:u32,wg:vec2u,bounds:vec2i){
  let size=vec2i(textureDimensions(coarser));
- let origin=vec2i(wg)*${2 * SIDE}-vec2i(1);
- for(var cell=lane;cell<${TILE * TILE}u;cell+=${SIDE * SIDE}u){
+ let origin=vec2i(wg)*${2 * REFLECTION_SIDE}-vec2i(1);
+ for(var cell=lane;cell<${TILE * TILE}u;cell+=${REFLECTION_SIDE * REFLECTION_SIDE}u){
   let at=vec2i(i32(cell%${TILE}u),i32(cell/${TILE}u));
   let q=origin+at;
   let texel=radianceTent(clamp(q,vec2i(0),size-vec2i(1)),bounds);
   tile[cell]=texel;
-  if(all(at>=vec2i(1))&&all(at<=vec2i(${2 * SIDE}))&&all(q<size)){textureStore(coarser,q,texel);}
+  if(all(at>=vec2i(1))&&all(at<=vec2i(${2 * REFLECTION_SIDE}))&&all(q<size)){textureStore(coarser,q,texel);}
  }
 }
 fn radianceSum(lid:vec2u,wg:vec2u){
@@ -99,7 +105,7 @@ fn radianceSum(lid:vec2u,wg:vec2u){
    sum+=tent(i)*tent(j)*tile[(2*lid.y+u32(j))*${TILE}u+2*lid.x+u32(i)];
   }
  }
- let c=vec2i(wg*${SIDE}u+lid);
+ let c=vec2i(wg*${REFLECTION_SIDE}u+lid);
  if(all(c<vec2i(textureDimensions(coarsest)))){textureStore(coarsest,c,sum/64.0);}
 }
 fn radianceHash(p:vec2i,texel:vec4f)->vec2u{
@@ -137,21 +143,21 @@ fn radianceLevels(lane:u32,wg:vec2u,lid:vec2u){
  workgroupBarrier();
  radianceSum(lid,wg);
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceFirst(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceLevels(lane,wg.xy,lid.xy);
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceFirstHashed(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceLevels(lane,wg.xy,lid.xy);
- radianceAdd(0u,radianceFold(finer,vec2i(wg.xy*${SIDE}u+lid.xy)));
+ radianceAdd(0u,radianceFold(finer,vec2i(wg.xy*${REFLECTION_SIDE}u+lid.xy)));
  workgroupBarrier();
  radianceFlush(lane,0u);
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceFirstBoth(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceLevels(lane,wg.xy,lid.xy);
- let c=vec2i(wg.xy*${SIDE}u+lid.xy);
+ let c=vec2i(wg.xy*${REFLECTION_SIDE}u+lid.xy);
  radianceAdd(0u,radianceFold(finer,c));
  radianceAdd(2u,radianceFold(previous,c));
  workgroupBarrier();
@@ -165,7 +171,7 @@ fn radianceRoll(){
  atomicStore(&hash[0],0u);
  atomicStore(&hash[1],0u);
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceDown(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceFill(lane,wg.xy,vec2i(textureDimensions(finer)));
  workgroupBarrier();
@@ -223,13 +229,32 @@ export const radianceLevels = (width: number, height: number) => {
 /** What a view's radiance pyramid holds: whether it holds an image of this view, the
  *  view-projection and drawn size that image was drawn with — the next image reprojects its hits
  *  with them —, whether the image before it was drawn with the same view-projection and size: an
- *  image traced on it reads the view it is drawn from (`reflectionsSettled`) —, and so whether its
- *  build hashed it (`still`). */
+ *  image traced on it reads the view it is drawn from (`reflectionsSettled`) — (`still`); its build
+ *  hashed it then, unless the view was settled (`RadiancePyramid.hashed`). */
 export type HeldImage = {
   valid: boolean
   viewProjection: Float64Array
   size: [number, number]
   still: boolean
+}
+
+/** What the pyramid of a view at `width × height` allocates, its usages aside: its levels from 1 on, at
+ *  half the size, and the lit image it holds as its level 0. */
+function radianceTextures(width: number, height: number) {
+  return {
+    coarse: {
+      size: [mipSize(width, 1), mipSize(height, 1)],
+      format: REFLECTION_FORMAT,
+      mipLevelCount: Math.max(1, radianceLevels(width, height) - 1),
+    },
+    image: { size: [width, height], format: HDR_FORMAT },
+  } satisfies Record<string, Omit<GPUTextureDescriptor, 'usage'>>
+}
+
+/** Bytes of the pyramid of a view at `width × height` (`radianceTextures`). */
+export function radianceBytes(width: number, height: number) {
+  const { coarse, image } = radianceTextures(width, height)
+  return textureBytesOf(coarse)! + textureBytesOf(image)!
 }
 
 /**
@@ -241,19 +266,17 @@ export type HeldImage = {
  * levels at `width × height`, the lit image its level 0 (`reflectionBytes`).
  */
 export function createRadiancePyramid(device: GPUDevice, width: number, height: number) {
-  const levels = radianceLevels(width, height)
+  const levels = radianceLevels(width, height),
+    textures = radianceTextures(width, height)
   const coarse = device.createTexture({
+    ...textures.coarse,
     label: 'Trillion3D reflection radiance',
-    size: [Math.max(1, width >> 1), Math.max(1, height >> 1)],
-    format: REFLECTION_FORMAT,
-    mipLevelCount: Math.max(1, levels - 1),
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   // The other HDR target: the frame's, the one before's turn about (`adoptRadianceImage`).
   const image = device.createTexture({
+    ...textures.image,
     label: 'Trillion3D HDR lighting',
-    size: [width, height],
-    format: HDR_FORMAT,
     usage: hdrUsage(),
   })
   return {
@@ -266,6 +289,8 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
     /** The pyramid was built this image from the frame's HDR target, which is to become its
      *  level 0 once the image is encoded (`adoptRadianceImage`). */
     fresh: false,
+    /** Whether the last build hashed its image (`encodeRadiancePyramid`). */
+    hashed: false,
     levels,
     sampler: device.createSampler({
       label: 'Trillion3D reflection radiance',
@@ -305,27 +330,22 @@ function buildGroups(
   const groups = [
     device.createBindGroup({
       layout: firstLayout,
-      entries: [
-        { binding: 0, resource: inputs.hdr },
-        { binding: 1, resource: views[0] },
-        { binding: 2, resource: views[1] },
-        { binding: 3, resource: sampler },
-        { binding: 4, resource: pyramid.image.view },
-        { binding: 5, resource: { buffer: inputs.view } },
-        { binding: 6, resource: { buffer: inputs.hash } },
-      ],
+      entries: sequentialEntries([
+        inputs.hdr,
+        views[0],
+        views[1],
+        sampler,
+        pyramid.image.view,
+        { buffer: inputs.view },
+        { buffer: inputs.hash },
+      ]),
     }),
   ]
   for (let at = 2; at + 2 < pyramid.levels; at += 2)
     groups.push(
       device.createBindGroup({
         layout: downLayout,
-        entries: [
-          { binding: 0, resource: views[at - 1] },
-          { binding: 1, resource: views[at] },
-          { binding: 2, resource: views[at + 1] },
-          { binding: 3, resource: sampler },
-        ],
+        entries: sequentialEntries([views[at - 1], views[at], views[at + 1], sampler]),
       }),
     )
   const roll = device.createBindGroup({
@@ -349,8 +369,8 @@ const radianceGroups = (
   level: number,
   extent: readonly [number, number],
 ) => [
-  ceilDiv(radianceThreads(size[0], level, extent[0]), SIDE),
-  ceilDiv(radianceThreads(size[1], level, extent[1]), SIDE),
+  ceilDiv(radianceThreads(size[0], level, extent[0]), REFLECTION_SIDE),
+  ceilDiv(radianceThreads(size[1], level, extent[1]), REFLECTION_SIDE),
 ]
 
 /**
@@ -359,7 +379,8 @@ const radianceGroups = (
  * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
  * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
  * the image is encoded (`fresh`, `adoptRadianceImage`). `inputs.view` is the lighting's view, whose
- * drawn size the first dispatch reads.
+ * drawn size the first dispatch reads. With `hashless` — a settled view, whose hash no sample reads
+ * (`settle.verified`) — the image is not hashed: the next image that is hashes the one before it too.
  */
 export function encodeRadiancePyramid(
   pass: GPUComputePassEncoder,
@@ -369,6 +390,7 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
+  hashless = false,
 ) {
   const { levels, held, build } = pyramid
   if (levels < 3) return
@@ -385,14 +407,15 @@ export function encodeRadiancePyramid(
     build.slots[slot] = buildGroups(device, pyramid, pipelines, inputs)
   const { groups, roll } = build.slots[slot]!
   // Drawn from where the image before it was: hashed, and the image before it too where that one
-  // moved and hashed nothing — still whole, the pyramid's level 0.
-  const hashedBefore = held.still,
+  // moved or was settled and hashed nothing — still whole, the pyramid's level 0.
+  const hashedBefore = pyramid.hashed,
     still =
       held.valid &&
       held.size[0] === size[0] &&
       held.size[1] === size[1] &&
-      sameElements(held.viewProjection, viewProjection)
-  const first = !still
+      sameElements(held.viewProjection, viewProjection),
+    hashing = still && !hashless
+  const first = !hashing
     ? pipelines.firstPipeline
     : hashedBefore
       ? pipelines.firstHashedPipeline
@@ -407,6 +430,7 @@ export function encodeRadiancePyramid(
     pass.dispatchWorkgroups(x, y)
   }
   held.still = still
+  pyramid.hashed = hashing
   held.valid = true
   copyMatrix4(held.viewProjection, viewProjection)
   held.size[0] = size[0]

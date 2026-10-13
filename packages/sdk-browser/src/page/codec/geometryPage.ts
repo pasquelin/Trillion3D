@@ -1,8 +1,7 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { MIB } from '../../../../math/src/constants.ts'
 import { loadedSdkWasm, type SdkWasm } from '../../wasm/sdkWasm.ts'
-import { META_WORDS } from '../../wasm/encodeAbi.ts'
-import { UNPACKED } from '../../wasm/decodeAbi.ts'
+import { META, META_WORDS } from '../../wasm/encodeAbi.ts'
 import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts'
 
@@ -86,17 +85,17 @@ export function checkGeometryPage(
     const words = answerOf(arena)
     if (status !== 0) refused(words)
     return {
-      vertexCount: words[UNPACKED.VERTEX_COUNT],
-      indexCount: words[UNPACKED.INDEX_COUNT],
-      flags: words[UNPACKED.FLAGS],
-      decodedBytes: words[UNPACKED.DECODED_BYTES],
+      vertexCount: words[META.VERTEX_COUNT],
+      indexCount: words[META.INDEX_COUNT],
+      flags: words[META.FLAGS],
+      decodedBytes: words[META.DECODED_BYTES],
       quantizationError: new Float32Array(
         words.buffer,
-        words.byteOffset + UNPACKED.QUANTIZATION_ERROR * 4,
+        words.byteOffset + META.QUANTIZATION_ERROR * 4,
         1,
       )[0],
-      morphTargets: words[UNPACKED.MORPH_TARGETS],
-      skinInfluences: words[UNPACKED.SKIN_INFLUENCES],
+      morphTargets: words[META.MORPH_TARGETS],
+      skinInfluences: words[META.SKIN_INFLUENCES],
     }
   })
 }

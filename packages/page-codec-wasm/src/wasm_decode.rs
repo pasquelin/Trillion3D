@@ -1,26 +1,13 @@
 //! Raw ABI of the page decoder (`unpack.rs`): byte offsets into `arena_alloc` reservations, like
-//! `wasm_encode.rs`, whose refusal answer it shares. The loader is
+//! `wasm_encode.rs`, whose answer it shares — a page's header on success (`meta`,
+//! `answer_header`), a refusal's code otherwise (`refuse`). The loader is
 //! `packages/sdk-browser/src/page/codec/geometryPage.ts`, the one decoder of the SDK: the header's
 //! gate (`page_check`) admits a page the pool uploads as it is, the unpack (`page_unpack`) writes
 //! its indices and attributes into a block the loader reserved.
 
 use crate::unpack::decode_into;
-use crate::wasm_encode::{refuse, META_WORDS};
+use crate::wasm_encode::{answer_header, refuse};
 use crate::Header;
-
-/// The words `page_check` answers in on success, after the refusal answer of `wasm_encode.rs`
-/// (word 0 the length of the code, its ASCII bytes from byte 4) on a refusal: the page's
-/// vertices, indices, flags, decoded bytes, quantization error (float bits), morph targets and
-/// skin influences.
-pub mod unpacked {
-    pub const VERTEX_COUNT: usize = 0;
-    pub const INDEX_COUNT: usize = 1;
-    pub const FLAGS: usize = 2;
-    pub const DECODED_BYTES: usize = 3;
-    pub const QUANTIZATION_ERROR: usize = 4;
-    pub const MORPH_TARGETS: usize = 5;
-    pub const SKIN_INFLUENCES: usize = 6;
-}
 
 unsafe fn page<'a>(data: u32, length: u32) -> &'a [u8] {
     core::slice::from_raw_parts(data as *const u8, length as usize)
@@ -42,14 +29,7 @@ pub unsafe extern "C" fn page_check(
 ) -> u32 {
     match Header::parse(page(data, length), max_decoded_bytes as usize) {
         Ok(header) => {
-            let words = core::slice::from_raw_parts_mut(answer as *mut u32, META_WORDS);
-            words[unpacked::VERTEX_COUNT] = header.vertex_count as u32;
-            words[unpacked::INDEX_COUNT] = header.index_count as u32;
-            words[unpacked::FLAGS] = header.flags;
-            words[unpacked::DECODED_BYTES] = header.decoded_bytes() as u32;
-            words[unpacked::QUANTIZATION_ERROR] = header.quantization_error.to_bits();
-            words[unpacked::MORPH_TARGETS] = header.morphs.len() as u32;
-            words[unpacked::SKIN_INFLUENCES] = header.skin.influences as u32;
+            answer_header(answer, &header);
             0
         }
         Err(refusal) => refuse(answer, refusal.code()),

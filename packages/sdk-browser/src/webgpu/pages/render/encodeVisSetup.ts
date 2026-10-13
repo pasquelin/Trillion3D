@@ -13,7 +13,6 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 import { prepared } from '../state/prepared.ts'
 import { EMPTY_SURFACES_PASS } from '../../../stage/passLabels.ts'
-import { canCompute } from '../../../lighting/deferred/fullscreen.ts'
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -56,15 +55,12 @@ const rasterInput = {} as GpuRasterInput
  * Creates the compute raster once, and only under a variant that asks for it — `raster-compute` or
  * `raster-hybrid`: in production the hardware draws (Geometry 26). A frame's entry makes it, its
  * pipelines compiled off the thread while the frame is held (`../../frame/framePipelines.ts`); the
- * image's encode finds it. A variant is a request, not an opportunity — a device without compute
- * or an exceeded surface budget refuses; they do not silently render the hardware image under the
- * compute label.
+ * image's encode finds it. A variant is a request, not an opportunity — an exceeded surface budget
+ * refuses; it does not silently render the hardware image under the compute label.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
   if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return
-  if (!canCompute(device))
-    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-compute requested without a compute stage')
   const [width, height] = rt.gpu.targetSize
   vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity)
 }

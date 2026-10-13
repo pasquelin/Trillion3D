@@ -451,9 +451,6 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
 }
 `
 
-/** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
-export const VSM_MASK_TILES_BINDING = 29
-
 /** The whole module, for one layout (pool parts) and one vote variant. */
 export function vsmProjectionWgsl(
   layout: VsmLayout,

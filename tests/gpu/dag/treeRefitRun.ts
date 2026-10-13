@@ -2,8 +2,8 @@
 // field: the nodes it leaves are the CPU build's (`packPlacementTree`) after the same change, word
 // for word, with the tables whole and with the nodes, the order and the frames split across
 // buffers, bound by the cut's own part bindings.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import {
@@ -105,7 +105,7 @@ export async function runRefit(split: boolean) {
   device.queue.submit([encoder.finish()])
   const read: number[] = []
   for (const [p, buffer] of nodes.entries()) {
-    const words = await readBuffer(device, buffer, 0, buffer.size)
+    const words = (await readGpuBuffer(device, buffer, buffer.size))!
     for (const word of words) read.push(word)
     void p
   }

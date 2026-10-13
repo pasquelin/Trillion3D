@@ -1,4 +1,6 @@
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
+import { sequentialEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 /** What a diagnostic run binds beside its output: a storage buffer holding these bytes, or any
  *  resource as it is (a texture view, a sampler). */
 export type ComputeInput = ArrayBufferView<ArrayBuffer> | GPUBindingResource
@@ -50,13 +52,9 @@ export async function computeReadback(
       made.push(storage)
       return { buffer: storage }
     }
-    const group = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: at, resource: { buffer: output } },
-        ...inputs.map((input, n) => ({ binding: n < at ? n : n + 1, resource: resource(input) })),
-      ],
-    })
+    const resources = inputs.map(resource)
+    resources.splice(at, 0, { buffer: output })
+    const group = groupZero(device, pipeline, resources)
     const encoder = device.createCommandEncoder()
     const pass = encoder.beginComputePass()
     pass.setPipeline(pipeline)
@@ -64,33 +62,37 @@ export async function computeReadback(
     pass.dispatchWorkgroups(workgroups)
     pass.end()
     device.queue.submit([encoder.finish()])
-    const read = await readBuffer(device, output, 0, bytes)
+    const read = (await readGpuBuffer(device, output, bytes))!
     return Array.from(words === 'u32' ? read : new Float32Array(read.buffer))
   } finally {
     for (const created of made) created.destroy()
   }
 }
 
-/** `bytes` of `source` from `offset`, copied once the queue's work before it ran, as words. */
-export async function readBuffer(
+/** What a diagnostic kernel is: `module`'s `entryPoint` (`main` by default), its overrides set to
+ *  `constants`, its layout the one WebGPU derives. */
+export const autoKernel = (
+  module: GPUShaderModule,
+  entryPoint = 'main',
+  constants?: Record<string, number>,
+): GPUComputePipelineDescriptor => ({ layout: 'auto', compute: { module, entryPoint, constants } })
+
+/** Group 0 of `pipeline`, `resources` bound in their order from binding 0. */
+export const groupZero = (
   device: GPUDevice,
-  source: GPUBuffer,
-  offset: number,
-  bytes: number,
-) {
-  const target = device.createBuffer({
-    size: Math.max(4, bytes),
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  pipeline: GPUComputePipeline,
+  resources: readonly GPUBindingResource[],
+) =>
+  device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: sequentialEntries(resources),
   })
-  try {
-    const encoder = device.createCommandEncoder()
-    if (bytes) encoder.copyBufferToBuffer(source, offset, target, 0, bytes)
-    device.queue.submit([encoder.finish()])
-    await target.mapAsync(GPUMapMode.READ)
-    return new Uint32Array(target.getMappedRange().slice(0, bytes))
-  } finally {
-    target.destroy()
-  }
+
+/** `code`'s `main` as a compute pipeline, and its group 0 holding `out` alone: what the bench's
+ *  timing proofs dispatch, in passes of their own. */
+export function kernelOn(device: GPUDevice, code: string, out: GPUBuffer) {
+  const pipeline = device.createComputePipeline(autoKernel(device.createShaderModule({ code })))
+  return { pipeline, bind: groupZero(device, pipeline, [{ buffer: out }]) }
 }
 
 /** Which part of a texture `readTexture` reads: one array `layer` (default 0), over `width` ×

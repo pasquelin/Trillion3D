@@ -5,7 +5,7 @@
 // slab. One whose exact ray meets the box must show the box: the box, deeper than the slab, stops it.
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { castBoxes, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { reflectionConstant } from '../../../packages/sdk-browser/src/reflections/constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import type { Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
@@ -13,7 +13,7 @@ import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudi
 const WIDTH = 320,
   HEIGHT = 180
 /** The march's slab thickness as the shaders read it. */
-const THICKNESS = reflectionConstant('REFLECTION_THICKNESS')
+const THICKNESS = REFLECTION_CONSTANTS.REFLECTION_THICKNESS
 const EYE: V3 = [0, 6, 4]
 /** Where the eye looks: down onto the floor at 31°, so that the mirror rays drift across the screen. */
 const TARGET: V3 = [0, 0, -6]

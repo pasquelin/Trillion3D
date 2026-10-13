@@ -2,7 +2,7 @@
 //! weights, and each morph target's position and normal displacement — the streams, records and
 //! bounds of the shared codec (`crate::deform`), written from the primitive's
 //! `JOINTS_n`, `WEIGHTS_n` and `targets`.
-use super::cells::Cell;
+use super::cells::{gather, Cell};
 use super::skin::skin_fields;
 use super::{EncodeError, Result};
 use crate::deform::{Morph, Skin, MAX_MORPH_TARGETS, RAW_F32, WEIGHT_BITS};
@@ -116,15 +116,10 @@ pub fn page_deformation(
     }
     let mut morphs = Vec::with_capacity(deformation.targets.len());
     for target in &deformation.targets {
-        let gather = |values: &[f32]| -> Vec<f32> {
-            let at = |v: u32| &values[v as usize * 3..v as usize * 3 + 3];
-            original
-                .iter()
-                .flat_map(|&v| at(v).iter().copied())
-                .collect()
-        };
-        let moved = gather(&target.position);
-        let bent = target.normal.as_ref().map(|values| gather(values));
+        let moved = gather(&target.position, 3, 3, original)?;
+        let bent = (target.normal.as_ref())
+            .map(|values| gather(values, 3, 3, original))
+            .transpose()?;
         for (v, vertex) in fields.iter_mut().enumerate() {
             vertex.extend(moved[v * 3..v * 3 + 3].iter().map(|x| x.to_bits()));
             vertex.extend((0..3).map(|c| bent.as_ref().map_or(0, |b| b[v * 3 + c].to_bits())));

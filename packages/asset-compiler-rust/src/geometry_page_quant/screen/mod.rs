@@ -70,7 +70,7 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
     let triangles = primitive.indices.len() / 3;
     let demand = crate::proxy::cut::cut_demand(
         primitive.scale,
-        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        trillion3d_page_codec::proxy::PROXY_TRIANGLE_BUDGET,
         triangles,
         triangles,
     );

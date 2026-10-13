@@ -13,6 +13,7 @@ import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
+import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
@@ -178,8 +179,9 @@ export type GpuSelection = {
   proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void
   /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
   proxyArrived(): void
-  /** The world boxes of the placements that wear a proxy, and which are new or moved since the last call. */
-  proxyBoxes(): { boxes: Float64Array; changed: Uint8Array }
+  /** The world boxes of the placements that wear a proxy, the runs of those new or moved since the last
+   *  call, and their extent (`../../bounce/probeSync.ts`). */
+  proxyBoxes(): ProxyBoxes
   /** The blended copies the forward family draws, members of the same proxy after the placements
    *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
   proxyCopies(copies: readonly ProxyCopy[]): void
@@ -220,6 +222,9 @@ export type GpuSelection = {
   adopt(cut: GpuCut): CutClaims | undefined
   /** True once released: a released selection dispatches and drains nothing more. */
   failed(): boolean
+  /** Settled once the readbacks in flight have landed, nothing grown or cut again: the first
+   *  step of a drain (`flush`), alone. */
+  landed(): Promise<void>
   flush(): Promise<SelectionResult | null>
   dispose(): void
 }

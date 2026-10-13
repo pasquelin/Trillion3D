@@ -112,13 +112,7 @@ test('draw consumers zero firstInstance while compact records slot starts', () =
   assert.equal(drawn[HALF_SLOTS * 4 + 1], 1)
 })
 
-test('a device without compute pipelines does not create GPU draw', async () => {
-  const { device } = fakeDevice({
-    limits: { maxBufferSize: 1 << 20 },
-    compute: false,
-    refuse: () => 'throw',
-  })
-  assert.equal(await createGpuDraw(device, 8, 1, 768), undefined)
+test('a draw with no slot is not created', async () => {
   assert.equal(await createGpuDraw(fakeDevice().device, 0, 1, 768), undefined)
 })
 

@@ -9,13 +9,13 @@ import {
   type Camera,
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { reflectionConstant } from '../../../packages/sdk-browser/src/reflections/constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { openRig } from './rig.ts'
 
-const EDGE = reflectionConstant('REFLECTION_EDGE'),
-  STEP_CAP = reflectionConstant('REFLECTION_STEP_CAP')
+const EDGE = REFLECTION_CONSTANTS.REFLECTION_EDGE,
+  STEP_CAP = REFLECTION_CONSTANTS.REFLECTION_STEP_CAP
 
 /** The share of `color` a pixel's colour `v` holds: 1 for the same hue, 0 under a faint pixel. */
 export function hueOf(v: number[], color: V3) {

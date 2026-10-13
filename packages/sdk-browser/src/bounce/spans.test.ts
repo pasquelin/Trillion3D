@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createSpans } from './runtimeArena.ts'
+import { createSpans } from './spans.ts'
 
 test('ranges are taken one after another, and a freed range is taken again first', () => {
   const spans = createSpans(100)
@@ -10,7 +10,8 @@ test('ranges are taken one after another, and a freed range is taken again first
   spans.release(10, 20)
   assert.equal(spans.take(8), 10)
   assert.equal(spans.take(12), 18)
-  assert.equal(spans.used, 35)
+  assert.equal(spans.extent, 35)
+  assert.equal(spans.take(1), 35, 'no freed range is left')
 })
 
 test('freed neighbours join, and a freed tail gives the used part back', () => {
@@ -31,7 +32,8 @@ test('a table past its capacity answers nothing until it is grown', () => {
   const spans = createSpans(8)
   assert.equal(spans.take(8), 0)
   assert.equal(spans.take(1), undefined)
-  assert.equal(spans.grown(9), 16)
+  spans.grown(9)
+  assert.equal(spans.capacity, 16)
   assert.equal(spans.take(1), 8)
   assert.equal(spans.take(0), 9)
 })

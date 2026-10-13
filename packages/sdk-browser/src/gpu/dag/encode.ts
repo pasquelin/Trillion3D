@@ -1,4 +1,4 @@
-import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts'
+import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
@@ -135,7 +135,12 @@ function encodeOnce(
   // The cut's mask and drawn log become the frame's, unless it dropped work: a thread a word of
   // the masks (`shader/commitWgsl.ts`).
   pass.setPipeline(commitPipeline)
-  dispatchRows(pass, Math.max(1, workgroupCount(2 * resources.blockCount, WORKGROUP)), 1, width)
+  dispatchRows(
+    pass,
+    Math.max(1, workgroupCount(2 * resources.blockCount, SELECTION_WORKGROUP)),
+    1,
+    width,
+  )
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(evictPipeline)
@@ -200,7 +205,7 @@ function perRange(
       typeof threads === 'number' ? threads : threads(view, r),
       r ? 0 : firstFloor,
     )
-    dispatchRows(pass, workgroupCount(count, WORKGROUP), 1, width)
+    dispatchRows(pass, workgroupCount(count, SELECTION_WORKGROUP), 1, width)
   }
 }
 

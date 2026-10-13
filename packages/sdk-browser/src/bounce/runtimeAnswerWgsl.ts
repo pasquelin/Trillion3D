@@ -15,6 +15,12 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * settles (\`settle.ts\`) when none is. A second call for a pixel — the clear coat's lobe — is one ray, kept nowhere.
  * No placement wearing a proxy, no ray: nothing is read or written.
  *
+ * The frame's counters are summed over the workgroup and sent once (\`rtShare\`, called by every
+ * invocation of the trace at its end): one global atomic of each a workgroup, never one a pixel — the
+ * work spent added, the cursor raised where a base lobe was cast, the left count raised where a pixel was
+ * left, which the frame reads as zero or not alone. The budget a ray is checked against is the work the
+ * workgroups before it sent, and its pixel's own.
+ *
  * A lobe is answered along its centre, one ray. The mean over its directions, which a rough lobe is, is the
  * estimator the store makes room for (a count above the stamp) and this stage does not yet hold.
  */
@@ -55,6 +61,13 @@ fn rtCellAnswer(cell:RtCell)->RtRadiance{
  if(!(cell.confidence>0.0)){return RtRadiance(vec3f(0.0),0.0);}
  return RtRadiance(cell.premult/cell.confidence,min(cell.confidence,1.0));
 }
+/** What this invocation's rays spent of the frame's work, whether its base lobe was cast and kept,
+ *  and whether its pixel was left an answer older than the epoch: \`rtShare\` sends them. */
+var<private> rtSpentHere:u32;
+var<private> rtCastHere:bool;
+var<private> rtLeftHere:bool;
+/** The workgroup's sums of them: the work, then whether any was cast, then whether any was left. */
+var<workgroup> rtGroup:array<atomic<u32>,3>;
 fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  if(rtProxy.instances==0u){return RtRadiance(vec3f(0.0),0.0);}
  let first=rtCalls==0u;
@@ -65,18 +78,38 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   cell=rtCellRead(rtPixel);
   if(cell.stamp==stamp){return rtCellAnswer(cell);}
  }
- if(atomicLoad(&rtList[RT_SPENT])<RT_FRAME_WORK){
+ if(atomicLoad(&rtList[RT_SPENT])+rtSpentHere<RT_FRAME_WORK){
   let seen=rtRadiance(origin,direction,reach,tangent);
-  atomicAdd(&rtList[RT_SPENT],rtWork+rtExtra);
+  rtSpentHere+=rtWork+rtExtra;
   if(first){
-   atomicMax(&rtList[RT_CURSOR],rtRank+1u);
+   rtCastHere=true;
    rtCellWrite(rtPixel,seen,stamp);
   }
   return seen;
  }
  if(!first){return RtRadiance(vec3f(0.0),0.0);}
- atomicAdd(&rtList[RT_LEFT],1u);
+ rtLeftHere=true;
  return rtCellAnswer(cell);
+}
+/** This invocation's counters into the workgroup's sums. */
+fn rtGroupAdd(){
+ if(rtSpentHere!=0u){atomicAdd(&rtGroup[0],rtSpentHere);}
+ if(rtCastHere){atomicOr(&rtGroup[1],1u);}
+ if(rtLeftHere){atomicOr(&rtGroup[2],1u);}
+}
+/** The workgroup's sums into the frame's counters: one atomic of each, from one invocation. */
+fn rtGroupSend(){
+ let spent=atomicLoad(&rtGroup[0]);
+ if(spent!=0u){atomicAdd(&rtList[RT_SPENT],spent);}
+ if(atomicLoad(&rtGroup[1])!=0u){atomicMax(&rtList[RT_CURSOR],rtRank+1u);}
+ if(atomicLoad(&rtGroup[2])!=0u){atomicAdd(&rtList[RT_LEFT],1u);}
+}
+/** The workgroup's counters sent once: called by every invocation, in uniform control flow, after
+ *  its pixel's last \`rtAnswer\`. */
+fn rtShare(lane:u32){
+ rtGroupAdd();
+ workgroupBarrier();
+ if(lane==0u){rtGroupSend();}
 }
 `,
 )

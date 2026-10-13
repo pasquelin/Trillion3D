@@ -32,13 +32,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     compiler_nodes::check_acyclic(&loaded.g)?;
     // The rendered scene's nodes, and the hidden ones: compiled (`chosen`), not drawn (`shown`).
     let (scene_nodes, hidden) = compiler_nodes::scene_nodes(&loaded.g)?;
-    let NodeSelection {
+    let compiler_select::NodeSelection {
         chosen,
         selected_triangles,
         meshes,
         mesh_map,
         skinned_meshes,
-    } = select_nodes(o, &loaded.g, &scene_nodes)?;
+    } = compiler_select::select_nodes(o, &loaded.g, &scene_nodes)?;
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // What the cuts of the proxy share its budget over: the meshes, each once, not their instances.
     let unique_triangles = compiler_select::unique_triangles(&loaded.g, &chosen)?;

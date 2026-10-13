@@ -6,7 +6,8 @@
 
 use crate::tests::random::Xorshift;
 use sha2::{Digest, Sha256};
-use trillion3d_page_codec::encode::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
+use trillion3d_page_codec::encode::{encode, Attribute};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 
 /// A mesh on its source vertices: positions, then optional attributes, then triangles.
 struct Mesh {

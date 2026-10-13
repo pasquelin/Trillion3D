@@ -8,7 +8,7 @@ import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encode
 import { encodeComposedRows } from '../../../placement/gpuCompose.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import { followLobes } from '../prepare/lobesTarget.ts'
-import { followProxyStore } from '../prepare/proxyStore.ts'
+import { followProxyStore } from '../../../reflections/proxyStore.ts'
 import {
   encodeEmptySurfaces,
   computeRasterStages,

@@ -10,7 +10,7 @@
 //! The geometric error this adds is bounded by the half-diagonal of a grid cell, published with the
 //! proxy.
 use super::PROXY_TRIANGLE_FLOATS;
-use std::collections::HashSet;
+use crate::hash::WordSet;
 
 /// Grid step doublings before giving up: known bound, like `cut.rs` scale.
 const CELL_LADDER: usize = 24;
@@ -61,7 +61,7 @@ fn kept(
     triangles: &[f32],
     size: f64,
 ) -> impl Iterator<Item = (usize, [f32; PROXY_TRIANGLE_FLOATS])> + '_ {
-    let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
+    let mut seen = WordSet::<[[i32; 3]; 3]>::default();
     triangles
         .as_chunks::<PROXY_TRIANGLE_FLOATS>()
         .0

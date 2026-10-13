@@ -12,11 +12,11 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
-import { reflectionConstant } from '../../../packages/sdk-browser/src/reflections/constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { exactReflection, SPHERES, sphereFrame } from './sphereFrame.ts'
 
-const EDGE = reflectionConstant('REFLECTION_EDGE'),
-  STEP_CAP = reflectionConstant('REFLECTION_STEP_CAP')
+const EDGE = REFLECTION_CONSTANTS.REFLECTION_EDGE,
+  STEP_CAP = REFLECTION_CONSTANTS.REFLECTION_STEP_CAP
 
 /** The step ε two neighbours may take beyond the analytic one, a share of the sky's radiance over
  *  the floor's: the shipped march gives 0.03 (a pixel's reflected footprint a tap or two wide); a

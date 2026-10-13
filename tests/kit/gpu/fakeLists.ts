@@ -12,7 +12,7 @@ import {
   DIFFERENCE_KERNELS,
   mirrorDifferenceStage,
 } from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
-import { words } from './mockBuffers.ts'
+import { words } from './fakeBuffers.ts'
 import { drawMask } from './globals.ts'
 
 /** Every kernel this file mirrors. */

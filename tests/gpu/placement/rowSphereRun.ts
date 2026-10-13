@@ -1,5 +1,8 @@
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { f32Bits } from '../../../packages/math/src/float/bits.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
+import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import {
   COMPOSE_ROWS_WGSL,
   PART_SPHERES,
@@ -22,9 +25,6 @@ export async function runSphere() {
   const worlds = new Uint32Array(CASES * 32),
     inputs = new Uint32Array(CASES * ROW_INPUT_DOUBLES * 2)
   const expected: number[] = []
-  const f32 = new Float32Array(1),
-    bits = new Uint32Array(f32.buffer)
-  const word = (x: number) => ((f32[0] = x), bits[0])
   const c = new Float64Array(3)
   for (let i = 0; i < CASES; i++) {
     const far = [10, 1e3, 1e6][i % 3],
@@ -37,66 +37,53 @@ export async function runSphere() {
     const row = new Array(8).fill(0)
     for (let a = 0; a < 3; a++) {
       const high = Math.fround(c[a])
-      row[a] = word(high)
-      row[4 + a] = word(Math.fround(c[a] - high))
+      row[a] = f32Bits(high)
+      row[4 + a] = f32Bits(Math.fround(c[a] - high))
     }
-    row[3] = word(sphereRadius(w, centre, half))
+    row[3] = f32Bits(sphereRadius(w, centre, half))
     expected.push(...row)
   }
   const gpu = await openGpuDevice()
   if (!gpu) return { unavailable: true as const }
   const { device } = gpu
+  const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
   const { module, compilation } = await gpu.compile(COMPOSE_ROWS_WGSL)
   if (compilation.length) return { errors: compilation }
-  const buffer = (data: ArrayBufferView<ArrayBuffer> | number, usage = 0) => {
-    const size = typeof data === 'number' ? data : Math.max(16, data.byteLength)
-    const made = device.createBuffer({
-      size,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | usage,
-    })
-    if (typeof data !== 'number') device.queue.writeBuffer(made, 0, data)
-    return made
-  }
+  const buffer = (data: ArrayBufferView<ArrayBuffer>) => bufferHolding(device, data, STORAGE, 16)
   // Every row's root is linked to slot 0, a parent at the identity: the composed world is its local.
   const stride = ROW_WORDS,
     table = new Uint32Array(CASES * stride)
   for (let i = 0; i < CASES; i++) table[i * stride + ROW_PLACEMENT_WORD] = i
-  const identity = new Float64Array(16)
-  for (let k = 0; k < 4; k++) identity[k * 5] = 1
   const parents = new Uint32Array(32),
     locals = worlds
-  packDoubles(parents, 0, identity)
-  const params = device.createBuffer({
-    size: 16,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(params, 0, new Uint32Array([CASES, CASES, PART_SPHERES, CASES]))
-  const spheres = buffer(CASES * 8 * 4)
-  const pipeline = await device.createComputePipelineAsync({
-    layout: 'auto',
-    compute: { module, entryPoint: 'main' },
-  })
-  const absent = () => buffer(16)
-  const group = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: params } },
-      { binding: 1, resource: { buffer: buffer(locals) } },
-      { binding: 2, resource: { buffer: buffer(new Uint32Array(CASES)) } },
-      { binding: 3, resource: { buffer: buffer(parents) } },
-      { binding: 4, resource: { buffer: buffer(table) } },
-      { binding: 5, resource: { buffer: spheres } },
-      { binding: 6, resource: { buffer: buffer(inputs) } },
-      { binding: 7, resource: { buffer: absent() } },
-      { binding: 8, resource: { buffer: absent() } },
-      { binding: 9, resource: { buffer: absent() } },
-      // Every row is a composed root's: the pass's list names them all.
-      {
-        binding: 10,
-        resource: { buffer: buffer(Uint32Array.from({ length: CASES }, (_, i) => i)) },
-      },
-    ],
-  })
+  packDoubles(parents, 0, IDENTITY_MATRIX4)
+  const params = bufferHolding(
+    device,
+    new Uint32Array([CASES, CASES, PART_SPHERES, CASES]),
+    GPUBufferUsage.UNIFORM,
+  )
+  const spheres = gpu.buffer(CASES * 8 * 4, STORAGE)
+  const pipeline = await device.createComputePipelineAsync(autoKernel(module))
+  const absent = () => gpu.buffer(16, STORAGE)
+  // Every row is a composed root's: the pass's list names them all.
+  const rows = buffer(Uint32Array.from({ length: CASES }, (_, i) => i))
+  const group = groupZero(
+    device,
+    pipeline,
+    [
+      params,
+      buffer(locals),
+      buffer(new Uint32Array(CASES)),
+      buffer(parents),
+      buffer(table),
+      spheres,
+      buffer(inputs),
+      absent(),
+      absent(),
+      absent(),
+      rows,
+    ].map((held) => ({ buffer: held })),
+  )
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)
@@ -104,7 +91,7 @@ export async function runSphere() {
   pass.dispatchWorkgroups(ceilDiv(CASES, 64))
   pass.end()
   device.queue.submit([encoder.finish()])
-  const read = await readBuffer(device, spheres, 0, CASES * 8 * 4)
+  const read = (await readGpuBuffer(device, spheres, CASES * 8 * 4))!
   const { court } = await gpu.fermer()
   const words = Array.from(read),
     run = { adapter: court, errors: gpu.errors }

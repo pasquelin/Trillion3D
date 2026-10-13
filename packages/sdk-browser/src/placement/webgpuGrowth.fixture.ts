@@ -88,7 +88,7 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses
   // the scene (#1483).
   const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size)
-  // The double runs the cut on the DAG the session uploads, the grown one too (`mockDag.ts`).
+  // The double runs the cut on the DAG the session uploads, the grown one too (`fakeDag.ts`).
   const gpu = fakeDevice({
     ...BACKEND,
     limits: { maxBufferSize: Math.max(1 << 20, binding), maxStorageBufferBindingSize: binding },

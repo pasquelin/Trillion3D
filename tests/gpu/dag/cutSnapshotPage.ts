@@ -4,6 +4,7 @@
 // per list, is measured on a buffer of that size, the kernels' encode unchanged, so the gap between
 // the two is the price of copying the worst case. The read is serialised here — copy, submit,
 // map, read — where the engine double-buffers it: a frame's total work, not its stall.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
 import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
@@ -11,7 +12,6 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 import { sceneView } from './cutScene.ts'
 
 interface Sweep {
@@ -67,7 +67,7 @@ async function measure(
     encodeDagKernels(encoder, cut)
     device.queue.submit([encoder.finish()])
     if (!bytes) return void (await device.queue.onSubmittedWorkDone())
-    return (await readBuffer(device, source, 0, bytes))[0]
+    return (await readGpuBuffer(device, source, bytes))![0]
   }
   const batch = async (bytes: number, source: GPUBuffer, count: number) => {
     const start = performance.now()

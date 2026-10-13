@@ -25,10 +25,9 @@ import {
   ZERO_DIRECT,
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
+import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../../packages/sdk-browser/src/vsm/transmissionWgsl.ts'
-import { VSM_MASK_TILES_BINDING } from '../../../packages/sdk-browser/src/vsm/projectionWgsl.ts'
 import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -113,8 +112,8 @@ export async function run(scenes: ResolveScene[]) {
     [CONTRACT_VSM_BINDINGS.uniforms, { buffer: placeholders.vsmUniforms }],
     [CONTRACT_VSM_BINDINGS.pool, { buffer: placeholders.vsmPool }],
     [CONTRACT_SHADOW_BINDINGS.transmittance, placeholders.vsmMask],
-    [VSM_MASK_TILES_BINDING, placeholders.vsmMaskTiles],
-    [VSM_TRANSMISSION_RESOLVE_BINDING, placeholders.transmittanceView],
+    [DEFERRED_BINDINGS.maskTiles, placeholders.vsmMaskTiles],
+    [DEFERRED_BINDINGS.transmissionResolve, placeholders.transmittanceView],
   ])
   const runs: Record<string, number[]>[] = []
   for (const scene of scenes) {

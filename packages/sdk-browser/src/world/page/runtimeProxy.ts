@@ -4,14 +4,11 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
+import { PROXY_META_WORDS } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
 import { cornerDeformation } from './runtimeDeform.ts'
-import { reserveArena } from '../../wasm/wasmArena.ts'
+import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
-
-/** Words of the answer block of `proxy_build` (`page-codec-wasm/src/wasm_proxy.rs`): the triangle
- *  count, the node count, the grid step's bits. */
-const META_WORDS = 4
 
 /**
  * The proxy of a cut, in the cut's own space, by the builder the compiler's resident proxy goes
@@ -29,7 +26,7 @@ export function buildCutProxy(
   const input = reserveArena(module, [
     { type: 'u32', length: indices.length },
     { type: 'f32', length: positions.length },
-    { type: 'u32', length: META_WORDS },
+    { type: 'u32', length: PROXY_META_WORDS },
   ])
   if (!input) throw new Error('PROXY_BUILDER_MEMORY')
   let triangles: number, nodes: number, cell: number
@@ -52,37 +49,24 @@ export function buildCutProxy(
   } finally {
     input.freed()
   }
-  const counts = [
-    triangles * PROXY_TRIANGLE_FLOATS,
-    triangles,
-    nodes * PROXY_NODE_FLOATS,
-    nodes * PROXY_NODE_WORDS,
-    triangles,
-  ]
-  const total = counts.reduce((sum, count) => sum + count, 0)
-  const out = reserveArena(module, [{ type: 'u32', length: total }])
-  if (!out) throw new Error('PROXY_BUILDER_MEMORY')
-  try {
-    module.proxy_build_take(out.blocks()[0].offset)
-    const [{ view }] = out.blocks()
-    const words = new Uint32Array(view.buffer, view.byteOffset, total)
-    let at = 0
-    const take = (count: number) => {
-      const part = words.slice(at, at + count)
-      at += count
-      return part
-    }
-    const [triangleWords, albedo, boundWords, children, sources] = counts.map(take)
-    const deform = deformation && cornerDeformation(sources, indices, deformation)
-    return {
-      triangles: new Float32Array(triangleWords.buffer),
-      albedo,
-      nodeBounds: new Float32Array(boundWords.buffer),
-      nodeChildren: children,
-      cellMetres: cell,
-      ...(deform ? { deform } : {}),
-    }
-  } finally {
-    out.freed()
+  // The held columns (`CutColumns::column_words`), four bytes a number, each its own buffer.
+  const [triangleBytes, albedo, boundBytes, children, sources] = takeHeld(
+    module,
+    [
+      triangles * PROXY_TRIANGLE_FLOATS,
+      triangles,
+      nodes * PROXY_NODE_FLOATS,
+      nodes * PROXY_NODE_WORDS,
+      triangles,
+    ].map((count) => count * 4),
+  )
+  const deform = deformation && cornerDeformation(new Uint32Array(sources), indices, deformation)
+  return {
+    triangles: new Float32Array(triangleBytes),
+    albedo: new Uint32Array(albedo),
+    nodeBounds: new Float32Array(boundBytes),
+    nodeChildren: new Uint32Array(children),
+    cellMetres: cell,
+    ...(deform ? { deform } : {}),
   }
 }

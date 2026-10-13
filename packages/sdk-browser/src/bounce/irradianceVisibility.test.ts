@@ -71,3 +71,42 @@ test('a light past its range is rejected on its sphere: no ray, no light', () =>
   assert.equal(irradiance([...SIX, { height: 9, energy: 64, range: 8 }], 10), 63)
   assert.equal(scene.rays, SIX.length, 'the out-of-range light traces nothing')
 })
+
+test('a rectangle light behind a wall lights no cell through it: one ray toward its centre', () => {
+  const rect = { count: 1, items: [] as Items }
+  let rays = 0
+  const { lightsIrradiance: rectIrradianceAt } = shaderRun<{
+    lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
+  }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
+    directLights: rect,
+    RANGE_REJECT: 1.0001,
+    isRect: () => true,
+    isSun: () => false,
+    isSunKind: () => false,
+    TILE_NO_SLICE: 0xffffffff,
+    bounceLightSlice: () => [0xffffffff, rect.count],
+    tileLights: [],
+    rectIrradiance: () => [0, 0, 0, 1],
+    directIncidence: () => [0, 1, 0, 1],
+    rtBlocked: (origin: Vec, direction: Vec, span: number) => {
+      rays++
+      const hit = (1 - Number(origin[1])) / Number(direction[1])
+      return hit > 0 && hit < span
+    },
+  })
+  const at = (height: number, casts: boolean) => {
+    rect.items = [
+      {
+        params: [0, 0, casts ? 1 : 0, 0],
+        positionRange: [0, height, 0, 100],
+        colorIntensity: [2, 2, 2, 1],
+      },
+    ]
+    return rectIrradianceAt([0, 0, 0], [0, 1, 0], 100)[0]
+  }
+  assert.equal(at(3, true), 0, 'the wall at y = 1 holds the rectangle above it')
+  assert.equal(at(0.5, true), 2, 'below the wall, it lights the cell')
+  assert.equal(rays, 2)
+  assert.equal(at(3, false), 2, 'a rectangle that casts no shadow lights it through the wall')
+  assert.equal(rays, 2, 'and traces no ray')
+})

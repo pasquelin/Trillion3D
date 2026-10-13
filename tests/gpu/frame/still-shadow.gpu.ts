@@ -8,7 +8,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { animationFrame, runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { FACING, openFacingWorld } from './facingWorld.ts'
 

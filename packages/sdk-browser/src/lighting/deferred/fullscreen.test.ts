@@ -60,8 +60,8 @@ test('a refused compile is said once to the frames, never asked again by them', 
   assert.equal(asked, 2)
 })
 
-test('a device without the stage refuses the compile, never throws at the one asking', async () => {
-  const { device } = fakeDevice({ compute: false })
+test('a device that refuses the stage refuses the compile, never throws at the one asking', async () => {
+  const { device } = fakeDevice({ failCompute: true })
   const pipeline = preparedComputePipeline(device, {
     layout: 'auto',
     compute: { module: {} as GPUShaderModule, entryPoint: 'main' },

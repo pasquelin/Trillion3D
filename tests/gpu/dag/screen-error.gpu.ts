@@ -16,7 +16,7 @@ import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/sele
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
-import { lois } from '../kit/randomDraw.ts'
+import { draws } from '../kit/randomDraw.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
@@ -37,7 +37,8 @@ interface Cluster {
 }
 
 function sample() {
-  const { hasard: chance, between: between, log } = lois(xorshiftRandom(0x2545f491))
+  const chance = xorshiftRandom(0x2545f491)
+  const { between, log } = draws(chance)
   const camera = G.perspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000)
   camera.position.set(3, -2, 7)
   camera.lookAt(-4, 1, -20)

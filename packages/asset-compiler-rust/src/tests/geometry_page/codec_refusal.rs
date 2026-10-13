@@ -3,8 +3,9 @@
 
 use trillion3d_page_codec as codec;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
-use trillion3d_page_codec::encode::{encode, Attribute, FLAG_NORMAL, FLAG_UV};
+use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::HEADER_BYTES;
+use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 

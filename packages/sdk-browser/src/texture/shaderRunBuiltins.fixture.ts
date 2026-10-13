@@ -1,5 +1,6 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
+import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { SCALAR } from './shaderRunOperators.fixture.ts'
@@ -16,11 +17,14 @@ export class Mat {
       Object.defineProperty(this, column, { value: m.slice(column * 4, column * 4 + 4) })
   }
 }
-/** A column-major 3×3 matrix, from its three columns (`mat3x3f`). */
+/** A column-major 3×3 matrix, from its three columns (`mat3x3f`), each read by its index. */
 class Mat3 {
   readonly columns: readonly number[][]
+  readonly [column: number]: readonly number[]
   constructor(columns: number[][]) {
     this.columns = columns
+    for (let column = 0; column < 3; column++)
+      Object.defineProperty(this, column, { value: columns[column] })
   }
 }
 type Value = number | boolean | Vec | Mat | Mat3
@@ -52,6 +56,11 @@ function $b(op: string, a: Value, b: Value): Value {
   if (a instanceof Mat) {
     const v = b as number[]
     return [0, 1, 2, 3].map((row) => v.reduce((sum, x, col) => sum + a.m[col * 4 + row] * x, 0))
+  }
+  // A row vector times a matrix: the dot of the vector with each column.
+  if (b instanceof Mat3) {
+    const v = a as number[]
+    return b.columns.map((column) => column.reduce((sum, x, row) => sum + x * v[row], 0))
   }
   // Two scalars, the most of what a kernel's integer work runs: no vector to broadcast.
   if (!Array.isArray(a) && !Array.isArray(b)) return SCALAR[op](n(a as Scalar), n(b as Scalar))
@@ -95,10 +104,8 @@ const int = (x: Scalar) => Math.trunc(Number(x))
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)))
 /** A float's 32 bits as an unsigned integer, and back: `bitcast`. */
-const WORD = new Float32Array(1),
-  BITS = new Uint32Array(WORD.buffer)
-const toBits = each((x) => ((WORD[0] = n(x)), BITS[0]))
-const toFloat = each((x) => ((BITS[0] = n(x)), WORD[0]))
+const toBits = each((x) => f32Bits(n(x)))
+const toFloat = each((x) => fromF32Bits(n(x)))
 const vec = (value: Value) => value as number[]
 
 /** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */
@@ -135,6 +142,7 @@ export const builtins = {
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
   mat3x3f: (...columns: number[][]) => new Mat3(columns),
+  mat4x4f: (...values: Array<number | number[]>) => new Mat(values.flat()),
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),

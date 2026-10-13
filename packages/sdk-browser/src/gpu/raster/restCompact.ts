@@ -1,9 +1,5 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './restCompactWgsl.ts'
-import {
-  buildComputePipeline,
-  buildComputeStages,
-  canCompute,
-} from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline, buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { cleanupFailedHiz } from '../hiz/pipelines.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
@@ -48,15 +44,12 @@ type RestCompactSources = {
 
 /**
  * Compaction of the tested half. It exists only if the draw compact and the pyramid exist:
- * without them there is neither an instance list nor a verdict to read. A platform without
- * compute returns `undefined`, and the frame keeps the previous path — the second pass then
- * draws the rejected rows, each vertex discarded one by one.
+ * without them there is neither an instance list nor a verdict to read.
  */
 export async function createGpuRestCompact(
   device: GPUDevice,
   sources: RestCompactSources,
 ): Promise<GpuRestCompact | undefined> {
-  if (!canCompute(device)) return undefined
   let owned: GPUBuffer[] = []
   try {
     const uniforms = device.createBuffer({

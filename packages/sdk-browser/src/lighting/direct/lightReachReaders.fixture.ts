@@ -8,7 +8,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { lightTilesShader } from '../tiles/shader.ts'
-import { CODE as PROJECTION, SCOPE as PROJECTION_SCOPE } from '../../vsm/projectionTiles.fixture.ts'
+import { PROJECTION_CODE, PROJECTION_SCOPE } from '../../vsm/projectionTiles.fixture.ts'
 import { projectionKit } from '../../vsm/projectionKit.fixture.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
@@ -66,7 +66,7 @@ export function projectionOf(lights: readonly SceneLight[]) {
   const { vsmLightParticipates } = shaderRun<{
     vsmLightParticipates: (k: number, info: object, P: V3) => boolean
   }>(
-    PROJECTION,
+    PROJECTION_CODE,
     [
       'vsmLightParticipates',
       'vsmLightIsDirectional',

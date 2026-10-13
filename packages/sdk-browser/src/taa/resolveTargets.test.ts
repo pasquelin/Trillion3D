@@ -9,9 +9,7 @@ import { TAA_PASS } from '../stage/passLabels.ts'
 /** The passes two frames begin — the second resolving display layers, once its
  *  twin has compiled —, the three resolves drawn at preparation, and whether each target stores. */
 async function resolvePasses() {
-  const { device, renderPipelines, textures, passes, computePasses } = fakeDevice({
-    compute: false,
-  })
+  const { device, renderPipelines, textures, passes, computePasses } = fakeDevice()
   const temporal = await createTemporalAntialiasing(device, [])
   const drawn = renderPipelines.map(({ fragment }) => fragment!.module.label).slice(0, 3)
   temporal.resize(8, 4)

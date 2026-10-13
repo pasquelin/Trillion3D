@@ -1,10 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
 import type { Metafile } from 'esbuild'
-import {
-  proveBundledInstalledBrowser as runBundledBrowser,
-  proveInstalledBrowser,
-} from './browser-modes.ts'
+import { proveBundledInstalledBrowser, proveInstalledBrowser } from './browser-modes.ts'
 import type { InstalledBrowserProof } from './browser-result.ts'
 import type { Run } from './contracts.ts'
 import { missingBeside } from './beside.ts'
@@ -127,7 +124,7 @@ async function proveBundledInstalledOutput(
   options: BrowserModesOptions,
 ): Promise<{ bundle: EmittedBrowserBundle; proof: InstalledBrowserProof }> {
   const bundle = emitInstalledBrowserBundle(options)
-  const proof = await runBundledBrowser({
+  const proof = await proveBundledInstalledBrowser({
     outputRoot: bundle.outputRoot,
     manifestUrl: '/native-cache-primer/native/slice/manifest.json',
     replayUrl: '/native-cache-replay/native/slice/manifest.json',

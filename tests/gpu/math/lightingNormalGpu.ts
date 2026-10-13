@@ -12,6 +12,7 @@ import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { unitOrZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuModule } from '../kit/webgpuDevice.ts'
+import { autoKernel, groupZero } from '../kit/computeReadback.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
@@ -67,19 +68,13 @@ async function run({ shader, data, count }: Input) {
   if (!opened.module) throw new Error(JSON.stringify(opened))
   const { gpu, module } = opened
   const { device, errors } = gpu
-  const pipeline = device.createComputePipeline({
-    layout: 'auto',
-    compute: { module, entryPoint: 'normals' },
-  })
+  const pipeline = device.createComputePipeline(autoKernel(module, 'normals'))
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
   const input = device.createBuffer({ size: data.length * 4, usage: STORAGE })
   device.queue.writeBuffer(input, 0, data)
   const bytes = count * 3 * 16
   const output = device.createBuffer({ size: bytes, usage: STORAGE })
-  const group = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [input, output].map((buffer, binding) => ({ binding, resource: { buffer } })),
-  })
+  const group = groupZero(device, pipeline, [{ buffer: input }, { buffer: output }])
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)

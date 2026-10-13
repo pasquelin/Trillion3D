@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
+import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constants.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
@@ -21,10 +22,10 @@ import { reflectionBindingsWgsl } from './viewLayout.ts'
  */
 export const REFLECTION_CONE_WGSL = wgslBlock(
   'REFLECTION_CONE_WGSL',
-  [REFLECTION_CONSTANTS_WGSL],
+  [REFLECTION_CONSTANTS_WGSL, SQRT2],
   `fn reflectionConeTangent(alpha:f32)->f32{
  let a2=alpha*alpha;
- let h=min(sqrt(a2*(REFLECTION_HALF_MAXIMUM-1.0)/max(1.0-REFLECTION_HALF_MAXIMUM*a2,1e-4)),REFLECTION_CONE_LIMIT);
+ let h=min(sqrt(a2*(SQRT2-1.0)/max(1.0-SQRT2*a2,1e-4)),REFLECTION_CONE_LIMIT);
  return 2.0*h/(1.0-h*h);
 }
 fn reflectionEdgeFade(pixel:vec2f,size:vec2f)->f32{

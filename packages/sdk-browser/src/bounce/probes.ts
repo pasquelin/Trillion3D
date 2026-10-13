@@ -14,12 +14,13 @@ import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { createSnapshotFollow, type SnapshotFollow } from './snapshotFollow.ts'
 import { createBounceSchedule } from './schedule.ts'
 import { createProbeStorage } from './probeStorage.ts'
-import { syncBounceProbes } from './probeSync.ts'
+import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 
 /** Cascade uniform, the proxy, lights, queue, frozen probes and output — the atlases of `atlas.ts` —, and the
  *  world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`). */
@@ -46,11 +47,15 @@ function worldLightLists(
   uniform: ReturnType<typeof createProbeStorage>['uniform'],
 ) {
   const corner = new Float32Array(3)
-  let listed: string | undefined
+  /** What the lists were listed for — the last level's spacing and base, the lights, the grid's buffer
+   *  — and what this encode asks: compared in place, nothing allocated a frame. */
+  const listedFor = new Float64Array(6),
+    asked = new Float64Array(6)
+  let listed = false
   return {
     /** A light changed: the lists are listed again at the next encode. */
     stale() {
-      listed = undefined
+      listed = false
     },
     /** The lists of `cascades`' last level over `count` lights, encoded when stale: the buffer that
      *  holds them, or none. */
@@ -61,11 +66,17 @@ function worldLightLists(
         return undefined
       }
       const level = cascades.levels[cascades.levels.length - 1]
-      const key = `${level.spacing}|${level.base.join(',')}|${count}|${grid.revision}`
-      if (key !== listed) {
+      asked[0] = level.spacing
+      asked[1] = level.base[0]
+      asked[2] = level.base[1]
+      asked[3] = level.base[2]
+      asked[4] = count
+      asked[5] = grid.revision
+      if (!listed || !sameValues(listedFor, asked)) {
         for (let axis = 0; axis < 3; axis++) corner[axis] = level.base[axis] * level.spacing
         grid.updateWorld(corner, level.spacing)
-        listed = grid.encodeWorld(encoder, frame) ? key : undefined
+        listed = grid.encodeWorld(encoder, frame)
+        listedFor.set(asked)
       }
       uniform.setLightLists(listed ? grid.worldStart : undefined)
       return grid.buffer
@@ -78,7 +89,7 @@ function worldLightLists(
  *  that do, which the occupancy map keeps. */
 export type ProbeScene = {
   buffer(): GPUBuffer | undefined
-  boxes(): { boxes: Float64Array; changed: Uint8Array }
+  boxes(): ProxyBoxes
 }
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>

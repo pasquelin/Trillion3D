@@ -22,8 +22,10 @@ import type { ProxyBindings } from './proxy.ts'
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
  * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees;
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
- *   through the lobe, on the radiance around the scene, where the probes reach;
- * - the environment (`reflectionEnvironment`): what is around the scene, the last word.
+ *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
+ *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes;
+ * - the environment (`reflectionEnvironment`): the background the screen draws around the scene,
+ *   as radiance, the last word.
  *
  * Every confidence is continuous in what it reads, there is no hit or miss: a stage whose share
  * of the radiance is left under `REFLECTION_EPSILON` is not evaluated. Nothing of the chain reads a
@@ -127,7 +129,7 @@ export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
   rest*=1.0-proxied.confidence;
  }
  if(rest>REFLECTION_EPSILON){
-  let around=reflectionEnvironment(ellipse);
+  let around=reflectionEnvironment();
   let gathered=reflectionProbesGathered(P,N,ellipse);
   let confidence=min(gathered.w,1.0);
   radiance+=rest*(confidence*(around+gathered.xyz)+(1.0-confidence)*around);

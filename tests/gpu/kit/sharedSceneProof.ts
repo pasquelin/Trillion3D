@@ -132,7 +132,7 @@ export function batisseur() {
 export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>
 
 /** A host-library matrix, column-major, ready for `setTransform`. */
-export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements)
+export const toApiMatrix = (matrix: G.Matrix4): Float32Array => new Float32Array(matrix.elements)
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */

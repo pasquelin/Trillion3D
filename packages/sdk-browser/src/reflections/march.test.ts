@@ -4,7 +4,7 @@
 // everything — each within its bound, the iterations of the screen distance (`screenMarchBudget`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { reflectionConstant } from './constants.fixture.ts'
+import { REFLECTION_CONSTANTS } from './constants.ts'
 import { falling, marcher } from './march.fixture.ts'
 
 // Reversed depth: 1 at the near plane, 0 at infinity. The background reads 0. A surface is a slab
@@ -12,7 +12,7 @@ import { falling, marcher } from './march.fixture.ts'
 // depth, 4 pixels are 0.125 of depth.
 const W = 128,
   H = 64,
-  SLAB = (reflectionConstant('REFLECTION_THICKNESS') * 2) / H
+  SLAB = (REFLECTION_CONSTANTS.REFLECTION_THICKNESS * 2) / H
 
 test('a ray stops where it crosses a depth, its own pixel never', () => {
   // A wall one pixel wide at x = 80 over a far floor; the ray crosses its depth in its pixel.

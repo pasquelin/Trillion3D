@@ -3,6 +3,7 @@
 // stores it, the translation brought to the eye by the double subtraction first
 // (`worldToRenderOrigin`). Generated hierarchies: rotations, uneven and negative scales, shears,
 // translations far from the origin, an eye far from it too.
+import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -18,7 +19,6 @@ import {
   type Pair,
 } from './composeDoubles.fixture.ts'
 import { FLOAT32_MAX } from '../../../math/src/constants.ts'
-import { f32Bits } from '../../../math/src/float/bits.ts'
 
 /** The parent's and the local matrix's doubles the shipped `composed` reads, one case at a time. */
 const parents: Pair[] = [],

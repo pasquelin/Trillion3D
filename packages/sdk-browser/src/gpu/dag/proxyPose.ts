@@ -1,22 +1,38 @@
 /**
  * THE POSE OF THE DEFORMED PLACEMENTS' PROXIES, on the GPU (`bounce/runtimePoseWgsl.ts`): each frame a record
- * moved, the corners of every posed copy are moved by it and the copy's bounds fitted again, level by level
- * from the deepest to the root. This module owns the program, its small tables — one entry a pose, the node
- * levels of each mesh (`bounce/runtimePoseLevels.ts`), one parameter block a level — and the dispatches; the
- * proxy's buffer, its layout and what each copy is belong to `proxyInstances.ts`.
+ * moved, the corners of every posed copy are moved by it and the copy's bounds fitted again by the engine's
+ * one refit level loop (`treeRefitLevels.ts`), level by level from the deepest to the root. This module owns
+ * the program, its small tables — one entry a pose, the (pose, node) pairs of each level
+ * (`bounce/runtimePoseLevels.ts`), one parameter slot a level — and the dispatches; the proxy's buffer, its
+ * layout and what each copy is belong to `proxyInstances.ts`.
  */
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { createCheckedShaderModule } from '../core/shaderModule.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS } from '../../../../sdk-core/src/index.ts'
+import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { poseOrder } from '../../bounce/runtimePoseLevels.ts'
-import { POSE_LANES, POSE_WORDS, RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
+import { oncePerDevice } from '../core/oncePerDevice.ts'
+import { heldBuffers } from '../core/heldBuffers.ts'
+import { writeChanged } from '../core/writeChanged.ts'
+import {
+  computeBufferEntry,
+  computeUniformEntry,
+  sequentialEntries,
+} from '../core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
+import { poseLevels, poseSchedule } from '../../bounce/runtimePoseLevels.ts'
+import {
+  POSE_ENTRY,
+  POSE_LANES,
+  POSE_STEP_WORDS,
+  POSE_WORDS,
+  RUNTIME_POSE_SHADER,
+} from '../../bounce/runtimePoseWgsl.ts'
+import { createRefitLevels, type RefitLevels } from './treeRefitLevels.ts'
 import { PROXY_POSE_PASS } from '../../stage/passLabels.ts'
 
 /** Levels a fit serves at most: a wide tree of 16384 triangles is under a dozen deep. */
 const MAX_LEVELS = 32
-/** Bytes between two levels' parameters: a uniform offset's alignment. */
-const PARAM_STRIDE = 256
+const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
 /** A pose: the copy of a mesh's proxy that stands at the pose of one placement. */
 export type PoseEntry = {
@@ -25,178 +41,164 @@ export type PoseEntry = {
   restTriangle: number
   posedTriangle: number
   posedNode: number
-  /** The first word of the mesh's corner table, in the proxy's buffer (the header counted). */
+  /** The first word of the mesh's corner table, among the proxy's words past its header. */
   corners: number
   /** The placement's record in the float pool plus one, or zero. */
   record: number
 }
 
+/** The pose's program on a device: its layout and its two kernels, compiled off the frame. */
+const posePrograms = oncePerDevice((device: GPUDevice) => {
+  const layout = device.createBindGroupLayout({
+    entries: [
+      computeBufferEntry(0, 'storage'),
+      computeBufferEntry(1, 'read-only-storage'),
+      computeBufferEntry(2, 'read-only-storage'),
+      computeBufferEntry(3, 'read-only-storage'),
+      computeUniformEntry(4, { hasDynamicOffset: true, minBindingSize: POSE_STEP_WORDS * 4 }),
+    ],
+  })
+  const module = device.createShaderModule({ label: PROXY_POSE_PASS, code: RUNTIME_POSE_SHADER })
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  const kernel = (entryPoint: string) =>
+    started(
+      preparedComputePipeline(device, {
+        label: PROXY_POSE_PASS,
+        layout: pipelineLayout,
+        compute: { module, entryPoint },
+      }),
+    )
+  return { layout, corners: kernel('poseCorners'), fit: kernel('fitNodes') }
+})
+
 export function createProxyPose(device: GPUDevice) {
-  let program:
-    { corners: GPUComputePipeline; fit: GPUComputePipeline; layout: GPUBindGroupLayout } | undefined
-  let building = false
-  const orders = new Map<RuntimeCutProxy, number>()
-  let orderWords = new Uint32Array(0)
-  let orderBuffer: GPUBuffer | undefined
-  let orderSent = 0
-  let poseBuffer: GPUBuffer | undefined
+  // Its own hold: the buffers are this pose's, grown by the engine's one grower.
+  const held = heldBuffers()
+  const levelsOf = new Map<RuntimeCutProxy, Uint32Array[]>()
+  const identity = createWebgpuBindIdentity()
+  let group: GPUBindGroup | undefined
   // Made with the first pose, as the other buffers are: a scene with no deformed placement holds none.
-  let params: GPUBuffer | undefined
-  const groups = new Map<string, { key: unknown[]; group: GPUBindGroup }>()
+  let steps: RefitLevels | undefined
+  let table = new Uint32Array(0),
+    poses: GPUBuffer | undefined,
+    ids: GPUBuffer | undefined,
+    idsSent: GPUBuffer | undefined,
+    laid = NaN,
+    schedule = poseSchedule([]),
+    corners = 0
+  const extra = new Uint32Array(1)
 
-  /** The program, built the first time a pose is asked and ready some frames after. */
-  function ready() {
-    if (program) return program
-    if (building) return undefined
-    building = true
-    const layout = device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-        {
-          binding: 4,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: 16 },
-        },
-      ],
-    })
-    void (async () => {
-      const module = await createCheckedShaderModule(device, RUNTIME_POSE_SHADER, 'PROXY_POSE')
-      const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-      const [corners, fit] = await Promise.all([
-        buildComputePipeline(device, {
-          layout: pipelineLayout,
-          compute: { module, entryPoint: 'poseCorners' },
-        }),
-        buildComputePipeline(device, {
-          layout: pipelineLayout,
-          compute: { module, entryPoint: 'fitNodes' },
-        }),
-      ])
-      program = { corners, fit, layout }
-    })()
-    return undefined
+  /** A mesh's node levels, found the first time a pose wears it. */
+  function levelsOfCut(cut: RuntimeCutProxy) {
+    let levels = levelsOf.get(cut)
+    if (!levels) levelsOf.set(cut, (levels = poseLevels(cut.nodeChildren)))
+    return levels
   }
 
-  /** Where a mesh's node levels lie among the order words, appended the first time. */
-  function orderOf(cut: RuntimeCutProxy) {
-    let at = orders.get(cut)
-    if (at !== undefined) return at
-    const levels = poseOrder(cut.nodeChildren)
-    at = orderWords.length
-    const grown = new Uint32Array(at + levels.length)
-    grown.set(orderWords)
-    grown.set(levels, at)
-    orderWords = grown
-    orders.set(cut, at)
-    return at
-  }
-
-  /** `buffer` grown to hold `bytes`, made again when it cannot. */
-  function sized(buffer: GPUBuffer | undefined, bytes: number, label: string) {
-    if (buffer && buffer.size >= bytes) return buffer
-    buffer?.destroy()
-    return device.createBuffer({
-      label,
-      size: Math.max(256, 2 * bytes),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+  /** The poses' levels and their largest corner count, laid again when the poses did (`layout`). */
+  function lay(entries: readonly PoseEntry[], layout: number) {
+    if (layout === laid) return
+    laid = layout
+    schedule = poseSchedule(entries.map((entry) => levelsOfCut(entry.cut)))
+    if (schedule.depth > MAX_LEVELS) throw new Error('PROXY_POSE_LEVELS')
+    corners = 0
+    for (const entry of entries)
+      corners = Math.max(corners, (entry.cut.triangles.length / PROXY_TRIANGLE_FLOATS) * 3)
+    ids = held.grow(
+      device,
+      'Trillion3D proxy pose levels',
+      Math.max(16, schedule.ids.byteLength),
+      STORAGE,
+    )
+    idsSent = undefined
   }
 
   return {
     /**
-     * Poses `entries` in `encoder`: the corners moved by the records, the bounds fitted again. Whether it was
-     * encoded — the program is built off the thread and answers some frames after the first ask.
+     * Poses `entries` in `encoder`: the corners moved by the records, the bounds fitted again. `layout`
+     * moves when the poses or where they lie did. Whether it was encoded — the program is built off the
+     * thread and answers some frames after the first ask.
      */
     run(
       encoder: GPUCommandEncoder,
       arena: GPUBuffer,
       pool: GPUBuffer,
       entries: readonly PoseEntry[],
+      layout: number,
     ) {
-      const built = ready()
-      if (!built || !entries.length) return false
-      const table = new Uint32Array(entries.length * POSE_WORDS)
-      let corners = 0,
-        nodes = 0,
-        levels = 0
+      const program = posePrograms(device)
+      if (!program.corners.ready || !program.fit.ready || !entries.length) return false
+      lay(entries, layout)
+      if (table.length !== entries.length * POSE_WORDS)
+        table = new Uint32Array(entries.length * POSE_WORDS)
       entries.forEach((entry, k) => {
-        const triangles = entry.cut.triangles.length / 9,
-          count = entry.cut.nodeChildren.length / 12
-        const place = orderOf(entry.cut)
-        table.set(
-          [
-            entry.restTriangle,
-            entry.posedTriangle,
-            triangles,
-            entry.posedNode,
-            count,
-            entry.corners,
-            place,
-            entry.record,
-          ],
-          k * POSE_WORDS,
-        )
-        corners = Math.max(corners, triangles * 3)
-        nodes = Math.max(nodes, count)
-        levels = Math.max(levels, orderWords[place])
+        const at = k * POSE_WORDS
+        table[at + POSE_ENTRY.rest] = entry.restTriangle
+        table[at + POSE_ENTRY.posed] = entry.posedTriangle
+        table[at + POSE_ENTRY.triangles] = entry.cut.triangles.length / PROXY_TRIANGLE_FLOATS
+        table[at + POSE_ENTRY.node] = entry.posedNode
+        table[at + POSE_ENTRY.nodes] = entry.cut.nodeChildren.length / PROXY_NODE_WORDS
+        table[at + POSE_ENTRY.corners] = entry.corners
+        table[at + POSE_ENTRY.record] = entry.record
       })
-      if (levels > MAX_LEVELS) throw new Error('PROXY_POSE_LEVELS')
-      poseBuffer = sized(poseBuffer, table.byteLength, 'Trillion3D proxy pose entries')
-      device.queue.writeBuffer(poseBuffer, 0, table)
-      if (orderSent !== orderWords.length || !orderBuffer) {
-        orderBuffer = sized(orderBuffer, orderWords.byteLength, 'Trillion3D proxy pose levels')
-        device.queue.writeBuffer(orderBuffer, 0, orderWords)
-        orderSent = orderWords.length
+      poses = held.grow(
+        device,
+        'Trillion3D proxy pose entries',
+        Math.max(16, table.byteLength),
+        STORAGE,
+      )
+      writeChanged(device, poses, table, 0, table.length)
+      if (idsSent !== ids) {
+        device.queue.writeBuffer(ids!, 0, schedule.ids)
+        idsSent = ids
       }
-      params ??= device.createBuffer({
-        label: 'Trillion3D proxy pose steps',
-        size: MAX_LEVELS * PARAM_STRIDE,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      })
-      for (let level = 0; level < levels; level++)
-        device.queue.writeBuffer(
-          params,
-          level * PARAM_STRIDE,
-          Uint32Array.of(level, entries.length, 0, 0),
-        )
-      const key = [arena, pool, poseBuffer, orderBuffer]
-      let held = groups.get('pose')
-      if (!held || held.key.some((resource, k) => resource !== key[k])) {
-        held = {
-          key,
-          group: device.createBindGroup({
-            layout: built.layout,
-            entries: [
-              { binding: 0, resource: { buffer: arena } },
-              { binding: 1, resource: { buffer: pool } },
-              { binding: 2, resource: { buffer: poseBuffer } },
-              { binding: 3, resource: { buffer: orderBuffer } },
-              { binding: 4, resource: { buffer: params, size: 16 } },
-            ],
-          }),
-        }
-        groups.set('pose', held)
+      steps ??= createRefitLevels(
+        device,
+        'Trillion3D proxy pose steps',
+        MAX_LEVELS,
+        POSE_STEP_WORDS,
+      )
+      extra[0] = entries.length
+      for (let step = 0; step < schedule.depth; step++) {
+        const first = schedule.starts[step]
+        steps.set(step, first, schedule.starts[step + 1] - first, extra)
       }
+      const { next } = identity
+      next[0] = program.layout
+      next[1] = arena
+      next[2] = pool
+      next[3] = poses
+      next[4] = ids
+      next.length = 5
+      if (identity.moved() || !group)
+        group = device.createBindGroup({
+          layout: program.layout,
+          entries: sequentialEntries([
+            { buffer: arena },
+            { buffer: pool },
+            { buffer: poses },
+            { buffer: ids! },
+            { buffer: steps.params, size: POSE_STEP_WORDS * 4 },
+          ]),
+        })
+      const bound = group,
+        { slots } = steps
       const pass = encoder.beginComputePass({ label: PROXY_POSE_PASS })
-      pass.setPipeline(built.corners)
-      pass.setBindGroup(0, held.group, [0])
+      pass.setPipeline(program.corners.get())
+      pass.setBindGroup(0, bound, slots.offset(0))
       pass.dispatchWorkgroups(ceilDiv(corners, POSE_LANES), entries.length)
-      pass.setPipeline(built.fit)
       // The deepest level first: a node reads its children's bounds, which the level below fitted.
-      for (let level = levels - 1; level >= 0; level--) {
-        pass.setBindGroup(0, held.group, [level * PARAM_STRIDE])
-        pass.dispatchWorkgroups(ceilDiv(nodes, POSE_LANES), entries.length)
-      }
+      pass.setPipeline(program.fit.get())
+      steps.encode(pass, schedule.depth, (open, step) =>
+        open.setBindGroup(0, bound, slots.offset(step)),
+      )
       pass.end()
       return true
     },
     dispose() {
-      params?.destroy()
-      poseBuffer?.destroy()
-      orderBuffer?.destroy()
+      steps?.dispose()
+      poses?.destroy()
+      ids?.destroy()
     },
   }
 }

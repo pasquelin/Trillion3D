@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4, IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/index.ts'
 import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
-import { sdkWasm as module } from '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
+import { sdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
 import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
@@ -82,7 +82,7 @@ async function checkScene(pointer: string) {
       finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
-    const exponent = positionGridExponent(module, extent, blended, inputs)
+    const exponent = positionGridExponent(sdkWasm, extent, blended, inputs)
     if (exponent !== quantization.positionExponent)
       differences.push(
         `${pointer} mesh ${primitive.mesh} primitive ${primitive.primitive}: compiled ` +

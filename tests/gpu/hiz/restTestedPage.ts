@@ -1,6 +1,7 @@
 // The rest compaction sized by the partition's count of tested rows, on the machine's device: the
 // engine's own `createGpuRestCompact` over a table that holds far more instances than the tested
 // rows can fill, the dispatch arguments and the compacted lists read back.
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { createGpuRestCompact } from '../../../packages/sdk-browser/src/gpu/raster/restCompact.ts'
 import {
   BASE_SLOTS,
@@ -14,9 +15,7 @@ import {
   VERDICT_REJECTED,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { heldBuffers } from '../kit/heldBuffers.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
 
 /** Rows the table holds, far more than the image tests. */
 const TABLE_ROWS = 20_000
@@ -28,8 +27,7 @@ const HIZ_SLOT_WORD = 31
 export async function testRestCompaction() {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
-  const { device } = gpu
-  const { buffer, release } = heldBuffers(device)
+  const { device, buffer } = gpu
   const tested = 100,
     slots = [HALF_SLOTS, HALF_SLOTS + 1],
     lengths = [130, 200],
@@ -108,11 +106,11 @@ export async function testRestCompaction() {
     pass.end()
     device.queue.submit([encoder.finish()])
     if (!recorded) throw new Error('the compaction must dispatch on arguments')
-    return [...(await readBuffer(device, recorded, 0, 12))]
+    return [...(await readGpuBuffer(device, recorded, 12))!]
   }
   const restArgs = await encodeRecorded()
-  const after = await readBuffer(device, instances, 0, 1024 * 4)
-  const commandsAfter = await readBuffer(device, indirect, 0, BASE_SLOTS * 16)
+  const after = (await readGpuBuffer(device, instances, 1024 * 4))!
+  const commandsAfter = (await readGpuBuffer(device, indirect, BASE_SLOTS * 16))!
   const survivors: number[][] = [],
     expected: number[][] = []
   slots.forEach((slot, k) => {
@@ -127,11 +125,10 @@ export async function testRestCompaction() {
   device.queue.writeBuffer(indirect, 0, new Uint32Array(BASE_SLOTS * 4))
   device.queue.writeBuffer(partitionState, 0, new Uint32Array(STATE_WORDS))
   const emptyArgs = await encodeRecorded()
-  const emptyCommands = await readBuffer(device, indirect, 0, BASE_SLOTS * 16)
+  const emptyCommands = (await readGpuBuffer(device, indirect, BASE_SLOTS * 16))!
   const emptyCounts = slots.map((slot) => emptyCommands[slot * 4 + 1])
   compact.dispose()
   const { court: adapter } = await gpu.fermer()
-  release()
   return {
     adapter,
     errors: gpu.errors,

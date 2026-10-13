@@ -25,7 +25,8 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { sceneDerived } from '../../../bench/runner/assets/scene.ts'
 import { TANGENT_SCENES } from '../../../bench/runner/scenes/tangentScenes.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
-import { benchManifest, defaultWorldImage, drawnPixels } from '../world/proofWorld.ts'
+import { benchManifest, defaultWorldImage } from '../world/proofWorld.ts'
+import { drawnPixels } from '../kit/sceneImageProof.ts'
 
 /** The bench sun, casting no shadow: the traced shadow read is seeded by the frame number, so an
  *  image held at another frame differs on every shadow edge — the pair would measure how many

@@ -5,7 +5,7 @@
 // the camera still, and the loop runs again to the next settled view. A view that never saw the
 // first light and starts on the second is the cold converged image: the held one is it, to the bit.
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { animationFrame } from '../kit/onDawn.ts'
+import { animationFrame } from '../kit/frame.ts'
 import { openMirror } from './mirrorPage.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import type { openRig } from './rig.ts'

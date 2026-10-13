@@ -4,6 +4,7 @@
 // triangles, slivers, lone pixels, the background, rows past the table and triangles past their
 // page. With the stand-ins `shaderRun` lacks: WGSL's 3×3, the structures the text builds by name,
 // integer division for the page decode (`homesDecode.test.ts`).
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { Mat } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
@@ -88,8 +89,7 @@ export function scene() {
   /** A deformation tail of `vertices` records of eleven floats: position, previous, normal. */
   const tail = (into: number[], vertices: number, bits: boolean) => {
     const at = into.length
-    for (const x of floats(vertices * 11, () => random() * 4 - 2))
-      into.push(bits ? new Uint32Array(new Float32Array([x]).buffer)[0] : x)
+    for (const x of floats(vertices * 11, () => random() * 4 - 2)) into.push(bits ? f32Bits(x) : x)
     return at + 1
   }
   const source = (vertices: number) => {

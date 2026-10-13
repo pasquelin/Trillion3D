@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
-import { VSM_FORWARD_LAYOUT, vsmForwardPoolBinding, vsmPoolLoadOf } from '../../vsm/resources.ts'
+import { VSM_FORWARD_LAYOUT, vsmPoolLoadOf } from '../../vsm/resources.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
@@ -15,7 +15,6 @@ import {
   vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
-import { VSM_MASK_TILES_BINDING } from '../../vsm/projectionWgsl.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
@@ -32,7 +31,8 @@ import {
 } from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmLocate`): the page
- *  table, the projection data, the uniforms and the pool's first slice (`vsmForwardPoolBinding`). */
+ *  table, the projection data, the uniforms and the pool's first slice, its one window
+ *  (`VSM_FORWARD_LAYOUT`). */
 export interface VsmConsumerBindings {
   pageTable: number
   projectionData: number
@@ -45,7 +45,7 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   pageTable: DEFERRED_BINDINGS.pageTable,
   projectionData: DEFERRED_BINDINGS.projectionData,
   uniforms: DEFERRED_BINDINGS.uniforms,
-  pool: vsmForwardPoolBinding(DEFERRED_BINDINGS.pool),
+  pool: DEFERRED_BINDINGS.pool,
 }
 /** The water composite's trace bindings (`vsmTraceFactor`), on the deferred numbers. */
 export const CONTRACT_TRACE_BINDINGS: VsmTraceBindings = {
@@ -152,7 +152,7 @@ fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  * exactly zero before any shadow read (`declaredLight`, `incidence.w`), as the lists rest on.
  *
  * `resolveTransmission` is the opaque resolve's binding of the translucent casters' transmission
- * (`VSM_TRANSMISSION_RESOLVE_BINDING`), null in a blend or water pass; `maskBinding` the resolve's
+ * (`DEFERRED_BINDINGS.transmissionResolve`), null in a blend or water pass; `maskBinding` the resolve's
  * mask array, and in the other passes, which declare no mask, their transmission. `trace`, the
  * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given). The names the passes write (footprint, receiver
  * offset and plane, view) are kept, so their bodies need no change. The block lists what it calls,
@@ -301,7 +301,7 @@ const vsmMaskWgsl = (binding: number) =>
     [byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
-@group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
+@group(0) @binding(${DEFERRED_BINDINGS.maskTiles}) var vsmShadowMaskTiles:texture_2d<u32>;
 /** A lane's code to its factor (\`vsmMaskCode\`, \`vsm/projectionWgsl.ts\`): 1 where no ray was
  *  traced, else the k of its n rays that missed, k / n by the projection's own expression, as the
  *  half float the mask held. */

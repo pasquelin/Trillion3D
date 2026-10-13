@@ -2,13 +2,22 @@ import {
   DAG_CLUSTER_TRIANGLES,
   DAG_CLUSTER_VERTICES,
 } from '../../../../sdk-core/src/page/format.ts'
-import { reserveArena } from '../../wasm/wasmArena.ts'
+import {
+  CLUSTER_ORDERED,
+  CLUSTER_ORDERED_COMPACT,
+  CLUSTER_SPATIAL,
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** The rules of `cluster_build` (`page-codec-wasm/src/wasm_clusters.rs`): `spatial`, compact
  *  patches in any index order; `ordered`, consecutive triangles in their source order;
  *  `compact`, ordered runs that stop where they would reach past a compact cluster. */
-const CLUSTER_RULES = { spatial: 0, ordered: 1, compact: 2 } as const
+const CLUSTER_RULES = {
+  spatial: CLUSTER_SPATIAL,
+  ordered: CLUSTER_ORDERED,
+  compact: CLUSTER_ORDERED_COMPACT,
+} as const
 export type ClusterRule = keyof typeof CLUSTER_RULES
 
 /**
@@ -46,21 +55,11 @@ export function clusterTriangles(
   } finally {
     input.freed()
   }
-  const out = reserveArena(module, [
-    { type: 'u32', length: Math.max(1, indices.length) },
-    { type: 'u32', length: Math.max(1, count) },
-  ])
-  if (!out) throw new Error('CLUSTER_BUILDER_MEMORY')
-  try {
-    const [order, ends] = out.blocks()
-    module.cluster_build_take(order.offset, ends.offset)
-    const [ordered, built] = out.blocks()
-    const endsOf = built.view.subarray(0, count)
-    return {
-      indices: Uint32Array.from(ordered.view.subarray(0, indices.length)),
-      ranges: Array.from(endsOf, (end, k): [number, number] => [k ? endsOf[k - 1] : 0, end]),
-    }
-  } finally {
-    out.freed()
+  // The held answer: the indices in cluster order, then where each of the `count` clusters ends.
+  const [ordered, built] = takeHeld(module, [module.held_length() - count * 4, count * 4])
+  const ends = new Uint32Array(built)
+  return {
+    indices: new Uint32Array(ordered),
+    ranges: Array.from(ends, (end, k): [number, number] => [k ? ends[k - 1] : 0, end]),
   }
 }

@@ -21,11 +21,6 @@ function maskPages(selection: GpuSelection, pageCount: number) {
   )
 }
 
-/** Lets the readbacks in flight land, without the drain that would grow the tables. */
-const landed = async () => {
-  for (let k = 0; k < 8; k++) await new Promise((resolve) => setTimeout(resolve, 0))
-}
-
 test('a full queue costs no image: the overflowed cut is not adopted, then the tables grow to the flat cut', async () => {
   installGpuGlobals()
   const { roots, camera, dag } = gridScene()
@@ -53,7 +48,8 @@ test('a full queue costs no image: the overflowed cut is not adopted, then the t
   assert.deepEqual(maskPages(selection, dag.pageCount), drawnA)
   // The fine cut passes its queues and lists: not adopted, and the frame draws the coarse cut.
   selection.dispatch(fine)
-  await landed()
+  // The readbacks in flight land, without the drain that would grow the tables.
+  await selection.landed()
   assert.equal(
     selection.peek()?.uniforms.pixelError,
     coarse.pixelError,

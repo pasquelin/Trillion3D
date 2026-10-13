@@ -11,6 +11,73 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { WAVE_TERMS } from './waveTermsWgsl.ts'
 
+/** Where a deformation record lies: the float storage that holds it, and the prefix its reads are
+ *  named with (`deformRecordFns`). */
+export type DeformRecordSource = { source: string; prefix: string }
+
+/** Where record `r`'s parts start: palette, morph weights, world matrices, waves. */
+export const DEFORM_AT_WGSL = wgslBlock(
+  'DEFORM_AT_WGSL',
+  [],
+  'struct DeformAt{kinds:u32,joints:u32,targets:u32,waves:u32,palette:u32,weights:u32,world:u32,wave:u32,soft:u32,simulation:u32,}',
+)
+
+/**
+ * THE READS OF A DEFORMATION RECORD (`layout.ts`), written once for every storage a record lies in —
+ * the passes' float pool (`positions`), the proxy's pose (`bounce/runtimePoseWgsl.ts`) —: a word of
+ * it, joint `j` of the palette at `at` (`count` joints, the last one standing for a larger rank),
+ * its three rows, and where the record's parts start (`DeformAt`), this frame's or the last one's.
+ */
+export const deformRecordFns = ({
+  source,
+  prefix,
+}: DeformRecordSource) => `fn ${prefix}Word(at:u32)->u32{return bitcast<u32>(${source}[at]);}
+fn ${prefix}Joint(at:u32,j:u32,count:u32)->mat3x4f{
+ let b=at+min(j,count-1u)*${PALETTE_FLOATS}u;
+ return mat3x4f(${source}[b],${source}[b+1u],${source}[b+2u],${source}[b+3u],
+  ${source}[b+4u],${source}[b+5u],${source}[b+6u],${source}[b+7u],
+  ${source}[b+8u],${source}[b+9u],${source}[b+10u],${source}[b+11u]);
+}
+fn ${prefix}At(r:u32,previous:bool)->DeformAt{
+ var a:DeformAt;
+ a.kinds=${prefix}Word(r+select(0u,1u,previous));a.joints=${prefix}Word(r+2u);a.targets=${prefix}Word(r+3u);a.waves=${prefix}Word(r+4u);
+ a.palette=r+${RECORD_HEAD}u+select(0u,a.joints*${PALETTE_FLOATS}u,previous);
+ a.weights=r+${RECORD_HEAD}u+2u*a.joints*${PALETTE_FLOATS}u;
+ a.world=a.weights+2u*a.targets;a.wave=a.world+64u;
+ a.soft=${prefix}Word(r+5u);a.simulation=a.world+select(0u,64u,a.waves>0u)+2u*a.waves*${WAVE_FLOATS}u;
+ a.world+=select(0u,32u,previous);
+ a.weights+=select(0u,a.targets,previous);
+ return a;
+}`
+
+/**
+ * THE BLEND OF A PALETTE'S JOINTS, written once for every vertex a record moves — a page's
+ * (`deformSkin`), a proxy's corner (`bounce/runtimePoseWgsl.ts`) —: a point (`w` 1) or a direction
+ * (`w` 0) carried by the weighed sum of its joints, renormalised by the weights' total, untouched
+ * where they sum to none. `weight` and `joint` are the expressions of influence `k`'s weight and
+ * joint, over the function's own `params`.
+ */
+export const deformSkinFn = (
+  { prefix }: DeformRecordSource,
+  {
+    name,
+    params,
+    influences,
+    weight,
+    joint,
+  }: { name: string; params: string; influences: string; weight: string; joint: string },
+) => `fn ${name}(${params},at:u32,count:u32,v:vec4f)->vec3f{
+ var result=vec3f(0.0);var total=0.0;
+ for(var k=0u;k<${influences};k++){
+  let weight=${weight};total+=weight;
+  if(weight!=0.0){result+=weight*(v*${prefix}Joint(at,${joint},count));}
+ }
+ if(total>0.0){return result/total;}return v.xyz;
+}`
+
+/** The passes' record reads: the float pool every pass binds as `positions`. */
+const PAGE_RECORD: DeformRecordSource = { source: 'positions', prefix: 'deform' }
+
 /**
  * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
  * (`layout.ts`) before any pass reads it — the one routine `pagePosition` and `pageNormal` call,
@@ -28,6 +95,7 @@ import { WAVE_TERMS } from './waveTermsWgsl.ts'
 export const DEFORM_WGSL = wgslBlock(
   'DEFORM_WGSL',
   [
+    DEFORM_AT_WGSL,
     worldMatrix3,
     transformPoint,
     PAGE_INFO_STRUCT_WGSL,
@@ -52,24 +120,15 @@ fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)-
  let at=wholeVertex(page,vertex)+h.influences*2u+t*6u+select(0u,3u,normal);
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }
-fn deformWord(at:u32)->u32{return bitcast<u32>(positions[at]);}
-/** Joint \`j\` of the palette at \`at\` (\`count\` joints, the last one standing for a larger rank),
- *  its three rows. */
-fn deformJoint(at:u32,j:u32,count:u32)->mat3x4f{
- let b=at+min(j,count-1u)*${PALETTE_FLOATS}u;
- return mat3x4f(positions[b],positions[b+1u],positions[b+2u],positions[b+3u],
-  positions[b+4u],positions[b+5u],positions[b+6u],positions[b+7u],
-  positions[b+8u],positions[b+9u],positions[b+10u],positions[b+11u]);
-}
+${deformRecordFns(PAGE_RECORD)}
 /** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of all joints. */
-fn deformSkin(h:ClusterHeader,page:PageInfo,vertex:u32,at:u32,count:u32,v:vec4f)->vec3f{
- var result=vec3f(0.0);var total=0.0;
- for(var k=0u;k<h.influences;k++){
-  let weight=deformWeight(h,page,vertex,k);total+=weight;
-  if(weight!=0.0){result+=weight*(v*deformJoint(at,deformJointId(h,page,vertex,k),count));}
- }
- if(total>0.0){return result/total;}return v.xyz;
-}
+${deformSkinFn(PAGE_RECORD, {
+  name: 'deformSkin',
+  params: 'h:ClusterHeader,page:PageInfo,vertex:u32',
+  influences: 'h.influences',
+  weight: 'deformWeight(h,page,vertex,k)',
+  joint: 'deformJointId(h,page,vertex,k)',
+})}
 fn deformMatrix(at:u32)->mat4x4f{
  return mat4x4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u],
   positions[at+4u],positions[at+5u],positions[at+6u],positions[at+7u],
@@ -85,19 +144,6 @@ fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
   ${WAVE_TERMS}
  }
  return select(d,normalize(n),normal);
-}
-/** Where record \`r\`'s parts start: palette, morph weights, world matrices, waves. */
-struct DeformAt{kinds:u32,joints:u32,targets:u32,waves:u32,palette:u32,weights:u32,world:u32,wave:u32,soft:u32,simulation:u32,}
-fn deformAt(r:u32,previous:bool)->DeformAt{
- var a:DeformAt;
- a.kinds=deformWord(r+select(0u,1u,previous));a.joints=deformWord(r+2u);a.targets=deformWord(r+3u);a.waves=deformWord(r+4u);
- a.palette=r+${RECORD_HEAD}u+select(0u,a.joints*${PALETTE_FLOATS}u,previous);
- a.weights=r+${RECORD_HEAD}u+2u*a.joints*${PALETTE_FLOATS}u;
- a.world=a.weights+2u*a.targets;a.wave=a.world+64u;
- a.soft=deformWord(r+5u);a.simulation=a.world+select(0u,64u,a.waves>0u)+2u*a.waves*${WAVE_FLOATS}u;
- a.world+=select(0u,32u,previous);
- a.weights+=select(0u,a.targets,previous);
- return a;
 }
 fn deformSoft(a:DeformAt,h:ClusterHeader,page:PageInfo,vertex:u32,previous:bool,normal:bool)->vec3f{
  var delta=vec3f(0.0);let count=a.soft*3u;

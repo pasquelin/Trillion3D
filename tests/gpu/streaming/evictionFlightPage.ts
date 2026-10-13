@@ -1,10 +1,12 @@
 // Page of the eviction-flight proof: a camera flies down a generated world larger than its pool, on
-// Dawn, through the engine's own GPU cut, page pool, eviction feed, install order and group closure,
-// loads landing between frames at random delays, two frames read back behind. Each frame copies the
-// pool in its own command buffer after its cut: what it read, whatever lands after. Read for every
-// frame whose readback came (`evictionFlightFrame.ts`): its drawn pages, the slots its tables named
-// them at, the pool as it read it, and the cut an unbounded pool draws at the same pose.
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+// Dawn, through the engine's GPU cut, page pool, eviction feed, install order and group closure,
+// loads landing at random delays, two frames read back behind. Each frame copies the pool in its own
+// command buffer after its cut; for every frame read back (`evictionFlightFrame.ts`): its drawn
+// pages, their slots, the pool as it read it, and the cut an unbounded pool draws at that pose.
+import {
+  createGpuDagSelection,
+  packDagSelection,
+} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { createGpuPageCache } from '../../../packages/sdk-browser/src/gpu/page/pages.ts'
 import { createEvictionFeed } from '../../../packages/sdk-browser/src/webgpu/residency/evictionFeed.ts'
 import { createWebgpuPageTracking } from '../../../packages/sdk-browser/src/webgpu/row/pageTracking.ts'
@@ -12,7 +14,6 @@ import { createPageAdmission } from '../../../packages/sdk-browser/src/webgpu/re
 import { createPageParents } from '../../../packages/sdk-browser/src/page/selection/pageParents.ts'
 import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
 import type { GpuCut } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -20,7 +21,6 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { PAGE_BYTES, evictionWorld } from './evictionWorld.ts'
 import { readFlightFrame, type FlightFrame } from './evictionFlightFrame.ts'
-export type { FlightFrame } from './evictionFlightFrame.ts'
 
 /** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
 const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }

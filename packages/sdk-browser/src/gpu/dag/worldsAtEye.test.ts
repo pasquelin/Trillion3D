@@ -4,6 +4,7 @@
 // eyes and on the edges; no pass over every placement runs, whatever the views and their eyes; a
 // pose sent writes its own words alone; and a root its parent stops composing takes back the pose
 // the host holds.
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -24,7 +25,6 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { f32Bits } from '../../../../math/src/float/bits.ts'
 
 /** The double functions the pose's subtraction reaches: those of the compose passes but the
  *  product's. */

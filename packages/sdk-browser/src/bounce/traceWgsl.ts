@@ -37,6 +37,9 @@ export type WideTraversal = {
   stop: string
   /** The triangle test of the leaf slot `child`, each triangle `index`. */
   test: string
+  /** What a child the stack has no room for does to the ray, a statement: it is never dropped in
+   *  silence, the ray is exhausted (`bounce/runtimeLayout.ts`). */
+  overflow: string
   /** What the traversal returns. */
   answer: string
 }
@@ -82,10 +85,12 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
     continue;
    }
    if(span<nearestSpan){
-    if(nearestSpan<=best.distance&&depth<STACK_DEPTH){stack[depth]=nearest;depth++;}
+    if(nearestSpan<=best.distance){
+     if(depth<STACK_DEPTH){stack[depth]=nearest;depth++;}else{${t.overflow}}
+    }
     nearest=child.offset;
     nearestSpan=span;
-   }else if(depth<STACK_DEPTH){stack[depth]=child.offset;depth++;}
+   }else if(depth<STACK_DEPTH){stack[depth]=child.offset;depth++;}else{${t.overflow}}
   }
   if(nearestSpan<=best.distance){node=nearest;continue;}
   if(depth==0u){break;}
@@ -98,8 +103,8 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
  * The constants of a wide traversal and the blocks it reads: the leaf's triangles, the numbers of a triangle,
  * the children of a node, the stack. Three bounds known before the frame: visited nodes (the walk's own
  * steps), triangles of a leaf, and stack depth — a wide node stacks three at most, and the tree is balanced by
- * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and
- * never leaks.
+ * construction, so the stack does not overflow; if it did, the ray would be exhausted (`overflow`), the one rule
+ * of a ray past its bounds: zero weight, never a darkening nor a leak.
  */
 export const WIDE_TRAVERSAL_WGSL = wgslBlock(
   'WIDE_TRAVERSAL_WGSL',

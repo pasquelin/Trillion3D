@@ -2,7 +2,8 @@
 // (`createGpuDraw`), compacted in a compute pass, then each indirect slot and the direct page drawn
 // by the visibility raster in the same submission — no CPU readback or reorder between —, and what
 // both left read back.
-import { bufferHolding, readBuffer, readTexture } from '../kit/computeReadback.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
@@ -79,10 +80,10 @@ export async function runCase(
     render.end()
   }
   device.queue.submit([encoder.finish()])
-  const commands = [...(await readBuffer(device, draw.indirectBuffer, 0, slots * 16))]
+  const commands = [...(await readGpuBuffer(device, draw.indirectBuffer, slots * 16))!]
   const instanceCount = commands.reduce((sum, word, i) => sum + (i % 4 === 1 ? word : 0), 0)
   const instanceIds = [
-    ...(await readBuffer(device, draw.instanceBuffer, 0, cap * draw.perRow * 4)).subarray(
+    ...(await readGpuBuffer(device, draw.instanceBuffer, cap * draw.perRow * 4))!.subarray(
       0,
       instanceCount,
     ),

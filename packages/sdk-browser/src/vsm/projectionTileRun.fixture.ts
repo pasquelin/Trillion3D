@@ -2,9 +2,9 @@
 // pieces, every trace call and store recorded, and the kernel before tiles on the same inputs.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import {
-  CODE,
+  PROJECTION_CODE,
   NAMES,
-  SCOPE,
+  PROJECTION_SCOPE,
   type Light,
   type Pixel,
   type Result,
@@ -36,7 +36,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   let tileLayers = -1
   let lane = 0
   const scope = {
-    ...SCOPE,
+    ...PROJECTION_SCOPE,
     VSM_PROJECTION_ONE_LIGHT: oneLight,
     VSM_PROJECTION_KINDS: kinds,
     vsmView: { lights, lightCount: lights.length },
@@ -62,7 +62,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   }
   const { vsmProjection } = shaderRun<{
     vsmProjection: (groupId: number[], groupIndex: number) => void
-  }>(CODE, NAMES, scope)
+  }>(PROJECTION_CODE, NAMES, scope)
   for (let turn = 0; turn < 4; turn++) {
     calls = []
     stores = new Map()
@@ -79,7 +79,7 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
     vsmLightParticipates: (k: number, info: Pixel['info'], p: V3) => boolean
     vsmMaskCode: (r: Result) => number
   }>(
-    CODE,
+    PROJECTION_CODE,
     [
       'vsmLightParticipates',
       'vsmLightIsDirectional',
@@ -89,7 +89,7 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
       'vsmMaskCode',
     ],
     {
-      ...SCOPE,
+      ...PROJECTION_SCOPE,
       VSM_PROJECTION_KINDS: 0,
       vsmView: { lights },
     },

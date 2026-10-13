@@ -69,7 +69,7 @@ fn listPage(l:u32,s:u32)->u32{
 const KEPT_GEN:u32=0u;
 const KEPT_NEXT:u32=1u;
 const KEPT_HEAD:u32=${KEPT_RANK_HEAD}u;
-/** Slots of a list's table: twice the cap, rounded up to a power of two (\`keptRankSlots\`). */
+/** Slots of a list's table: twice the cap, rounded up to a power of two (\`halfLoadSlots\`). */
 fn keptSlots()->u32{return 1u<<(32u-countLeadingZeros(2u*max(views[0u].listCap,1u)-1u));}
 fn keptHome(i:u32)->u32{return mixWord(i)&(keptSlots()-1u);}
 /** The rank page \`i\` holds in kept list \`l\`, or none: probed in the list's table, bound as

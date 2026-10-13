@@ -17,8 +17,8 @@ import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planE
 import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
 import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
 import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
-import type { ComputeBind } from './mockCompute.ts'
-import { words } from './mockBuffers.ts'
+import type { ComputeBind } from './fakeCompute.ts'
+import { words } from './fakeBuffers.ts'
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
 function simulateTransparentCompaction(bind: ComputeBind) {

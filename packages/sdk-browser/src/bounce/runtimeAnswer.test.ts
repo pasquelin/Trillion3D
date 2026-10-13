@@ -1,6 +1,7 @@
 // The run-time proxy's budget and store, the shipped WGSL run as JavaScript: a frame under its budget casts the ray
 // and keeps the answer, a frame past it leaves the ray for the next image and answers what the pixel last got, and a
-// scene with no proxy touches nothing.
+// scene with no proxy touches nothing. Each pixel runs as a workgroup of its own: its counters reach the frame's once
+// it shares them (`rtShare`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
@@ -16,6 +17,7 @@ test('a frame under its budget casts the ray, adds its work to the frame and kee
   const run = runOver(w, list, 2, store)
   run.testPixel(2, 0, 0)
   const seen = run.rtAnswer(origin, ahead, 1000, 0.01)
+  run.testShare()
   assert.deepEqual(seen.color, [3, 2, 1])
   assert.equal(seen.confidence, 1)
   assert.equal(list[TRACE_LIST.spent], run.testWork(), 'its work joins the frame')
@@ -41,6 +43,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
   const run = runOver(w, list, 2, store)
   run.testPixel(2, 0, 0)
   const again = run.rtAnswer(origin, [-1, 0, 0], 1000, 0.01)
+  run.testShare()
   assert.deepEqual(again.color, [3, 2, 1], 'the last answer, not the ray it was given')
   assert.equal(again.confidence, 1)
   assert.equal(list[TRACE_LIST.left], 0, 'the answer is of this epoch: nothing is left')
@@ -48,10 +51,12 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
   const later = runOver(w, list, 3, store)
   later.testPixel(2, 0, 0)
   later.rtAnswer(origin, ahead, 1000, 0.01)
+  later.testShare()
   assert.equal(list[TRACE_LIST.left], 1)
-  // A pixel never answered holds nothing, and is left too.
+  // A pixel never answered holds nothing, and is left too: its workgroup counts once more.
   later.testPixel(0, 1, 0)
   assert.equal(later.rtAnswer(origin, ahead, 1000, 0.01).confidence, 0)
+  later.testShare()
   assert.equal(list[TRACE_LIST.left], 2)
 })
 
@@ -63,6 +68,7 @@ test('a second lobe of a pixel keeps nothing: past the budget it answers nothing
   run.testPixel(1, 0, 0)
   run.rtAnswer(origin, ahead, 1000, 0.01)
   const coat = run.rtAnswer(origin, ahead, 1000, 0.01)
+  run.testShare()
   assert.equal(coat.confidence, 0)
   assert.equal(list[TRACE_LIST.left], 1, 'the base lobe was counted once')
   assert.equal(store.words.size, 0, 'nothing written')
@@ -76,6 +82,7 @@ test('a scene with no placement wearing a proxy costs nothing: no ray, no word t
   const run = runOver(w, list, 2, store)
   run.testPixel(1, 0, 0)
   assert.equal(run.rtAnswer(origin, ahead, 1000, 0.01).confidence, 0)
+  run.testShare()
   assert.equal(store.words.size, 0)
   assert.deepEqual(list, counters(0))
   assert.equal(run.testWork(), 0)
@@ -88,10 +95,12 @@ test('an answer of this epoch is kept: no ray is cast again for it, the frame sp
   const first = runOver(w, list, 2, store)
   first.testPixel(2, 0, 0)
   first.rtAnswer(origin, ahead, 1000, 0.01)
+  first.testShare()
   const spent = list[TRACE_LIST.spent]
   const again = runOver(w, list, 2, store)
   again.testPixel(2, 0, 0)
   const seen = again.rtAnswer(origin, [-1, 0, 0], 1000, 0.01)
+  again.testShare()
   assert.deepEqual(seen.color, [3, 2, 1], 'the kept answer, not the ray it was given')
   assert.equal(list[TRACE_LIST.spent], spent, 'nothing spent')
   assert.equal(list[TRACE_LIST.left], 0)

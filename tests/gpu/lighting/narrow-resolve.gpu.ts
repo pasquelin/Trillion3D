@@ -15,11 +15,11 @@ import assert from 'node:assert/strict'
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
 import type { ResolveScene } from './resolvePage.ts'
+import { distanceVector3 } from '../../../packages/math/src/vector/vector.ts'
 import {
   assertSameBits,
   assertWithinUlps,
   cellRecord,
-  distance,
   resolveRandom,
   resolveSamples,
   runResolves,
@@ -48,7 +48,7 @@ function scene(count: number, near: number) {
     const close = r() < near
     const position = vector(close ? 2.5 : 12) as [number, number, number]
     const range = close ? between(1.5, 4) : between(0.5, 3)
-    const ratios = points.map((P) => distance(P, position) / range)
+    const ratios = points.map((P) => distanceVector3(P, position) / range)
     if (ratios.some((ratio) => Math.abs(ratio - 1) < 0.02)) continue
     if (ratios.some((ratio) => ratio < 1)) reach.push(lights.length)
     const spot = r() < 0.4

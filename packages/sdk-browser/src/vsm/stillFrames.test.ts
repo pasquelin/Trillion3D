@@ -3,9 +3,10 @@
 // sends only what changed, so once its lights have settled — a new light counts as moving for its
 // first 10 frames (`LightActiveFrameCount`), its maps' bias easing back meanwhile — a frame
 // writes none of them (`planFrames.fixture.ts`).
+import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planFrames, randomWorld, seeded, type PlanWorld } from './planFrames.fixture.ts'
+import { planFrames, randomWorld, type PlanWorld } from './planFrames.fixture.ts'
 
 /** The label of the layout a recorded group was made with. */
 const layoutOf = (group: GPUBindGroupDescriptor) => (group.layout as { label?: string }).label ?? ''
@@ -22,7 +23,7 @@ const only = (labels: string[], prefixes: string[]) =>
   labels.filter((l) => prefixes.some((p) => l.startsWith(p)))
 /** The light active frame count (10, `cacheManager.ts`), and the frame after it. */
 const SETTLED = 10 + 1
-const still = () => frames({ ...randomWorld(seeded(3), [0, 2, 0]), boxes: [] }, SETTLED + 3)
+const still = () => frames({ ...randomWorld(mulberry32(3), [0, 2, 0]), boxes: [] }, SETTLED + 3)
 
 test('a still scene makes no raster or marking group after its second frame', () => {
   const run = still()
@@ -34,7 +35,7 @@ test('a still scene makes no raster or marking group after its second frame', ()
 })
 
 test('the same moved boxes every frame make their invalidation groups once a frame set', () => {
-  const run = frames(randomWorld(seeded(4), [0, 2, 0]), 6)
+  const run = frames(randomWorld(mulberry32(4), [0, 2, 0]), 6)
   const invalidation = ['vsm.invalidateInstancePages']
   // The cache invalidates from the third frame on: its first two make a group 0 each.
   assert.ok(only(run[2].groups, invalidation).length > 0, 'the third frame invalidates')

@@ -76,6 +76,34 @@ export function writeParts(
   }
 }
 
+/**
+ * Copies, in `encoder`, `size` bytes from byte `offset` of the table `parts` lays out to byte
+ * `targetOffset` of `target`, in one run, each span from the part that holds it — `writeParts` as a
+ * copy: a range two parts share reaches the target whole.
+ */
+export function copyParts(
+  encoder: GPUCommandEncoder,
+  parts: DagParts,
+  offset: number,
+  target: GPUBuffer,
+  targetOffset: number,
+  size: number,
+) {
+  for (let at = offset, end = offset + size; at < end;) {
+    const part = Math.floor(at / parts.bytes),
+      within = at - part * parts.bytes,
+      bytes = Math.min(end - at, parts.bytes - within)
+    encoder.copyBufferToBuffer(
+      parts.buffers[part],
+      within,
+      target,
+      targetOffset + at - offset,
+      bytes,
+    )
+    at += bytes
+  }
+}
+
 /** Where `writeRanges` sends a run that is not a split table: `size` bytes of `data` from
  *  `dataOffset`, at byte `offset` of the table the target lays out — the cut's exact translations,
  *  laid behind each range's worlds (`worldOrigins.ts`). */

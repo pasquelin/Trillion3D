@@ -7,11 +7,11 @@ import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { camera, quadScene } from '../pages/testScenes.fixture.ts'
 import { drawsOf, pipelinesOf, resolveFixture } from './materialPasses.fixture.ts'
-import type { MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
+import type { FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
-const passSummary = (passes: MockPass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
+const passSummary = (passes: FakePass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
 test('one present class shades directly into the cleared surfaces', () => {
   const { rt, device, encoder, passes } = resolveFixture([5], [5], [5])
