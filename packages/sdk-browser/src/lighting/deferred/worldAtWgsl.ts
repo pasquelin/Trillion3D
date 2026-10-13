@@ -3,8 +3,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
 
 /** View uniform, shared by both programs and by the water composite: `viewport` carries the
- *  size, the raw-output flag of diagnostic views and the rank of a sampled image
- *  (`../direct/lightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
+ *  size and the raw-output flag of diagnostic views, its fourth word unread; `lightParams` the contract light count, tiles in X and Y, and
  *  exposure, applied before the display curve; `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
  *  (`viewJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */

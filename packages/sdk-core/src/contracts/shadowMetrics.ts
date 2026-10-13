@@ -36,11 +36,6 @@ export interface ShadowFrameMetrics {
   shadowVsmTransmissionMs?: number | null
   /** `SceneLight` contract lights that the frame lit. Null on an engine that ignores them. */
   lightsActive?: number | null
-  /** True when this frame's lighting ran in its sampled mode — a moving image accumulated on
-   *  a history, where a pixel with more lights than `samplesPerPixel` shades a drawn subset —,
-   *  false when every pixel shaded every light, as a still image does. Null on an engine that
-   *  ignores the lights. */
-  lightsSampled?: boolean | null
   /**
    * GPU durations of the three direct-lighting passes, read by their label in the same
    * timestamp sample as `gpuPassMs`: per-tile light lists, shadow atlas, deferred resolve.

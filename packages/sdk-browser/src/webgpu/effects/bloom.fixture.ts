@@ -1,6 +1,6 @@
 import type { BloomTap } from './bloomFilter.ts'
 import { bloomBlend, bloomLevelSizes } from './bloomFilter.ts'
-import { bilinearRead } from '../texture/bilinear.fixture.ts'
+import { bilinearRead } from '../../texture/bilinear.fixture.ts'
 
 /**
  * The filters, rebuilt from their definition rather than copied from the engine's

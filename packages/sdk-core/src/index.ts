@@ -6,7 +6,7 @@ export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
 export * from './bounce/cascades.ts'
 export * from './bounce/occupancy.ts'
-export * from './bounce/budget.ts'
+export * from './proxy/budget.ts'
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'
 export {
   DEPTH_LAYER_BIAS_UNITS,

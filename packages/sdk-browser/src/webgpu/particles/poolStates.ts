@@ -1,4 +1,4 @@
-import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 
 /** The slots a step covers: past them nothing was ever emitted, and nothing changes. */
 export const usedSlots = (pool: ParticlePool) => Math.min(pool.capacity, pool.emitted)

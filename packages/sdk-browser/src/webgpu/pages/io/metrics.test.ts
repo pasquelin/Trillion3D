@@ -139,16 +139,6 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
   })
 }
 
-test('`lightsSampled` is true only on a moving accumulated frame whose resolve ran sampled', () => {
-  const temporal = { frame: { active: true, sampledRank: 3 } }
-  const rt = runtimeOver(createWebgpuRunState(), { positionBuffers: new Map(), temporal })
-  assert.equal(metricsOf(rt).lightsSampled, false, 'no light lit: nothing was drawn')
-  rt.lights.lightsActive = 2
-  assert.equal(metricsOf(rt).lightsSampled, true)
-  temporal.frame.sampledRank = 0
-  assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light')
-})
-
 // The effect chain's targets count in the frame target bytes, like the frame's own.
 test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
   const gpu = { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } }

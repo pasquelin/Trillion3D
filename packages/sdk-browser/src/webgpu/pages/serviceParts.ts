@@ -149,6 +149,7 @@ export function createResidencyFor(
     coverMissing: residencySets.coverMissing,
     coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
+    clock: context.frameBudget,
   })
   const residency = createWebgpuResidencyQueue({
     tracking,

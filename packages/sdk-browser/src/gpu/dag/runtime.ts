@@ -160,7 +160,6 @@ function selectionOver(run: DagRun): GpuSelection {
     proxyArrived: () => live() && run.proxies.arrived(),
     proxyBoxes: () => (live() ? run.proxies.worldBoxes() : NO_PROXY_BOXES),
     proxyCopies: (copies) => live() && run.proxies.setCopies(copies),
-    proxyRevision: () => run.proxies.revision * 4096 + state.worldRevision,
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),

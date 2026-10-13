@@ -1,6 +1,6 @@
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
-import { BLOOM_DOWN_TAPS, bloomTapText } from '../../effects/bloomFilter.ts'
-import { bloomLevelWgsl, levelTap } from '../../effects/bloomLevel.ts'
+import { BLOOM_DOWN_TAPS, bloomTapText } from './bloomFilter.ts'
+import { bloomLevelWgsl, levelTap } from './bloomLevel.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**

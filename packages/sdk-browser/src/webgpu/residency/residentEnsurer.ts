@@ -1,6 +1,10 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
-import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts'
+import { MAIN_THREAD_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
+import {
+  createFrameBudget,
+  createSharePace,
+  type FrameClock,
+} from '../../page/integration/frameBudget.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
 import { createLowerPass, type LowerList, type LowerPassOptions } from './lowerTier.ts'
@@ -31,6 +35,10 @@ type EnsureOptions = {
   coverMissing?: (holds: (page: PageRec) => boolean, limit?: number) => readonly PageRec[]
   /** How many pages the cover's later holders brought that the pool may lack still. */
   coverLacking?: () => number
+  /** The session's one main-thread clock (`EngineContext.frameBudget`): the queue spends what the
+   *  frame's stages left. Absent — an engine driven with no frame —, a clock of its own, opened
+   *  each share. */
+  clock?: FrameClock
 }
 
 type EnsureState = EnsureOptions & LowerPassOptions & { lower: ReturnType<typeof createLowerPass> }
@@ -50,10 +58,15 @@ type EnsureRun = {
 /** Loads newly wanted pages without acting on a stale camera cut. */
 export function createWebgpuResidentEnsurer(options: EnsureOptions) {
   const { getCache, hasBytes, parentsOf, prefetch, lowerTiers, bytesRevision } = options
-  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it a job yields a task,
-   *  past `STREAMING_SHARES_PER_FRAME` of a visible page a frame, and opens a new share. */
-  const budget = createFrameBudget(STREAMING_FRAME_MS)
-  const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME)
+  /** The frame's main-thread clock: past what it leaves a job yields a task, past
+   *  `STREAMING_SHARES_PER_FRAME` of a visible page a frame. A share between two frames spends what
+   *  the frame's stages left; a page whose frames do not come — nothing opens the clock — opens it. */
+  const budget = options.clock ?? createFrameBudget(MAIN_THREAD_FRAME_MS)
+  const shared = !!options.clock
+  const nextShare = createSharePace(
+    (framed) => (framed && shared ? budget.stage() : void budget.open()),
+    STREAMING_SHARES_PER_FRAME,
+  )
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
   const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch })
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
@@ -103,13 +116,16 @@ async function ensurePass(
       elapsedMs: null,
     }),
   )
-  // The reads the job starts and no load joins — pages it does not reach — leave the queue.
+  // The reads the job starts and no load joins — pages it does not reach — leave the queue. The
+  // job is a stage of the frame's clock: its first page is admitted, and the clock stops with it.
   const reads = new AbortController()
+  s.budget.stage()
   try {
     await admitWanted(s, run, wanted, landed, reads.signal)
     const lower = run.full ? [] : s.lower.list()
     if (lower.length) await s.lower.load(lower, run.cache, cameraWaiting, reads.signal)
   } finally {
+    s.budget.pause()
     reads.abort()
   }
   s.traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
@@ -182,8 +198,11 @@ function needsAdmit(s: EnsureState, run: EnsureRun, rec: PageRec) {
 async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: () => void) {
   const { budget } = s
   // The share: past it the burst resumes after a task, nothing dropped — the page read again
-  // against `wanted` and the pool, which a camera that moved in between may have changed.
+  // against `wanted` and the pool, which a camera that moved in between may have changed. The clock
+  // runs again first: a frame that ran during an await stopped it.
+  budget.resume()
   if (!budget.admits()) {
+    budget.pause()
     await s.nextShare()
     run.cache = currentCache(s)
     if (!asked(s, rec) || run.cache.get(pageAddress(rec))) {

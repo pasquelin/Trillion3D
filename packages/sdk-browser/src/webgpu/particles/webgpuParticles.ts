@@ -3,7 +3,7 @@ import { hasSubgroups } from '../../gpu/core/subgroups.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
-import { createPoolStates, usedSlots } from '../../particles/poolStates.ts'
+import { createPoolStates, usedSlots } from './poolStates.ts'
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts'
 import { DRAW_FLOATS } from '../../particles/drawWords.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
@@ -15,7 +15,7 @@ import {
   PARTICLE_PARTIAL_BYTES,
   PARTICLE_STATE_HEAD,
 } from './particlesWgsl.ts'
-import { createStepWords } from '../../particles/stepWords.ts'
+import { createStepWords } from './stepWords.ts'
 import { PARTICLES_PASS } from '../../stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { storageBufferCap } from '../../residency/pools.ts'

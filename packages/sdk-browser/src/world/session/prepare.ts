@@ -15,7 +15,7 @@ import { streamFailed } from '../scene/streaming.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
-import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
+import { MAIN_THREAD_FRAME_MS } from '../../engine/common.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
 import { loadEngine, webgpuEngine } from '../../engine/factory.ts'
@@ -192,8 +192,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
-  // The frame's one integration budget: cells, arrivals, then the engine's row records.
-  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
+  // The frame's one main-thread clock: cells, arrivals, the engine's row records and texture tiles,
+  // then the residency queue between frames.
+  const frameBudget = createFrameBudget(MAIN_THREAD_FRAME_MS)
   await renderer // the engine is built once its renderer has arrived
   const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {
     ...{ source, pageSources, gpuDevice, factory, base, frameBudget },

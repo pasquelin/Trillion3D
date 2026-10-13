@@ -1,6 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
-import type { createFrameBudget } from '../../page/integration/frameBudget.ts'
+import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import { pageAddress } from '../row/pageSlots.ts'
@@ -112,7 +112,7 @@ export type LowerPassOptions = {
   isLost: () => boolean
   lowerTiers: () => readonly LowerList[]
   admit: ReturnType<typeof createPageAdmission>
-  budget: ReturnType<typeof createFrameBudget>
+  budget: FrameClock
   nextShare: () => Promise<void>
   readAhead: ReturnType<typeof createAdmissionReads> | undefined
 }
@@ -166,7 +166,9 @@ async function loadLowerTiers(
   // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
   // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
   for (let i = 0; i < lower.length && spare > 0; i++) {
+    budget.resume()
     if (!budget.admits()) {
+      budget.pause()
       await pass.nextShare()
       if (cameraWaiting()) return
     }

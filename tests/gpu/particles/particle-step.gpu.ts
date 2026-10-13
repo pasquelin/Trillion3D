@@ -20,7 +20,7 @@ import {
   PARTICLE_PARTIAL_BYTES,
   PARTICLE_STATE_HEAD,
 } from '../../../packages/sdk-browser/src/webgpu/particles/particlesWgsl.ts'
-import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts'
+import { createStepWords } from '../../../packages/sdk-browser/src/webgpu/particles/stepWords.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'

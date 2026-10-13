@@ -80,6 +80,7 @@ export function tileStreamerFor(
       encoding,
       budgetBytes: rt.setup.textureBudget,
       budgetMs: rt.setup.textureUploadMs,
+      clock: rt.context.frameBudget,
       readLevel,
       onFailure: rt.diag.diagnosticFailure,
       onColorChanged: (slots) => {

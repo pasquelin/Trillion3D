@@ -1,19 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bounceBatchOf, createBounceBudget, type BounceBudget } from './budget.ts'
-import { BOUNCE_SETTINGS } from './contracts.ts'
+import { bounceBatchOf, createProxyBudget, type ProxyBudget } from './budget.ts'
+import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 
 /** A device whose bounce stage takes `fullMs` at full load, and its share of that below. */
-function run(budget: BounceBudget, fullMs: number, frames: number) {
+function run(budget: ProxyBudget, fullMs: number, frames: number) {
   const loads: number[] = []
   for (let frame = 0; frame < frames; frame++) {
-    budget.observe(budget.load * fullMs)
+    budget.observe(null, budget.load * fullMs)
     loads.push(budget.load)
   }
   return loads
 }
 
-const state = (budget: BounceBudget) => [budget.load, budget.lastMs, budget.samples]
+const state = (budget: ProxyBudget) => [budget.load, budget.lastMs, budget.samples]
 
 test('bounceBatchOf rounds the product of ceiling and load to nearest integer', () => {
   assert.equal(bounceBatchOf(100, 0.5), 50)
@@ -32,15 +32,15 @@ test('bounceBatchOf clamps to published ceiling when load equals one', () => {
 })
 
 test('a new budget encodes the whole ceiling and has measured nothing', () => {
-  const budget = createBounceBudget(1.5)
+  const budget = createProxyBudget(1.5)
   assert.deepEqual([budget.budgetMs, ...state(budget)], [1.5, 1, null, 0])
 })
 
 test('a missing, zero, negative or infinite budget falls back to the published one', () => {
-  const published = createBounceBudget(BOUNCE_SETTINGS.budgetMs)
+  const published = createProxyBudget(BOUNCE_SETTINGS.budgetMs)
   run(published, 3 * BOUNCE_SETTINGS.budgetMs, 5)
   for (const invalid of [0, -1, NaN, Infinity, -Infinity]) {
-    const fallback = createBounceBudget(invalid)
+    const fallback = createProxyBudget(invalid)
     assert.equal(fallback.budgetMs, BOUNCE_SETTINGS.budgetMs, `${invalid}`)
     run(fallback, 3 * BOUNCE_SETTINGS.budgetMs, 5)
     assert.equal(fallback.load, published.load, `${invalid}`)
@@ -48,16 +48,16 @@ test('a missing, zero, negative or infinite budget falls back to the published o
 })
 
 test('a stage without a usable timestamp leaves the budget as it was', () => {
-  const budget = createBounceBudget(1)
-  budget.observe(2)
+  const budget = createProxyBudget(1)
+  budget.observe(null, 2)
   const before = state(budget)
   assert.deepEqual(before.slice(1), [2, 1])
-  for (const value of [null, 0, -1, NaN, Infinity, -Infinity]) budget.observe(value)
+  for (const value of [null, 0, -1, NaN, Infinity, -Infinity]) budget.observe(null, value)
   assert.deepEqual(state(budget), before)
 })
 
 test('an overloaded device settles on the load that fills the budget, smoothly and from above', () => {
-  const budget = createBounceBudget(2)
+  const budget = createProxyBudget(2)
   const loads = run(budget, 8, 120)
   assert.ok(loads[0] < 1 && loads[0] > 0.25, `one frame closes part of the gap: ${loads[0]}`)
   for (let frame = 1; frame < loads.length; frame++) {
@@ -70,7 +70,7 @@ test('an overloaded device settles on the load that fills the budget, smoothly a
 })
 
 test('a lighter frame lets the load recover gradually, never above the full ceiling', () => {
-  const budget = createBounceBudget(2)
+  const budget = createProxyBudget(2)
   run(budget, 8, 120)
   const loads = run(budget, 1, 120)
   assert.ok(loads[0] > 0.25 && loads[0] < 0.5, `one frame recovers part of the way: ${loads[0]}`)
@@ -79,24 +79,34 @@ test('a lighter frame lets the load recover gradually, never above the full ceil
     assert.ok(loads[frame] <= 1)
   }
   assert.ok(1 - loads.at(-1)! < 1e-9, `${loads.at(-1)}`)
-  const fast = createBounceBudget(2)
-  fast.observe(1)
+  const fast = createProxyBudget(2)
+  fast.observe(null, 1)
   assert.equal(fast.load, 1, 'a device under budget at full load stays at full load')
 })
 
 test('sustained overload holds the progress floor, and a spike beyond it weighs no more', () => {
-  const budget = createBounceBudget(1)
+  const budget = createProxyBudget(1)
   for (let frame = 0; frame < 300; frame++) {
-    budget.observe(1e6)
+    budget.observe(null, 1e6)
     assert.ok(budget.load >= BOUNCE_SETTINGS.budgetFloor, `${budget.load}`)
   }
   assert.ok(budget.load - BOUNCE_SETTINGS.budgetFloor < 1e-12, `${budget.load}`)
   assert.ok(bounceBatchOf(1000, budget.load) > 1, 'the floor still encodes work')
   // Two spikes that both ask for less than the floor lower the load by the same step.
-  const large = createBounceBudget(1),
-    huge = createBounceBudget(1)
-  large.observe(1 / (BOUNCE_SETTINGS.budgetFloor / 2))
-  huge.observe(1e6)
+  const large = createProxyBudget(1),
+    huge = createProxyBudget(1)
+  large.observe(null, 1 / (BOUNCE_SETTINGS.budgetFloor / 2))
+  huge.observe(null, 1e6)
   assert.equal(large.load, huge.load)
   assert.ok(large.load < 1)
+})
+
+test('the reflections take the share first, the probes what they leave', () => {
+  const budget = createProxyBudget(2)
+  // The reflections took 1.5 ms of 2: the probes, at full load for 1 ms, aim at 0.5.
+  for (let frame = 0; frame < 120; frame++) budget.observe(1.5, budget.load * 1)
+  assert.ok(Math.abs(budget.load - 0.5) < 1e-6, `${budget.load}`)
+  // Reflections past the share leave the probes their floor, never nothing.
+  for (let frame = 0; frame < 300; frame++) budget.observe(5, budget.load * 1)
+  assert.ok(Math.abs(budget.load - 2 * BOUNCE_SETTINGS.budgetFloor) < 1e-6, `${budget.load}`)
 })

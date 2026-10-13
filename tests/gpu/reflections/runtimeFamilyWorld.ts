@@ -95,13 +95,13 @@ function shapeMesh(s: Shape) {
   return mesh
 }
 
-/** The trace's counters in the world's newest tile list (`TRACE_LIST`): the work the frame spent and the
- *  pixels it left, read on `device`; none before the world made a list. */
+/** The trace's counter in the world's newest tile list (`TRACE_LIST`): the work the frame's proxy rays
+ *  spent, read on `device`; none before the world made a list. */
 export async function traceCounters(device: GPUDevice, made: Map<string, GPUBuffer>) {
   const list = latestMade(made, (label) => label.startsWith('Trillion3D reflection tile list'))
   if (!list) return undefined
-  const words = (await readGpuBuffer(device, list, 5 * 4))!
-  return { spent: words[TRACE_LIST.spent], left: words[TRACE_LIST.left] }
+  const words = (await readGpuBuffer(device, list, (TRACE_LIST.spent + 1) * 4))!
+  return { spent: words[TRACE_LIST.spent] }
 }
 
 /** The world of case `c` on `canvas`; `moved()` carries the moving shapes to where their moves end. */

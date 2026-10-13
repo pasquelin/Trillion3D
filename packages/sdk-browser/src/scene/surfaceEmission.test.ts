@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { f16 } from '../effects/bloom.fixture.ts'
+import { f16 } from '../webgpu/effects/bloom.fixture.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts'
 import {

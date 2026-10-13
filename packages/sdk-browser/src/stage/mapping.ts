@@ -2,6 +2,7 @@ import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.
 import type { StageAdd } from './profiler.ts'
 import { WEBGPU_STAGES, type GpuPassBlock, type WebgpuStage } from './passDeclaration.ts'
 import { passRowOf } from './passTable.ts'
+import { REFLECTION_TRACE_PASS } from './passLabels.ts'
 
 /** Stage of a pass, by its label: its row's (`passRowOf`). A label no declaration names joins no
  *  stage (`undefined`). */
@@ -68,6 +69,14 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
  */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
   return gpuStageTotals(sample).get(BOUNCE) ?? null
+}
+
+/** GPU duration of a sample's reflection trace pass (`REFLECTION_TRACE_PASS`), or `null`: what the
+ *  proxy rays' budget reads beside the bounce's (`ProxyBudget.observe`). */
+export function reflectionTraceGpuMs(sample: GpuPassTimings | null | undefined) {
+  return (
+    gpuTotalsBy(sample, (name) => (name === REFLECTION_TRACE_PASS ? 0 : undefined)).get(0) ?? null
+  )
 }
 
 /** The direct-lighting durations of the frame, read from the same sample by label. */

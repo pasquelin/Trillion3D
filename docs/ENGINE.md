@@ -110,13 +110,13 @@ any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). T
 
 `world.effects` (`sdk-core/world/effect/`; API in [SDK.md](SDK.md#canvas-camera-and-teardown)) runs
 over linear radiance between the temporal resolve and tone mapping:
-`webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `effects/bloomFilter.ts`.
+`webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `webgpu/effects/bloomFilter.ts`.
 
 ## Direct lighting
 
 Any number of lights: a light grid lists each cell's lights once per image (`lighting/tiles/`), and
-each pixel walks its cell's list (`lighting/direct/lightLoopWgsl.ts`). A moving image samples the
-shadowed lights, a still one sums them all (`lighting/direct/lightSamplingWgsl.ts`). A frame with no
+each pixel walks its cell's whole list (`lighting/direct/lightLoopWgsl.ts`), moving or still: the
+shadow rays are the projection's, paid once, so the resolve never draws a subset. A frame with no
 shadowed or rectangular light runs a program built without that code
 (`lighting/deferred/contractVariants.ts`). Shadows are [SHADOWS.md](SHADOWS.md).
 

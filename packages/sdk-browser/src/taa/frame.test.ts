@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { restartTaaAverage } from './landing.ts'
-import { taaRenderMatrix, taaSampledRank, taaSettled } from './frame.ts'
+import { taaRenderMatrix, taaSettled } from './frame.ts'
 import { runtime } from './frame.fixture.ts'
 import { TAA_STILL_FRAMES } from './stillFrames.fixture.ts'
 import { TAA_SAMPLES } from './jitter.ts'
@@ -114,30 +114,4 @@ test('a convergence frame replays the last ordinary frame instead of advancing j
   assert.equal(checkpoints, 1, 'and remembers nothing new')
   // The replayed stillness is that of the reference frame, not the one the tiles disturbed.
   assert.equal(temporal.frame.stillFrames, 1)
-})
-
-// Lighting is sampled on a moving image accumulated on a history, and on no other.
-test('the sampled rank: moving accumulated frames only, another each frame, replayed', () => {
-  const { rt, temporal, frame } = runtime()
-  assert.equal(taaSampledRank(rt), 0, 'before any frame, nothing is sampled')
-  frame(false)
-  assert.equal(taaSampledRank(rt), 0, 'the first moving frame has no history to average it')
-  frame(false)
-  const first = taaSampledRank(rt)
-  assert.ok(first > 0, 'a moving frame on a history samples')
-  rt.run.frame++
-  frame(false)
-  const second = taaSampledRank(rt)
-  assert.notEqual(second, first, 'the next moving frame draws elsewhere')
-  frame(true)
-  assert.equal(taaSampledRank(rt), 0, 'a still frame shades every light')
-  // A convergence frame replays the rank of the moving frame it remakes.
-  temporal.replay = () => ((temporal.frame.sampledRank = second), false)
-  rt.run.textureConverging = true
-  frame(false)
-  assert.equal(taaSampledRank(rt), second, 'a replayed frame draws the same lights')
-  rt.run.textureConverging = false
-  rt.capture.capturing = true
-  frame(false)
-  assert.equal(taaSampledRank(rt), 0, 'a capture does not accumulate: nothing is sampled')
 })

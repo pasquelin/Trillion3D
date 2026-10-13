@@ -1,5 +1,5 @@
-// The page of the run-time proxy's budget proof: the first case of the family drawn at a size whose rays outnumber
-// the frame's budget, the temporal accumulation off so that the image holds; each frame's counters read
+// The page of the run-time proxy's budget proof: the first case of the family drawn at a size whose rays once
+// outnumbered a frame's budget, the temporal accumulation off so that the image holds; each frame's work read
 // (`traceCounters`) until the image holds.
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
@@ -8,10 +8,9 @@ import { listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase } from './runtimeFamilyCases.ts'
 import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
 
-/** What the proof reads: each frame's work spent and pixels left from the first that casts a ray, and the
- *  image the world holds at the end. */
+/** What the proof reads: each frame's work spent, and whether the world holds its image at the end. */
 export type BudgetReading = {
-  trail: { spent: number; left: number }[]
+  trail: { spent: number }[]
   held: boolean
   worldErrors: string[]
 }

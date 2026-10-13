@@ -16,8 +16,6 @@ export type ReflectionFrame = {
   depthDrawn: boolean
   /** The resident proxy's certified error, in metres: zero without a proxy. */
   proxyError: number
-  /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
-  epoch?: number
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
@@ -36,7 +34,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
   const staged = new Float32Array(REFLECTION_VIEW_WORDS)
   const words = new Uint32Array(staged.buffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
-  const runtime = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.runtime * 4, 4)
   const inverse = new Float64Array(16)
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
@@ -57,7 +54,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[2] = frame.size[1]
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
-    runtime[0] = frame.epoch ?? 0
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

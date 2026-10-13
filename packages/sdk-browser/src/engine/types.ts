@@ -163,7 +163,8 @@ export interface EngineContext {
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   sceneLights?: SceneLightStore // the host's contract lights, shared by the session's engines
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
-  /** Bounced light, off by default; `bounceBudgetMs`, its GPU target a frame (0.8 ms by default). */
+  /** Bounced light, off by default; `bounceBudgetMs`, the GPU target a frame of every proxy ray —
+   *  reflections first, probes the rest — (2 ms by default). */
   bounce?: boolean
   bounceBudgetMs?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.

@@ -124,12 +124,11 @@ function viewUpdate(state: LightingState, view: DeferredView) {
     clear: ClearColor,
     diagnostic: boolean,
     direct: ArrayLike<number> = ZERO_DIRECT,
-    sampledRank = 0,
   ) => {
     const raw = diagnostic || state.rawOutput
     state.drawn[0] = width
     state.drawn[1] = height
-    view.write(inverseViewProjection, camera, width, height, clear, raw, direct, sampledRank)
+    view.write(inverseViewProjection, camera, width, height, clear, raw, direct)
   }
 }
 

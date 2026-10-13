@@ -1,6 +1,6 @@
 /**
  * The view uniform of deferred resolve and composition (`VIEW_WGSL`): the inverse
- * view-projection, the camera, the viewport — size, raw-output flag, rank of a sampled image —,
+ * view-projection, the camera, the viewport — size, raw-output flag, a fourth word unread —,
  * the background, the contract's light parameters and the TAA jitter. One buffer, one packed
  * array, written once per image; its words are those of `VIEW_LAYOUT`, which makes the shader's
  * struct.
@@ -44,8 +44,7 @@ export function createDeferredView(device: GPUDevice) {
     buffer,
     /** The TAA jitter of the next image `write` writes (`viewJitterWords`). */
     setJitter,
-    /** `rawOutput` skips the display chain; `sampledRank` non-zero draws a subset of each
-     *  pixel's lights (`../direct/lightSamplingWgsl.ts`); `direct` carries the contract lights, the
+    /** `rawOutput` skips the display chain; `direct` carries the contract lights, the
      *  tiles in X and Y, the exposure, then the display curve's rank and the eye. */
     write(
       inverseViewProjection: ArrayLike<number>,
@@ -55,14 +54,12 @@ export function createDeferredView(device: GPUDevice) {
       clear: ClearColor,
       rawOutput: boolean,
       direct: ArrayLike<number>,
-      sampledRank: number,
     ) {
       packed.set(inverseViewProjection, AT.inverseViewProjection)
       packed.set(camera, AT.camera)
       packed[AT.viewport] = width
       packed[AT.viewport + 1] = height
       packed[AT.viewport + 2] = rawOutput ? 1 : 0
-      packed[AT.viewport + 3] = sampledRank
       packed[AT.background] = clear.r
       packed[AT.background + 1] = clear.g
       packed[AT.background + 2] = clear.b

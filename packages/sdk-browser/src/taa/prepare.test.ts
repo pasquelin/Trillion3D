@@ -120,7 +120,6 @@ test('a barrier after the switch does not replay the history from before it', as
   beginTaaFrame(rt, still, true)
   assert.equal(temporal.frame.active, true)
   assert.equal(temporal.frame.hasHistory, false, 'the old history is not read')
-  assert.equal(temporal.frame.sampledRank, 0, 'nothing averages this image: every light shaded')
 })
 
 // A capture at the view's size reallocates no target after it: the history is made at once.

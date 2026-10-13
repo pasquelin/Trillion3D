@@ -16,15 +16,13 @@ export const CLASSES = 6
  * - `texelPs`: the lighting model's texel rate (`LIGHTING_RATES`), MODELLED: every per-pixel access.
  * - `trianglePs`: a triangle drawn into the visibility buffer, a software raster on a console
  *   GPU — main and post pass, 1,148 + 183 µs for 25 million triangles —: a reference rate.
- * - `shadedPs`, `weightPs`: a light shaded, and a light weighed or listed out of range, in the
- *   resolve's program with shadow code, timed on the resolve (docs/ENGINE.md): 42.3
- *   and 28.1 ps a pixel.
+ * - `shadedPs`: a light shaded in the resolve's program with shadow code, timed on the resolve
+ *   (docs/ENGINE.md): 42.3 ps a pixel.
  */
 export const FRAME_RATES = {
   texelPs: LIGHTING_RATES.texelPs,
   trianglePs: ((1148 + 183) * 1e6) / 25e6,
   shadedPs: 42.3,
-  weightPs: 28.1,
 }
 
 /** Accesses of a covered pixel in the material pass, sponza's class: its visibility texel and page

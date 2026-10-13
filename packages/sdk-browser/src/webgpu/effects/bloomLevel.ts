@@ -1,9 +1,9 @@
 import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
-import { fieldLayout } from '../gpu/core/fieldLayout.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../math/src/wgsl/constants.ts'
-import { computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../../math/src/wgsl/constants.ts'
+import { computeTextureEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 
 /** The bloom uniform: the shader's `Bloom` struct and the first word of each of its fields. */
 export const BLOOM_UNIFORM = fieldLayout('Bloom', [

@@ -1,7 +1,7 @@
 // The light grid as its pass builds it, from its oracle (`gpuLightGridOracle.ts`): every
 // column of cells, each light tested against the column's planes, the run of slices it meets solved
 // for those it may meet, and each covered pixel handed its cell's list. The one walk the grid
-// counters share (`lighting/lightGridCount.ts`, `lighting/resolveWorkCount.ts`, `lighting/lightTileSampledCount.ts`). COUNTED,
+// counters share (`lighting/lightGridCount.ts`, `lighting/resolveWorkCount.ts`). COUNTED,
 // never timed.
 import {
   GRID,

@@ -1,5 +1,6 @@
-// Oracle of `packages/sdk-core/src/bounce/budget.ts`, rewritten according to the contract: the batch is the ceiling times the fraction,
-// rounded, never zero; the fraction follows the target via exponential smoothing, bounded between its
+// Oracle of `packages/sdk-core/src/proxy/budget.ts`'s probe half, rewritten according to the contract: the batch is the ceiling
+// times the fraction, rounded, never zero; with no reflection measured, the fraction follows the whole
+// share via exponential smoothing, bounded between its
 // floor and one, and does not move on a missing, zero, or non-finite sample. Constants come
 // from the contract so that the oracle does not silently drift.
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
@@ -8,15 +9,15 @@ export function referenceBounceBatch(ceiling: number, load: number) {
   return Math.max(1, Math.round(ceiling * load))
 }
 
-/** The fields `referenceBudgetSequence` reproduces from `createBounceBudget`'s `BounceBudget`. */
+/** The fields `referenceBudgetSequence` reproduces from `createProxyBudget`'s `ProxyBudget`. */
 export interface ReferenceBudget {
   readonly load: number
   readonly lastMs: number | null
   readonly samples: number
-  observe(ms: number | null): void
+  observe(reflectionMs: number | null, ms: number | null): void
 }
 
-/** Same shape as `createBounceBudget`: a budget that observes and publishes its three fields. */
+/** Same shape as `createProxyBudget`'s probe half: a budget that observes and publishes its three fields. */
 export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS
   const bornee = (f: number) => Math.min(1, Math.max(budgetFloor, f))
@@ -35,7 +36,7 @@ export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
     get samples() {
       return state.samples
     },
-    observe(ms) {
+    observe(_reflectionMs, ms) {
       if (ms === null || !Number.isFinite(ms) || ms <= 0) return
       state.lastMs = ms
       state.samples++

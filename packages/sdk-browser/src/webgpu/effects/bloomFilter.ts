@@ -7,7 +7,7 @@
  * proportion to its radiance.
  */
 
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */

@@ -2,17 +2,18 @@ import { nextFrame } from '../../frame/scheduling.ts'
 
 /**
  * The main thread's budget, one definition for every stage that spends it (CONTRIBUTING.md
- * §Streaming rule 4): whether one more piece of work is admitted — the first always is, so a piece
- * longer than the ceiling still goes through, then while the clock since `open`, stopped between
- * two stages (`pause`, `resume`), is within it —, and one counted.
+ * §Streaming rule 4): whether one more piece of work is admitted — a stage's first always is, so a
+ * piece longer than the ceiling still goes through and no stage starves, then while the clock since
+ * `open`, stopped between two stages (`pause`, `resume`), is within it —, and one counted.
  *
- * A session holds one integration budget per frame (`EngineContext.frameBudget`): its frame opens
- * it, the cells and the arrival drain spend from it (`./arrivalQueue.ts`), and it pauses while the
- * engine does its other work, then the WebGPU row records spend what is left
- * (`../../webgpu/row/claims.ts`). Texture tiles keep their own upload ceiling
- * (`../../webgpu/tile/streamer.ts`); the WebGPU residency queue opens one per turn of the event
- * loop and yields past it, a bounded number per frame (`createSharePace`,
- * `../../webgpu/residency/residentEnsurer.ts`).
+ * A session holds ONE CLOCK PER FRAME (`EngineContext.frameBudget`, `MAIN_THREAD_FRAME_MS`), its
+ * stages spending it in priority order: its frame opens it, the cells and the arrival drain spend
+ * from it first (`./arrivalQueue.ts`), it pauses while the engine does its other work, the WebGPU
+ * row records and the texture tiles spend what is left (`../../webgpu/row/claims.ts`,
+ * `../../webgpu/tile/streamer.ts`), then the WebGPU residency queue, in the tasks between two frames,
+ * whatever is left still, a share per turn of the event loop and a bounded number per frame
+ * (`createSharePace`, `../../webgpu/residency/residentEnsurer.ts`). No stage opens a clock of its
+ * own: their sum is the frame's main-thread share.
  */
 export type FrameBudget = { admits(): boolean; spend(): void }
 /** A budget with its clock: the frame that owns it opens it. */
@@ -22,17 +23,36 @@ export type FrameClock = ReturnType<typeof createFrameBudget>
 export function createFrameBudget(ms: number, now = () => performance.now()) {
   let started = 0,
     used = 0,
-    spent = 0
+    spent = 0,
+    running = false
+  const resume = () => {
+    if (running) return
+    started = now()
+    running = true
+  }
   return {
     /** Starts the clock: every piece until the next `open` shares it. Returns the time it read. */
     open() {
       spent = used = 0
+      running = true
       return (started = now())
     },
-    /** Stops the clock: what runs until `resume` is not integration and spends none of it. */
-    pause: () => void (used += now() - started),
-    resume: () => void (started = now()),
-    admits: () => spent === 0 || used + now() - started < ms,
+    /** Stops the clock: what runs until `resume` is not integration and spends none of it. A clock
+     *  already stopped stays as it is. */
+    pause: () => {
+      if (!running) return
+      used += now() - started
+      running = false
+    },
+    /** Runs the clock again; a running clock keeps the time it counts. */
+    resume,
+    /** A later stage of the frame on the same clock: it runs again and the stage's first piece is
+     *  admitted, whatever the stages before it spent. */
+    stage() {
+      spent = 0
+      resume()
+    },
+    admits: () => spent === 0 || used + (running ? now() - started : 0) < ms,
     spend: () => void spent++,
   }
 }
@@ -91,9 +111,10 @@ function nextPageFrame() {
  * frame's callbacks, ahead of its render: on a visible page, once `shares` opened since its last
  * frame, only after the next one, so the shares cumulated between two frames stay bounded. A
  * hidden page, or a visible one whose frames stopped, never waits for a frame: one share per task,
- * and it loads no slower.
+ * and it loads no slower. `open` is told whether the page's frames come (`framed`): where none does,
+ * nothing opens the frame's clock but the share itself.
  */
-export function createSharePace(open: () => void, shares: number) {
+export function createSharePace(open: (framed: boolean) => void, shares: number) {
   let opened = 0,
     framed = true,
     tick: Promise<void> | undefined
@@ -102,7 +123,8 @@ export function createSharePace(open: () => void, shares: number) {
     if (framed && opened >= shares && pageVisible()) await tick
     await yieldToEventLoop()
     // Read again: the page may have been hidden or shown during the wait.
-    if (pageVisible()) {
+    const visible = pageVisible()
+    if (visible) {
       tick ??= nextPageFrame().then((came) => {
         tick = undefined
         opened = 0
@@ -110,6 +132,6 @@ export function createSharePace(open: () => void, shares: number) {
       })
       opened++
     }
-    open()
+    open(visible && framed)
   }
 }

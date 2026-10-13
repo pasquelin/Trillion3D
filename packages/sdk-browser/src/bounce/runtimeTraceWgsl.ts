@@ -5,15 +5,12 @@ import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
-import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import { runtimeSceneWgsl, type SceneBindings } from './runtimeSceneWgsl.ts'
 import {
-  FRAME_WORK,
   RAY_ERROR_FLOOR,
   RAY_LAYERS,
   RAY_SPREAD_FLOOR,
   RAY_THROUGH_FLOOR,
-  STORE_BITS,
   SURFACE,
   SURFACE_BLENDED,
   SURFACE_WORDS,
@@ -136,34 +133,43 @@ fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 `,
   )
 
-/** The bindings of the program that answers a pixel from the store: the proxy's, the trace's list with the
- *  frame's counters and the store of the answers (`runtimeLayout.ts`). */
-export type RuntimeBindings = SceneBindings & { list: number; store: number }
+/** The bindings of the program that counts its rays' work: the proxy's, and the trace's list with the frame's
+ *  counters (`runtimeLayout.ts`). */
+export type RuntimeBindings = SceneBindings & { list: number }
 
 /**
- * THE RUN-TIME PROXY'S ANSWERS TO A TRACE: the radiance above, kept from image to image in the store
- * (`runtimeAnswerWgsl.ts`).
+ * THE RUN-TIME PROXY'S RAYS OF A TRACE, COUNTED: the radiance above, every ray cast in its frame — no answer kept
+ * from one image to the next, no frame budget cutting a ray —, and the work each spends summed over the
+ * workgroup and sent once to the frame's counter (`rtShare`, called by every invocation of the trace at its end):
+ * one global atomic a workgroup, never one a pixel. That counter is the proxy budget's number (`ProxyBudget`).
  */
-export const runtimeTraceWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
+export const runtimeTraceWgsl = ({ list, ...scene }: RuntimeBindings) =>
   wgslBlock(
-    `runtimeTraceWgsl(${scene.group}, ${scene.proxy}, ${list}, ${store})`,
-    [runtimeRadianceWgsl(scene), RUNTIME_ANSWER_WGSL],
+    `runtimeTraceWgsl(${scene.group}, ${scene.proxy}, ${list})`,
+    [runtimeRadianceWgsl(scene)],
     `
-${wgslConsts({
-  RT_FRAME_WORK: FRAME_WORK,
-  RT_LEFT: TRACE_LIST.left,
-  RT_SPENT: TRACE_LIST.spent,
-  RT_OFFSET: TRACE_LIST.offset,
-  RT_CURSOR: TRACE_LIST.cursor,
-  RT_CONFIDENCE_MAX: 2 ** STORE_BITS.confidence - 1,
-  RT_STAMP_SHIFT: STORE_BITS.stamp,
-})}
+${wgslConsts({ RT_SPENT: TRACE_LIST.spent })}
 @group(${scene.group}) @binding(${list}) var<storage,read_write> rtList:array<atomic<u32>>;
-@group(${scene.group}) @binding(${store}) var rtStore:texture_storage_2d_array<r32uint,read_write>;
-/** The pixel the trace is at, and the rays it has asked of the proxy for it: the first is the base
- *  lobe's, which keeps its answer in the store (\`rtAnswer\`); a coat's goes without. */
-var<private> rtPixel:vec2u;
-var<private> rtRank:u32;
-var<private> rtCalls:u32;
+/** What this invocation's rays spent, and the workgroup's sum of it. */
+var<private> rtSpentHere:u32;
+var<workgroup> rtGroupSpent:array<atomic<u32>,1>;
+/** A reflection's ray of the proxy (\`rtRadiance\`), its work counted for the frame. No placement wearing a
+ *  proxy, no ray. */
+fn rtCounted(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
+ if(rtProxy.instances==0u){return RtRadiance(vec3f(0.0),0.0);}
+ let seen=rtRadiance(origin,direction,reach,tangent);
+ rtSpentHere+=rtWork+rtExtra;
+ return seen;
+}
+/** The workgroup's work sent once: called by every invocation, in uniform control flow, after its pixel's
+ *  last ray. */
+fn rtShare(lane:u32){
+ if(rtSpentHere!=0u){atomicAdd(&rtGroupSpent[0],rtSpentHere);}
+ workgroupBarrier();
+ if(lane==0u){
+  let spent=atomicLoad(&rtGroupSpent[0]);
+  if(spent!=0u){atomicAdd(&rtList[RT_SPENT],spent);}
+ }
+}
 `,
   )

@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
-import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
+import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts'
 import {
   floatsOf,
   input,

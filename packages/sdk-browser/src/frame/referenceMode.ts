@@ -23,8 +23,7 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenc
  * - `supersampling`: the frame drawn as tiles, each at `factor` samples per output pixel and axis
  *   and the most the portable texture side holds, box-filtered back in linear light and assembled
  *   (`referenceTiles.ts`).
- * A still frame already shades every light of its tile (`LIGHT_SETTINGS.samplesPerPixel` samples a
- * moving one only): the capture is of a held, still frame.
+ * The capture is of a held, still frame.
  */
 
 /** What the reference mode of an open session draws: the tiles it is drawn in, at which factor,

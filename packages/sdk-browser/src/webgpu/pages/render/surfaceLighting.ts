@@ -4,7 +4,7 @@ import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColou
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
 import { finishVsmFrame } from './vsm/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
-import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts'
+import { encodeTaaPass } from '../../../taa/frame.ts'
 import { stochasticPhase } from '../../../taa/frameState.ts'
 import { composedImage, encodeEffects } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
@@ -85,16 +85,7 @@ export function encodeSurfaceLighting(
   // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
   gpu.deferred.setJitter(taa?.active ? taa.jitter : null, stochasticPhase(taa))
-  gpu.deferred.update(
-    inverseViewProj,
-    cameraWorldArray,
-    width,
-    height,
-    clear,
-    raw,
-    direct,
-    taaSampledRank(rt),
-  )
+  gpu.deferred.update(inverseViewProj, cameraWorldArray, width, height, clear, raw, direct)
   gpu.deferred.light(encoder, gpu.hdrView)
   run.gpuDrawCalls++
   const blendShare = seedAsIsShare(rt, device, encoder)

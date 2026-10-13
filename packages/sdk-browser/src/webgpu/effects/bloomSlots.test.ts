@@ -2,7 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
-import { bloomLevelSizes } from '../../effects/bloomFilter.ts'
+import { bloomLevelSizes } from './bloomFilter.ts'
 import { floatsOf, input, loaded, offsetOf, recorder } from './webgpuEffects.fixture.ts'
 
 test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart', async () => {

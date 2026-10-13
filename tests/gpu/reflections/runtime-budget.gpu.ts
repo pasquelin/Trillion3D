@@ -1,17 +1,19 @@
-// A frame spends at most its budget on the run-time proxy's rays, and the rays it leaves out go on in the
-// next frames from the answers the pixels last got: at a size whose rays outnumber the budget, the first
-// frames leave pixels (`left`), the view settles once none is left (the image it holds is the one the
-// family proof, `runtime-proxy.gpu.ts`, judges).
+// Every ray of the run-time proxy is cast in its frame: at a size whose rays once outnumbered a frame's
+// budget, no frame leaves a ray for a later one, so the view holds as soon as its image is final, and each
+// frame's work (`TRACE_LIST.spent`) is what its pixels asked — the proxy budget's number, `N·ū`, reported
+// here for the recette (the image it holds is the one the family proof, `runtime-proxy.gpu.ts`, judges).
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/runtime-budget.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { FRAME_WORK } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+
+/** Frames from the first that casts to the hold: the settle's own reads, never rays left for later. */
+const HOLD_FRAMES = 12
 
 test(
-  'a frame past its budget leaves its rays for the next frames, and the view settles on the full answer',
+  'every frame casts every ray: the view holds once its image is final, and its work is reported',
   {
     timeout: 300_000,
   },
@@ -25,23 +27,21 @@ test(
     assert.deepEqual(result.errors, [])
     assert.deepEqual(result.worldErrors, [], "the world's own device raised no error")
     const { trail = [], held } = result
-    const cast = trail.filter((frame) => frame.spent > 0)
+    const first = trail.findIndex((frame) => frame.spent > 0)
+    const spent = trail.map((frame) => frame.spent).filter(Boolean)
     console.log(
       JSON.stringify({
         frames: trail.length,
         held,
-        trail: cast.slice(0, 6),
-        frames_cast: cast.length,
-        budget: FRAME_WORK,
+        frames_cast: spent.length,
+        unitsPerFrame: { worst: Math.max(...spent), first: spent[0] },
       }),
     )
+    assert.ok(first >= 0, 'a frame casts the proxy rays')
+    assert.ok(held, 'the view holds')
     assert.ok(
-      cast.length > 0 && cast[0].left > 0,
-      'the first frame that casts leaves rays for later: the budget is hit',
+      trail.length - first <= HOLD_FRAMES,
+      `${trail.length - first} frames from the first cast to the hold`,
     )
-    assert.ok(held, 'the view holds once the rays are all answered')
-    assert.equal(trail.at(-1)!.left, 0, 'none is left when it holds')
-    const worst = Math.max(...trail.map((frame) => frame.spent))
-    assert.ok(worst < 2.2 * FRAME_WORK, `${worst} units a frame, the budget ${FRAME_WORK}`)
   },
 )

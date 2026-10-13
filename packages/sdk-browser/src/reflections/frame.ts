@@ -1,4 +1,8 @@
-import { REFLECTION_PASS, REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
+import {
+  REFLECTION_PASS,
+  REFLECTION_RADIANCE_PASS,
+  REFLECTION_TRACE_PASS,
+} from '../stage/passLabels.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import {
   directLightResources,
@@ -17,8 +21,10 @@ import {
   environmentExposure,
 } from '../../../sdk-core/src/scene/core/environment.ts'
 
-/** The reflections' compute pass, opened by the first of its dispatches. */
+/** The depth pyramid's nearest layer's compute pass, and the trace's, each opened by its first
+ *  dispatch: the trace is timed alone, the proxy budget's measure (`reflectionTraceGpuMs`). */
 const reflectionPass = new LazyComputePass(REFLECTION_PASS)
+const tracePass = new LazyComputePass(REFLECTION_TRACE_PASS)
 
 /** What an image tells its reflection view, and what the trace reads: written in place, each image. */
 const frame: ReflectionFrame = {
@@ -45,14 +51,6 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     run.clearColor,
     environmentExposure(environment),
     environmentCurve(environment),
-  )
-  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
-  frame.epoch = reflection.store.follow(
-    rt.lights.store.epoch,
-    run.gpuSelection?.proxyRevision() ?? 0,
-    // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
-    // would restart the budget for ever.
-    gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
@@ -100,7 +98,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
-  const open = reflectionPass.begin(encoder)
+  const open = tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
@@ -116,11 +114,10 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     // What a ray can meet of the scene, else the empty stand-in.
     rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
     inputs.proxy = rt.run.gpuSelection?.proxyBuffer() ?? deferred.placeholders.runtime
-    inputs.store = reflection.store.view ?? deferred.placeholders.store
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }
-  reflectionPass.end()
+  tracePass.end()
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before
@@ -148,12 +145,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection.settle.verified,
   )
   pass.end()
-  reflection.settle.image(
-    encoder,
-    reflection.tiles.args,
-    reflection.tiles.list,
-    reflection.radiance.hashed,
-  )
+  reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.hashed)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

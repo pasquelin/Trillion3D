@@ -4,8 +4,8 @@ export {
   BOUNCE_SETTINGS,
   PROBE_FLOATS,
 } from '../../sdk-core/src/bounce/contracts.ts'
-export { bounceBatchOf, createBounceBudget } from '../../sdk-core/src/bounce/budget.ts'
-export type { BounceBudget } from '../../sdk-core/src/bounce/budget.ts'
+export { bounceBatchOf, createProxyBudget } from '../../sdk-core/src/proxy/budget.ts'
+export type { ProxyBudget } from '../../sdk-core/src/proxy/budget.ts'
 export { createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { createBounceOccupancy } from '../../sdk-core/src/bounce/occupancy.ts'

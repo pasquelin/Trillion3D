@@ -18,7 +18,7 @@ export type Step =
   | `replay ${number}`
 
 /** Runs `steps` on a fresh runtime and records, after each image, what the still average is:
- *  [still count, jitter rank, history, stochastic phase, arrivals, sampled rank, and the
+ *  [still count, jitter rank, history, stochastic phase, arrivals, and the
  *  uniform's share, moving flag and stochastic slot]. Between-steps events record nothing. */
 export function runOracle(steps: Step[]) {
   const { rt, temporal, frame } = runtime()
@@ -31,7 +31,6 @@ export function runOracle(steps: Step[]) {
         stochasticSample: state.stochasticSample,
         stillFrames: state.stillFrames,
         hasHistory: state.hasHistory,
-        sampledRank: state.sampledRank,
         quiet,
       })
     },
@@ -41,7 +40,6 @@ export function runOracle(steps: Step[]) {
         stochasticSample: saved.stochasticSample,
         stillFrames: saved.stillFrames,
         hasHistory: saved.hasHistory,
-        sampledRank: saved.sampledRank,
       })
       return saved.quiet
     },
@@ -58,7 +56,6 @@ export function runOracle(steps: Step[]) {
           +state.hasHistory,
           stochasticPhase(state),
           taaArrivals(rt),
-          state.sampledRank,
           u ? +u[36].toFixed(6) : 'none',
           u ? u[58] : 'none',
           u ? u[59] : 'none',
