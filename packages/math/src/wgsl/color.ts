@@ -1,4 +1,4 @@
-import { wgslConst, wgslFn } from './decl.ts'
+import { wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
 import { byteOf } from './integer.ts'
 import {
@@ -10,8 +10,8 @@ import {
 } from '../color/color.ts'
 
 /**
- * Colours as the shaders read and write them: a byte of a word as a unit value, a
- * colour's luminance, and the sRGB encode, linear to display (`../color/color.ts` on the processor).
+ * Colours as the shaders read and write them: a byte of a word as a unit value and the sRGB
+ * encode, linear to display (`../color/color.ts` on the processor).
  */
 
 /** Byte `k` of `word` (`byteOf`) over 255, a unit value: divided, as written, never
@@ -20,19 +20,6 @@ export const unorm8 = wgslFn(
   'unorm8',
   [byteOf],
   'fn unorm8(word:u32,k:u32)->f32{return f32(byteOf(word,k))/255.0;}',
-)
-
-/** The luminance weights of the linear sRGB primaries. */
-const LUMA_WEIGHTS = wgslConst(
-  'LUMA_WEIGHTS',
-  [],
-  `const LUMA_WEIGHTS:vec3f=vec3f(${[0.2126, 0.7152, 0.0722].map(wgslF32)});`,
-)
-
-const luminance = wgslFn(
-  'luminance',
-  [LUMA_WEIGHTS],
-  'fn luminance(rgb:vec3f)->f32{return dot(rgb,LUMA_WEIGHTS);}',
 )
 
 /**

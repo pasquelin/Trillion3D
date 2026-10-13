@@ -4,22 +4,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { linearToSrgb, luminance } from '../../../../math/src/wgsl/color.ts'
+import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 import { minChannel } from '../../../../math/src/wgsl/sampling.ts'
 import { linearToSrgb as linearToSrgbTs } from '../../../../math/src/color/color.ts'
 
 type V = number[]
 const run = shaderRun<{
-  luminance: (c: V) => number
   linearToSrgb: (c: V) => V
   minChannel: (c: V) => number
-}>(wgslModule(luminance, linearToSrgb, minChannel), ['luminance', 'linearToSrgb', 'minChannel'], {})
-
-test('the luminance weighs the linear primaries, white to one', () => {
-  assert.ok(Math.abs(run.luminance([1, 1, 1]) - 1) < 1e-7)
-  const weights = [run.luminance([1, 0, 0]), run.luminance([0, 1, 0]), run.luminance([0, 0, 1])]
-  weights.forEach((w, i) => assert.ok(Math.abs(w - [0.2126, 0.7152, 0.0722][i]) < 1e-8))
-})
+}>(wgslModule(linearToSrgb, minChannel), ['linearToSrgb', 'minChannel'], {})
 
 /** The exponent the encode's text writes. */
 const EXPONENT = Number(/vec3f\(([\d.]+)\)\)-0\.055/.exec(linearToSrgb.text)?.[1])
