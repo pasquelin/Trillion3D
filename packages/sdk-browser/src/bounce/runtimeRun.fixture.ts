@@ -27,15 +27,17 @@ const FUNCTIONS = [
   'rtWorldsOrigin',
   'rtOrigin',
   'rtInstanceWord',
+  'rtTreeNode',
+  'rtTreeMembers',
   'rtTreeWord',
-  'rtTreeLow',
-  'rtTreeHigh',
+  'rtTreeMember',
+  'rtTreeCorner',
   'rtBlocked',
   'rtLit',
   'rtProbeRay',
   'rtShare',
 ]
-const BINDINGS = { group: 0, proxy: 12, worlds: 13, list: 8 }
+const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14, list: 8 }
 
 export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0)) {
   const { header } = w
@@ -63,6 +65,7 @@ export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0
   }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testShare'], {
     rtProxy: header,
     rtWorlds: w.worlds,
+    rtTree: w.tree,
     rtWork: 0,
     rtTests: 0,
     rtExtra: 0,

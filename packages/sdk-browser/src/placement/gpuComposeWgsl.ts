@@ -15,7 +15,7 @@ import {
 } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
-import { nodeTableBlock, WHOLE_LAYOUT, type RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
+import { nodeTableBlock, WHOLE_NODES, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
 import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
@@ -262,7 +262,7 @@ fn composeRow(row:u32){
  * table of leaf boxes, six doubles a placement, as `memberBox` writes it for a root whose world the
  * CPU holds. A root without a parent, or parked (its root node none), keeps the box it had.
  */
-export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.nodes) =>
+export const composeMembersWgsl = (nodes: NodeTableLayout = WHOLE_NODES) =>
   wgslProgram(
     `struct Params{rootCount:u32,first:u32,count:u32,listed:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
@@ -303,6 +303,6 @@ export const composeMembersWgsl = (nodes: RefitLayout['nodes'] = WHOLE_LAYOUT.no
       dAdd,
       dSub,
       CARRIED_BOX_WGSL,
-      nodeTableBlock(nodes, 1, false),
+      nodeTableBlock(nodes, 1),
     ],
   )

@@ -116,6 +116,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     const proxy = rt.run.gpuSelection?.proxy()
     inputs.proxy = proxy?.buffer ?? deferred.placeholders.runtime
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
+    inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }

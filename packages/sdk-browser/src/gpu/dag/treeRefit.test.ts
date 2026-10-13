@@ -1,37 +1,38 @@
-// The refit pass binds the cut's tables as the cut binds them: a table the device splits is bound
-// in its parts, each at the binding `dagPartBindings` gives it, the frames in their ranges — the
-// pass is never skipped, no group is left open for want of a binding.
+// The refit pass reads and writes the tree in its record table, bound once as a storage texture
+// read and written in place (`treeTable.ts`), the frames in their ranges — the pass is never
+// skipped, no group is left open for want of a binding, whatever the device splits.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './selection.ts'
 import { createTreeRefit } from './treeRefit.ts'
-import { DAG_BINDING, dagPartBindings } from './shader/bindings.ts'
-import { DAG_NODE_FLOATS } from './types.ts'
+import { createTreeTable } from './treeTable.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
-test('the tables of a split device are bound in their parts by the cut’s own bindings', () => {
+test('the refit binds the tree’s record table alone, then its own tables', () => {
   installGpuGlobals()
   const packed = packDagSelection(placementField(40, 6)),
     tree = packed.placementTree!,
     { device, passes, commands } = fakeDevice({ ...BACKEND, packed })
-  const groups: { layout?: unknown; entries: { binding: number }[] }[] = []
+  const groups: { layout?: unknown; entries: { binding: number; resource: unknown }[] }[] = []
   const make = device.createBindGroup.bind(device)
   device.createBindGroup = (descriptor) => (groups.push(descriptor as never), make(descriptor))
   const buffer = () =>
     device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST })
+  const table = createTreeTable(device, tree)
   const refit = createTreeRefit(device, packed, tree, {
-    nodeParts: { buffers: [buffer(), buffer(), buffer()], bytes: 100 * DAG_NODE_FLOATS * 4 },
-    coldParts: { buffers: [buffer(), buffer()], bytes: 4096 * 4 },
+    tree: table.view,
     frames: { buffers: [buffer(), buffer()], ranges: [{ first: 0 }, { first: 800 }] },
   })
   const encoder = device.createCommandEncoder()
   refit.run(encoder, [0, 1])
   device.queue.submit([encoder.finish()])
-  const tables = groups[0].entries.map(({ binding }) => binding),
-    parts = dagPartBindings({ nodes: 3, cold: 2 }).map(({ binding }) => binding)
-  assert.deepEqual(tables, [DAG_BINDING.nodes, DAG_BINDING.cold, ...parts], 'the cut’s bindings')
+  assert.deepEqual(
+    groups[0].entries.map(({ binding, resource }) => [binding, resource]),
+    [[0, table.view]],
+    'the tree’s table, no node or cold part',
+  )
   assert.deepEqual(
     groups[1].entries.map(({ binding }) => binding),
     [0, 1, 2, 3, 4],

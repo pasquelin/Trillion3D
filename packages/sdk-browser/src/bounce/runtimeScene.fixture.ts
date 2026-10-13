@@ -1,10 +1,12 @@
 // The scene the run-time proxy's tests run over: cubes turned and stretched, packed with the culling's
-// tree, the proxy's buffer as the shader reads it, and the culling's worlds it reads beside it.
+// tree, the proxy's buffer as the shader reads it, and the culling's record tables it reads beside it:
+// the worlds and the placement tree.
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
-import { treeNodeCount } from '../gpu/dag/placementTree.ts'
+import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
+import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
 import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
@@ -43,8 +45,8 @@ export function cubeCut() {
 }
 
 /** `count` cubes turned and stretched, packed with the culling's tree, the run-time proxy's buffer
- *  over them as the shader reads it — instances, then the cut's columns —, and the culling's worlds
- *  (`worlds`, the record table the trace reads them in). */
+ *  over them as the shader reads it — instances, then the cut's columns —, and the culling's record
+ *  tables the trace reads beside it: `worlds` and `tree`. */
 export function world(
   count: number,
   seed: number,
@@ -97,12 +99,8 @@ export function world(
     trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
     boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
     childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
-  // The placement tree as the proxy's buffer mirrors it: its nodes, then the order of its members.
   const tree = packed.placementTree
-  const treeNodes = treeNodeCount(tree),
-    treeAt = childrenAt + nodes * PROXY_NODE_WORDS,
-    membersAt = treeAt + treeNodes * DAG_NODE_FLOATS
-  const words = new Uint32Array(membersAt + (tree?.capacity ?? 0))
+  const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
   for (let w = 0; w < count + copies.length; w++)
     words.set([0, 0, options.surfaceOf?.(w) ?? 0, 0], instancesAt + w * INSTANCE_WORDS)
   // The placements' worlds as the culling holds them: each matrix, and its exact translation beside
@@ -129,25 +127,14 @@ export function world(
   words.set(new Uint32Array(cut.triangles.buffer), trianglesAt)
   words.set(new Uint32Array(cut.nodeBounds.buffer), boundsAt)
   words.set(cut.nodeChildren, childrenAt)
+  // The placement tree in its table, as the culling holds it: its nodes, then its order.
+  const treeTable = recordTable(TREE_TABLE, Math.max(1, treeNodeCount(tree)))
   if (tree) {
-    const nodeWords = new Uint32Array(
-      packed.nodes.buffer,
-      packed.nodes.byteOffset,
-      packed.nodes.length,
-    )
-    const coldWords = new Uint32Array(
-      packed.pageCones.buffer,
-      packed.pageCones.byteOffset,
-      packed.pageCones.length,
-    )
-    words.set(
-      nodeWords.subarray(
-        tree.cellBase * DAG_NODE_FLOATS,
-        (tree.cellBase + treeNodes) * DAG_NODE_FLOATS,
-      ),
-      treeAt,
-    )
-    words.set(coldWords.subarray(tree.members, tree.members + tree.capacity), membersAt)
+    const nodeWords = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset, tree.nodes.length)
+    for (let n = 0; n < treeNodeCount(tree); n++)
+      treeTable.set('Node', n, nodeWords.subarray(n * DAG_NODE_FLOATS, (n + 1) * DAG_NODE_FLOATS))
+    for (let r = 0; r * TREE_SPAN < tree.capacity; r++)
+      treeTable.set('Members', r, tree.order.subarray(r * TREE_SPAN, (r + 1) * TREE_SPAN))
   }
   const header = {
     instances: count,
@@ -157,10 +144,7 @@ export function world(
     copyWorldsWord: copyWorldsAt,
     boundsWord: boundsAt,
     childrenWord: childrenAt,
-    treeRoot: tree ? tree.levels[0].base : RUNTIME_NONE,
-    treeFirst: tree?.cellBase ?? 0,
-    treeWord: treeAt,
-    membersWord: membersAt,
+    treeRoot: tree ? 0 : RUNTIME_NONE,
     members: tree ? tree.count : count,
     error: 0,
     copies: copies.length,
@@ -183,6 +167,7 @@ export function world(
     packed,
     header,
     worlds: table,
+    tree: treeTable,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
   }
 }

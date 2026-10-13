@@ -53,8 +53,7 @@ import {
   PART_SPHERES,
 } from './gpuComposeWgsl.ts'
 import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
-import type { RefitLayout } from '../gpu/dag/treeRefitWgsl.ts'
-import { nodeLayout } from '../gpu/dag/treeRefit.ts'
+import { nodeLayout, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
 import { composedRowInputs, followComposedRows, sendList } from './composedRowInputs.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
@@ -832,7 +831,7 @@ const composeKernels = oncePerDevice((device) => {
 /** The members kernel for each layout of the nodes it reads, made once a device (`nodeTableWgsl`). */
 const memberKernels = oncePerDevice((device) =>
   preparedPipelines(
-    (nodes: RefitLayout['nodes']) =>
+    (nodes: NodeTableLayout) =>
       preparedComputePipeline(device, {
         label: COMPOSE_MEMBERS_PASS,
         layout: 'auto',

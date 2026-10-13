@@ -38,7 +38,6 @@ const VIEW_FIELDS = [
   ['worldRoot', 'u32'],
   ['treeTop', 'u32'],
   ['cellBase', 'u32'],
-  ['members', 'u32'],
   ['worldLinks', 'u32'],
   ['worldScale', 'f32'],
   // The open counts placements hold of their own (\`heldOpen.ts\`): the first word of their table in
@@ -55,9 +54,8 @@ const VIEW_FIELDS = [
   ['groupCount', 'u32'],
   ['groupEdges', 'u32'],
   ['frame', 'u32'],
-  // The placement tree's members drawn whatever the view (`placementTree.ts`, `drawnAlways`): where
-  // their list lies in the cold table and how many it holds, in the gap before the next vec4.
-  ['always', 'u32'],
+  // The placement tree's members drawn whatever the view (`placementTree.ts`, `drawnAlways`): how
+  // many its list holds (`treeTable.ts`), in the gap before the next vec4.
   ['alwaysCount', 'u32'],
   ['lightOriginHigh', 'vec4f'],
   ['lightOriginLow', 'vec4f'],

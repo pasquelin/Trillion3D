@@ -2,7 +2,6 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/index.ts'
-import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
@@ -26,22 +25,25 @@ import {
   RUNTIME_WORLD_WORDS,
 } from './runtimeLayout.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
+import { treeTableWgsl } from '../gpu/dag/treeTable.ts'
 
 /** The bindings of the proxy in a program that casts its rays, in one group: its own buffer
- *  (`runtimeLayout.ts`), which holds the placement tree it walks, and the culling's worlds, the record
- *  table every placement's world lies in (`gpu/dag/worldTable.ts`), read where they lie. */
-export type SceneBindings = { group: number; proxy: number; worlds: number }
+ *  (`runtimeLayout.ts`), and the culling's record tables, read where they lie — its worlds, every
+ *  placement's (`gpu/dag/worldTable.ts`), and its placement tree, which the rays walk
+ *  (`gpu/dag/treeTable.ts`). */
+export type SceneBindings = { group: number; proxy: number; worlds: number; tree: number }
 
 /** What names a fragment of a program over `scene`: its bindings. */
-export const sceneKey = ({ group, proxy, worlds }: SceneBindings) => `${group}, ${proxy}, ${worlds}`
+export const sceneKey = ({ group, proxy, worlds, tree }: SceneBindings) =>
+  `${group}, ${proxy}, ${worlds}, ${tree}`
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
 const TREE_DEPTH = 8
 
 /**
  * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
- * alike. One traversal over two levels: the culling's placement tree — its nodes hold the world boxes of up to
- * 64 children, a group's children being placements — and, in each placement whose box the ray meets, its
+ * alike. One traversal over two levels: the culling's placement tree, read in its record table — its nodes hold
+ * the world boxes of up to 64 children, a group's children being placements — and, in each placement whose box the ray meets, its
  * mesh's own wide tree (`rtTraceCut`, the engine's one wide traversal, `wideTraversal`) in the mesh's own space,
  * the ray taken there by the inverse of the placement's world. The world is the culling's, read where it lies:
  * nothing is copied per placement but a four-word instance (`runtimeLayout.ts`).
@@ -59,6 +61,7 @@ export const runtimeSceneWgsl = (scene: SceneBindings) =>
     [
       RUNTIME_PROXY_WGSL,
       worldTableWgsl('rtWorlds', { group: scene.group, binding: scene.worlds, access: 'read' }),
+      treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
       WIDE_TRAVERSAL_WGSL,
       toF32,
       invTranspose3Prep,
@@ -73,7 +76,6 @@ ${wgslConsts({
   RT_STEPS: BOUNCE_SETTINGS.traversalSteps,
   RT_TREE_DEPTH: TREE_DEPTH,
   RT_TREE_STEPS: 2 * RAY_WORK,
-  RT_TREE_FLOATS: DAG_NODE_FLOATS,
   RT_TREE_GROUP: TREE_GROUP,
   RT_NODE_MIN: NODE_MIN,
   RT_NODE_MAX: NODE_MAX,
@@ -168,14 +170,9 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
-fn rtTreeWord(node:u32,field:u32)->u32{return rtProxy.words[rtProxy.treeWord+(node-rtProxy.treeFirst)*RT_TREE_FLOATS+field];}
-fn rtTreeLow(node:u32)->vec3f{
- let at=rtProxy.treeWord+(node-rtProxy.treeFirst)*RT_TREE_FLOATS+RT_NODE_MIN;
- return vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u));
-}
-fn rtTreeHigh(node:u32)->vec3f{
- let at=rtProxy.treeWord+(node-rtProxy.treeFirst)*RT_TREE_FLOATS+RT_NODE_MAX;
- return vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u));
+/** Node \`node\` of the tree's box corner from word \`k\`, read in its record (\`rtTreeWord\`). */
+fn rtTreeCorner(node:u32,k:u32)->vec3f{
+ return vec3f(bitcast<f32>(rtTreeWord(node,k)),bitcast<f32>(rtTreeWord(node,k+1u)),bitcast<f32>(rtTreeWord(node,k+2u)));
 }
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
  *  placement tree walked depth first, a child entered when its box is met, a group's members one by one.
@@ -213,14 +210,14 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
    rtWork+=1u;
    let first=rtTreeWord(node,RT_NODE_FIRST);
    if(rtTreeWord(node,RT_NODE_KIND)==RT_TREE_GROUP){
-    let w=rtProxy.words[rtProxy.membersWord+first+k];
+    let w=rtTreeMember(first+k);
     if(w!=RT_NONE){
      best=rtEnter(w,origin,direction,inverse,best);
      if(rtAnyHit&&best.found){return best;}
     }
    }else{
     let child=first+k;
-    if(rayBoxEntry(rtTreeLow(child),rtTreeHigh(child),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
+    if(rayBoxEntry(rtTreeCorner(child,RT_NODE_MIN),rtTreeCorner(child,RT_NODE_MAX),origin,inverse,best.distance)<=best.distance&&level+1u<RT_TREE_DEPTH){
      level++;
      at[level]=child;
      next[level]=0u;

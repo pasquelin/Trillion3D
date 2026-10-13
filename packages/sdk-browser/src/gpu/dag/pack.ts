@@ -287,7 +287,7 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
  * primitive share them, and the working table names each page's placement, whose record
  * shift leads the page to its record (`layout.ts`). Nodes are each primitive's once, shared by its
  * placements — a queue entry names the placement beside the node (`shader/levelWgsl.ts`) —, and the
- * placement tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
+ * placement tree's are named after them all, held in the tree (`placementTree.ts`). A packing with room past its roots (a growth's,
  * `grownLength`) takes later placements of its primitives in place (`appendDagRoots`), each a
  * member of its tree and linked to the world DAG as the others.
  */
@@ -304,7 +304,8 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
   // eviction queue would stamp a page for another: better to refuse it by name.
   if (size.pages > KEY_PAGE_MAX)
     throw new Error(`GPU_SELECTION_PAGE_RANGE: ${size.pages} > ${KEY_PAGE_MAX}`)
-  const p = allocatePacking(size, shared),
+  // The table holds the placements' own nodes; the tree's live in its own (`treeTable.ts`).
+  const p = allocatePacking({ ...size, nodes: plan.primitiveNodes }, shared),
     records = createRecordTable()
   roots.forEach((root, w) =>
     placeRoot(p, root, w, (culling, owner, nodeBase) =>
@@ -365,15 +366,15 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
  * all five passes of a frame reread; the owner node and the cone go to the cold, which the open
  * pass alone reads. The cold table opens on the residency bits, one word for thirty-two pages,
  * written by delta, then the pool's list, then a content key per unique record and a word per key
- * (`evict.ts`): no word per page. The tree's order rides behind the cold records: what its groups
- * name their members by; the placements' links to the world DAG follow it (`worldLinks.ts`).
+ * (`evict.ts`): no word per page. The placements' links to the world DAG follow the cold records
+ * (`worldLinks.ts`).
  */
 function recordTables(
   roots: readonly DagRoot[],
   p: Packing,
   records: ReturnType<typeof createRecordTable>,
   pages: number,
-  { tree, world, worlds, room }: ReturnType<typeof packPlan>,
+  { world, worlds, room }: ReturnType<typeof packPlan>,
 ) {
   // Placed in order behind one another: the keys and groups are made as an appended root's are.
   const content = createContentKeys()
@@ -400,19 +401,10 @@ function recordTables(
       groupEdges: edges,
     },
     coldAt = coldBase(shape)
-  // The tree's order behind the cold records, for every member slot, then the members drawn
-  // whatever the view (`drawnAlways`), as many slots again.
-  const members = coldAt + Math.max(1, recordSlots) * COLD_WORDS,
-    linkBase = members + 2 * (tree?.capacity ?? 0)
+  const linkBase = coldAt + Math.max(1, recordSlots) * COLD_WORDS
   const clusters = new Float32Array(Math.max(1, recordSlots) * CLUSTER_WORDS),
     pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
     cold = new Uint32Array(pageCones.buffer)
-  if (tree) {
-    cold.set(tree.order, (tree.members = members))
-    const { set, moves } = tree.always
-    cold.set(set.list.subarray(0, set.count), (tree.alwaysAt = members + tree.capacity))
-    moves.clear()
-  }
   const at = {
     recordKey: recordKeyBase(pages),
     keyWord: keyWordBase(shape),
@@ -498,9 +490,6 @@ export function appendDagRoots(
   // Members of the tree from now on, in new groups (`joinPlacementTree`): their order words sent
   // with the tree nodes they rewrote.
   const joined = tree ? joinPlacementTree(packed, tree, batch) : undefined
-  if (joined)
-    for (let k = joined.members[0]; k < joined.members[1]; k++)
-      words[tree!.members + k] = tree!.order[k]
   return {
     pages: [from.pages, live.pages],
     worlds: [from.worlds, live.worlds],

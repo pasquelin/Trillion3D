@@ -33,8 +33,9 @@ export function recordWordAt(
 }
 
 /**
- * A record table held in words: `set` a record's field, `get` it back, and `load` a texel as
- * `textureLoad` answers it — four words, an `r32uint`'s word in the first — at `(x, y)` of `layer`.
+ * A record table held in words: `set` a record's field, `get` it back, `load` a texel as
+ * `textureLoad` answers it — four words, an `r32uint`'s word in the first — at `(x, y)` of `layer`,
+ * and `store` one as `textureStore` writes it.
  */
 export function recordTable(layout: RecordLayout, records: number, words?: Uint32Array) {
   const extent = recordExtentOf(layout, records),
@@ -52,6 +53,10 @@ export function recordTable(layout: RecordLayout, records: number, words?: Uint3
     load([x, y]: number[], layer: number) {
       const at = ((layer * extent.height + y) * extent.width + x) * channels(layout)
       return channels(layout) === 4 ? [...held.subarray(at, at + 4)] : [held[at], 0, 0, 1]
+    },
+    store([x, y]: number[], layer: number, value: number[]) {
+      const at = ((layer * extent.height + y) * extent.width + x) * channels(layout)
+      held.set(value.slice(0, channels(layout)), at)
     },
   }
 }

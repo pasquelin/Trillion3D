@@ -32,8 +32,9 @@ import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counters, the proxy's buffer and the culling's worlds
- * it places its meshes by, and the light grid's buffer, whose world lists the proxy hits walk.
+ * (`work`), the trace's list with the frame's counters, the proxy's buffer, the culling's worlds it
+ * places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
+ * lists the proxy hits walk.
  */
 const TRACE_BINDINGS = {
   flags: 0,
@@ -48,6 +49,7 @@ const TRACE_BINDINGS = {
   base: 10,
   proxy: 11,
   proxyWorlds: 12,
+  proxyTree: 13,
   lightLists: 17,
 } as const
 
@@ -56,6 +58,7 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
   proxy: TRACE_BINDINGS.proxy,
   worlds: TRACE_BINDINGS.proxyWorlds,
+  tree: TRACE_BINDINGS.proxyTree,
   list: TRACE_BINDINGS.list,
 }
 
@@ -178,6 +181,7 @@ function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
         computeTextureEntry(TRACE_BINDINGS.proxyWorlds, 'uint', '2d-array'),
+        computeTextureEntry(TRACE_BINDINGS.proxyTree, 'uint', '2d-array'),
       ],
     }),
     classifyLayout: device.createBindGroupLayout({
@@ -273,6 +277,8 @@ export type TraceInputs = {
   proxy: GPUBuffer
   /** The culling's worlds the proxy places its meshes by (`gpu/dag/worldTable.ts`), or the stand-in. */
   proxyWorlds: GPUTextureView
+  /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
+  proxyTree: GPUTextureView
 }
 
 /** The groups of a trace: the trace's, the classification's and the frame state's. */
@@ -309,6 +315,7 @@ function traceGroups(
     inputs.probes,
     inputs.proxy,
     inputs.proxyWorlds,
+    inputs.proxyTree,
     inputs.lightLists,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
@@ -328,6 +335,7 @@ function traceGroups(
         lightLists: { buffer: inputs.lightLists },
         proxy: { buffer: inputs.proxy },
         proxyWorlds: inputs.proxyWorlds,
+        proxyTree: inputs.proxyTree,
       }),
     }),
     classify: device.createBindGroup({

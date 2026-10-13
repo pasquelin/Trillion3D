@@ -34,27 +34,25 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['admitByLevel', 58],
     // The swap's two regions, one word (`shader/swapWgsl.ts`).
     ['swapRegions', 59],
-    // The world DAG's placement, the placement tree's three words, the world's link base and scale.
+    // The world DAG's placement, the placement tree's two words, the world's link base and scale.
+    // The tree's order and list lie in its own table (`treeTable.ts`): no word names them.
     ['worldRoot', 60],
     ['treeTop', 61],
     ['cellBase', 62],
-    ['members', 63],
-    ['worldLinks', 64],
-    ['worldScale', 65],
+    ['worldLinks', 63],
+    ['worldScale', 64],
     // The open counts placements hold (`heldOpen.ts`), the lists' entries, the records and keys.
-    ['heldBase', 66],
-    ['heldMask', 67],
-    ['candCap', 68],
-    ['recordCount', 69],
-    ['keyCount', 70],
-    // The keys' groups and their links, then the frame the stamps are made at (`evict.ts`): the
-    // word before the next vec4 first, then three more.
-    ['groupCount', 71],
-    ['groupEdges', 72],
-    ['frame', 73],
+    ['heldBase', 65],
+    ['heldMask', 66],
+    ['candCap', 67],
+    ['recordCount', 68],
+    ['keyCount', 69],
+    // The keys' groups and their links, then the frame the stamps are made at (`evict.ts`).
+    ['groupCount', 70],
+    ['groupEdges', 71],
+    ['frame', 72],
     // The tree's members drawn whatever the view, in the gap: no word behind them moves.
-    ['always', 74],
-    ['alwaysCount', 75],
+    ['alwaysCount', 73],
     ['lightOriginHigh', 76],
     ['lightOriginLow', 80],
     ['lightPlanes', 84],
@@ -80,9 +78,9 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,cameraWorld:vec3f,' +
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
-      'worldRoot:u32,treeTop:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
+      'worldRoot:u32,treeTop:u32,cellBase:u32,worldLinks:u32,worldScale:f32,' +
       'heldBase:u32,heldMask:u32,candCap:u32,recordCount:u32,keyCount:u32,' +
-      'groupCount:u32,groupEdges:u32,frame:u32,always:u32,alwaysCount:u32,' +
+      'groupCount:u32,groupEdges:u32,frame:u32,alwaysCount:u32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,eye:array<vec4u,2>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.

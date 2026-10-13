@@ -11,7 +11,7 @@ import { arrayView } from './textureViews.ts'
  *
  * A record is a few fields of whole texels. A row holds `1 << rowShift` records: each field's texels
  * of all of them, field after field — so a run of records writes each field from its own host array,
- * the bytes it held, in one rectangle of texels (`recordPieces`) —, and a layer `1 << layerShift`
+ * the bytes it held, in one rectangle of texels (`texelPieces`) —, and a layer `1 << layerShift`
  * rows. Every count is a power of two: a record's row, layer and column are shifts and masks.
  */
 export type RecordLayout = {
@@ -53,31 +53,32 @@ function recordExtent(layout: RecordLayout, records: number): [number, number, n
   return layers === 1 ? [width, rows, 1] : [width, perLayer, layers]
 }
 
-/** One rectangle of texels a write of records sends: its origin, its extent, and the first record
- *  and the records it carries. */
+/** One rectangle of texels a write sends: its origin, its extent, and the first texel of the field
+ *  it carries. */
 type Piece = { x: number; y: number; layer: number; width: number; rows: number; first: number }
 
 /**
- * The rectangles a write of field `field` of records `[first, first + count)` lands in: a row's
- * tail, then whole rows of one layer, then a row's head — never a texel of another field.
+ * The rectangles a write of texels `[first, first + count)` of field `field` lands in. A field is one
+ * line of texels — record `r`'s texel `k` is its texel `r · texels + k` —, folded into rows of
+ * `texels << rowShift`: a row's tail, then whole rows of one layer, then a row's head — never a texel
+ * of another field. A run of whole records is a run of their texels.
  */
-function recordPieces(layout: RecordLayout, field: string, first: number, count: number): Piece[] {
-  const per = 1 << layout.rowShift,
-    texels = layout.fields[field],
+function texelPieces(layout: RecordLayout, field: string, first: number, count: number): Piece[] {
+  const width = layout.fields[field] << layout.rowShift,
     start = fieldStart(layout, field),
     rowMask = (1 << layout.layerShift) - 1
   const pieces: Piece[] = []
-  for (let r = first, end = first + count; r < end;) {
-    const row = r >> layout.rowShift,
-      column = r & (per - 1),
+  for (let t = first, end = first + count; t < end;) {
+    const row = Math.floor(t / width),
+      column = t - row * width,
       y = row & rowMask,
       layer = row >> layout.layerShift
-    let width = per,
+    let texels = width,
       rows = 1
-    if (column || end - r < per) width = Math.min(per - column, end - r)
-    else rows = Math.min(Math.floor((end - r) / per), rowMask + 1 - y)
-    pieces.push({ x: start + column * texels, y, layer, width: width * texels, rows, first: r })
-    r += rows === 1 ? width : rows * per
+    if (column || end - t < width) texels = Math.min(width - column, end - t)
+    else rows = Math.min(Math.floor((end - t) / width), rowMask + 1 - y)
+    pieces.push({ x: start + column, y, layer, width: texels, rows, first: t })
+    t += rows === 1 ? texels : rows * width
   }
   return pieces
 }
@@ -102,6 +103,24 @@ export function createRecordTexture(
     bytes = texelBytes(layout.format),
     held = size[0] * size[1] * size[2] * bytes
   const texture = make({ label: layout.label, size, format: layout.format, usage }, held)
+  /** Texels `[first, first + count)` of field `field` (`texelPieces`), `data` holding them from
+   *  `dataOffset` bytes, one after the other. */
+  const writeTexels = (
+    field: string,
+    first: number,
+    count: number,
+    data: ArrayBuffer,
+    dataOffset: number,
+  ) => {
+    const rowBytes = (layout.fields[field] << layout.rowShift) * bytes
+    for (const piece of texelPieces(layout, field, first, count))
+      device.queue.writeTexture(
+        { texture, origin: [piece.x, piece.y, piece.layer] },
+        data,
+        { offset: dataOffset + (piece.first - first) * bytes, bytesPerRow: rowBytes },
+        [piece.width, piece.rows, 1],
+      )
+  }
   /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
    *  bytes, each record's field after the other. */
   const write = (
@@ -111,15 +130,8 @@ export function createRecordTexture(
     data: ArrayBuffer,
     dataOffset: number,
   ) => {
-    const recordBytes = layout.fields[field] * bytes,
-      rowBytes = recordBytes << layout.rowShift
-    for (const piece of recordPieces(layout, field, first, count))
-      device.queue.writeTexture(
-        { texture, origin: [piece.x, piece.y, piece.layer] },
-        data,
-        { offset: dataOffset + (piece.first - first) * recordBytes, bytesPerRow: rowBytes },
-        [piece.width, piece.rows, 1],
-      )
+    const texels = layout.fields[field]
+    writeTexels(field, first * texels, count * texels, data, dataOffset)
   }
   return {
     texture,
@@ -127,12 +139,12 @@ export function createRecordTexture(
     /** Bytes the texture holds. */
     bytes: held,
     write,
+    writeTexels,
     /** Field `field` as a byte target: `size` bytes of `data` from `dataOffset`, at byte `offset` of
-     *  the field's records laid one after the other — whole records. */
+     *  the field's line of texels (`texelPieces`) — whole texels. */
     target(field: string) {
-      const recordBytes = layout.fields[field] * bytes
       return (offset: number, data: ArrayBuffer, dataOffset: number, size: number) =>
-        write(field, offset / recordBytes, size / recordBytes, data, dataOffset)
+        writeTexels(field, offset / bytes, size / bytes, data, dataOffset)
     },
     destroy: () => texture.destroy(),
   }

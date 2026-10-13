@@ -83,8 +83,10 @@ export const WEBGPU_REQUIRED_LIMITS = {
   maxSampledTexturesPerShaderStage: 16,
 } as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>
 /** The WGSL language features every engine program relies on: the targets read by load alone
- *  (subsurface, lobes, shadow mask table) are read-only storage textures. A browser whose
- *  `navigator.gpu.wgslLanguageFeatures` lacks one is refused by name (`WEBGPU_UNAVAILABLE`). */
+ *  (subsurface, lobes, shadow mask table) are read-only storage textures, and the placement tree's
+ *  refit reads and writes its record table in place, a read-write one (`../gpu/dag/treeRefitWgsl.ts`).
+ *  A browser whose `navigator.gpu.wgslLanguageFeatures` lacks one is refused by name
+ *  (`WEBGPU_UNAVAILABLE`). */
 export const WEBGPU_REQUIRED_WGSL_FEATURES = ['readonly_and_readwrite_storage_textures'] as const
 /**
  * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its

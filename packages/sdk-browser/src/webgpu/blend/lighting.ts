@@ -28,5 +28,6 @@ export function blendLightResources(
     tileLights: contract.tiles ?? placeholders.tiles,
     proxy: contract.proxy?.buffer ?? placeholders.runtime,
     proxyWorlds: contract.proxy?.worlds ?? placeholders.runtimeWorlds,
+    proxyTree: contract.proxy?.tree ?? placeholders.runtimeTree,
   }
 }

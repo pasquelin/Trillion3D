@@ -23,8 +23,8 @@ const b = WATER_BINDINGS
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
  *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the
- *  probes, the proxy and the culling's worlds it is placed by, the frozen backdrop and its depth, the
- *  blend view and the volumes. */
+ *  probes, the proxy, the culling's worlds it is placed by and its placement tree, the frozen
+ *  backdrop and its depth, the blend view and the volumes. */
 const HELD: readonly Held[] = [
   [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
   [b.depth, ({ gpu }) => gpu.backdrop!.waterDepthView],
@@ -44,6 +44,11 @@ const HELD: readonly Held[] = [
   [
     b.proxyWorlds,
     ({ lighting }) => lighting.proxyWorlds,
+    { texture: { sampleType: 'uint', viewDimension: '2d-array' } },
+  ],
+  [
+    b.proxyTree,
+    ({ lighting }) => lighting.proxyTree,
     { texture: { sampleType: 'uint', viewDimension: '2d-array' } },
   ],
   [

@@ -10,7 +10,7 @@ import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
 import { createTreeFollower, type ComposedLeaves } from './treeFollow.ts'
-import { nodeLayout } from './treeRefit.ts'
+import { nodeLayout } from './nodeTableWgsl.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
@@ -153,13 +153,13 @@ function selectionOver(run: DagRun): GpuSelection {
     proxy() {
       const buffer = live() ? run.proxies.buffer() : undefined
       if (!buffer) return undefined
-      if (proxy?.buffer !== buffer) proxy = { buffer, worlds: frames.worlds.view }
+      if (proxy?.buffer !== buffer)
+        proxy = { buffer, worlds: frames.worlds.view, tree: resources.treeTable.view }
       return proxy
     },
     get proxyRefusal() {
       return run.proxies.refusal
     },
-    proxyMirror: (encoder) => live() && run.proxies.mirror(encoder, run.tree?.revision ?? 0),
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),
     proxyBoxes: () => (live() ? run.proxies.worldBoxes() : NO_PROXY_BOXES),

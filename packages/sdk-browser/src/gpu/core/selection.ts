@@ -20,8 +20,13 @@ import type { ProxyBoxes } from '../../bounce/probeSync.ts'
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
 /** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
- *  worlds it places its meshes by, read where they lie (`../dag/worldTable.ts`). */
-export type ProxyResources = { readonly buffer: GPUBuffer; readonly worlds: GPUTextureView }
+ *  record tables, read where they lie — the worlds it places its meshes by (`../dag/worldTable.ts`)
+ *  and the placement tree its rays walk (`../dag/treeTable.ts`). */
+export type ProxyResources = {
+  readonly buffer: GPUBuffer
+  readonly worlds: GPUTextureView
+  readonly tree: GPUTextureView
+}
 
 export const SELECTION_WORKGROUP = 64
 
@@ -136,9 +141,9 @@ export type GpuSelection = {
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
-  /** How the device lays out the nodes of the placement tree (`../dag/treeRefit.ts`,
-   *  `nodeLayout`), none without a tree: what a kernel reading them is asked for before a frame
-   *  binds it. */
+  /** How the device lays out the cut's nodes (`../dag/nodeTableWgsl.ts`, `nodeLayout`), none
+   *  without a placement tree: what the composition's kernel reading its members' root boxes is
+   *  asked for before a frame binds it. */
   readonly treeNodes?: { per: number; parts: number }
   /** The member group of placement `world` in the placement tree, -1 outside it: what a
    *  composition names the groups of the roots a parent moves by. */
@@ -178,8 +183,6 @@ export type GpuSelection = {
   readonly proxyRefusal: string | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
-  /** The placement tree copied into the proxy's buffer, before the first program of the image that walks it. */
-  proxyMirror(encoder: GPUCommandEncoder): void
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
    *  first program of the image that traces them (`../dag/proxyPose.ts`). */
   proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void

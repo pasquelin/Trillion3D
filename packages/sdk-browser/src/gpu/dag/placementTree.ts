@@ -10,12 +10,14 @@
  * each read where the descent reaches it (`placementTreeWgsl.ts`), and a rejected one costs its
  * members nothing. Every placement but the world DAG's is a member, wherever it sits in the packing, and
  * the tree is laid out for the packing's capacity: the placements a growth appends in place fill
- * new groups in the order the full build gives them (`joinPlacementTree`), its nodes kept at the
- * end of the node table.
+ * new groups in the order the full build gives them (`joinPlacementTree`). Its nodes, its order and
+ * its list of members drawn whatever the view live in one record table of their own
+ * (`treeTable.ts`), which every reader reads in place; a queue entry names a node of it past the
+ * placements' own nodes (`cellBase` on).
  * A group's members are consecutive in the tree's ORDER: the rows' own when a partition fills them
  * (a cell takes consecutive rows, `../../partition/rows.ts`, and gives them back together), else
  * the placements on a Morton curve of their positions, so a group is a patch of the world whatever
- * order the scene lists its nodes in. The order rides behind the cold records (`members`).
+ * order the scene lists its nodes in (`order`).
  *
  * A tree node's box is the WORLD box of its members — each root's box, grown in its own space by its
  * deformation's reach as its root test grows its planes (`primitiveWgsl.ts`), through its absolute
@@ -23,9 +25,9 @@
  * every member's leaf, grown by a margin past the single-precision rounding of both tests, so a box
  * the tree rejects is one every member's root test would have rejected: the cut is unchanged. Every
  * box is finite: a member drawn whatever the view — never culled, or deformed past every finite
- * reach (`drawnAlways`) — is no group's to open; it is listed apart (`always`, behind the order in
- * the cold table) and opened from queue 0 with the tree's top (`placementTreeWgsl.ts`), its leaf
- * kept in its group for what walks the tree by boxes — a ray (`../../bounce/runtimeSceneWgsl.ts`).
+ * reach (`drawnAlways`) — is no group's to open; it is listed apart (`always`) and opened from
+ * queue 0 with the tree's top (`placementTreeWgsl.ts`), its leaf kept in its group for what walks
+ * the tree by boxes — a ray (`../../bounce/runtimeSceneWgsl.ts`).
  * A parked member, or a member slot no placement holds yet, holds nothing.
  *
  * The tree is built here — `packPlacementTree` fits every node once, as the tables are made —, and
@@ -61,15 +63,16 @@ export const TREE_SPAN = SELECTION_WORKGROUP
 const TREE_CELL = 1
 export const TREE_GROUP = 2
 
-/** One level of the tree: its first node and its node count. */
+/** One level of the tree: its first node, within the tree, and its node count. */
 type TreeLevel = { base: number; count: number }
 
 /**
- * Where the tree lies in the packing: its `levels`, top first, the last its groups, nodes from
- * `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
- * member `k` names (`NO_INDEX` past the `count` live members, up to `capacity`), `slot[w]` the member
- * placement `w` is (`NO_INDEX` for the world DAG), and the order lies in the cold table from word
- * `members` on — a member slot a growth left before its new groups names none.
+ * The tree: its `levels`, top first, the last its groups, its `nodes` — twenty-four words each, laid
+ * as a `CullNode`, indexed within the tree: a cell's children are too —, which a queue entry names
+ * from `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
+ * member `k` names (`NO_INDEX` past the `count` live members, up to `capacity` — a member slot a
+ * growth left before its new groups names none), `slot[w]` the member placement `w` is (`NO_INDEX`
+ * for the world DAG). Its table on the device holds them (`treeTable.ts`).
  */
 export type PlacementTree = {
   capacity: number
@@ -77,16 +80,15 @@ export type PlacementTree = {
   cellBase: number
   depth: number
   levels: TreeLevel[]
+  nodes: Float32Array
   order: Uint32Array
   slot: Uint32Array
-  members: number
   /** Each placement's root box through its world as its last fit took it, six numbers a slot of
    *  the worlds: a refit transforms the moved members' alone and joins the others' kept. */
   boxes: Float64Array
-  /** The members drawn whatever the view (`drawnAlways`), and the cold word their list lies from,
-   *  behind the order: queue 0 opens them (`placementTreeWgsl.ts`). */
+  /** The members drawn whatever the view (`drawnAlways`): queue 0 opens them
+   *  (`placementTreeWgsl.ts`). */
   always: MirroredKeys
-  alwaysAt: number
 }
 
 /** Whether `members` member slots take a tree: not when one group would hold them all, a cell of
@@ -95,13 +97,13 @@ const groupsPlacements = (members: number) => members > TREE_SPAN
 
 /** The levels of a tree of `capacity` members, top first: groups of `TREE_SPAN` members, cells of
  *  `TREE_SPAN` nodes of the level below, `ceil(log64 capacity)` levels in all, so its top is one
- *  node whatever the world: the descent opens on it alone. */
-function treeLevels(capacity: number, cellBase: number) {
+ *  node whatever the world: the descent opens on it alone — node 0 of the tree. */
+function treeLevels(capacity: number) {
   let depth = 1
   for (let span = TREE_SPAN; span < capacity; span *= TREE_SPAN) depth++
   const counts = [ceilDiv(capacity, TREE_SPAN)]
   while (counts.length < depth) counts.unshift(ceilDiv(counts[0], TREE_SPAN))
-  let base = cellBase
+  let base = 0
   return counts.map((count) => {
     const level = { base, count }
     base += count
@@ -129,14 +131,13 @@ export function placementTreeShape(
     slot = new Uint32Array(capacity.worlds).fill(NO_INDEX)
   order.set(placementOrder(roots, members))
   for (let k = 0; k < members.length; k++) slot[order[k]] = k
-  const levels = treeLevels(capacity.members, cellBase)
+  const levels = treeLevels(capacity.members),
+    nodes = new Float32Array(levels.reduce((sum, level) => sum + level.count, 0) * DAG_NODE_FLOATS)
   return {
-    ...{ capacity: capacity.members, count: members.length, cellBase, levels, order, slot },
+    ...{ capacity: capacity.members, count: members.length, cellBase, levels, nodes, order, slot },
     depth: levels.length,
-    members: 0,
     boxes: new Float64Array(capacity.worlds * 6),
     always: createMirroredKeys(),
-    alwaysAt: 0,
   }
 }
 
@@ -201,9 +202,9 @@ function spread(q: number) {
   return code
 }
 
-/** Nodes the tree adds to the packing. */
+/** Nodes the tree holds: the queue entries it adds to the packing's nodes. */
 export const treeNodeCount = (tree?: PlacementTree) =>
-  tree ? tree.levels.reduce((sum, level) => sum + level.count, 0) : 0
+  tree ? tree.nodes.length / DAG_NODE_FLOATS : 0
 
 /** The tree's groups: its last level. */
 const groupLevel = (tree: PlacementTree) => tree.levels[tree.levels.length - 1]
@@ -219,12 +220,13 @@ const groupMembers = (tree: PlacementTree, g: number) =>
   clampLowWins(tree.count - g * TREE_SPAN, 0, TREE_SPAN)
 
 /**
- * Writes every tree node into `nodes` (`nodeInts` its words): children, kind, the world a range
- * dispatch reads them under (the first), no error to prune by, its box open until the refit fits it. A cell's
- * children are every node of the level below it lays out; a group's, its live members.
+ * Writes every tree node into `tree.nodes`: children, kind, the world a range dispatch reads them
+ * under (the first), no error to prune by, its box open until the refit fits it. A cell's children
+ * are every node of the level below it lays out; a group's, its live members. The list of members
+ * drawn whatever the view starts as written whole (`treeTable.ts`).
  */
 export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
-  const nodeInts = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset)
+  const nodeInts = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset)
   tree.levels.forEach(({ base, count }, l) => {
     const below = tree.levels[l + 1]
     for (let j = 0; j < count; j++) {
@@ -236,8 +238,8 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
         : groupMembers(tree, j)
       nodeInts[at + NODE_KIND] = below ? TREE_CELL : TREE_GROUP
       nodeInts[at + NODE_WORLD] = 0
-      packed.nodes[at + NODE_CEIL] = -1
-      packed.nodes[at + NODE_FLOOR] = 0
+      tree.nodes[at + NODE_CEIL] = -1
+      tree.nodes[at + NODE_FLOOR] = 0
     }
   })
   // The boxes are the refit's (`treeRefit.ts`): every node holds the whole world until the first
@@ -247,8 +249,8 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
     memberBox(packed, tree, w)
     if (drawnAlways(packed.mark[w])) mirrorKey(tree.always, w, true)
   }
-  for (const { base, count } of tree.levels)
-    for (let j = 0; j < count; j++) wholeNode(packed.nodes, base + j)
+  tree.always.moves.clear()
+  for (let n = 0; n < treeNodeCount(tree); n++) wholeNode(tree.nodes, n)
 }
 
 /** Node `n` takes the box of the whole world, which no plane rejects: a node before its first fit. */
@@ -269,13 +271,13 @@ export const joinStart = (tree: PlacementTree) => ceilDiv(tree.count, TREE_SPAN)
  * members (`placementOrder`) and filling new groups from `joinStart`: each group's box covers its
  * own members alone. Their order words, slots and groups' member counts; returns the tree nodes
  * whose words changed — the new groups, their boxes left to the refit — and the member slots
- * taken, `[from, to)`, whose words the cold table sends.
+ * taken, `[from, to)`, whose words the tree's table receives (`treeTable.ts`).
  */
 export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch: number[]) {
   const from = joinStart(tree)
   if (from + batch.length > tree.capacity) throw new Error('GPU_PLACEMENT_TREE_FULL')
   const order = placementOrder(packed.worldSources, batch),
-    nodeInts = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset)
+    nodeInts = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset)
   order.forEach((w, i) => {
     tree.order[from + i] = w
     tree.slot[w] = from + i

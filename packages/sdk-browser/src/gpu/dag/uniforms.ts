@@ -130,15 +130,13 @@ export function writeDagUniforms(
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
   // The world DAG's placement, wherever the packing put it, NO_INDEX without one; the placement tree
-  // (`placementTree.ts`): its top level's nodes, which open the descent, from its first node, and
-  // where its order lies in the cold table; no top node, no tree.
+  // (`placementTree.ts`): its top level's nodes, which open the descent, the queue entry of its
+  // first node and the members drawn whatever the view (`treeTable.ts`); no top node, no tree.
   const tree = packed.placementTree,
     world = packed.world
   ints[W('worldRoot')] = world?.root ?? NO_INDEX
   ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
-  ints[W('members')] = tree?.members ?? 0
-  ints[W('always')] = tree?.alwaysAt ?? 0
   ints[W('alwaysCount')] = tree?.always.set.count ?? 0
   // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0

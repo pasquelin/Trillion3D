@@ -17,6 +17,7 @@ import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { admitted, madeAsked, type CutAdmission } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
+import { createTreeTable } from './treeTable.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -171,7 +172,9 @@ function dagBuffers(
     worldSources,
     ownTexture,
   )
-  const group = dagGroup(tables, uniforms, list.output, work)
+  // The placement tree's record table (`treeTable.ts`): the culling, the refit and the rays read it.
+  const treeTable = createTreeTable(device, packed.placementTree, ownTexture)
+  const group = { ...dagGroup(tables, uniforms, list.output, work), tree: treeTable.view }
   const { clusters, nodes, flags, cold: pageCones } = group
   return {
     tables,
@@ -194,6 +197,7 @@ function dagBuffers(
     dispatchArgs,
     work,
     frames,
+    treeTable,
     pageCones,
     /** How the tables split on this device, and each as its parts (`split.ts`). */
     split,

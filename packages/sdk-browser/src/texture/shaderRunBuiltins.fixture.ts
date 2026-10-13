@@ -131,6 +131,12 @@ export const builtins = {
     coords: number[],
     layer: number,
   ) => texture.load(coords, layer),
+  textureStore: (
+    texture: { store(coords: number[], layer: number, value: number[]): void },
+    coords: number[],
+    layer: number,
+    value: number[],
+  ) => texture.store(coords, layer, value),
   f32: each(float),
   i32: each(int),
   u32: each((x) => int(x) >>> 0),

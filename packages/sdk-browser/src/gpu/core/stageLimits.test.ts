@@ -78,9 +78,10 @@ test("every opaque resolve program fits the device's per-stage limits", async ()
   unlit.dispose()
 })
 
-/** Whether a layout of `layouts` shows the fragment stage the culling's worlds at `binding`: a
- *  record texture of words (`../dag/worldTable.ts`), no storage buffer. */
-const bindsWorlds = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
+/** Whether a layout of `layouts` shows the fragment stage a record table of the culling at
+ *  `binding` — its worlds (`../dag/worldTable.ts`), its placement tree (`../dag/treeTable.ts`) —: a
+ *  texture of words, no storage buffer. */
+const bindsRecords = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
   layouts.some((layout) =>
     [...layout.entries].some(
       (entry) =>
@@ -119,10 +120,16 @@ test("the blends and the water pass fit the device's per-stage limits", async ()
   }
   assert.deepEqual(failures, [])
   assert.ok(layouts.length > 0)
-  // Both trace the proxy through the culling's worlds, read in place: a sampled texture each, which
-  // the counts below hold, the eight storage buffers of their fragment stage left as they were.
-  assert.ok(bindsWorlds(bindGroupLayouts, BLEND_BINDINGS.proxyWorlds), 'the blends bind the worlds')
-  assert.ok(bindsWorlds(bindGroupLayouts, WATER_BINDINGS.proxyWorlds), 'the water binds the worlds')
+  // Both trace the proxy through the culling's worlds and tree, read in place: a sampled texture
+  // each, which the counts below hold, the eight storage buffers of their fragment stage left as
+  // they were.
+  for (const [name, bindings] of [
+    ['blends', BLEND_BINDINGS],
+    ['water', WATER_BINDINGS],
+  ] as const) {
+    assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyWorlds), `the ${name} bind the worlds`)
+    assert.ok(bindsRecords(bindGroupLayouts, bindings.proxyTree), `the ${name} bind the tree`)
+  }
   assert.ok(widestSampled(layouts) <= WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage)
   // Their storage bindings within the guaranteed ones of a fragment stage: the water composite's
   // lobes target, read by load alone, is a read-only storage texture (`../../webgpu/water/`).

@@ -4,10 +4,9 @@
  * world made at run time, one structure. One buffer (`bounce/runtimeLayout.ts`) holds an instance of four
  * words a placement — written next to the culling's own rows, the same `w` —, one for each blended copy the
  * forward family draws (the members after the placements, their worlds in the buffer: they are no member of
- * the culling's tree), a surface a drawn material, the arena of the meshes' proxies, each uploaded once, when
- * a placement or a copy first wears it, and the mirror of the culling's placement tree (`mirror`). The
- * placements' worlds are the culling's, read where they lie (`worldTable.ts`): nothing of them is copied. The
- * buffer is one storage binding, the one fit rule of the cut's buffers (`pastBinding`): a layout past it is
+ * the culling's tree), a surface a drawn material, and the arena of the meshes' proxies, each uploaded once,
+ * when a placement or a copy first wears it. The placements' worlds and the placement tree are the culling's,
+ * read where they lie (`worldTable.ts`, `treeTable.ts`): nothing of them is copied. The buffer is one storage binding, the one fit rule of the cut's buffers (`pastBinding`): a layout past it is
  * refused by name (`refusal`) and no buffer is made.
  *
  * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
@@ -46,10 +45,8 @@ import {
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
-import { copyParts, type DagParts } from './split.ts'
 import { pastBinding } from './bufferTable.ts'
-import { treeNodeCount } from './placementTree.ts'
-import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
+import { type DagRoot, type PackedDag } from './types.ts'
 
 /** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
  *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */
@@ -68,8 +65,6 @@ type WriteArgs =
 type Resources = {
   device: GPUDevice
   packed: PackedDag
-  nodeParts: DagParts
-  coldParts: DagParts
 }
 
 /** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
@@ -111,14 +106,9 @@ export type PoseHost = {
 /** A surface slot: the words it holds are those of a version of its record, under a tint. */
 type Held = { slot: number; version: number; at: number }
 
-export function createProxyInstances({ device, packed, nodeParts, coldParts }: Resources) {
+export function createProxyInstances({ device, packed }: Resources) {
   const tree = packed.placementTree
   const slots = Math.max(1, packed.worldCount)
-  // The tree's nodes and its members' order as the mirror holds them (`mirror`), copied from the parts
-  // that hold them, one span a part where two share them (`copyParts`): the tree is always walked.
-  const walksTree = !!tree
-  const treeWords = tree ? treeNodeCount(tree) * DAG_NODE_FLOATS : 0,
-    memberWords = tree ? tree.capacity : 0
   let words = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
   // The instance a placement wears now, and the one it keeps while parked.
   const resolved = new Uint32Array(slots * INSTANCE_WORDS).fill(RUNTIME_NONE)
@@ -154,9 +144,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
       trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
       childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS,
-      treeAt = childrenAt + nodes.capacity * PROXY_NODE_WORDS,
-      membersAt = treeAt + treeWords,
-      deformAt = membersAt + memberWords
+      deformAt = childrenAt + nodes.capacity * PROXY_NODE_WORDS
     return {
       instances,
       copyWorlds: copyWorldsAt,
@@ -164,8 +152,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
       triangles: trianglesAt,
       bounds: boundsAt,
       children: childrenAt,
-      tree: treeAt,
-      members: membersAt,
       deform: deformAt,
       total: deformAt + corners.capacity,
     }
@@ -179,11 +165,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
   // Why the proxy holds no buffer although a placement wears one: its layout past one storage binding of
   // this device, by the cut's one fit rule (`pastBinding`). Never undone: the layout only grows.
   let refusal: string | undefined
-
-  // The tree's revision the mirror last copied (`TreeFollower.revision`): a still tree copies nothing. Its
-  // member order moves only where roots join it (`appended`): copied then, and into a buffer new made.
-  let treeCopied = NaN,
-    membersCopied = false
 
   // The placements standing, and their world boxes for the probes' occupancy map (`proxyBoxes.ts`).
   const live = () => packed.live?.worlds ?? packed.worldSources.length
@@ -207,11 +188,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
     head[at.copyWorldsWord] = layout.copyWorlds
     head[at.boundsWord] = layout.bounds
     head[at.childrenWord] = layout.children
-    head[at.treeRoot] = walksTree ? tree!.levels[0].base : RUNTIME_NONE
-    head[at.treeFirst] = walksTree ? tree!.cellBase : 0
-    head[at.treeWord] = layout.tree
-    head[at.membersWord] = layout.members
-    head[at.members] = walksTree ? tree!.count : packed.worldSources.length
+    // The tree's top, its node 0 (`placementTree.ts`), read in its record table (`treeTable.ts`).
+    head[at.treeRoot] = tree ? 0 : RUNTIME_NONE
+    head[at.members] = tree ? tree.count : packed.worldSources.length
     headFloats[at.error] = error
     head[at.copies] = copies.length
     return head
@@ -227,8 +206,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
       refusal = `the run-time proxy needs ${bytes} bytes, past one storage binding of ${past.limit}`
       return undefined
     }
-    treeCopied = NaN
-    membersCopied = false
     // Made in the device's ledger, as every resource the engine allocates (`constructGpuResources`).
     const made = constructGpuResources(device, () =>
       device.createBuffer({
@@ -529,26 +506,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
     get refusal() {
       return refusal
     },
-    /**
-     * The placement tree copied into the proxy's buffer, in `encoder`, before the first program of the image
-     * that traces it: the tree's nodes as the culling's refit left them, when it moved them — ninety-six bytes
-     * a node, some four hundred kilobytes at a quarter of a million placements —, and the order of its members
-     * when roots joined it, four bytes a member (a megabyte there, which a refit no longer copies again); no
-     * tree copies nothing to walk.
-     */
-    mirror(encoder: GPUCommandEncoder, treeRevision: number) {
-      if (!buffer || !walksTree || !tree) return
-      if (treeRevision !== treeCopied) {
-        treeCopied = treeRevision
-        const nodesAt = tree.cellBase * DAG_NODE_FLOATS * 4
-        copyParts(encoder, nodeParts, nodesAt, buffer, byteAt(layout.tree), treeWords * 4)
-      }
-      if (!membersCopied) {
-        membersCopied = true
-        const membersAt = tree.members * 4
-        copyParts(encoder, coldParts, membersAt, buffer, byteAt(layout.members), memberWords * 4)
-      }
-    },
     /** The world box of each placement that wears a proxy, and which of them are new or moved since the last
      *  call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
     worldBoxes: boxes.worldBoxes,
@@ -601,12 +558,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts }: R
     worldsRange(from: number, to: number) {
       for (let w = from; w < to; w++) worldWritten(w)
     },
-    /** Roots `[from, to)` were appended behind the others: their instances, and the tree's nodes and member
-     *  order they joined, copied at the next `mirror`. */
+    /** Roots `[from, to)` were appended behind the others: their instances. */
     appended(from: number, to: number) {
       write(from, to)
-      treeCopied = NaN
-      membersCopied = false
     },
     /** The blended copies the forward family draws, members of this proxy after the placements: their
      *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */

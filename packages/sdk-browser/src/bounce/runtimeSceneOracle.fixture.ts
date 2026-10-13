@@ -96,14 +96,10 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
     }
     return copiesOf(scene, o, d, best, s)
   }
-  const nodes = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length)
-  const cold = new Uint32Array(
-    packed.pageCones.buffer,
-    packed.pageCones.byteOffset,
-    packed.pageCones.length,
-  )
-  const float = (n: number, at: number) => packed.nodes[n * DAG_NODE_FLOATS + at]
-  const at: number[] = [tree.levels[0].base],
+  // The tree's nodes, indexed within the tree (`treeTable.ts`): its top is node 0.
+  const nodes = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset, tree.nodes.length)
+  const float = (n: number, at: number) => tree.nodes[n * DAG_NODE_FLOATS + at]
+  const at: number[] = [0],
     next: number[] = [0]
   let done = false
   for (let step = 0; step < 2 * RAY_WORK; step++) {
@@ -128,7 +124,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
     s.work += 1
     const first = nodes[node * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
     if (nodes[node * DAG_NODE_FLOATS + NODE_KIND] === TREE_GROUP) {
-      const w = cold[tree.members + first + k]
+      const w = tree.order[first + k]
       if (w !== RUNTIME_NONE) best = enter(scene, w, o, d, best, s)
     } else {
       const child = first + k

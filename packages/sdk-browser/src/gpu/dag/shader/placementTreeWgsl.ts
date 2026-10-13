@@ -1,4 +1,5 @@
 import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
+import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND, NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
@@ -8,7 +9,9 @@ import { LEVEL_QUEUES } from './levelWgsl.ts'
 /**
  * The placement tree in the descent (`../placementTree.ts`): its levels top first, the last its
  * instance groups, then the placements a kept group holds, each level culled before the next one
- * is read.
+ * is read. Its nodes, its order and its list of members drawn whatever the view are read where
+ * they lie, in its record table (`tree`, `../treeTable.ts`); a queue entry names node `t` of it as
+ * `cellBase + t`, past the placements' own nodes.
  *
  * A tree node is a world box tested against the frustum's render-frame planes, the eye taken off it
  * (`cameraWorld`), under the camera, then — rejected there — under the view ahead, as any node
@@ -51,12 +54,12 @@ fn openRoot(at:u32,w:u32){
  *  \`j\`. */
 fn prepareTreeRoots(i:u32){
  let top=select(0u,views[0u].treeTop,rangeFirst()==0u);
- if(i<top){putEntry(queueBase(0u),i,packEntry(0u,views[0u].cellBase+i),0u);return;}
+ if(i<top){putEntry(queueBase(0u),i,packEntry(0u,treeEntry(i)),0u);return;}
  let w=views[0u].worldRoot;
  if(i==top){if(w!=0xffffffffu&&inRange(w)){vi=0u;openRoot(views[0u].treeTop,w);}return;}
  let j=i-top-1u;
  if(j>=views[0u].alwaysCount){return;}
- let m=coldAt(views[0u].always+j);
+ let m=treeAlwaysAt(j);
  if(inRange(m)){vi=0u;openRoot(views[0u].treeTop+select(0u,1u,w!=0xffffffffu)+j,m);}
 }
 `,
@@ -67,35 +70,43 @@ export const DAG_TREE_DESCENT_WGSL = wgslBlock(
   'DAG_TREE_DESCENT_WGSL',
   [boxBehindPlane],
   `const TREE_GROUP:u32=${TREE_GROUP}u;
-/** Member \`k\` of the tree's order (\`members\`, behind the cold records), deposited by its kept group
- *  under the view \`vi\`: its root tested as pass 0 tests an ungrouped one, unless its gate closes
- *  it (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
+/** The queue entry of node \`t\` of the tree: past the placements' own nodes. */
+fn treeEntry(t:u32)->u32{return views[0u].cellBase+t;}
+/** Member \`k\` of the tree's order (\`treeMember\`), deposited by its kept group under the view
+ *  \`vi\`: its root tested as pass 0 tests an ungrouped one, unless its gate closes it
+ *  (\`opensRoot\`) or queue 0 opened it already (\`drawnAlways\`). */
 fn placementStep(src:u32,k:u32){
- let w=coldAt(views[0u].members+k);
+ let w=treeMember(k);
  if(w==0xffffffffu||!inRange(w)||!opensRoot(w)||drawnAlways(w)){return;}
  nodeStep(src,rootOf(w),w);
 }
-/** A cell or a group of the tree: its world box under the camera, then under the view ahead. Its
+/** Node \`t\`'s box corner from word \`k\`. */
+fn treeCorner(t:u32,k:u32)->vec3f{
+ return vec3f(bitcast<f32>(treeWord(t,k)),bitcast<f32>(treeWord(t,k+1u)),bitcast<f32>(treeWord(t,k+2u)));
+}
+/** Cell or group \`t\` of the tree: its world box under the camera, then under the view ahead. Its
  *  world is the first (\`NODE_WORLD\`), so one range's dispatch reads it. */
-fn treeStep(src:u32,node:CullNode){
- if(!inRange(node.worldIndex)){return;}
+fn treeStep(src:u32,t:u32){
+ if(!inRange(0u)){return;}
  deformReach=0.0;
- let lo=node.minimum-views[0u].cameraWorld;let hi=node.maximum-views[0u].cameraWorld;
- if(aheadOn()&&vi==AHEAD_VIEW){if(!outsideView(AHEAD_VIEW,lo,hi)){descendTree(src,node);}return;}
+ let lo=treeCorner(t,${NODE_MIN}u)-views[0u].cameraWorld;let hi=treeCorner(t,${NODE_MAX}u)-views[0u].cameraWorld;
+ if(aheadOn()&&vi==AHEAD_VIEW){if(!outsideView(AHEAD_VIEW,lo,hi)){descendTree(src,t);}return;}
  if(outsideView(0u,lo,hi)){
   atomicAdd(&out.frustumRejected,1u);
-  if(aheadOn()&&!outsideView(AHEAD_VIEW,lo,hi)){vi=AHEAD_VIEW;descendTree(src,node);}
+  if(aheadOn()&&!outsideView(AHEAD_VIEW,lo,hi)){vi=AHEAD_VIEW;descendTree(src,t);}
   return;
  }
- descendTree(src,node);
+ descendTree(src,t);
 }
 /** View \`v\`'s frustum test of a render-frame box, as \`outsideFrustum\` tests a primitive's: an
  *  infinite far plane (a NaN plane, \`farless\`) rejects nothing. */
 ${outsidePlanesFn('outsideView', '', (i) => `views[v].planes[${i}]`)}
-/** A kept cell opens its groups, a kept group its placements, in the next queue. */
-fn descendTree(src:u32,node:CullNode){
- let first=select(node.firstChild,views[0u].nodeCount+node.firstChild,node.kind==TREE_GROUP);
- queueAppend((src+1u)%${LEVEL_QUEUES}u,first,node.childCount,0u);
+/** A kept cell opens its children, nodes of the tree, a kept group its members, in the next
+ *  queue. */
+fn descendTree(src:u32,t:u32){
+ let first=treeWord(t,${NODE_FIRST_CHILD}u);
+ let group=treeWord(t,${NODE_KIND}u)==TREE_GROUP;
+ queueAppend((src+1u)%${LEVEL_QUEUES}u,select(treeEntry(first),views[0u].nodeCount+first,group),treeWord(t,${NODE_CHILD_COUNT}u),0u);
 }
 `,
 )

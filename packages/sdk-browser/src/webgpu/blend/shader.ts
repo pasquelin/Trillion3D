@@ -46,6 +46,7 @@ const blendProgram = (key: Partial<ContractKey>) => {
         group: 0,
         proxy: BLEND_BINDINGS.proxy,
         worlds: BLEND_BINDINGS.proxyWorlds,
+        tree: BLEND_BINDINGS.proxyTree,
       }),
       reflectionLightViewWgsl(REFLECTION_GROUP),
       REFLECTION_FRONT_WGSL,

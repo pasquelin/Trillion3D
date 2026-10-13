@@ -129,26 +129,25 @@ test('past its first tables the arena grows, the columns it held carried over by
   selection.dispose()
 })
 
-test('the trace reads the culling’s worlds: a moved placement sends no byte into the proxy', async () => {
+test('the trace reads the culling’s worlds and tree: a moved placement sends no byte into the proxy', async () => {
   const c = cut(2, 1, 1),
     s = surface(1)
   const { gpu, selection, packed, roots } = await open(() => ({
     primitive: { runtimeProxy: c },
     surface: s,
   }))
-  assert.equal(selection.proxy()!.worlds, selection.worlds, 'the cut’s own table, read in place')
-  const sent = writes(gpu).length,
-    copies: number[] = []
-  const encoder = {
-    copyBufferToBuffer: (_a: unknown, _b: number, _c: unknown, _at: number, size: number) =>
-      void copies.push(size),
-  } as unknown as GPUCommandEncoder
+  const proxy = selection.proxy()!
+  assert.equal(proxy.worlds, selection.worlds, 'the cut’s own table, read in place')
+  assert.equal(
+    (proxy.tree as unknown as { texture: { label: string } }).texture.label,
+    'Trillion3D placement tree',
+    'and the cut’s tree, in its own table',
+  )
+  const sent = writes(gpu).length
   ;(roots[5].world.elements as Float64Array)[12] += 40
   ;(roots[6].world.elements as Float64Array)[0] = 2
   selection.updateWorlds(Float32Array.from(packed.worlds))
   selection.worldsMovedOnGpu([3, 4])
-  selection.proxyMirror(encoder)
   assert.equal(writes(gpu).length, sent, 'no write')
-  assert.deepEqual(copies, [], 'no copy')
   selection.dispose()
 })

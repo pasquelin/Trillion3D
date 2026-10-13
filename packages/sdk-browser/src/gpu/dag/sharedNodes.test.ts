@@ -48,8 +48,8 @@ function field(count: number) {
 }
 
 test('the node table holds each primitive once, from one placement to ten thousand', () => {
-  const nodesOf = (packed: PackedDag) =>
-    packed.nodes.byteLength / (DAG_NODE_FLOATS * 4) - treeNodeCount(packed.placementTree)
+  // The tree's nodes live in its own table (`treeTable.ts`): the node table holds the primitives'.
+  const nodesOf = (packed: PackedDag) => packed.nodes.byteLength / (DAG_NODE_FLOATS * 4)
   const one = packDagSelection(field(1))
   for (const count of [1, 100, 10_000]) {
     const packed = packDagSelection(field(count))
