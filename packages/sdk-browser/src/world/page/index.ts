@@ -1,7 +1,11 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts'
-import { createGpuPageCache, httpPageSource } from '../../gpu/page/pages.ts'
+import { createGpuPageCache } from '../../gpu/page/pages.ts'
 import { families } from '../../host/families.ts'
 import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
+import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageCache } from '../../streaming/pageCache.ts'
+import type { StreamPage } from '../../streaming/types.ts'
+import { loadedSdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** Where pages are read from, and the address they are read against. */
 export type WorldPageSource = PageSource & {
@@ -25,13 +29,38 @@ export interface PageStreamer {
  */
 export const page = {
   /**
-   * A page source that reads pages over HTTP from `baseUrl`; `dispose` cancels its reads.
+   * A page source that reads the pages `p.pages` lists over HTTP from `baseUrl`, through the
+   * engine's page streaming (`createPageStreamer`): one bounded queue ordered by each read's
+   * `priority`, over `p.cache`, the host cache its owner shares with every reader
+   * (`createPageCache`). Each page is checked against its size and fingerprint as it lands, then by
+   * the geometry page format's own gate (`checkGeometryPage`, the engine's source's too:
+   * `webgpu/pages/readPage.ts`) before it is handed on: a GPU page pool uploads its words as they
+   * are. The gate is the page decoder's chunk, downloaded beside the first read. `dispose` cancels
+   * its reads; the cache stays its owner's.
    * @param baseUrl - The address pages are read against.
+   * @param p - The pages it may read, and the host cache it reads through.
    */
-  httpSource: (baseUrl: string): WorldPageSource & { dispose(): void } => ({
-    ...httpPageSource(baseUrl),
-    baseUrl,
-  }),
+  httpSource: (
+    baseUrl: string,
+    p: { pages: readonly StreamPage[]; cache: PageCache },
+  ): WorldPageSource & { dispose(): void } => {
+    const streamer = createPageStreamer(p.pages, baseUrl, {
+      cache: p.cache,
+      workerCount: DEFAULT_PAGE_WORKERS,
+    })
+    return {
+      baseUrl,
+      async read(key: string, signal = streamer.signal, priority?: number) {
+        const [codec, bytes] = await Promise.all([
+          families.pageCodec.load(),
+          streamer.readBytes(key, signal, priority),
+        ])
+        codec.checkGeometryPage(loadedSdkWasm(), bytes)
+        return bytes
+      },
+      dispose: streamer.dispose,
+    }
+  },
   /**
    * Describes how a model's pages are fetched: from which source, by how many workers.
    * @param p - The page source, and how many workers fetch at once.

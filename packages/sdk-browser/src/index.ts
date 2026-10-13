@@ -139,7 +139,6 @@ export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
 export {
   createGpuPageCache,
-  httpPageSource,
   type GpuPageCacheOptions,
   type ResidentPage,
 } from './gpu/page/pages.ts'
@@ -161,7 +160,6 @@ export {
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxTransformBatch,
   boxTransformUnionBatch,
   boxUnionBatch,
   composeMatrix4Batch,
@@ -169,7 +167,6 @@ export {
   frustumKeepsBoxBatch,
   invertMatrix4Batch,
   linearToSrgbBatch,
-  multiplyMatrix4Batch,
   normalMatrix3Batch,
   sphereFromBoundsBatch,
   srgbToLinearBatch,
