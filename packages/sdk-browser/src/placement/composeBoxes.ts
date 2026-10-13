@@ -13,7 +13,7 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { ComposeState } from './gpuCompose.ts'
+import type { ComposeState } from './gpuComposeState.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 
 const reachBox = new Float64Array(BOX_VALUES)

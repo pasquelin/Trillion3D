@@ -1,4 +1,4 @@
-import type { ComposeState } from '../../placement/gpuCompose.ts'
+import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import type { RootWorlds } from '../../placement/rootWorlds.ts'
 import type { RowWords } from '../../placement/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/webgpuGrowth.ts'

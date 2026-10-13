@@ -17,7 +17,7 @@ import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { writeRanges } from '../gpu/dag/split.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { NONE } from './gpuComposeWgsl.ts'
-import type { ComposeState } from './gpuCompose.ts'
+import type { ComposeState } from './gpuComposeState.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /**

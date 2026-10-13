@@ -1,0 +1,65 @@
+/**
+ * THE CPU WORLD OF A ROOT A PARENT COMPOSES (`gpuCompose.ts`): lazy, its `elements` composed on
+ * read — one product a read, none a move.
+ */
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { NONE } from './gpuComposeWgsl.ts'
+import type { ComposeState } from './gpuComposeState.ts'
+
+/**
+ * The composed world of root `rank`, as a CPU reader reads it: its parent's world times its local
+ * matrix, by `multiplyMatrix4` — the doubles the GPU composes (`gpuComposeWgsl.ts`) —, written into
+ * the root's row view the first time it is read since a parent or a link moved, never otherwise: a
+ * reader costs one product, and a move of the parent none. The roots a parent composes carry this
+ * as the `elements` of their world (`installComposedWorld`), so every CPU reader of a world — the
+ * impostor cards, the winding of a row's draw bin, a row written again — reads the world the GPU
+ * draws, and nothing writes it between two reads.
+ */
+function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
+  if (state.refreshed[rank] === state.version) return
+  state.refreshed[rank] = state.version
+  const slot = state.parentOf[rank]
+  if (slot === NONE) return
+  multiplyMatrix4(
+    view,
+    state.worlds.subarray(slot * 16, slot * 16 + 16),
+    state.localMats.subarray(rank * 16, rank * 16 + 16),
+  )
+}
+
+/** The `elements` of root `rank`'s world refresh on read (`composedWorld`); its `stamp` moves with
+ *  the composition, which a memo of what is derived from the world is keyed by. */
+export function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
+  const world = rt.layout.selectionRoots[rank]?.world as
+    (MatrixElements & { stamp?: number }) | undefined
+  if (!world || Object.getOwnPropertyDescriptor(world, 'elements')?.get) return
+  const view = world.elements as Float64Array
+  const state = rt.compose!
+  state.refreshed[rank] = 0
+  Object.defineProperty(world, 'elements', {
+    configurable: true,
+    enumerable: true,
+    get: () => (composedWorld(state, rank, view), view),
+  })
+  Object.defineProperty(world, 'stamp', {
+    configurable: true,
+    get: () => (state.parentOf[rank] === NONE ? 0 : state.version),
+  })
+}
+
+/** Root `rank`'s world is a plain view again: a parent composes it no more. */
+export function removeComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
+  const world = rt.layout.selectionRoots[rank]?.world as
+    (MatrixElements & { stamp?: number }) | undefined
+  if (!world || !Object.getOwnPropertyDescriptor(world, 'elements')?.get) return
+  const view = world.elements
+  delete world.stamp
+  Object.defineProperty(world, 'elements', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: view,
+  })
+}

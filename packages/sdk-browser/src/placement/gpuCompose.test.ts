@@ -3,7 +3,8 @@
 // pass announces the move to the selection on exactly the frames a parent moved.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { askComposedPlacements, composeWebgpuPlacements } from './gpuCompose.ts'
+import { composeWebgpuPlacements } from './gpuCompose.ts'
+import { askComposedPlacements } from './gpuComposeFrame.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { NONE } from './gpuComposeWgsl.ts'

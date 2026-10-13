@@ -4,7 +4,7 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { linkWorldObjects } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
-import { composedLeaves } from '../../../placement/gpuCompose.ts'
+import { composedLeaves } from '../../../placement/gpuComposeLeaves.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../../diagnostic/log.ts'
 

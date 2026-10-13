@@ -1,7 +1,7 @@
 // A session of two roots the GPU composes under a parent, for the compose tests: its selection
 // counts the world revisions it is told of, its device records what it is asked.
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { encodeComposedRoots } from './gpuCompose.ts'
+import { encodeComposedRoots } from './gpuComposeEncode.ts'
 import { createPlacementRows } from './rows.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
