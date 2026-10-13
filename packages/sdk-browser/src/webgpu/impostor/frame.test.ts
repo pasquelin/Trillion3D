@@ -77,7 +77,7 @@ test('a switched root draws its card in visibility and surfaces once its tiles r
   // Surfaces: where the identifier kept is the card's own, read by equality: no depth is compared;
   // the feedback target beside them, loaded, its pixels asking the tiles they read.
   encodeImpostorCards(rt, encoder)
-  const surfacePass = gpu.passDescriptors[first + 1]
+  const surfacePass = gpu.passDescriptors[first + 1] as GPURenderPassDescriptor | undefined
   assert.equal(surfacePass?.label, IMPOSTOR_PASS)
   const attachments = [...surfacePass!.colorAttachments]
   assert.equal(attachments.length, 5)

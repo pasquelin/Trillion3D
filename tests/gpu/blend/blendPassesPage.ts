@@ -7,6 +7,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
+import type { Side } from '../../../packages/sdk-core/src/index.ts'
 
 /** Where each tile stands, its centre in the plane `z = 0`. */
 export const AT = {
@@ -37,7 +38,7 @@ function scene(redZ: number, greenZ: number, rest: boolean) {
   if (rest) {
     // Both turned to show their back.
     const back = { y: Math.PI }
-    const yellow = (side: number) => blended(0xffff00, side, 0.6)
+    const yellow = (side: Side) => blended(0xffff00, side, 0.6)
     builder.place(yellow(G.DOUBLE_SIDE), 'clustered-blend', TILE, [...AT.doubleSided, 0], back)
     builder.place(yellow(G.FRONT_SIDE), 'clustered-blend', TILE, [...AT.frontOnly, 0], back)
     const masked = (opacity: number) =>

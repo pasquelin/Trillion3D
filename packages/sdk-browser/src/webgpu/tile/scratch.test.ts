@@ -9,7 +9,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
-import type { PageSurface } from '../../page/surface.ts'
+import * as G from '../../host/graph/graph.fixture.ts'
 
 type Copy = {
   source: { source: unknown; flipY?: boolean }
@@ -113,7 +113,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
     host.premultiplyAlpha = premultiplyAlpha
     const map = host
     const readers = new CoverageReaders()
-    readers.read({ map, alphaTest: coverage ? 0.5 : 0, transparent: false } as PageSurface)
+    readers.read(G.standardSurface({ map, alphaTest: coverage ? 0.5 : 0 }))
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const
     createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers }).reduce()
     return computePipelines

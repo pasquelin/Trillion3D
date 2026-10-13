@@ -91,7 +91,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     clearValueOf(frame.background ?? 0),
     false,
     direct,
-    0,
   )
   // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
   // no placement.

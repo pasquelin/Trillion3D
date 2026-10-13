@@ -9,7 +9,7 @@ import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { scene } from '../core/materialClasses.fixture.ts'
-import type * as G from '../../host/graph/graph.fixture.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
@@ -40,11 +40,7 @@ function opened() {
     return ints[PAGE_INFO.at.materialClass]
   }
   const census = createShadeCensus(allPages, geometryBlocks, layers)
-  const cutout = meshes[0].material as unknown as {
-    alphaTest: number
-    emissive: G.Color
-    needsUpdate: boolean
-  }
+  const cutout = meshes[0].material as PageSurface
   return { census, rowClass, allPages, cutout }
 }
 
