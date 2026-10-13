@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRowUse } from './rowUse.ts'
-import { EVICT_IN_USE } from '../../gpu/dag/evict.ts'
+import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { rowIdleSpan } from './rowCache.fixture.ts'
 

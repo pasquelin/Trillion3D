@@ -1,6 +1,6 @@
 import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './levelWgsl.ts'
 import { RAISED_PER_GROUP } from './floorWgsl.ts'
-import { EVICT_IN_USE } from '../evict.ts'
+import { EVICT_IN_USE } from '../../pool/rank.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { GROUP_GRID_WGSL } from '../../dispatch/grid.ts'
 import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'

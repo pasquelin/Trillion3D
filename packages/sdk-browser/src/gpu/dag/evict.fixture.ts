@@ -1,13 +1,8 @@
 import { REQUEST_AHEAD } from './request.ts'
 import { sortStaged, stagedPage, stagedRequest } from './request.fixture.ts'
-import {
-  EVICT_AGES,
-  EVICT_IN_USE,
-  EVICT_LEVELS,
-  KEY_PAGE_BITS,
-  OLD_STEP,
-  canonicalPage,
-} from './evict.ts'
+import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
+import { EVICT_IN_USE, OLD_STEP, POOL_RANKS, POOL_TIERS } from '../pool/rank.ts'
+import { poolRank } from '../pool/rank.fixture.ts'
 import { groupParentBase, keyGroupBase, keyWordBase, recordKeyBase } from './layout.ts'
 import type { PackedDag } from './types.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
@@ -48,19 +43,9 @@ export function raiseGroups(
 /** The clock a page the view ahead asks for is stamped with at frame `now` (`stampAhead`). */
 export const aheadClock = (now: number) => Math.max(now, EVICT_IN_USE) - EVICT_IN_USE
 
-/** The age step a rank is made of, as `bitLength` in the kernel: one step a doubling. */
-export const ageStep = (age: number) => Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0))
-
-/** Rank of a key in the queue, the highest evicted first: older age step, then finer level.
- *  Integer only, as `evictRank` in the kernel; `undefined` for a key in use. */
-function evictionRank(keyWordOf: number, age: number) {
-  if (age < EVICT_IN_USE) return undefined
-  return ageStep(age) * EVICT_LEVELS + (EVICT_LEVELS - 1 - (keyWordOf >>> KEY_PAGE_BITS))
-}
-
 /**
  * CPU mirror of `dagListEvictions`: the pool's listed content keys (`poolList.ts`) no view uses, by
- * `evictionRank` through `sortStaged`, the first `cap`, each as its canonical page — within a rank,
+ * `poolRank` through `sortStaged`, the first `cap`, each as its canonical page — within a rank,
  * page order —, and how many of them form the OLD head (`OLD_STEP`).
  */
 export function listEvictions(options: {
@@ -75,9 +60,9 @@ export function listEvictions(options: {
   const words: number[] = []
   let old = 0
   for (const key of pool) {
-    const rank = evictionRank(keyWords[key], now - useOf(key))
-    if (rank === undefined) continue
-    if (rank >= OLD_STEP * EVICT_LEVELS) old++
+    const rank = poolRank(now - useOf(key), keyWords[key] >>> KEY_PAGE_BITS, EVICT_IN_USE)
+    if (rank >= POOL_RANKS) continue
+    if (rank >= OLD_STEP * POOL_TIERS) old++
     words.push(stagedRequest(canonicalPage(keyWords[key]), rank ^ REQUEST_AHEAD))
   }
   const queue = sortStaged(words).slice(0, Math.max(0, cap)).map(stagedPage)
