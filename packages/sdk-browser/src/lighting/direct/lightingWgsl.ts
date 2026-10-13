@@ -6,7 +6,6 @@ import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
-import { directLightSamplingWgsl } from './lightSamplingWgsl.ts'
 import {
   CONTRACT_VSM_BINDINGS,
   directShadowWgsl,
@@ -161,11 +160,10 @@ const DIRECT_BINDINGS: LightingBindings = {
  * lighting written in the scene. A surface that no declared light reaches is exactly zero,
  * and a windowless corridor stays black in full daylight.
  *
- * `view.viewport.w` is the rank of a SAMPLED image — a moving one that temporal antialiasing
- * accumulates — and zero for every other: a still image, which converges to the exact sum,
- * and an image that does not accumulate, which is never noisy. At zero the loop is the one
- * over every light of the cell, character for character; so is it on a sampled image whose cell
- * lists no shadowed light (#1249), a flag the grid pass writes once in the cell's count.
+ * Every pixel, moving or still, sums every light of its cell's list, character for character the
+ * same loop: the shadow rays are traced once, by the projection, for every pixel a shadowed light
+ * reaches, so the resolve pays a light's shading and a cached mask byte, never a ray — no subset to
+ * draw, no noise for the history to average.
  *
  * The program `key` names (`ContractKey`, `LOBELESS_KEY` unless given). `narrow`, the resolve of a
  * scene of at most `TILE_LIGHTS` lights (#849): its light array is that long. `unshadowed`, the
@@ -182,18 +180,13 @@ export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
       lightingBase(DIRECT_BINDINGS, key, { narrow: !!key.narrow }),
       key.lobeless ? LOBELESS_TARGET_WGSL : LOBES_TARGET_WGSL,
       pixelCellWgsl(!key.unshadowed),
-      directLightSamplingWgsl(!key.rectless),
     ],
     `
-/** Contribution of the contract lights to the pixel, light by light of its cell's list;
- *  \`shadowed\` is \`cellShadowed(cell)\`. The full sum has this one call site: a list the draw
- *  refuses — short, long, or with no room in the pool — takes it, as a still image does. */
-fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,cell:u32,shadowed:bool)->vec3f{
+/** Contribution of the contract lights to the pixel, light by light of its cell's list: the full
+ *  sum, moving or still. */
+fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,cell:u32)->vec3f{
  if(cell==TILE_NO_SLICE){return vec3f(0.0);}
- let slice=cellSlice(cell);
- let rank=u32(view.viewport.w);
- if(rank==0u||!shadowed||slice.x==TILE_NO_SLICE||!sampledList(slice.y)){return sliceLighting(rgb,metal,rough,N,V,P,ao,slice);}
- return sampledSliceLighting(rgb,metal,rough,N,V,P,ao,slice,rank,pixel);
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(cell));
 }`,
   )
 

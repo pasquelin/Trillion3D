@@ -55,7 +55,6 @@ export const UNMEASURED: FrameMetrics = {
   uncoveredTriangles: null,
   drawnTriangles: null,
   lightsActive: null,
-  lightsSampled: null,
   shadowVsmLights: null,
   shadowVsmMaps: null,
   shadowVsmPagesRequested: null,

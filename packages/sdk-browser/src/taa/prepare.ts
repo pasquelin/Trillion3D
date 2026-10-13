@@ -59,7 +59,6 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     const history = view.temporal
     restartTaaAverage(history?.frame)
     if (!history) continue
-    history.frame.sampledRank = 0
     history.checkpoint(false)
     if (on) joinTargets(view)
     else releaseHistory(view)

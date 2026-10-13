@@ -4,7 +4,6 @@ import { releaseTargets } from '../prepare/targets.ts'
 import { dropBlendBuffers } from '../../blend/buffers.ts'
 import { disposeBlendResources } from '../../blend/resources.ts'
 import { directLightTimings, passOwnMs } from '../../../stage/mapping.ts'
-import { taaSampledRank } from '../../../taa/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { markWebgpuLost } from './lost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -91,7 +90,6 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
     hizCountedFrame,
     lightsActive: lights.lightsActive,
-    lightsSampled: lights.lightsActive > 0 && taaSampledRank(rt) > 0,
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),
   }

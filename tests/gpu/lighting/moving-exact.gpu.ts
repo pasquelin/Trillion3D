@@ -1,10 +1,10 @@
 // A moving image's resolve on a real GPU: the shipped `directLightingWgsl`, through
-// `contractLighting` at a sampled rank, on random lamp sets of 1 to 256 and their edge cases — a
-// lamp that reaches one sample only, a cell every lamp reaches. A list with no shadowed light sums
-// what the still image (rank 0) sums, bit for bit; a list with one shadowed light sums what
-// `sampledSliceLighting` — the resolve every moving list ran before — sums, bit for bit.
+// `contractLighting` with a moving image's rank left in the view's fourth viewport word, on random
+// lamp sets of 1 to 256 and their edge cases — a lamp that reaches one sample only, a cell every lamp
+// reaches. Every list, shadowed or not, sums what the still image (rank 0) sums, bit for bit: the
+// resolve never draws a subset of its lights (it did for a shadowed list of more than four).
 //
-//   node bench/dawn/proofs.ts tests/gpu/lighting/sampled-resolve.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/lighting/moving-exact.gpu.ts
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
@@ -20,8 +20,7 @@ import {
 } from './resolveCases.ts'
 
 const LIST = LIGHT_SETTINGS.tileLights
-const SAMPLES = LIGHT_SETTINGS.samplesPerPixel
-/** A moving image's rank: any but zero. */
+/** A moving image's rank, as the view once carried it: any but zero. */
 const RANK = 37
 const draw = resolveRandom(1249)
 const { r, between, vector, unit } = draw
@@ -63,16 +62,9 @@ const listOf = (set: Lamp[]) =>
 
 /** A cell's record of `list`, named, as the grid pass of a scene of `count` lamps writes it:
  *  `shadowed` the listed ranks that carry a shadow slot, so the flag is the pass's. */
-const record = (
-  name: string,
-  list: number[],
-  count: number,
-  drawn = false,
-  shadowed: number[] = [],
-) => ({
+const record = (name: string, list: number[], count: number, shadowed: number[] = []) => ({
   name,
   narrow: count <= LIST,
-  drawn,
   words: cellRecord(list, shadowed),
 })
 
@@ -84,32 +76,35 @@ sets.push([...lamps(20, 0.5), oneSample(), ...lamps(19, 0.5)]) // a lamp touchin
 sets.push(lamps(LIST, 0, true), lamps(256, 0, true)) // a tile every lamp reaches
 const lists = sets.map(listOf)
 
-/** Per set, three scenes: the moving resolve of the unshadowed lamps and the drawn function beside
- *  it; their still resolve; then, one listed lamp shadowed, the moving resolve, the drawn one and
- *  the moving program with no rectangle code. */
+/** Per set, four scenes: the moving and the still resolve of the unshadowed lamps; then, one
+ *  listed lamp shadowed, the moving and the still resolve and the moving program with no
+ *  rectangle code. */
 const SCENES: ResolveScene[] = sets.flatMap((set, s) => {
   const lights = set.map(lamp)
   const list = lists[s]
   const shadowed = list[Math.floor(list.length / 2)]
+  const shadowLights = lights.map((light, i) => ({ ...light, castsShadow: i === shadowed }))
+  const slots: [number, number][] = [[shadowed, 0]]
   return [
-    {
-      lights,
-      samples,
-      rank: RANK,
-      records: [record('moving', list, set.length), record('drawn', list, set.length, true)],
-    },
+    { lights, samples, rank: RANK, records: [record('moving', list, set.length)] },
     { lights, samples, rank: 0, records: [record('still', list, set.length)] },
     {
-      lights: lights.map((light, i) => ({ ...light, castsShadow: i === shadowed })),
+      lights: shadowLights,
       samples,
       rank: RANK,
-      slots: [[shadowed, 0]],
+      slots,
       records: [
-        record('shadowMoving', list, set.length, false, [shadowed]),
-        record('shadowDrawn', list, set.length, true, [shadowed]),
+        record('shadowMoving', list, set.length, [shadowed]),
         // The program with no rectangle code, moving too: the scene holds none.
-        { ...record('rectless', list, set.length, false, [shadowed]), rectless: true },
+        { ...record('rectless', list, set.length, [shadowed]), rectless: true },
       ],
+    },
+    {
+      lights: shadowLights,
+      samples,
+      rank: 0,
+      slots,
+      records: [record('shadowStill', list, set.length, [shadowed])],
     },
   ]
 })
@@ -123,8 +118,8 @@ before(async () => {
   )
   assert.equal(lists.at(-2)!.length, LIST, 'every lamp reaches the tile')
   assert.ok(
-    lists.some((l) => l.length > SAMPLES && l.length <= LIST),
-    'lists that were drawn',
+    lists.some((l) => l.length > 4 && l.length <= LIST),
+    'lists the moving resolve once drew',
   )
   assert.ok(
     lists.some((l) => l.length > LIST),
@@ -140,24 +135,19 @@ before(async () => {
   assert.equal(runs.length, SCENES.length)
   readings = sets.map((set, s) => ({
     name: `${set.length} lamps, ${lists[s].length} listed`,
-    sums: Object.assign({}, ...runs.slice(3 * s, 3 * s + 3)),
+    sums: Object.assign({}, ...runs.slice(4 * s, 4 * s + 4)),
   }))
 })
 
 test('a moving list with no shadowed light sums what the still image sums, bit for bit', () => {
-  let differed = 0
   for (const { name, sums } of readings) {
-    const { moving, drawn, still } = sums
-    assertSameBits(moving, still, name)
-    assert.ok(still.some(Boolean), `${name}: the samples are lit`)
-    differed += +drawn.some((word, i) => word !== still[i])
+    assertSameBits(sums.moving, sums.still, name)
+    assert.ok(sums.still.some(Boolean), `${name}: the samples are lit`)
   }
-  // Drawing changed the sums of the lists it drew: the moving image's sum really changed.
-  assert.ok(differed >= 5, `${differed} sets drawn differently from the still sum`)
 })
 
-test('a moving list holding a shadowed light sums what it was drawn to, bit for bit', () => {
-  for (const { name, sums } of readings) assertSameBits(sums.shadowMoving, sums.shadowDrawn, name)
+test('a moving list holding a shadowed light sums what the still image sums, bit for bit', () => {
+  for (const { name, sums } of readings) assertSameBits(sums.shadowMoving, sums.shadowStill, name)
 })
 
 test('the moving program with no rectangle code sums what the full one does, to four units in the last place', () => {

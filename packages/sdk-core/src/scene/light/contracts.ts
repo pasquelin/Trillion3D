@@ -84,13 +84,6 @@ export const LIGHT_SETTINGS = {
   /** Slices of the light grid to a doubling of the view depth, from the near plane. */
   gridSlicesPerOctave: 16,
   /**
-   * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
-   * others are weighed without their shadow, and the shaded ones are drawn in proportion, so
-   * the estimate is unbiased and temporal antialiasing averages it. A still image shades
-   * every light of its tile and converges to the exact sum; there, this number plays no part.
-   */
-  samplesPerPixel: 4,
-  /**
    * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
    * invalidation. A moving object only stales the pages its projected box covers.
    */

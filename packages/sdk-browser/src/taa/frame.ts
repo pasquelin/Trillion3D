@@ -1,7 +1,6 @@
 import { jitterViewProjection, taaJitter, taaStillFrames, upscalePhases } from './jitter.ts'
 import { writeTaaView } from './view.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
@@ -45,9 +44,6 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   if (converging) {
     if (state.stillPhase !== null) state.scale = rt.scale.wanted()
   } else {
-    // A moving image draws its lights from a rank of its own; a still one shades them all, and
-    // so does a moving one with no history yet — nothing would average its draws.
-    state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1
     // A still image is drawn at the controller's scale like a moving one, the frame's budget, in
     // targets made at the bounds' maximum (`allocated`): the resolve rebuilds the display's detail
     // from its jitter phases (`upscaleWgsl.ts`), averaged uniformly over their whole cycles before
@@ -194,13 +190,6 @@ export const taaArrivals = (rt: WebgpuPagesRuntime) => rt.gpu.temporal?.frame.st
 /** Jitter phases a still image averages: one without temporal accumulation. */
 export const taaPhaseCount = (rt: WebgpuPagesRuntime) =>
   rt.gpu.temporal?.frame.active ? rt.gpu.temporal.frame.phases : 1
-
-/** Rank of this image among those whose lighting is SAMPLED (moving, on a history that averages
- *  its draws), or zero: a still image, or one nothing averages, shades every light. */
-export function taaSampledRank(rt: WebgpuPagesRuntime) {
-  const temporal = rt.gpu.temporal
-  return temporal?.frame.active ? temporal.frame.sampledRank : 0
-}
 
 /**
  * True when a quiet image can be held without freezing an accumulation in progress: without

@@ -55,12 +55,12 @@ export function frameBudget(
   const fragments = layers.reduce((a, b) => a + b, 0)
   const lamps = atriumBenchLamps()
   const grid = countGrid(view, depths, lamps)
-  const work = countResolveWork(
+  const { work } = countResolveWork(
     view,
     depths,
     lamps,
     lamps.map((_, rank) => rank < MAX_SHADOW_SLICES),
-  ).after
+  )
   const material = countClassFragments(width, height, CLASSES, pose)
   const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0)
   const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels
@@ -86,12 +86,6 @@ export function frameBudget(
     row('lighting', 'light grid pass (`lightingModel`)', grid.work.columnTests, model.tilePass),
     row('lighting', `G-buffer, ${gbuffer} a covered pixel`, gbuffer * C, model.gbuffer),
     row('lighting', 'lights shaded', work.shaded, (work.shaded * r.shadedPs) / 1e9),
-    row(
-      'lighting',
-      'lights weighed by the moving draw',
-      work.weights,
-      (work.weights * r.weightPs) / 1e9,
-    ),
     row(
       'lighting',
       `shadow setups, ${SETUP_TEXELS} texels`,

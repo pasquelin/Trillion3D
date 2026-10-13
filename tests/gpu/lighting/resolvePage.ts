@@ -26,6 +26,7 @@ import {
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
+import { VIEW_LAYOUT } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
 import { UNREAD } from './resolveUnread.ts'
@@ -36,13 +37,12 @@ import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/c
 import { bufferHolding } from '../kit/computeReadback.ts'
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
- *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with
- *  `perLight` its surface taken per light (`resolveHarness`); `name` its sums' key. */
+ *  and the resolve reading it: `contractLighting`, with `perLight` its surface taken per light
+ *  (`resolveHarness`); `name` its sums' key. */
 type ResolveRecord = {
   name: string
   narrow: boolean
   words: number[]
-  drawn?: boolean
   perLight?: boolean
   /** Through the program with no shadow code (#1249). */
   unshadowed?: boolean
@@ -51,8 +51,9 @@ type ResolveRecord = {
   /** Through the program with the lobes (`resolveHarness`), at this entry. */
   lobes?: 'main' | 'zeroLobes' | 'isoAniso'
 }
-/** A scene; `rank` the view's sampled rank (0, a still image, by default), `slots` the shadow slot
- *  of some lights by their index. */
+/** A scene; `rank` the word the view's fourth viewport slot holds — what a moving image's rank
+ *  was, which the resolve must not read (0 by default) —, `slots` the shadow slot of some lights
+ *  by their index. */
 export type ResolveScene = {
   lights: SceneLight[]
   samples: number[]
@@ -98,7 +99,7 @@ export async function run(scenes: ResolveScene[]) {
                 layout: pipelineLayout,
                 compute: { module, entryPoint },
               })
-            const names = ['main', 'drawn', ...(r.lobes ? ['zeroLobes', 'isoAniso'] : [])]
+            const names = ['main', ...(r.lobes ? ['zeroLobes', 'isoAniso'] : [])]
             return Object.fromEntries(names.map((name) => [name, pipeline(name)]))
           }),
       )
@@ -125,23 +126,18 @@ export async function run(scenes: ResolveScene[]) {
     uploadSceneLights(device, lights)
     // One tile: the view is one tile wide and high, every sample at its pixel, at its rank.
     const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)]
-    view.write(
-      new Float32Array(16),
-      [0, 0, 0, 1],
-      16,
-      16,
-      clearValueOf(0),
-      false,
-      direct,
-      scene.rank ?? 0,
-    )
+    view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, clearValueOf(0), false, direct)
+    if (scene.rank)
+      device.queue.writeBuffer(
+        view.buffer,
+        (VIEW_LAYOUT.at.viewport + 3) * 4,
+        new Float32Array([scene.rank]),
+      )
     const samples = storage(new Float32Array(scene.samples))
     const count = scene.samples.length / SAMPLE_FLOATS
     const sums: Record<string, number[]> = {}
     for (const record of scene.records) {
-      const pipeline = (await programOf(record))?.[
-        record.drawn ? 'drawn' : (record.lobes ?? 'main')
-      ]
+      const pipeline = (await programOf(record))?.[record.lobes ?? 'main']
       if (!pipeline) continue
       const tiles = storage(new Uint32Array(record.words))
       const output = storage(new Uint32Array(count * 4), true)

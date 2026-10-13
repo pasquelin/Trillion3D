@@ -1,5 +1,5 @@
 // `--range`: the range of a grid light is a multiple of its cell, so the bench can make
-// several lights reach one pixel — the case sampled lighting is measured on.
+// several lights reach one pixel — the case the resolve's light loop is measured on.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { benchLights } from './lamps.ts'

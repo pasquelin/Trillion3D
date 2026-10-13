@@ -70,7 +70,6 @@ export const ENGINE_METRIC_KEYS = [
   'textureScratchBuilds',
   'textureLiveBytes',
   'lightsActive',
-  'lightsSampled',
   'shadowVsmLights',
   'shadowVsmMaps',
   'shadowVsmPagesRequested',

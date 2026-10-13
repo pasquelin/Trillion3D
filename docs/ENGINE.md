@@ -115,8 +115,8 @@ over linear radiance between the temporal resolve and tone mapping:
 ## Direct lighting
 
 Any number of lights: a light grid lists each cell's lights once per image (`lighting/tiles/`), and
-each pixel walks its cell's list (`lighting/direct/lightLoopWgsl.ts`). A moving image samples the
-shadowed lights, a still one sums them all (`lighting/direct/lightSamplingWgsl.ts`). A frame with no
+each pixel walks its cell's whole list (`lighting/direct/lightLoopWgsl.ts`), moving or still: the
+shadow rays are the projection's, paid once, so the resolve never draws a subset. A frame with no
 shadowed or rectangular light runs a program built without that code
 (`lighting/deferred/contractVariants.ts`). Shadows are [SHADOWS.md](SHADOWS.md).
 

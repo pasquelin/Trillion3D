@@ -107,7 +107,6 @@ export async function createTemporalAntialiasing(
       saved.hasHistory = frame.hasHistory
       saved.sceneSeen = frame.sceneSeen
       saved.quiet = quiet
-      saved.sampledRank = frame.sampledRank
       saved.previousViewProjection.set(frame.previousViewProjection)
       saved.previousEye.set(frame.previousEye)
       filterHistory.checkpoint()
@@ -121,7 +120,6 @@ export async function createTemporalAntialiasing(
       frame.stillFrames = saved.stillFrames
       frame.hasHistory = saved.hasHistory
       frame.sceneSeen = saved.sceneSeen
-      frame.sampledRank = saved.sampledRank
       frame.previousViewProjection.set(saved.previousViewProjection)
       frame.previousEye.set(saved.previousEye)
       filterHistory.replay()

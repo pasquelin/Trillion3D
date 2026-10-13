@@ -39,9 +39,6 @@ export interface TaaFrameState {
   active: boolean
   /** Scale the last ordinary image was drawn at (`ScaleControl.wanted`), which a convergence image keeps. */
   scale: number
-  /** Rank of a MOVING image, whose lighting is drawn per pixel (`../lighting/direct/lightSamplingWgsl.ts`):
-   *  bounded, different from one to the next, replayed with the image. Zero when still. */
-  sampledRank: number
   /** In a capture's barrier (`../webgpu/tile/converge.ts`), the jitter phase its convergence image
    *  draws, counted from the replayed one, at the still image's scale; `null` in any other image. */
   stillPhase: number | null
@@ -57,7 +54,6 @@ export function createTaaCheckpoint() {
     hasHistory: false,
     sceneSeen: -1,
     quiet: false,
-    sampledRank: 0,
     previousViewProjection: new Float64Array(16),
     previousEye: new Float64Array(3),
   }
@@ -82,7 +78,6 @@ export function createTaaFrameState(): TaaFrameState {
     viewSeen: -1,
     active: false,
     scale: 1,
-    sampledRank: 0,
     stillPhase: null,
   }
 }

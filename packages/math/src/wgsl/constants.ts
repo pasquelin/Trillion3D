@@ -7,7 +7,6 @@ import {
   FLOAT32_MAX as F32_MAX,
   FLOAT32_MIN_NORMAL as F32_MIN_NORMAL,
   GOLDEN_ANGLE as ANGLE,
-  GOLDEN_FRACTION as GOLDEN,
   GOLDEN_U32 as GOLDEN_WORD,
   HALF_MAX as HALF,
   HALF_OVERFLOW as HALF_PAST,
@@ -56,13 +55,6 @@ export const FLOAT32_MAX = wgslConst(
   'FLOAT32_MAX',
   [],
   `const FLOAT32_MAX:f32=${wgslF32(F32_MAX)};`,
-)
-
-/** The golden ratio's fractional part: the step of a low-discrepancy sequence. */
-export const GOLDEN_FRACTION = wgslConst(
-  'GOLDEN_FRACTION',
-  [],
-  `const GOLDEN_FRACTION:f32=${wgslF32(GOLDEN)};`,
 )
 
 /** The finite stand-in for infinity (`FINITE_SENTINEL`), 3.4e38, never `FLOAT32_MAX`: an

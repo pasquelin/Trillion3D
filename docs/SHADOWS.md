@@ -4,7 +4,7 @@ How the WebGPU engine draws cast shadows: virtual shadow maps, whose pages exist
 where the image reads them. A map: each mechanism's rule is stated where it lives, and this page
 names the file and the rules that span files. Paths are under `packages/sdk-browser/src/`: `vsm/`
 holds the passes and their shaders, `webgpu/pages/render/vsm/` the frame's plan, grant and
-encoding. Lights, tiles and the sampled resolve are [ENGINE.md](ENGINE.md#direct-lighting); the
+encoding. Lights, tiles and the resolve are [ENGINE.md](ENGINE.md#direct-lighting); the
 options a page sets (`castShadow`, `transparentShadow`) are [SDK.md](SDK.md#lights).
 
 ## Pages and the pool
