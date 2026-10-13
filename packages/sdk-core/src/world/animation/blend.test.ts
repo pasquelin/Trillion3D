@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Blend, Blends } from './blend.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
-
-const close = (actual: number[], expected: number[]) => within(actual, expected, 'blend', 1e-12)
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 test('one property shares a blend across targets while arrays preserve untracked values and their identity', () => {
   const owner = { weights: [4, 8, 12, 99], other: 10 }
@@ -50,7 +48,7 @@ test('colour rest channels and additive numbers reset for each touched frame', (
   blends.addDifference(opacity, [4], 0.5)
   blends.addDifference(opacity, [100], -2)
   blends.write()
-  close([colour.r, colour.g, colour.b], [0.6, 0.6, 0.4])
+  near([colour.r, colour.g, colour.b], [0.6, 0.6, 0.4], 'blend', 1e-12)
   assert.equal(owner.opacity, 10)
   blends.addDifference(opacity, [2], 1)
   blends.write()
@@ -66,19 +64,19 @@ test('additive rotations compose partial turns, respect hemispheres and reset th
   const blend = blends.of({ owner, field: 'rotation', value: [0, 0, 0, 1] }, true)
   blends.addDifference(blend, [0, 0, 1, 0], 0.5)
   blends.write()
-  close(owner.rotation, [0.5, 0.5, 0.5, 0.5])
+  near(owner.rotation, [0.5, 0.5, 0.5, 0.5], 'blend', 1e-12)
   blends.add(blend, [0, 0, 0, 1], 1)
   blends.addDifference(blend, [0, 0, -Math.SQRT1_2, -Math.SQRT1_2], 0.5)
   blends.write()
-  close(owner.rotation, [0, 0, Math.sin(Math.PI / 8), Math.cos(Math.PI / 8)])
+  near(owner.rotation, [0, 0, Math.sin(Math.PI / 8), Math.cos(Math.PI / 8)], 'blend', 1e-12)
   blends.add(blend, [0, 0, 0, 1], 1)
   blends.addDifference(blend, [Math.SQRT1_2, 0, 0, Math.SQRT1_2], 1)
   blends.addDifference(blend, [0, 0, Math.SQRT1_2, Math.SQRT1_2], 1)
   blends.write()
-  close(owner.rotation, [0.5, -0.5, 0.5, 0.5])
+  near(owner.rotation, [0.5, -0.5, 0.5, 0.5], 'blend', 1e-12)
   blends.add(blend, [0, 0, 0, 1], 1)
   blends.write()
-  close(owner.rotation, [0, 0, 0, 1])
+  near(owner.rotation, [0, 0, 0, 1], 'blend', 1e-12)
 })
 
 test('plain vector values without setters remain readable without throwing on write', () => {
@@ -99,13 +97,13 @@ test('many additive quarter turns retain their rotation without losing numeric s
   blends.write()
   assert.ok(Math.abs(Math.abs(owner.rotation[2]) - Math.SQRT1_2) < 1e-12)
   assert.ok(Math.abs(owner.rotation[2] * owner.rotation[3] - 0.5) < 1e-12)
-  close(owner.rotation.slice(0, 2), [0, 0])
+  near(owner.rotation.slice(0, 2), [0, 0], 'blend', 1e-12)
 })
 
 test('a newly bound rotation can publish its rest pose before any action touches it', () => {
   const owner = { rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }
   new Blend(owner, 'rotation', true, 4).write()
-  close(owner.rotation, [0, Math.SQRT1_2, 0, Math.SQRT1_2])
+  near(owner.rotation, [0, Math.SQRT1_2, 0, Math.SQRT1_2], 'blend', 1e-12)
 })
 
 test('morph arrays wider than a quaternion blend signed values and preserve every additive channel', () => {

@@ -13,6 +13,7 @@ import {
 } from '../visibility/shader/lineProjection.fixture.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { nearly } from '../../../math/src/float/near.fixture.ts'
 
 /** The depth slack `GUIDE_WGSL` gives a guide at pixel `(x, y)` over the scene depth `depthAt`,
  *  the image jittered by `(jx, jy)` pixels: its own `jitterSlack`, run as shipped. */
@@ -87,7 +88,6 @@ const corner = (a: number[], b: number[], at: number[], width: number, ratio = 1
 /** The guide's four corners, in image pixels. */
 const quad = (a: number[], b: number[], width: number, ratio = 1) =>
   QUAD.map((at) => toPixels(corner(a, b, at, width, ratio)))
-const near = (a: number, b: number) => Math.abs(a - b) < 1e-6
 
 test('a guide segment is its CSS width times the pixel ratio, capped half a width', () => {
   const a = [-1, 0.2, -6],
@@ -96,9 +96,15 @@ test('a guide segment is its CSS width times the pixel ratio, capped half a widt
   for (const ratio of [1, 2]) {
     const [p0, p1, p2, p3] = quad(a, b, 3, ratio),
       drawn = 3 * ratio
-    assert.ok(near(p3[1] - p0[1], drawn) && near(p2[1] - p1[1], drawn), `ratio ${ratio}: width`)
-    assert.ok(near(ea[0] - p0[0], drawn / 2) && near(p1[0] - eb[0], drawn / 2), 'the caps')
-    assert.ok(near(p0[1] + drawn / 2, ea[1]), 'centred on the segment')
+    assert.ok(
+      nearly(p3[1] - p0[1], drawn, 1e-6) && nearly(p2[1] - p1[1], drawn, 1e-6),
+      `ratio ${ratio}: width`,
+    )
+    assert.ok(
+      nearly(ea[0] - p0[0], drawn / 2, 1e-6) && nearly(p1[0] - eb[0], drawn / 2, 1e-6),
+      'the caps',
+    )
+    assert.ok(nearly(p0[1] + drawn / 2, ea[1], 1e-6), 'centred on the segment')
   }
 })
 
@@ -106,7 +112,8 @@ test('a dot is a square of its size times the pixel ratio', () => {
   const at = [0.4, -0.3, -4],
     centre = toPixels(project(at))
   const [p0, , p2] = quad(at, at, 7, 2)
-  for (const i of [0, 1]) assert.ok(near(p2[i] - p0[i], 14) && near(p0[i] + 7, centre[i]))
+  for (const i of [0, 1])
+    assert.ok(nearly(p2[i] - p0[i], 14, 1e-6) && nearly(p0[i] + 7, centre[i], 1e-6))
 })
 
 test('a guide behind the eye draws nothing, one crossing it starts on the near plane', () => {

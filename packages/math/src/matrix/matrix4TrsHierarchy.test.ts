@@ -11,6 +11,7 @@ import { composeMatrix4, decomposeMatrix4 } from './matrix4Trs.ts'
 import { determinantMatrix4, multiplyMatrix4 } from './matrix4.ts'
 import { invertMatrix4 } from './matrix4Inverse.ts'
 import { normalMatrix3 } from './matrix3.ts'
+import { nearRelative } from '../float/near.fixture.ts'
 
 type Vec3 = [number, number, number]
 type Quat = [number, number, number, number]
@@ -99,8 +100,6 @@ function throughChain(chain: Level[], point: Vec3): Vec3 {
 const apply = (m: Float64Array, p: Vec3): Vec3 =>
   [0, 1, 2].map((r) => m[r] * p[0] + m[4 + r] * p[1] + m[8 + r] * p[2] + m[12 + r]) as Vec3
 const collapsed = (chain: Level[]) => chain.some((l) => l.scale.some((c) => c === 0))
-const close = (a: number, b: number, rel = 1e-9) =>
-  Math.abs(a - b) <= rel * (1 + Math.abs(a) + Math.abs(b))
 
 test('the chains cover depth, mirrored axes, zero scale and a non-uniform scale under a rotated parent', () => {
   const all = chains()
@@ -131,8 +130,7 @@ test('a point of a node goes through the scale, the turn and the shift of every 
     ] as Vec3[]) {
       const want = throughChain(chain, p),
         got = apply(world, p)
-      for (let i = 0; i < 3; i++)
-        assert.ok(close(got[i], want[i]), `chain ${index}, axis ${i}: ${got[i]} vs ${want[i]}`)
+      for (let i = 0; i < 3; i++) nearRelative(got[i], want[i], `chain ${index}, axis ${i}`, 3e-9)
     }
   }
 })
@@ -141,7 +139,7 @@ test('the determinant of a world matrix is the product of the scale triple produ
   for (const [index, chain] of chains().entries()) {
     const want = chain.reduce((d, l) => d * l.scale[0] * l.scale[1] * l.scale[2], 1)
     const got = determinantMatrix4(worldOf(chain))
-    assert.ok(close(got, want), `chain ${index}: ${got} vs ${want}`)
+    nearRelative(got, want, `chain ${index}`, 3e-9)
     if (want !== 0) assert.equal(Math.sign(got), Math.sign(want))
   }
 })
@@ -184,9 +182,11 @@ test('decomposition: the position is the translation column, the scale magnitude
     decomposeMatrix4(world, p, q, s)
     assert.deepEqual([...p], [world[12], world[13], world[14]], `chain ${index} position`)
     for (let c = 0; c < 3; c++)
-      assert.ok(
-        close(Math.abs(s[c]), Math.hypot(world[4 * c], world[4 * c + 1], world[4 * c + 2])),
+      nearRelative(
+        Math.abs(s[c]),
+        Math.hypot(world[4 * c], world[4 * c + 1], world[4 * c + 2]),
         `chain ${index} scale ${c}`,
+        3e-9,
       )
     assert.equal(s[0] < 0, determinantMatrix4(world) < 0, `chain ${index} sign`)
   }

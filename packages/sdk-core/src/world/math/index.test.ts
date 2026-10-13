@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { math, Vector3 } from './index.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('math factories preserve inputs and return useful independently owned values', () => {
@@ -73,7 +73,7 @@ test('curve factories preserve endpoints and degree conversion produces known ro
     [3, 0],
     [3, 4],
   ])
-  within(path.getPoint(3 / 7).toArray(), [3, 0, 0], 'the corner, three sevenths along', 1e-12)
+  near(path.getPoint(3 / 7).toArray(), [3, 0, 0], 'the corner, three sevenths along', 1e-12)
   assert.deepEqual(path.getPoint(1).toArray(), [3, 4, 0])
   assert.equal(
     math

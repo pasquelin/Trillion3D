@@ -2,11 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Path, Shape, SplineCurve } from './curves.ts'
 import { Vector3 } from './vector3.ts'
-import { near as within } from '../../../../math/src/float/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
-const near = (actual: number[], expected: number[], label: string, eps = 1e-12) =>
-  within(actual, expected, label, eps)
 const xyz = (v: { x: number; y: number; z?: number }) => [v.x, v.y, v.z ?? 0]
 
 test('a path runs its corners by length, clamped to its ends', () => {
@@ -16,14 +14,14 @@ test('a path runs its corners by length, clamped to its ends', () => {
     [3, 0, 0],
     [3, 4, 0],
   ])
-  near(xyz(path.getPoint(3 / 7)), [3, 0, 0], 'the corner')
-  near(xyz(path.getPoint(0.5)), [3, 0.5, 0], 'half the length')
-  near(xyz(path.getPoint(0.2)), [1.4, 0, 0], 'on the first piece')
-  near(xyz(path.getPoint(-1)), [0, 0, 0], 'before the start')
-  near(xyz(path.getPoint(2)), [3, 4, 0], 'past the end')
+  near(xyz(path.getPoint(3 / 7)), [3, 0, 0], 'the corner', 1e-12)
+  near(xyz(path.getPoint(0.5)), [3, 0.5, 0], 'half the length', 1e-12)
+  near(xyz(path.getPoint(0.2)), [1.4, 0, 0], 'on the first piece', 1e-12)
+  near(xyz(path.getPoint(-1)), [0, 0, 0], 'before the start', 1e-12)
+  near(xyz(path.getPoint(2)), [3, 4, 0], 'past the end', 1e-12)
   assert.equal(path.getLength(7), 7, 'a length measured through the corners')
-  near(xyz(path.getTangent(0.2)), [1, 0, 0], 'the first piece’s direction')
-  near(xyz(path.getTangent(1)), [0, 1, 0], 'the last piece’s, at the very end')
+  near(xyz(path.getTangent(0.2)), [1, 0, 0], 'the first piece’s direction', 1e-12)
+  near(xyz(path.getTangent(1)), [0, 1, 0], 'the last piece’s, at the very end', 1e-12)
   const points = path.getPoints()
   points[0].x = 9
   assert.equal(path.points[0].x, 0, 'getPoints returns copies')
@@ -31,8 +29,8 @@ test('a path runs its corners by length, clamped to its ends', () => {
 })
 
 test('a path of one point, of none, or with a repeated corner', () => {
-  near(xyz(new Path([[1, 2]]).getPoint(0.5)), [1, 2, 0], 'one point')
-  near(xyz(new Path().getPoint(0.5)), [0, 0, 0], 'no point')
+  near(xyz(new Path([[1, 2]]).getPoint(0.5)), [1, 2, 0], 'one point', 1e-12)
+  near(xyz(new Path().getPoint(0.5)), [0, 0, 0], 'no point', 1e-12)
   assert.deepEqual(new Path().points, [])
   near(
     xyz(
@@ -43,14 +41,15 @@ test('a path of one point, of none, or with a repeated corner', () => {
     ),
     [1, 0, 0],
     'two points',
+    1e-12,
   )
   const repeated = new Path([
     [0, 0],
     [0, 0],
     [2, 0],
   ])
-  near(xyz(repeated.getPoint(0)), [0, 0, 0], 'a zero-length piece divides by nothing')
-  near(xyz(repeated.getPoint(0.5)), [1, 0, 0], 'then the next piece')
+  near(xyz(repeated.getPoint(0)), [0, 0, 0], 'a zero-length piece divides by nothing', 1e-12)
+  near(xyz(repeated.getPoint(0.5)), [1, 0, 0], 'then the next piece', 1e-12)
 })
 
 test('a spline passes through its points and bends as Catmull–Rom', () => {
@@ -65,16 +64,16 @@ test('a spline passes through its points and bends as Catmull–Rom', () => {
   // At the middle of a span, (−p0 + 9 p1 + 9 p2 − p3) / 16; an open end repeats its point.
   const mid = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) =>
     [0, 1, 2].map((k) => (-xyz(a)[k] + 9 * xyz(b)[k] + 9 * xyz(c)[k] - xyz(d)[k]) / 16)
-  near(xyz(open.getPoint(0.5)), mid(pts[0], pts[1], pts[2], pts[3]), 'inner span')
-  near(xyz(open.getPoint(1 / 6)), mid(pts[0], pts[0], pts[1], pts[2]), 'first span')
-  near(xyz(open.getPoint(5 / 6)), mid(pts[1], pts[2], pts[3], pts[3]), 'last span')
-  near(xyz(open.getPoint(-1)), [0, 0, 0], 'clamped before')
-  near(xyz(open.getPoint(3)), [3, 1, 0], 'clamped after')
+  near(xyz(open.getPoint(0.5)), mid(pts[0], pts[1], pts[2], pts[3]), 'inner span', 1e-12)
+  near(xyz(open.getPoint(1 / 6)), mid(pts[0], pts[0], pts[1], pts[2]), 'first span', 1e-12)
+  near(xyz(open.getPoint(5 / 6)), mid(pts[1], pts[2], pts[3], pts[3]), 'last span', 1e-12)
+  near(xyz(open.getPoint(-1)), [0, 0, 0], 'clamped before', 1e-12)
+  near(xyz(open.getPoint(3)), [3, 1, 0], 'clamped after', 1e-12)
   const closed = new SplineCurve(pts, true)
-  near(xyz(closed.getPoint(1)), [0, 0, 0], 'a closed curve comes back')
-  near(xyz(closed.getPoint(1 / 8)), mid(pts[3], pts[0], pts[1], pts[2]), 'wraps before')
-  near(xyz(closed.getPoint(7 / 8)), mid(pts[2], pts[3], pts[0], pts[1]), 'wraps after')
-  near(xyz(new SplineCurve([pts[1]]).getPoint(0.7)), [1, 1, 2], 'one point')
+  near(xyz(closed.getPoint(1)), [0, 0, 0], 'a closed curve comes back', 1e-12)
+  near(xyz(closed.getPoint(1 / 8)), mid(pts[3], pts[0], pts[1], pts[2]), 'wraps before', 1e-12)
+  near(xyz(closed.getPoint(7 / 8)), mid(pts[2], pts[3], pts[0], pts[1]), 'wraps after', 1e-12)
+  near(xyz(new SplineCurve([pts[1]]).getPoint(0.7)), [1, 1, 2], 'one point', 1e-12)
   const line = new SplineCurve([new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(2, 0, 0)])
   assert.deepEqual(
     line.getPoints(4).map(xyz),
@@ -156,6 +155,7 @@ test('a shape samples its lines, curves and arcs, and drops a closing repeat', (
     curved.getPoints(2).map(xyz).flat(),
     [0, 0, 0, 1.25, 1.25, 0, 2, 1, 0, 4, 7 / 8, 0, 6, 0, 0],
     'curves',
+    1e-12,
   )
   const one = new Shape().moveTo(1, 1)
   assert.equal(one.getPoints().length, 1, 'a lone point is not its own closing repeat')
@@ -176,7 +176,7 @@ test('an arc sweeps the short or the long way as its direction says, and moves t
     const points = new Shape().absarc(0, 0, 1, start, end, clockwise).getPoints(4)
     // Five samples, a closing repeat dropped.
     assert.equal(points.length, sweep ? 5 : 4)
-    points.forEach((p, i) => near(xyz(p), at(start + (sweep * i) / 4), `${start}→${end}`))
+    points.forEach((p, i) => near(xyz(p), at(start + (sweep * i) / 4), `${start}→${end}`, 1e-12))
   }
   arc(0, q, q)
   arc(0, q, -3 * q, true)

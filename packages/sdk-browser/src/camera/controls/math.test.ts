@@ -15,11 +15,7 @@ import {
   rotateByQuaternion,
   localTurnQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
-
-const close = (actual: ArrayLike<number>, expected: number[], epsilon = 1e-12) => {
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(Math.abs(actual[i] - expected[i]) <= epsilon, `${i}: ${actual[i]} != ${expected[i]}`)
-}
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 test('spherical and cartesian describe the same offset, both ways', () => {
   const spherical = new Float64Array(3),
@@ -32,14 +28,14 @@ test('spherical and cartesian describe the same offset, both ways', () => {
   ]) {
     toSpherical(spherical, source)
     assert.equal(spherical[0], Math.hypot(...source))
-    close(fromSpherical(offset, spherical), source, 1e-12)
+    near(fromSpherical(offset, spherical), source, 'offset', 1e-12)
   }
 })
 
 test('an offset shorter than the epsilon keeps the angles it cannot define', () => {
   const spherical = Float64Array.from([5, 1.25, 0.75])
   toSpherical(spherical, [0, 0, 0])
-  close(spherical, [0, 1.25, 0.75])
+  near(spherical, [0, 1.25, 0.75], 'offset', 1e-12)
 })
 
 test('the orbit orientation looks from its offset back at the pivot', () => {
@@ -57,7 +53,7 @@ test('the orbit orientation looks from its offset back at the pivot', () => {
     rotateByQuaternion(forward, orientation, 0, 0, -1)
     fromSpherical(offset, spherical)
     const radius = spherical[0]
-    close(forward, [-offset[0] / radius, -offset[1] / radius, -offset[2] / radius], 1e-12)
+    near(forward, [-offset[0] / radius, -offset[1] / radius, -offset[2] / radius], 'offset', 1e-12)
   }
 })
 
@@ -66,7 +62,7 @@ test('the orbit orientation keeps the horizon level: no roll on the camera right
     right = new Float64Array(3)
   orbitOrientation(orientation, [3, 0.9, 1.2])
   rotateByQuaternion(right, orientation, 1, 0, 0)
-  close(right, [Math.cos(0.9), 0, -Math.sin(0.9)], 1e-12)
+  near(right, [Math.cos(0.9), 0, -Math.sin(0.9)], 'offset', 1e-12)
 })
 
 test('a quaternion product is the two rotations in order, and stays unit length', () => {
@@ -75,33 +71,33 @@ test('a quaternion product is the two rotations in order, and stays unit length'
   const product = normalizeQuaternion(multiplyQuaternion(new Float64Array(4), a, b))
   // Pitched a quarter turn up, then yawed a quarter turn: the view ends on world up.
   const turned = rotateByQuaternion(new Float64Array(3), product, 0, 0, -1)
-  close(turned, [0, 1, 0], 1e-15)
+  near(turned, [0, 1, 0], 'offset', 1e-15)
   assert.equal(Math.hypot(...product).toFixed(15), '1.000000000000000')
 })
 
 test('a local turn pitches, yaws and rolls in the camera frame', () => {
   const turn = localTurnQuaternion(new Float64Array(4), HALF_PI, 0, 0)
-  close(rotateByQuaternion(new Float64Array(3), turn, 0, 0, -1), [0, 1, 0], 1e-15)
+  near(rotateByQuaternion(new Float64Array(3), turn, 0, 0, -1), [0, 1, 0], 'offset', 1e-15)
   const rolled = localTurnQuaternion(new Float64Array(4), 0, 0, HALF_PI)
-  close(rotateByQuaternion(new Float64Array(3), rolled, 1, 0, 0), [0, 1, 0], 1e-15)
+  near(rotateByQuaternion(new Float64Array(3), rolled, 1, 0, 0), [0, 1, 0], 'offset', 1e-15)
 })
 
 test('a move along the camera axes follows what it faces', () => {
   const position = new Float64Array(3),
     quarter = axisAngleQuaternion(new Float64Array(4), [0, 1, 0], HALF_PI)
   moveLocal(position, [0, 0, 0, 1], 0, 0, 2)
-  close(position, [0, 0, -2], 1e-15)
+  near(position, [0, 0, -2], 'offset', 1e-15)
   moveLocal(position, quarter, 0, 0, 3)
-  close(position, [-3, 0, -2], 1e-15)
+  near(position, [-3, 0, -2], 'offset', 1e-15)
   moveLocal(position, [0, 0, 0, 1], 0, 0, 0)
-  close(position, [-3, 0, -2], 1e-15)
+  near(position, [-3, 0, -2], 'offset', 1e-15)
 })
 
 test('a pan pushes the camera against the drag, scaled by the distance it looks across', () => {
   const scale = pixelWorldScale(10, 90, 400)
   assert.ok(Math.abs(scale - 20 / 400) < 1e-12)
   const offset = panOffset(new Float64Array(3), [0, 0, 0, 1], 8, 4, scale)
-  close(offset, [-8 * scale, 4 * scale, 0], 1e-15)
+  near(offset, [-8 * scale, 4 * scale, 0], 'offset', 1e-15)
 })
 
 test('a wheel notch is five percent of the distance, and the clamp bounds it', () => {
