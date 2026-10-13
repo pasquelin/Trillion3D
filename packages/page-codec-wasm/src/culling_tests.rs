@@ -125,9 +125,8 @@ fn every_family_is_owned_once_and_bounded() {
     }
 }
 
-/// A split takes the axis whose halves have the least surface: a grid laid out by columns gets the
-/// tree its rows get, mirrored, and both cover the plane with no more node surface than the sum
-/// the leaves' own boxes need on each level.
+/// A split takes the axis of least cost (`split::bisect_least_cost`), never the first on a tie of
+/// extents: a grid laid out by columns gets the tree its rows get, mirrored, of the same surface.
 #[test]
 fn a_grid_by_rows_and_by_columns_get_trees_of_the_same_surface() {
     let surface = |clusters: &[CullingCluster]| {

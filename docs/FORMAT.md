@@ -52,7 +52,7 @@ same bytes.
 - Version: `MANIFEST_BINARY_VERSION` 12, with the `texturePreviewBc7`, `texturePreviewAstc` and
   `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`);
   12 builds the culling tree, which the page order follows, by the one builder
-  (`codec/culling.rs`, each split on the axis of least surface).
+  (`codec/culling.rs`, each split on the axis of least cost).
 - Writes `rust/manifest_binary.rs:columns`; reads `core/manifest/binaryRead.ts:readManifestColumns`,
   `core/manifest/binaryDecode.ts:decodeManifestBinary`.
 

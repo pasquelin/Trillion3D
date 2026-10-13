@@ -24,7 +24,7 @@
 /// Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
 /// ETC2 family, the third a device may sample; a version-10 reader would stride wrongly.
 /// Version 12 keeps every column and builds the culling tree a page order follows by the one
-/// builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least surface: the nodes
+/// builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least cost: the nodes
 /// and the pages' order differ from a version-11 cook's for the same source.
 pub const MANIFEST_BINARY_VERSION: u32 = 12;
 /// 'W','G','M','B' read as a little-endian u32.

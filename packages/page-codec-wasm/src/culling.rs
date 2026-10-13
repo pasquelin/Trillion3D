@@ -3,7 +3,7 @@
 //! levels and replacement bands in, a cluster order and the nodes the GPU descent reads out. Pages
 //! follow the order, so every node owns a contiguous page range.
 use crate::min_ball::ball_of_balls;
-use crate::split::{bisect_least_surface, sort_along};
+use crate::split::{bisect_least_cost, sort_along};
 use trillion3d_math::aabb::{aabb_of_boxes, centre};
 
 mod layout;
@@ -67,7 +67,7 @@ fn node_bounds(span: &[usize], clusters: &[CullingCluster]) -> ([f64; 3], [f64; 
 }
 
 /// The hierarchy over `clusters`: the root splits by level first, then every node by three median
-/// splits of its clusters' centres, each on the axis of least surface (`bisect_least_surface`), down
+/// splits of its clusters' centres, each on the axis of least cost (`bisect_least_cost`), down
 /// to leaves of `CULLING_LEAF` clusters, each leaf's clusters in their order on the axis that last
 /// split it; no cluster gives one empty leaf. Returns the cluster order (rank to cluster) and the
 /// nodes, numbered level by level from the root: a balanced tree, its depth
@@ -136,7 +136,9 @@ pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<Cullin
                     next.push((from, to, axis));
                     continue;
                 }
-                let axis = bisect_least_surface(&mut order[from..to], &centres, clusters);
+                let bounds = |id: usize| (clusters[id].min, clusters[id].max);
+                let axis =
+                    bisect_least_cost(&mut order[from..to], &centres, bounds, (to - from) / 2);
                 let middle = from + (to - from) / 2;
                 next.push((from, middle, Some(axis)));
                 next.push((middle, to, Some(axis)));
