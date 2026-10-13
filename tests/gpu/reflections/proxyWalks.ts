@@ -1,9 +1,10 @@
 // The proxy's rays as a kernel of their own — the shipped walk (`rtScene`), one thread a ray, each hit
 // written whole: its distance's bits, its placement, its triangle, whether found, and the work and the
-// tests it spent — and the walk of before as its oracle: the same text, the placements' worlds and the
-// placement tree read where the proxy's buffer once mirrored them — the worlds sixteen words of matrix a
-// placement, then eight of exact translation a placement behind every matrix (`OLD_WORLD_OF`); the tree's
-// nodes, twenty-four words each, then its order (`OLD_TREE`).
+// tests it spent — and the walk of before as its oracle: the same text, the instances, the placements'
+// worlds and the placement tree read where the proxy's buffer once held them — the instances four words
+// each (`OLD_INSTANCE`); the worlds sixteen words of matrix a placement, then eight of exact translation a
+// placement behind every matrix (`OLD_WORLD_OF`); the tree's nodes, twenty-four words each, then its order
+// (`OLD_TREE`).
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { runtimeSceneWgsl } from '../../../packages/sdk-browser/src/bounce/runtimeSceneWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
@@ -11,9 +12,12 @@ import { DAG_NODE_FLOATS } from '../../../packages/sdk-browser/src/gpu/dag/types
 
 /** Words of a hit as the kernel writes it. */
 export const HIT_WORDS = 6
-/** The bindings: the proxy's buffer, the worlds' and the tree's tables, the rays, the hits, the
- *  mirrored worlds and tree. */
-const B = { proxy: 0, worlds: 1, rays: 2, hits: 3, oldWorlds: 4, tree: 5, oldTree: 6 } as const
+/** The bindings: the proxy's buffer, the worlds', the tree's and the instances' tables, the rays, the
+ *  hits, and the words of before: the worlds, the tree and the instances. */
+const B = {
+  ...{ proxy: 0, worlds: 1, rays: 2, hits: 3, oldWorlds: 4, tree: 5, oldTree: 6 },
+  ...{ instances: 7, oldInstances: 8 },
+} as const
 
 const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f>;
 @group(0) @binding(${B.hits}) var<storage,read_write> hits:array<u32>;
@@ -35,7 +39,13 @@ const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f
 
 /** The walk the engine ships: the worlds and the tree read in their record tables. */
 export const NEW_WALK = wgslProgram(KERNEL, [
-  runtimeSceneWgsl({ group: 0, proxy: B.proxy, worlds: B.worlds, tree: B.tree }),
+  runtimeSceneWgsl({
+    group: 0,
+    proxy: B.proxy,
+    instances: B.instances,
+    worlds: B.worlds,
+    tree: B.tree,
+  }),
 ])
 
 /** The world a ray took a placement to before: the culling's rows mirrored in a buffer of its own. */
@@ -65,6 +75,10 @@ const OLD_TREE = (
 fn rtTreeWord(n:u32,k:u32)->u32{return oldTree[n*${DAG_NODE_FLOATS}u+k];}
 fn rtTreeMember(k:u32)->u32{return oldTree[${members}u+k];}`
 
+/** The instances a ray read before: four words each, in a buffer of their own. */
+const OLD_INSTANCE = `@group(0) @binding(${B.oldInstances}) var<storage,read> oldInstances:array<u32>;
+fn rtInstanceWord(w:u32,k:u32)->u32{return oldInstances[w*4u+k];}`
+
 /** `code` with the function `name` taken out, whole. */
 function without(code: string, name: string) {
   const start = code.indexOf(`fn ${name}(`)
@@ -77,19 +91,22 @@ function without(code: string, name: string) {
   return code.slice(0, start) + code.slice(end + 1)
 }
 
-/** The walk of before: the shipped text, its reads of a world and of the tree replaced; the tree's
- *  order from word `members` of the mirror. */
+/** The walk of before: the shipped text, its reads of an instance, a world and the tree replaced;
+ *  the tree's order from word `members` of the mirror. */
 export function oldWalk(members: number) {
   let code = NEW_WALK
-  for (const name of ['rtWorldOf', 'rtTreeWord', 'rtTreeMember']) code = without(code, name)
-  return code + OLD_WORLD_OF + OLD_TREE(members)
+  for (const name of ['rtInstanceWord', 'rtWorldOf', 'rtTreeWord', 'rtTreeMember'])
+    code = without(code, name)
+  return code + OLD_INSTANCE + OLD_WORLD_OF + OLD_TREE(members)
 }
 
 /** What a walk binds: the proxy's buffer, and the record tables or what mirrored them. */
 export type WalkInputs = {
   proxy: GPUBuffer
+  instances?: GPUTextureView
   worlds?: GPUTextureView
   tree?: GPUTextureView
+  oldInstances?: GPUBuffer
   oldWorlds?: GPUBuffer
   oldTree?: GPUBuffer
 }
@@ -124,6 +141,9 @@ export async function walk(
   ]
   if (inputs.worlds) entries.push({ binding: B.worlds, resource: inputs.worlds })
   if (inputs.tree) entries.push({ binding: B.tree, resource: inputs.tree })
+  if (inputs.instances) entries.push({ binding: B.instances, resource: inputs.instances })
+  if (inputs.oldInstances)
+    entries.push({ binding: B.oldInstances, resource: { buffer: inputs.oldInstances } })
   if (inputs.oldWorlds)
     entries.push({ binding: B.oldWorlds, resource: { buffer: inputs.oldWorlds } })
   if (inputs.oldTree) entries.push({ binding: B.oldTree, resource: { buffer: inputs.oldTree } })

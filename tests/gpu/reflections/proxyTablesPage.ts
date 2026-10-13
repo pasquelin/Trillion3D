@@ -18,6 +18,7 @@ import {
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import { INSTANCE_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstanceTable.ts'
 import {
   scenePages,
   sceneRoots,
@@ -108,14 +109,33 @@ export async function compareWalks({
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(oldTree, 0, treeWords)
+  // The instances in the proxy's table, and as its buffer held them, four words each.
+  const held = count + copies.length,
+    instanceWords = new Uint32Array(held * 4)
+  for (let w = 0; w < held; w++) instanceWords.set(scene.instances.get('Instance', w), w * 4)
+  const instances = createRecordTexture(device, INSTANCE_TABLE, held, usage)
+  instances.write('Instance', 0, held, instanceWords.buffer, 0)
+  const oldInstances = device.createBuffer({
+    size: instanceWords.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(oldInstances, 0, instanceWords)
   const side = Math.ceil(Math.sqrt(count)),
     cast = rays(rayCount, side, seed)
   const now = await walk(device, NEW_WALK, cast, {
     proxy,
+    instances: instances.view,
     worlds: table.view,
     tree: treeTable.view,
   })
-  const before = await walk(device, oldWalk(nodeWords.length), cast, { proxy, oldWorlds, oldTree })
+  const before = await walk(device, oldWalk(nodeWords.length), cast, {
+    proxy,
+    oldInstances,
+    oldWorlds,
+    oldTree,
+  })
+  instances.destroy()
+  oldInstances.destroy()
   table.destroy()
   treeTable.destroy()
   proxy.destroy()
@@ -151,12 +171,13 @@ async function engineWalk(device: GPUDevice, count: number, cast: Float32Array<A
     proxy &&
     (await walk(device, NEW_WALK, cast, {
       proxy: proxy.buffer,
+      instances: proxy.instances,
       worlds: proxy.worlds,
       tree: proxy.tree,
     }))
   const ranges = selection.worldRanges.map(({ count: held }) => held)
   selection.dispose()
-  return { refused: refused ?? selection.proxyRefusal, ranges, hits }
+  return { refused, ranges, hits }
 }
 
 /** The engine's proxy over a world the culling splits in two ranges of its frames — the device

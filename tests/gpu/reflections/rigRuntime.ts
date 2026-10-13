@@ -3,7 +3,6 @@
 // emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
 // and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray.
 import {
-  INSTANCE_WORDS,
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
   RUNTIME_NONE,
@@ -12,6 +11,7 @@ import {
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import { INSTANCE_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstanceTable.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -21,10 +21,15 @@ const NODE_FLOATS = 6,
   NODE_WORDS = 12,
   TRIANGLE_FLOATS = 9
 
+/** The instances of `faces`, four words each: the node and triangle a face starts at, the surface it
+ *  wears, no mark. */
+const instanceWords = (faces: readonly RigFace[]) =>
+  Uint32Array.from(faces.flatMap((_, k) => [k, 2 * k, k, 0]))
+
 /** The words of the proxy's buffer for `faces`, header included. */
 function proxyWords(faces: readonly RigFace[]) {
   const n = faces.length
-  const surfacesAt = n * INSTANCE_WORDS,
+  const surfacesAt = 0,
     trianglesAt = surfacesAt + n * SURFACE_WORDS,
     boundsAt = trianglesAt + 2 * n * TRIANGLE_FLOATS,
     childrenAt = boundsAt + n * NODE_FLOATS,
@@ -33,7 +38,6 @@ function proxyWords(faces: readonly RigFace[]) {
   const floats = new Float32Array(words.buffer)
   const at = RUNTIME_HEADER
   words[at.instances] = n
-  words[at.instancesWord] = 0
   words[at.surfacesWord] = surfacesAt
   words[at.trianglesWord] = trianglesAt
   words[at.copyWorldsWord] = surfacesAt
@@ -43,8 +47,6 @@ function proxyWords(faces: readonly RigFace[]) {
   words[at.members] = n
   const base = RUNTIME_HEADER_WORDS
   faces.forEach(({ triangles, radiance }, k) => {
-    // Instance: the node and triangle it starts at, the surface it wears, no mark.
-    words.set([k, 2 * k, k, 0], base + k * INSTANCE_WORDS)
     // Surface: no tint, opaque, the radiance it gives.
     floats.set([0, 0, 0, 1, ...radiance], base + surfacesAt + k * SURFACE_WORDS)
     floats.set(triangles, base + trianglesAt + 2 * k * TRIANGLE_FLOATS)
@@ -65,8 +67,8 @@ function proxyWords(faces: readonly RigFace[]) {
   return words
 }
 
-/** The proxy's buffer over `faces`, the worlds' table they stand in — the identity, its exact
- *  translation zeros —, and the table of no placement tree. */
+/** The proxy's buffer over `faces` and their instances' table, the worlds' table they stand in —
+ *  the identity, its exact translation zeros —, and the table of no placement tree. */
 export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
@@ -85,5 +87,19 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   for (let k = 0; k < n; k++) for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
   worlds.write('Matrix', 0, n, identity.buffer, 0)
   worlds.write('Origin', 0, n, new Uint32Array(n * 8).buffer, 0)
-  return { proxy, proxyWorlds: worlds.view, proxyTree: createTreeTable(device, undefined).view }
+  // The faces' instances in the proxy's own table.
+  const instances = createRecordTexture(
+    device,
+    INSTANCE_TABLE,
+    n,
+    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  )
+  const held = instanceWords(faces)
+  if (held.length) instances.write('Instance', 0, faces.length, held.buffer, 0)
+  return {
+    proxy,
+    proxyInstances: instances.view,
+    proxyWorlds: worlds.view,
+    proxyTree: createTreeTable(device, undefined).view,
+  }
 }
