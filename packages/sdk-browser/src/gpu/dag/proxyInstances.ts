@@ -24,6 +24,14 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import { SQRT3 } from '../../../../math/src/constants.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
+import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
+import { constructGpuResources } from '../core/errorScope.ts'
+import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import { rowParked, type PlacementOf } from '../../placement/rows.ts'
@@ -38,14 +46,18 @@ import {
   RUNTIME_NONE,
   SURFACE_WORDS,
 } from '../../bounce/runtimeLayout.ts'
-import { writeSurface } from '../../bounce/runtimeSurface.ts'
+import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
 import type { DagParts } from './split.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 
-/** Rows of world a run may leave between two copies, and runs a mirror may take before it copies one span. */
-const WORLD_RUN_GAP = 4,
+/** The step between two rows of world one copy still takes (the rows between rewritten as they are),
+ *  and the copies a mirror takes at most: past them the narrowest gaps are joined (`createChangedRuns`). */
+const WORLD_RUN_GAP = 5,
   WORLD_RUNS = 128
+/** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
+ *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */
+const CELL_ERROR_FACTOR = SQRT3 / 2
 
 /** The world matrices are sixteen words each in the cut's worlds, the exact translations behind. */
 const WORLD_WORDS = 16,
@@ -72,9 +84,6 @@ export type ProxyCopy = {
   hidden?: boolean
   placement?: PlacementOf
 }
-
-/** The tint of a mesh's proxy that is not a cut's white: the compiler's material colour (`proxy/albedo.rs`). */
-const WHITE = 0xffffffff
 
 /** Where a proxy lies in the arena: its first node and triangle, and what it holds. */
 type Placed = {
@@ -147,7 +156,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     entriesLayout = -1,
     poseFresh = false
   let copies: readonly ProxyCopy[] = [],
-    copyCount = 0,
     copyWorlds = new Float32Array(0),
     surfaceCapacity = START.surfaces,
     revision = 0,
@@ -189,41 +197,42 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     device.queue.writeBuffer(...args)
   }
 
-  // The world rows written since the mirror last copied them: a still world copies nothing. A buffer new made
-  // holds none of them (`ensure`), and takes them all.
-  const worldFlags = new Uint8Array(slots),
-    worldList: number[] = []
+  // The world rows written since the mirror last copied them, in the engine's one changed list: a still
+  // world copies nothing. A buffer new made holds none of them (`ensure`), and takes them all.
+  const mirrored = createChangedRuns(slots, WORLD_RUN_GAP, WORLD_RUNS)
   let worldsAll = true
 
-  /** Row `w` of the culling's world table was written: its mirror is copied at the next `mirror`. */
-  function worldWritten(w: number) {
-    if (worldsAll || w < 0 || w >= slots || worldFlags[w]) return
-    worldFlags[w] = 1
-    worldList.push(w)
-  }
+  // The placements' world boxes, for the probes' occupancy map (`bounce/probes.ts`), kept from call to call:
+  // a placement's box is its mesh's root bounds through the world it stands at, made again only for a row
+  // written since (`boxed`) whose world or proxy moved, the rows whose box did listed (`moved`), the extent
+  // kept as the boxes change. A row that wears no proxy holds the empty box.
+  const boxes = new Float64Array(slots * 6),
+    boxedWorlds = new Float64Array(slots * 16),
+    boxedCuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
+  for (let w = 0; w < slots; w++)
+    boxes.fill(Infinity, w * 6, w * 6 + 3).fill(-Infinity, w * 6 + 3, w * 6 + 6)
+  const boxed = createChangedRuns(slots, 1),
+    movedBoxes = createChangedRuns(slots, 1)
+  const extent = [0, 0, 0, 0, 0, 0]
+  // Whether the extent was found again since a box that held its edge moved, and holds a box.
+  let extentStale = true,
+    extentHolds = false
 
-  /** The runs of rows to copy, in increasing order: close rows are one copy, and a scatter too wide for
-   *  commands is one span over it, never more than the rows that moved and what lies between them. */
-  function worldRuns(rows: number) {
-    const runs: [number, number][] = []
-    const sorted = Int32Array.from(worldList).sort()
-    for (const w of sorted) {
-      if (w >= rows) continue
-      const last = runs[runs.length - 1]
-      if (last && w - last[1] <= WORLD_RUN_GAP) last[1] = w + 1
-      else runs.push([w, w + 1])
-    }
-    if (runs.length > WORLD_RUNS)
-      return [[runs[0][0], runs[runs.length - 1][1]] as [number, number]]
-    return runs
+  /** Row `w` of the culling's world table was written: its mirror is copied at the next `mirror`, its box
+   *  made again at the next `worldBoxes`. */
+  function worldWritten(w: number) {
+    if (w < 0 || w >= slots) return
+    boxed.mark(w)
+    if (!worldsAll) mirrored.mark(w)
   }
 
   /** The rows of the culling's world table the buffer mirrors: the first range's, as many as it holds. */
   const worldRows = () => Math.min(frames.ranges[0]?.count ?? 0, slots)
 
+  const head = new Uint32Array(RUNTIME_HEADER_WORDS),
+    headFloats = new Float32Array(head.buffer)
   /** The header, as it stands. */
   function header() {
-    const head = new Uint32Array(RUNTIME_HEADER_WORDS)
     const at = RUNTIME_HEADER
     head[at.instances] = slots
     head[at.instancesWord] = layout.instances
@@ -239,7 +248,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     head[at.members] = walksTree ? tree!.count : packed.worldSources.length
     head[at.worldsWord] = layout.worlds
     head[at.worldRows] = worldRows()
-    new Float32Array(head.buffer)[at.error] = error
+    headFloats[at.error] = error
     head[at.copies] = copies.length
     return head
   }
@@ -248,37 +257,34 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   function ensure() {
     if (buffer) return buffer
     worldsAll = true
-    buffer = device.createBuffer({
-      label: 'Trillion3D run-time proxy',
-      size: byteAt(layout.total),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    })
-    send(buffer, 0, header())
-    send(buffer, byteAt(layout.instances), words)
-    if (copyWorlds.length) send(buffer, byteAt(layout.copyWorlds), copyWorlds)
-    send(buffer, byteAt(layout.surfaces), surfaceWords)
-    return buffer
+    mirrored.clear()
+    // Made in the device's ledger, as every resource the engine allocates (`constructGpuResources`).
+    const made = constructGpuResources(device, () =>
+      device.createBuffer({
+        label: 'Trillion3D run-time proxy',
+        size: byteAt(layout.total),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+      }),
+    )
+    buffer = made
+    send(made, 0, header())
+    send(made, byteAt(layout.instances), words)
+    if (copyWorlds.length) send(made, byteAt(layout.copyWorlds), copyWorlds)
+    send(made, byteAt(layout.surfaces), surfaceWords, 0, surfaceCapacity * SURFACE_WORDS)
+    return made
   }
 
   /** The tables laid out again — `want` more triangles, nodes, surfaces, or a copy more or fewer —:
    *  the buffer replaced by one the new layout fits, the columns it held carried over by copies. */
-  function relayout(want: {
-    triangles: number
-    nodes: number
-    surfaces: number
-    corners?: number
-  }) {
-    triangles.grown(want.triangles)
-    nodes.grown(want.nodes)
+  function relayout(
+    want: { triangles?: number; nodes?: number; surfaces?: number; corners?: number } = {},
+  ) {
+    triangles.grown(want.triangles ?? 0)
+    nodes.grown(want.nodes ?? 0)
     corners.grown(want.corners ?? 0)
-    const before = layout,
-      grownSurfaces = Math.max(surfaceCapacity, want.surfaces)
-    if (grownSurfaces !== surfaceCapacity) {
-      surfaceCapacity = grownSurfaces
-      const next = new Uint32Array(surfaceCapacity * SURFACE_WORDS)
-      next.set(surfaceWords)
-      surfaceWords = next
-    }
+    const before = layout
+    surfaceCapacity = Math.max(surfaceCapacity, want.surfaces ?? 0)
+    surfaceWords = resized(surfaceWords, surfaceCapacity * SURFACE_WORDS)
     layout = layoutOf()
     poseLayout++
     const old = buffer
@@ -321,13 +327,21 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         triangles: triangles.extent + triangleCount,
         nodes: nodes.extent + nodeCount,
         corners: corners.extent + cornerCount,
-        surfaces: 0,
       })
       ;[triangle, node, corner] = take()
     }
     return triangle === undefined || node === undefined || corner === undefined
       ? undefined
       : { triangle, node, corner }
+  }
+
+  /** `cut`'s triangles, bounds and children sent to the arena from triangle `triangle` and node `node`. */
+  function uploadColumns(cut: RuntimeCutProxy, triangle: number, node: number) {
+    const made = ensure()
+    send(made, byteAt(layout.triangles + triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
+    send(made, byteAt(layout.bounds + node * PROXY_NODE_FLOATS), cut.nodeBounds)
+    send(made, byteAt(layout.children + node * PROXY_NODE_WORDS), cut.nodeChildren)
+    return made
   }
 
   /** A mesh's columns in the arena, uploaded the first time a placement wears it. */
@@ -341,10 +355,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     const got = taken(triangleCount, nodeCount, cornerCount)
     if (!got) return undefined
     const { triangle, node, corner } = got
-    const made = ensure()
-    send(made, byteAt(layout.triangles + triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
-    send(made, byteAt(layout.bounds + node * PROXY_NODE_FLOATS), cut.nodeBounds)
-    send(made, byteAt(layout.children + node * PROXY_NODE_WORDS), cut.nodeChildren)
+    const made = uploadColumns(cut, triangle, node)
     if (cut.deform) send(made, byteAt(layout.deform + corner), cut.deform.corners)
     const placed = {
       node,
@@ -366,10 +377,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     if (held) dropPosed(w)
     const got = taken(placed.triangles, placed.nodes)
     if (!got) return undefined
-    const made = ensure()
-    send(made, byteAt(layout.triangles + got.triangle * PROXY_TRIANGLE_FLOATS), cut.triangles)
-    send(made, byteAt(layout.bounds + got.node * PROXY_NODE_FLOATS), cut.nodeBounds)
-    send(made, byteAt(layout.children + got.node * PROXY_NODE_WORDS), cut.nodeChildren)
+    uploadColumns(cut, got.triangle, got.node)
     const copy = { cut, placed, node: got.node, triangle: got.triangle }
     posed.set(w, copy)
     poseLayout++
@@ -387,20 +395,19 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     poseLayout++
   }
 
-  /** A surface's slot under a tint (none: its own), its words written the first time and each time its
-   *  record moved on. */
-  function surfaceSlot(host: PageSurface, tint?: number) {
+  /** A surface's slot under a tint (`NO_TINT`: its own), its words written the first time and each time
+   *  its record moved on. */
+  function surfaceSlot(host: PageSurface, tint: number) {
     // The record the host last wrote: read again when its version moved.
     const surface = refreshSurface(host)
     let tints = surfaces.get(host)
     if (!tints) surfaces.set(host, (tints = new Map()))
-    let held = tints.get(tint ?? WHITE)
+    let held = tints.get(tint)
     if (!held) {
-      if (surfaceCount === surfaceCapacity)
-        relayout({ triangles: 0, nodes: 0, surfaces: surfaceCapacity * 2 })
+      if (surfaceCount === surfaceCapacity) relayout({ surfaces: surfaceCapacity * 2 })
       held = { slot: surfaceCount, version: NaN, at: surfaceCount * SURFACE_WORDS }
       surfaceCount++
-      tints.set(tint ?? WHITE, held)
+      tints.set(tint, held)
     }
     if (held.version !== surface.version || !Number.isFinite(held.version)) {
       held.version = surface.version
@@ -411,11 +418,8 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     return held.slot
   }
 
-  /** The tint a mesh's proxy brings: the compiler's colour of its material, none for a cut's white. */
-  function tintOf(cut: RuntimeCutProxy) {
-    const colour = cut.albedo.length ? cut.albedo[0] : WHITE
-    return colour === WHITE ? undefined : colour
-  }
+  /** The tint a mesh's proxy brings: the compiler's colour of its material, `NO_TINT` for a cut's white. */
+  const tintOf = (cut: RuntimeCutProxy) => (cut.albedo.length ? cut.albedo[0] : NO_TINT)
 
   /** The error of a proxy at a pose: the distance a ray leaves a surface off its normal. */
   function noteError(cell: number, m: ArrayLike<number>, at: number) {
@@ -424,7 +428,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       length3(m[at + 4], m[at + 5], m[at + 6]),
       length3(m[at + 8], m[at + 9], m[at + 10]),
     )
-    const world = cell * 0.866 * scale
+    const world = cell * CELL_ERROR_FACTOR * scale
     if (world > error) {
       error = world
       dirty = true
@@ -460,6 +464,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   /** Placements `[from, to)` written: what they wear, parked ones none until they are taken back. */
   function write(from: number, to: number) {
     for (let w = from; w < to; w++) {
+      boxed.mark(w)
       resolve(w)
       const at = w * INSTANCE_WORDS,
         parked = packed.rootNodes[w] === RUNTIME_NONE
@@ -490,21 +495,21 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const cut = proxy?.primitive.runtimeProxy
       const placed = cut && place(cut)
       const shown = !!placed && !copy.hidden && !rowParked(copy.placement)
-      const next = shown
-        ? [placed.node, placed.triangle, surfaceSlot(proxy.surface, tintOf(cut)), 0]
-        : [RUNTIME_NONE, 0, 0, 0]
-      for (let j = 0; j < INSTANCE_WORDS; j++)
-        if (words[at + j] !== next[j]) {
-          words[at + j] = next[j]
-          moved = true
-        }
+      const set = (field: number, word: number) => {
+        if (words[at + field] === word) return
+        words[at + field] = word
+        moved = true
+      }
+      set(INSTANCE.node, shown ? placed.node : RUNTIME_NONE)
+      set(INSTANCE.triangle, shown ? placed.triangle : 0)
+      set(INSTANCE.surface, shown ? surfaceSlot(proxy.surface, tintOf(cut)) : 0)
+      set(INSTANCE.mark, 0)
       if (!shown) return
       const world = copy.matrix.elements
-      for (let j = 0; j < WORLD_WORDS; j++)
-        if (copyWorlds[k * WORLD_WORDS + j] !== Math.fround(world[j])) {
-          copyWorlds[k * WORLD_WORDS + j] = world[j]
-          moved = true
-        }
+      if (!sameMatrixFloat32(copyWorlds, world, k * WORLD_WORDS)) {
+        copyMatrix4(copyWorlds, world, k * WORLD_WORDS)
+        moved = true
+      }
       noteError(cut.cellMetres, world, 0)
     })
     if (!moved || !copies.length || !(buffer || cuts.size)) return
@@ -522,44 +527,82 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   const live = () => packed.live?.worlds ?? packed.worldSources.length
   write(0, live())
 
-  // The placements' world boxes, for the probes' occupancy map: a placement's mesh bounds through the world
-  // it stands at now, a box rebuilt only for the placement whose world moved since the last call.
-  const seen = new Float64Array(slots * 12),
-    known = new Uint8Array(slots)
-  const LINEAR_AND_TRANSLATION = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-  function worldBoxes() {
-    const out: number[] = [],
-      changed: number[] = []
-    for (let w = 0; w < live(); w++) {
-      const root = packed.worldSources[w] as DagRoot | undefined
-      const cut = root?.proxy?.primitive.runtimeProxy
-      if (!root || !cut || !cut.nodeBounds.length || packed.rootNodes[w] === RUNTIME_NONE) {
-        known[w] = 0
-        continue
+  /** Placement `w`'s box made again where its world or its proxy moved: whether it did. */
+  function rebox(w: number) {
+    const root = packed.worldSources[w] as DagRoot | undefined
+    const cut = root?.proxy?.primitive.runtimeProxy
+    const at = w * 6
+    const wears =
+      w < live() && !!root && !!cut?.nodeBounds.length && packed.rootNodes[w] !== RUNTIME_NONE
+    if (!wears) {
+      if (!boxedCuts[w]) return false
+      boxedCuts[w] = undefined
+      boxes.fill(Infinity, at, at + 3).fill(-Infinity, at + 3, at + 6)
+      return true
+    }
+    const m = root!.world.elements
+    if (boxedCuts[w] === cut && sameElements(boxedWorlds, m, w * 16)) return false
+    boxedCuts[w] = cut
+    copyMatrix4(boxedWorlds, m, w * 16)
+    boxTransform(boxes, at, cut!.nodeBounds, 0, m)
+    return true
+  }
+
+  /** Whether box `w`, before it changes, touches the extent: the extent is then found again. */
+  function onEdge(w: number) {
+    for (let axis = 0; axis < 3; axis++)
+      if (boxes[w * 6 + axis] === extent[axis] || boxes[w * 6 + 3 + axis] === extent[3 + axis])
+        return true
+    return false
+  }
+
+  /** The extent of every box, found again: zeros without a box. */
+  function fitExtent() {
+    extent.fill(0)
+    let first = true
+    for (let w = 0; w < slots; w++) {
+      if (!boxedCuts[w]) continue
+      for (let axis = 0; axis < 3; axis++) {
+        const low = boxes[w * 6 + axis],
+          high = boxes[w * 6 + 3 + axis]
+        extent[axis] = first ? low : Math.min(extent[axis], low)
+        extent[3 + axis] = first ? high : Math.max(extent[3 + axis], high)
       }
-      const m = root.world.elements
-      let moved = !known[w]
-      LINEAR_AND_TRANSLATION.forEach((element, j) => {
-        if (seen[w * 12 + j] !== m[element]) moved = true
-        seen[w * 12 + j] = m[element]
-      })
-      known[w] = 1
-      const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]
-      const b = cut.nodeBounds
-      for (let corner = 0; corner < 8; corner++) {
-        const x = b[corner & 1 ? 3 : 0],
-          y = b[corner & 2 ? 4 : 1],
-          z = b[corner & 4 ? 5 : 2]
+      first = false
+    }
+    extentHolds = !first
+  }
+
+  /** The boxes made again for the rows written since the last call (`boxed`), and the runs of those
+   *  whose box moved: the work follows them, never the placements' count — the extent alone is found
+   *  again over every box, when a box that held its edge moved. */
+  function worldBoxes(): ProxyBoxes {
+    const { count, pairs } = boxed.runs()
+    for (let r = 0; r < count; r++)
+      for (let w = pairs[2 * r]; w <= pairs[2 * r + 1]; w++) {
+        const edge = !!boxedCuts[w] && onEdge(w)
+        if (!rebox(w)) continue
+        movedBoxes.mark(w)
+        if (edge || extentStale || !extentHolds || !boxedCuts[w]) {
+          extentStale ||= edge || (!extentHolds && !!boxedCuts[w])
+          continue
+        }
         for (let axis = 0; axis < 3; axis++) {
-          const at = m[12 + axis] + m[axis] * x + m[4 + axis] * y + m[8 + axis] * z
-          box[axis] = Math.min(box[axis], at)
-          box[3 + axis] = Math.max(box[3 + axis], at)
+          extent[axis] = Math.min(extent[axis], boxes[w * 6 + axis])
+          extent[3 + axis] = Math.max(extent[3 + axis], boxes[w * 6 + 3 + axis])
         }
       }
-      out.push(...box)
-      changed.push(moved ? 1 : 0)
+    boxed.clear()
+    if (extentStale) fitExtent()
+    extentStale = false
+    const moved = movedBoxes.runs()
+    const result = {
+      boxes,
+      moved: { count: moved.count, pairs: moved.pairs },
+      extent: extent.slice(),
     }
-    return { boxes: Float64Array.from(out), changed: Uint8Array.from(changed) }
+    movedBoxes.clear()
+    return result
   }
 
   return {
@@ -579,18 +622,23 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       const rows = worldRows(),
         source = frames.worldBuffers[0]
       if (rows > 0 && source) {
-        const runs = worldsAll ? [[0, rows] as [number, number]] : worldRuns(rows)
-        for (const [from, to] of runs)
+        const into = buffer
+        const copy = (from: number, to: number) =>
+          from < to &&
           encoder.copyBufferToBuffer(
             source,
             from * WORLD_BYTES,
-            buffer,
+            into,
             byteAt(layout.worlds) + from * WORLD_BYTES,
             (to - from) * WORLD_BYTES,
           )
+        if (worldsAll) copy(0, rows)
+        else {
+          const { count, pairs } = mirrored.runs()
+          for (let r = 0; r < count; r++) copy(pairs[2 * r], Math.min(pairs[2 * r + 1] + 1, rows))
+        }
       }
-      for (const w of worldList) worldFlags[w] = 0
-      worldList.length = 0
+      mirrored.clear()
       worldsAll = false
       if (!walksTree || !tree) return
       encoder.copyBufferToBuffer(
@@ -660,21 +708,23 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     /** The blended copies the forward family draws, members of this proxy after the placements: their
      *  poses are the host's (`BlendCopy.matrix`), read again at each cut. */
     setCopies(next: readonly ProxyCopy[]) {
-      if (next === copies && next.length === copyCount) return
-      if (next.length !== copyCount) {
+      const held = copyWorlds.length / WORLD_WORDS
+      if (next === copies && next.length === held) return
+      if (next.length !== held) {
         const kept = words.subarray(0, slots * INSTANCE_WORDS)
         copies = next
         words = new Uint32Array((slots + copies.length) * INSTANCE_WORDS).fill(RUNTIME_NONE)
         words.set(kept)
         copyWorlds = new Float32Array(copies.length * WORLD_WORDS)
-        copyCount = copies.length
-        relayout({ triangles: 0, nodes: 0, surfaces: 0 })
+        relayout()
       } else copies = next
       syncCopies()
     },
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
-      if (!buffer || w >= slots) return
+      if (w >= slots) return
+      boxed.mark(w)
+      if (!buffer) return
       const at = w * INSTANCE_WORDS,
         node = parked ? RUNTIME_NONE : resolved[at + INSTANCE.node]
       if (words[at + INSTANCE.node] === node) return
@@ -695,7 +745,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     refresh() {
       if (!buffer && !copies.length) return
       for (const [surface, tints] of surfaces)
-        for (const tint of tints.keys()) surfaceSlot(surface, tint === WHITE ? undefined : tint)
+        for (const tint of tints.keys()) surfaceSlot(surface, tint)
       syncCopies()
       if (buffer && dirty) {
         send(buffer, 0, header())
@@ -715,9 +765,10 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         resolved.byteLength +
         surfaceWords.byteLength +
         copyWorlds.byteLength +
-        seen.byteLength +
-        known.byteLength +
-        worldFlags.byteLength
+        boxes.byteLength +
+        boxedWorlds.byteLength +
+        // The changed lists' marks, a byte a row each.
+        3 * slots
       )
     },
     /** Bytes of the buffer: what the cut's memory budget counts. */

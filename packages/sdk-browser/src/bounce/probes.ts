@@ -14,7 +14,7 @@ import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { createSnapshotFollow, type SnapshotFollow } from './snapshotFollow.ts'
 import { createBounceSchedule } from './schedule.ts'
 import { createProbeStorage } from './probeStorage.ts'
-import { syncBounceProbes } from './probeSync.ts'
+import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
@@ -78,7 +78,7 @@ function worldLightLists(
  *  that do, which the occupancy map keeps. */
 export type ProbeScene = {
   buffer(): GPUBuffer | undefined
-  boxes(): { boxes: Float64Array; changed: Uint8Array }
+  boxes(): ProxyBoxes
 }
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>

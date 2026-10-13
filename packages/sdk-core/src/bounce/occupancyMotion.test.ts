@@ -6,6 +6,7 @@ import {
   gap,
   occupiedAt,
   point,
+  rowsOf,
   scene,
   type Box,
 } from './occupancy.fixture.ts'
@@ -20,17 +21,17 @@ test('moved owners join at once, as a fresh map of both poses would hold them', 
     [9, 0, 0, 12, 3, 3],
   ]) {
     const { occupancy, cascades } = scene(bounds, [still])
-    occupancy.moved([...target], [0])
+    occupancy.moved([...target], rowsOf([0]))
     assertMap(occupancy, cascades, bounds, [still], 'an unchanged owner adds nothing')
-    occupancy.moved([...target], [1])
+    occupancy.moved([...target], rowsOf([1]))
     assertMap(occupancy, cascades, bounds, [still, target], `${target}`)
-    occupancy.moved([...target], [1])
+    occupancy.moved([...target], rowsOf([1]))
     assertMap(occupancy, cascades, bounds, [still, target], `${target} twice`)
   }
   // Each changed owner reads its own six bounds.
   const { occupancy, cascades } = scene(bounds, [still])
   const second = point([15, 1, 2])
-  occupancy.moved([...point([1, 1, 1]), ...second], [0, 1])
+  occupancy.moved([...point([1, 1, 1]), ...second], rowsOf([0, 1]))
   assertMap(occupancy, cascades, bounds, [still, second], 'second owner')
 })
 
@@ -39,7 +40,7 @@ test('the first frame after motion rebuilds the exact map of the new poses, once
     from: Box = [6, 1, 1, 7.5, 2, 1],
     to = point([15, 1, 2])
   const { occupancy, cascades } = scene(bounds, [from])
-  occupancy.moved([...to], [1])
+  occupancy.moved([...to], rowsOf([1]))
   occupancy.settle([...to], bounds)
   assertMap(occupancy, cascades, bounds, [from, to], 'a frame that moved does not rebuild')
   occupancy.settle([...to], bounds)
@@ -59,7 +60,7 @@ test('geometry moved off the map keeps every cell until it settles, on any axis'
       const { occupancy, cascades } = scene(bounds, [point([5, 1, 1])])
       const far = [5, 1, 1]
       far[axis] = side < 0 ? -50 : 50 + bounds[3 + axis]
-      occupancy.moved([...point(far)], [1])
+      occupancy.moved([...point(far)], rowsOf([1]))
       for (let level = 0; level < cascades.levels.length; level++)
         assert.ok(occupancy.occupied(level, 1e5, -1e5, 1e5), `${axis} ${side}: every cell`)
       const grown = [...bounds]
@@ -80,7 +81,7 @@ test('geometry moved up to the edges of the map joins it alone, without wrapping
     const { occupancy } = scene(bounds, [])
     const at = [10, 1.5, 1.5]
     at[axis] = (cell + 0.5) * spacing
-    occupancy.moved([...point(at)], [1])
+    occupancy.moved([...point(at)], rowsOf([1]))
     return occupancy.occupied(0, 1e5, -1e5, 1e5) ? null : { occupancy, box: point(at) }
   }
   for (let axis = 0; axis < 3; axis++) {
@@ -121,7 +122,7 @@ test('a new cascade plan schedules every cell until the map is rebuilt on it', (
     cascades.replan(next)
     const after = cascades.levels.map((level) => level.spacing)
     assert.ok(after[0] !== before[0] || after.length !== before.length, `${next}: ${after}`)
-    occupancy.moved([...box], [0])
+    occupancy.moved([...box], rowsOf([0]))
     assert.ok(occupancy.occupied(0, 1e5, 0, 0), `${next}: a stale lattice keeps every cell`)
     occupancy.settle([...box], next)
     occupancy.settle([...box], next)

@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts'
 import { bounceProbeBytes } from '../../../bounce/limits.ts'
 import { createGpuBounceProbes } from '../../../bounce/probes.ts'
+import { NO_PROXY_BOXES } from '../../../bounce/probeSync.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -72,7 +73,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         proxy.bounds,
         {
           buffer: () => rt.run.gpuSelection?.proxyBuffer(),
-          boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? EMPTY_BOXES,
+          boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
         bounce.budgetMs,
@@ -129,9 +130,6 @@ function publish(rt: WebgpuPagesRuntime) {
     approximations: BOUNCE_APPROXIMATIONS,
   })
 }
-
-/** No placement wears a proxy yet: no box. */
-const EMPTY_BOXES = { boxes: new Float64Array(0), changed: new Uint8Array(0) }
 
 /** The meshes' proxies of a compiled scene set on the primitives that wear them, one a compiled primitive in
  *  the manifest's order, and the placements told: the scene's proxy is one structure, whether the compiler

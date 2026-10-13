@@ -16,6 +16,12 @@ export function scene(bounds: number[], boxes: Box[]) {
 
 export const point = (at: number[]): Box => [...at, ...at]
 
+/** The rows `flags` marks, as the runs `moved` takes: one row a run. */
+export function rowsOf(flags: number[]) {
+  const pairs = flags.flatMap((flag, row) => (flag ? [row, row] : []))
+  return { count: pairs.length / 2, pairs }
+}
+
 /** Every cell of a level from `margin` cells before the bounds to `margin` cells after them. */
 export function cellsAround(
   cascades: BounceCascades,
