@@ -139,8 +139,9 @@ export type GpuSelection = {
   groupsMoved(groups: ArrayLike<number>): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
-   *  them — the levels, the frustum and the raster split follow the composed poses. */
-  worldsMovedOnGpu(): void
+   *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the
+   *  placements whose worlds it wrote: the proxy mirrors those rows and no other. */
+  worldsMovedOnGpu(rows: Iterable<number>): void
   /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean

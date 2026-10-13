@@ -807,6 +807,11 @@ function writeRootParams(
   gpu.paramsWritten = words
 }
 
+/** The roots the roots pass composes: the rows of the cut's worlds it writes, which the proxy mirrors. */
+function* composedRows(state: ComposeState) {
+  for (let rank = 0; rank < state.roots; rank++) if (state.parentOf[rank] !== NONE) yield rank
+}
+
 /** The linked roots' cut worlds and motion, before the cut kernel reads them. */
 export function encodeComposedRoots(
   rt: WebgpuPagesRuntime,
@@ -821,7 +826,7 @@ export function encodeComposedRoots(
   // no `updateWorlds` saw the turn, and the cut would keep the levels and frustum of the last full
   // write. A frame whose parents moved advances the selection's world revision, as a CPU pose
   // write does, and the dispatch that follows in this command buffer cuts again under them.
-  if (state.moving) selection.worldsMovedOnGpu()
+  if (state.moving) selection.worldsMovedOnGpu(composedRows(state))
   const motionBuffer = rt.gpu.temporal?.frame.active ? rt.gpu.temporal.motion.buffer : undefined
   // No motion until the temporal pass decides one, later in this frame's encoding.
   state.motionBound = motionBuffer

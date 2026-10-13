@@ -6,7 +6,7 @@
  * forward family draws (the members after the placements, their worlds in the buffer: they are no member of
  * the culling's tree), a surface a drawn material, the arena of the meshes' proxies, each uploaded once, when
  * a placement or a copy first wears it, and the mirror of the culling's placement tree (`mirror`). The
- * placements' worlds are the culling's, copied beside the tree each frame (`mirror`): one storage binding reads the
+ * placements' worlds are the culling's, copied beside the tree (`mirror`), the rows written since the last copy alone: one storage binding reads the
  * whole proxy.
  *
  * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
@@ -42,8 +42,13 @@ import type { DagParts } from './split.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 
+/** Rows of world a run may leave between two copies, and runs a mirror may take before it copies one span. */
+const WORLD_RUN_GAP = 4,
+  WORLD_RUNS = 128
+
 /** The world matrices are sixteen words each in the cut's worlds, the exact translations behind. */
-const WORLD_WORDS = 16
+const WORLD_WORDS = 16,
+  WORLD_BYTES = WORLD_WORDS * 4
 /** Cuts, surfaces, triangles and nodes a first buffer is laid out for: doubled as needed. */
 const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }
 
@@ -177,6 +182,35 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     device.queue.writeBuffer(...args)
   }
 
+  // The world rows written since the mirror last copied them: a still world copies nothing. A buffer new made
+  // holds none of them (`ensure`), and takes them all.
+  const worldFlags = new Uint8Array(slots),
+    worldList: number[] = []
+  let worldsAll = true
+
+  /** Row `w` of the culling's world table was written: its mirror is copied at the next `mirror`. */
+  function worldWritten(w: number) {
+    if (worldsAll || w < 0 || w >= slots || worldFlags[w]) return
+    worldFlags[w] = 1
+    worldList.push(w)
+  }
+
+  /** The runs of rows to copy, in increasing order: close rows are one copy, and a scatter too wide for
+   *  commands is one span over it, never more than the rows that moved and what lies between them. */
+  function worldRuns(rows: number) {
+    const runs: [number, number][] = []
+    const sorted = Int32Array.from(worldList).sort()
+    for (const w of sorted) {
+      if (w >= rows) continue
+      const last = runs[runs.length - 1]
+      if (last && w - last[1] <= WORLD_RUN_GAP) last[1] = w + 1
+      else runs.push([w, w + 1])
+    }
+    if (runs.length > WORLD_RUNS)
+      return [[runs[0][0], runs[runs.length - 1][1]] as [number, number]]
+    return runs
+  }
+
   /** The rows of the culling's world table the buffer mirrors: the first range's, as many as it holds. */
   const worldRows = () => Math.min(frames.ranges[0]?.count ?? 0, slots)
 
@@ -206,6 +240,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   /** The buffer, made at the first need with everything the CPU holds written into it. */
   function ensure() {
     if (buffer) return buffer
+    worldsAll = true
     buffer = device.createBuffer({
       label: 'Trillion3D run-time proxy',
       size: byteAt(layout.total),
@@ -515,21 +550,29 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     },
     /**
      * The placements' worlds and the placement tree copied into the proxy's buffer, in `encoder`, before the
-     * first program of the image that traces it: sixty-four bytes a placement of worlds, and the tree's nodes, as
+     * first program of the image that traces it: sixty-four bytes of world a row written since the last copy — a
+     * still world copies none —, and the tree's nodes, as
      * the culling's refit left them, and the order of its members, a few hundred kilobytes at a quarter of a
      * million placements; no tree copies nothing to walk.
      */
     mirror(encoder: GPUCommandEncoder) {
       if (!buffer) return
-      const rows = worldRows()
-      if (rows > 0 && frames.worldBuffers[0])
-        encoder.copyBufferToBuffer(
-          frames.worldBuffers[0],
-          0,
-          buffer,
-          byteAt(layout.worlds),
-          rows * WORLD_WORDS * 4,
-        )
+      const rows = worldRows(),
+        source = frames.worldBuffers[0]
+      if (rows > 0 && source) {
+        const runs = worldsAll ? [[0, rows] as [number, number]] : worldRuns(rows)
+        for (const [from, to] of runs)
+          encoder.copyBufferToBuffer(
+            source,
+            from * WORLD_BYTES,
+            buffer,
+            byteAt(layout.worlds) + from * WORLD_BYTES,
+            (to - from) * WORLD_BYTES,
+          )
+      }
+      for (const w of worldList) worldFlags[w] = 0
+      worldList.length = 0
+      worldsAll = false
       if (!walksTree || !tree) return
       encoder.copyBufferToBuffer(
         nodeParts.buffers[nodePart!],
@@ -579,6 +622,15 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
      *  placement wears what its primitive holds now. */
     arrived() {
       write(0, live())
+    },
+    /** Rows `rows[0..count)` of the culling's world table were written (a pose, a park, a composition under a
+     *  moved parent): the mirror copies those and no other. */
+    worldsWritten(rows: ArrayLike<number>, count = rows.length) {
+      for (let k = 0; k < count; k++) worldWritten(rows[k])
+    },
+    /** Rows `[from, to)` of it were written, appended roots' worlds among them. */
+    worldsRange(from: number, to: number) {
+      for (let w = from; w < to && !worldsAll; w++) worldWritten(w)
     },
     /** Roots `[from, to)` were appended behind the others: their instances, and the tree's members. */
     appended: write,
