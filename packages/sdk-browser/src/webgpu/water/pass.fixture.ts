@@ -11,6 +11,7 @@ import { orderBlendPasses } from '../blend/order.ts'
 import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { MockPass } from '../../../../../tests/kit/gpu/mockRenderPass.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
@@ -95,7 +96,11 @@ export function prepared() {
   orderBlendPasses(blendState, [0, 0, 0])
   blendState.visibleBlend.push(...blendState.blendGpu)
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
-  blendState.argsBuffer = buffer()
+  // The indirect arguments the draws read, as the kit's indirect draws do.
+  blendState.argsBuffer = device.createBuffer({
+    size: 4096,
+    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   blendState.viewBuffer = buffer()
   return { blendState, gpu }
 }
@@ -124,52 +129,42 @@ export function targets(gpu: WebgpuGpuState) {
     },
   })
 }
-/** One pass as the replay records it. */
-const recordOf = (descriptor: GPURenderPassDescriptor) => ({
-  label: descriptor.label!,
-  drawn: [] as number[],
-  writes: [...descriptor.colorAttachments].map((attachment) => attachment?.view),
-  // The frame rewrites its descriptors in place: kept as they were when the pass began.
-  descriptor: structuredClone(descriptor),
-  scissors: [] as number[][],
-  commands: [] as string[],
-})
-
 /** The pipelines of every rank and every key a replayed pass draws with. */
 const anyPipelines = (): unknown => ({ at: () => ({}), lit: anyPipelines, reach: () => undefined })
+/** The views pass `pass` writes, slot by slot (an empty one undefined). */
+export const writesOf = (pass: MockPass) => pass.colors.map((color) => color?.view)
+/** Each scissor rectangle `pass` set, in order. */
+export const scissorsOf = (pass: MockPass) =>
+  pass.commands.filter(([name]) => name === 'setScissorRect').map(([, rect]) => rect)
+/** What `pass` draws with, in order: `pipeline:<fragment entry>`, `draw` and `indirect`. */
+export const stepsOf = (pass: MockPass) =>
+  pass.commands.flatMap(([name, [pipeline]]) =>
+    name === 'setPipeline'
+      ? [`pipeline:${(pipeline as GPURenderPipelineDescriptor).fragment?.entryPoint}`]
+      : name === 'draw'
+        ? ['draw']
+        : name === 'drawIndirect'
+          ? ['indirect']
+          : [],
+  )
+
 /**
  * A frame to replay the transparent passes into: a runtime whose bind groups are already built on
- * the placeholders — the tests observe draw order, not group construction —, and a recording
- * encoder that keeps each pass's label, the views it writes, the items it set, its descriptor as
- * begun, its scissors, its commands (`pipeline:<entry>`, `draw`, `indirect`) and its copies.
+ * the placeholders — the tests observe draw order, not group construction —, encoded on the kit's
+ * device (`passes`, `textureCopies` its records), and `drawn(pass)`: the rank of the item of each
+ * group `pass` set.
  */
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
-  const passes: ReturnType<typeof recordOf>[] = []
   const items = blendState.blendGpu
-  const counters = { copies: 0 },
-    copies: unknown[] = []
-  const encoder = {
-    beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
-      const { drawn, scissors, commands } = passes[passes.push(recordOf(descriptor)) - 1]
-      return {
-        setViewport() {},
-        setScissorRect: (...rect: number[]) => scissors.push(rect),
-        setBindGroup(_slot: number, group: GPUBindGroup) {
-          const rank = items.findIndex((item) => item.groups?.includes(group))
-          if (rank >= 0) drawn.push(rank)
-        },
-        setPipeline: (p: GPURenderPipelineDescriptor) =>
-          commands.push(`pipeline:${p.fragment?.entryPoint}`),
-        draw: () => commands.push('draw'),
-        drawIndirect: () => commands.push('indirect'),
-        end() {},
-      }
-    },
-    copyTextureToTexture: (a: unknown, b: unknown, size: unknown) => {
-      counters.copies++
-      copies.push(structuredClone({ a, b, size }))
-    },
-  } as unknown as GPUCommandEncoder
+  const { device: own, passes, textureCopies } = fakeDevice()
+  const encoder = own.createCommandEncoder()
+  const drawn = (pass: MockPass) =>
+    pass.commands
+      .filter(([name]) => name === 'setBindGroup')
+      .map(([, [, group]]) =>
+        items.findIndex((item) => item.groups?.includes(group as GPUBindGroup)),
+      )
+      .filter((rank) => rank >= 0)
   const rt = {
     // A textured scene: its pipelines write the feedback.
     vis: { blendPipelines: anyPipelines(), writesFeedback: true, physicalTable: {} },
@@ -196,5 +191,5 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   for (const item of items) item.groups = [{} as GPUBindGroup, {} as GPUBindGroup]
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroups[0] = blendState.pagedGroups[1] = {} as GPUBindGroup
-  return { rt, encoder, passes, counters, copies }
+  return { rt, encoder, passes, textureCopies, drawn }
 }

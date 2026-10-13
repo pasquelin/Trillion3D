@@ -8,12 +8,20 @@ import type {
   FakeTextureBufferCopy,
   FakeTextureCopy,
 } from './fakeRecords.ts'
-import { renderPass, type MockDraw, type MockPass } from './mockRenderPass.ts'
+import {
+  recordCommands,
+  renderPass,
+  type MockDraw,
+  type MockPass,
+  type PassCommands,
+} from './mockRenderPass.ts'
 
 /** What the encoders of one device record, in the order they were encoded. */
 export type EncoderRecords = {
   draws: MockDraw[]
   passes: MockPass[]
+  /** Each compute pass, by its label, and every command it took, with its arguments. */
+  computePasses: Array<{ label?: string; commands: PassCommands }>
   /** Every pass descriptor begun, render and compute, in order. */
   passDescriptors: Array<GPURenderPassDescriptor | GPUComputePassDescriptor | undefined>
   /** Every command that opens a GPU encoder of its own, in order: `compute <label>`, `render
@@ -53,7 +61,9 @@ export function createMockCommandEncoderFactory(
       return renderPass(desc, records)
     },
     beginComputePass: (desc?: GPUComputePassDescriptor) => {
-      const pass = passDescriptors.push(desc) - 1
+      const pass = passDescriptors.push(desc) - 1,
+        taken: PassCommands = []
+      records.computePasses.push({ label: desc?.label, commands: taken })
       commands.push(`compute ${desc?.label ?? ''}`)
       // Each dispatch is a usage scope: one reading its arguments from a buffer a group set binds
       // writable is refused, and so is one whose pipeline's groups are not all set, with its layouts.
@@ -65,34 +75,38 @@ export function createMockCommandEncoderFactory(
         dispatches.push({ pass, entryPoint, ...call })
         simulateComputeDispatch(computePipeline, computeBind, packed, computeOffsets)
       }
-      return {
-        setPipeline(next: { entryPoint: string }) {
-          computePipeline = next
-          scope.pipeline(next)
+      return recordCommands(
+        {
+          setPipeline(next: { entryPoint: string }) {
+            computePipeline = next
+            scope.pipeline(next)
+          },
+          // Dynamic offsets count: plan expansion reads the uniform region of ITS pass, and two
+          // passes follow each other in the same compute pass.
+          setBindGroup(i: number, group: typeof computeBind, offsets?: readonly number[]) {
+            computeBind = group
+            computeOffsets = offsets
+            scope.setBindGroup(i, group, offsets)
+          },
+          // Kernels that spread over the live-cluster list go through here: the double replays the
+          // same kernel whichever path the GPU launches it on.
+          dispatchWorkgroupsIndirect: (buffer: GPUBuffer, offset: number) =>
+            run({ buffer, offset }),
+          // A grid of no workgroup runs nothing, and the device warns ("DispatchWorkgroups with a
+          // workgroup count of 0"): the engine encodes none, and the kit refuses it.
+          dispatchWorkgroups(x: number, y = 1, z = 1) {
+            if (!(x > 0 && y > 0 && z > 0))
+              throw new Error(
+                `${computePipeline?.entryPoint}: a dispatch of ${x}×${y}×${z} workgroups`,
+              )
+            run({ direct: x, ...(y > 1 && { rows: y }) })
+          },
+          pushDebugGroup() {},
+          popDebugGroup() {},
+          end() {},
         },
-        // Dynamic offsets count: plan expansion reads the uniform region of ITS pass, and two passes
-        // follow each other in the same compute pass.
-        setBindGroup(i: number, group: typeof computeBind, offsets?: readonly number[]) {
-          computeBind = group
-          computeOffsets = offsets
-          scope.setBindGroup(i, group, offsets)
-        },
-        // Kernels that spread over the live-cluster list go through here: the double replays the same
-        // kernel whichever path the GPU launches it on.
-        dispatchWorkgroupsIndirect: (buffer: GPUBuffer, offset: number) => run({ buffer, offset }),
-        // A grid of no workgroup runs nothing, and the device warns ("DispatchWorkgroups with a
-        // workgroup count of 0"): the engine encodes none, and the kit refuses it.
-        dispatchWorkgroups(x: number, y = 1, z = 1) {
-          if (!(x > 0 && y > 0 && z > 0))
-            throw new Error(
-              `${computePipeline?.entryPoint}: a dispatch of ${x}×${y}×${z} workgroups`,
-            )
-          run({ direct: x, ...(y > 1 && { rows: y }) })
-        },
-        pushDebugGroup() {},
-        popDebugGroup() {},
-        end() {},
-      }
+        taken,
+      )
     },
     clearBuffer(buffer: { data?: Uint8Array }, offset = 0, size?: number) {
       commands.push('clear')

@@ -22,13 +22,33 @@ export type MockDraw = {
   /** The blend of the pipeline's first colour target, as it was made. */
   blend?: GPUBlendState
 }
+/** One render pass, as it began — its attachments copied, since a frame rewrites its descriptors
+ *  in place; an empty colour slot is `null` — and every command it took since, in order, with its
+ *  arguments (a bundle's among them, after `executeBundles`; `end` last once it ended). */
 export type MockPass = {
   label?: string
-  colorLoad?: string
-  colorClear?: GPUColor
-  depthLoad?: string
-  colorCount: number
+  colors: Array<GPURenderPassColorAttachment | null>
+  depth?: GPURenderPassDepthStencilAttachment
+  /** Each colour target's view format. */
   formats: string[]
+  commands: PassCommands
+}
+
+/** A pass's commands, each in `commands` with its arguments as it is taken, then run. */
+export type PassCommands = Array<[string, unknown[]]>
+
+/** `pass` with each of its commands recorded in `commands` as it is taken, then run. */
+export function recordCommands<P extends Record<string, (...args: never[]) => unknown>>(
+  pass: P,
+  commands: PassCommands,
+) {
+  const target = pass as Record<string, (...args: never[]) => unknown>
+  for (const [name, run] of Object.entries(pass))
+    target[name] = (...args: never[]) => {
+      commands.push([name, args])
+      return run(...args)
+    }
+  return pass
 }
 
 /** A pipeline as the device makes it: its descriptor (`fakeDevice.ts`). */
@@ -51,16 +71,17 @@ export function renderPass(
 ) {
   const at = passDescriptors.length - 1
   // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
-  const colors = [...(desc?.colorAttachments ?? [])]
+  const colors = [...(desc?.colorAttachments ?? [])].map((color) => (color ? { ...color } : null))
+  const depth = desc?.depthStencilAttachment
   const scope = createUsageScope('render')
-  passes.push({
+  const record: MockPass = {
     label: desc?.label,
-    colorLoad: colors[0]?.loadOp,
-    colorClear: colors[0]?.clearValue as GPUColor | undefined,
-    depthLoad: desc?.depthStencilAttachment?.depthLoadOp,
-    colorCount: colors.length,
+    colors,
+    ...(depth && { depth: { ...depth } }),
     formats: colors.map((color) => (color?.view as { format?: string } | undefined)?.format ?? ''),
-  })
+    commands: [],
+  }
+  passes.push(record)
   let pipeline: Pipeline = {},
     bound: Bound
   const groups: unknown[] = []
@@ -122,5 +143,5 @@ export function renderPass(
     executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
     end: () => scope.end(),
   }
-  return pass
+  return recordCommands(pass, record.commands)
 }

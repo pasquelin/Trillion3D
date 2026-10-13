@@ -59,6 +59,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   const records: EncoderRecords = {
     draws: [],
     passes: [],
+    computePasses: [],
     passDescriptors: [],
     commands: [],
     dispatches: [],

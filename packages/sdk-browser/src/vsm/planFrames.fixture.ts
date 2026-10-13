@@ -58,24 +58,13 @@ export function randomWorld(random: () => number, eye: [number, number, number])
   return { lights, eye, boxes }
 }
 
-const pass = {
-  ...{ setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {} },
-  ...{ dispatchWorkgroupsIndirect() {}, drawIndirect() {}, end() {} },
-}
-/** A command encoder whose passes record nothing. */
-export const encoder = {
-  beginComputePass: () => pass,
-  beginRenderPass: () => pass,
-  clearBuffer() {},
-  copyBufferToBuffer() {},
-} as unknown as GPUCommandEncoder
-
 /** A frame set of 127 maps, two suns and 256 pages on a recording device, and its frames. */
 export function planFrames() {
   const fake = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
   })
   const { device } = fake
+  const encoder = device.createCommandEncoder()
   const res = createVsmResources(device, {
     fullMapCapacity: 127,
     sunMapCapacity: 35,
@@ -126,7 +115,7 @@ export function planFrames() {
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
     encodeVsmInvalidations(encoder, res, { device, mapSlotCount: prevSlots }, [phase])
-    marking.encode(pass as unknown as GPUComputePassEncoder, {
+    marking.encode(encoder.beginComputePass(), {
       fullMapCount: plan.fullMapCount,
       singlePageMapCount: plan.singlePageMapCount,
       perspective: true,

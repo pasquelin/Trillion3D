@@ -158,23 +158,14 @@ test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apar
       minUniformBufferOffsetAlignment: 512,
     },
   })
+  const { chunks } = encodeRows(fake.device, fake.device.createCommandEncoder())
   // Every group set with a dynamic offset: the chunks' parameters, the candidates' at 0.
-  const offsets = new Set<number>()
-  const pass = new Proxy(
-    {},
-    {
-      get: (_, name) =>
-        name === 'setBindGroup'
-          ? (_group: number, _set: unknown, dynamic?: readonly number[]) =>
-              void (dynamic?.length && offsets.add(dynamic[0]))
-          : () => undefined,
-    },
+  const offsets = new Set(
+    [...fake.computePasses, ...fake.passes]
+      .flatMap(({ commands }) => commands)
+      .filter(([name, [, , dynamic]]) => name === 'setBindGroup' && (dynamic as number[])?.length)
+      .map(([, [, , dynamic]]) => (dynamic as number[])[0]),
   )
-  const encoder = new Proxy(
-    {},
-    { get: (_, name) => (String(name).startsWith('begin') ? () => pass : () => undefined) },
-  ) as GPUCommandEncoder
-  const { chunks } = encodeRows(fake.device, encoder)
   const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
   assert.ok(paramsBuffer.size >= chunks * 512)
   const slots = new Uint32Array(paramsBuffer.size / 4)

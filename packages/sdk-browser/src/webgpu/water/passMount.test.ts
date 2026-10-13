@@ -43,14 +43,14 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
 test('without the pass, the transmission slice draws as one more blend', () => {
   const { blendState, gpu } = prepared()
   targets(gpu)
-  const { rt, encoder, passes, counters } = replay(blendState, gpu)
+  const { rt, encoder, passes, textureCopies, drawn } = replay(blendState, gpu)
   // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
   const composed = encodeWaterPass(rt, encoder)
   if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true)
   assert.equal(composed, false)
-  assert.equal(counters.copies, 0, 'no backdrop copy without the pass')
+  assert.equal(textureCopies.length, 0, 'no backdrop copy without the pass')
   assert.deepEqual(
-    passes.map(({ label, drawn }) => ({ label, drawn })),
+    passes.map((pass) => ({ label: pass.label, drawn: drawn(pass) })),
     [{ label: 'Trillion3D transmission', drawn: [1] }],
     'the slice, as a blend',
   )
