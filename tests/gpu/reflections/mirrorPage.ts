@@ -51,15 +51,16 @@ export function run() {
  *  coat, as raw half-float words. */
 export type CoatReading = { bare: number[]; coated: number[]; size: number }
 
-/** The floor of the scene turned into a rough metal (`rough`), under a clear coat of the strength
- *  `coat` on its own normal and as smooth as the floor of roughness allows, or bare. */
-function roughFloor(coat: boolean) {
+/** The floor of the scene turned into a metal of roughness `rough` (`ROUGH` by default), under a
+ *  clear coat of the strength `coat` on its own normal and as smooth as the floor of roughness
+ *  allows, or bare. */
+export function roughFloor(coat: boolean, rough = ROUGH) {
   const scene = mirrorScene()
   const { size } = MIRROR
   const lobes = new Uint32Array(size * size * 4)
   for (let p = 0; p < size * size; p++) {
     if (scene.flags[p] !== STANDARD) continue
-    scene.normals[p * 4 + 3] = ROUGH
+    scene.normals[p * 4 + 3] = rough
     if (!coat) continue
     scene.flags[p] |= PHYSICAL_SURFACE_FLAG
     // No anisotropy; a coat of one on the normal (0, 1, 0), roughness zero: the words
