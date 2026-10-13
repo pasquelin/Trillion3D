@@ -47,14 +47,14 @@ test('what a world holds per screen pixel is the formula', async () => {
   }
 })
 
-test("the run-time proxy's history is eight bytes a screen pixel, asked of the frame's allocation", async () => {
+test("the run-time proxy's store is eight bytes a screen pixel, asked of the frame's allocation", async () => {
   const result = (await runPageProof(
     resolve(import.meta.dirname, 'runtimeBytesPage.ts'),
     'runtimeBytes',
   )) as PageProofResult & RuntimeBytes
   assertSoundProof(result)
   const [small, large] = result.perPixel
-  const label = 'Trillion3D run-time proxy history'
+  const label = 'Trillion3D run-time proxy store'
   console.log(JSON.stringify({ small: small[label], large: large[label] }))
   assert.ok(Math.abs(small[label] - 8) < 0.01, `${small[label]} B/px at the small size`)
   assert.ok(Math.abs(large[label] - 8) < 0.01, `${large[label]} B/px at the large size`)

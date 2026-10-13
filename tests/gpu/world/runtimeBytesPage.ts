@@ -1,6 +1,6 @@
 // The page of the run-time proxy's memory proof: the generated world of the reflection proof's first case
 // (`../reflections/runtimeFamilyWorld.ts`) drawn at two sizes, the engine's allocation ledger read by label once it
-// is held, in bytes per pixel. The proxy's history follows the screen: eight bytes a pixel, asked of the
+// is held, in bytes per pixel. The proxy's store follows the screen: eight bytes a pixel, asked of the
 // frame's allocation when the first placement that wears a proxy is drawn.
 import { familyCase } from '../reflections/runtimeFamilyCases.ts'
 import { familyWorld } from '../reflections/runtimeFamilyWorld.ts'
