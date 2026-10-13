@@ -18,7 +18,7 @@ import { flushWebgpuPages } from '../webgpu/pages/render/flush.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/types.ts'
 import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
+import { webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
@@ -149,6 +149,6 @@ export async function scaleDown(session: Awaited<ReturnType<typeof placedSession
   core.scale.set(1e-3, 1e-3, 1e-3)
   await settled(cells, [0, 0, 0], 100, io, noBudget)
   await draw()
-  await growthOf(rt)?.making
+  await rt.growth?.making
   await draw()
 }

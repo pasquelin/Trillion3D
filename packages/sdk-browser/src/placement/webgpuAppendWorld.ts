@@ -21,7 +21,7 @@ import {
   holdCatalogueCover,
 } from '../webgpu/pages/prepare/catalogueGrowth.ts'
 import { growWebgpuPagePool } from '../webgpu/pages/io/memory.ts'
-import { growthOf, joinGrownRoots } from './webgpuGrowth.ts'
+import { joinGrownRoots } from './webgpuGrowth.ts'
 
 /** Why the world DAG cannot join, said by name; the session draws what it drew. */
 const CLOSED = 'the session holds no GPU cut: it is closing or its device is lost'
@@ -37,7 +37,7 @@ export async function addWebgpuWorldRoots(
   if (!gpu.device || run.lost || !run.gpuSelection) return CLOSED
   const dag = hold.drawn?.dag
   if (!dag || context.worldRoots) return undefined
-  const roots = [...layout.selectionRoots, ...(growthOf(rt)?.roots ?? [])]
+  const roots = [...layout.selectionRoots, ...(rt.growth?.roots ?? [])]
   if (!worldFits(dag, roots)) return 'the world DAG would pass the pages a key names'
   const root = worldDagRoot(hold, setup.collector.sources, roots)
   if (!root) return undefined

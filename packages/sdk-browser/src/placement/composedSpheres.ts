@@ -15,14 +15,11 @@ import { packClusterSpheres } from '../webgpu/shadow/spheres.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 
-/** The composition's version each copy was made at. */
-const copied = new WeakMap<object, number>()
-
 export function refreshComposedSpheres(rt: WebgpuPagesRuntime) {
   const state = rt.compose,
     spheres = rt.lights.spheres
-  if (!state?.parentIds.size || !spheres || copied.get(spheres) === state.version) return
-  copied.set(spheres, state.version)
+  if (!state?.parentIds.size || !spheres || spheres.composedVersion === state.version) return
+  spheres.composedVersion = state.version
   const { rows, selectionRoots, placement } = rt.layout,
     runs: number[] = []
   const rankOf = (row: number) => rootOfPacked(placement, rows.packedPageIndex[row])

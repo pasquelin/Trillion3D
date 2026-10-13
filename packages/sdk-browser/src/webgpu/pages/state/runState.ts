@@ -70,5 +70,11 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     // No frame before the first image: it uploads, whatever happens.
     movedWorlds: createSortedKeys(),
     occluderSignature: 0,
+    funding: {
+      ledgerBytes: undefined,
+      refreshing: undefined,
+      cutAsked: 0,
+      renewal: Promise.resolve(),
+    },
   }
 }

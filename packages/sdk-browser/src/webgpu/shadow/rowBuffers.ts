@@ -34,6 +34,9 @@ export function clusterSpheres(device: GPUDevice, casterSlots: number) {
     written: { epoch: 0, runs: [] as number[] },
     /** The runs the upload under way writes. */
     writing: undefined as number[] | undefined,
+    /** The composition's version the copies of its rows were made at, 0 before any
+     *  (`../../placement/composedSpheres.ts`). */
+    composedVersion: 0,
   }
 }
 

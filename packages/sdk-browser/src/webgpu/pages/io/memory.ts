@@ -191,9 +191,6 @@ async function setGeometryBudget(
   return { evictedPages, transientBytes, tables, applied }
 }
 
-/** The renewals of one session, one after the other, each drawn from the catalogue as it stands. */
-const renewals = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
-
 /**
  * The geometry pool drawn again for the pages that joined the session's catalogue
  * (`catalogueGrowth.ts`): its budget kept, its cache laid out for them in place — every page it
@@ -202,13 +199,13 @@ const renewals = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
  * keeps the one in place.
  */
 export function growWebgpuPagePool(rt: WebgpuPagesRuntime, grown: GrownPages) {
-  const renewal = (renewals.get(rt) ?? Promise.resolve())
+  const renewal = rt.run.funding.renewal
     .catch(() => {})
     .then(() =>
       setGeometryBudget(rt, rt.gpu.device, rt.setup.geometryPool.budgetBytes, 'host', grown),
     )
     .then((report) => report.applied)
-  renewals.set(rt, renewal)
+  rt.run.funding.renewal = renewal
   return renewal
 }
 
