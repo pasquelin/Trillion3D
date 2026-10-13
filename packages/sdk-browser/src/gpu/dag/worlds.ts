@@ -60,7 +60,9 @@ export function writePrimitiveWords(
 ) {
   const at = primitiveWordAt(w),
     frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
-  frameData[at] = worldStretch(packed.worldSources[w])
+  // A slot of the room a growth keeps holds no root yet: no stretch, as no world.
+  const source = packed.worldSources[w]
+  frameData[at] = source ? worldStretch(source) : 0
   frameInts[at + 1] = packed.rootNodes[w]
   frameInts[at + 2] = packed.recordShift[w]
   frameInts[at + 3] = packed.mark?.[w] ?? 0
