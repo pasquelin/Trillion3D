@@ -213,6 +213,9 @@ export type GpuSelection = {
   adopt(cut: GpuCut): CutClaims | undefined
   /** True once released: a released selection dispatches and drains nothing more. */
   failed(): boolean
+  /** Settled once the readbacks in flight have landed, nothing grown or cut again: the first
+   *  step of a drain (`flush`), alone. */
+  landed(): Promise<void>
   flush(): Promise<SelectionResult | null>
   dispose(): void
 }
