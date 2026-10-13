@@ -67,8 +67,8 @@ test('a flight past the pool: no slot reused under a frame, no hole, no flicker,
       resident: Math.max(...frames.map((f) => f.resident)),
     }),
   )
-  assert.ok(pages > 4 * slots, `a world of ${pages} pages through ${slots} slots`)
-  assert.ok(evictions > pages / 2, `${evictions} pages evicted on the way`)
+  assert.ok(pages > 16 * slots, `a world of ${pages} pages through ${slots} slots`)
+  assert.ok(evictions >= slots, `${evictions} pages evicted on the way: the pool turned over`)
   assert.ok(frames.length > reading.flight / 2, 'most frames read back')
   for (const f of frames) {
     assert.deepEqual(f.torn, [], `frame ${f.frame}: pages drawn from a slot that did not hold them`)

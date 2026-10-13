@@ -43,8 +43,8 @@ export type FlightFrame = {
   wanted: number
 }
 
-/** The flight: a row of DAGs four times the pool, flown in `flight` frames, then held still. */
-const FLIGHT = { copies: 16, slots: 360, flight: 160, hold: 40, seed: 0xf1197 }
+/** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
+const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }
 
 export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
   const gpu = await openGpuDevice()
@@ -105,6 +105,7 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
   let wanted: GpuCut['result']['pageIds'] = [],
     wantedCount = 0,
     loading = false,
+    job: Promise<void> = Promise.resolve(),
     landed: unknown = null,
     evictions = 0
   /** The pages the latest readback asks for, closed over their groups, loaded in install order. */
@@ -221,13 +222,14 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
         landed = cut
         checks.push(check(cut))
         wanted = cut.result.pageIds
-        void load()
+        if (!loading) job = load()
       }
     }
-    await Promise.all(checks)
+    await Promise.all([...checks, job])
   } catch (error) {
     return { error: String(error) + ((error as Error).stack ?? ''), frames, errors: gpu.errors }
   } finally {
+    await job.catch(() => {})
     for (const { pool } of submitted.values()) pool.destroy()
     selection.dispose()
     unbounded.dispose()
