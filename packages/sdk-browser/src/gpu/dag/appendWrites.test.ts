@@ -35,7 +35,7 @@ test('an append sends the worlds it added, not the room’s', async () => {
   assert.ok(sent > 0 && sent <= 400 * 6 + 2 * 16, `${sent} texels, the room ${capacity.worlds * 6}`)
   // The groups they joined and the 400 member slots they took, in the tree's own table; no node
   // and no word of order in the node or cold tables.
-  const tree = texels('Trillion3D placement tree'),
+  const tree = texels('Trillion3D DAG placement tree'),
     groups = Math.ceil(400 / 64)
   assert.ok(tree >= 400 && tree <= 400 + groups * 24 + 64, `${tree} words of the tree`)
   selection.dispose()

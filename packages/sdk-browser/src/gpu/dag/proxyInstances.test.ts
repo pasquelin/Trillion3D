@@ -144,7 +144,7 @@ test('the trace reads the culling’s worlds and tree: a moved placement sends n
   assert.equal(proxy.worlds, selection.worlds, 'the cut’s own table, read in place')
   assert.equal(
     (proxy.tree as unknown as { texture: { label: string } }).texture.label,
-    'Trillion3D placement tree',
+    'Trillion3D DAG placement tree',
     'and the cut’s tree, in its own table',
   )
   const sent = writes(gpu).length

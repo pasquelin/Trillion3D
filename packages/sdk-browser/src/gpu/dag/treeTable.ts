@@ -23,7 +23,7 @@ import { DAG_NODE_FLOATS } from './types.ts'
  * A row holds 32 nodes, 4864 words; a layer 8192 rows, 2¹⁸ nodes.
  */
 export const TREE_TABLE: RecordLayout = {
-  label: 'Trillion3D placement tree',
+  label: 'Trillion3D DAG placement tree',
   format: 'r32uint',
   fields: { Node: DAG_NODE_FLOATS, Members: TREE_SPAN, Always: TREE_SPAN },
   rowShift: 5,
