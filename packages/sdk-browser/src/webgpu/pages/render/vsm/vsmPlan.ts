@@ -27,6 +27,7 @@ import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
 import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
+import { retryFrame } from '../../../../gpu/core/refusal.ts'
 import { grantEngineVsm, growEngineVsm, vsmFirstSetLayout, vsmSetBytes } from './vsmGrant.ts'
 import { shadowHeldBytes } from './vsmStats.ts'
 import { shadowRowBytes } from '../../../shadow/rowBuffers.ts'
@@ -95,8 +96,8 @@ export function vsmAskedBytes(rt: WebgpuPagesRuntime, width: number, height: num
  *  the one held, and the caster rows' shadow data while none was made (`shadowRowBytes`, made by
  *  the first frame a light casts, before its set): reserved before the pools grant themselves, so
  *  a pool never takes the room of shadows still to come — out of the pools' room only, never under
- *  their floors (`ActiveGpuMemory.shadowReserve`). None once the device refused that set for these
- *  lights. */
+ *  their floors (`ActiveGpuMemory.shadowReserve`). None while the device's refusal of that set for
+ *  these lights waits (`../../../../gpu/core/refusal.ts`). */
 export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
   const { vsm, vsmRefusal } = rt.lights,
     device = rt.gpu.device
@@ -105,7 +106,8 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
     wanted = fullMapsFor(list)
   if (vsm && vsm.res.layout.fullMapCapacity >= wanted) return 0
   const refused =
-    vsmRefusal?.retryAt === Infinity &&
+    vsmRefusal?.roomBytes === Infinity &&
+    rt.run.frame < retryFrame(vsmRefusal) &&
     vsmRefusal.wanted === wanted &&
     vsmRefusal.directional === directionalCount(list)
   if (refused) return 0

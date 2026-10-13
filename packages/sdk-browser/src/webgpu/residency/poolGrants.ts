@@ -7,7 +7,7 @@ import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { GeometryPool } from '../../residency/pools.ts'
 import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
-  halvedPool,
+  halvings,
   outOfMemoryContext,
   type HalvedPool,
   type ShrunkPool,
@@ -61,27 +61,25 @@ async function grantedWithin<P extends ShrunkPool, R extends Made>(
   make: (pool: P) => R,
   diagnose: Diagnose,
 ): Promise<Granted<P, R> | undefined> {
-  let pool = first
-  const requestedBytes = pool.allocatedBytes
-  let made: R | undefined,
-    halvings = 0
-  while (!(made = await deviceMade(device, () => ledgerTentative(device, () => make(pool))))) {
-    const smaller = halvedPool(pool, draw)
-    if (!smaller) {
-      const refused = outOfMemoryContext(name, requestedBytes)
-      diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, refused)
-      return undefined
+  const requestedBytes = first.allocatedBytes
+  let refusals = 0
+  for (const pool of halvings(first, draw)) {
+    const made = await deviceMade(device, () => ledgerTentative(device, () => make(pool)))
+    if (!made) {
+      refusals++
+      continue
     }
-    pool = smaller
-    halvings++
+    if (refusals)
+      diagnose(
+        'gpu-out-of-memory',
+        `The device refused the ${name} pool; drawn smaller`,
+        outOfMemoryContext(name, requestedBytes, pool),
+      )
+    return { pool, made, halvings: refusals }
   }
-  if (pool.allocatedBytes !== requestedBytes)
-    diagnose(
-      'gpu-out-of-memory',
-      `The device refused the ${name} pool; drawn smaller`,
-      outOfMemoryContext(name, requestedBytes, pool),
-    )
-  return { pool, made, halvings }
+  const refused = outOfMemoryContext(name, requestedBytes)
+  diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, refused)
+  return undefined
 }
 
 /**
