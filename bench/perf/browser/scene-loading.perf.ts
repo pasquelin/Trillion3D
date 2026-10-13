@@ -10,11 +10,11 @@ import {
 import { measure, stress, rapport } from '../../core/index.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts'
+import { referenceExactPagesBounds } from '../../oracles/browser/bounds-and-index.ts'
 import {
-  referenceExactPagesBounds,
   referenceIndexManifestBundles,
   referenceIndexManifestPages,
-} from '../../oracles/browser/bounds-and-index.ts'
+} from '../../oracles/browser/manifest-index.ts'
 import { manifesteEtScene } from './support/scenesLoading.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
 

@@ -7,6 +7,9 @@ const TRACE_SAMPLE = 16
 /** A record list as a sample reads it: the row table holds empty slots. */
 type PageList = ArrayLike<PageRec | undefined>
 
+/** The pages a session tracks (`createWebgpuPageTracking`). */
+export type WebgpuPageTracking = ReturnType<typeof createWebgpuPageTracking>
+
 /** Stable numeric page keys keep the hot residency path out of string hash tables. The catalogue
  *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins. */
 export function createWebgpuPageTracking(allPages: PageRec[]) {

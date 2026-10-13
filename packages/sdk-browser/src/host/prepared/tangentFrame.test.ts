@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { preparedMaterials } from './materials.ts'
 import { entry } from '../../world/api/materialApi.fixture.ts'
-import { frameNormalScaleY } from '../../visibility/buffer.ts'
+import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import * as G from '../graph/graph.fixture.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 

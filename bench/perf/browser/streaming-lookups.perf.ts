@@ -2,7 +2,8 @@
 import { createJobHeap } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
 import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts'
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { measure, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referencePushPending,
   referenceRetireDeLaFile,

@@ -4,7 +4,7 @@ import { serveClaims, type createWebgpuRowClaims } from './claims.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
-import type { createWebgpuRowState } from './state.ts'
+import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createRowUse } from './rowUse.ts'
 import type { createRowDemand } from './rowDemand.ts'
@@ -12,7 +12,7 @@ import type { createRowDemand } from './rowDemand.ts'
 /** What the row cache's passes share (`slots.ts`): the table, the catalogue, the ranks freed, the
  *  claims, the rows' use, the cut's demand, the writers, and the counts of the pass. */
 export type RowSlots = {
-  rows: ReturnType<typeof createWebgpuRowState>
+  rows: WebgpuRowState
   packedPages: PageList
   recordOf: (page: number) => PageRec | undefined
   drawsRow: (page: number) => boolean

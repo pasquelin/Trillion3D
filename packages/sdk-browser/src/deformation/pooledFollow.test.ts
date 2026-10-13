@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { deformOutputWord, followPooledBlocks } from './outputs.ts'
-import { PAGE_DEFORM_OUTPUT_WORD, PAGE_DEFORM_WORD, PAGE_INFO_STRIDE } from '../visibility/types.ts'
+import { PAGE_DEFORM_OUTPUT_WORD, PAGE_DEFORM_WORD, ROW_WORDS } from '../visibility/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 
@@ -14,10 +14,10 @@ function rig() {
     own = { from: 12, count: 3 }
   const outputs = [block, own, block, undefined]
   const recs = outputs.map(() => ({}) as PageRec)
-  const words = PAGE_INFO_STRIDE / 4,
+  const words = ROW_WORDS,
     ints = new Uint32Array(4 * words),
     marked: number[] = []
-  ints[words + PAGE_DEFORM_OUTPUT_WORD] = 77
+  ints[ROW_WORDS + PAGE_DEFORM_OUTPUT_WORD] = 77
   const rows = {
     pageTableInts: ints,
     packedRecs: recs,
@@ -61,13 +61,13 @@ test('the rows and spans of a moved float-pool block follow it; a tail stays', (
 })
 
 test("a row's record word follows the moved records; a row with none, or unmoved, is not written", () => {
-  const { ints, words, marked, deformation, rt } = rig()
+  const { ints, marked, deformation, rt } = rig()
   followPooledBlocks(rt)
   assert.deepEqual(marked, [0, 1, 2], 'records in place: only the rows with results are written')
   marked.length = 0
   deformation.base = 9000
   followPooledBlocks(rt)
-  assert.equal(ints[words + PAGE_DEFORM_WORD], 9040, 'the record read at its new place')
-  assert.deepEqual([ints[PAGE_DEFORM_WORD], ints[2 * words + PAGE_DEFORM_WORD]], [0, 0])
+  assert.equal(ints[ROW_WORDS + PAGE_DEFORM_WORD], 9040, 'the record read at its new place')
+  assert.deepEqual([ints[PAGE_DEFORM_WORD], ints[2 * ROW_WORDS + PAGE_DEFORM_WORD]], [0, 0])
   assert.deepEqual(marked, [0, 1, 2])
 })

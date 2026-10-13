@@ -17,27 +17,29 @@ import {
   type HizPipelines,
   type HizState,
 } from './hizOps.ts'
+import { canCompute } from '../../lighting/deferred/fullscreen.ts'
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
- *  nearest for the readers of the whole depth. Without compute, returns `undefined`. `front` says
- *  whether the scene has blends: their front depth is a texel a pixel, else a single zero texel
- *  that every pixel reads, which the fold ignores. */
+ *  nearest for the readers of the whole depth. Without compute, returns `undefined`. `front` gives
+ *  the nearest transparent surface's depth the pyramid folds in — the drawn view's reflection's
+ *  (`reflections/frontDepth.ts`), read at each use, so a view switch or a remade reflection is
+ *  followed —; none, and the pyramid binds level 0 there, whose fold with itself is the opaque
+ *  depth, bit for bit. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,
   height: number,
   maxBounds: number,
-  front = true,
+  front?: () => GPUTextureView | undefined,
 ): Promise<GpuHiz | undefined> {
-  if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
-    return undefined
+  if (!canCompute(device) || width < 1 || height < 1) return undefined
   const buffers: GPUBuffer[] = []
   let h: HizState | undefined
   try {
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
     h = hizState(device, pipelines, buffers, Math.max(1, maxBounds), front)
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots, front))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -53,7 +55,7 @@ function hizState(
   pipelines: HizPipelines,
   buffers: GPUBuffer[],
   cap: number,
-  front: boolean,
+  front: HizState['front'],
 ): HizState {
   // The deepest pyramid's build passes, then the test's slot, at the device's alignment.
   const slots = hizUniformSlots(device.limits)
@@ -114,6 +116,7 @@ function hizState(
 
 /** One layer of the drawn pyramid, by its build's `pipeline`, in the open compute pass. */
 function encodeLayer(h: HizState, open: OpenPass, pipeline: GPUComputePipeline) {
+  bindHiz(h)
   const { at, bindGroup } = h
   if (h.disposed || !bindGroup || !at) return
   encodeHizPyramid(open.pass, bindGroup, pipeline, at.drawn.passes, at.drawn.slots)
@@ -144,22 +147,16 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
     depth() {
+      if (h.disposed) return undefined
+      bindHiz(h)
       const { at } = h
-      if (h.disposed || !at) return undefined
+      if (!at) return undefined
       return (at.depth ??= {
-        pyramid: at.pyramid,
-        front: at.front,
         resources: [at.level0View, at.pyramidView, { buffer: h.levelTable }, at.frontView],
       })
     },
     encodeTest: (queueDevice, open, maxRows, pages, counting) =>
       hizTest(h, queueDevice, open, maxRows, pages, counting),
-    get front() {
-      return h.front
-    },
-    set front(front) {
-      h.front = front
-    },
     resize: (nextDevice, nextWidth, nextHeight) =>
       hizResize(h, gpu, nextDevice, nextWidth, nextHeight),
     swap(next) {

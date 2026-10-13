@@ -1,4 +1,5 @@
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { collectClusterPages } from './selection.ts'

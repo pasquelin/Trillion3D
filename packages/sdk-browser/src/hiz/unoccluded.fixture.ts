@@ -6,7 +6,7 @@ import { boundsFor, projectBoxesFlat } from './projection.fixture.ts'
 import type { HizPage, FlatHizPyramid } from './types.ts'
 import { hizRejectsFlat } from '../../../../bench/oracles/browser/hizOcclusion.ts'
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { PageLocations } from '../page/selection/placements.ts'
 
 /**

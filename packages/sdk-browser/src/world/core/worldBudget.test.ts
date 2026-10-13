@@ -3,7 +3,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts'
 import { DEFAULT_TEXTURE_POOL_BUDGET, DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts'
-import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts'
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
@@ -50,7 +49,7 @@ test('raycastTrees reads and sets the raycast tree cache budget', () => {
 test("the default totals split into each pool's own default", () => {
   const handle = budget(null)
   assert.equal(handle.gpu, DEFAULT_GPU_BUDGET)
-  assert.equal(handle.cpu, DEFAULT_CPU_BUDGET)
+  assert.equal(handle.cpu, DEFAULT_CACHED_BYTES)
   assert.deepEqual(handle.split, {
     shadowPool: SHADOW_POOL_BYTES,
     bounceProbes: BOUNCE_PROBE_BYTES,
@@ -76,8 +75,7 @@ test('the shadow share holds the virtual shadow maps of one sun, within a MiB', 
 })
 
 test("the CPU total is the page cache's, whole: no shadow table is mirrored on the host", () => {
-  assert.equal(DEFAULT_CPU_BUDGET, DEFAULT_CACHED_BYTES)
-  for (const total of [1, DEFAULT_CPU_BUDGET, 4096 * MIB])
+  for (const total of [1, DEFAULT_CACHED_BYTES, 4096 * MIB])
     assert.equal(budget(null, { cpu: total }).split.pageCache, total, `${total}`)
 })
 

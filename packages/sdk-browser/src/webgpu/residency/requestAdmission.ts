@@ -1,7 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import type { WebgpuResidencySets } from './sets.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import { createReadbackMerge, type ViewReadbacks } from './readbackMerge.ts'
 import { ADMISSION_LEVEL_MAX } from '../../gpu/dag/request.ts'
@@ -15,7 +15,6 @@ import {
   type LevelFiling,
 } from './levelFiling.ts'
 
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 /** The pool turns short once the views' cuts pass it, and whole again only once they fall a tenth
  *  below it: a cut at the pool's edge does not flip the GPU's ranking — and the queue — image after
  *  image. */
@@ -37,7 +36,7 @@ const SHORT_LEAVE = 0.9
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
-  tracking: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
+  tracking: Pick<WebgpuPageTracking, 'keyOf' | 'wanted' | 'topLevel'>,
   closure: Pick<GroupClosure, 'closeOver'>,
   recordOf: (id: number) => PageRec | undefined,
 ) {
@@ -99,7 +98,7 @@ export function createRequestAdmission(
 /** The views' requests merged, and the admission level of each. */
 function admissionMerge(
   recordOf: (id: number) => PageRec | undefined,
-  levels: Pick<Tracking, 'topLevel'>,
+  levels: Pick<WebgpuPageTracking, 'topLevel'>,
 ) {
   const levelOf = (id: number) => {
     const rec = recordOf(id)
@@ -117,7 +116,7 @@ function admissionMerge(
 type Walk = {
   merge: ReturnType<typeof createReadbackMerge>['merge']
   closure: Pick<GroupClosure, 'closeOver'>
-  wanted: Tracking['wanted']
+  wanted: WebgpuPageTracking['wanted']
   visit: (id: number, rec: PageRec) => void
   full: () => boolean
 }

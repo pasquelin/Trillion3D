@@ -139,6 +139,9 @@ export async function primeFirstView(
   })
 }
 
+/** What `prepareExplorer` resolves to: a session's prepared engine and streams. */
+export type PreparedExplorer = Awaited<ReturnType<typeof prepareExplorer>>
+
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, metadata, signal, diagnosticChannel } = session
   const { manifestUrl, metadataUrl, base, resources, progress } = inputs

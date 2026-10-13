@@ -40,7 +40,6 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     center = new Float64Array(3),
     offset = new Float64Array(3),
     orientation = new Float64Array(4),
-    pan = new Float64Array(3),
     moved = new Float64Array(10)
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
@@ -59,8 +58,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       rotateByQuaternion(offset, orientation, 0, 0, 1)
       radius = 1
     }
-    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
-    const kept = clampCompare(radius, Math.max(api.minDistance, RADIUS_EPSILON), far)
+    const kept = keptDistance(api, radius)
     for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius
     pose.write(position, orientation)
     writeVector(api.target, center)
@@ -86,15 +84,15 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     panBy(dx, dy) {
       if (!api.enablePan) return
       sample()
-      const distance = length3(offset[0], offset[1], offset[2])
-      panOffset(
-        pan,
+      panCenter(
+        center,
         orientation,
+        pose,
+        length3(offset[0], offset[1], offset[2]),
+        height(),
         dx,
         dy,
-        pixelWorldScale(distance, pose.fov(), height(), pose.zoom()),
       )
-      for (let i = 0; i < 3; i++) center[i] += pan[i]
       apply()
     },
     dolly(steps) {
@@ -106,6 +104,31 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       apply()
     },
   }
+}
+
+/** Scratch offset of `panCenter`, which is not reentrant. */
+const pan = new Float64Array(3)
+
+/** Moves `center` across the view plane of a camera oriented by `orientation`, `distance` away
+ *  from it, by a drag of `(dx, dy)` pixels on a surface `height` pixels tall: the scene follows
+ *  the pointer. The pan of every pivot controller, the orbit's among them. */
+export function panCenter(
+  center: Float64Array,
+  orientation: ArrayLike<number>,
+  pose: ControlPose,
+  distance: number,
+  height: number,
+  dx: number,
+  dy: number,
+) {
+  panOffset(pan, orientation, dx, dy, pixelWorldScale(distance, pose.fov(), height, pose.zoom()))
+  for (let i = 0; i < 3; i++) center[i] += pan[i]
+}
+
+/** `radius` held within the controls' distance range, and never under `RADIUS_EPSILON`. */
+export function keptDistance(api: PivotCameraControls, radius: number) {
+  const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
+  return clampCompare(radius, Math.max(api.minDistance, RADIUS_EPSILON), far)
 }
 
 /** A pivot's default distance range and speeds, which `world.controls` keeps as its own. */

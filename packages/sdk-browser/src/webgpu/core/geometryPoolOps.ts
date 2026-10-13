@@ -14,7 +14,10 @@ import {
   createPoolStores,
   releasePoolBuffers,
   releasePoolStores,
+  storesBytes,
+  type PoolStores,
 } from './geometryPoolStores.ts'
+import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
 import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
@@ -92,21 +95,27 @@ function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
   const wider = floatsOf(carried, size, tail)
   if (!poolFits(wider, device.limits)) return false
   const resized = size !== p.size || carried.secondUv !== p.secondUv,
-    made = resized
+    made: PoolStores = resized
       ? createPoolStores(device, wider)
-      : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm },
-    encoder = device.createCommandEncoder()
-  copyPoolStores(encoder, p.stores, made, [p.size, size, p.tailFloats], p.coloured)
-  device.queue.submit([encoder.finish()])
-  if (resized) releasePoolStores(p.stores)
-  else releasePoolBuffers(p.stores)
-  p.stores = made
-  p.size = size
-  p.tailFloats = tail
-  p.floats = wider
-  p.coloured = carried.coloured
-  p.secondUv = carried.secondUv
+      : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm }
+  // A pool whose atlas stays frees the buffers alone.
+  const free = (held: PoolStores) => (resized ? releasePoolStores(held) : releasePoolBuffers(held))
+  pendingMade(made, storesBytes(made), free, () => {
+    const encoder = device.createCommandEncoder(),
+      held = p.stores
+    copyPoolStores(encoder, held, made, [p.size, size, p.tailFloats], p.coloured)
+    device.queue.submit([encoder.finish()])
+    p.stores = made
+    p.size = size
+    p.tailFloats = tail
+    p.floats = wider
+    p.coloured = carried.coloured
+    p.secondUv = carried.secondUv
+    return held
+  }).commit()
   if (!resized) return true
+  // The atlas's rows follow its size: every block's normals and second UV set are written
+  // again, as placed.
   for (const [attributes, block] of p.blocks)
     for (const name of ATLAS_LISTS)
       if (holds(p, attributes, name))

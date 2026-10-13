@@ -3,7 +3,7 @@ import { zeroFlagsBuffer } from '../../visibility/shaders.ts'
 import { growShadowRows } from '../../shadow/rowBuffers.ts'
 import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts'
 import { restSlotCount } from '../../../gpu/draw/contract.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { partitionSourcesOf } from './drawSources.ts'
 

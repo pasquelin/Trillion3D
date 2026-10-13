@@ -19,7 +19,7 @@ import { ROW_INPUT_DOUBLES } from './composedRowPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { dAdd, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
@@ -216,7 +216,7 @@ export const COMPOSE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(8) var<storage,read_write> corners:array<u32>;
 @group(0) @binding(9) var<storage,read_write> lods:array<u32>;
 fn composeRow(row:u32){
- let base=row*${PAGE_INFO_STRIDE / 4}u;
+ let base=row*${ROW_WORDS}u;
  let rank=table[base+${ROW_PLACEMENT_WORD}u];
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];

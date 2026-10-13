@@ -101,7 +101,8 @@ export type { GraphSurface } from './host/graph/surface.ts'
 export type { GraphTexture } from './host/graph/texture.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts'
-export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
+export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
+export type { GpuPassBlock } from './stage/passDeclaration.ts'
 export { createDiagnosticChannel } from './diagnostic/channel.ts'
 export type {
   DiagnosticChannel,

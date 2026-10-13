@@ -89,12 +89,12 @@ test('a covering page is kept through pins and unpins, and a pinned one counts o
   cache.pin('root')
   cache.pin('a')
   cache.pin('b')
-  assert.equal(cache.unpinnedSlots(), 0, 'a page pinned twice counts once')
+  assert.equal(cache.stats().pinned, 3, 'a page pinned twice counts once')
   assert.equal(cache.unload('root'), false)
   await cache.resize(2)
   assert.ok(cache.get('root'), 'the cover is kept before the pinned page')
   cache.unpin('root')
-  assert.equal(cache.unpinnedSlots(), 1)
+  assert.equal(cache.stats().pinned, 1)
   cache.unpin('b')
   await cache.resize(1)
   assert.ok(cache.get('root'), 'unpinned, the cover still ranks first')
@@ -136,7 +136,7 @@ test('a page loaded pinned is pinned on arrival: a resize queued behind its load
   await Promise.all(loads)
   assert.deepEqual(evicted.sort(), ['a', 'b'], 'the newer unpinned pages go, not the cover')
   assert.ok(cache.get('root') && cache.get('cover'))
-  assert.equal(cache.unpinnedSlots(), 0, 'both cover pages arrived pinned')
+  assert.equal(cache.stats().pinned, 2, 'both cover pages arrived pinned')
 })
 
 // A pool drawn again under a budget holds both buffers a moment, while its pages are copied: the

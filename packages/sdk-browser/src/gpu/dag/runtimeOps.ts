@@ -16,18 +16,23 @@ import type { createDagDispatch } from './dispatch.ts'
 import { readFor } from './dispatchRead.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
-import type { createDagResources } from './resources.ts'
+import type { DagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
 import { writeParts } from './split.ts'
-import { COLD_WORDS, CLUSTER_WORDS, keyWordBase, recordKeyBase } from './layout.ts'
+import {
+  COLD_WORDS,
+  CLUSTER_WORDS,
+  groupParentBase,
+  keyGroupBase,
+  keyWordBase,
+  recordKeyBase,
+} from './layout.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import { uploadNodes, type TreeFollower } from './treeFollow.ts'
 import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
-
-export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the
@@ -288,8 +293,18 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   const coldAt = packed.shared!.coldAt!
   send(coldParts, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
   send(coldParts, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
-  const keyAt = keyWordBase({ pageCount: packed.pageCount, recordCount: packed.recordCount })
-  for (const key of added.keys) send(coldParts, cones, (keyAt + key) * 4, 4)
+  const keyAt = keyWordBase(packed),
+    groupAt = keyGroupBase(packed)
+  for (const key of added.keys) {
+    send(coldParts, cones, (keyAt + key) * 4, 4)
+    send(coldParts, cones, (groupAt + key) * 4, 4)
+  }
+  // The key groups they made: the parent starts of each, and the edges behind the live ones.
+  const parentAt = groupParentBase(packed),
+    [g0, g1] = added.groups,
+    [e0, e1] = added.edges
+  send(coldParts, cones, (parentAt + g0 + 1) * 4, (g1 - g0) * 4)
+  send(coldParts, cones, (parentAt + packed.groupCount + 1 + e0) * 4, (e1 - e0) * 4)
   // The tree nodes joined, in the run writer's ranges.
   uploadNodes(device, nodeParts, packed, added.tree.nodes)
   if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)

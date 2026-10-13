@@ -2,7 +2,7 @@
 // streamer that records what it is asked, an engine whose cut packs no world DAG.
 import type { Engine } from '../../engine/types.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 export type Io = Parameters<PartitionCells['frame']>[2]
 /** No arrival budget: what a test places never depends on the time the machine takes. */
@@ -39,6 +39,6 @@ export function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
     unpin() {},
     admit() {},
     forget() {},
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   return { port, asked }
 }

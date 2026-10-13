@@ -12,7 +12,8 @@ import {
 } from '../../../../packages/sdk-core/src/index.ts'
 import type { triangleAt } from './projection.ts'
 import { attr2, sampleLinear } from './math.ts'
-import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import type { VisMaterial } from '../../../../packages/sdk-browser/src/visibility/materialType.ts'
+import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { frameNormalScaleY } from '../../../../packages/sdk-browser/src/visibility/frameNormal.ts'
 import { hypot3 } from '../../../../packages/math/src/float/hypot.ts'
 

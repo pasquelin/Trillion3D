@@ -57,7 +57,7 @@ import {
   type VsmTransmission,
 } from '../../../../vsm/transmissionPass.ts'
 import {
-  createReadbackRing as createVsmReadbackRing,
+  createReadbackRing,
   type ReadbackRing as VsmReadbackRing,
 } from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
@@ -295,7 +295,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       regrowFrame: 0,
       pendingBoxes: null,
       prevSlots: 0,
-      statsReadback: createVsmReadbackRing(
+      statsReadback: createReadbackRing(
         device,
         { label: 'vsm.engine.statsReadback', bytes: VSM_COUNTERS * 4, count: STATS_READBACKS },
         (mapped, staging) => landVsmStats(settle, staging, readVsmStats(stats, mapped)),

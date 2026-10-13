@@ -13,6 +13,7 @@ import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimi
 import { packDrawn } from '../page/runtimeCut.ts'
 import type { CutWay } from '../page/runtimePack.ts'
 import { composesWithBackground } from '../../scene/materialBlending.ts'
+import { firstMaterial } from '../../scene/materialSide.ts'
 import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 
@@ -34,8 +35,6 @@ export type Cut = {
   readonly dynamic?: DynamicHeld
 }
 
-export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m[0] : m)
-
 /**
  * What decides a mesh's triangles, beside its geometry: how it reads it, the material fields
  * that turn a point into an octahedron, a face into its wireframe or its flat normals, and a
@@ -48,7 +47,7 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
  * equal on these draw the same pages, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
-  const material = firstMaterial(mesh.material)
+  const material = firstMaterial(mesh.material)!
   const center = mesh instanceof Sprite ? mesh.center : undefined
   const options = {
     size: material.size as number | undefined,

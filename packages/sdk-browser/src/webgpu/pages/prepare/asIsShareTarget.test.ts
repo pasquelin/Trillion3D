@@ -10,6 +10,7 @@ import { drawBlendPass } from '../../blend/draw.ts'
 import type { BlendGpuItem } from '../../blend/state.ts'
 import { device, mountDevice, prepared, replay, targets } from '../../water/pass.fixture.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { reflectionFront } from '../../../reflections/frontDepth.fixture.ts'
 
 /** A blended image whose targets are made, and an encoder that notes each pass's label, its
  *  attachment's load and clear, and the commands it encodes. */
@@ -33,7 +34,7 @@ function blendedImage() {
     context: {},
     blendState: { blendGpu: [{}] },
     gpu: {
-      reflection: { front: { view: {}, fresh: false } },
+      reflection: reflectionFront(),
       temporalWanted: false,
       surfaces: { views: () => [{}, {}, {}, {}] },
       allocatedSize: [8, 4],

@@ -1,8 +1,8 @@
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { readJson } from './repository-files.ts'
+import { git } from './git-paths.ts'
 
 // The heavy local steps (a test run, `build`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
@@ -20,12 +20,8 @@ const LOW_PRIORITY = 10
  *  outside a Git checkout. */
 export function heavyLockPath(cwd = process.cwd()): string | undefined {
   try {
-    const common = execFileSync('git', ['rev-parse', '--git-common-dir'], {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-    const main = dirname(realpathSync(resolve(cwd, common.trim())))
+    const common = git(cwd, 'rev-parse', '--git-common-dir')
+    const main = dirname(realpathSync(resolve(cwd, common)))
     return join(main, '.worktrees', 'logs', 'heavy-step.lock')
   } catch {
     return undefined

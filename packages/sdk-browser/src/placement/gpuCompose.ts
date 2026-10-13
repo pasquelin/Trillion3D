@@ -39,6 +39,7 @@ import { composeWorld } from './composeWorld.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
+import { uniformSlotBytes, uniformStride } from '../residency/pools.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   composeMembersWgsl,
@@ -128,7 +129,8 @@ function createComposeState(roots: number) {
      *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
     winding: [] as boolean[],
     packed: new Uint32Array(MATRIX_DOUBLES * 2),
-    /** The roots pass's parameters, 64 words a range of the cut's worlds; the rows pass's four. */
+    /** The roots pass's parameters, a uniform slot (`uniformStride`) a range of the cut's worlds;
+     *  the rows pass's four. */
     rootParams: new Uint32Array(64),
     rowParams: new Uint32Array(4),
     /** Each linked root's local box through its local matrix: its box in its parent's frame. */
@@ -515,7 +517,7 @@ function createComposeGpu(device: GPUDevice, rootCount: number) {
   const uniforms = [0, 1].map(() =>
     device.createBuffer({
       label: 'Trillion3D compose params',
-      size: 256 * 8,
+      size: uniformSlotBytes(device.limits, 8),
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     }),
   )
@@ -762,27 +764,29 @@ function paramsHold(
   written: number,
   ranges: GpuSelection['worldRanges'],
   roots: number,
+  slot: number,
 ) {
-  if (written !== 64 * ranges.length) return false
+  if (written !== slot * ranges.length) return false
   for (let r = 0; r < ranges.length; r++) {
-    const at = r * 64
+    const at = r * slot
     if (params[at] !== roots || params[at + 1] !== ranges[r].first) return false
     if (params[at + 2] !== ranges[r].count) return false
   }
   return true
 }
 
-/** The roots pass's parameters, 64 words a range of the cut's worlds: the roots and the range,
- *  written when one of them moved — a frame that composes under the same ranges sends none. Whether
- *  motion is written is the motion mode's (`decideComposedMotion`). */
+/** The roots pass's parameters, a uniform slot (`uniformStride`) a range of the cut's worlds: the
+ *  roots and the range, written when one of them moved — a frame that composes under the same
+ *  ranges sends none. Whether motion is written is the motion mode's (`decideComposedMotion`). */
 function writeRootParams(
   device: GPUDevice,
   state: ComposeState,
   gpu: NonNullable<ComposeState['gpu']>,
   ranges: GpuSelection['worldRanges'],
 ) {
-  if (paramsHold(state.rootParams, gpu.paramsWritten, ranges, state.roots)) return
-  const words = 64 * ranges.length
+  const slot = uniformStride(device.limits) / 4
+  if (paramsHold(state.rootParams, gpu.paramsWritten, ranges, state.roots, slot)) return
+  const words = slot * ranges.length
   if (state.rootParams.length < words) state.rootParams = new Uint32Array(words)
   const params = state.rootParams
   if (gpu.uniforms[0].size < words * 4) {
@@ -794,7 +798,7 @@ function writeRootParams(
     })
   }
   for (let r = 0; r < ranges.length; r++) {
-    const at = r * 64
+    const at = r * slot
     params[at] = state.roots
     params[at + 1] = ranges[r].first
     params[at + 2] = ranges[r].count
@@ -846,7 +850,14 @@ export function encodeComposedRoots(
       held.group = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-          { binding: 0, resource: { buffer: gpu.uniforms[0], offset: r * 256, size: 16 } },
+          {
+            binding: 0,
+            resource: {
+              buffer: gpu.uniforms[0],
+              offset: r * uniformStride(device.limits),
+              size: 16,
+            },
+          },
           { binding: 1, resource: { buffer: gpu.locals } },
           { binding: 2, resource: { buffer: gpu.parentOf } },
           { binding: 3, resource: { buffer: gpu.parents! } },

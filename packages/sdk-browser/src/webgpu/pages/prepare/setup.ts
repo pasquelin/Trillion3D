@@ -3,7 +3,7 @@ import { indexSourceBytes } from '../io/catalogue.ts'
 import { describePageSlots, pageAddress } from '../../row/pageSlots.ts'
 import { pageHomes } from '../../../gpu/page/homes.ts'
 import type { EngineContext } from '../../../engine/types.ts'
-import type { createWebgpuDiagnostics } from '../io/diagnostics.ts'
+import type { WebgpuDiagnosticChannel } from '../io/diagnostics.ts'
 import { RequestStamps } from '../../../page/selection/selection.ts'
 import { createBlendScene } from '../../../cluster/blendSceneRecord.ts'
 import { createHostRankDelta } from '../../../streaming/hostRanks.ts'
@@ -19,7 +19,7 @@ import { DAG_CLUSTER_TRIANGLES } from '../../../../../sdk-core/src/page/format.t
 
 /** The corners of the widest cluster the format holds. */
 const CLUSTER_MAX_CORNERS = 3 * DAG_CLUSTER_TRIANGLES
-export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
+export type WebgpuDiagnostics = WebgpuDiagnosticChannel & {
   traceEnabled: boolean
 }
 export type WebgpuPagesSetup = ReturnType<typeof createWebgpuPagesSetup>

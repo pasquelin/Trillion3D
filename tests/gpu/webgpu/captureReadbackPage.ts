@@ -3,7 +3,8 @@
 // then the engine's capture of a frame no flush settled against the capture its flush settled.
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { difference, redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { flipRows, gaps, writePattern } from '../kit/patternImage.ts'
@@ -64,8 +65,8 @@ async function sequence(
       held: held.held !== null,
       red: redCount(unsettled),
       bytes: unsettled.length,
-      moved: held.held ? difference(held.held, unsettled) : null,
-      difference: difference(settled, unsettled),
+      moved: held.held ? compareImages(held.held, unsettled).differentPixels : null,
+      difference: compareImages(settled, unsettled).differentPixels,
     }
   } finally {
     release(backend, canvas, scene)

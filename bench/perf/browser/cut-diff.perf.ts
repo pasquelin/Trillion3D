@@ -8,7 +8,8 @@ import {
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
 import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts'
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts'
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { measure, stress, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceCutComplete, referencePendingUrls } from '../../oracles/browser/cut-diff.ts'
 
 const alea = xorshiftRandom(97)

@@ -1,13 +1,13 @@
 // A page streamer over a server refusing its reads, the clock and its timers in the test's hands:
 // what the failure policy's tests read (`failures.test.ts`, `failureLife.test.ts`).
 import type { TestContext } from 'node:test'
-import { createPageStreamer } from './pageStreamer.ts'
+import { createPageStreamer, type PageStreaming } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { eventually } from './eventually.fixture.ts'
 
 /** Waits till `streamer` reads nothing and queues nothing: every read it was asked landed, failed
  *  or waits its turn — the events themselves, however slow the machine. */
-export const idle = (streamer: ReturnType<typeof createPageStreamer>) =>
+export const idle = (streamer: PageStreaming) =>
   eventually(() => streamer.stats().loading === 0 && streamer.stats().queued === 0)
 
 /** A streamer of the pages `urls` the server answers with `status`, the clock and its timers in

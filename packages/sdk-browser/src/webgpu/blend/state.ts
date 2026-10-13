@@ -71,6 +71,9 @@ export type BlendGpuItem = {
   vertexBase?: number
 }
 
+/** The blend state a session holds (`createWebgpuBlendState`). */
+export type WebgpuBlendState = ReturnType<typeof createWebgpuBlendState>
+
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
@@ -131,7 +134,7 @@ function waterState() {
      *  the targets it draws over are made for it (`holdsWater`). */
     waterGranted: false,
     /** A source that brings a blend asked for it before its items join: the front depth the blend
-     *  pass writes is made full size (`wantsFrontDepth`). */
+     *  pass writes is made full size (`sceneBlends`). */
     frontGranted: false,
     transmissiveInView: 0,
     waterBounds: createWaterBounds(),

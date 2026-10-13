@@ -13,12 +13,13 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
 import { GATHER_WGSL, GATHER_WORKGROUP, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, started, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
 import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
+  sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
 
 export type WebgpuTileReduce = {
@@ -38,7 +39,7 @@ export type WebgpuTileReduce = {
 /** `undefined` on a device without a compute stage: transparents then keep their queues, and the
  *  prepare diagnostic says so. */
 export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | undefined {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   const layout = device.createBindGroupLayout({
     entries: [
       computeTextureEntry(0, 'uint'),
@@ -94,12 +95,12 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
         groupKey = [target, feedback.buffer, feedback.list]
         group = device.createBindGroup({
           layout,
-          entries: [
-            { binding: 0, resource: target },
-            { binding: 1, resource: { buffer: feedback.buffer } },
-            { binding: 2, resource: { buffer: uniform } },
-            { binding: 3, resource: { buffer: feedback.list } },
-          ],
+          entries: sequentialEntries([
+            target,
+            { buffer: feedback.buffer },
+            { buffer: uniform },
+            { buffer: feedback.list },
+          ]),
         })
       }
       words[0] = size[0]
@@ -124,11 +125,11 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
           gatheredKey = [feedback.buffer, feedback.list]
           gathered = device.createBindGroup({
             layout: gatherLayout,
-            entries: [
-              { binding: 0, resource: { buffer: feedback.buffer } },
-              { binding: 1, resource: { buffer: feedback.list } },
-              { binding: 2, resource: { buffer: gatherUniform } },
-            ],
+            entries: sequentialEntries([
+              { buffer: feedback.buffer },
+              { buffer: feedback.list },
+              { buffer: gatherUniform },
+            ]),
           })
         }
         capWord[0] = feedback.capacity

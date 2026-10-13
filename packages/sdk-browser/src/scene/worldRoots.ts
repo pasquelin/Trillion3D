@@ -41,7 +41,7 @@ import { createWorldObjects } from './worldObjects.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
-import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
+import { createListeners, type Listeners } from '../../../sdk-core/src/runtime/listeners.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): a partitioned world opens them at load,
@@ -51,7 +51,7 @@ type WorldStream = {
   dag: ReturnType<typeof worldRootDag>
   superRoots: Float64Array | undefined
   /** Who is told the pages a bundle read landed beside the one asked (`worldPageServer`). */
-  landed: ReturnType<typeof createListeners<[addresses: readonly string[]]>>
+  landed: Listeners<[addresses: readonly string[]]>
 }
 
 type Announced = { bytes: number; sha256: string }

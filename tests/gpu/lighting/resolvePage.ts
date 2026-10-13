@@ -35,6 +35,7 @@ import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { bufferHolding } from '../kit/computeReadback.ts'
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
  *  and the resolve reading it: `contractLighting`, or with `drawn` `sampledSliceLighting` alone, with
@@ -66,15 +67,8 @@ export async function run(scenes: ResolveScene[]) {
   const opened = await openGpuDevice()
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const
   const { device } = opened
-  const storage = (data: Uint32Array<ArrayBuffer> | Float32Array<ArrayBuffer>, read = false) => {
-    const buffer = device.createBuffer({
-      size: Math.max(data.byteLength, 16),
-      usage:
-        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | (read ? GPUBufferUsage.COPY_SRC : 0),
-    })
-    device.queue.writeBuffer(buffer, 0, data)
-    return buffer
-  }
+  const storage = (data: Uint32Array<ArrayBuffer> | Float32Array<ArrayBuffer>, read = false) =>
+    bufferHolding(device, data, GPUBufferUsage.STORAGE | (read ? GPUBufferUsage.COPY_SRC : 0), 16)
   const placeholders = createDeferredPlaceholders(device)
   const view = createDeferredView(device)
   const resolveEntries = deferredLayoutEntries(true)

@@ -25,7 +25,7 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   // the rest is drawn by its nearest resident ancestor (`../../residency/requestAdmission.ts`).
   services.queueCutResidency()
   // The cache gives slots back in the order the main cut published (`../../residency/evictionFeed.ts`).
-  if (selection && views.active === views.main) services.followEvictions(selection)
+  if (selection && views.active === views.main) services.followEvictions(selection, run.frame)
   marks.queueEnd = performance.now()
   ensurePageTable(rt, gpuDevice)
   // The readback the drawn view adopts.

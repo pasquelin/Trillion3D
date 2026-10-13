@@ -1,6 +1,5 @@
 // Water cost measure. Output is raw evidence, never an optimization verdict.
 import { waterCostRun } from './waterCostRun.ts'
-import { execFileSync } from 'node:child_process'
 import { loadavg } from 'node:os'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve, relative, dirname } from 'node:path'
@@ -9,6 +8,7 @@ import { runOnDawn } from '../../tests/gpu/kit/onDawn.ts'
 import { takeBenchLock } from './lock.ts'
 import type { run, WaterCostOptions } from '../../tests/gpu/water/waterCostPage.ts'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { git } from '../../scripts/git-paths.ts'
 
 type Reading = Awaited<ReturnType<typeof run>>
 
@@ -38,8 +38,6 @@ if (
   relative(resolve(REPOSITORY_ROOT, '.mesure/out'), out).startsWith('..')
 )
   throw new Error('Output must be a child of .mesure/out')
-const git = (cwd: string, ...args: string[]) =>
-  execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 takeBenchLock('water cost')
 const engineRoots = [
   engineRoot,

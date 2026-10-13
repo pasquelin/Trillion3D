@@ -1,6 +1,6 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import {
-  PAGE_INFO_STRIDE,
+  ROW_WORDS,
   PAGE_DEFORM_WORD,
   PAGE_DEFORM_COUNT_WORD,
   PAGE_DEFORM_OUTPUT_WORD,
@@ -77,9 +77,9 @@ export function wholeDeformationPool(
     ) {
       for (const source of sources.values())
         device.queue.writeBuffer(pool, (base + source.at) * 4, source.data)
-      const table = new Uint32Array(rows * (PAGE_INFO_STRIDE / 4))
+      const table = new Uint32Array(rows * ROW_WORDS)
       placed.forEach((item, i) => {
-        const at = i * (PAGE_INFO_STRIDE / 4)
+        const at = i * ROW_WORDS
         item.vertexBase = blockOf(item.sourceGeometry.attributes).vertexBase
         item.deformInput = base + sources.get(item.sourceGeometry)!.at + 1
         item.deformOutput = ((base + output.get(item)! + 1) | DEFORM_SOURCE_IN_POOL) >>> 0
@@ -106,7 +106,7 @@ export function wholeDeformationPool(
         const output = deformOutputWord(block)
         // One pass of the stage's group a row, so the block's vertices spread over the device.
         for (let first = 0; first < block.count; first += DEFORMATION_LANES, row++) {
-          const at = row * (PAGE_INFO_STRIDE / 4),
+          const at = row * ROW_WORDS,
             count = Math.min(DEFORMATION_LANES, block.count - first)
           table[at + ROW_FLAGS_WORD] = geometry.dynamic ? FLAG_DYNAMIC : 0
           table[at + ROW_INDEX_WORDS] = count // any count but zero: the stage skips an empty row

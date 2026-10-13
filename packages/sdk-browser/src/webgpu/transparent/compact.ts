@@ -1,9 +1,10 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 const UNIFORM_WORDS = 8
 
@@ -31,20 +32,19 @@ function compactLayout(device: GPUDevice) {
 /** The compute half's kernels: the three passes that turn the frame's selection mask into instance
  *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
 async function compactKernels(device: GPUDevice) {
-  if (typeof device.createComputePipeline !== 'function') return undefined
+  if (!canCompute(device)) return undefined
   const layout = compactLayout(device)
   const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
   if (typeof module.getCompilationInfo === 'function') {
     const info = await module.getCompilationInfo()
     if (info.messages.some((message) => message.type === 'error')) return undefined
   }
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',
     'scatterTransparentGroups',
   ] as const
-  const stages = await buildComputeStages(device, pipelineLayout, module, entryPoints)
+  const stages = await buildComputeStages(device, [layout], module, entryPoints)
   return { layout, pipelines: entryPoints.map((entry) => stages[entry]) }
 }
 
@@ -62,17 +62,19 @@ function compactPasses(
   const bindTo = (mask: GPUBuffer, made: Held) =>
     device.createBindGroup({
       layout,
-      entries: [
-        made.entriesBuf,
-        made.uniforms,
-        mask,
-        made.groupCounts,
-        made.groupOffsets,
-        made.instanceBuffer,
-        made.indirectBuffer,
-        made.itemRangesBuf,
-        made.occludedBuffer,
-      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
+      entries: sequentialEntries(
+        [
+          made.entriesBuf,
+          made.uniforms,
+          mask,
+          made.groupCounts,
+          made.groupOffsets,
+          made.instanceBuffer,
+          made.indirectBuffer,
+          made.itemRangesBuf,
+          made.occludedBuffer,
+        ].map((buffer) => ({ buffer })),
+      ),
     })
   let boundMask: GPUBuffer | undefined,
     boundTo: Held | undefined,

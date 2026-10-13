@@ -52,13 +52,10 @@ export function createPlacementRows(capacity: number): PlacementRows {
   }
 }
 
-/** The capacity a table holding `held` entries grows to when it needs `needed` (`grownLength`). */
-export const grownCapacity = grownLength
-
-/** A larger buffer for `needed` rows (`grownCapacity`): `before`'s rows copied first, the new
+/** A larger buffer for `needed` rows (`grownLength`): `before`'s rows copied first, the new
  *  ones parked. */
 export function growPlacementRows(before: PlacementRows | null, needed: number) {
-  const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed))
+  const rows = createPlacementRows(grownLength(before?.capacity ?? 0, needed))
   if (before) {
     rows.sources = before.sources
     rows.sourceModels = before.sourceModels

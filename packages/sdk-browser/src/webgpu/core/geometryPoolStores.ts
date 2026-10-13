@@ -50,6 +50,9 @@ export function copyPoolStores(
 export function releasePoolBuffers(held: PoolStores) {
   for (const key of BUFFERS) held[key].destroy()
 }
+/** The bytes the stores hold: their buffers and the normal atlas. */
+export const storesBytes = (held: PoolStores) =>
+  BUFFERS.reduce((total, key) => total + held[key].size, held.concatNrm.bytes)
 
 /** Frees the stores. */
 export function releasePoolStores(held: PoolStores) {

@@ -59,11 +59,9 @@ function evaluate(text: string, known: ReadonlyMap<string, number>): number {
   return value
 }
 
-/** The `pub const` integers of the Rust file at `path`, in order; those of a `pub mod` carry its
- *  name in `scope`. Only single-line items are read. */
-export function rustConstants(path: string, known = new Map<string, number>()) {
-  const found: RustConstant[] = []
-  const scope: string[] = []
+/** Each line of the Rust file at `path` that is no `///` comment, trimmed, with the documentation
+ *  lines just above it. */
+function* documentedLines(path: string) {
   let doc: string[] = []
   for (const line of rustSource(path).split('\n')) {
     const text = line.trim()
@@ -72,6 +70,17 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
       doc.push(comment[1])
       continue
     }
+    yield { text, doc }
+    doc = []
+  }
+}
+
+/** The `pub const` integers of the Rust file at `path`, in order; those of a `pub mod` carry its
+ *  name in `scope`. Only single-line items are read. */
+export function rustConstants(path: string, known = new Map<string, number>()) {
+  const found: RustConstant[] = []
+  const scope: string[] = []
+  for (const { text, doc } of documentedLines(path)) {
     const module = /^pub mod (\w+) \{$/.exec(text)
     const numeric = /^pub(?:\(crate\))? const (\w+): (?:[iu](?:8|16|32|64)|usize) = (.+);$/.exec(
       text,
@@ -83,24 +92,16 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
       known.set(numeric[1], value)
       found.push({ name: numeric[1], value, doc, scope: [...scope] })
     }
-    doc = []
   }
   return found
 }
 
 /** The `pub const` string `name` of the Rust file at `path`, with its leading documentation. */
 export function rustString(path: string, name: string) {
-  let doc: string[] = []
-  for (const line of rustSource(path).split('\n')) {
-    const text = line.trim()
-    const comment = /^\/\/\/ ?(.*)$/.exec(text)
-    if (comment) {
-      doc.push(comment[1])
-      continue
-    }
-    const found = new RegExp(`^pub(?:\\(crate\\))? const ${name}: &str = "([^"]*)";$`).exec(text)
+  const pattern = new RegExp(`^pub(?:\\(crate\\))? const ${name}: &str = "([^"]*)";$`)
+  for (const { text, doc } of documentedLines(path)) {
+    const found = pattern.exec(text)
     if (found) return { name, value: found[1], doc }
-    doc = []
   }
   throw new Error(`${path}: no string constant '${name}'`)
 }

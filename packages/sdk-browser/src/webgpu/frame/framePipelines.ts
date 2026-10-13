@@ -10,6 +10,7 @@ import { askComposedPlacements } from '../../placement/gpuCompose.ts'
 import { wantsEmissiveAo } from '../pages/prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../pages/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { canCompute } from '../../lighting/deferred/fullscreen.ts'
 
 /** The class set each census last asked its classes of. */
 const asked = new WeakMap<ShadeCensus, ShadeClasses>()
@@ -67,9 +68,6 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
   askComposedPlacements(rt, device)
   askLobedPrograms(rt, device)
-  if (
-    requestsComputeRaster(rt.context?.diagnosticGpuVariant) &&
-    typeof device.createComputePipeline === 'function'
-  )
+  if (requestsComputeRaster(rt.context?.diagnosticGpuVariant) && canCompute(device))
     ensureGpuRaster(rt, device)
 }

@@ -13,6 +13,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 /** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
  *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
@@ -103,7 +104,7 @@ export function prepared() {
 export function targets(gpu: WebgpuGpuState) {
   const views = [{}, {}, {}, {}]
   Object.assign(gpu, {
-    reflection: { front: { view: {}, fresh: false } },
+    reflection: reflectionFront(),
     hdrView: {},
     colorView: {},
     depthView: {},
@@ -137,11 +138,10 @@ const recordOf = (descriptor: GPURenderPassDescriptor) => ({
 /** The pipelines of every rank and every key a replayed pass draws with. */
 const anyPipelines = (): unknown => ({ at: () => ({}), lit: anyPipelines, reach: () => undefined })
 /**
- * A frame to replay the transparent passes into: a runtime whose bind groups are already built
- * on the placeholders — the tests observe draw order, not group construction —, and a recording
+ * A frame to replay the transparent passes into: a runtime whose bind groups are already built on
+ * the placeholders — the tests observe draw order, not group construction —, and a recording
  * encoder that keeps each pass's label, the views it writes, the items it set, its descriptor as
- * begun, its scissors and its commands (`pipeline:<fragment entry>`, `draw`, `indirect`), and the
- * texture copies, counted and as made.
+ * begun, its scissors, its commands (`pipeline:<entry>`, `draw`, `indirect`) and its copies.
  */
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
   const passes: ReturnType<typeof recordOf>[] = []

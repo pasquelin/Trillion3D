@@ -9,7 +9,7 @@ const CATEGORY_RULES: [string, RegExp][] = [
   ['llm', /\/llm\//],
   [
     'diagnostics',
-    /\/lod\/oracles\.ts$|\/runtime\/(?:diagnostics|stats|stageProfile|compareImages|paths)\.ts$|\/contracts\/metrics\.ts$/,
+    /\/runtime\/(?:diagnostics|stats|stageProfile|compareImages|paths)\.ts$|\/contracts\/metrics\.ts$/,
   ],
   [
     'math',

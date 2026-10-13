@@ -38,16 +38,6 @@ pub(super) fn converted(bytes: &[u8], tag: &str, ram_budget: usize) -> (PathBuf,
     (root, directory)
 }
 
-/// The glTF material of this name, in a compiled scene.
-pub(super) fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
-    gltf["materials"]
-        .as_array()
-        .expect("materials")
-        .iter()
-        .find(|material| material["name"] == json!(name))
-        .unwrap_or_else(|| panic!("no material named {name}"))
-}
-
 /// The factors of a glTF material, read as numbers to be compared to an f32 tolerance.
 pub(super) fn factors(material: &Value, path: &[&str]) -> Vec<f64> {
     let mut found = material;

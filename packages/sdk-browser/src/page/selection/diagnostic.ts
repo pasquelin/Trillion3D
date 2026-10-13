@@ -4,7 +4,7 @@ import type { PageRec } from './types.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { type MatrixElements } from '../../host/matrixElements.ts'
 import { focalPixels } from '../../../../math/src/projection/camera.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 const diagnosticErrorView = new Float64Array(16)
 /** Host pose copied: the core product only reads `Float64Array`. */

@@ -1,6 +1,6 @@
 import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
 import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { visBin } from '../pages/prepare/pipelineFor.ts'
 import { createDirtyRows, forEachRewrittenRun } from '../row/dirty.ts'
 import type { GpuDraw } from '../../gpu/draw/draw.ts'

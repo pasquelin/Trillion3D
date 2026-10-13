@@ -1,18 +1,7 @@
-// Oracles of the math foundation: the code that is not attached to the
-// foundation, copied as-is. These copies are wanted
-// duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
+// Oracle of the visibility buffer's projection, written with the host library's primitives: the
+// world placement by `Vector3.applyMatrix4`, then clip space inline. The bench's own projection
+// (`cpu-image/projection.ts`) is held to it value by value, by `Object.is`.
 import * as THREE from 'three'
-import type { NumberSink } from '../../../packages/sdk-core/src/index.ts'
-
-/** `packages/sdk-browser/src/webgpu/pages/render/winding.ts:23-28` from before: winding, determinant expanded inline. */
-export function referenceWindingCw(e: NumberSink) {
-  return (
-    e[0] * (e[5] * e[10] - e[6] * e[9]) -
-      e[1] * (e[4] * e[10] - e[6] * e[8]) +
-      e[2] * (e[4] * e[9] - e[5] * e[8]) <
-    0
-  )
-}
 
 /** `./cpu-image/projection.ts` (`projectVisibilityVertex`) from before: clip space written inline. */
 const projectScratch = new THREE.Vector3()

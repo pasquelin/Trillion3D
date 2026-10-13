@@ -15,15 +15,25 @@ export type PartitionSources = {
   pyramid: () => GPUTextureView | undefined
 }
 
-/** What the last frame sent the kernel, copied: the exact input of its projection. */
-export type KeptFrame = {
-  rows: number
+/** The view an image was drawn under, as the partition keeps it and the audits report it. */
+export type AuditView = {
+  /** Width in pixels. */
   width: number
+  /** Height in pixels. */
   height: number
+  /** Nearest distance. */
   near: number
+  /** View elements in double precision, as the image posted them. */
   view: Float64Array
+  /** The camera's view-projection. */
   viewProj: Float64Array
 }
+
+/** What the last frame sent the kernel, copied: the exact input of its projection. */
+export type KeptFrame = {
+  /** Rows checked. */
+  rows: number
+} & AuditView
 
 export type GpuPartition = {
   /** Input of the last encoded frame, or `undefined` before the first. */

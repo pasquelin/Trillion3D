@@ -2,7 +2,7 @@
 // Everything that separates one floating-point arithmetic from another is here — negative scales,
 // shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
-import { xorshiftRandom } from '../../../core/index.ts'
+import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { copyMatrix4, IDENTITY_MATRIX4 } from '../../../../packages/math/src/matrix/matrix4.ts'
 import { TAU } from '../../../../packages/math/src/constants.ts'
 

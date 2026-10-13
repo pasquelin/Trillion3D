@@ -16,6 +16,7 @@ import {
   SHADE_ROWS_LANES,
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** The material cache's A/B in the host URL, temporary, each read once at preparation; the same
  *  image every way. `trillion3dShadeNoCache=1`: no pass encoded, every pixel composes and decodes
@@ -166,19 +167,21 @@ function bindShade(c: Cache, passes: NonNullable<Cache['passes']>, inputs: Shade
   const buffers = [inputs.pages, buffer, inputs.indices, inputs.positions, inputs.uvs]
   c.rowsGroup = device.createBindGroup({
     layout: passes.rowsLayout,
-    entries: [
-      { binding: 0, resource: { buffer: inputs.pages } },
-      { binding: 1, resource: { buffer } },
-      { binding: 2, resource: inputs.vis },
-      { binding: 3, resource: { buffer: passes.work } },
-    ],
+    entries: sequentialEntries([
+      { buffer: inputs.pages },
+      { buffer },
+      inputs.vis,
+      { buffer: passes.work },
+    ]),
   })
   c.trisGroup = device.createBindGroup({
     layout: passes.trisLayout,
     entries: [
-      ...buffers.map((source, binding) => ({ binding, resource: { buffer: source } })),
-      { binding: 5, resource: { buffer: inputs.uniform } },
-      { binding: 6, resource: inputs.normals },
+      ...sequentialEntries([
+        ...buffers.map((buffer) => ({ buffer })),
+        { buffer: inputs.uniform },
+        inputs.normals,
+      ]),
     ],
   })
 }

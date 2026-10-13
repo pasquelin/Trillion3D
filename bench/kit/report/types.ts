@@ -77,7 +77,6 @@ interface ReportRecordData {
     stages?: StageTiming[]
   }
   passesGpu?: { passes?: GpuPassTiming[] }
-  mathBatch?: { clockCoarse?: boolean }
   cutAnalysis?: CutAnalysis
 }
 

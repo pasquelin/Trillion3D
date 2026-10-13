@@ -104,9 +104,9 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
 export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
- *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth the blends
- *  write, when the scene has blends (`blends`); the depth it marches is the Hi-Z's, with its front
- *  depth. */
+ *  radiance pyramid, its tile list, its uniform, its radiance hash and the front depth
+ *  (`frontBytes`, which `blends` sizes); the depth it marches is the Hi-Z's, its front depth
+ *  folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean) {
   const size: GPUExtent3D = [width, height]
   return (
@@ -129,8 +129,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
  * reprojects its hits with its view-projection), the tile list of the trace, the view uniform —
- * whose surroundings the GPU writes — and the writer of the rest of it. `blends` says whether the
- * scene has any, which write the front depth (`createFrontDepth`).
+ * whose surroundings the GPU writes — and the writer of the rest of it. `blends`, whether the scene
+ * has any, sizes the front depth (`createFrontDepth`).
  */
 export function createScreenReflection(
   device: GPUDevice,
@@ -154,7 +154,7 @@ export function createScreenReflection(
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
-  const frontDepth = createFrontDepth(device, width, height, blends)
+  const front = createFrontDepth(device, width, height, blends)
   return {
     device,
     target,
@@ -163,11 +163,11 @@ export function createScreenReflection(
     tiles,
     uniform,
     settle,
-    front: frontDepth,
+    front,
     writeView: createReflectionViewWriter(device, uniform),
-    /** The reflection group over each Hi-Z pyramid it was bound with (a view's), and what else it
-     *  was made over. */
-    groups: new WeakMap<GPUTexture, { group: GPUBindGroup; over: unknown[] }>(),
+    /** The reflection group over each depth it was bound with (`GpuHiz.depth`, a view's), and
+     *  what else it was made over. */
+    groups: new WeakMap<HizDepth, { group: GPUBindGroup; over: unknown[] }>(),
     /** The trace's bind groups, kept while its inputs stay (`encodeReflectionTrace`). */
     traceGroups: undefined as TraceGroups | undefined,
     dispose() {
@@ -177,7 +177,7 @@ export function createScreenReflection(
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
-      frontDepth.dispose()
+      front.dispose()
     },
   }
 }
@@ -195,7 +195,7 @@ export function reflectionGroup(
   depth: HizDepth,
   over: ReflectionOver,
 ) {
-  const kept = reflection.groups.get(depth.pyramid)
+  const kept = reflection.groups.get(depth)
   if (kept && kept.over[0] === over.lightView && kept.over[1] === over.surface) return kept.group
   const { device } = reflection
   const group = device.createBindGroup({
@@ -210,7 +210,7 @@ export function reflectionGroup(
       { binding: REFLECTION_SURFACE_BINDING, resource: over.surface },
     ],
   })
-  reflection.groups.set(depth.pyramid, { group, over: [over.lightView, over.surface] })
+  reflection.groups.set(depth, { group, over: [over.lightView, over.surface] })
   return group
 }
 

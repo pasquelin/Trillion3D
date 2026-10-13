@@ -20,8 +20,8 @@ import {
   writeDrawWords,
 } from '../../../packages/sdk-browser/src/particles/drawWords.ts'
 import { particleTargets } from '../../../packages/sdk-browser/src/particles/particleTargets.ts'
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
-import { readTexture } from '../kit/computeReadback.ts'
+import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
+import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
@@ -43,7 +43,7 @@ type Blend = 'additive' | 'premultiplied'
 /** The particles' state: the window — `DISCS` instances from slot 0 — then each disc alive, at a
  *  random place in a 2 m cube, of a random age and life. */
 function stateWords() {
-  const next = random(755),
+  const next = lcgRandom(755),
     words = new ArrayBuffer(PARTICLE_STATE_HEAD + DISCS * 32)
   new Uint32Array(words, 0, 8).set([DISC_VERTICES, DISCS])
   const slots = new Float32Array(words, PARTICLE_STATE_HEAD)
@@ -69,16 +69,8 @@ async function draw(blends: Blend[]) {
     ],
   })
   const module = device.createShaderModule({ code: PARTICLE_DRAW_WGSL })
-  const buffer = (data: ArrayBuffer | ArrayBufferView, usage: number) => {
-    const made = device.createBuffer({
-      size: data.byteLength,
-      usage: usage | GPUBufferUsage.COPY_DST,
-    })
-    device.queue.writeBuffer(made, 0, data as ArrayBuffer)
-    return made
-  }
-  const state = buffer(stateWords(), GPUBufferUsage.STORAGE),
-    indices = buffer(LIST, GPUBufferUsage.INDEX)
+  const state = bufferHolding(device, stateWords(), GPUBufferUsage.STORAGE),
+    indices = bufferHolding(device, LIST, GPUBufferUsage.INDEX)
   const { RENDER_ATTACHMENT, COPY_SRC, TEXTURE_BINDING } = GPUTextureUsage
   const texture = (format: GPUTextureFormat, usage: number) =>
     device.createTexture({ size: [SIDE, SIDE], format, usage })
@@ -92,7 +84,7 @@ async function draw(blends: Blend[]) {
     const group = device.createBindGroup({
       layout,
       entries: [
-        { binding: 0, resource: { buffer: buffer(words, GPUBufferUsage.UNIFORM) } },
+        { binding: 0, resource: { buffer: bufferHolding(device, words, GPUBufferUsage.UNIFORM) } },
         { binding: 1, resource: { buffer: state } },
         { binding: 2, resource: depth },
       ],

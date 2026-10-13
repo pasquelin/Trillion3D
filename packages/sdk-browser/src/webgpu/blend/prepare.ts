@@ -14,14 +14,13 @@ import {
   FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
-} from '../../visibility/buffer.ts'
+} from '../../visibility/types.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts'
 import { ensureBlendIndexBuffer, ensureBlendNormalAtlas, ensureBlendUvBuffer } from './buffers.ts'
-import type { createWebgpuBlendState } from './state.ts'
+import type { WebgpuBlendState } from './state.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
-type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /** What every copy of a prepare reads: the device, the GPU state whose buffers it shares, and the
  *  deformation capacities of the placements met so far. */
@@ -38,7 +37,7 @@ export function prepareWebgpuBlend(
   device: GPUDevice,
   blendCopies: readonly BlendCopy[],
   gpu: WebgpuGpuState,
-  blendState: BlendState,
+  blendState: WebgpuBlendState,
   scene: BlendHostScene,
 ) {
   const ctx: BlendItemContext = { device, gpu, capacities: new Map() }

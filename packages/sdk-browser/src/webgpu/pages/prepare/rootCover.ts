@@ -3,7 +3,7 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { rootCoverage } from '../../../page/selection/selection.ts'
 import { rootChildren } from '../../../residency/minimumCapacity.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
-import type { createWebgpuPageTracking } from '../../row/pageTracking.ts'
+import type { WebgpuPageTracking } from '../../row/pageTracking.ts'
 import { createCoverKeys } from '../../residency/coverKeys.ts'
 
 /** Whether a record is a page: a world root no mesh wears is a record without one
@@ -22,10 +22,7 @@ export function coverPagesOf(roots: readonly ClusterRoot<PageRec>[]) {
 
 /** The root cover, by address and by key — the roots the session holds —, and the pool's floor:
  *  the root cover and the pages its groups replace, by address. */
-export function rootCoverOf(
-  roots: readonly ClusterRoot<PageRec>[],
-  tracking: ReturnType<typeof createWebgpuPageTracking>,
-) {
+export function rootCoverOf(roots: readonly ClusterRoot<PageRec>[], tracking: WebgpuPageTracking) {
   const { bootstrap, children } = coverPagesOf(roots)
   const coverUrls = new Set(bootstrap.map(pageAddress))
   const floorUrls = new Set([...coverUrls, ...children.map(pageAddress)])

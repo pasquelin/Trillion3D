@@ -24,24 +24,27 @@ fn inputs<'a>(
     }
 }
 
-// Behavior 6 (a): encoded URI (`%20`) decoded then read under source folder.
-#[test]
-fn a_uri_with_percent_20_is_decoded_before_reading() {
-    let dir = temp_dir("uri-space");
-    fs::write(dir.join("my image.png"), b"bytes-of-my-image").expect("write");
+/// What reading the image at `uri` under `dir` gives, the scene carrying nothing else.
+fn read_uri(dir: &Path, uri: &str) -> std::result::Result<(Vec<u8>, PreviewSource), &'static str> {
     let (o, g, bin, meshes, view_map) = (
-        options(&dir),
+        options(dir),
         json!({}),
         Vec::new(),
         BTreeSet::new(),
         BTreeMap::new(),
     );
-    let image = json!({"uri": "my%20image.png"});
-    let (bytes, provenance) = crate::texture_preview::source::image_bytes(
-        &inputs(&o, &g, &bin, &dir, &meshes, &view_map),
-        &image,
+    crate::texture_preview::source::image_bytes(
+        &inputs(&o, &g, &bin, dir, &meshes, &view_map),
+        &json!({"uri": uri}),
     )
-    .expect("read");
+}
+
+// Behavior 6 (a): encoded URI (`%20`) decoded then read under source folder.
+#[test]
+fn a_uri_with_percent_20_is_decoded_before_reading() {
+    let dir = scratch("texture-preview", "uri-space");
+    fs::write(dir.join("my image.png"), b"bytes-of-my-image").expect("write");
+    let (bytes, provenance) = read_uri(&dir, "my%20image.png").expect("read");
     assert_eq!(bytes, b"bytes-of-my-image");
     assert!(provenance == PreviewSource::Uri);
 }
@@ -49,21 +52,10 @@ fn a_uri_with_percent_20_is_decoded_before_reading() {
 // Behavior 6 (b): URI attempting path traversal out of source (`..`) refused.
 #[test]
 fn a_uri_with_dot_dot_is_refused() {
-    let dir = temp_dir("uri-dotdot");
-    let (o, g, bin, meshes, view_map) = (
-        options(&dir),
-        json!({}),
-        Vec::new(),
-        BTreeSet::new(),
-        BTreeMap::new(),
-    );
-    let image = json!({"uri": "../secret.png"});
-    let error = crate::texture_preview::source::image_bytes(
-        &inputs(&o, &g, &bin, &dir, &meshes, &view_map),
-        &image,
-    )
-    .err()
-    .expect("expected error");
+    let dir = scratch("texture-preview", "uri-dotdot");
+    let error = read_uri(&dir, "../secret.png")
+        .err()
+        .expect("expected error");
     assert_eq!(error, "image-uri-outside-source");
 }
 
@@ -71,7 +63,7 @@ fn a_uri_with_dot_dot_is_refused() {
 // publishes it — `view_map`, not input view index.
 #[test]
 fn an_embedded_image_names_its_remapped_buffer_view() {
-    let dir = temp_dir("buffer-view");
+    let dir = scratch("texture-preview", "buffer-view");
     let bin = vec![0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     let g = json!({"bufferViews": [{"byteOffset": 2, "byteLength": 4}]});
     let o = options(&dir);
@@ -90,20 +82,9 @@ fn an_embedded_image_names_its_remapped_buffer_view() {
 // Behavior 6 (d): `data:` URI refused — preview never decodes embedded base64.
 #[test]
 fn a_data_uri_is_refused() {
-    let dir = temp_dir("uri-data");
-    let (o, g, bin, meshes, view_map) = (
-        options(&dir),
-        json!({}),
-        Vec::new(),
-        BTreeSet::new(),
-        BTreeMap::new(),
-    );
-    let image = json!({"uri": "data:image/png;base64,AAAA"});
-    let error = crate::texture_preview::source::image_bytes(
-        &inputs(&o, &g, &bin, &dir, &meshes, &view_map),
-        &image,
-    )
-    .err()
-    .expect("expected error");
+    let dir = scratch("texture-preview", "uri-data");
+    let error = read_uri(&dir, "data:image/png;base64,AAAA")
+        .err()
+        .expect("expected error");
     assert_eq!(error, "image-uri-not-relative");
 }

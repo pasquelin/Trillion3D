@@ -1,7 +1,7 @@
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/types.ts'
 import { pageTableRows } from './pageTableRows.ts'
 
 /**

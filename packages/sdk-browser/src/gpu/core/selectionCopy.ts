@@ -3,7 +3,8 @@ import { copyAheadView } from './aheadView.ts'
 import type { SelectionUniforms } from './selection.ts'
 
 /** Same threshold, projection and pose. The view ahead changes no page drawn nor visible request:
- *  uncompared, the last readback of a move is the stopped camera's cut, adopted with no other. */
+ *  uncompared, the last readback of a move is the stopped camera's cut, adopted with no other. The
+ *  frame is the clock of the stamps, never a reason to cut again. */
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
   if (
     a.pixelError !== b.pixelError ||
@@ -35,5 +36,6 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     perspective: source.perspective,
     ahead: copyAheadView(source.ahead),
     admitByLevel: source.admitByLevel,
+    frame: source.frame,
   }
 }

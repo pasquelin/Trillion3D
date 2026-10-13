@@ -1,6 +1,7 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { adaptivePixelError } from '../../../../sdk-core/src/index.ts'
-import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
+import type { CameraMotion } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraMotion } from '../../camera/motion.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 

@@ -3,7 +3,7 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 /** A random world: pages whose parents come before them, some without bytes, some resident, some
@@ -41,7 +41,7 @@ export async function run(
   arrival?: (url: string) => Promise<void>,
 ) {
   const tracking = createWebgpuPageTracking(scene.pages)
-  const cache = lruCache(slots),
+  const cache = orderedPool(slots),
     load = cache.load,
     log: string[] = [],
     signals: AbortSignal[] = []

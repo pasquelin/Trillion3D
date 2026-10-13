@@ -6,7 +6,7 @@ import {
 } from '../../../packages/sdk-browser/src/placement/gpuComposeWgsl.ts'
 import { ROW_INPUT_DOUBLES } from '../../../packages/sdk-browser/src/placement/composedRowPack.ts'
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
-import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ROW_PLACEMENT_WORD } from '../../../packages/sdk-browser/src/webgpu/row/rowPlacement.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'
 import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
@@ -58,7 +58,7 @@ export async function runSphere() {
     return made
   }
   // Every row's root is linked to slot 0, a parent at the identity: the composed world is its local.
-  const stride = PAGE_INFO_STRIDE / 4,
+  const stride = ROW_WORDS,
     table = new Uint32Array(CASES * stride)
   for (let i = 0; i < CASES; i++) table[i * stride + ROW_PLACEMENT_WORD] = i
   const identity = new Float64Array(16)

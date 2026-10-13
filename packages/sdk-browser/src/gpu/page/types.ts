@@ -37,6 +37,8 @@ export type GpuPageContext = {
     bytesRead: number
     uploadedBytes: number
     evictions: number
+    /** A load was refused for lack of a place since the host last asked (`takeRefused`). */
+    refused: boolean
   }
   /** Which unpinned page gives its slot back, in fixed slots (`eviction.ts`). */
   eviction: Eviction

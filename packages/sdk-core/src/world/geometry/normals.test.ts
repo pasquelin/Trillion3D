@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeNormals } from './normals.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 
-const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 const normalOf = (normals: ArrayLike<number>, v: number) =>
   Array.from(normals).slice(v * 3, v * 3 + 3)
 
@@ -12,7 +12,12 @@ test('a face normal is unit, square to both edges, and faces the side its corner
   const slanted = computeNormals([1, 2, 3, 4, 1, 5, 2, 5, 4], null)
   for (let v = 0; v < 3; v++) {
     const n = normalOf(slanted, v)
-    near([dot(n, [3, -1, 2]), dot(n, [1, 3, 1]), Math.hypot(...n)], [0, 0, 1], `corner ${v}`, 1e-6)
+    near(
+      [dotVector3(n, [3, -1, 2]), dotVector3(n, [1, 3, 1]), Math.hypot(...n)],
+      [0, 0, 1],
+      `corner ${v}`,
+      1e-6,
+    )
   }
   // Corners turning anticlockwise seen from +z face +z.
   near(computeNormals([0, 0, 0, 1, 0, 0, 0, 1, 0], null), [0, 0, 1, 0, 0, 1, 0, 0, 1], 'up')

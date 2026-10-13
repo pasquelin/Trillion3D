@@ -9,6 +9,7 @@ import { chainShown, rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
+import { extendSpan } from '../../../../math/src/sequence/span.ts'
 
 /** Rows a session composes on the GPU under their parent (`placement/gpuCompose.ts`). */
 export type PoseComposer = {
@@ -161,10 +162,8 @@ type PoseFrame = {
 function touchRows({ ranges }: PoseState, owner: RowsOwner, from: number, to: number) {
   if (!owner.rows) return
   const range = ranges.get(owner)
-  if (range && range.rows === owner.rows) {
-    range.from = Math.min(range.from, from)
-    range.to = Math.max(range.to, to)
-  } else ranges.set(owner, { rows: owner.rows, from, to })
+  if (range && range.rows === owner.rows) extendSpan(range, from, to)
+  else ranges.set(owner, { rows: owner.rows, from, to })
 }
 
 /**

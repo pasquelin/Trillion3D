@@ -14,7 +14,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { orderBlendPasses } from '../blend/order.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import { VIS_BINDINGS, SHADE_BINDINGS } from './bindLayout.ts'
 import { BASE_SLOTS } from '../../gpu/draw/draw.ts'
 import { createGpuRaster } from '../../gpu/raster/raster.ts'
@@ -22,6 +22,7 @@ import type { WebgpuTileStreamer } from '../tile/streamer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { visGroupFor } from '../visibility/visGroup.ts'
+import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] }
 
@@ -98,7 +99,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   const rt = {
     vis,
     gpu: {
-      reflection: { front: { view: {}, fresh: false } },
+      reflection: reflectionFront(),
       cache: { buffer: {} },
       surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},

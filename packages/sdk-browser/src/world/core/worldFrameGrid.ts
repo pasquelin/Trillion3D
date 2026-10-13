@@ -1,13 +1,10 @@
-import { GRID_TOLERANCE } from '../../frame/refreshClock.ts'
+import { COARSE_MS, GRID_TOLERANCE } from '../../frame/refreshClock.ts'
 import { snap } from '../../../../math/src/scalar/reals.ts'
 
 /** Intervals in a row that must sit on the display's grid before a frame's time is put on it: one
  *  interval landing there by chance — a variable-refresh display presenting whenever a frame is
  *  ready — puts nothing on it. */
 const RECENT = 3
-/** A timer rounded to whole milliseconds strays by up to this much, until a timestamp shows a
- *  fraction: the refresh clock's own reading of the timer (`refreshClock.ts`). */
-const COARSE_MS = 1
 
 /**
  * THE WORLD'S TIME ON THE DISPLAY'S GRID. A frame's timestamp is when its display frame began, the

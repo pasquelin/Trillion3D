@@ -5,7 +5,6 @@ import {
   CODE,
   NAMES,
   SCOPE,
-  f,
   type Light,
   type Pixel,
   type Result,
@@ -16,7 +15,10 @@ import {
 const traced = (lane: number, k: number, participating: boolean): Result => {
   if (!participating) return { shadowFactor: 1, rayCount: 0 }
   const n = 1 + ((lane * 7 + k * 13) % 7)
-  return { shadowFactor: f(f((lane + k) % (n + 1)) / f(n)), rayCount: n }
+  return {
+    shadowFactor: Math.fround(Math.fround((lane + k) % (n + 1)) / Math.fround(n)),
+    rayCount: n,
+  }
 }
 
 export interface Run {

@@ -173,13 +173,13 @@ test('the cold table holds no word per page: residency bits, then what each reco
 
 test('a cut’s flags hold a view’s reach, its queues and lists, never a word per placement or page', () => {
   const one = packDagSelection(field(1))
-  // Each queue's entries, each list's, as a cut starts; the last uses, a word a content key.
-  const bound =
-    LEVEL_QUEUES * 2 * QUEUE_ENTRIES_START + CAND_LIVE_WORDS * CANDIDATES_START + one.keyCount
+  // Each queue's entries, each list's, as a cut starts.
+  const bound = LEVEL_QUEUES * 2 * QUEUE_ENTRIES_START + CAND_LIVE_WORDS * CANDIDATES_START
   for (const count of [100, 10_000]) {
     const packed = packDagSelection(field(count)),
       shape = dagFlagShape(packed)
-    assert.equal(shape.keyCount, one.keyCount, `${count} placements: the keys are the primitive's`)
+    assert.equal(packed.keyCount, one.keyCount, `${count} placements: the keys are the primitive's`)
+    assert.equal(packed.groupCount, one.groupCount, `${count} placements: so are their groups`)
     assert.ok(flagShapeWords(shape) <= bound, `${count} placements: within the reach`)
   }
 })

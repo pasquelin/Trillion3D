@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { compareImages } from '../../../sdk-core/src/index.ts'
 import { rasterPages } from '../page/raster.fixture.ts'
-import { type VisPage } from './buffer.ts'
+import type { VisPage } from './types.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import {
   camera,

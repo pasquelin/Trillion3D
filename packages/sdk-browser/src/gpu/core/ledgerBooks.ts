@@ -114,6 +114,22 @@ export function observeCreates(device: LedgerDevice, books: LedgerBooks) {
   }
 }
 
+/** Destroys those of `resources` the ledger still counts, and returns their labels. */
+function destroyLive(books: LedgerBooks, resources: Iterable<object>) {
+  const labels: string[] = []
+  for (const resource of [...resources]) {
+    const entry = books.live.get(resource)
+    if (!entry) continue
+    labels.push(entry.label)
+    ;(resource as { destroy(): void }).destroy()
+  }
+  return labels
+}
+
+/** Destroys every allocation the ledger still counts — its own, never its base's —, and returns
+ *  their labels (`GpuDeviceLedger.sweep`). */
+export const ledgerSweep = (books: LedgerBooks) => destroyLive(books, books.live.keys())
+
 /** The allocations made from now on, destroyed together by `rollback` unless `commit` keeps them. */
 export function ledgerTransaction(books: LedgerBooks) {
   const resources = new Set<{ destroy(): void }>()
@@ -128,7 +144,7 @@ export function ledgerTransaction(books: LedgerBooks) {
       if (!active) return
       active = false
       books.transactions.delete(resources)
-      for (const resource of resources) if (books.live.has(resource)) resource.destroy()
+      destroyLive(books, resources)
     },
   }
 }

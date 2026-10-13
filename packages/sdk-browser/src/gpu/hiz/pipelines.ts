@@ -10,6 +10,7 @@ import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { HIZ_SLOT_WORDS } from './uniforms.ts'
+import { sequentialEntries } from '../core/computeBindings.ts'
 
 /**
  * The Hi-Z kernels — the build of each layer, one kernel specialized (`HIZ_NEAREST_BUILD`), and the
@@ -45,7 +46,7 @@ export const createHizPipelines = oncePerDevice((device) =>
 
 /** The group of the test's dispatch arguments (group 1 of `testHizArgs`). */
 export const hizArgsGroup = (device: GPUDevice, layout: GPUBindGroupLayout, args: GPUBuffer) =>
-  device.createBindGroup({ layout, entries: [{ binding: 1, resource: { buffer: args } }] })
+  device.createBindGroup({ layout, entries: sequentialEntries([{ buffer: args }], 1) })
 
 /** The test's page-table group (group 1), remade only when the table changes identity (it grows):
  *  one per pyramid, never in the device's shared pipelines, where two pyramids would remake it. */
@@ -55,7 +56,7 @@ export function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
     if (pages !== bound || !group)
       group = device.createBindGroup({
         layout,
-        entries: [{ binding: 0, resource: { buffer: pages } }],
+        entries: sequentialEntries([{ buffer: pages }]),
       })
     bound = pages
     return group

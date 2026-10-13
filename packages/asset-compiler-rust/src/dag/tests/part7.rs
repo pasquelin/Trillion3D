@@ -9,17 +9,7 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         .into_iter()
         .map(|indices| {
             let sphere = bounding_sphere(positions, &indices);
-            DagCluster {
-                indices,
-                level: 0,
-                lod_error: 0.0,
-                parent_error: f64::INFINITY,
-                sphere,
-                parent_sphere: sphere,
-                source_rank: 0,
-                group: None,
-                source: None,
-            }
+            DagCluster::leaf(indices, 0.0, sphere, 0)
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();

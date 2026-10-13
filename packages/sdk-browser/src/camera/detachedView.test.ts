@@ -4,7 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { createEngineCamera, readCameraWorld } from './world.ts'
+import { createEngineCamera } from './engineCamera.ts'
+import { readCameraWorld } from './world.ts'
 
 test('a capture view keeps the resolved world pose and takes the aspect it is drawn at', () => {
   const rig = new G.Group()

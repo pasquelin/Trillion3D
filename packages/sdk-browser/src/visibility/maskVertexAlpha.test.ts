@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { VIS_SHADER } from './buffer.ts'
+import { VIS_SHADER } from './shader/visWgsl.ts'
 import { camera, centerId, nearestQuadTexture, quadPages } from './buffer.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { maskKeepWgsl } from './shader/pageWgsl.ts'

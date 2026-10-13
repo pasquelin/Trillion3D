@@ -1,13 +1,13 @@
 // The shared buffer (`wasmArena.ts`): a single allocation per batch, views that stay valid even
 // when linear memory grows — whether that is the reservation itself or an allocation made
-// elsewhere well after —, `list()` which re-reads a counter then its list, `javaScriptBlocks()`
-// which yields the same shape outside any module, and no allocation during a compute call.
+// elsewhere well after —, `list()` which re-reads a counter then its list, and no allocation
+// during a compute call.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { prepareSdkWasm, type SdkWasm } from './sdkWasm.ts'
-import { javaScriptBlocks, reserveArena, type ArenaRequest } from './wasmArena.ts'
+import { reserveArena, type ArenaRequest } from './wasmArena.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 const MODULE = readFileSync(join(import.meta.dirname, 'kernels.wasm'))
@@ -41,7 +41,7 @@ test('reserveArena makes only one allocation for all requested blocks', async ()
   const requests: ArenaRequest[] = [
     { type: 'u32', length: 1 },
     { type: 'f64', length: 6 },
-    { type: 'f64', length: 32, stride: 16 },
+    { type: 'f64', length: 32 },
   ]
   const arena = reserveArena(spy, requests)
   assert.ok(arena)
@@ -111,33 +111,6 @@ test('list() re-reads a counter written in one block then the list of another', 
   const n = blockCounter.view[0]
   const read = arena.list(1, n)
   assert.deepEqual(Array.from(read), values)
-  arena.freed()
-})
-
-test('javaScriptBlocks() yields the same shape as reserveArena() for the same requests', async () => {
-  const wasm = await freshWasm()
-  const requests: ArenaRequest[] = [
-    { type: 'u32', length: 4 },
-    { type: 'f64', length: 32, stride: 16 },
-    { type: 'f32', length: 9, stride: 3 },
-  ]
-  const arena = reserveArena(wasm, requests)
-  assert.ok(arena)
-  const outsideModule = javaScriptBlocks(requests)
-  assert.equal(outsideModule.length, arena.blocks().length)
-  // Expected shapes, independent of both implementations: two subviews of 16 for the second
-  // block, three of 3 for the third, none for the first.
-  const expected = [{ views: undefined }, { views: [16, 16] }, { views: [3, 3, 3] }] as const
-  const blocks = arena.blocks()
-  for (let i = 0; i < requests.length; i++) {
-    assert.equal(outsideModule[i].type, blocks[i].type)
-    assert.equal(outsideModule[i].view.length, blocks[i].view.length)
-    assert.equal(outsideModule[i].views?.length, blocks[i].views?.length)
-    assert.equal(blocks[i].views?.map((v) => v.length).join(','), expected[i].views?.join(','))
-    if (outsideModule[i].views)
-      for (let v = 0; v < outsideModule[i].views!.length; v++)
-        assert.equal(outsideModule[i].views![v].length, blocks[i].views![v].length)
-  }
   arena.freed()
 })
 

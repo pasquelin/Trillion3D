@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld } from '../../camera/world.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { FLAG_CLUSTER_PAGE, FLAG_PAGED } from '../../visibility/types.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'

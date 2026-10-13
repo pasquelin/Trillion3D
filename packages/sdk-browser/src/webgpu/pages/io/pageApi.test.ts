@@ -37,6 +37,7 @@ function runtime(instances = [7]) {
       tracking: {
         keyOf: () => 0,
         wanted: new Set(),
+        keep: new Set(),
       },
       bootstrapKey: new Uint8Array(64),
     },

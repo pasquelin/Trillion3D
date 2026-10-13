@@ -22,14 +22,21 @@ test('roots appended into the room read as a packing of every root at that capac
   const per = counts.pages / roots.length,
     nodes = counts.nodes / roots.length
   // No node appended: every placement reads its primitive's, packed once.
-  assert.deepEqual(added, {
-    pages: [2 * per, counts.pages],
-    worlds: [2, 5],
-    nodes: [nodes, nodes],
-    records: [per, per],
-    keys: [],
-    tree: { nodes: new Int32Array(0), members: [0, 0] },
-  })
+  assert.equal(added!.groups[0], added!.groups[1], 'no key group made')
+  assert.equal(added!.edges[0], added!.edges[1], 'no edge between them')
+  assert.deepEqual(
+    { ...added, groups: undefined, edges: undefined },
+    {
+      pages: [2 * per, counts.pages],
+      worlds: [2, 5],
+      nodes: [nodes, nodes],
+      records: [per, per],
+      keys: [],
+      groups: undefined,
+      edges: undefined,
+      tree: { nodes: new Int32Array(0), members: [0, 0] },
+    },
+  )
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.live, whole.live)
   assert.deepEqual(grown.live, { pages: counts.pages, nodes, worlds: 5, entries: counts.nodes })

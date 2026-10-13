@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../webgpu/shadow/rowBuffers.ts'
@@ -26,12 +26,11 @@ function digest({ rt }: Session) {
   const hash = createHash('sha256')
   // Padding words hold physical-surface fields; the placement oracle compares
   // the original row contract, leaving those independently tested material words out.
-  const originalWords = 64,
-    stride = PAGE_INFO_STRIDE / 4
-  const table = new Float32Array((rows.pageTableFloats!.length / stride) * originalWords)
+  const originalWords = 64
+  const table = new Float32Array((rows.pageTableFloats!.length / ROW_WORDS) * originalWords)
   for (let row = 0; row < table.length / originalWords; row++)
     table.set(
-      rows.pageTableFloats!.subarray(row * stride, row * stride + originalWords),
+      rows.pageTableFloats!.subarray(row * ROW_WORDS, row * ROW_WORDS + originalWords),
       row * originalWords,
     )
   for (let row = 0; row < table.length; row += originalWords)
@@ -54,7 +53,7 @@ const homes = ({ rt }: Session) => {
   const { rows } = rt.layout
   return Array.from(
     { length: rows.packedCount },
-    (_, row) => rows.pageTableInts![row * (PAGE_INFO_STRIDE / 4) + OFFSET_WORD],
+    (_, row) => rows.pageTableInts![row * ROW_WORDS + OFFSET_WORD],
   )
 }
 

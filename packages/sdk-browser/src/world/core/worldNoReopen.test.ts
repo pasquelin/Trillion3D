@@ -12,7 +12,7 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { LoadedModel } from './loadedModel.ts'
 import type { ReopenCause } from './worldReopen.ts'
 import { Scene } from './scene.ts'
@@ -49,7 +49,7 @@ test('the causes of a reopen are a lost device and an option, and no content cha
 
 test('meshes, materials, rows, models and partitions join and leave one session, never a second', async () => {
   const heard: Record<string, unknown>[] = []
-  const stop = listenWorldNotices(({ phase, context }) => {
+  const stop = worldNoticeListeners.subscribe(({ phase, context }) => {
     if (phase === 'session-reopen' || phase === 'content-refused') heard.push({ phase, ...context })
   })
   const { session } = sessionStandIn()

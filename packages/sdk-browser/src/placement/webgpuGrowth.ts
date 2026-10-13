@@ -13,7 +13,7 @@
  *
  * One cut is made per image however many growths it brought (`startGrownCut`, at frame entry),
  * and the pool's slots that move while it is made are logged and replayed alone at the swap. That
- * cut is packed at a grown capacity (`grownCapacity`, twice what the session held at least): the
+ * cut is packed at a grown capacity (`grownLength`, twice what the session held at least): the
  * growths after it append their roots into the room it kept, in place, O(added), no cut made
  * (`GpuSelection.appendRoots`); only one past that room packs again — a logarithmic number of
  * times.
@@ -38,7 +38,8 @@ import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { growRowCopies, growRowItems, growRowRoots, type Rebound } from './growth.ts'
 import { pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 import { rebindDeformedWorlds } from '../deformation/growth.ts'
-import { grownCapacity, type PlacementRows } from './rows.ts'
+import { type PlacementRows } from './rows.ts'
+import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dagRootCounts, type DagCapacity } from '../gpu/dag/pack.ts'
 
 type Root = ClusterRoot<PageRec>
@@ -164,15 +165,15 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
 }
 
 /** The capacity a cut over `roots` is packed at: twice the pages and placements the session held
- *  at least (`grownCapacity`), nodes in the pages' proportion, and room for the primitives and
+ *  at least (`grownLength`), nodes in the pages' proportion, and room for the primitives and
  *  sources later growths bring (`ahead`). */
 function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly Root[]) {
   const needed = dagRootCounts(roots),
-    pages = grownCapacity(rt.layout.packedPages.length, needed.pages)
+    pages = grownLength(rt.layout.packedPages.length, needed.pages)
   return {
     pages,
     nodes: ceilDiv(needed.nodes * pages, Math.max(1, needed.pages)),
-    worlds: grownCapacity(rt.layout.selectionRoots.length, needed.worlds),
+    worlds: grownLength(rt.layout.selectionRoots.length, needed.worlds),
     ahead: true,
   }
 }

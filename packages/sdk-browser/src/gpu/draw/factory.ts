@@ -1,5 +1,5 @@
 import { UNIFORM_BYTES, drawBatches } from './contract.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStages, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import type { GpuDraw } from './contract.ts'
 import { constructGpuResources, validated } from '../core/errorScope.ts'
@@ -21,7 +21,7 @@ export async function createGpuDraw(
   maxCorners: number,
 ): Promise<GpuDraw | undefined> {
   const { corners, perRow } = drawBatches(maxCorners)
-  if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined
+  if (!canCompute(device) || slotCap < 1) return undefined
   let allocated: ReturnType<typeof createGpuDrawBuffers> | undefined
   let d: Draw | undefined
   const release = () => {
@@ -67,8 +67,7 @@ function compileDraw(device: GPUDevice, layerSlots: number) {
     const layout = device.createBindGroupLayout({ entries: drawBindEntries() })
     const module = device.createShaderModule({ code: drawShader(layerSlots) })
     if (await shaderFailed(module)) return undefined
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    const stages = await buildComputeStages(device, pipelineLayout, module, [
+    const stages = await buildComputeStages(device, [layout], module, [
       'countGroups',
       'prefixGroups',
       'scatterGroups',

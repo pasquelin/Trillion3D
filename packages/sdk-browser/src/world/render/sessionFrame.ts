@@ -2,7 +2,7 @@ import type { Engine } from '../../engine/types.ts'
 import { createDrawFrame } from './draw.ts'
 import type { createSessionState } from './sessionState.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
-import { primeFirstView, type prepareExplorer } from '../session/prepare.ts'
+import { primeFirstView, type PreparedExplorer } from '../session/prepare.ts'
 import { holdPartitions } from '../session/pageSources.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import type { WorldRootsHold } from '../../scene/worldRoots.ts'
@@ -11,9 +11,8 @@ import type { ExplorerSession } from '../session/session.ts'
 import { createExplorerStreaming } from '../scene/streaming.ts'
 import { createPartitionFrame } from '../scene/partitionFrame.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared
+  prepared: PreparedExplorer
   host: ReturnType<typeof createSessionState>
   engine: Engine
 }

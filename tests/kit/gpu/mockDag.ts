@@ -87,6 +87,8 @@ export function packedFromBindings(byBinding: Bound): PackedDag {
     pageCount,
     recordCount: views[viewWord('recordCount')],
     keyCount: views[viewWord('keyCount')],
+    groupCount: views[viewWord('groupCount')],
+    groupEdges: views[viewWord('groupEdges')],
     candCount: views[viewWord('candCap')],
     pageIndex,
     rootCount: worldCount,

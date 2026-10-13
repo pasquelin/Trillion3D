@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createGpuPageCache } from './pages.ts'
+import { createGpuPageCache, type GpuPageCache } from './pages.ts'
+import { giveUp } from './order.fixture.ts'
 import { pageHomes } from './homes.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -13,7 +14,7 @@ const WIDTHS = new Map([
   ['c', 8],
 ])
 const source = { read: async (key: string) => new Uint8Array(BYTES[key] ?? 13).fill(7) }
-const drained = (cache: ReturnType<typeof createGpuPageCache>) => {
+const drained = (cache: GpuPageCache) => {
   const keys: string[] = [],
     slots: number[] = []
   cache.drainResidencyChanges(keys, slots)
@@ -59,7 +60,7 @@ test('a pool holding the whole catalogue writes each page at its home and holds 
     ['c', 13],
     ['b', 3],
   ])
-  assert.equal(cache.unpinnedSlots(), 3, 'one home still empty, two pages unpinned')
+  assert.equal(cache.room(), 1, 'one home still empty: no order gives the others up')
   assert.equal(cache.unload('b'), true)
   await cache.load('b')
   assert.equal(cache.get('b')!.offset, 12, 'a page comes back to its own home')
@@ -127,8 +128,9 @@ test('a pool that comes to hold the catalogue moves each page home, and leaves i
     ['c', 0],
     ['b', 10],
   ])
+  giveUp(cache, 'b')
   await cache.load('a')
-  assert.ok(cache.get('a') && !cache.get('b'), 'fixed slots evict the least recent again')
+  assert.ok(cache.get('a') && !cache.get('b'), 'fixed slots evict what the order gives up again')
 })
 
 test('pages joining a pool that holds the catalogue take homes behind the others, every page where it was', async () => {

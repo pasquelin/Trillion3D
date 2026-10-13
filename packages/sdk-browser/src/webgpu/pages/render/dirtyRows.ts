@@ -1,4 +1,4 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */

@@ -1,5 +1,6 @@
 import { planItem } from './plan.ts'
 import { precedes } from './paintOrder.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * FAR-TO-NEAR SORT OF SEEDS ON THE CPU, on the order the previous frame left (`order.ts`).
@@ -26,7 +27,7 @@ let sortKeys = new Float64Array(0),
 
 function growSortScratch(n: number) {
   if (sortKeys.length >= n) return
-  const size = Math.max(n, sortKeys.length * 2)
+  const size = grownLength(sortKeys.length, n)
   sortKeys = new Float64Array(size)
   mergeKeys = new Float64Array(size)
   mergeOrder = new Uint32Array(size)

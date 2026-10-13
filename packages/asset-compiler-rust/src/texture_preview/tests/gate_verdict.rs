@@ -9,7 +9,7 @@ use super::*;
 // kept but whose block files are gone is not trusted and the chain is cooked anew.
 #[test]
 fn a_kept_verdict_is_read_back_and_a_verdict_without_its_files_is_not() {
-    let dir = temp_dir("gate-verdict");
+    let dir = scratch("texture-preview", "gate-verdict");
     normal_map(128, 128)
         .save(dir.join("map.png"))
         .expect("save");

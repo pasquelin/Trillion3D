@@ -2,7 +2,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
 import { META, META_WORDS, REQUEST, REQUEST_WORDS } from '../../wasm/encodeAbi.ts'
-import { UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
+import { isSkinJoint, UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
 import type {
   PageAttribute,
   PageAttributes,
@@ -47,8 +47,7 @@ function skinOf(attributes: PageAttributes, vertices: number) {
     for (const set of sets)
       for (let j = 0; j < set.joints.itemSize; j++, at++) {
         const joint = set.joints.array[v * set.joints.itemSize + j]
-        if (!Number.isInteger(joint) || joint < 0 || joint > 65535)
-          throw new Error('PAGE_SKIN_ATTRIBUTES')
+        if (!isSkinJoint(joint)) throw new Error('PAGE_SKIN_ATTRIBUTES')
         joints[at] = joint
         weights[at] = set.weights.array[v * set.weights.itemSize + j]
       }

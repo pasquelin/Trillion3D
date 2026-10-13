@@ -6,6 +6,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pnpmCommand } from '../../../scripts/only-pnpm.ts'
+import { git } from '../../../scripts/git-paths.ts'
 
 const buildDist = (dir: string) =>
   execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' })
@@ -50,9 +51,7 @@ export function resolveSides({
 function resolveDist(value: string, label: string, root: string): { dist: string; from: string } {
   if (isDist(value)) return { dist: resolve(value), from: 'folder' }
   if (isDist(join(value, 'dist'))) return { dist: resolve(value, 'dist'), from: 'folder' }
-  const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
-    encoding: 'utf8',
-  }).trim()
+  const ref = git(root, 'rev-parse', '--verify', `${value}^{commit}`)
   const dir = join(tmpdir(), 'trillion3d-mesure', `${label}-${ref.slice(0, 12)}`)
   if (isDist(join(dir, 'dist')))
     return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` }

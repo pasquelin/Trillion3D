@@ -94,6 +94,8 @@ test('a primitive the packing does not hold appends into the room it kept, as a 
     primitiveNodes: exact.primitiveNodeCount,
     records: exact.recordCount,
     keys: exact.keyCount,
+    groups: exact.groupCount,
+    edges: exact.groupEdges,
   }
   const whole = packDagSelection(all, capacity),
     grown = packDagSelection(roots, capacity)
@@ -136,12 +138,15 @@ test('a packing kept ahead takes a source of records of its own in the room it k
   assert.ok(packed.primitiveNodeCount >= exact.primitiveNodeCount + 64, 'room for primitives')
   assert.ok(packed.recordCount >= exact.recordCount + 64, 'room for records')
   assert.ok(packed.keyCount >= exact.keyCount + 64, 'room for keys')
+  assert.ok(packed.groupCount >= exact.groupCount + 64, 'room for key groups')
   assert.ok(appendDagRoots(packed, first), 'a source of records of its own is appended in place')
   // As a packing of every root at the room it kept: its primitive nodes, records and keys.
   const kept = {
     ...{ pages: room.pages, nodes: room.nodes, worlds: room.worlds },
     ...{ primitiveNodes: packed.primitiveNodeCount, records: packed.recordCount },
     keys: packed.keyCount,
+    groups: packed.groupCount,
+    edges: packed.groupEdges,
   }
   const whole = packDagSelection([...held, ...first], kept)
   for (const table of TABLES) assert.deepEqual(packed[table], whole[table], table)

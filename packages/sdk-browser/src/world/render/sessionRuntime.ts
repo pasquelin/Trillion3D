@@ -5,12 +5,11 @@ import { engineReads } from './sessionReads.ts'
 import { createExplorerLifecycle } from '../session/lifecycle.ts'
 import { frameWaits } from '../session/familyUse.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
-import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts'
+import type { ExplorerResources, PreparedExplorer } from '../session/prepare.ts'
 import type { ExplorerSession } from '../session/session.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared
+  prepared: PreparedExplorer
   resources: ExplorerResources
   engine: Engine
 }

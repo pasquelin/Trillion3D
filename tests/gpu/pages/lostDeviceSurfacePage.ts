@@ -4,11 +4,8 @@
 // is destroyed, and what a host could still reach is read: the canvas the engine published must
 // be withdrawn and its context unconfigured — the drawing buffer then holds transparent black —,
 // the next render must raise `WEBGPU_LOST`, and the loss must have been announced under that name.
-import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
-import {
-  dagFixture,
-  wideCamera,
-} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { dagFixtureEngine } from '../kit/dagFixtureEngine.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
@@ -25,20 +22,7 @@ export async function run() {
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device, errors } = gpu
   const events: Pick<EngineDiagnostic, 'phase' | 'message' | 'context'>[] = []
-  const fixture = dagFixture()
-  const backend = webgpuPagesEngine({
-    source: fixture.source,
-    metadata: fixture.metadata,
-    indices: fixture.indices,
-    draws: fixture.draws,
-    gpuDevice: device,
-    maxResidentPages: 8,
-    viewport: [128, 128],
-    pixelError: 0,
-    clearColor: 0x000000,
-    diagnosticDetail: 'summary',
-    onDiagnostic: (e) => events.push({ phase: e.phase, message: e.message, context: e.context }),
-  })
+  const { fixture, backend } = dagFixtureEngine(device, events, { maxResidentPages: 8 })
   const camera = wideCamera()
   try {
     await backend.prepare()

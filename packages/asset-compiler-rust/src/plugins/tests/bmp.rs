@@ -3,7 +3,9 @@
 //! a mask of more than eight bits per channel does not enter, because entering would cost it
 //! its low bits — a loss the source did not have.
 use super::super::image as registry;
-use super::{assert_claims, assert_refusals, decoded_rgba8, fixture, REFERENCE_RGB as REFERENCE};
+use super::{
+    assert_claims, assert_refusals, decoded_rgba8, fixture, with_alpha, REFERENCE_RGB as REFERENCE,
+};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -22,15 +24,6 @@ const DAMIER: [[u8; 3]; 8] = [
 /// yields it straight — neither premultiplied, nor filled in by default.
 const ALPHA_32: [u8; 8] = [255, 255, 255, 255, 255, 255, 128, 0];
 const OPAQUE: [u8; 8] = [255; 8];
-
-/// RGBA8 bytes a fixture must yield: the reference, and the alpha that is its own.
-fn expected(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
-    colours
-        .iter()
-        .zip(alpha)
-        .flat_map(|(colour, alpha)| [colour[0], colour[1], colour[2], *alpha])
-        .collect()
-}
 
 /// Image the registry yields for this fixture, dimensions checked along the way.
 fn rendered(name: &str) -> image::RgbaImage {
@@ -53,7 +46,7 @@ fn all_writings_of_the_format_yield_the_same_pixels() {
     ] {
         assert_eq!(
             rendered(name).as_raw(),
-            &expected(&REFERENCE, &OPAQUE),
+            &with_alpha(&REFERENCE, &OPAQUE),
             "{name}: pixels diverge from the reference"
         );
     }
@@ -61,12 +54,12 @@ fn all_writings_of_the_format_yield_the_same_pixels() {
     // masks — including the alpha mask, which shorter headers do not have.
     assert_eq!(
         rendered("vraies-couleurs-32-haut.bmp").as_raw(),
-        &expected(&REFERENCE, &ALPHA_32),
+        &with_alpha(&REFERENCE, &ALPHA_32),
         "32-bit alpha must be yielded straight, without filling or premultiplication"
     );
     assert_eq!(
         rendered("palette-1.bmp").as_raw(),
-        &expected(&DAMIER, &OPAQUE),
+        &with_alpha(&DAMIER, &OPAQUE),
         "a one-bit palette carries two colours, and both must be the right ones"
     );
 }

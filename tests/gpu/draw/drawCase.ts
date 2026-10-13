@@ -2,7 +2,7 @@
 // (`createGpuDraw`), compacted in a compute pass, then each indirect slot and the direct page drawn
 // by the visibility raster in the same submission — no CPU readback or reorder between —, and what
 // both left read back.
-import { readBuffer, readTexture } from '../kit/computeReadback.ts'
+import { bufferHolding, readBuffer, readTexture } from '../kit/computeReadback.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
@@ -51,11 +51,7 @@ export async function runCase(
     const words = new Uint32Array(ceilDiv(cap, 32) + MASK_OFFSET).fill(0xffffffff)
     const bits = words.subarray(MASK_OFFSET).fill(0)
     mask.forEach((flag, index) => flag && setBit(bits, index))
-    const maskBuffer = device.createBuffer({
-      size: words.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    device.queue.writeBuffer(maskBuffer, 0, words)
+    const maskBuffer = bufferHolding(device, words, GPUBufferUsage.STORAGE)
     selection = { maskBuffer, maskOffset: MASK_OFFSET }
   }
   const encoder = device.createCommandEncoder()

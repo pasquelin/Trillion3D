@@ -2,7 +2,7 @@
 // draws the same image, and the job and abort paths of a session that really opens on the device —
 // overridden sizes, an abort that disposes it, a cancelled job. A target that is no canvas, or a
 // named raster with no device, fails before any GPU work (`world/session/target.test.ts`).
-import { pixelDifference } from '../../../bench/dawn/capture.ts'
+import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type {
   MeasuredWorldOptions,
   MeasuredWorldTarget,
@@ -39,7 +39,9 @@ export async function sessionTargets(manifestUrl: string, viewer: HTMLCanvasElem
     triangles.push([metrics.totalSubmittedTriangles, metrics.selectedTriangles])
     world.dispose()
   }
-  const differences = images.slice(1).map((image) => pixelDifference(image, images[0]).pixels)
+  const differences = images
+    .slice(1)
+    .map((image) => compareImages(image, images[0], { alpha: false }).differentPixels)
   const job = await createMeasuredWorldJob('scene-job', viewer.id, {
     ...options,
     engine: webgpuPagesEngine,

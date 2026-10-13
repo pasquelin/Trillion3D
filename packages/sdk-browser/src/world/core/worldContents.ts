@@ -1,6 +1,7 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts'
+import { createWorldCuts, type Cut } from './worldCuts.ts'
+import { firstMaterial } from '../../scene/materialSide.ts'
 import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import { createWorldRanks } from './worldRanks.ts'
@@ -128,7 +129,10 @@ async function resolve(state: ContentsState) {
   reading.forEach((mesh, i) => {
     const cut = read[i]
     if (!members.meshes.has(mesh)) return forget(state, mesh)
-    state.resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) })
+    state.resolved.set(
+      mesh,
+      cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)!) },
+    )
     state.unseated.add(mesh)
   })
   // What the tables folded is said once, with the count of the burst that folded it.

@@ -1,4 +1,4 @@
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
 import { rowsMoved, type RowsReading } from '../row/dirty.ts'
 

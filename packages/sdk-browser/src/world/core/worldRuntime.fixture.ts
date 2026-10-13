@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { after } from 'node:test'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { SceneLight } from '../../../../sdk-core/src/index.ts'
-import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import type { Scene } from './scene.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
 import '../../wasm/sdkWasm.fixture.ts'
@@ -13,11 +13,12 @@ Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event)
 /** Every content the session refused in these tests' runtimes, said on `content-refused`, and every
  *  reopen for a cause but a lost device or an option: each one a defect. */
 const contentRefusals: unknown[] = []
-const stopListening = listenWorldNotices(({ phase, context }) => {
+const stopListening = worldNoticeListeners.subscribe(({ phase, context }) => {
   if (phase === 'content-refused') contentRefusals.push(context)
   if (
     phase === 'session-reopen' &&
-    !/^(device-lost|option)(\+(device-lost|option))*$/.test(`${context?.cause}`)
+    (context?.defect ||
+      !/^(device-lost|option)(\+(device-lost|option))*$/.test(`${context?.cause}`))
   )
     contentRefusals.push(context)
 })

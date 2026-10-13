@@ -1,6 +1,7 @@
 // coplanar layer units against their oracle.
 import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts'
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
+import { measure, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceDepthLayerUnits } from '../../oracles/core/coplanar-layers.ts'
 
 const alea = xorshiftRandom(107)

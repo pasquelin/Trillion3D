@@ -42,6 +42,7 @@ export async function prepareGeometryAndBlend(
   rows.rowsRevision++
   // 16 bytes: it also stands in for the cluster spans (`array<vec4u>`) of a scene without them.
   gpu.zeroUv = gpuDevice.createBuffer({
+    label: 'Trillion3D zero words',
     size: 16,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })

@@ -4,7 +4,8 @@
 // read of that binding by the vertex stage, which the layout hides from it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VIS_SHADER, SHADE_SHADER } from '../buffer.ts'
+import { VIS_SHADER } from './visWgsl.ts'
+import { SHADE_SHADER } from './shadeWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 test('no parameter of a page-header function takes the name of a group-0 binding', () => {

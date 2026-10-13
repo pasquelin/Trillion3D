@@ -1,4 +1,4 @@
-import { createEngineCamera, type EngineCamera } from '../../../camera/world.ts'
+import { createEngineCamera, type EngineCamera } from '../../../camera/engineCamera.ts'
 import type { ViewHold } from '../../../frame/viewRevision.ts'
 import type { HizPyramid } from '../../../gpu/hiz/types.ts'
 import type { PresentRect } from '../../../gpu/core/presentAt.ts'
@@ -45,7 +45,9 @@ export const VIEW_RUN_KEYS = [
   'selectionUniforms',
   'asideCut',
 ] as const satisfies readonly (keyof WebgpuRunState)[]
-export const VIEW_GPU_KEYS = [
+/** The frame targets' members of the GPU group: what a view holds and what a target set made
+ *  beside the runtime's (`../prepare/targetsSet.ts`) trades whole. */
+export const TARGET_GPU_KEYS = [
   'colorTexture',
   'colorView',
   'depthTexture',
@@ -63,6 +65,9 @@ export const VIEW_GPU_KEYS = [
   'allocatedSize',
   'displaySize',
   'targetBytes',
+] as const satisfies readonly (keyof WebgpuGpuState)[]
+export const VIEW_GPU_KEYS = [
+  ...TARGET_GPU_KEYS,
   'targetGrant',
   'temporal',
   'effects',

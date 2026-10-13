@@ -65,3 +65,17 @@ export function runAccumulation(
     result.witness = await sequence(device, events, true)
   })
 }
+
+/** Records the label of every render pass `device` encodes from now on, until `restore` gives the
+ *  device its own `createCommandEncoder` back. */
+export function recordPassLabels(device: GPUDevice) {
+  const labels = new Set<string>()
+  const create = device.createCommandEncoder.bind(device)
+  device.createCommandEncoder = (descriptor) => {
+    const encoder = create(descriptor),
+      begin = encoder.beginRenderPass.bind(encoder)
+    encoder.beginRenderPass = (pass) => (labels.add(pass.label ?? ''), begin(pass))
+    return encoder
+  }
+  return { labels, restore: () => void (device.createCommandEncoder = create) }
+}

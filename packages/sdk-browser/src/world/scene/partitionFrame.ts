@@ -15,13 +15,11 @@ import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { patientTask } from '../../page/work/host.ts'
 import { cellRows, type CellRows } from '../../partition/cellDecode.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { PageBody } from '../../partition/cellIndex.ts'
-
-type Streamer = ReturnType<typeof createPageStreamer>
 
 /** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
  *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
@@ -65,7 +63,7 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
 export async function primePartitions(
   partitions: readonly PartitionCells[],
   camera: HostCamera,
-  streamer: Streamer,
+  streamer: PageStreaming,
   owned: boolean,
   signal?: AbortSignal,
 ) {
@@ -82,7 +80,7 @@ export async function primePartitions(
 
 type Inputs = {
   partitions: readonly PartitionCells[]
-  streamer: Streamer
+  streamer: PageStreaming
   camera: HostCamera
   engine: Engine
   /** The session's one integration budget per frame (`EngineContext.frameBudget`): cells spend

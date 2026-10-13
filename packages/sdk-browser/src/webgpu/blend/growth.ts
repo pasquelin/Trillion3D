@@ -77,11 +77,11 @@ async function grantWater(rt: WebgpuPagesRuntime, device: GPUDevice, copies: rea
 export const waitsForWater = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
   copies.some(transmits) && !(rt.gpu.backdrop?.active && rt.vis.writesEmissiveAo)
 
-/** Whether the copies wait for the front depth the blend pass writes: the reflection's target and
- *  the Hi-Z's, a texel in a session opened without a blend (`createFrontDepth`), are remade full
- *  size by the frame's targets (`targetsFit`). */
+/** Whether the copies wait for the front depth the blend pass writes: the reflection's target, a texel
+ *  in a session opened without a blend (`createFrontDepth`), is remade full size by the frame's
+ *  targets (`targetsFit`). */
 export const waitsForFrontDepth = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
-  copies.length > 0 && !(rt.gpu.reflection?.front.wanted && rt.vis.gpuHiz?.front)
+  copies.length > 0 && !rt.gpu.reflection?.front.wanted
 
 /** The compaction and the occlusion test being made for the first blended pages the session gains. */
 const mounting = new WeakMap<WebgpuPagesRuntime, Promise<boolean>>()
@@ -116,8 +116,8 @@ export async function prepareBlendGrowth(
 ) {
   await loadUnpaged(pages, copies)
   await prepareBlendKernels(rt, device)
-  // The blend pass writes a front depth a pixel: the targets and the Hi-Z are made for it before the
-  // copies join (`wantsFrontDepth`, `waitsForFrontDepth`).
+  // The blend pass writes a front depth a pixel: the reflection's front depth target is made for it before the
+  // copies join (`sceneBlends`, `waitsForFrontDepth`).
   if (copies.length) rt.blendState.frontGranted = true
   if (copies.some(transmits) && !rt.blendState.water && !(await grantWater(rt, device, copies)))
     return false

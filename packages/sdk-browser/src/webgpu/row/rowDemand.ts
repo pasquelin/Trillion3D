@@ -88,7 +88,7 @@ export function createRowDemand(
   d.serving.placed = (page) => placedAt(d, page)
   return {
     /** The readback just adopted: its differences followed, its new demand behind the last. */
-    follow: (cut: CutLists) => follow(d, cut),
+    follow: (cut: CutLists, frame?: number) => follow(d, cut, frame),
     /** Pages whose bytes or slot moved (the row journal): a wanted page not ready asks again. */
     touched(pages: ArrayLike<number>, count: number) {
       for (let i = 0; i < count; i++) {
@@ -323,10 +323,11 @@ function rerank(d: DemandState) {
 
 const NONE: readonly number[] = []
 
-function follow(d: DemandState, cut: CutLists) {
+function follow(d: DemandState, cut: CutLists, frame?: number) {
   // Entries the last serve left: what this readback asks is ranked with them.
   const behind = d.count > d.next
-  d.use.tick()
+  // The rows' clock is the frame the readback was cut at, the pool's (`rowUse.ts`).
+  d.use.tick(frame)
   const { drawn, asked, ahead } = d.lists
   drawn.apply(cut.drawablePageIds ?? NONE)
   asked.apply(cut.pageIds)

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pixelDifference } from './capture.ts'
 import { functionTimes, type CpuProfile } from './cpuProfile.ts'
 
 test('a function’s own time is the samples it was on top of; its total counts a recursion once', () => {
@@ -21,11 +20,4 @@ test('a function’s own time is the samples it was on top of; its total counts 
   assert.equal(times.get('draw')!.selfMs, 3)
   assert.equal(times.get('draw')!.totalMs, 5)
   assert.equal(times.get('main')!.totalMs, 6)
-})
-
-test('two images differ by the pixels whose colour changed, alpha aside', () => {
-  const a = Uint8Array.from([1, 2, 3, 255, 4, 5, 6, 255])
-  const b = Uint8Array.from([1, 2, 3, 0, 4, 9, 6, 255])
-  assert.deepEqual(pixelDifference(a, b), { pixels: 1, largest: 4 })
-  assert.deepEqual(pixelDifference(a, a), { pixels: 0, largest: 0 })
 })

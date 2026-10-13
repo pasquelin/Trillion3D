@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { readBuffer } from '../kit/computeReadback.ts'
+import { bufferHolding, readBuffer } from '../kit/computeReadback.ts'
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -53,26 +53,14 @@ async function rasterise({ vertices, ranges, viewProj, width, height, slots }: W
       primitive: { topology: 'triangle-list', cullMode: 'back', frontFace },
     })
   const pipelines = { ccw: pipeline('ccw'), cw: pipeline('cw') }
-  const buffer = (
-    data: Float32Array<ArrayBuffer> | Uint32Array<ArrayBuffer>,
-    usage: GPUBufferUsageFlags,
-  ) => {
-    const made = device.createBuffer({ size: Math.max(16, data.byteLength), usage })
-    device.queue.writeBuffer(made, 0, data)
-    return made
-  }
-  const vertexBuffer = buffer(
-    new Float32Array(vertices),
-    GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  )
-  const uniform = buffer(
-    new Float32Array(viewProj),
-    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  )
+  const vertexBuffer = bufferHolding(device, new Float32Array(vertices), GPUBufferUsage.VERTEX, 16)
+  const uniform = bufferHolding(device, new Float32Array(viewProj), GPUBufferUsage.UNIFORM, 16)
   const bytes = Math.max(4, slots * 4)
-  const counts = buffer(
+  const counts = bufferHolding(
+    device,
     new Uint32Array(Math.max(1, slots)),
-    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    16,
   )
   const target = device.createTexture({
     size: [width, height],

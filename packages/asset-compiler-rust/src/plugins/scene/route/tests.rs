@@ -1,19 +1,6 @@
 //! What the router recognises in a directory, and what it leaves aside.
 use super::*;
-
-/// A disposable directory, named by the case that uses it.
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "trillion3d-route-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("test directory");
-    dir
-}
+use crate::tests::directories::scratch;
 
 /// Name of the driver the router retains for this source.
 fn routed(source: &Path) -> &'static str {
@@ -29,7 +16,7 @@ fn routed(source: &Path) -> &'static str {
 // ambiguity.
 #[test]
 fn a_subdirectory_whose_name_carries_an_extension_is_not_a_source() {
-    let dir = scratch("dossier-a-extension");
+    let dir = scratch("route", "dossier-a-extension");
     fs::write(dir.join("scene.gltf"), b"{}").expect("scene");
     fs::create_dir_all(dir.join("textures.fbx")).expect("subdirectory");
     assert_eq!(routed(&dir), "gltf");
@@ -40,7 +27,7 @@ fn a_subdirectory_whose_name_carries_an_extension_is_not_a_source() {
 // and the router says so under that name rather than claiming one.
 #[test]
 fn a_directory_holding_only_named_subdirectories_carries_no_source() {
-    let dir = scratch("dossiers-seuls");
+    let dir = scratch("route", "dossiers-seuls");
     for name in ["textures.fbx", "cache.obj"] {
         fs::create_dir_all(dir.join(name)).expect("subdirectory");
     }

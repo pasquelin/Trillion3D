@@ -1,5 +1,5 @@
 // A page drawn from the float pool reads its results from its geometry's block in that pool, which
-// one row deforms for every page (`slotLayout.ts`, `wholePool.ts`), where it read a tail of its own
+// one row deforms for every page (`outputs.ts`, `wholePool.ts`), where it read a tail of its own
 // slot: the shipped stage and reader, run on both, give every page the same bits, two images on.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

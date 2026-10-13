@@ -1,6 +1,6 @@
 import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
-import { writeSplitDouble } from '../../gpu/partition/contract.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { worldStretch } from '../../page/cut/logic.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { MovedBox } from '../../page/selection/types.ts'

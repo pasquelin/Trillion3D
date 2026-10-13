@@ -33,7 +33,8 @@ import {
   COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
 } from '../../texture/mipsWgsl.ts'
-import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
+import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
+import { VIS_SHADER, visShader } from '../../visibility/shader/visWgsl.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'

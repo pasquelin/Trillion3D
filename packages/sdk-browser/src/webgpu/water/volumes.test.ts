@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { waterRankOf, writeVolumeRecords, VOLUME_WORDS } from '../transparent/transmission.ts'
-import { FLAG_TRANSMISSIVE } from '../../visibility/buffer.ts'
+import { FLAG_TRANSMISSIVE } from '../../visibility/types.ts'
 import { device, prepared } from './pass.fixture.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 

@@ -1,7 +1,8 @@
 // what lamp shadows cost on the CPU: world-space cluster spheres packed for the shadow pass.
 import * as THREE from 'three'
 import { packClusterSpheres } from '../../../packages/sdk-browser/src/webgpu/shadow/spheres.ts'
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
+import { measure, rapport } from '../../core/index.ts'
+import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { SPHERE_FLOATS, referenceClusterSphere } from '../../oracles/browser/lamp-shadows.ts'
 import { pageRecFixture } from './support/pageRecFixture.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'

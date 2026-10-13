@@ -1,4 +1,4 @@
-import type { VisMaterial } from './types.ts'
+import type { VisMaterial } from './materialType.ts'
 
 /** The second normal factor of `mat` in the frame a pass shades in: one read from vertex
  *  tangents takes the factor written for them, one rebuilt from the triangle — every page's —

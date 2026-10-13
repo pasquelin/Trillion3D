@@ -11,7 +11,7 @@ import type { PackedWorld } from './worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
 import type { PlacementIndex } from '../../page/selection/placements.ts'
 import type { createRecordTable } from './packRecords.ts'
-import type { createKeyWriter } from './evict.ts'
+import type { ContentKeys } from './evict.ts'
 
 /** The view one run of the kernel serves: the camera's uniforms. */
 export type DagViewUniforms = SelectionUniforms
@@ -93,7 +93,7 @@ export type DagPackShared = {
    *  looked up in: its records are an earlier placement's when their words are the same. */
   records?: ReturnType<typeof createRecordTable>
   /** The content keys written, which an appended array's pages are named by. */
-  keys?: ReturnType<typeof createKeyWriter>
+  keys?: ContentKeys
   /** Where the cold records begin in the cold words: what a growth writes the records it adds by. */
   coldAt?: number
 }
@@ -141,6 +141,10 @@ export type PackedDag = {
   primitiveNodeCount: number
   /** Content keys behind the records, one per page address (`evict.ts`). */
   keyCount: number
+  /** The groups of those keys, and the links from each group to the groups replacing it: what a
+   *  use stamps upward (`evict.ts`, `shader/lastUseWgsl.ts`). */
+  groupCount: number
+  groupEdges: number
   /** What the candidate and live lists hold, and each descent queue, now (`shader/levelWgsl.ts`):
    *  a view's reach, grown when a cut passes one (`queueGrowth.ts`). */
   candCount: number

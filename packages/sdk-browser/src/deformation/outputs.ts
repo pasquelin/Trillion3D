@@ -8,7 +8,7 @@ import {
   PAGE_DEFORM_COUNT_WORD,
   PAGE_DEFORM_OUTPUT_WORD,
   PAGE_DEFORM_WORD,
-  PAGE_INFO_STRIDE,
+  ROW_WORDS,
 } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rootOfPacked } from '../page/selection/placements.ts'
@@ -32,7 +32,7 @@ export const deformOutputWord = (output: DeformationOutput | undefined) =>
 const deformCountWord = (output: DeformationOutput | undefined) =>
   output && !output.pool ? output.count : 0
 
-/** Names `output` in the page-table row at word `at` (`row * PAGE_INFO_STRIDE / 4`): the words
+/** Names `output` in the page-table row at word `at` (`row * ROW_WORDS`): the words
  *  the row's own deformation reads (`deformCountWord`, `deformOutputWord`). The one writer of them
  *  for a row, at its first write and when the pool's tail is laid out again. */
 export function writeRowDeformation(
@@ -127,7 +127,7 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
     ints = rows.pageTableInts
   for (let row = 0; ints && row < rows.packedRecs.length; row++) {
     if (!rows.packedRecs[row]) continue
-    const at = row * (PAGE_INFO_STRIDE / 4),
+    const at = row * ROW_WORDS,
       page = rows.packedPageIndex[row],
       // The record word the row writer gives the row's placement (`pageRowWriter.ts`).
       record = deformation?.rowWord(rootOfPacked(placement, page)) ?? 0,

@@ -9,12 +9,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
-import { composeRows, cpuTable, crystals, N, WORDS } from './gpuComposeRows.fixture.ts'
+import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 
 const differing = (a: Uint32Array, b: Uint32Array) => {
   const out: string[] = []
   for (let i = 0; i < a.length; i++)
-    if (a[i] !== b[i]) out.push(`row ${Math.floor(i / WORDS)} word ${i % WORDS}`)
+    if (a[i] !== b[i]) out.push(`row ${Math.floor(i / ROW_WORDS)} word ${i % ROW_WORDS}`)
   return out
 }
 
@@ -40,5 +41,5 @@ test('a group turned once and linked by its rows own write leaves every row word
   const turned = cpuTable(meshes)
   composed = composeRows(composed, group.matrixWorld.elements, locals)
   assert.deepEqual(differing(turned, composed), [], 'every word of every row')
-  for (let row = 0; row < N; row++) assert.equal(composed[row * WORDS + ROW_HIZ_SLOT_WORD], row)
+  for (let row = 0; row < N; row++) assert.equal(composed[row * ROW_WORDS + ROW_HIZ_SLOT_WORD], row)
 })

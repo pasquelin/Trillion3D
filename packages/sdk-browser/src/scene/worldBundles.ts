@@ -29,6 +29,7 @@ import {
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
+import { createListeners, type Listeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
 import { bundlePages, readBundle, readWhole } from './worldRuns.ts'
@@ -48,7 +49,7 @@ type Watcher = (bundle: number, held: boolean) => void
  *  bundle the cells start or stop holding. */
 function createBundleCounts(
   table: WorldRoots,
-  watchers: Set<Watcher>,
+  watchers: Listeners<Parameters<Watcher>>,
   cellBundles: ReturnType<typeof createCellBundles>,
 ) {
   const held = new Map<number, Held>()
@@ -66,15 +67,13 @@ function createBundleCounts(
         bytes += table.bundles[bundle].bytes
       }
       own.holds++
-      if (byCell && own.byCells++ === 0 && !own.failed)
-        for (const watcher of watchers) watcher(bundle, true)
+      if (byCell && own.byCells++ === 0 && !own.failed) watchers.emit(bundle, true)
       return own
     },
     letGo(bundle: number, byCell = false) {
       const own = held.get(bundle)
       if (!own) return
-      if (byCell && --own.byCells === 0 && !own.failed)
-        for (const watcher of watchers) watcher(bundle, false)
+      if (byCell && --own.byCells === 0 && !own.failed) watchers.emit(bundle, false)
       if (--own.holds > 0) return
       held.delete(bundle)
       bytes -= table.bundles[bundle].bytes
@@ -85,7 +84,7 @@ function createBundleCounts(
       const own = held.get(bundle)
       if (!own || own.failed) return
       own.failed = true
-      if (own.byCells > 0) for (const watcher of watchers) watcher(bundle, false)
+      if (own.byCells > 0) watchers.emit(bundle, false)
     },
     /** Whether a cell holds `bundle`. */
     byCells: (bundle: number) => (held.get(bundle)?.byCells ?? 0) > 0,
@@ -160,7 +159,7 @@ export function createWorldBundles(
   top: WorldRootsPage[][],
   rootsIn: (bundle: number) => number = () => 0,
 ) {
-  const watchers = new Set<Watcher>(),
+  const watchers = createListeners<Parameters<Watcher>>(),
     cellBundles = createCellBundles(table),
     counts = createBundleCounts(table, watchers, cellBundles),
     { held, take, letGo, listed } = counts
@@ -252,9 +251,9 @@ export function createWorldBundles(
     /** Tells `watcher` each bundle the cells hold from now on, those held already first; returns
      *  what stops it. */
     watch(watcher: Watcher) {
-      watchers.add(watcher)
+      const stop = watchers.subscribe(watcher)
       for (const bundle of held.keys()) if (counts.followed(bundle)) watcher(bundle, true)
-      return () => void watchers.delete(watcher)
+      return stop
     },
     /** The room the cut's cache leaves the roots the held cells add, and whether a cell may be
      *  held far within it (`worldCoverShare.ts`), the roots `rootsIn` counts per bundle. */

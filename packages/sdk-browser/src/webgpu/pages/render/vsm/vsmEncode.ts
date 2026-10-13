@@ -1,5 +1,5 @@
 // The frame's shadow-map work on the GPU, from the change boxes to the mask the lighting reads.
-import type { EngineCamera } from '../../../../camera/world.ts'
+import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
   vsmCachePerPageBins,

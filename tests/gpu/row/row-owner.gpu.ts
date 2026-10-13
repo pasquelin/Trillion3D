@@ -7,7 +7,7 @@
 // from its own placement alone, no evicted occupant in its place.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/webgpu/row/dirty.ts'
 import { rowIdleSpan } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
 import { rowCacheScene, settleView } from './rowCacheScene.ts'

@@ -10,7 +10,7 @@ import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { OPEN_CONE, type NormalCone } from './cone.ts'
 import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
-import type { EngineCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 // The cone cull on the CPU, the oracle of the GPU cut's (`../../gpu/dag/shader/shader.ts`).
 

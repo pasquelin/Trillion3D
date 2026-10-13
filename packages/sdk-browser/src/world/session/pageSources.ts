@@ -1,7 +1,7 @@
 import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
-import { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { createPageStreamer, type PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { asIndices } from '../../streaming/indexView.ts'
 import type { PageQueue } from '../../streaming/types.ts'
@@ -21,7 +21,7 @@ type Stalled = (detail: string, failedPages: number) => void
 /** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
  *  request (`streamer`), through the page cache, each as it lands; none otherwise. */
 async function preloaded(
-  streamer: ReturnType<typeof createPageStreamer>,
+  streamer: PageStreaming,
   pages: readonly { url: string }[],
   preload: MeasuredWorldOptions['preload'],
   progress: Progress,

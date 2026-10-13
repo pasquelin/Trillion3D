@@ -6,6 +6,7 @@ import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -98,7 +99,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     bytes: width * height * DISPLAY_LAYER_BYTES_PER_PIXEL,
     maskGroup: device.createBindGroup({
       layout: program.mask,
-      entries: [{ binding: 0, resource: mask }],
+      entries: sequentialEntries([mask]),
     }),
     /** Set from `open` to the composition: the transparent passes attach the layers meanwhile. */
     active: false,
@@ -157,7 +158,7 @@ function displayApply(
     let group = groups.get(source[0])
     if (!group) {
       const resources = [...source, sampler, { buffer: drawn }]
-      const entries = resources.map((resource, binding) => ({ binding, resource }))
+      const entries = sequentialEntries(resources)
       groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
     }
     const pass = encoder.beginRenderPass({

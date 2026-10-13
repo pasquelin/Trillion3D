@@ -1,8 +1,8 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline, canCompute } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
-import { computeBufferEntry, computeTextureEntry } from './computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
@@ -34,7 +34,7 @@ export async function createTransparentOcclusion(
   entryCount: number,
   sources: TransparentOcclusionSources,
 ) {
-  if (typeof device.createComputePipeline !== 'function' || entryCount < 1) return undefined
+  if (!canCompute(device) || entryCount < 1) return undefined
   const buffers = occlusionBuffers(device, entryCount)
   const destroy = () => {
     o.corners.destroy()
@@ -181,13 +181,13 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
     o.verdicts = occluded
     o.bindGroup = o.device.createBindGroup({
       layout: o.layout,
-      entries: [
-        { binding: 0, resource: { buffer: o.corners } },
-        { binding: 1, resource: pyramid },
-        { binding: 2, resource: { buffer: occluded } },
-        { binding: 3, resource: { buffer: sources.uniforms } },
-        { binding: 4, resource: { buffer: o.unculled } },
-      ],
+      entries: sequentialEntries([
+        { buffer: o.corners },
+        pyramid,
+        { buffer: occluded },
+        { buffer: sources.uniforms },
+        { buffer: o.unculled },
+      ]),
     })
   }
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })

@@ -4,7 +4,7 @@ import { replicateInstances } from '../../scene/replicateInstances.ts'
 import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts'
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { createMultiplyLot } from '../../page/decode/batch/batchRuntime.ts'
-import { prepareMathBatch } from '../../page/decode/batch/batchState.ts'
+import { mathBatchModule } from '../../page/decode/batch/batchState.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
@@ -170,10 +170,10 @@ export async function loadPreparedScene(
   registerSource: (source: Object3D) => void,
 ) {
   const load: SceneLoad = { options, metadata, base, scope, signal, diagnose }
-  // The compute path the host asked for holds FROM LOAD: the governor receives it before the
-  // first lot, and `configureExplorer` will tell it again without changing anything. Module
-  // load starts here and overlaps with the scene's, which lasts much longer.
-  const mathBatch = prepareMathBatch(options.mathPath ?? 'auto')
+  // The module the load's lots run in starts loading here and overlaps with the scene's, which
+  // lasts much longer; a refusal is told where the lots wait for it, below.
+  const mathBatch = mathBatchModule()
+  mathBatch.catch(() => {})
   // The scene is built from the cache alone: its tables, the binary of the document it draws and
   // the images they locate. `textureSource` reads `'host'` for a model after a world's first
   // (`worldLoader.ts`), or where the platform cannot read the baked levels

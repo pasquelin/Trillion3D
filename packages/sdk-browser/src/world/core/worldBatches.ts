@@ -1,5 +1,6 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { grownCapacity, growPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import { growPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import type { Cut } from './worldCuts.ts'
 import type { MaterialEntry } from './worldMaterials.ts'
@@ -228,7 +229,7 @@ function size(state: BatchState, batch: Batch, grow?: PlacementGrowth) {
   const held = before?.capacity ?? 0,
     needed = held - batch.free.length + waitingIn(state, batch)
   if (needed <= held) return null
-  if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false
+  if (before && grow && !grow.growsInPlace([before], grownLength(held, needed))) return false
   const rows = growPlacementRows(before, needed)
   const { capacity } = rows
   for (let row = capacity - 1; row >= held; row--) batch.free.push(row)

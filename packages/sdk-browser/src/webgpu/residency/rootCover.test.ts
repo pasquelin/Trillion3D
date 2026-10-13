@@ -8,7 +8,7 @@ import { keysOf, rec, world } from './sets.fixture.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencySets } from './sets.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts'
+import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 
 /** Six cut pages, levels 0 to 2, and two roots a held cell adds; the session's top apart. */
 function scene() {
@@ -63,7 +63,7 @@ test('the queue loads the pages a holder brought before its own, pinned on arriv
   sets.holdCover([pages[1]], true)
   assert.equal(sets.coverSlots, 1, 'one slot taken by the cover')
   tracking.wanted.add(tracking.keyOf(pages[0]), pages[0])
-  const cache = lruCache(1)
+  const cache = orderedPool(1)
   const ensure = createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
     bootstrapKey,
