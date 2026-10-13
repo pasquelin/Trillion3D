@@ -9,6 +9,7 @@ import { GOLDEN_U32 } from '../../../../math/src/constants.ts'
 import { hashUnit, mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { cpuHashUnit } from '../../../../math/src/scalar/hashUnit.fixture.ts'
 
 /** The reference, in big integers: the definition of the hash without a wrapped product. */
 const mixBig = (x: number) => {
@@ -49,13 +50,30 @@ test('the shipped WGSL mixWord evaluates to the twin', () => {
   }
 })
 
-/** The shipped `hashUnit`, in integers. */
-const unit = (seed: number) => {
-  let x = (Math.imul(seed, 747796405) + 2891336453) >>> 0
-  x = Math.imul(((x >>> ((x >>> 28) + 4)) ^ x) >>> 0, 277803737) >>> 0
-  x = ((x >>> 22) ^ x) >>> 0
-  return Math.fround(x * 2.3283064e-10)
-}
+test('the shipped WGSL hashUnit evaluates to its processor twin', () => {
+  const { hashUnit: run } = shaderRun<{ hashUnit: (x: number) => number }>(
+    wgslModule(hashUnit),
+    ['hashUnit'],
+    {
+      $b: (op: string, a: number, b: number) =>
+        op === '*'
+          ? Number.isInteger(a) && Number.isInteger(b)
+            ? Math.imul(a, b) >>> 0
+            : Math.fround(Math.fround(a) * Math.fround(b))
+          : op === '+'
+            ? (a + b) >>> 0
+            : op === '>>'
+              ? a >>> b
+              : op === '^'
+                ? (a ^ b) >>> 0
+                : NaN,
+      f32: (x: number) => Math.fround(x),
+    },
+  )
+  const draw = lcgRandom(31)
+  for (const seed of [0, 1, 0xffffffff, ...Array.from({ length: 512 }, () => draw() * 2 ** 32)])
+    assert.equal(run(seed >>> 0), cpuHashUnit(seed), `seed ${seed}`)
+})
 
 test('the golden salt decorrelates the temporal pass second coordinate as the constant it replaces', () => {
   assert.ok(hashUnit.text.includes('747796405u'), 'the hash measured is the shipped one')
@@ -69,8 +87,8 @@ test('the golden salt decorrelates the temporal pass second coordinate as the co
       sab = 0
     for (let p = 0; p < n; p++) {
       const seed = (((p >>> 10) * 65536 + (p & 1023)) * 8 + 3) >>> 0
-      const a = unit(seed),
-        b = unit((seed ^ salt) >>> 0)
+      const a = cpuHashUnit(seed),
+        b = cpuHashUnit((seed ^ salt) >>> 0)
       sa += a
       sb += b
       saa += a * a
