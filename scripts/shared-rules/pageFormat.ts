@@ -95,7 +95,8 @@ ${tables.map(([scope, name, doc]) => `/** ${doc} */\n${object(scope, name)}`).jo
 `
 }
 
-/** The page encoder's request and answer words, printed for the SDK module's loader. */
+/** The page encoder's request words and the answer words of the encoder and the decoder's check,
+ *  printed for the SDK module's loader. */
 export function pageEncoderAbiTs() {
   return wasmAbiTs(
     `${CODEC}/wasm_encode.rs`,
@@ -104,14 +105,5 @@ export function pageEncoderAbiTs() {
       ['request', 'REQUEST', "The request's words, by what each holds."],
       ['meta', 'META', "The answer's words on success."],
     ],
-  )
-}
-
-/** The page decoder's answer words, printed for the SDK module's loader. */
-export function pageDecoderAbiTs() {
-  return wasmAbiTs(
-    `${CODEC}/wasm_decode.rs`,
-    [],
-    [['unpacked', 'UNPACKED', "The answer's words of a page the check admits."]],
   )
 }

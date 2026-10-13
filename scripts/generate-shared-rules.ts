@@ -21,7 +21,7 @@ import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
 import { writtenFormatsTs } from './shared-rules/formats.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
-import { pageDecoderAbiTs, pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
+import { pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
 import { waveModelHeader, waveTermsWgsl } from './shared-rules/waves.ts'
 
 /** `text` as the repository formats a file of `path`'s kind. */
@@ -50,7 +50,6 @@ const outputs: Record<string, () => string> = {
   'packages/sdk-core/src/page/format.ts': pageFormatTs,
   'packages/sdk-core/src/contracts/writtenFormats.ts': writtenFormatsTs,
   'packages/sdk-browser/src/wasm/encodeAbi.ts': pageEncoderAbiTs,
-  'packages/sdk-browser/src/wasm/decodeAbi.ts': pageDecoderAbiTs,
   'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
   'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
   'packages/sdk-browser/src/host/familyLoadFailedId.ts': familyLoadFailedId,

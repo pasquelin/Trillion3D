@@ -1,5 +1,5 @@
 import type { CullingHierarchy } from '../../../../sdk-core/src/index.ts'
-import { reserveArena } from '../../wasm/wasmArena.ts'
+import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** Numbers per node of the hierarchy (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
@@ -54,24 +54,10 @@ export function buildCullingHierarchy(
   } finally {
     input.freed()
   }
-  const out = reserveArena(module, [
-    { type: 'f64', length: Math.max(1, nodes * STRIDE) },
-    { type: 'u32', length: Math.max(1, count) },
-  ])
-  if (!out) throw new Error('CULLING_BUILDER_MEMORY')
-  try {
-    const [nodeBlock, orderBlock] = out.blocks()
-    module.culling_build_take(nodeBlock.offset, orderBlock.offset)
-    const [flat, ranks] = out.blocks()
-    return {
-      order: Uint32Array.from(ranks.view.subarray(0, count)),
-      culling: {
-        stride: STRIDE,
-        count: nodes,
-        nodes: Array.from(flat.view.subarray(0, nodes * STRIDE)),
-      },
-    }
-  } finally {
-    out.freed()
+  // The held answer: the nodes, `STRIDE` doubles each, then one rank a cluster.
+  const [flat, ranks] = takeHeld(module, [nodes * STRIDE * 8, count * 4])
+  return {
+    order: new Uint32Array(ranks),
+    culling: { stride: STRIDE, count: nodes, nodes: Array.from(new Float64Array(flat)) },
   }
 }
