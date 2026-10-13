@@ -8,6 +8,8 @@ import { NEW_WALK, oldWalk, walk } from './proxyWalks.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { cubeCut, world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
+import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
@@ -40,7 +42,7 @@ function rays(count: number, side: number, seed: number) {
         : [o[0] + next() - 0.5, 0.5, o[2] + next() - 0.5]
     if (i % 4 === 3) o[1] = next() * 3 - 1
     const d = to.map((v, a) => v - o[a]),
-      length = Math.hypot(d[0], d[1], d[2]) || 1
+      length = hypot3(d[0], d[1], d[2]) || 1
     out.set([...o, 1000, ...d.map((v) => v / length), 0], i * 8)
   }
   return out
@@ -182,7 +184,7 @@ export async function splitWorld({ count, rayCount }: { count: number; rayCount:
   const side = Math.ceil(Math.sqrt(count)),
     cast = rays(rayCount, side, 7)
   const whole = await engineWalk(device, count, cast)
-  const binding = Math.ceil((count * 4) / 5) * PRIMITIVE_BYTES
+  const binding = ceilDiv(count * 4, 5) * PRIMITIVE_BYTES
   const split = await engineWalk(reporting(device, binding), count, cast)
   const info = await gpu.fermer()
   return { adapter: info.court, errors, whole, split }

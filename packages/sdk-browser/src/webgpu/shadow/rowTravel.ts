@@ -17,6 +17,7 @@ import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import { takeFarthest } from './mobilityTravel.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 const box = new Float64Array(6)
@@ -58,7 +59,7 @@ function slotReach(rt: WebgpuPagesRuntime, state: ComposeState | undefined, slot
     const m = state.localMats.subarray(rank * 16, rank * 16 + 16)
     let linear = 0
     for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) linear += m[c * 4 + r] ** 2
-    const t = Math.hypot(m[12], m[13], m[14])
+    const t = hypot3(m[12], m[13], m[14])
     reach = Math.max(reach, t + Math.sqrt(linear) * rootReach(rt.layout.selectionRoots[rank]))
   }
   return reach * (1 + 2 ** -40)

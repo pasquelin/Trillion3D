@@ -28,6 +28,7 @@ import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { words } from './fakeBuffers.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
 function simulateTransparentCompaction(bind: ComputeBind) {
@@ -158,7 +159,7 @@ function simulateBlendVerdict(bind: ComputeBind) {
     verdict = at(VERDICT_BINDING.verdict)
   for (let k = 0; k < 24; k++) planes[k] = doubleAt(frame, FRAME_HEAD.planes + 2 * k)
   const items = frame[FRAME_HEAD.items]
-  keep.fill(0, 0, Math.ceil(items / 32))
+  keep.fill(0, 0, ceilDiv(items, 32))
   for (let item = 0; item < items; item++) {
     const record = item * KEY_RECORD_WORDS,
       flags = keyed[record + KEY_WORD.flags],

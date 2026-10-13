@@ -14,6 +14,7 @@
  * for the next one.
  */
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 
 /** Words of the header, and of a record (centre, half extent). */
@@ -58,7 +59,7 @@ export type CastChanges = ReturnType<typeof createCastChanges>
 export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number, rows: number) {
   casts.pending += more
   casts.appended = true
-  const ceiling = Math.max(CAST_FLOOR, Math.min(CAST_CEILING, 2 * rows))
+  const ceiling = clampLowWins(2 * rows, CAST_FLOOR, CAST_CEILING)
   if (casts.pending <= casts.records || casts.records >= ceiling) return
   const records = Math.min(ceiling, grownLength(casts.records, casts.pending)),
     old = casts.buffer

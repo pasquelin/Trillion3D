@@ -28,6 +28,7 @@ import {
   type SceneRows,
 } from '../../../packages/sdk-browser/src/vsm/rowPageBound.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
@@ -61,7 +62,7 @@ function move(rows: SceneRows, step: number[]) {
       rows.packed[at + 4 + a] = c - rows.packed[at + a]
     }
   }
-  commitMotion(rows.spheres.motion, 0, Math.hypot(...step))
+  commitMotion(rows.spheres.motion, 0, hypot3(step[0], step[1], step[2]))
 }
 
 /** Every K where the bound falls short of the exact count, this frame. */

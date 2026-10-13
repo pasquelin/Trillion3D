@@ -6,6 +6,7 @@
 // placement behind every matrix (`OLD_WORLD_OF`); the tree's nodes, twenty-four words each, then its order
 // (`OLD_TREE`).
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { runtimeSceneWgsl } from '../../../packages/sdk-browser/src/bounce/runtimeSceneWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { DAG_NODE_FLOATS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
@@ -143,7 +144,7 @@ export async function walk(
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries }))
-  pass.dispatchWorkgroups(Math.ceil(count / 64))
+  pass.dispatchWorkgroups(ceilDiv(count, 64))
   pass.end()
   device.queue.submit([encoder.finish()])
   const read = (await readGpuBuffer(device, hits, bytes))!
