@@ -265,7 +265,7 @@ export function normalizeVector3OrZero<T extends NumberSink>(
 }
 
 /** `signedAngleVector3`'s cross product, held between its two reads. */
-const CROSS_SCRATCH = new Float64Array(3)
+const CROSS_SCRATCH = /* @__PURE__ */ new Float64Array(3)
 
 /**
  * The signed angle in radians that turns `a` onto `b` about the axis `n`, in `(−π, π]`:

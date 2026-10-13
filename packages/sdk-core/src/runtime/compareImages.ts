@@ -1,6 +1,7 @@
 /** The bits of a 32-bit word that hold an RGBA pixel's alpha byte, the fourth in memory: the high
  *  byte on a little-endian machine, the low one on a big-endian one. */
-const ALPHA_BITS = new Uint8Array(Uint32Array.of(0xff).buffer)[0] === 0xff ? 0xff000000 : 0xff
+const alphaBits = () =>
+  new Uint8Array(Uint32Array.of(0xff).buffer)[0] === 0xff ? 0xff000000 : 0xff
 
 /** RGBA bytes as a `Uint8Array`: one as it is, any other list of bytes copied into one. */
 const asBytes = (image: ArrayLike<number>) =>
@@ -30,7 +31,7 @@ export function compareImages(
   if (isAlignedA && isAlignedB) {
     const u32A = new Uint32Array(a.buffer, a.byteOffset, a.length >>> 2)
     const u32B = new Uint32Array(b.buffer, b.byteOffset, b.length >>> 2)
-    const compared = alpha ? 0xffffffff : ~ALPHA_BITS
+    const compared = alpha ? 0xffffffff : ~alphaBits()
     const pixelCount = u32A.length
     // `p <= pixelCount` would read one past the end, `undefined` on both sides: equal, no pixel added.
     for (let p = 0; p < pixelCount; p++) {
