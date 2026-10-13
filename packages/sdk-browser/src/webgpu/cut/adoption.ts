@@ -1,9 +1,9 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts'
 import { sameSelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { copyPages, copyPacked } from '../pages/helpers.ts'
 import type { CutDelta } from './delta.ts'
 import { createHeadUnion } from './headUnion.ts'
+import { copyPages, copyPacked } from './copyRanks.ts'
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
