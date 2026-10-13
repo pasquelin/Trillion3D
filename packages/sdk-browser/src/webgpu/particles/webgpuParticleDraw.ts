@@ -10,7 +10,7 @@ import { displayMaskLayout, type DisplayFilter } from '../blend/displayFilter.ts
 import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL } from './particlesWgsl.ts'
 import { particleTargets } from '../../particles/particleTargets.ts'
 import { PARTICLE_DRAW_PASS } from '../../stage/passLabels.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
 export type DrawState = {
@@ -26,8 +26,8 @@ const drawLayout = (device: GPUDevice) => {
   return device.createBindGroupLayout({
     label: PARTICLE_DRAW_PASS,
     entries: [
-      { binding: 0, visibility: VERTEX | FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: VERTEX, buffer: { type: 'read-only-storage' } },
+      computeBufferEntry(0, 'uniform', VERTEX | FRAGMENT),
+      computeBufferEntry(1, 'read-only-storage', VERTEX),
       { binding: 2, visibility: FRAGMENT, texture: { sampleType: 'depth' } },
     ],
   })

@@ -10,19 +10,18 @@ import {
 import { createWebgpuBindIdentity } from './bindIdentity.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import type { RenderCommands } from '../../gpu/core/renderBundles.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16
 
 /** Group 1 of the class draws: the slot of each class key, and the tile lists. */
 export function materialTileDrawLayout(device: GPUDevice) {
-  const vertex = GPUShaderStage.VERTEX,
-    buffer: GPUBufferBindingLayout = { type: 'read-only-storage' }
+  const vertex = GPUShaderStage.VERTEX
   return device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: vertex, buffer },
-      { binding: 1, visibility: vertex, buffer },
+      computeBufferEntry(0, 'read-only-storage', vertex),
+      computeBufferEntry(1, 'read-only-storage', vertex),
     ],
   })
 }
@@ -32,19 +31,17 @@ export function materialTileDrawLayout(device: GPUDevice) {
  *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
   if (!canCompute(device)) return undefined
-  const compute = GPUShaderStage.COMPUTE,
-    storage: GPUBufferBindingLayout = { type: 'storage' },
-    readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
+  const compute = GPUShaderStage.COMPUTE
   return validated(device, async () => {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES')
     const layout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: compute, texture: { sampleType: 'uint' } },
-        { binding: 1, visibility: compute, buffer: readOnly },
-        { binding: 2, visibility: compute, buffer: { type: 'uniform' } },
-        { binding: 3, visibility: compute, buffer: readOnly },
-        { binding: 4, visibility: compute, buffer: storage },
-        { binding: 5, visibility: compute, buffer: storage },
+        computeBufferEntry(1, 'read-only-storage', compute),
+        computeBufferEntry(2, 'uniform', compute),
+        computeBufferEntry(3, 'read-only-storage', compute),
+        computeBufferEntry(4, 'storage', compute),
+        computeBufferEntry(5, 'storage', compute),
       ],
     })
     const stages = await buildComputeStages(device, [layout], module, ['clearTiles', 'classify'])

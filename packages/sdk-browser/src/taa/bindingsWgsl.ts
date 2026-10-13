@@ -1,8 +1,8 @@
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
-import { readOnly } from '../webgpu/core/bindLayout.ts'
 import * as layer from './layers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -46,9 +46,9 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
     },
     { binding: TAA_BINDINGS.depth, visibility: stage, texture: { sampleType: 'depth' } },
     { binding: TAA_BINDINGS.ids, visibility: stage, texture: { sampleType: 'uint' } },
-    { binding: TAA_BINDINGS.pages, visibility: stage, buffer: readOnly },
-    { binding: TAA_BINDINGS.motion, visibility: stage, buffer: readOnly },
-    { binding: TAA_BINDINGS.view, visibility: stage, buffer: { type: 'uniform' } },
+    computeBufferEntry(TAA_BINDINGS.pages, 'read-only-storage', stage),
+    computeBufferEntry(TAA_BINDINGS.motion, 'read-only-storage', stage),
+    computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
     {
       binding: TAA_BINDINGS.flags,
       visibility: stage,
@@ -69,11 +69,9 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
     },
     { binding: TAA_BINDINGS.shadingHistory, visibility: stage, texture: { sampleType: 'uint' } },
     // The page pool and the float pool the page geometry reads a deformed pixel's triangle from.
-    ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) => ({
-      binding,
-      visibility: stage,
-      buffer: readOnly,
-    })),
+    ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) =>
+      computeBufferEntry(binding, 'read-only-storage', stage),
+    ),
   ]
   const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags)
   return device.createBindGroupLayout({

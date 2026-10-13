@@ -4,7 +4,7 @@ import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../stage/passLabels.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
-import { sequentialEntries } from '../core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry } from '../core/computeBindings.ts'
 
 const RESOLVE_DEPTH = {
   format: DEPTH_FORMAT,
@@ -81,8 +81,8 @@ type Resolves = ReturnType<typeof resolvePipelines> & {
 function resolvePipelines(device: GPUDevice, code: string) {
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      computeBufferEntry(0, 'read-only-storage', GPUShaderStage.FRAGMENT),
+      computeBufferEntry(1, 'uniform', GPUShaderStage.FRAGMENT),
     ],
   })
   const module = device.createShaderModule({ code })

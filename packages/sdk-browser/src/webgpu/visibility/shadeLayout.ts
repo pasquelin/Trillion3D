@@ -1,8 +1,9 @@
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
-import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts'
+import { SHADE_BINDINGS, atlasLayoutEntries } from '../core/bindLayout.ts'
 import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
 import { SUBSURFACE_FORMAT } from '../../scene/subsurface.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS
@@ -20,18 +21,18 @@ export function shadeLayout(device: GPUDevice) {
         storageTexture: { access: 'write-only', format: RECEIVER_TARGET_FORMAT },
       },
       { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
-      { binding: b.cache, visibility: fragment, buffer: readOnly },
-      { binding: b.position, visibility: fragment, buffer: readOnly },
-      { binding: b.uv, visibility: fragment, buffer: readOnly },
+      computeBufferEntry(b.cache, 'read-only-storage', fragment),
+      computeBufferEntry(b.position, 'read-only-storage', fragment),
+      computeBufferEntry(b.uv, 'read-only-storage', fragment),
       // The float pool's normal atlas (`../core/floatAtlas.ts`).
       {
         binding: b.normal,
         visibility: fragment,
         texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
       },
-      { binding: b.pageTable, visibility: fragment, buffer: readOnly },
+      computeBufferEntry(b.pageTable, 'read-only-storage', fragment),
       // The rows' frames the resolve reads (`../../visibility/shader/shadeCacheWgsl.ts`).
-      { binding: b.shadeCache, visibility: fragment, buffer: readOnly },
+      computeBufferEntry(b.shadeCache, 'read-only-storage', fragment),
       // The anisotropic and clear-coat records — a texture, no storage buffer of the eight —, and
       // the lobes target (`physicalWgsl.ts`).
       { binding: b.physical, visibility: fragment, texture: { sampleType: 'uint' } },

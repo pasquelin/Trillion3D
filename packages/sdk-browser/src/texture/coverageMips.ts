@@ -3,7 +3,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024
@@ -17,15 +17,15 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility, texture: { sampleType: 'float' } },
-      { binding: 1, visibility, buffer: { type: 'uniform' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeBufferEntry(1, 'uniform', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const chooseLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility, buffer: { type: 'uniform', hasDynamicOffset: true } },
-      { binding: 1, visibility, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility, buffer: { type: 'storage' } },
+      computeBufferEntry(1, 'read-only-storage', visibility),
+      computeBufferEntry(2, 'storage', visibility),
     ],
   })
   const pipeline = (code: string, bindGroupLayout: GPUBindGroupLayout, entryPoint: string) =>

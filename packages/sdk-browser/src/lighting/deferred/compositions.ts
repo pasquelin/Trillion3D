@@ -3,6 +3,7 @@ import { bloomLevelLayout } from '../../effects/bloomLevel.ts'
 import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts'
 import type { ComposeInput } from './shaders.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 const INPUTS = ['still', 'accumulated', 'flagless'] as const satisfies readonly ComposeInput[]
 /** A program's composition texts, one per input it reads the as-is share from (`AS_IS_READ`):
@@ -26,7 +27,7 @@ export async function createCompositions(
     device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
-        { binding: 1, visibility: fragment, buffer: { type: 'uniform' } },
+        computeBufferEntry(1, 'uniform', fragment),
         ...(share ? [{ binding: 2, visibility: fragment, texture: { sampleType: share } }] : []),
       ],
     })

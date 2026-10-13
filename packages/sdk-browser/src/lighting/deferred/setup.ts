@@ -20,6 +20,7 @@ import {
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Empty proxy header: no proxy ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16
@@ -44,7 +45,7 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     texture(B.emissiveAo, 'unfilterable-float'),
     texture(B.flags, 'uint'),
     texture(B.depth, 'depth'),
-    { binding: B.view, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+    computeBufferEntry(B.view, 'uniform', GPUShaderStage.FRAGMENT),
   ]
   if (direct) entries.push(...contractLayoutEntries())
   // The pool a non-mask read samples: the water composite's alone, the resolve reading the mask
@@ -60,14 +61,11 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
   // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
   // storage buffer of the eight.
   if (bounce)
-    entries.push(
-      { binding: B.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      {
-        binding: B.probes,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-      },
-    )
+    entries.push(computeBufferEntry(B.bounceGrid, 'uniform', GPUShaderStage.FRAGMENT), {
+      binding: B.probes,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+    })
   return entries
 }
 

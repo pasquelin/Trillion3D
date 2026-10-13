@@ -18,7 +18,7 @@ import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
 import { MIB } from '../../../../math/src/constants.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * RAW TEXELS TURNED ON THE GPU as their host texture asks (#362): rows reversed under `flipY` — the
@@ -42,8 +42,8 @@ const programOf = oncePerDevice((device: GPUDevice) => {
   const layout = device.createBindGroupLayout({
     label: TEXEL_TURN_PASS,
     entries: [
-      { binding: 0, visibility, buffer: { type: 'uniform' } },
-      { binding: 1, visibility, buffer: { type: 'read-only-storage' } },
+      computeBufferEntry(0, 'uniform', visibility),
+      computeBufferEntry(1, 'read-only-storage', visibility),
       {
         binding: 2,
         visibility,

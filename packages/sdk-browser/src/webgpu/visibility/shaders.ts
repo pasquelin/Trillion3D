@@ -7,7 +7,6 @@ import {
   VIS_UNIFORM_BYTES,
   atlasLayoutEntries,
   visUniformLayout,
-  readOnly,
 } from '../core/bindLayout.ts'
 import {
   DIAGNOSTIC_SHADE_WGSL,
@@ -17,6 +16,7 @@ import {
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
+import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
  *  made again when the table grows (`../pages/prepare/growTables.ts`). */
@@ -27,25 +27,25 @@ export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
 export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
   const b = VIS_BINDINGS
   return [
-    { binding: b.cache, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-    { binding: b.position, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-    {
-      binding: b.pageTable,
-      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-      buffer: readOnly,
-    },
-    { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    computeBufferEntry(b.cache, 'read-only-storage', GPUShaderStage.VERTEX),
+    computeBufferEntry(b.position, 'read-only-storage', GPUShaderStage.VERTEX),
+    computeBufferEntry(
+      b.pageTable,
+      'read-only-storage',
+      GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+    ),
+    computeBufferEntry(b.flags, 'read-only-storage', GPUShaderStage.VERTEX),
     {
       binding: b.uniform,
       // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
       visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
       buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
     },
-    { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    computeBufferEntry(b.uv, 'read-only-storage', GPUShaderStage.VERTEX),
     ...atlasLayoutEntries(b.color),
     { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-    { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-    { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    computeBufferEntry(b.instances, 'read-only-storage', GPUShaderStage.VERTEX),
+    computeBufferEntry(b.slotOffsets, 'read-only-storage', GPUShaderStage.VERTEX),
   ]
 }
 
