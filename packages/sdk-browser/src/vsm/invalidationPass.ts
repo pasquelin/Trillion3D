@@ -38,7 +38,8 @@ import {
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
@@ -174,7 +175,7 @@ interface Pipe {
   pipe: VsmComputePipe
   device: GPUDevice
   /** Group 0 over the tables of a frame set (`res.current`, the two in turn), made once a set. */
-  tables: WeakMap<VsmFrameBuffers, GPUBindGroup>
+  tables: VsmPerFrameSet<GPUBindGroup>
 }
 /** The pipe each `res` was given: its WGSL is built and looked up once, not every frame. */
 const RES_PIPES = new WeakMap<VsmResources, Pipe>()
@@ -182,7 +183,7 @@ const RES_PIPES = new WeakMap<VsmResources, Pipe>()
 function pipe(device: GPUDevice, res: VsmResources): Pipe {
   let p = RES_PIPES.get(res)
   if (!p) {
-    p = { pipe: vsmInvalidationPipe(device, res.layout), device, tables: new WeakMap() }
+    p = { pipe: vsmInvalidationPipe(device, res.layout), device, tables: vsmFrameSetHeld() }
     RES_PIPES.set(res, p)
   }
   return p

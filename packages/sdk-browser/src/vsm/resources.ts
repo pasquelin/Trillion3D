@@ -21,6 +21,7 @@ import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { writeChangedCopy } from '../gpu/core/writeChanged.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
 import {
   bufferBytes,
@@ -594,16 +595,35 @@ export function vsmBindGroupEntries(
   return out
 }
 
-/** What `make(res, arg)` builds over the tables of the frame set `res.current`, made once a set —
- *  the two sets in turn; a set made again (`growVsmTables`) makes its own — and kept in `held`.
- *  `make` and `arg` are the caller's own, so that a frame allocates nothing to ask. */
+/** What a family builds over the tables of a frame set (`vsmPerFrameSet`): the identity of what
+ *  it named — the set, and what else its groups bind —, of depth two, the two sets taking turns,
+ *  and what was made at each of its slots. */
+export interface VsmPerFrameSet<T> {
+  identity: WebgpuBindIdentity
+  slots: T[]
+}
+
+/** A family's holder of what it builds over the frame sets (`vsmPerFrameSet`). */
+export const vsmFrameSetHeld = <T>(): VsmPerFrameSet<T> => ({
+  identity: createWebgpuBindIdentity(2),
+  slots: [],
+})
+
+/** What `make(res, arg)` builds over the tables of the frame set `res.current` and over `also`
+ *  — what else its groups bind —, kept in `held` (`createWebgpuBindIdentity`): made again only when
+ *  one of them moved, the two sets in turn each held; a set made again (`growVsmTables`), or
+ *  another `also`, makes its own. `make` and `arg` are the caller's own, so that a frame allocates
+ *  nothing to ask. */
 export function vsmPerFrameSet<T, A>(
-  held: WeakMap<VsmFrameBuffers, T>,
+  held: VsmPerFrameSet<T>,
   res: VsmResources,
   make: (res: VsmResources, arg: A) => T,
   arg: A,
+  also?: unknown,
 ) {
-  let value = held.get(res.current)
-  if (value === undefined) held.set(res.current, (value = make(res, arg)))
-  return value
+  const { identity, slots } = held
+  identity.next[0] = res.current
+  identity.next[1] = also
+  if (identity.moved()) slots[identity.slot] = make(res, arg)
+  return slots[identity.slot]
 }

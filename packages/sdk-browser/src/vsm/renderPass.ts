@@ -86,7 +86,8 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import {
-  type VsmFrameBuffers,
+  type VsmPerFrameSet,
+  vsmFrameSetHeld,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -197,9 +198,9 @@ interface Ctx extends VsmChunkKernels {
   bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
   groups?: ReturnType<typeof vsmChunkListGroups>
-  /** The groups over the tables of a frame set (`res.current`, the two in turn), made once a set
+  /** The groups over the tables of a frame set (`res.current`, the two in turn) and `groups`,
    *  and again when the lists moved. */
-  tables: WeakMap<VsmFrameBuffers, RasterTables>
+  tables: VsmPerFrameSet<RasterTables>
   /** Where the rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
@@ -374,7 +375,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
-    ...vsmChunkContext(RENDER_LABEL, device.limits, existing),
+    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device.limits, existing),
   }
   contexts.set(res, ctx)
   return ctx
@@ -835,7 +836,7 @@ export function vsmSetChunking(
 /** What a pass named `label` holds of its chunk lists on a device of `limits`: the chunks'
  *  parameter slots at the device's dynamic-offset alignment, their passes, the bind identity, the
  *  tables, and the row bound `existing` kept. */
-export function vsmChunkContext(
+export function vsmChunkContext<Tables>(
   label: string,
   limits: GPUSupportedLimits,
   existing?: { rowBound: VsmRowBound },
@@ -845,7 +846,7 @@ export function vsmChunkContext(
     slots,
     passes: vsmChunkPasses(label, slots),
     bound: createWebgpuBindIdentity(),
-    tables: new WeakMap(),
+    tables: vsmFrameSetHeld<Tables>(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
   }
 }
@@ -1056,12 +1057,10 @@ function rasterTables(res: VsmResources, ctx: Ctx): RasterTables {
  * again only when one of them moved, those over the VSM tables once a frame set (`rasterTables`).
  */
 function renderGroups(ctx: Ctx, res: VsmResources, scene: VsmRenderScene) {
-  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<Ctx['buffers']>)) {
+  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<Ctx['buffers']>))
     ctx.groups = undefined
-    ctx.tables = new WeakMap()
-  }
   ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], ctx.bound.next)
-  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx)
+  return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx, ctx.groups)
 }
 
 /**
