@@ -1,3 +1,4 @@
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { VIS_BINDINGS } from '../core/bindLayout.ts'
 import { createWebgpuBindIdentity, entriesReady } from '../core/bindIdentity.ts'
 import { visibilityEntries } from '../visibility/bindings.ts'
@@ -23,9 +24,11 @@ export const shadowPageEntries = (): GPUBindGroupLayoutEntry[] =>
     .filter((entry) => !UNREAD.has(entry.binding))
     .map((entry) => ({ ...entry, visibility: entry.visibility | GPUShaderStage.COMPUTE }))
 
-/** Group 0's layout of the shadow raster and the transmission's bin (`shadowPageEntries`). */
-export const shadowPageLayout = (device: GPUDevice) =>
-  device.createBindGroupLayout({ entries: shadowPageEntries() })
+/** Group 0's layout of the shadow raster and the transmission's bin (`shadowPageEntries`): one a
+ *  device, every session's, so the raster pipelines made on it serve them all (`vsmRasterPipe`). */
+export const shadowPageLayout = oncePerDevice((device: GPUDevice) =>
+  device.createBindGroupLayout({ entries: shadowPageEntries() }),
+)
 
 /** The page rows as the visibility pass binds them (`visibilityEntries`), less what the raster
  *  never reads. */

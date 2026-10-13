@@ -29,7 +29,12 @@
  *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import {
+  preparedPipeline,
+  preparedPipelines,
+  type PreparedPipeline,
+} from '../lighting/deferred/fullscreen.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import {
   VSM_MIPS,
@@ -282,28 +287,15 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   }
 }
 
-/** Each device's raster pipelines, by the shadow page group's layout and the raster's text. */
-const RASTERS = new WeakMap<GPUDevice, WeakMap<GPUBindGroupLayout, Map<string, Ctx['raster']>>>()
+/** What a raster pipeline is made for: the raster's text of a layout, on the shadow page group. */
+interface RasterSource {
+  code: string
+  layout: VsmLayout
+  pageLayout: GPUBindGroupLayout
+}
 
-/**
- * The raster's render pipeline for `layout` on the shadow page group `pageLayout`
- * (`webgpu/shadow/pageGroup.ts`, made at load) and its group 1's layout: described once a device,
- * page layout and raster text, compiled the engine's one way (`preparedPipeline`) — by the prepare
- * step for the set the casting lights are first granted (`prepareVsmPipelines`), at once by a frame
- * that binds it unprepared. `pipeline` is read where it is bound.
- */
-export function vsmRasterPipe(
-  device: GPUDevice,
-  layout: VsmLayout,
-  pageLayout: GPUBindGroupLayout,
-): Ctx['raster'] {
-  let byPage = RASTERS.get(device)
-  if (!byPage) RASTERS.set(device, (byPage = new WeakMap()))
-  let byCode = byPage.get(pageLayout)
-  if (!byCode) byPage.set(pageLayout, (byCode = new Map()))
-  const code = vsmRenderRasterWgsl(layout)
-  const held = byCode.get(code)
-  if (held) return held
+/** The raster's render pipeline of `code` and its group 1's layout (`vsmRasterPipe`). */
+function makeRaster(device: GPUDevice, { code, layout, pageLayout }: RasterSource): Ctx['raster'] {
   const layout1 = device.createBindGroupLayout({
     label: `${RENDER_LABEL}.raster1`,
     entries: [
@@ -329,16 +321,36 @@ export function vsmRasterPipe(
       depthCompare: 'always',
     },
   })
-  const raster = {
+  return {
     layout1,
     prepared,
     get pipeline() {
       return prepared.get()
     },
   }
-  byCode.set(code, raster)
-  return raster
 }
+
+/** Each device's raster pipelines, by the raster's text, made once a device. */
+const rasters = oncePerDevice((device: GPUDevice) =>
+  preparedPipelines(
+    (source: RasterSource) => makeRaster(device, source),
+    ({ code }) => code,
+  ),
+)
+
+/**
+ * The raster's render pipeline for `layout` on the shadow page group `pageLayout` — the device's
+ * one (`shadowPageLayout`, `webgpu/shadow/pageGroup.ts`, made once a device) — and its group 1's
+ * layout: described once a device and raster text, compiled the engine's one way
+ * (`preparedPipeline`) — by the prepare step for the set the casting lights are first granted
+ * (`prepareVsmPipelines`), at once by a frame that binds it unprepared. `pipeline` is read where
+ * it is bound.
+ */
+export const vsmRasterPipe = (
+  device: GPUDevice,
+  layout: VsmLayout,
+  pageLayout: GPUBindGroupLayout,
+): Ctx['raster'] => rasters(device).of({ code: vsmRenderRasterWgsl(layout), layout, pageLayout })
 
 function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupLayout): Ctx {
   const existing = contexts.get(res)

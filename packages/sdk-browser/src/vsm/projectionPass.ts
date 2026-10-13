@@ -18,6 +18,7 @@ import {
 } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import type { HizDepth } from '../gpu/hiz/types.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
@@ -369,8 +370,6 @@ interface ProjectionState {
   blueNoiseView?: GPUTextureView
 }
 
-/** The device's projection pipelines, by the layout and variant they were compiled for. */
-const pipelines = new WeakMap<GPUDevice, Map<string, Pipelines>>()
 const states = new WeakMap<VsmResources, ProjectionState>()
 
 /** Bytes the projection of `res` holds — its view uniform and blue noise —, which freeing the
@@ -489,13 +488,18 @@ function projectionPassLayout(device: GPUDevice) {
   })
 }
 
+/** What decides a projection's module and layouts: the pool's layout, the votes and the receiver. */
+interface ProjectionVariant {
+  layout: VsmLayout
+  subgroups: boolean
+  receiver: boolean
+}
+
 /** The projection's module, layouts and bind groups for these variants. */
-function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, receiver: boolean) {
-  let made = pipelines.get(device)
-  if (!made) pipelines.set(device, (made = new Map()))
-  const key = `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`
-  let p = made.get(key)
-  if (p) return p
+function makePipelines(
+  device: GPUDevice,
+  { layout, subgroups, receiver }: ProjectionVariant,
+): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
@@ -516,7 +520,7 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
       ? [vsmLayout, passLayout, receiverLayout]
       : [vsmLayout, passLayout],
   })
-  p = {
+  return {
     device,
     module,
     layout: pipelineLayout,
@@ -533,9 +537,25 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, subgroups: boolean, 
       return key === TWIN ? variant : started(variant)
     }),
   }
-  made.set(key, p)
-  return p
 }
+
+/** The device's projections, by the variant they were compiled for (`ProjectionVariant`), made
+ *  once a device. */
+const projections = oncePerDevice((device: GPUDevice) =>
+  preparedPipelines(
+    (variant: ProjectionVariant) => makePipelines(device, variant),
+    ({ layout, subgroups, receiver }) =>
+      `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
+  ),
+)
+
+/** The projection of `device` for these variants (`projections`). */
+const pipelinesFor = (
+  device: GPUDevice,
+  layout: VsmLayout,
+  subgroups: boolean,
+  receiver: boolean,
+) => projections(device).of({ layout, subgroups, receiver })
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
 const tablesGroup = (res: VsmResources, p: Pipelines) =>
