@@ -85,6 +85,10 @@ function expandApi(
     uploadKeys(first: number, words: Uint32Array) {
       write(buffers.keyed, first, words)
     },
+    /** The water items' records rewritten between two plans (`writeWaterItems`). */
+    uploadWaterItems(words: Uint32Array) {
+      if (words.length) write(buffers.waterItems, 0, words)
+    },
     /** The frame's head, own keys and own seeds: the only words a frame sends the kernels. */
     uploadFrame(words: Uint32Array, count: number) {
       write(buffers.frame, 0, words, count)

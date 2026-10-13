@@ -25,6 +25,9 @@ export type BlendGpuItem = {
   deformInput?: number
   deformOutput?: number
   deformBounds?: Float64Array
+  /** Its local box grown by the deformation's reach, `deformBounds` before its pose: what its
+   *  deformed vertices stay in, and the water rectangle encloses (`../water/waterItems.ts`). */
+  deformLocal?: Float64Array
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean
   /** Its surface carries an anisotropic or clear-coat lobe, set with its record

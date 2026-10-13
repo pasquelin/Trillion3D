@@ -92,16 +92,23 @@ function project(b: WaterBounds, box: Float64Array) {
   return b.rect.every(Number.isFinite)
 }
 
-/** Reads the item's local box, widened, and its binary32 matrix; false for a non-affine one. */
-function affineSurface(b: WaterBounds, local: HostBox, matrix: ArrayLike<number>) {
-  readHostBox(local, b.local, 0)
+/** Reads the item's local box — grown by its deformation's reach when deformed, `deformed` —,
+ *  widened, and its binary32 matrix; false for a non-affine one. */
+function affineSurface(
+  b: WaterBounds,
+  local: HostBox,
+  deformed: Float64Array | undefined,
+  matrix: ArrayLike<number>,
+) {
+  if (deformed) b.local.set(deformed)
+  else readHostBox(local, b.local, 0)
   widenBox(b.local)
   b.matrix.set(matrix)
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1
 }
 
-/** Called only for the kept transmissive items that draw. Unknown/deformed geometry
- * keeps full coverage, including unsupported quantized-page water. */
+/** Called only for the kept transmissive items that draw. Unknown geometry keeps full coverage,
+ * including unsupported quantized-page water; a deformed whole copy crops by its grown box. */
 function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
   if (!b.active) return
   const local = item.sourceGeometry?.boundingBox
@@ -112,7 +119,7 @@ function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Ar
     item.surface.lineWidth ||
     item.surface.sprite ||
     !item.bounds.every(Number.isFinite) ||
-    !affineSurface(b, local, item.matrix.elements) ||
+    !affineSurface(b, local, item.deformLocal, item.matrix.elements) ||
     !encloseTransform(b.world, b.local, b.matrix, b.error) ||
     !project(b, b.world)
   ) {

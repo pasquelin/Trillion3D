@@ -36,6 +36,8 @@ function sendVerdictInputs(blendState: WebgpuBlendState, expand: BlendExpand) {
       expand.uploadKeys(moved.first, moved.words)
       blendState.verdictEpoch++
     }
+    // A deformed water item's grown box: the water records again, a few words each.
+    if (blendState.waterItemsMoved) expand.uploadWaterItems(writeWaterItems(blendState))
   }
   const planes = blendState.blendPlanes,
     judged = blendState.judgedPlanes

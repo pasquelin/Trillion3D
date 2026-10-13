@@ -50,6 +50,8 @@ export const createBlendOrderState = () => ({
    *  buffer, written with the key records (`../water/waterItems.ts`). */
   waterItemPacked: new Float64Array(0) as Float64Array<ArrayBuffer>,
   waterItemWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+  /** A deformed water item's grown local box moved since the records were sent (`wholeBounds`). */
+  waterItemsMoved: false,
   /** The plan changed since the GPU last received it: seeds, dispatches, key records. */
   planMoved: true,
 })

@@ -5,6 +5,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { SessionDeformation } from './session.ts'
 import { noteDeformedBounds } from '../webgpu/pages/render/movedGeometry.ts'
 import { noteKeyRecord } from '../webgpu/blend/keyRecords.ts'
+import { waterRankOf } from '../webgpu/transparent/transmission.ts'
 
 const local = new Float64Array(6),
   before = new Float64Array(6)
@@ -16,6 +17,8 @@ const local = new Float64Array(6),
  * matrix too. A changed record dirties its region even inside the same box (its surface moved); a
  * carried one only when its box changed. A rewritten box goes to the item's key record, which the
  * GPU verdict and order read (`noteKeyRecord`); a matrix move rewrites them all that frame anyway.
+ * The grown local box is kept too (`deformLocal`): the water rectangle encloses it under the pose,
+ * so a deformed vertex never lies outside the rectangle the water pass covers.
  */
 export function updateWholeDeformationBounds(
   rt: WebgpuPagesRuntime,
@@ -32,6 +35,11 @@ export function updateWholeDeformationBounds(
     before.set(box)
     readHostBox(source, local, 0)
     boxGrow(local, 0, local, 0, deformation.reachOfWorld(item.matrix))
+    const grown = (item.deformLocal ??= new Float64Array(6))
+    if (!boxEquals(grown, 0, local, 0)) {
+      grown.set(local)
+      if (waterRankOf(item.flags)) rt.blendState.waterItemsMoved = true
+    }
     boxTransform(box, 0, local, 0, item.matrix.elements)
     // The key record follows the box the item now names: new values, or this box taking over from
     // its world box (`refreshBlendWorlds`).
