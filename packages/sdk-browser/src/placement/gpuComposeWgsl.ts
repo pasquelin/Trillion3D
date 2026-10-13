@@ -27,7 +27,7 @@ export const MATRIX_DOUBLES = 16
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
  *  an unsigned integer, and integer work a JavaScript run of the text reads as written. */
-export const PRODUCT_WGSL = wgslBlock(
+const PRODUCT_WGSL = wgslBlock(
   'PRODUCT_WGSL',
   [dAdd, dMul],
   `
