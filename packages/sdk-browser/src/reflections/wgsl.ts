@@ -22,7 +22,8 @@ import type { ProxyBindings } from './proxy.ts'
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
  * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees;
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
- *   through the lobe, on the radiance around the scene, where the probes reach;
+ *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
+ *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes;
  * - the environment (`reflectionEnvironment`): what is around the scene, the last word.
  *
  * Every confidence is continuous in what it reads, there is no hit or miss: a stage whose share
