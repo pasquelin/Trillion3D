@@ -1,4 +1,5 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostTexture } from '../../host/resources.ts'
 import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
@@ -64,7 +65,7 @@ function optionContext(session: ExplorerSession) {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError ?? 0,
     lodAdaptive: options.lodAdaptive,
-    clearColor: options.clearColor,
+    clearColor: options.clearColor ?? RASTER_BACKGROUND,
     pixelRatio: () => pixelRatioOf(options),
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,

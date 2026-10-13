@@ -121,27 +121,18 @@ export function backgroundRadiance(clearColor: number, exposure: number, curve: 
 }
 
 /**
- * The reflection's surroundings (`ReflectionView.surroundings`): the background's radiance in
- * `xyz` and, in `w`, one when the scene declares a background — a ray that leaves the scene then
- * reaches it, what the view shows in that direction — and zero when it declares none — the ray then
- * reaches the environment (`reflectionEnvironment`). Computed again only when the background,
- * whether it is declared, the exposure or the curve changes; nothing is allocated by a call.
+ * The reflection's surroundings (`ReflectionView.surroundings`): in `xyz`, the radiance of the
+ * background the screen draws (`clearColor`, the declared colour or the default one) — what a ray
+ * that leaves the scene reaches (`reflectionEnvironment`). Computed again only when the colour,
+ * the exposure or the curve changes: a call that finds them as they were allocates nothing.
  */
 export function createSurroundings() {
   const words = new Float32Array(4)
-  let key: readonly [number, boolean, number, number] | undefined
-  return (clearColor: number, declared: boolean, exposure: number, curve: number) => {
-    if (
-      key &&
-      key[0] === clearColor &&
-      key[1] === declared &&
-      key[2] === exposure &&
-      key[3] === curve
-    )
-      return words
-    key = [clearColor, declared, exposure, curve]
-    words.set(declared ? backgroundRadiance(clearColor, exposure, curve) : [0, 0, 0])
-    words[3] = declared ? 1 : 0
+  let key: readonly [number, number, number] | undefined
+  return (clearColor: number, exposure: number, curve: number) => {
+    if (key && key[0] === clearColor && key[1] === exposure && key[2] === curve) return words
+    key = [clearColor, exposure, curve]
+    words.set(backgroundRadiance(clearColor, exposure, curve))
     return words
   }
 }

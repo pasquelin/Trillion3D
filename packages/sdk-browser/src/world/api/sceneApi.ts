@@ -4,6 +4,7 @@ import type {
   FrameMetrics,
   StablePreview,
 } from '../../../../sdk-core/src/index.ts'
+import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
@@ -134,9 +135,8 @@ export function createExplorerSceneApi(inputs: Inputs) {
       check()
       engine.setBounce(on)
     },
-    /** The clear colour behind the scene, `0xrrggbb`, or none declared (`undefined`, the default
-     *  drawn), at the next frame. */
-    setClearColor(hex?: number) {
+    /** The clear colour behind the scene, `0xrrggbb` or the default, at the next frame. */
+    setClearColor(hex = RASTER_BACKGROUND) {
       check()
       engine.setClearColor(hex)
     },

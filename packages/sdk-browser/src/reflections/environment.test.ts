@@ -1,11 +1,14 @@
 // The radiance around the scene a reflection reads, and the frame's state, shipped WGSL run as JavaScript (`shaderRun`):
-// the GGX lobe's zonal moments over the environment's bands, the declared background else the
-// environment, and the background as the display shows it (`createSurroundings`).
+// the GGX lobe's zonal moments over a radiance field's bands (the probes' field reads through it),
+// the background the screen draws as the escape's one radiance, and the background as the display
+// shows it (`createSurroundings`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { REFLECTION_ENVIRONMENT_WGSL } from './field.ts'
+import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
+import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { BEGIN_SHADER } from './trace.ts'
 import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
@@ -13,14 +16,22 @@ import { linearToSrgb } from '../../../math/src/color/color.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 
 type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[] }
+/** An order-2 field's radiance through a lobe, as the probes' field reads it (`lobeRadianceShader`
+ *  over `REFLECTION_LOBE_WGSL`), here over the coefficients `environment`. */
+const FIELD_THROUGH_LOBE = wgslBlock(
+  'FIELD_THROUGH_LOBE',
+  [REFLECTION_LOBE_WGSL],
+  `fn fieldThrough(lobe:ReflectionLobe)->vec3f{return ${lobeRadianceShader((k) => `directLights.environment[${k}].rgb`, 'lobe')};}`,
+)
 const environmentRun = (environment: number[][], surroundings: number[]) =>
   shaderRun<{
     reflectionBands: (alpha: number) => number[]
     reflectionLobeOf: (R: number[], alpha: number, lobe: number[]) => Lobe
-    reflectionEnvironment: (lobe: Lobe) => number[]
+    reflectionEnvironment: () => number[]
+    fieldThrough: (lobe: Lobe) => number[]
   }>(
-    wgslModule(REFLECTION_ENVIRONMENT_WGSL),
-    ['reflectionEnvironment', 'reflectionLobeOf', 'reflectionBands'],
+    wgslModule(REFLECTION_ENVIRONMENT_WGSL, FIELD_THROUGH_LOBE),
+    ['reflectionEnvironment', 'fieldThrough', 'reflectionLobeOf', 'reflectionBands'],
     {
       directLights: { environment },
       reflectionView: { surroundings },
@@ -46,27 +57,12 @@ test('the GGX lobe keeps a mirror whole and filters the higher bands as it widen
   }
 })
 
-test('a ray that leaves the scene reaches the declared background, else the environment, through every lobe', () => {
+test('a ray that leaves the scene reaches the background the screen draws, whatever light is declared', () => {
   const environment = zero()
   environment[0] = [0.4, 0.2, 0.1, 0]
-  const surroundings = [0.25, 0.5, 0.125, 1]
-  const bare = environmentRun(environment, [0, 0, 0, 0])
-  const shown = environmentRun(environment, surroundings)
-  for (const [alpha, long] of [
-    [0.0025, 0.0025],
-    [0.25, 0.25],
-    [0.1, 0.75],
-  ])
-    for (const R of [
-      [0, 1, 0],
-      [0.6, 0, 0.8],
-    ]) {
-      const lobe = [1, 0, 0, long]
-      const sky = bare.reflectionEnvironment(bare.reflectionLobeOf(R, alpha, lobe))
-      assert.ok(sky[0] > 0, 'no background: the environment')
-      const seen = shown.reflectionEnvironment(shown.reflectionLobeOf(R, alpha, lobe))
-      assert.deepEqual(seen, surroundings.slice(0, 3), 'a background: what the view shows, whole')
-    }
+  const surroundings = [0.25, 0.5, 0.125, 0]
+  const run = environmentRun(environment, surroundings)
+  assert.deepEqual(run.reflectionEnvironment(), surroundings.slice(0, 3))
 })
 
 test('a stretched lobe filters each axis by its own width, a round one is the zonal convolution', () => {
@@ -95,7 +91,7 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
     const short = reflectionBands(alpha)[1],
       stretched = reflectionBands(long)[1]
     const read = (run: typeof alongX) =>
-      run.reflectionEnvironment(run.reflectionLobeOf(R, alpha, [1, 0, 0, long]))[0]
+      run.fieldThrough(run.reflectionLobeOf(R, alpha, [1, 0, 0, long]))[0]
     assert.ok(Math.abs(read(alongX) - (2 - stretched)) < 1e-9, `T ${alpha} ${long}`)
     assert.ok(Math.abs(read(alongY) - (2 - short)) < 1e-9, `B ${alpha} ${long}`)
     assert.ok(Math.abs(read(alongZ) - (2 + short + stretched)) < 1e-9, `R ${alpha} ${long}`)
@@ -105,8 +101,7 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
 test('a scene is surrounded by its background, as the display shows it, declared light or none', () => {
   // The background 0x171d28 as the display shows it, the curve and an exposure of 2: the
   // surroundings the view writes (`createSurroundings`).
-  const surroundings = createSurroundings()(0x171d28, true, 2, TONE_MAPPING_RANK.aces)
-  assert.equal(surroundings[3], 1, 'a declared background')
+  const surroundings = createSurroundings()(0x171d28, 2, TONE_MAPPING_RANK.aces)
   const { aces } = shaderRun<{ aces: (c: number[]) => number[] }>(
     wgslModule(DISPLAY_VALUE_WGSL),
     ['aces'],
@@ -117,11 +112,6 @@ test('a scene is surrounded by its background, as the display shows it, declared
   assert.deepEqual(
     shown.map((c) => Math.round(linearToSrgb(c) * 255)),
     [0x17, 0x1d, 0x28],
-  )
-  assert.deepEqual(
-    [...createSurroundings()(0x171d28, false, 2, TONE_MAPPING_RANK.aces)],
-    [0, 0, 0, 0],
-    'none declared: the environment',
   )
 })
 

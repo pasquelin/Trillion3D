@@ -80,8 +80,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const inverse = new Float64Array(16)
   invertMatrix4(inverse, frame.viewProjection)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display
-  // curve: a ray that meets nothing reflects the declared background as it is, else the
-  // environment.
+  // curve: a ray that meets nothing reflects the background as it is.
   const lightView = createDeferredView(device)
   const direct = [0, 0, 0, 1, TONE_MAPPING_RANK.none, 0, 0, 0]
   lightView.write(
@@ -97,12 +96,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
   // no placement.
   const over = { lightView: lightView.buffer }
-  const surroundings = createSurroundings()(
-    frame.background ?? 0,
-    frame.background !== undefined,
-    1,
-    TONE_MAPPING_RANK.none,
-  )
+  const surroundings = createSurroundings()(frame.background ?? 0, 1, TONE_MAPPING_RANK.none)
   // No bounce probes: an empty grid (no level, no light list read) holding a proxy ray's reach.
   const bounceGrid = device.createBuffer({
     size: BOUNCE_GRID_BYTES,

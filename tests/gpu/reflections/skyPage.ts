@@ -1,8 +1,8 @@
 // A glass pane under an open sky, over a floor (`boxFrame.ts`): a polished vertical pane facing the
 // eye, whose mirror ray rises where the pane stands above the eye and meets nothing the screen or a
-// proxy holds — it leaves the scene, to the sky. What it reflects is what the view shows there, times
-// its weight: the declared background whatever light is declared around the scene, and that light
-// where the scene declares no background.
+// proxy holds — it leaves the scene, to the sky. What it reflects is what the screen draws there,
+// times its weight: the background — the declared one, or the engine's default where none is
+// declared (`RASTER_BACKGROUND`) — whatever light is declared around the scene.
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import {
   addUniformIrradiance,
@@ -12,6 +12,7 @@ import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fix
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { openRig } from './rig.ts'
+import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
 
 const WIDTH = 160,
   HEIGHT = 90
@@ -20,7 +21,7 @@ const EYE: V3 = [0, 1, 0],
 /** The pane's front face (`faceOf`: 2 · axis + 1 for the high side of z). */
 const FRONT = 5
 
-/** A case: the sky shown, `0xrrggbb` as the display shows it (no background declared when absent),
+/** A case: the sky shown, `0xrrggbb` as the display shows it (the engine's default when absent),
  *  the light declared around the scene (its uniform irradiance, none when absent) and the pane's
  *  roughness. */
 export type SkyCase = { sky?: number; declared?: number; rough: number }
@@ -48,7 +49,11 @@ export function run(cases: SkyCase[]) {
         declared === undefined
           ? undefined
           : addUniformIrradiance(emptyIrradiance(), [declared, declared, declared])
-      const rig = await openRig(device, { ...frame, background: sky, environment })
+      const rig = await openRig(device, {
+        ...frame,
+        background: sky ?? RASTER_BACKGROUND,
+        environment,
+      })
       rig.image()
       rig.image()
       const words = await rig.read()

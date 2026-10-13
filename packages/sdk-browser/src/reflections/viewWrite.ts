@@ -19,8 +19,7 @@ export type ReflectionFrame = {
   proxyError: number
   /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
   epoch?: number
-  /** The radiance a ray that leaves the scene reaches, and whether the scene declares a background
-   *  (`createSurroundings`): none declared when absent. */
+  /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
 

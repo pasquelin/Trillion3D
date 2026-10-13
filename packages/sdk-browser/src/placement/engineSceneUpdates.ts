@@ -97,9 +97,9 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   ): boolean
   /** The bytes `updateVertices` sends the GPU for `ranges` (#573). */
   vertexBytes(attributes: HostAttributes, ranges: readonly VertexRange[]): number
-  /** The clear colour behind the scene, `0xrrggbb` (`EngineContext.clearColor`), or none declared
-   *  (`undefined`), read by the next frame: the held frame broken, nothing else walked. */
-  setClearColor(hex: number | undefined): void
+  /** The clear colour behind the scene, `0xrrggbb` (`EngineContext.clearColor`), read by the
+   *  next frame: the held frame broken, nothing else walked. */
+  setClearColor(hex: number): void
   /** Bounced light on or off in place (`EngineContext.bounce`). */
   setBounce(on: boolean): void
   /** Temporal antialiasing on or off in place (`EngineContext.temporalAntialiasing`); whether

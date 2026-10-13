@@ -22,9 +22,9 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
  *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with;
- *  - `surroundings`, the radiance a ray that leaves the scene reaches when the scene declares a
- *    background (`w` one, `reflectionEnvironment`): the background as the view shows it, through
- *    the exposure and the display curve (`createSurroundings`, `../lighting/toneUnmap.ts`).
+ *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
+ *    the background the screen draws, through the exposure and the display curve
+ *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],

@@ -7,10 +7,9 @@ import { RASTER_BACKGROUND } from '../../../page/raster.ts'
 import type { WebgpuRunState } from './run.ts'
 import { createSortedKeys } from '../../cut/denseKeys.ts'
 
-export function createWebgpuRunState(declared?: number): WebgpuRunState {
+export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
-    clearColor: declared ?? RASTER_BACKGROUND,
-    backgroundDeclared: declared !== undefined,
+    clearColor,
     lost: false,
     overBudget: false,
     visible: 0,

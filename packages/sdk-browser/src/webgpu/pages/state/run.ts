@@ -14,9 +14,6 @@ export { createWebgpuRunState } from './runState.ts'
 export interface WebgpuRunState extends WebgpuBudgetState {
   /** The clear colour every pass reads, `0xrrggbb`; set in place by `io/clearColor.ts`. */
   clearColor: number
-  /** Whether the host declared it: a ray that leaves the scene then reaches it, else the
-   *  environment (`createSurroundings`). */
-  backgroundDeclared: boolean
   lost: boolean
   /** Why the device was lost, `reason: message`, the device's own cause added when it came after
    *  (`io/lost.ts`); absent while it holds and after a dispose, which gives no cause. */

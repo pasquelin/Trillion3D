@@ -44,7 +44,6 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   const { environment } = rt.lights.store
   frame.surroundings = surroundings(
     run.clearColor,
-    run.backgroundDeclared,
     environmentExposure(environment),
     environmentCurve(environment),
   )

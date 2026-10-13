@@ -61,19 +61,15 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 }`,
 )
 
-/** The radiance around the scene through a lobe (`reflectionEnvironment`), one rule: a ray that
- *  leaves the scene reaches what the view shows in its direction. Where the scene declares a
- *  background, that is the background's radiance, the uniform radiance the view's `surroundings`
- *  give (`w` one), which every lobe keeps whole; where it declares none, the environment, its
- *  order-2 coefficients the diffuse term reads through the cosine lobe (`directLights.environment`),
- *  read through this lobe. */
+/** The radiance around the scene (`reflectionEnvironment`), one rule: a ray that leaves the scene
+ *  reaches what the screen draws in its direction, the background — the declared colour or the
+ *  default one, drawn behind every image (the canvas is opaque) —, as the radiance the view's
+ *  exposure and curve turn into it: the uniform radiance of the view's `surroundings`, which
+ *  every lobe keeps whole. The environment's coefficients light the diffuse term alone. */
 export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
-  [REFLECTION_LOBE_WGSL, REFLECTION_VIEW_WGSL],
-  `fn reflectionEnvironment(lobe:ReflectionLobe)->vec3f{
- if(reflectionView.surroundings.w!=0.0){return reflectionView.surroundings.rgb;}
- return ${lobeRadianceShader((k) => `directLights.environment[${k}].rgb`, 'lobe')};
-}`,
+  [REFLECTION_VIEW_WGSL],
+  `fn reflectionEnvironment()->vec3f{return reflectionView.surroundings.rgb;}`,
 )
 
 /**
