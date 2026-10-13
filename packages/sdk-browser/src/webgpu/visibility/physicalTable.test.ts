@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPhysicalTable, PHYSICAL_ROW_RECORDS } from './physicalTable.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
@@ -91,7 +92,7 @@ test('the table grows by doubling its rows, its texture with it, every record se
   table.dispose()
 })
 
-test('a grown table destroys its old texture only once the queue has done its submitted work', async () => {
+test('a grown table destroys its old texture only once the frame is submitted', () => {
   const { device, textures, destroyed, fences } = fakeDevice()
   const table = createPhysicalTable()
   const layer = new Map<Texture, number>()
@@ -103,9 +104,9 @@ test('a grown table destroys its old texture only once the queue has done its su
   // A pass of this image encoded earlier still binds the old view: its submit comes after.
   assert.notEqual(textures.at(-1), old)
   assert.equal(destroyed.includes(old), false, 'not destroyed while the image is encoded')
-  assert.equal(fences(), 1, 'its destroy waits for the queue')
-  await device.queue.onSubmittedWorkDone()
-  assert.equal(destroyed.includes(old), true, 'destroyed once the submitted work is done')
+  assert.equal(fences(), 0, 'no promise per texture: the frame-end retire list holds it')
+  destroyRetired(device)
+  assert.equal(destroyed.includes(old), true, 'destroyed once the frame is submitted')
   table.dispose()
 })
 

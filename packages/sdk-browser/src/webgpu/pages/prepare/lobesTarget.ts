@@ -3,6 +3,7 @@ import { hasPhysicalLobes } from '../../../scene/physicalLobes.ts'
 import { holds } from '../../../scene/surfaceBuffer.ts'
 import { withLobes } from '../../../scene/surfaceAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { retire } from '../../../gpu/core/frameRetire.ts'
 
 const lobedRows = someRowSurface(hasPhysicalLobes)
 
@@ -25,7 +26,8 @@ export const lobesHeld = ({ gpu: { surfaces } }: WebgpuPagesRuntime) =>
  * image with no opaque row too, whose transmissive lobed surfaces leave their lobes there: the
  * lobes target is full-size while a surface wants it, a 1×1 otherwise (`wantsPhysicalLobes`),
  * remade alone when that flips (`withLobes`) — the frame's other targets stay. The target replaced
- * is freed once the work already submitted is done: this image names the new one throughout.
+ * is retired, destroyed after the frame's submit (`frameRetire.ts`): this image names the new one
+ * throughout.
  */
 export function followLobes(rt: WebgpuPagesRuntime) {
   const { gpu } = rt,
@@ -35,5 +37,5 @@ export function followLobes(rt: WebgpuPagesRuntime) {
   if (holds(surfaces, surfaces.lobes, wanted)) return
   gpu.surfaces = withLobes(gpu.device, surfaces, wanted)
   gpu.targetBytes += gpu.surfaces.allocationBytes - surfaces.allocationBytes
-  void gpu.device.queue.onSubmittedWorkDone().then(() => surfaces.lobes.destroy())
+  retire(gpu.device, surfaces.lobes)
 }
