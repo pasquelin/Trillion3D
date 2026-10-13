@@ -24,6 +24,7 @@ function firstDispatch(size: [number, number]) {
     width: size[0],
     height: size[1],
     views: [{}, {}],
+    image: { view: {} },
     held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
     build: { identity: createWebgpuBindIdentity(2), slots: [] },
   } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
@@ -131,4 +132,66 @@ test('the image hash changes with any texel, and with where it lies, and no orde
   assert.notDeepEqual(k.first(source(4, 3, 1)).hash, base, 'where it lies')
   // Another workgroup order (two rows of groups, taken in turn) sums to the same two words.
   assert.deepEqual(radianceKernels([40, 36, 0, 0]).first(source(3, 4, 1), [2, 2]).hash, base)
+})
+
+test('a still image after a moving one hashes the image before it into the very words that image would have hashed', () => {
+  const k = radianceKernels([34, 30, 0, 0])
+  const moving = image(40, 36, (x, y) => [x * 0.1, y * 0.05, (x * y) % 7, x < 20 ? 1 : 0.25])
+  const still = image(40, 36, (x, y) => [x * 0.1, y * 0.05, (x * y) % 5, 1])
+  const own = k.first(moving).hash
+  const after = k.first(still, undefined, moving)
+  assert.deepEqual(after.before, own, 'the image before, as its own build would have hashed it')
+  assert.deepEqual(after.hash, k.first(still).hash, 'and the image itself, as always')
+})
+
+/** The first dispatch's pipeline the build picks for each image of `images` (a drawn size and a
+ *  view-projection's first element), in turn. */
+function firstPipelines(images: [number, number, number][]) {
+  const picked: unknown[] = []
+  const pipelines = {
+    rollPipeline: 'roll',
+    firstPipeline: 'moving',
+    firstHashedPipeline: 'hashed',
+    firstBothPipeline: 'both',
+    downPipeline: 'down',
+  } as unknown as Parameters<typeof encodeRadiancePyramid>[3]
+  const pass = {
+    setPipeline: (pipeline: unknown) => void picked.push(pipeline),
+    setBindGroup() {},
+    dispatchWorkgroups() {},
+  } as unknown as GPUComputePassEncoder
+  const pyramid = {
+    levels: 3,
+    width: 64,
+    height: 64,
+    views: [{}, {}],
+    image: { view: {} },
+    held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
+    build: { identity: createWebgpuBindIdentity(2), slots: [] },
+  } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+  const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
+  const inputs = { hdr: {}, view: {}, hash: {} } as unknown as RadianceInputs
+  return images.map(([width, height, m]) => {
+    picked.length = 0
+    const viewProjection = new Float64Array(16)
+    viewProjection[0] = m
+    encodeRadiancePyramid(pass, device, pyramid, pipelines, inputs, [width, height], viewProjection)
+    return picked.find((p) => p !== 'roll' && p !== 'down')
+  })
+}
+
+test('a moving image hashes nothing, the first still one both images, the next still ones their own', () => {
+  assert.deepEqual(
+    firstPipelines([
+      [64, 64, 1],
+      [64, 64, 2],
+      [64, 64, 2],
+      [64, 64, 2],
+      [64, 64, 3],
+      [64, 64, 3],
+      [32, 64, 3],
+      [32, 64, 3],
+    ]),
+    ['moving', 'moving', 'both', 'hashed', 'moving', 'both', 'moving', 'both'],
+  )
 })

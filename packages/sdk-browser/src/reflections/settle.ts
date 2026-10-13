@@ -12,7 +12,7 @@ const SAMPLES = 3
  * copy in the image's commands, mapped once that image is submitted (`submitted`), and answering
  * `answer` with the words it holds and the image they are of some frames later.
  */
-function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint32Array) => void) {
+function createSampleRing(device: GPUDevice, answer: (tag: number, words: Uint32Array) => void) {
   const ring = createReadbackRing(
     device,
     {
@@ -21,13 +21,13 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
       count: SAMPLES,
       eager: true,
     },
-    (mapped, _staging, image) => answer(image, new Uint32Array(mapped, 0, SAMPLE_BYTES / 4)),
+    (mapped, _staging, tag) => answer(tag, new Uint32Array(mapped, 0, SAMPLE_BYTES / 4)),
   )
   return {
-    /** Copies the hash and the count of tiles into a free sample, for `image`. */
-    copy(encoder: GPUCommandEncoder, hash: GPUBuffer, tiles: GPUBuffer, image: number) {
+    /** Copies the hash and the count of tiles into a free sample, under `tag` (`sampleTag`). */
+    copy(encoder: GPUCommandEncoder, hash: GPUBuffer, tiles: GPUBuffer, tag: number) {
       // A copy still waiting for its submission is an abandoned image's: its commands never ran.
-      const sample = ring.take(image)
+      const sample = ring.take(tag)
       if (!sample) return
       encoder.copyBufferToBuffer(hash, 0, sample, 0, RADIANCE_HASH_BYTES)
       encoder.copyBufferToBuffer(tiles, 12, sample, RADIANCE_HASH_BYTES, 4)
@@ -37,6 +37,9 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
     dispose: ring.destroy,
   }
 }
+
+/** A sample's tag: its image's count, and whether that image's build hashed it (`radiance.ts`). */
+const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 0)
 
 /**
  * WHEN THE REFLECTIONS HAVE SETTLED. An image reflects the lit image before it, so a view that
@@ -49,7 +52,9 @@ function createSampleRing(device: GPUDevice, answer: (image: number, words: Uint
  * image is submitted, none ever waited for: the answer comes some images later, and until then the
  * view is unsettled. An image whose trace listed no tile reflects nothing (the trace's target is
  * read by no pixel): its lit image is no matter to the reflections, and the view is settled by its
- * own stillness.
+ * own stillness. Only an image drawn from where the one before it was is hashed (`radiance.ts`):
+ * a moving one is never the one a still view settles on, and its sample answers by its count of
+ * tiles alone.
  *
  * The view is settled once an image after the last one drawn for another reason — `busy` marks the
  * image about to be drawn for the lighting's, the cut's, the pages' own pending work — has the
@@ -68,19 +73,23 @@ export function createRadianceSettle(device: GPUDevice) {
   let images = 0,
     busy = 0,
     equal = 0
-  // A sample's answer: its image's hash is the one before it's, or it listed no tile.
-  const samples = createSampleRing(device, (image, words) => {
-    if ((words[0] === words[2] && words[1] === words[3]) || words[4] === 0)
+  // A sample's answer: its image listed no tile, or it was hashed and its hash is the one before
+  // it's.
+  const samples = createSampleRing(device, (tag, words) => {
+    const hashed = tag % 2 === 1,
+      image = (tag - (hashed ? 1 : 0)) / 2
+    if (words[4] === 0 || (hashed && words[0] === words[2] && words[1] === words[3]))
       equal = Math.max(equal, image)
   })
   return {
     hash,
-    /** An image is drawn, its radiance pyramid encoded: counted, and, while the view is not
+    /** An image is drawn, its radiance pyramid encoded — its image `hashed` where it was drawn
+     *  from where the one before it was (`HeldImage.still`) —: counted, and, while the view is not
      *  settled, its hash and the count of tiles the trace listed (the fourth word of `tiles`, its
      *  indirect arguments) copied, to be mapped once the image is submitted (`submitted`). */
-    image(encoder: GPUCommandEncoder, tiles: GPUBuffer) {
+    image(encoder: GPUCommandEncoder, tiles: GPUBuffer, hashed: boolean) {
       images++
-      if (!this.verified) samples.copy(encoder, hash, tiles, images)
+      if (!this.verified) samples.copy(encoder, hash, tiles, sampleTag(images, hashed))
     },
     /** The image about to be drawn is drawn for another reason than the reflections'. */
     busy() {
