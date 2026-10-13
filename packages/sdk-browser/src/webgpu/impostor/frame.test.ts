@@ -6,71 +6,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import '../../impostor/lent.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { createEngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraWorld } from '../../camera/world.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { drawImpostorVisibility, encodeImpostorCards } from './encode.ts'
 import { planWebgpuImpostors } from './frame.ts'
 import { recordingEncoder } from './recorder.fixture.ts'
-import { prepareImpostorPipelines } from './pipelines.ts'
+import { bench, imagesUntilResident } from './frame.fixture.ts'
 import { IMPOSTOR_PASS } from '../../stage/passLabels.ts'
 import { CARD_ROOT, CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
 import {
   ATLAS_URLS,
   MESH,
-  VIEWPORT,
   cutAt as cut,
   engineAt as engineOf,
-  impostorScene,
   impostorSection as section,
-  settle,
 } from '../../impostor/section.fixture.ts'
-
-/** A WebGPU runtime reduced to what the plan and the card pass read, on a recording device whose
- *  card pipelines its prepare checked. */
-async function bench() {
-  const gpu = fakeDevice()
-  assert.ok(await prepareImpostorPipelines(gpu.device, () => {}))
-  const { fixture, roots, reader, asked } = impostorScene()
-  const marked: Array<[number, number]> = []
-  let landed = 0
-  const rt = {
-    context: { metadata: { impostors: section }, readTextureLevel: reader },
-    vis: { visView: { label: 'ids' } },
-    setup: { viewport: VIEWPORT, texturePoolBudget: 1 << 20 },
-    layout: { selectionRoots: roots },
-    diag: { diagnosticFailure: () => undefined },
-    gpu: {
-      device: gpu.device,
-      impostors: undefined,
-      targetSize: VIEWPORT,
-      depthView: { label: 'depth' },
-      surfaces: { views: () => [0, 1, 2, 3].map((label) => ({ label })) },
-    },
-    run: {
-      frame: 0,
-      gate: { resourcesChanged: () => landed++, cam: createEngineCamera() },
-      gpuDrawCalls: 0,
-      gpuSelection: {
-        markWorld: (rank: number, mark: number) => marked.push([rank, mark]),
-        worldStandsIn: () => false,
-      },
-    },
-  } as unknown as WebgpuPagesRuntime
-  return { gpu, rt, roots, fixture, asked, marked, landed: () => landed }
-}
-
-/** Images drawn until the atlas landed and was made: each lands what the one before asked. */
-async function imagesUntilResident(rt: WebgpuPagesRuntime, z: number) {
-  for (let image = 0; image < 3; image++) {
-    planWebgpuImpostors(rt, engineOf(z))
-    await settle()
-  }
-}
 
 test('a switched root draws its card in visibility and surfaces once its atlas lands', async () => {
   const { gpu, rt, roots, fixture, asked, marked, landed } = await bench()
@@ -154,7 +106,7 @@ test('a card out of the view asks no atlas and leaves its root to the card', asy
   const away = frontCamera(200, 5000)
   away.lookAt(0, 0, 400)
   away.updateMatrixWorld()
-  planWebgpuImpostors(rt, readCameraWorld(createEngineCamera(), away))
+  planWebgpuImpostors(rt, engineCamera(away))
   assert.deepEqual(asked, [], 'residency follows the view')
   assert.equal(roots[0].mark, CARD_ROOT, 'the camera draws nothing of it either way')
   assert.equal(rt.gpu.impostors?.count, 0)
