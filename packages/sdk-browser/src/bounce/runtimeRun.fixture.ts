@@ -10,13 +10,7 @@ import type { Hit, Vec, world } from './runtimeScene.fixture.ts'
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
   'rtRadiance',
-  'rtAnswer',
-  'rtCellRead',
-  'rtCellWrite',
-  'rtCellAnswer',
-  'rtPackShared',
-  'rtUnpackShared',
-  'rtStamp',
+  'rtCounted',
   'rtSurfaceOf',
   'rtSurfaceVec',
   'rtShade',
@@ -37,35 +31,15 @@ const FUNCTIONS = [
   'rtBlocked',
   'rtLit',
   'rtProbeRay',
-  'rtGroupAdd',
-  'rtGroupSend',
+  'rtShare',
 ]
-const BINDINGS = { group: 0, proxy: 12, list: 8, store: 9 }
-/** The work units a run's frame may spend on its rays (`reflectionView.runtime.y`). */
-export const FRAME_UNITS = 2 ** 22
+const BINDINGS = { group: 0, proxy: 12, list: 8 }
 
-/** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
-export function makeStore() {
-  const words = new Map<string, number>()
-  const key = (at: number[], layer: number) => `${at[0]},${at[1]},${layer}`
-  return {
-    words,
-    get: (at: number[], layer: number) => words.get(key(at, layer)) ?? 0,
-    set: (at: number[], layer: number, word: number) => void words.set(key(at, layer), word >>> 0),
-  }
-}
-export type Store = ReturnType<typeof makeStore>
-
-export function runOver(
-  w: ReturnType<typeof world>,
-  list: number[] = counters(0),
-  epoch = 2,
-  store: Store = makeStore(),
-) {
+export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0)) {
   const { header } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
-    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}\nfn testShare(){rtGroupAdd();rtGroupSend();for(var k=0u;k<3u;k++){atomicStore(&rtGroup[k],0u);}rtSpentHere=0u;rtCastHere=false;rtLeftHere=false;}\n'
+    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testShare(){rtShare(0u);atomicStore(&rtGroupSpent[0],0u);rtSpentHere=0u;}\n'
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -74,33 +48,27 @@ export function runOver(
       reach: number,
       tangent: number,
     ) => { color: Vec; confidence: number }
-    rtAnswer: (o: Vec, d: Vec, reach: number, tangent: number) => { color: Vec; confidence: number }
-    rtPackShared: (c: Vec) => number
-    rtUnpackShared: (word: number) => Vec
-    testPixel: (x: number, y: number, rank: number) => void
+    rtCounted: (
+      o: Vec,
+      d: Vec,
+      reach: number,
+      tangent: number,
+    ) => { color: Vec; confidence: number }
     testWork: () => number
     testTests: () => number
     testReset: () => void
     testShare: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel', 'testShare'], {
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testShare'], {
     rtProxy: header,
     rtWork: 0,
     rtTests: 0,
     rtExtra: 0,
     rtAnyHit: false,
     rtLost: false,
-    rtPixel: [0, 0],
-    rtCalls: 0,
-    rtRank: 0,
     rtSpentHere: 0,
-    rtCastHere: false,
-    rtLeftHere: false,
-    rtGroup: [0, 0, 0],
+    rtGroupSpent: [0],
     rtList: list,
-    rtStore: store,
-    textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
-    textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
-    reflectionView: { runtime: [epoch, FRAME_UNITS, 0, 0] },
+    workgroupBarrier: () => {},
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -110,7 +78,6 @@ export function runOver(
       blended,
     }),
     RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
-    RtCell: (premult: Vec, confidence: number, stamp: number) => ({ premult, confidence, stamp }),
     Box: (low: Vec, high: Vec) => ({ low, high }),
     ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
       box,

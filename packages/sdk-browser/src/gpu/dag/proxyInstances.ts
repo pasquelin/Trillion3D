@@ -154,7 +154,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
   let copies: readonly ProxyCopy[] = [],
     copyWorlds = new Float32Array(0),
     surfaceCapacity = START.surfaces,
-    revision = 0,
     error = 0,
     buffer: GPUBuffer | undefined,
     layout = layoutOf(),
@@ -189,11 +188,9 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
-  /** Every write to the buffer: what a ray can meet changed, so its answers are of another epoch. No
-   *  buffer, no write: the proxy refused (`refusal`) sends nothing. */
+  /** Every write to the buffer. No buffer, no write: the proxy refused (`refusal`) sends nothing. */
   const send = (target: GPUBuffer | undefined, ...args: WriteArgs) => {
     if (!target) return
-    revision++
     device.queue.writeBuffer(target, ...args)
   }
   // Why the proxy holds no buffer although a placement wears one: its layout past one storage binding of
@@ -254,8 +251,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       past = pastBinding(device.limits, { proxy: { label: LABEL, size: bytes } })
     if (past) {
       refusal = `the run-time proxy needs ${bytes} bytes, past one storage binding of ${past.limit}`
-      // What a ray can meet changed: the answers a buffer gave before are of another epoch.
-      revision++
       return undefined
     }
     worldsAll = true
@@ -621,7 +616,7 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
     /**
      * The deformed placements' copies posed, in `encoder`, before the first program of the image that traces
      * them: when the deformation's records moved (`host.revision`) or a copy is new, and once the pose's
-     * program is built. Their answers are of another epoch from then on.
+     * program is built.
      */
     pose(encoder: GPUCommandEncoder, host: PoseHost) {
       if (!buffer || !posed.size || !host.pool) return
@@ -650,7 +645,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
       if (!pose.run(encoder, buffer, host.pool, poseEntries, poseLayout)) return
       posedRevision = host.revision
       poseFresh = false
-      revision++
     },
     /** The meshes' proxies of a compiled scene arrived (`RootProxy.primitive.runtimeProxy` was set): every
      *  placement wears what its primitive holds now. */
@@ -710,10 +704,6 @@ export function createProxyInstances({ device, packed, nodeParts, coldParts, fra
         send(buffer, 0, header())
         dirty = false
       }
-    },
-    /** Writes made to the buffer so far: the answers it gave are of an older one when this moved. */
-    get revision() {
-      return revision
     },
     /** Bytes the CPU keeps for the proxy: the instance words as written and as resolved, the surface and copy
      *  words, the world boxes and the flags of the mirror (the cuts' columns are the primitives', counted with

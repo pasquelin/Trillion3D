@@ -10,7 +10,7 @@ import {
 } from '../bounce/runtimeTraceWgsl.ts'
 import type { SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
 
-/** The bindings a program reads the proxy through: with the store the opaque trace keeps its answers in
+/** The bindings a program reads the proxy through: with the list the opaque trace counts its rays' work in
  *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */
 export type ProxyBindings = SceneBindings | RuntimeBindings
 
@@ -21,26 +21,26 @@ export type ProxyBindings = SceneBindings | RuntimeBindings
  * a certified error of the proxy off its normal (`ReflectionView.proxy`), so that it never meets the proxy's own
  * copy of the surface it leaves. Its confidence comes from the hit alone, for every width of the lobe, a
  * mirror's included: the share of the ray the surfaces met stop. Zero where it hits nothing, or where the scene
- * has no proxy. The answer is kept from image to image (`bounce/runtimeAnswerWgsl.ts`).
+ * has no proxy. Every ray is cast in its frame.
  */
 export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
-  // The opaque trace keeps each pixel's answer from image to image (`rtAnswer`); a forward program casts its
-  // fragment's ray, writes nothing (a binding its stage could write would cost the pass its early depth
-  // reject) and answers it whole (`rtRadiance`).
-  const answers = 'store' in runtime
+  // The opaque trace counts its rays' work for the frame (`rtCounted`); a forward program casts its
+  // fragment's ray and writes nothing (a binding its stage could write would cost the pass its early depth
+  // reject).
+  const counted = 'list' in runtime
   return wgslBlock(
-    `reflectionProxyWgsl(${group}, ${runtime.proxy}, ${answers})`,
+    `reflectionProxyWgsl(${group}, ${runtime.proxy}, ${counted})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_CONE_WGSL,
-      answers ? runtimeTraceWgsl(runtime) : runtimeRadianceWgsl(runtime),
+      counted ? runtimeTraceWgsl(runtime) : runtimeRadianceWgsl(runtime),
     ],
     `struct ReflectionProxied{color:vec3f,confidence:f32,}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let seen=${answers ? 'rtAnswer' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
+ let seen=${counted ? 'rtCounted' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  return ReflectionProxied(seen.color,seen.confidence);
 }`,
   )

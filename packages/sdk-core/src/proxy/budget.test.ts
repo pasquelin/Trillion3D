@@ -110,31 +110,3 @@ test('the reflections take the share first, the probes what they leave', () => {
   for (let frame = 0; frame < 300; frame++) budget.observe(5, budget.load * 1)
   assert.ok(Math.abs(budget.load - 2 * BOUNCE_SETTINGS.budgetFloor) < 1e-6, `${budget.load}`)
 })
-
-test("the reflection rays' units follow the device's own rate, three times faster or slower", () => {
-  for (const factor of [3, 1 / 3]) {
-    const budget = createProxyBudget(2)
-    const prior = budget.units / 2
-    const rate = prior * factor
-    // Each frame the reflections spend their whole cap at the device's rate.
-    for (let sample = 0; sample < 10; sample++) {
-      const units = budget.units
-      budget.spent(units)
-      budget.observe(units / rate, null)
-    }
-    const wanted = rate * 2
-    assert.ok(Math.abs(budget.units - wanted) / wanted < 0.1, `${budget.units} for ${wanted}`)
-  }
-})
-
-test('a frame that spent nothing, or an unmeasured pass, leaves the units as they were', () => {
-  const budget = createProxyBudget(2)
-  const units = budget.units
-  for (const ms of [null, 0, -1, NaN, Infinity]) budget.observe(ms, null)
-  budget.observe(1, null)
-  assert.equal(budget.units, units, 'no units read back yet')
-  budget.spent(0)
-  budget.spent(NaN)
-  budget.observe(1, null)
-  assert.equal(budget.units, units)
-})

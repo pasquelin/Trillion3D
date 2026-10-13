@@ -16,11 +16,6 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { writeFileSync } from 'node:fs'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { createProxyBudget } from '../../../packages/sdk-core/src/proxy/budget.ts'
-import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
-
-/** The units a frame's reflection rays may spend before the device's first measure: the budget's prior. */
-const FRAME_UNITS = createProxyBudget(BOUNCE_SETTINGS.budgetMs).units
 import { FAMILY_SIZE, familyCase } from './runtimeFamilyCases.ts'
 import { expectedFloor, judge, TOLERANCE } from './runtimeFamilyExpect.ts'
 
@@ -48,7 +43,7 @@ for (let index = 0; index < FAMILY_SIZE; index++)
         assert.equal(result.error, undefined, result.error)
         assert.deepEqual(result.errors, [])
         assert.deepEqual(result.worldErrors, [], "the world's own device raised no error")
-        const { width = 0, height = 0, samples = [], frames = 0, spent = 0, left = 0 } = result
+        const { width = 0, height = 0, samples = [], frames = 0, spent = 0 } = result
         if (process.env.TRILLION3D_DUMP)
           writeFileSync(
             `${process.env.TRILLION3D_DUMP}-${index}.json`,
@@ -71,12 +66,9 @@ for (let index = 0; index < FAMILY_SIZE; index++)
             rate: Number(rate.toFixed(3)),
             worst: { ...worst, off: Number(worst.off.toFixed(2)) },
             spent,
-            left,
-            budget: FRAME_UNITS,
           }),
         )
         assert.ok(decided.length >= 20, `${decided.length} decided floor pixels`)
-        assert.ok(left === 0, `${left} pixels left for a later frame`)
         assert.ok(
           rate >= PASS_RATE,
           `${passed} of ${decided.length} decided pixels pass (${rate.toFixed(3)})`,

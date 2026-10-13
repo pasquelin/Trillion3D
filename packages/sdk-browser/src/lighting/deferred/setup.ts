@@ -7,7 +7,6 @@ import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
 import { CONTRACT_TRACE_BINDINGS, CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
-import { STORE_LAYERS } from '../../bounce/runtimeLayout.ts'
 import { RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
@@ -185,13 +184,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
   })
-  // The run-time proxy's store, a view that holds none: one texel of two layers, which no pixel reads.
-  const store = device.createTexture({
-    label: 'Trillion3D empty run-time proxy store',
-    size: [1, 1, STORE_LAYERS],
-    format: 'r32uint',
-    usage: GPUTextureUsage.STORAGE_BINDING,
-  })
   const receiver = receiverPlaceholders(device)
   const vsm = createVsmPlaceholders(device)
   // One texel of zero: what a resolve bound before its reflection target reads.
@@ -208,7 +200,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     bounceGrid,
     probes: arrayView(probes),
     runtime,
-    store: store.createView({ dimension: '2d-array' }),
     receiver: receiver.resources,
     reflection: reflection.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
@@ -222,7 +213,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
       bounceGrid.destroy()
       probes.destroy()
       runtime.destroy()
-      store.destroy()
     },
   }
 }

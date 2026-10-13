@@ -21,7 +21,7 @@ import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
-import { storageEntry, storeEntry } from './bindings.ts'
+import { storageEntry } from './bindings.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
@@ -32,8 +32,8 @@ import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counters, the store of the run-time proxy's answers,
- * the proxy's buffer and the light grid's buffer, whose world lists the proxy hits walk.
+ * (`work`), the trace's list with the frame's counters, the proxy's buffer and the light grid's
+ * buffer, whose world lists the proxy hits walk.
  */
 const TRACE_BINDINGS = {
   flags: 0,
@@ -45,7 +45,6 @@ const TRACE_BINDINGS = {
   probes: 6,
   work: 7,
   list: 8,
-  store: 9,
   base: 10,
   proxy: 11,
   lightLists: 17,
@@ -56,7 +55,6 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
   proxy: TRACE_BINDINGS.proxy,
   list: TRACE_BINDINGS.list,
-  store: TRACE_BINDINGS.store,
 }
 
 /** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */
@@ -102,25 +100,20 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
- rtRank=flatIndex(wg,rows,1u);
- tracePixel(rtRank,lid.xy);
- // The run-time proxy's frame counters, one atomic of each a workgroup.
+ tracePixel(flatIndex(wg,rows,1u),lid.xy);
+ // The run-time proxy's work, one atomic a workgroup.
  rtShare(lane);
 }
 /** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
 fn tracePixel(rank:u32,lid:vec2u){
  let count=atomicLoad(&rtList[${TRACE_LIST.count}u]);
  if(rank>=count){return;}
- // The run-time proxy's budget goes to the first tiles it meets, and the next frame's start where this
- // one's ended (the list's offset).
- let tile=atomicLoad(&rtList[${TRACE_LIST_FIRST}u+(rank+atomicLoad(&rtList[${TRACE_LIST.offset}u]))%count]);
+ let tile=atomicLoad(&rtList[${TRACE_LIST_FIRST}u+rank]);
  let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
  let flags=textureLoad(traceFlags,coord,0).r;
  if(!surfaceReflects(flags)){return;}
- rtPixel=id;
- rtCalls=0u;
  let base=textureLoad(traceBase,coord,0);
  let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,0).r);
  let normal=textureLoad(traceNormals,coord,0);
@@ -148,7 +141,7 @@ fn tracePixel(rank:u32,lid:vec2u){
 
 /**
  * The frame's reflection state, one thread: the tile list emptied, its indirect arguments set
- * (`TRACE_SHADER`); the run-time proxy's frame counters started again and its schedule moved on.
+ * (`TRACE_SHADER`); the run-time proxy's work counter started again.
  * The radiance around the scene (`surroundings`) is the CPU's, written with the view
  * (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
@@ -158,11 +151,7 @@ export const BEGIN_SHADER = wgslProgram(
 @compute @workgroup_size(1)
 fn reflectionBegin(){
  work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
- // The budget ran out at the cursor: the next frame starts there; when every pixel holds its samples, where it is.
- traceList[${TRACE_LIST.count}u]=0u;
- if(traceList[${TRACE_LIST.left}u]!=0u){traceList[${TRACE_LIST.offset}u]+=traceList[${TRACE_LIST.cursor}u];}
- traceList[${TRACE_LIST.cursor}u]=0u;
- traceList[${TRACE_LIST.left}u]=0u;traceList[${TRACE_LIST.spent}u]=0u;
+ traceList[${TRACE_LIST.count}u]=0u;traceList[${TRACE_LIST.spent}u]=0u;
 }`,
   [],
 )
@@ -183,7 +172,6 @@ function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.bounceGrid, 'uniform'),
         computeTextureEntry(TRACE_BINDINGS.probes, 'unfilterable-float', '2d-array'),
         computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
-        storeEntry(TRACE_BINDINGS.store),
         computeTextureEntry(TRACE_BINDINGS.base, 'unfilterable-float'),
         computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
@@ -280,8 +268,6 @@ export type TraceInputs = {
   probes: GPUTextureView
   /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
   proxy: GPUBuffer
-  /** The store of the run-time proxy's answers, or its stand-in (`proxyStore.ts`). */
-  store: GPUTextureView
 }
 
 /** The groups of a trace: the trace's, the classification's and the frame state's. */
@@ -317,7 +303,6 @@ function traceGroups(
     inputs.bounceGrid,
     inputs.probes,
     inputs.proxy,
-    inputs.store,
     inputs.lightLists,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
@@ -333,7 +318,6 @@ function traceGroups(
         bounceGrid: { buffer: inputs.bounceGrid },
         probes: inputs.probes,
         list: { buffer: tiles.list },
-        store: inputs.store,
         base: inputs.base,
         lightLists: { buffer: inputs.lightLists },
         proxy: { buffer: inputs.proxy },

@@ -18,7 +18,6 @@ export type FamilyReading = {
   frames: number
   worldErrors: string[]
   spent: number
-  left: number
 }
 
 type Canvas = HTMLCanvasElement & { readable: boolean }
@@ -59,7 +58,7 @@ async function draw(index: number, limit: number) {
       const at = (j * width + i) * 4
       samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
     }
-  const { spent, left } = (await traceCounters(canvasDevice(canvas), made)) ?? { spent: 0, left: 0 }
+  const { spent } = (await traceCounters(canvasDevice(canvas), made)) ?? { spent: 0 }
   world.dispose()
   canvas.remove()
   return {
@@ -69,7 +68,6 @@ async function draw(index: number, limit: number) {
     frames,
     worldErrors,
     spent,
-    left,
   }
 }
 

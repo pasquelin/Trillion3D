@@ -1,16 +1,13 @@
 // What the reflection rig binds as the proxy (`runtime-proxy.gpu.ts` proves the engine's own): the scene's
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
-// emits the face's radiance — or an empty header in each of its two places, no placement, no ray —, and the
-// store of the answers when the view holds one, else a texel.
+// emits the face's radiance — or an empty header in each of its two places, no placement, no ray.
 import {
   INSTANCE_WORDS,
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
   RUNTIME_NONE,
-  STORE_LAYERS,
   SURFACE_WORDS,
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
-import type { ScreenReflection } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -72,27 +69,12 @@ function proxyWords(faces: readonly RigFace[]) {
   return words
 }
 
-export function rigProxy(
-  device: GPUDevice,
-  reflection: ScreenReflection,
-  faces: readonly RigFace[] = [],
-) {
+export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
     size: words.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
-  return {
-    proxy,
-    store:
-      reflection.store.view ??
-      device
-        .createTexture({
-          size: [1, 1, STORE_LAYERS],
-          format: 'r32uint',
-          usage: GPUTextureUsage.STORAGE_BINDING,
-        })
-        .createView({ dimension: '2d-array' }),
-  }
+  return { proxy }
 }
