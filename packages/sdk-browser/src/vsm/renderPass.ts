@@ -69,6 +69,7 @@ import {
   VSM_RENDER_CULL_SPECS,
   VSM_RENDER_EXPAND_SPECS,
   VSM_RENDER_GROUP,
+  VSM_RENDER_PARAMS,
   VSM_RENDER_VIEW_DIRECTIONAL,
   vsmRenderCandidatesWgsl,
   vsmRenderCullWgsl,
@@ -153,12 +154,11 @@ export interface VsmRenderStats {
 }
 
 /** Bytes of the parameters a kernel binds from its chunk's slot (`VsmRenderParams`). */
-const VSM_RENDER_PARAMS_BYTES = 128
-const PARAMS_WORDS = VSM_RENDER_PARAMS_BYTES / 4
+const VSM_RENDER_PARAMS_BYTES = VSM_RENDER_PARAMS.words * 4
 /** The chunks' parameter slots on a device of `limits`, as many as a frame's chunks (`offset`
  *  makes each the first time it is asked): the raster's and the transmission's. */
 export const vsmChunkParamSlots = (limits: Parameters<typeof uniformSlots>[0]) =>
-  uniformSlots(limits, 0, PARAMS_WORDS, true)
+  uniformSlots(limits, 0, VSM_RENDER_PARAMS.words, true)
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
@@ -550,10 +550,16 @@ interface VsmRenderParamsImage {
   u: Uint32Array<ArrayBuffer>
 }
 const eye = new Float32Array(8)
+/** The first words of the world-to-view rotation rows. */
+const VIEW_ROWS = [
+  VSM_RENDER_PARAMS.at.viewRow0,
+  VSM_RENDER_PARAMS.at.viewRow1,
+  VSM_RENDER_PARAMS.at.viewRow2,
+]
 
 /** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slots` apart: the
  *  frame's values in every slot, the chunk's own index and range — into `image` (its words past the
- *  slots' 32 left as they are: zero, as nothing else writes them). */
+ *  struct's left as they are: zero, as nothing else writes them). */
 function vsmRenderParams(
   camera: VsmRenderCamera,
   chunking: VsmRenderChunking,
@@ -563,34 +569,36 @@ function vsmRenderParams(
   const { chunks, chunkRows } = chunking
   const slotWords = slots.strideWords
   const { f, u } = image
+  const { at } = VSM_RENDER_PARAMS
   for (let a = 0; a < 3; a++) writeSplitDouble(eye, a, 4 + a, camera.eye[a])
   for (let c = 0; c < chunks; c++) {
     const o = c * slotWords
     for (let a = 0; a < 3; a++) {
-      f[o + a] = eye[a]
-      f[o + 4 + a] = eye[4 + a]
+      f[o + at.eyeHigh + a] = eye[a]
+      f[o + at.eyeLow + a] = eye[4 + a]
     }
-    f[o + 3] = camera.perspective ? 1 : 0
-    f[o + 7] = camera.focalPixels
+    f[o + at.perspective] = camera.perspective ? 1 : 0
+    f[o + at.focal] = camera.focalPixels
     // World-to-view rotation rows (column-major m[c*4+r]).
     for (let r = 0; r < 3; r++) {
-      f[o + 8 + r * 4] = camera.view[r]
-      f[o + 9 + r * 4] = camera.view[4 + r]
-      f[o + 10 + r * 4] = camera.view[8 + r]
-      f[o + 11 + r * 4] = 0
+      const row = o + VIEW_ROWS[r]
+      f[row] = camera.view[r]
+      f[row + 1] = camera.view[4 + r]
+      f[row + 2] = camera.view[8 + r]
+      f[row + 3] = 0
     }
-    f[o + 20] = camera.near
-    f[o + 21] = camera.threshold
-    f[o + 22] = VSM_SMALL_CASTER_SQ
-    u[o + 23] = chunking.rowCount
-    u[o + 24] = chunking.viewCount
-    u[o + 25] = c
-    u[o + 26] = c * chunkRows
-    u[o + 27] = chunkRows
-    u[o + 28] = chunks
-    u[o + 29] = chunking.cmdCapacity
-    u[o + 30] = chunking.pairCapacity
-    u[o + 31] = 1 // `pad`: unread, kept at its old value (`planUploads.test.ts` pins the bytes).
+    f[o + at.near] = camera.near
+    f[o + at.threshold] = camera.threshold
+    f[o + at.smallCasterSq] = VSM_SMALL_CASTER_SQ
+    u[o + at.rowCount] = chunking.rowCount
+    u[o + at.viewCount] = chunking.viewCount
+    u[o + at.chunk] = c
+    u[o + at.chunkFirst] = c * chunkRows
+    u[o + at.chunkRows] = chunkRows
+    u[o + at.chunkCount] = chunks
+    u[o + at.cmdCapacity] = chunking.cmdCapacity
+    u[o + at.pairCapacity] = chunking.pairCapacity
+    u[o + at.pad] = 1 // `pad`: unread, kept at its old value (`planUploads.test.ts` pins the bytes).
   }
 }
 

@@ -35,6 +35,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  * the sphere radius.
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
+import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
@@ -72,22 +73,41 @@ export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
- * every slot). The camera is the main view whose level of detail the casters take: eye (split
+ * every slot), in one table: the struct the kernels read and the words the host writes
+ * (`renderPass.ts`). The camera is the main view whose level of detail the casters take: eye (split
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold.
  */
+export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
+  ['eyeHigh', 'vec3f'],
+  ['perspective', 'f32'],
+  ['eyeLow', 'vec3f'],
+  ['focal', 'f32'],
+  ['viewRow0', 'vec4f'],
+  ['viewRow1', 'vec4f'],
+  ['viewRow2', 'vec4f'],
+  ['near', 'f32'],
+  ['threshold', 'f32'],
+  ['smallCasterSq', 'f32'],
+  ['rowCount', 'u32'],
+  ['viewCount', 'u32'],
+  ['chunk', 'u32'],
+  ['chunkFirst', 'u32'],
+  ['chunkRows', 'u32'],
+  ['chunkCount', 'u32'],
+  ['cmdCapacity', 'u32'],
+  ['pairCapacity', 'u32'],
+  ['pad', 'u32'],
+] as const)
+const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
+  'VSM_RENDER_PARAMS_STRUCT_WGSL',
+  [],
+  VSM_RENDER_PARAMS.wgsl,
+)
 const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_WGSL',
-  [],
+  [VSM_RENDER_PARAMS_STRUCT_WGSL],
   `
-struct VsmRenderParams{
- eyeHigh:vec3f,perspective:f32,
- eyeLow:vec3f,focal:f32,
- viewRow0:vec4f,viewRow1:vec4f,viewRow2:vec4f,
- near:f32,threshold:f32,smallCasterSq:f32,rowCount:u32,
- viewCount:u32,chunk:u32,chunkFirst:u32,chunkRows:u32,
- chunkCount:u32,cmdCapacity:u32,pairCapacity:u32,pad:u32,
-}
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
  *  corners, flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws), and the radius of
  *  its whole object (f32 bits, 0 when unknown: the row's sphere stands in). */
