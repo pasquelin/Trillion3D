@@ -61,7 +61,7 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
   installGpuGlobals()
   const scene = quadScene()
   if (sizeAttenuation !== undefined)
-    Object.assign(scene.material, { sprite: true, rotation: 0, sizeAttenuation })
+    Object.assign(scene.material, { sprite: { rotation: 0, sizeAttenuation } })
   const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({ ...scene, gpuDevice: device, maxResidentPages: 4 })
   try {

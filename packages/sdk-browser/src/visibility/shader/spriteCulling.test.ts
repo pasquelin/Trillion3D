@@ -10,10 +10,11 @@ import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts'
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts'
 import { neverCulled, spriteMark } from './spriteWgsl.ts'
 
-/** The test DAG worn as a sprite; `hierarchical` gives it its culling hierarchy. */
+/** The test DAG worn as a sprite, its record's sprite facts written in place; `hierarchical` gives
+ *  it its culling hierarchy. */
 function spriteFixture(sizeAttenuation: boolean, hierarchical = false) {
   const fixture = dagFixture()
-  Object.assign(fixture.mesh.material, { sprite: true, rotation: 0, sizeAttenuation })
+  Object.assign(fixture.mesh.material, { sprite: { rotation: 0, sizeAttenuation } })
   if (hierarchical) fixture.metadata.primitives[0].culling = dagCulling()
   return fixture
 }

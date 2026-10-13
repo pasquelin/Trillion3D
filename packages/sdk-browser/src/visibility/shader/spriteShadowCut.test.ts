@@ -11,7 +11,7 @@ import { CASTS_NO_SHADOW } from './spriteWgsl.ts'
 function surfaceFixture(sizeAttenuation?: boolean) {
   const fixture = dagFixture()
   if (sizeAttenuation !== undefined)
-    Object.assign(fixture.mesh.material, { sprite: true, rotation: 0, sizeAttenuation })
+    Object.assign(fixture.mesh.material, { sprite: { rotation: 0, sizeAttenuation } })
   return fixture
 }
 
