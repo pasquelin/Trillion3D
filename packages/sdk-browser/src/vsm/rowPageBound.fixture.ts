@@ -14,7 +14,6 @@ import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } fro
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { createVsmResources } from './resources.ts'
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
-
 import { seeded } from './planFrames.fixture.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
@@ -163,8 +162,8 @@ export function bruteForce(rows: VsmRowSpheres, light: VsmBoundLight, pages: num
   return { pairs, cmds }
 }
 
-/** The same under a local light's maps (`localAt`): range, the perspective
- *  box, then a command and the rect's pages per mip whose rect is not empty. Pairs not capped. */
+/** The same under a local light's maps (`localAt`): range, the perspective box, then a command
+ *  and the rect's pages per mip whose rect is not empty. Pairs not capped. */
 export function bruteForceLocal(rows: VsmRowSpheres, light: VsmBoundLight) {
   const n = rows.packed.length / STRIDE,
     p = rows.packed
