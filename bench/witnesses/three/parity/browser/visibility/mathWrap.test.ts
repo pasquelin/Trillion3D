@@ -14,6 +14,8 @@ import { nearestTexel } from '../../../../../../tests/gpu/texture/addressingCase
 const CLAMP: WrapMode = 'clamp',
   REPEAT: WrapMode = 'repeat',
   MIRROR: WrapMode = 'mirror'
+/** The three modes, typed as the record declares them: the loop over them needs no flow narrowing. */
+const MODES: readonly WrapMode[] = [CLAMP, REPEAT, MIRROR]
 /** The texel an axis reads: the engine's `mapTexel` on a one-row image, its other axis clamped. */
 const wrapTexel = (t: number, size: number, wrap: WrapMode) =>
   mapTexel(
@@ -38,7 +40,7 @@ test('the three modes against the reference, even and odd sizes, integers/negati
     -1000.5, -1000, -3, -2, -1, -0.5, 0, 0.125, 0.5, 0.875, 1, 1.5, 2, 3, 999.5, 1000,
   ]
   for (const taille of [4, 5])
-    for (const wrap of [CLAMP, REPEAT, MIRROR])
+    for (const wrap of MODES)
       for (const t of valeurs)
         assert.equal(
           wrapTexel(t, taille, wrap),
