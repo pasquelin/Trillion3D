@@ -1,4 +1,5 @@
-import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
+import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'

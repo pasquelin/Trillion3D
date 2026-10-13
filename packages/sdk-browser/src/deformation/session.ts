@@ -5,7 +5,7 @@ import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { createDeformationSkip } from './screen.ts'
 
 /**

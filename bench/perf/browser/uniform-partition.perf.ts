@@ -1,9 +1,7 @@
 // the partition-pass uniform, packed every frame: the two anchored matrices, the
 // split-double anchor, and the sixteen Hi-Z pyramid levels, bit-exact against the oracle.
-import {
-  UNIFORM_U32,
-  writeSplitDouble,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { UNIFORM_U32 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { writeSplitDouble } from '../../../packages/math/src/float/splitDouble.ts'
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 import { xorshiftRandom, measure, rapport } from '../../core/index.ts'

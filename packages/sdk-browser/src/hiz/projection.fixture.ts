@@ -1,7 +1,7 @@
 import { boxCornersInto } from '../../../sdk-core/src/index.ts'
 import { BOX_CORNER_VALUES, HIZ_BOUNDS_VALUES, projectCornersInto, rowBox } from './corners.ts'
 import type { HizPage } from './types.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { locationOf, type PageLocations } from '../page/selection/placements.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 

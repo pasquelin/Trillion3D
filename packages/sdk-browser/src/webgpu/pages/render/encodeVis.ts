@@ -1,4 +1,4 @@
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { encodeMaterialPasses } from '../../core/materialPasses.ts'
 import { VIS_MAX_PAGES } from '../../../visibility/types.ts'
 import { encodeWebgpuPartition } from '../../visibility/partition.ts'

@@ -9,7 +9,7 @@ import { createTaaFrameState } from './frameState.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
 import { HZ120, lowered } from '../frame/scaleFit.fixture.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 
 const DISPLAY = [3456, 2234],
   clock = { now: 0, frame: 0 }

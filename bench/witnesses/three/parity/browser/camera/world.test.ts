@@ -14,13 +14,15 @@ import * as THREE from 'three'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
 import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
 import {
-  createEngineCamera,
   enginePose,
   readCameraWorld,
   resolveCameraWorld,
   type HostCamera,
 } from '../../../../../../packages/sdk-browser/src/camera/world.ts'
-import { holdCameraWorld } from '../../../../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import {
+  createEngineCamera,
+  holdCameraWorld,
+} from '../../../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
 /** Three levels: frozen shear at the top, negative and non-uniform scale in the middle. */
 function hostileRig(fov = 50, aspect = 16 / 9) {

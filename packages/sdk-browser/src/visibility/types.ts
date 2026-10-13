@@ -87,7 +87,6 @@ export type VisPage = {
   material: PageSurface
   clusterId?: string
 }
-export type { VisMaterial } from './materialType.ts'
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it

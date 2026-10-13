@@ -10,7 +10,7 @@ import { createTaaFrameState } from './frameState.ts'
 import { writeTaaView } from './view.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { EngineCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 
 /** The uniforms of twenty images, moving then still, their frames `intervals` ms apart. */
 function uniforms(intervals: number[]) {

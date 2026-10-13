@@ -1,5 +1,5 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import type { EngineCamera } from '../../../camera/world.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../../gpu/raster/raster.ts'
 import { ensureWebgpuVisibilityBindings } from '../../visibility/bindings.ts'

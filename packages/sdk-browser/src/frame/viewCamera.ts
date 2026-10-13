@@ -1,4 +1,5 @@
-import type { EngineCamera, HostCamera } from '../camera/world.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
+import type { HostCamera } from '../camera/world.ts'
 import type { ViewHold } from './viewRevision.ts'
 
 /** A replacement describing the identical view is continuous, even when a host hands over a
