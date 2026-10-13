@@ -1,7 +1,7 @@
 import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
 import {
   countKinds,
-  EFFECT_KINDS as KINDS,
+  EFFECT_KINDS,
   effectPassTargets,
   effectTargetBytes,
   type EffectPassOf,
@@ -60,7 +60,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
   const release = () => {
     for (const target of targets) target.destroy()
     targets.length = views.length = 0
-    for (const kind of KINDS) made[kind]?.resize(0, 0, 0)
+    for (const kind of EFFECT_KINDS) made[kind]?.resize(0, 0, 0)
     width = height = 0
   }
   const ensure = (count: number, w: number, h: number) => {
@@ -79,14 +79,14 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
       targets.push(target)
       views.push(target.createView())
     }
-    for (const kind of KINDS) made[kind]?.resize(w, h, counts[kind])
+    for (const kind of EFFECT_KINDS) made[kind]?.resize(w, h, counts[kind])
   }
   /** Counts the passes of each kind; false while a kind they need is not compiled. */
   const readyFor = (passes: readonly EffectPass[]) => {
     countKinds(passes, counts)
-    for (const kind of KINDS) nth[kind] = 0
+    for (const kind of EFFECT_KINDS) nth[kind] = 0
     let ready = !failed
-    for (const kind of KINDS)
+    for (const kind of EFFECT_KINDS)
       if (counts[kind] && !made[kind]) {
         load(kind)
         ready = false
@@ -103,7 +103,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
       let bytes = effectTargetBytes(width, height, targets.length)
-      for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0
+      for (const kind of EFFECT_KINDS) bytes += made[kind]?.bytes ?? 0
       return bytes
     },
     /** Render passes the last `encode` drew: zero when it drew none. */
@@ -153,7 +153,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     dispose() {
       disposed = true
       release()
-      for (const kind of KINDS) made[kind]?.dispose()
+      for (const kind of EFFECT_KINDS) made[kind]?.dispose()
     },
   }
 }

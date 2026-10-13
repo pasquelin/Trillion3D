@@ -45,7 +45,7 @@ import {
   VSM_PROJECTION_LIGHT_WORDS,
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_BYTES,
-  VSM_PROJECTION_VIEW_WORD as W,
+  VSM_PROJECTION_VIEW_WORD,
 } from './projectionView.ts'
 import {
   VSM_PROJECTION_BINDING,
@@ -212,25 +212,30 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
     s = scratch,
     eye = s.viewInverse,
     shift = s.shift
-  f.set(s.shiftedToClip, W.shiftedToClip)
-  f.set(s.shiftedToView, W.shiftedToView)
-  f.set(s.viewToClip, W.viewToClip)
-  f.set(s.clipToShifted, W.clipToShifted)
+  f.set(s.shiftedToClip, VSM_PROJECTION_VIEW_WORD.shiftedToClip)
+  f.set(s.shiftedToView, VSM_PROJECTION_VIEW_WORD.shiftedToView)
+  f.set(s.viewToClip, VSM_PROJECTION_VIEW_WORD.viewToClip)
+  f.set(s.clipToShifted, VSM_PROJECTION_VIEW_WORD.clipToShifted)
   for (let k = 0; k < 3; k++)
-    writeSplitDouble(f, W.originShiftHigh + k, W.originShiftLow + k, shift[k])
-  u[W.frameIndex] = inputs.frameIndex >>> 0
+    writeSplitDouble(
+      f,
+      VSM_PROJECTION_VIEW_WORD.originShiftHigh + k,
+      VSM_PROJECTION_VIEW_WORD.originShiftLow + k,
+      shift[k],
+    )
+  u[VSM_PROJECTION_VIEW_WORD.frameIndex] = inputs.frameIndex >>> 0
   // The camera's kind as the engine knows it, never a matrix test M[3][3] < 1: the projection's
   // jitter (`taaRenderProjection`) leaves rows 2 and 3 as they are, but the same projection
   // scaled as a homogeneous matrix (×0.25: M[3][3] = 0.25 for an orthographic one) would fail it.
   const perspective = inputs.camera.perspective
-  u[W.isOrtho] = perspective ? 0 : 1
-  for (let k = 0; k < 3; k++) f[W.shiftedEye + k] = eye[12 + k] + shift[k]
-  u[W.lightCount] = count
+  u[VSM_PROJECTION_VIEW_WORD.isOrtho] = perspective ? 0 : 1
+  for (let k = 0; k < 3; k++) f[VSM_PROJECTION_VIEW_WORD.shiftedEye + k] = eye[12 + k] + shift[k]
+  u[VSM_PROJECTION_VIEW_WORD.lightCount] = count
   // The view's forward axis: its +Z (row 2 of shiftedToView).
-  f[W.viewForward] = s.shiftedToView[2]
-  f[W.viewForward + 1] = s.shiftedToView[6]
-  f[W.viewForward + 2] = s.shiftedToView[10]
-  vsmWriteDepthFromDeviceZ(f, W.depthFromDeviceZ, s.viewToClip, perspective)
+  f[VSM_PROJECTION_VIEW_WORD.viewForward] = s.shiftedToView[2]
+  f[VSM_PROJECTION_VIEW_WORD.viewForward + 1] = s.shiftedToView[6]
+  f[VSM_PROJECTION_VIEW_WORD.viewForward + 2] = s.shiftedToView[10]
+  vsmWriteDepthFromDeviceZ(f, VSM_PROJECTION_VIEW_WORD.depthFromDeviceZ, s.viewToClip, perspective)
   writeScreenWords(view, inputs, s.viewToClip, perspective)
 }
 
@@ -244,8 +249,8 @@ function writeScreenWords(
   // The screen ray length multiplier (zero but where set) and the tangent and inverse tangent of
   // the half field of view (clip-to-view [0][0], [1][1], view-to-clip [0][0], [1][1]); an
   // orthographic view's are 1.
-  const ray = W.screenRayScale,
-    tangents = W.halfFovTangents
+  const ray = VSM_PROJECTION_VIEW_WORD.screenRayScale,
+    tangents = VSM_PROJECTION_VIEW_WORD.halfFovTangents
   if (perspective) {
     f[ray] = f[tangents] = 1 / v2c[0]
     f[ray + 1] = f[tangents + 1] = 1 / v2c[5]
@@ -253,17 +258,17 @@ function writeScreenWords(
     f[tangents + 3] = v2c[5]
   } else
     f[ray + 2] = f[ray + 3] = f[tangents] = f[tangents + 1] = f[tangents + 2] = f[tangents + 3] = 1
-  const pixels = W.viewPixels
+  const pixels = VSM_PROJECTION_VIEW_WORD.viewPixels
   f[pixels] = width
   f[pixels + 1] = height
   f[pixels + 2] = 1 / width
   f[pixels + 3] = 1 / height
   // The geometry of the thickness the screen march gives a surface (`screenSlab`), from the view's
   // own matrix: a translation changes neither gradient it reads.
-  f.set(screenSlab(scratch.shiftedToClip, height), W.screenSlab)
+  f.set(screenSlab(scratch.shiftedToClip, height), VSM_PROJECTION_VIEW_WORD.screenSlab)
   // The projection rect: from (0, 0) (zero), its size.
-  i[W.projectionRect + 2] = width
-  i[W.projectionRect + 3] = height
+  i[VSM_PROJECTION_VIEW_WORD.projectionRect + 2] = width
+  i[VSM_PROJECTION_VIEW_WORD.projectionRect + 3] = height
 }
 
 /** One light's record at word `o`, its position shifted by `shift`. */
