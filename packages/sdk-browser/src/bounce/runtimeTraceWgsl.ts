@@ -1,7 +1,6 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { byteOf } from '../../../math/src/wgsl/integer.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import {
   rayBoxEntry,
   rayInverseDirection,
@@ -24,14 +23,10 @@ import { RUNTIME_ANSWER_WGSL } from './runtimeAnswerWgsl.ts'
 import {
   FRAME_WORK,
   INSTANCE_WORDS,
-  MIRROR_ALPHA,
-  MOTION_COUNT,
   RAY_LAYERS,
   RAY_TRIANGLES,
   RAY_WORK,
   RUNTIME_NONE,
-  SAMPLE_CAP,
-  SCENE_COUNT,
   STORE_BITS,
   SURFACE_BLENDED,
   SURFACE_WORDS,
@@ -119,17 +114,11 @@ ${wgslConsts({
   RT_SPENT: TRACE_LIST.spent,
   RT_OFFSET: TRACE_LIST.offset,
   RT_CURSOR: TRACE_LIST.cursor,
-  RT_SAMPLE_CAP: SAMPLE_CAP,
-  RT_MOTION_COUNT: MOTION_COUNT,
-  RT_SCENE_COUNT: SCENE_COUNT,
   RT_CONFIDENCE_MAX: 2 ** STORE_BITS.confidence - 1,
-  RT_COUNT_SHIFT: STORE_BITS.confidence,
-  RT_SCENE_SHIFT: STORE_BITS.confidence + STORE_BITS.count,
-  RT_VIEW_SHIFT: STORE_BITS.confidence + STORE_BITS.count + STORE_BITS.scene,
+  RT_STAMP_SHIFT: STORE_BITS.stamp,
   RT_SURFACE_WORDS: SURFACE_WORDS,
   RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
-const RT_MIRROR_ALPHA:f32=${wgslF32(MIRROR_ALPHA)};
 struct RuntimeProxy{
  instances:u32,instancesWord:u32,surfacesWord:u32,trianglesWord:u32,
  copyWorldsWord:u32,boundsWord:u32,childrenWord:u32,treeRoot:u32,
@@ -344,7 +333,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
 }
 
 /** The pixel the trace is at, and the rays it has asked of the proxy for it: the first is the base
- *  lobe's, which keeps its answer in the store (\`rtLobeAnswer\`); a coat's goes without. */
+ *  lobe's, which keeps its answer in the store (\`rtAnswer\`); a coat's goes without. */
 var<private> rtPixel:vec2u;
 var<private> rtRank:u32;
 var<private> rtCalls:u32;

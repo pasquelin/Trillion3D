@@ -10,18 +10,13 @@ import type { Hit, Vec, world } from './runtimeScene.fixture.ts'
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
   'rtRadiance',
-  'rtLobeAnswer',
+  'rtAnswer',
   'rtCellRead',
   'rtCellWrite',
   'rtCellAnswer',
   'rtPackShared',
   'rtUnpackShared',
   'rtStamp',
-  'rtCapOf',
-  'rtRotation',
-  'rtSequence',
-  'rtSampleLobe',
-  'rtLobePdf',
   'rtSurfaceOf',
   'rtShade',
   'rtScene',
@@ -54,13 +49,10 @@ export function makeStore() {
 }
 export type Store = ReturnType<typeof makeStore>
 
-/** The epochs a frame is of: the scene's and the view's. */
-export type Epochs = [scene: number, view: number]
-
 export function runOver(
   w: ReturnType<typeof world>,
   list: number[] = counters(0),
-  epochs: Epochs = [2, 2],
+  epoch = 2,
   store: Store = makeStore(),
 ) {
   const { packed, header, nodes, cold } = w
@@ -75,19 +67,9 @@ export function runOver(
       reach: number,
       tangent: number,
     ) => { color: Vec; confidence: number }
-    rtLobeAnswer: (
-      p: Vec,
-      n: Vec,
-      v: Vec,
-      alpha: number,
-      reach: number,
-      tangent: number,
-    ) => { color: Vec; confidence: number }
+    rtAnswer: (o: Vec, d: Vec, reach: number, tangent: number) => { color: Vec; confidence: number }
     rtPackShared: (c: Vec) => number
     rtUnpackShared: (word: number) => Vec
-    rtSampleLobe: (n: Vec, v: Vec, alpha: number, u: [number, number]) => Vec
-    rtLobePdf: (n: Vec, v: Vec, alpha: number, l: Vec) => number
-    rtSequence: (k: number, p: [number, number]) => [number, number]
     testPixel: (x: number, y: number, rank: number) => void
     testWork: () => number
     testTests: () => number
@@ -106,7 +88,7 @@ export function runOver(
     rtStore: store,
     textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
     textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
-    reflectionView: { runtime: [epochs[0], epochs[1], 0, 0] },
+    reflectionView: { runtime: [epoch, 0, 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -116,13 +98,7 @@ export function runOver(
       blended,
     }),
     RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
-    RtCell: (premult: Vec, confidence: number, count: number, scene: number, view: number) => ({
-      premult,
-      confidence,
-      count,
-      scene,
-      view,
-    }),
+    RtCell: (premult: Vec, confidence: number, stamp: number) => ({ premult, confidence, stamp }),
     Box: (low: Vec, high: Vec) => ({ low, high }),
     ProxyChild: (
       box: unknown,

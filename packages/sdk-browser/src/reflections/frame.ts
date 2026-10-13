@@ -34,7 +34,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
   frame.depthDrawn = run.depthDrawn
   frame.proxyError = bounce.probes?.proxy?.errorMetres ?? 0
   // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
-  frame.epochs = reflection.store.follow(
+  frame.epoch = reflection.store.follow(
     [rt.lights.store.epoch, run.gpuSelection?.proxyRevision() ?? 0],
     // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
     // would restart the budget for ever.

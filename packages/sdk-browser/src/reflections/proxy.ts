@@ -40,14 +40,12 @@ fn reflectionCooked(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
 }${
       runtime
         ? `
-/** The cooked proxy's answer, then the run-time proxy's on the share it left (\`rtLobeAnswer\`): the two
+/** The cooked proxy's answer, then the run-time proxy's on the share it left (\`rtAnswer\`): the two
  *  mixed by the shares each holds, the confidence what both hold. */
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let cooked=reflectionCooked(P,N,lobe);
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- // The view is the mirror direction's own reflection about the normal.
- let V=2.0*dot(N,lobe.R)*N-lobe.R;
- let seen=rtLobeAnswer(P+N*max(reflectionView.proxy.x,rtProxy.error),N,V,lobe.widths.x,REFLECTION_FAR,tangent);
+ let seen=rtAnswer(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  let share=seen.confidence*(1.0-cooked.confidence);
  let held=cooked.confidence+share;
  if(held<=0.0){return ReflectionProxied(vec3f(0.0),0.0);}

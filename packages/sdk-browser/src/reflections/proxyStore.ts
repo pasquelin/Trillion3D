@@ -1,11 +1,5 @@
 import { STORE_LAYERS, storeBytes } from '../bounce/runtimeLayout.ts'
 
-/** The epochs of the run-time proxy's answers: the scene's moves when an input of the answers did — the lights,
- *  the placements' poses, a surface, a cut —, the view's when the camera did. Never the lit image, which the
- *  screen's own reflections change image after image without changing an answer, and never the render
- *  matrix's jitter, which moves every image. */
-export type Epochs = { scene: number; view: number }
-
 /**
  * The store of the run-time proxy's answers (`bounce/runtimeLayout.ts`): made with the view when a placement wears
  * a proxy, else when the first does (`make`, `webgpu/pages/prepare/proxyStore.ts`) — its bytes asked of the
@@ -34,23 +28,23 @@ export function createProxyStore(
   }
   if (wanted) make()
   const camera = new Float64Array(16)
-  const epochs: Epochs = { scene: 0, view: 0 }
-  let key = ''
+  let epoch = 0,
+    key = ''
   return {
     /**
-     * The epochs of this image's answers: the scene's one more than the last image's when an input of the
-     * answers moved (`inputs`, each a revision), the view's when the camera's own view-projection did.
-     * Idempotent within an image.
+     * The epoch of this image's answers: one more than the last image's when an input of the answers moved
+     * (`inputs`, each a revision) or the camera's own view-projection did — never the render matrix's jitter, which
+     * moves every image, and never the lit image, which the screen's own reflections change image after image
+     * without changing an answer. Idempotent within an image.
      */
-    follow(inputs: readonly number[], viewProjection: ArrayLike<number>): Epochs {
+    follow(inputs: readonly number[], viewProjection: ArrayLike<number>) {
       const next = inputs.join(',')
       let moved = false
       for (let k = 0; k < 16; k++) if (camera[k] !== viewProjection[k]) moved = true
-      if (moved) epochs.view++
-      if (next !== key) epochs.scene++
+      if (moved || next !== key) epoch++
       key = next
       camera.set(viewProjection)
-      return epochs
+      return epoch
     },
     /** The store the trace reads and writes, if the view holds one. */
     get view() {

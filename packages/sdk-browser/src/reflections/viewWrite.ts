@@ -17,8 +17,8 @@ export type ReflectionFrame = {
   depthDrawn: boolean
   /** The resident proxy's certified error, in metres: zero without a proxy. */
   proxyError: number
-  /** The run-time proxy's epochs (`proxyStore.ts`, `follow`): what its answers are stamped with. */
-  epochs?: { scene: number; view: number }
+  /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
+  epoch?: number
 }
 
 /** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
@@ -63,8 +63,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[2] = frame.size[1]
     traced[3] = frontPitch(frame.size[0])
     staged[AT.proxy] = frame.proxyError
-    runtime[0] = frame.epochs?.scene ?? 0
-    runtime[1] = frame.epochs?.view ?? 0
+    runtime[0] = frame.epoch ?? 0
     if (unchanged(sent, runs)) return
     sent.set(staged)
     device.queue.writeBuffer(buffer, 0, staged)
