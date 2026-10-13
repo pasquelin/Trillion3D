@@ -30,7 +30,7 @@ import { textureLimits } from '../gpu/core/textureLimits.ts'
  */
 export { TILE_BORDER, TILE_SIZE }
 export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER
-const TILES_PER_ROW = 30
+export const TILES_PER_ROW = 30
 /**
  * The layer's side is the tile grid rounded up to a power of two, and a tap snaps its in-tile
  * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the

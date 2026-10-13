@@ -14,11 +14,12 @@ import {
   tileLayout,
   tilesAt,
   TILES_PER_LAYER,
+  TILES_PER_ROW,
 } from './tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { noTails } from './noTails.fixture.ts'
-import { entryPlace, placeIndex, TILES_PER_ROW } from './tiles.fixture.ts'
+import { entryPlace, placeIndex } from './tiles.fixture.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
