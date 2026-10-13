@@ -7,7 +7,7 @@ import {
   cameraFace,
   square,
   engine,
-  versApi,
+  toApiMatrix,
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
 
@@ -18,7 +18,7 @@ export const TILE = 'tile',
   PIVOT = 'pivot'
 
 /** A world matrix for `setTransform`: a pure translation along `x`. */
-export const translation = (x: number) => versApi(new G.Matrix4().makeTranslation(x, 0, 0))
+export const translation = (x: number) => toApiMatrix(new G.Matrix4().makeTranslation(x, 0, 0))
 
 /** `paged` chooses the tile's pass: `clustered-blend` sends it through the DAG pages,
  *  `shared-blend` through the unpaged path. */

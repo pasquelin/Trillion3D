@@ -3,15 +3,15 @@
 // one side, pixels and public counters on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { release, versApi } from '../kit/sharedSceneProof.ts'
-import { colorAt, estRouge, image } from '../kit/sceneImageProof.ts'
+import { release, toApiMatrix } from '../kit/sharedSceneProof.ts'
+import { colorAt, isRed, image } from '../kit/sceneImageProof.ts'
 import { runPasses } from '../kit/deviceProof.ts'
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
 
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale product yields it, and the
  *  leaning tile covers a corner a straight tile does not. */
 const shear = (x: number, factor: number) =>
-  versApi(new G.Matrix4().set(1, factor, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+  toApiMatrix(new G.Matrix4().set(1, factor, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
 
 /** The three probes, in world units: left, right, and the top-right corner only a sheared tile
  *  covers. */
@@ -30,7 +30,7 @@ function reading(
 ) {
   return {
     name,
-    red: PROBES.map(([x, y]) => estRouge(colorAt(pixels, camera, x, y), 0)),
+    red: PROBES.map(([x, y]) => isRed(colorAt(pixels, camera, x, y), 0)),
     draws: metrics.transparentDrawCalls,
     rejected: metrics.transparentFrustumRejected,
     held: metrics.frameHeld,

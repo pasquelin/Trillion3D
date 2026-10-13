@@ -11,7 +11,7 @@ import { encodeDagDifference } from '../../../packages/sdk-browser/src/gpu/dag/e
 import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import {
-  SELECTION_HEADER_WORDS as HEAD,
+  SELECTION_HEADER_WORDS,
   differenceWord,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
@@ -45,9 +45,17 @@ async function differ(
   device.queue.writeBuffer(r.uniforms, 0, block)
   const [asked, drawn] = lists
   device.queue.writeBuffer(r.output, 0, Uint32Array.of(asked.length))
-  device.queue.writeBuffer(r.output, HEAD * 4, Uint32Array.from(asked))
-  device.queue.writeBuffer(r.output, (HEAD + cap) * 4, Uint32Array.of(drawn.length))
-  device.queue.writeBuffer(r.output, (2 * HEAD + cap) * 4, Uint32Array.from(drawn))
+  device.queue.writeBuffer(r.output, SELECTION_HEADER_WORDS * 4, Uint32Array.from(asked))
+  device.queue.writeBuffer(
+    r.output,
+    (SELECTION_HEADER_WORDS + cap) * 4,
+    Uint32Array.of(drawn.length),
+  )
+  device.queue.writeBuffer(
+    r.output,
+    (2 * SELECTION_HEADER_WORDS + cap) * 4,
+    Uint32Array.from(drawn),
+  )
   const groups = lists.flatMap((list) => [ceilDiv(Math.max(1, list.length), 64), 1])
   device.queue.writeBuffer(
     r.work,
