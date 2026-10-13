@@ -1,9 +1,8 @@
-// The sun's first-ray proof (`vsmSunRayMisses`, `traceWgsl.ts`) is exact: a ray it accepts is
-// a ray the march (`vsmMarchSun`) misses, run in the shipped WGSL over made-up worlds
-// (`projectionEarlyOut.fixture.ts`) — pages mapped, unmapped and falling back across levels, rays
-// across page and tile edges and past the clipmap's, reference depths meeting the pool's exactly,
-// words no depth is. Then whole pixels: the trace with its proof gives every pixel the mask word
-// the trace without it does. The tile depths it reads are `tileDepth.test.ts`'s.
+// The sun's first-ray proof (`vsmSunRayMisses`, `traceWgsl.ts`) is exact: a ray it accepts is one
+// the march (`vsmMarchSun`) misses, run in the shipped WGSL over made-up worlds (`projectionEarlyOut
+// .fixture.ts`): pages mapped, unmapped and falling back, rays across page, tile and clipmap edges,
+// depths meeting the pool's exactly, words no depth is. Then whole pixels: with its proof the trace
+// gives every pixel the mask word it gives without. Tile depths are `tileDepth.test.ts`'s.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
