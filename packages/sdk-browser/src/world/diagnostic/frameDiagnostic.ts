@@ -1,7 +1,7 @@
 import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import type { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 
@@ -14,7 +14,7 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   lookAtTarget: { x: number; y: number; z: number }
   metricsScratch: FrameMetrics
   pageIdByUrl: Map<string, number>
-  streamer: ReturnType<typeof createPageStreamer>
+  streamer: PageStreaming
   scope: AssetScope
   frameNumber: number
 }

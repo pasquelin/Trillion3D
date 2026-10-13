@@ -3,7 +3,10 @@
 // kernels run (`encodeDagDifference`), the difference read back. Lists drawn at random, repeats
 // included, up to the full cap — the table's load one half —, then the readout grown, its kept
 // lists carried and ranked again in tables of the new size (`growDagList`).
-import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
+import {
+  createDagResources,
+  type DagResources,
+} from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagDifference } from '../../../packages/sdk-browser/src/gpu/dag/encodeDifference.ts'
 import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
@@ -28,13 +31,11 @@ function drawList(count: number, pages: number, seed: number) {
   return list
 }
 
-type Resources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
-
 /** `lists` written where a cut leaves its two lists, their groups armed, the difference and keep
  *  run, and the two differences read back. */
 async function differ(
   device: GPUDevice,
-  r: Resources,
+  r: DagResources,
   lists: [number[], number[]],
   uniforms: never,
 ) {

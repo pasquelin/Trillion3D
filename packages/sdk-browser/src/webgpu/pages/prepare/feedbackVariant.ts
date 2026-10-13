@@ -1,5 +1,5 @@
 import { FEEDBACK_BYTES } from '../../../scene/surfaceBuffer.ts'
-import { SHADE_SHADER } from '../../../visibility/buffer.ts'
+import { SHADE_SHADER } from '../../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { shadeWithoutFeedbackCode } from '../../visibility/shaders.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'

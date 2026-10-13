@@ -1,4 +1,4 @@
-import { FLAG_BLEND_CASTER, FLAG_MASK } from '../../../visibility/buffer.ts'
+import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/types.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
@@ -137,4 +137,3 @@ export {
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts'
-import { ROW_WORDS } from '../../../visibility/types.ts'

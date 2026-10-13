@@ -1,5 +1,6 @@
 import {
   PAGE_INFO_STRIDE,
+  ROW_WORDS,
   PAGE_DEFORM_WORD,
   PAGE_DEFORM_COUNT_WORD,
   PAGE_DEFORM_OUTPUT_WORD,
@@ -74,7 +75,7 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   const words = new Uint32Array(table.buffer, table.byteOffset, table.byteLength / 4)
   assert.equal(table.byteLength, items.length * PAGE_INFO_STRIDE)
   for (let i = 0; i < items.length; i++) {
-    const at = i * (PAGE_INFO_STRIDE / 4)
+    const at = i * ROW_WORDS
     assert.equal(words[at + PAGE_DEFORM_WORD], session.wordOfWorld(items[i].matrix))
     assert.equal(words[at + PAGE_DEFORM_COUNT_WORD], 1)
     assert.equal(words[at + PAGE_DEFORM_OUTPUT_WORD], items[i].deformOutput)

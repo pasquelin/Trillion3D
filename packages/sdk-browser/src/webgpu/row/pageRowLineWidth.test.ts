@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/buffer.ts'
+import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'

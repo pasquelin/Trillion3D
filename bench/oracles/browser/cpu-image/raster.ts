@@ -11,9 +11,9 @@ import {
 import {
   assertVisibilityPageTriangles,
   VIS_MAX_PAGES,
-  VIS_TRIANGLE_MASK,
   type VisPage,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import { VIS_TRIANGLE_MASK } from '../../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { packVisibilityId } from './ids.ts'
 import { cutout } from './cutout.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'

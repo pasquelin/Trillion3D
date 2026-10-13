@@ -5,6 +5,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import { trackTransformDrag } from './transformDrag.ts'
 import { buildTransformHandles } from './transformHandles.ts'
 import { handleScreenSize } from './transformView.ts'
+import { createListeners, type Listeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 import type { TransformMode, TransformSnap, TransformSpace } from './transformMath.ts'
 
 /** What a transform control needs of a world: `createWorld` returns one. */
@@ -49,12 +50,12 @@ export function createTransformControls(
 ) {
   const parts = buildTransformHandles()
   const { root } = parts
-  const heard: Record<TransformEvent, Set<() => void>> = {
-    change: new Set(),
-    dragStart: new Set(),
-    dragEnd: new Set(),
+  const heard: Record<TransformEvent, Listeners> = {
+    change: createListeners(),
+    dragStart: createListeners(),
+    dragEnd: createListeners(),
   }
-  const emit = (type: TransformEvent) => heard[type].forEach((listener) => listener())
+  const emit = (type: TransformEvent) => heard[type].emit()
   let object: Object3D | null = null,
     mode = options.mode ?? 'translate',
     space = options.space ?? 'world'
@@ -144,18 +145,18 @@ export function createTransformControls(
     },
     /** Calls `listener` on each event of `type`. */
     addEventListener(type: TransformEvent, listener: () => void) {
-      heard[type].add(listener)
+      heard[type].subscribe(listener)
     },
     /** Stops calling `listener` on events of `type`. */
     removeEventListener(type: TransformEvent, listener: () => void) {
-      heard[type].delete(listener)
+      heard[type].unsubscribe(listener)
     },
     /** Takes the handles out of the scene and every listener off the canvas. */
     dispose() {
       controls.detach()
       unhook()
       drag.dispose()
-      for (const set of Object.values(heard)) set.clear()
+      for (const listeners of Object.values(heard)) listeners.clear()
     },
   }
   return controls

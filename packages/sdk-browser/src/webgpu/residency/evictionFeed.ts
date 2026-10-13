@@ -1,9 +1,9 @@
 import type { GpuSelection } from '../../gpu/core/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 
-type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>
+type Cache = Pick<GpuPageCache, 'evictInOrder'>
 
 /**
  * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache once per readback.

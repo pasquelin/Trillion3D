@@ -28,6 +28,9 @@ export type GpuPageCacheOptions = {
   onDiagnostic?: (d: EngineDiagnostic) => void
 }
 
+/** The GPU page cache (`createGpuPageCache`). */
+export type GpuPageCache = ReturnType<typeof createGpuPageCache>
+
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host: each load
  * reads its page from `source` (`reader.ts`), which joins the reads of a page in flight and says
  * when a failed one is asked again. Queue writes are ordered; dispose waits for in-flight submits

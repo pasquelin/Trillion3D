@@ -71,6 +71,9 @@ export type BlendGpuItem = {
   vertexBase?: number
 }
 
+/** The blend state a session holds (`createWebgpuBlendState`). */
+export type WebgpuBlendState = ReturnType<typeof createWebgpuBlendState>
+
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */

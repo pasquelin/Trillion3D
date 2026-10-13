@@ -1,6 +1,7 @@
 import { shaderErrors } from '../../gpu/core/shaderModule.ts'
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
-import { SHADE_SHADER, shadeShader, VIS_SHADER, visShader } from '../../visibility/buffer.ts'
+import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
+import { VIS_SHADER, visShader } from '../../visibility/shader/visWgsl.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTracking.ts'
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
 
 /** A cache of three slots all pinned: the fourth page cannot enter. `spare` slots it says it has
@@ -18,7 +18,7 @@ function saturatedCache(resident: string[], error = 'ALL_PAGES_PINNED', spare = 
   }
 }
 
-const ensurer = (tracking: ReturnType<typeof createWebgpuPageTracking>, cache: unknown) =>
+const ensurer = (tracking: WebgpuPageTracking, cache: unknown) =>
   tierEnsurer(tracking, cache, () => [])
 
 test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {

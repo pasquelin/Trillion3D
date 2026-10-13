@@ -11,7 +11,7 @@ import {
   slotCount,
 } from '../../gpu/draw/draw.ts'
 import { ROW_INDEX_WORDS } from '../row/pageRow.ts'
-import { ROW_WORDS } from '../../visibility/buffer.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'

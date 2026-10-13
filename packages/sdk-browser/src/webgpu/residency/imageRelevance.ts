@@ -1,7 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 
 /**
  * Whether bytes arriving for these clusters can change the image. The answer reads only the sets
@@ -11,7 +9,7 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>
  * frame alone. When in doubt, yes.
  */
 export function createImageRelevance(options: {
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   bootstrapKey: Uint8Array
   requests: (key: number) => boolean
   /** Whether the cache holds the page of `key` pinned. */

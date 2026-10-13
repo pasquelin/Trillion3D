@@ -1,26 +1,23 @@
 import { pageRequestUrl, type PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from '../row/pageSlots.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 
-type Cache = ReturnType<typeof createGpuPageCache>
-type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
 type BootstrapOptions = {
   pages: PageRec[]
   getSlots: () => number
-  tracking: Tracking
+  tracking: WebgpuPageTracking
   signal?: AbortSignal
   readPage?: (url: string) => Promise<Uint32Array>
   acceptPage: (url: string, data: Uint32Array) => void
-  getCache: () => Cache | undefined
+  getCache: () => GpuPageCache | undefined
   getFrame: () => number
   isLost: () => boolean
   hasBytes: (page: PageRec) => boolean
-  engineDiagnostic: Diagnostics['engineDiagnostic']
-  traceDiagnostic: Diagnostics['traceDiagnostic']
-  diagnosticFailure: Diagnostics['diagnosticFailure']
+  engineDiagnostic: WebgpuDiagnosticChannel['engineDiagnostic']
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
+  diagnosticFailure: WebgpuDiagnosticChannel['diagnosticFailure']
 }
 
 /** Pins the complete fallback cover before the first WebGPU image is rendered. */

@@ -4,15 +4,12 @@ import { pageAddress } from '../row/pageSlots.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
 import { createLowerPass, type LowerList, type LowerPassOptions } from './lowerTier.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import type { createGpuPageCache } from '../../gpu/page/pages.ts'
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
-type Cache = ReturnType<typeof createGpuPageCache>
-type Tracking = ReturnType<typeof createWebgpuPageTracking>
-type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic']
+import type { GpuPageCache } from '../../gpu/page/pages.ts'
+import type { WebgpuPageTracking } from '../row/pageTracking.ts'
+import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'
 type EnsureOptions = {
-  getCache: () => Cache | undefined
-  tracking: Tracking
+  getCache: () => GpuPageCache | undefined
+  tracking: WebgpuPageTracking
   bootstrapKey: Uint8Array
   signal?: AbortSignal
   hasBytes: (page: PageRec) => boolean
@@ -20,7 +17,7 @@ type EnsureOptions = {
   parentsOf: (page: PageRec) => readonly PageRec[]
   isLost: () => boolean
   traceEnabled: boolean
-  traceDiagnostic: Trace
+  traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
   /** The lower tiers, served after the camera's: the casters the light cuts asked for, then the
    *  pages ahead of the camera, each highest priority first, without repeats (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[]
@@ -42,7 +39,7 @@ type EnsureRun = {
   jobId: number
   started: number
   urls: string[]
-  cache: Cache
+  cache: GpuPageCache
   /** Wanted pages this pass left out of the pool. */
   missing: number
   /** The pool is full of pages the image holds: the burst stopped there. */

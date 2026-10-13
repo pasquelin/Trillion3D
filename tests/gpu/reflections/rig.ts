@@ -14,7 +14,7 @@ import {
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
-import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts'
+import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
 import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/sizes.ts'
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'

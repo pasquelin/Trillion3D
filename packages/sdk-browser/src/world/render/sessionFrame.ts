@@ -2,15 +2,14 @@ import type { Engine } from '../../engine/types.ts'
 import { createDrawFrame } from './draw.ts'
 import type { createSessionState } from './sessionState.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
-import type { prepareExplorer } from '../session/prepare.ts'
+import type { PreparedExplorer } from '../session/prepare.ts'
 import { createExplorerRender } from './render.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import { createExplorerStreaming } from '../scene/streaming.ts'
 import { createPartitionFrame } from '../scene/partitionFrame.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared
+  prepared: PreparedExplorer
   host: ReturnType<typeof createSessionState>
   engine: Engine
 }

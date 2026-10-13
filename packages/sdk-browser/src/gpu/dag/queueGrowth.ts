@@ -16,8 +16,7 @@ import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import type { CutTablesAt } from './uniforms.ts'
-import type { createDagResources } from './resources.ts'
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+import type { DagResources } from './resources.ts'
 
 /**
  * THE QUEUES AND LISTS A CUT GROWS TO. A cut's descent queues and its candidate and live lists are

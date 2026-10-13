@@ -1,12 +1,13 @@
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
 
 /** Every holder's release of one device's buffers (`releaseHeldBuffers`). */
-const releases = new Set<(device: GPUDevice) => void>()
+const releases = createListeners<[device: GPUDevice]>()
 
 /** Destroys every buffer any holder keeps for `device`: a session's handle gives them back when it
  *  closes, as the shared device outlives it and the hold is keyed by the handle that took them. */
 export function releaseHeldBuffers(device: GPUDevice) {
-  for (const release of releases) release(device)
+  releases.emit(device)
 }
 
 /**
@@ -30,7 +31,7 @@ export function heldBuffers(idleMs?: number) {
     if (!hold) holds.set(device, (hold = { held: new Map(), idle: undefined }))
     return hold
   }
-  releases.add((device) => {
+  releases.subscribe((device) => {
     const hold = holds.get(device)
     if (!hold) return
     clearTimeout(hold.idle)

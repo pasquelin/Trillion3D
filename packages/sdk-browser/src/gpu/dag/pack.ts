@@ -257,7 +257,7 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
  * shift leads the page to its record (`layout.ts`). Nodes are each primitive's once, shared by its
  * placements — a queue entry names the placement beside the node (`shader/levelWgsl.ts`) —, and the
  * placement tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
- * `grownCapacity`) takes later placements of its primitives in place (`appendDagRoots`), each a
+ * `grownLength`) takes later placements of its primitives in place (`appendDagRoots`), each a
  * member of its tree and linked to the world DAG as the others.
  */
 export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapacity): PackedDag {

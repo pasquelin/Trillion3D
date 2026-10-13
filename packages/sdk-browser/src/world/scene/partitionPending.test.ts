@@ -4,7 +4,7 @@ import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import { createCellHolds } from '../../partition/cellHolds.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 
 type Io = Parameters<PartitionCells['frame']>[2]
@@ -29,7 +29,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
       new Promise<void>((resolve) => {
         if (url === 'near.json') read = resolve
       }),
-  } as unknown as ReturnType<typeof createPageStreamer>
+  } as unknown as PageStreaming
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer,
@@ -65,7 +65,7 @@ function stillFrame(holder: Parameters<typeof createCellHolds>[0]) {
   } as unknown as PartitionCells
   const frame = createPartitionFrame({
     partitions: [cells],
-    streamer: {} as ReturnType<typeof createPageStreamer>,
+    streamer: {} as PageStreaming,
     camera: hostFramingCamera(60, 1, 0.1, 100),
     engine: { worldCut: () => undefined } as unknown as Engine,
     budget: { admits: () => true, spend() {} },

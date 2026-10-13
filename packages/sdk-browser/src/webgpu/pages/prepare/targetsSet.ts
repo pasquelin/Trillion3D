@@ -6,42 +6,21 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { WebgpuGpuState } from '../state/gpu.ts'
 import type { WebgpuVisState } from '../state/vis.ts'
 import type { FrameSize } from '../state/renderScale.ts'
-import type { WebgpuView } from '../state/view.ts'
+import { TARGET_GPU_KEYS, VIEW_VIS_KEYS, type WebgpuView } from '../state/view.ts'
 
 /** The members of the frame targets (`makeTargets`), in the runtime's groups: what a set made
  *  beside those in place trades with them whole (`targetsAside.ts`), as a view switch trades a
  *  view's (`VIEW_GPU_KEYS`). */
 const SET_GPU_KEYS = [
-  'colorTexture',
-  'colorView',
-  'depthTexture',
-  'depthView',
-  'hdrTexture',
-  'hdrView',
-  'displayTexture',
-  'displayView',
-  'feedbackTexture',
-  'feedbackView',
-  'backdrop',
-  'reflection',
-  'surfaces',
+  ...TARGET_GPU_KEYS,
   'asIsShare',
   'displayFilter',
-  'targetSize',
-  'allocatedSize',
-  'displaySize',
-  'targetBytes',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
-const SET_VIS_KEYS = [
-  'visTexture',
-  'visView',
-  'gpuRaster',
-] as const satisfies readonly (keyof WebgpuVisState)[]
 
 /** One set of frame targets held outside the runtime's groups. */
 export interface TargetSet {
   gpu: Pick<WebgpuGpuState, (typeof SET_GPU_KEYS)[number]>
-  vis: Pick<WebgpuVisState, (typeof SET_VIS_KEYS)[number]>
+  vis: Pick<WebgpuVisState, (typeof VIEW_VIS_KEYS)[number]>
 }
 
 /** A set holding no target: traded in, it empties the groups. */
@@ -55,7 +34,7 @@ export function tradeSet(
   next: TargetSet,
 ) {
   tradeView(rt.gpu, into.gpu, next.gpu, SET_GPU_KEYS)
-  tradeView(rt.vis, into.vis, next.vis, SET_VIS_KEYS)
+  tradeView(rt.vis, into.vis, next.vis, VIEW_VIS_KEYS)
 }
 
 /** Destroys the targets `gpu` and `vis` hold — the runtime's groups or a set's —, their members

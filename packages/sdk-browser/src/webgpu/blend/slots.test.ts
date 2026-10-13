@@ -13,11 +13,10 @@ import {
 import { planItem, planPipeline } from './plan.ts'
 import { PLAN_SHARED_BIT } from './planEntry.ts'
 import { RUN_WORDS } from './planLayout.ts'
-import type { createWebgpuBlendState } from './state.ts'
+import type { WebgpuBlendState } from './state.ts'
 import { transparentScene } from './orderKernel.fixture.ts'
 import { referenceOrder } from './plan.fixture.ts'
 
-type BlendState = ReturnType<typeof createWebgpuBlendState>
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
 
 /** Runs as the CPU sliced them before the GPU ordered the plan: a stretch of shared entries of one
@@ -41,7 +40,7 @@ function slicedRuns(order: number[]) {
 
 /** Every instance the draws paint, in paint order, with the pipeline, the buffers and the vertex
  *  count of the draw that paints it: two lists equal here paint the same image. */
-function painted(blendState: BlendState, order: number[], runs: number[]) {
+function painted(blendState: WebgpuBlendState, order: number[], runs: number[]) {
   const expanded = new Uint32Array(blendState.instanceCapacity * 2),
     args = new Uint32Array(runs.length * 2 + 4)
   const counts = new Uint32Array(blendState.table!.length).map((_, k) => 1 + (k % 3))

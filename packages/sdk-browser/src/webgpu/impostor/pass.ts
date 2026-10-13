@@ -33,11 +33,11 @@ export function createImpostorPass(
     visPipeline,
     feed: createImpostorFeed(device, atlasLayout, reader, feedOptions),
     viewBuffer,
-    /** The image's group over a card buffer of at least `cards` records (`grownCapacity`). */
+    /** The image's group over a card buffer of at least `cards` records (`grownLength`). */
     imageGroup(cards: number) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4
       if (!cardBuffer || cardBuffer.size < bytes) {
-        const size = core.grownCapacity(cardBuffer?.size ?? 0, bytes)
+        const size = core.grownLength(cardBuffer?.size ?? 0, bytes)
         cardBuffer?.destroy()
         cardBuffer = device.createBuffer({
           label: 'Trillion3D impostor cards',

@@ -1,7 +1,8 @@
 // The normal rule of a two-sided material, shared by the two passes that light.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FLAG_DOUBLE, FLAG_HAS_NORMAL, SHADE_SHADER } from '../visibility/buffer.ts'
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL } from '../visibility/types.ts'
+import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
 /**

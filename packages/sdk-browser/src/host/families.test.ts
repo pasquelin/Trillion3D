@@ -7,7 +7,6 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createWorldPhysics } from '../physics/worldPhysics.ts'
 import { worldDiagnostic } from '../world/core/worldHandles.ts'
 import { frameWaits } from '../world/session/familyUse.ts'
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { families, familyRefusals } from './families.ts'
 import { onDemand } from './onDemand.ts'
 
@@ -17,8 +16,7 @@ const turn = () => new Promise((wake) => setImmediate(wake))
  *  refusals told as the table tells them. */
 function standIn<N extends keyof typeof families>(t: TestContext, name: N, load: () => unknown) {
   const real = families[name]
-  const told = (error: EngineError) => familyRefusals.forEach((listener) => listener(error))
-  families[name] = onDemand(name, load as never, told) as (typeof families)[N]
+  families[name] = onDemand(name, load as never, familyRefusals.emit) as (typeof families)[N]
   t.after(() => void (families[name] = real))
 }
 

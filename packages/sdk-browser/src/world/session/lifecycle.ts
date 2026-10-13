@@ -7,21 +7,20 @@ import type { HostCamera } from '../../camera/world.ts'
 import type { SessionState } from '../render/sessionState.ts'
 import type { ExplorerSession } from './session.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void }
 
-type Streamer = ReturnType<typeof createPageStreamer>
 type Inputs = {
   check: () => void
   state: SessionState
   gpuDevice?: GPUDevice
   profiler: EngineProfiler
   ownedControls: { dispose(): void }[]
-  streamer: Streamer
+  streamer: PageStreaming
   streaming: ReturnType<typeof createExplorerStreaming>
   engine: Engine
   source: EngineContext['source']
@@ -48,7 +47,7 @@ export function releaseOwned(
  *  residency uploading it — is not counted twice. */
 function holdPages(
   engine: Engine,
-  streamer: Streamer,
+  streamer: PageStreaming,
   missing: readonly string[],
   hold: (url: string) => void,
 ) {

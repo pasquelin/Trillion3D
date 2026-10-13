@@ -13,10 +13,9 @@ import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { planWords, RUN_WORDS } from './planLayout.ts'
-import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
+import { createWebgpuBlendState, type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 import type { TransparentTable } from '../transparent/table.ts'
 
-type BlendState = ReturnType<typeof createWebgpuBlendState>
 type Vec = number[]
 type Kernel = {
   itemKey(item: number): Vec
@@ -33,7 +32,7 @@ const NAMES = [...BLEND_ORDER_SHADER.matchAll(/\bfn (\w+)\(/g)].map((match) => m
 const THREADS = SORT_BLOCK / 2
 
 /** The GPU buffers of one scene as plain arrays, and the kernel's functions over them. */
-export function gpuOf(blendState: BlendState) {
+export function gpuOf(blendState: WebgpuBlendState) {
   const plan = new Array<number>(planWords(blendState.maxPlanEntries)).fill(0)
   blendState.seeds.forEach((seeds, pass) => {
     seeds.forEach((entry, seed) => (plan[blendState.planRegions[pass].seeds + seed] = entry))
@@ -52,7 +51,7 @@ export function gpuOf(blendState: BlendState) {
 }
 
 /** Replays the dispatches of one pass's order, a block dispatch barrier by barrier. */
-function runOrder(blendState: BlendState, pass: number, gpu: ReturnType<typeof gpuOf>) {
+function runOrder(blendState: WebgpuBlendState, pass: number, gpu: ReturnType<typeof gpuOf>) {
   const { scope, kernel } = gpu,
     words = blendState.orderStepWords
   for (const step of blendState.orderSteps[pass]) {
@@ -147,7 +146,7 @@ export function transparentScene(count: number, seed: number) {
 }
 
 /** One frame ranked from `eye`: the kernel's order and slots of each pass against the model's. */
-export function checkKernel(blendState: BlendState, eye: number[], what: string) {
+export function checkKernel(blendState: WebgpuBlendState, eye: number[], what: string) {
   orderBlendPasses(blendState, eye)
   const gpu = gpuOf(blendState)
   refreshEyeKeys(blendState, eye)

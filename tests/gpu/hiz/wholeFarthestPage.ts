@@ -29,8 +29,6 @@ export type WholeFarthestCase = { width: number; height: number; seed: number }
 const rowsOf = (depth: Float32Array, width: number, height: number) =>
   Array.from({ length: height }, (_, y) => Array.from(depth.subarray(y * width, (y + 1) * width)))
 
-const f = Math.fround
-
 /** The slope rule the build holds, the shipped WGSL run as JavaScript: this model's reductions and
  *  half-float rounding are independent of the build's, the rule they apply is the build's own. */
 const { surfaceSlopeOf: slopeOf } = shaderRun<{
@@ -51,10 +49,11 @@ function farthestCorners(depth: Float32Array, width: number, height: number) {
   return Float32Array.from(depth, (z, i) => {
     const x = i % width,
       y = (i - x) / width
-    const held = (slope: number) => (z > 0 ? f(fromHalf(toHalf(f(slope / z))) * z) : 0)
+    const held = (slope: number) =>
+      z > 0 ? Math.fround(fromHalf(toHalf(Math.fround(slope / z))) * z) : 0
     const sx = held(slopeOf(z, at(x - 1, y), at(x + 1, y), at(x - 2, y), at(x + 2, y)))
     const sy = held(slopeOf(z, at(x, y - 1), at(x, y + 1), at(x, y - 2), at(x, y + 2)))
-    return Math.max(f(z - f(0.5 * f(Math.abs(sx) + Math.abs(sy)))), 0)
+    return Math.max(Math.fround(z - Math.fround(0.5 * Math.fround(Math.abs(sx) + Math.abs(sy)))), 0)
   })
 }
 
