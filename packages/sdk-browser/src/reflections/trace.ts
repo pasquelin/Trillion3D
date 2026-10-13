@@ -1,5 +1,9 @@
-import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
-import { sameEntries } from '../gpu/core/sameEntries.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  namedEntries,
+} from '../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import {
   FLAT_INDEX_WGSL,
   OPEN_SLICE_WGSL,
@@ -27,17 +31,40 @@ import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 
-/** The binding of the light grid's buffer in the trace's group 0: the world lists the proxy hits walk. */
-const LIGHT_LISTS_BINDING = 17
-
-/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`): its buffer, the world
- *  matrices mirrored in it, the trace's list with the frame's counters and the store of the answers. */
-const RUNTIME_BINDINGS: RuntimeBindings = {
-  group: 0,
-  proxy: 11,
+/**
+ * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
+ * declarations, the layouts and the entries read their numbers here. The surface targets, the
+ * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
+ * (`work`), the trace's list with the frame's counters, the store of the run-time proxy's answers,
+ * the proxy's buffer and the light grid's buffer, whose world lists the proxy hits walk.
+ */
+const TRACE_BINDINGS = {
+  flags: 0,
+  normals: 1,
+  target: 2,
+  lights: 3,
+  lobes: 4,
+  bounceGrid: 5,
+  probes: 6,
+  work: 7,
   list: 8,
   store: 9,
+  base: 10,
+  proxy: 11,
+  lightLists: 17,
+} as const
+
+/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`), the table's. */
+const RUNTIME_BINDINGS: RuntimeBindings = {
+  group: 0,
+  proxy: TRACE_BINDINGS.proxy,
+  list: TRACE_BINDINGS.list,
+  store: TRACE_BINDINGS.store,
 }
+
+/** The frame state's group (`BEGIN_SHADER`): the view uniform, the indirect arguments, the
+ *  lighting's view and the trace's list. */
+const BEGIN_BINDINGS = { view: 1, work: 2, lightView: 3, list: 4 } as const
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -55,16 +82,16 @@ const RUNTIME_BINDINGS: RuntimeBindings = {
  * the screen, the proxy, the probes and the environment (`reflectedRadiance`).
  */
 export const TRACE_SHADER = wgslProgram(
-  `@group(0) @binding(0) var traceFlags:texture_2d<u32>;
-@group(0) @binding(1) var traceNormals:texture_2d<f32>;
-@group(0) @binding(2) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
-@group(0) @binding(3) var<storage,read> directLights:DirectLights;
-@group(0) @binding(4) var traceLobes:texture_2d<u32>;
-@group(0) @binding(5) var<uniform> bounce:BounceGrid;
-@group(0) @binding(6) var probes:texture_2d_array<f32>;
-@group(0) @binding(7) var<storage,read_write> work:array<atomic<u32>>;
-@group(0) @binding(10) var traceBase:texture_2d<f32>;
-@group(0) @binding(${LIGHT_LISTS_BINDING}) var<storage,read> tileLights:array<u32>;
+  `@group(0) @binding(${TRACE_BINDINGS.flags}) var traceFlags:texture_2d<u32>;
+@group(0) @binding(${TRACE_BINDINGS.normals}) var traceNormals:texture_2d<f32>;
+@group(0) @binding(${TRACE_BINDINGS.target}) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(${TRACE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${TRACE_BINDINGS.lobes}) var traceLobes:texture_2d<u32>;
+@group(0) @binding(${TRACE_BINDINGS.bounceGrid}) var<uniform> bounce:BounceGrid;
+@group(0) @binding(${TRACE_BINDINGS.probes}) var probes:texture_2d_array<f32>;
+@group(0) @binding(${TRACE_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
+@group(0) @binding(${TRACE_BINDINGS.base}) var traceBase:texture_2d<f32>;
+@group(0) @binding(${TRACE_BINDINGS.lightLists}) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -128,10 +155,10 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  * moved on.
  */
 export const BEGIN_SHADER = wgslProgram(
-  `@group(0) @binding(1) var<storage,read_write> reflectionView:ReflectionView;
-@group(0) @binding(2) var<storage,read_write> work:array<u32>;
-@group(0) @binding(3) var<uniform> view:View;
-@group(0) @binding(4) var<storage,read_write> traceList:array<u32>;
+  `@group(0) @binding(${BEGIN_BINDINGS.view}) var<storage,read_write> reflectionView:ReflectionView;
+@group(0) @binding(${BEGIN_BINDINGS.work}) var<storage,read_write> work:array<u32>;
+@group(0) @binding(${BEGIN_BINDINGS.lightView}) var<uniform> view:View;
+@group(0) @binding(${BEGIN_BINDINGS.list}) var<storage,read_write> traceList:array<u32>;
 const BACKGROUND_WHITE:f32=${254.5 / 255};
 @compute @workgroup_size(1)
 fn reflectionBegin(){
@@ -155,33 +182,33 @@ function traceLayouts(device: GPUDevice) {
   return {
     traceLayout: device.createBindGroupLayout({
       entries: [
-        computeTextureEntry(0, 'uint'),
-        computeTextureEntry(1, 'unfilterable-float'),
-        storageEntry(2),
-        computeBufferEntry(3, 'read-only-storage'),
-        computeTextureEntry(4, 'uint'),
-        computeBufferEntry(5, 'uniform'),
-        computeTextureEntry(6, 'unfilterable-float', '2d-array'),
-        computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
-        storeEntry(RUNTIME_BINDINGS.store),
-        computeTextureEntry(10, 'unfilterable-float'),
-        computeBufferEntry(LIGHT_LISTS_BINDING, 'read-only-storage'),
-        computeBufferEntry(RUNTIME_BINDINGS.proxy, 'read-only-storage'),
+        computeTextureEntry(TRACE_BINDINGS.flags, 'uint'),
+        computeTextureEntry(TRACE_BINDINGS.normals, 'unfilterable-float'),
+        storageEntry(TRACE_BINDINGS.target),
+        computeBufferEntry(TRACE_BINDINGS.lights, 'read-only-storage'),
+        computeTextureEntry(TRACE_BINDINGS.lobes, 'uint'),
+        computeBufferEntry(TRACE_BINDINGS.bounceGrid, 'uniform'),
+        computeTextureEntry(TRACE_BINDINGS.probes, 'unfilterable-float', '2d-array'),
+        computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
+        storeEntry(TRACE_BINDINGS.store),
+        computeTextureEntry(TRACE_BINDINGS.base, 'unfilterable-float'),
+        computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
+        computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
       ],
     }),
     classifyLayout: device.createBindGroupLayout({
       entries: [
-        computeTextureEntry(0, 'uint'),
-        computeBufferEntry(7, 'storage'),
-        computeBufferEntry(RUNTIME_BINDINGS.list, 'storage'),
+        computeTextureEntry(TRACE_BINDINGS.flags, 'uint'),
+        computeBufferEntry(TRACE_BINDINGS.work, 'storage'),
+        computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
       ],
     }),
     beginLayout: device.createBindGroupLayout({
       entries: [
-        computeBufferEntry(1, 'storage'),
-        computeBufferEntry(2, 'storage'),
-        computeBufferEntry(3, 'uniform'),
-        computeBufferEntry(4, 'storage'),
+        computeBufferEntry(BEGIN_BINDINGS.view, 'storage'),
+        computeBufferEntry(BEGIN_BINDINGS.work, 'storage'),
+        computeBufferEntry(BEGIN_BINDINGS.lightView, 'uniform'),
+        computeBufferEntry(BEGIN_BINDINGS.list, 'storage'),
       ],
     }),
   }
@@ -242,6 +269,12 @@ export const createTraceTiles = (device: GPUDevice, width: number, height: numbe
 })
 type TraceTiles = ReturnType<typeof createTraceTiles>
 
+/** A view's trace groups, none made yet: made at the first trace (`traceGroups`). */
+export const createTraceGroups = () => ({
+  identity: createWebgpuBindIdentity(),
+  groups: undefined as TraceGroups | undefined,
+})
+
 /** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
  *  resident proxy, the deferred lighting's view. */
 export type TraceInputs = {
@@ -261,34 +294,31 @@ export type TraceInputs = {
   lightView: GPUBuffer
 }
 
-/** The groups of a trace over inputs, kept while every input stays. */
-export type TraceGroups = {
-  key: unknown[]
-  trace: GPUBindGroup
-  classify: GPUBindGroup
-  begin: GPUBindGroup
-}
+/** The groups of a trace: the trace's, the classification's and the frame state's. */
+type TraceGroups = { trace: GPUBindGroup; classify: GPUBindGroup; begin: GPUBindGroup }
 
-/** What a view's trace holds: the target it writes, its view uniform, its tile list and its groups. */
+/** What a view's trace holds: the target it writes, its view uniform, its tile list, and its groups
+ *  under the identity of the resources they name (`createWebgpuBindIdentity`). */
 type TraceResources = {
   device: GPUDevice
   targetView: GPUTextureView
   uniform: GPUBuffer
   tiles: TraceTiles
-  traceGroups?: TraceGroups
+  trace: { identity: WebgpuBindIdentity; groups?: TraceGroups }
 }
-const probe: unknown[] = []
 
-/** The bind groups of `reflection`'s trace over `inputs`, made when an input is not the one they
- *  were made for. */
+/** The bind groups of `reflection`'s trace over `inputs`, made again when a resource they name is
+ *  not the one they were made over. */
 function traceGroups(
   reflection: TraceResources,
   stages: Awaited<ReturnType<typeof createTraceStages>>,
   inputs: TraceInputs,
 ) {
-  const { device, targetView, uniform, tiles } = reflection
-  probe.length = 0
-  probe.push(
+  const { device, targetView, uniform, tiles, trace } = reflection
+  const { next } = trace.identity
+  next.length = 0
+  next.push(
+    stages,
     inputs.base,
     inputs.flags,
     inputs.normals,
@@ -298,48 +328,44 @@ function traceGroups(
     inputs.probes,
     inputs.proxy,
     inputs.store,
-    tiles.list,
     inputs.lightView,
     inputs.lightLists,
-    stages,
   )
-  if (reflection.traceGroups && sameEntries(reflection.traceGroups.key, probe))
-    return reflection.traceGroups
-  return (reflection.traceGroups = {
-    key: probe.slice(),
+  if (!trace.identity.moved() && trace.groups) return trace.groups
+  return (trace.groups = {
     trace: device.createBindGroup({
       layout: stages.traceLayout,
-      entries: [
-        { binding: 0, resource: inputs.flags },
-        { binding: 1, resource: inputs.normals },
-        { binding: 2, resource: targetView },
-        { binding: 3, resource: { buffer: inputs.lights } },
-        { binding: 4, resource: inputs.lobes },
-        { binding: 5, resource: { buffer: inputs.bounceGrid } },
-        { binding: 6, resource: inputs.probes },
-        { binding: RUNTIME_BINDINGS.list, resource: { buffer: tiles.list } },
-        { binding: RUNTIME_BINDINGS.store, resource: inputs.store },
-        { binding: 10, resource: inputs.base },
-        { binding: LIGHT_LISTS_BINDING, resource: { buffer: inputs.lightLists } },
-        { binding: RUNTIME_BINDINGS.proxy, resource: { buffer: inputs.proxy } },
-      ],
+      entries: namedEntries(TRACE_BINDINGS, {
+        flags: inputs.flags,
+        normals: inputs.normals,
+        target: targetView,
+        lights: { buffer: inputs.lights },
+        lobes: inputs.lobes,
+        bounceGrid: { buffer: inputs.bounceGrid },
+        probes: inputs.probes,
+        list: { buffer: tiles.list },
+        store: inputs.store,
+        base: inputs.base,
+        lightLists: { buffer: inputs.lightLists },
+        proxy: { buffer: inputs.proxy },
+      }),
     }),
     classify: device.createBindGroup({
       layout: stages.classifyLayout,
-      entries: [
-        { binding: 0, resource: inputs.flags },
-        { binding: 7, resource: { buffer: tiles.args } },
-        { binding: RUNTIME_BINDINGS.list, resource: { buffer: tiles.list } },
-      ],
+      entries: namedEntries(TRACE_BINDINGS, {
+        flags: inputs.flags,
+        work: { buffer: tiles.args },
+        list: { buffer: tiles.list },
+      }),
     }),
     begin: device.createBindGroup({
       layout: stages.beginLayout,
-      entries: [
-        { binding: 1, resource: { buffer: uniform } },
-        { binding: 2, resource: { buffer: tiles.args } },
-        { binding: 3, resource: { buffer: inputs.lightView } },
-        { binding: 4, resource: { buffer: tiles.list } },
-      ],
+      entries: namedEntries(BEGIN_BINDINGS, {
+        view: { buffer: uniform },
+        work: { buffer: tiles.args },
+        lightView: { buffer: inputs.lightView },
+        list: { buffer: tiles.list },
+      }),
     }),
   })
 }

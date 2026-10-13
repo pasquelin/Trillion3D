@@ -1,7 +1,6 @@
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
@@ -21,15 +20,6 @@ export type ReflectionFrame = {
   epoch?: number
 }
 
-/** The words of the view that the CPU writes, in 16-word runs (`sameElements`). */
-const RUNS = ceilDiv(REFLECTION_VIEW_WRITTEN_WORDS, 16)
-
-/** Whether every run of `staged` is what `sent` holds. */
-function unchanged(sent: Float32Array, runs: Float32Array[]) {
-  for (let k = 0; k < RUNS; k++) if (!sameElements(sent, runs[k], 16 * k)) return false
-  return true
-}
-
 /**
  * The writer of a view uniform `buffer`: it stages this image's view — the view-projection, the
  * radiance image's view-projection and its inverse, drawn size and top level (`levels` − 1), this
@@ -37,17 +27,16 @@ function unchanged(sent: Float32Array, runs: Float32Array[]) {
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
  * is traced and the resident proxy's error; all but the surroundings, which the GPU
- * writes from the lighting's view. It writes the buffer when what it staged is not what it sent
- * last: a still view writes once, and nothing in it is a frame index or a seed. Nothing is
- * allocated by a call.
+ * writes from the lighting's view. The words that differ from those it sent go up (`writeChanged`):
+ * a still view writes once, and nothing in it is a frame index or a seed. Nothing is allocated by
+ * a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
   const staged = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
-  const sent = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS)
+  const words = new Uint32Array(staged.buffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
   const runtime = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.runtime * 4, 4)
   const inverse = new Float64Array(16)
-  const runs = Array.from({ length: RUNS }, (_, k) => staged.subarray(16 * k, 16 * k + 16))
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
     copyMatrix4(staged, m, REFLECTION_VIEW_AT.viewProj)
@@ -68,8 +57,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     runtime[0] = frame.epoch ?? 0
-    if (unchanged(sent, runs)) return
-    sent.set(staged)
-    device.queue.writeBuffer(buffer, 0, staged)
+    writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WRITTEN_WORDS)
   }
 }

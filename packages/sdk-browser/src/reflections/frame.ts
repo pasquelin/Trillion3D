@@ -7,7 +7,7 @@ import {
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { encodeFrontDepth } from './frontDepth.ts'
-import { reflectionGroup, reflectionOver, type ScreenReflection } from './gpu.ts'
+import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
@@ -57,7 +57,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     hiz = vis.gpuHiz,
     depth = hiz?.depth()
   if (!hiz) return
-  if (reflection && stages && depth && reflectionOver(rt)) {
+  if (reflection && stages && depth && reflectionLightView(rt)) {
     writeFrame(rt, reflection)
     encodeFrontDepth(encoder, reflection, stages, gpu.targetSize)
   }
@@ -79,8 +79,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     stages = vis.reflectionPipelines,
     hiz = vis.gpuHiz,
     depth = hiz?.depth(),
-    over = reflectionOver(rt)
-  if (!reflection || !stages || !hiz || !depth || !over) return
+    lightView = reflectionLightView(rt)
+  if (!reflection || !stages || !hiz || !depth || !lightView) return
   writeFrame(rt, reflection)
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
@@ -102,8 +102,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
     inputs.proxy = rt.run.gpuSelection?.proxyBuffer() ?? deferred.placeholders.runtime
     inputs.store = reflection.store.view ?? deferred.placeholders.store
-    inputs.lightView = over.lightView
-    const group = reflectionGroup(reflection, depth, over)
+    inputs.lightView = lightView
+    const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }
   reflectionPass.end()

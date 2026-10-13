@@ -2,7 +2,10 @@ import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
+  sequentialEntries,
 } from '../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { FRONT_DEPTH_PASS } from '../stage/passLabels.ts'
 import { copyRowBytes } from '../gpu/core/copyRowBytes.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
@@ -212,13 +215,14 @@ export function createFrontDepth(
     attachment,
     /** The rectangle the transparents wrote since the target was cleared: `[x0, y0, x1, y1]`. */
     rect: [0, 0, 0, 0],
-    /** The rectangle the scatter's uniform holds. */
-    sent: new Uint32Array(4),
+    /** The rectangle the scatter's uniform is given (`writeChanged`). */
+    scattered: new Uint32Array(4),
     carried,
     foldedView: carried?.folded.createView(),
     fresh: false,
     held: false,
-    group: undefined as GPUBindGroup | undefined,
+    /** The scatter's group, under the identity of what it names (`createWebgpuBindIdentity`). */
+    scatter: { identity: createWebgpuBindIdentity(), group: undefined as GPUBindGroup | undefined },
     dispose() {
       written.destroy()
       carried?.buffer.destroy()
@@ -263,32 +267,39 @@ export function encodeFrontDepth(
   encoder.clearBuffer(carried.buffer)
   if (carries) {
     const [width, height] = reflection.radiance.held.size,
-      { rect, sent } = front
+      { rect, scattered } = front
     const x0 = min(rect[0], width),
       y0 = min(rect[1], height),
       x1 = min(rect[2], width),
       y1 = min(rect[3], height)
-    if (sent[0] !== x0 || sent[1] !== y0 || sent[2] !== x1 || sent[3] !== y1) {
-      sent[0] = x0
-      sent[1] = y0
-      sent[2] = x1
-      sent[3] = y1
-      device.queue.writeBuffer(carried.rect, 0, sent)
-    }
-    front.group ??= device.createBindGroup({
-      label: LABEL,
-      layout: stages.frontLayout,
-      entries: [
-        { binding: 0, resource: { buffer: reflection.uniform } },
-        { binding: 1, resource: front.view },
-        { binding: 2, resource: { buffer: carried.buffer } },
-        { binding: 3, resource: { buffer: carried.rect } },
-      ],
-    })
+    scattered[0] = x0
+    scattered[1] = y0
+    scattered[2] = x1
+    scattered[3] = y1
+    writeChanged(device, carried.rect, scattered, 0, 4)
+    const { scatter } = front,
+      { next } = scatter.identity
+    next[0] = stages.frontLayout
+    next[1] = reflection.uniform
+    next[2] = front.view
+    next[3] = carried.buffer
+    next[4] = carried.rect
+    next.length = 5
+    if (scatter.identity.moved() || !scatter.group)
+      scatter.group = device.createBindGroup({
+        label: LABEL,
+        layout: stages.frontLayout,
+        entries: sequentialEntries([
+          { buffer: reflection.uniform },
+          front.view,
+          { buffer: carried.buffer },
+          { buffer: carried.rect },
+        ]),
+      })
     if (x1 > x0 && y1 > y0) {
       const pass = encoder.beginComputePass({ label: FRONT_DEPTH_PASS })
       pass.setPipeline(stages.frontPipeline)
-      pass.setBindGroup(0, front.group)
+      pass.setBindGroup(0, scatter.group)
       pass.dispatchWorkgroups(ceilDiv(x1 - x0, REFLECTION_SIDE), ceilDiv(y1 - y0, REFLECTION_SIDE))
       pass.end()
     }

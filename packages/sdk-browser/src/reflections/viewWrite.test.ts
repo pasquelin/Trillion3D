@@ -7,16 +7,31 @@ import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WRITTEN_WORDS } from './viewLayout.
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 
+/** A device whose queue lays each write into the words of one view uniform: what the buffer holds
+ *  after each call, and the writes it took. */
+function viewDevice() {
+  const words = new Float32Array(REFLECTION_VIEW_WRITTEN_WORDS + 16),
+    bits = new Uint32Array(words.buffer)
+  const held = { words, bits, writes: 0, last: 0 }
+  const device = {
+    queue: {
+      writeBuffer: (_: unknown, at: number, w: Uint32Array, from: number, count: number) => {
+        bits.set(w.subarray(from, from + count), at / 4)
+        held.writes++
+        held.last = Math.max(held.last, at / 4 + count)
+      },
+    },
+  } as unknown as GPUDevice
+  return { device, buffer: { size: words.byteLength } as GPUBuffer, held }
+}
+
 test('the view uniform carries the pixel scale, the held image, the slab and whether the screen traces', () => {
   // An infinite reversed perspective of 60° vertically, the eye at the origin.
   const f = 1 / Math.tan(Math.PI / 6),
     near = 0.1
   const viewProjection = [f / 2, 0, 0, 0, 0, f, 0, 0, 0, 0, 0, -1, 0, 0, near, 0]
-  const written: Float32Array[] = []
-  const device = {
-    queue: { writeBuffer: (_: unknown, __: number, w: Float32Array) => written.push(w.slice()) },
-  } as unknown as GPUDevice
-  const write = createReflectionViewWriter(device, {} as GPUBuffer)
+  const { device, buffer, held: sent } = viewDevice()
+  const write = createReflectionViewWriter(device, buffer)
   const held: HeldImage = {
     valid: false,
     viewProjection: new Float64Array(16).fill(2),
@@ -30,8 +45,7 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     proxyError: 0.1,
   }
   write(frame, held, 8)
-  const words = written[0],
-    traced = new Uint32Array(words.buffer)
+  const { words, bits: traced } = sent
   // The world size of a pixel one unit away: 2·tan(30°) / 300, a perspective whose depth at an
   // infinite distance is zero.
   assert.ok(
@@ -55,39 +69,33 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     [...words.slice(REFLECTION_VIEW_AT.proxy, REFLECTION_VIEW_AT.proxy + 1)],
     [Math.fround(0.1)],
   )
-  assert.equal(words.length, REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
+  assert.ok(sent.last <= REFLECTION_VIEW_WRITTEN_WORDS, 'the surroundings are not written')
   write(frame, { ...held, valid: true }, 8)
-  assert.equal(new Uint32Array(written[1].buffer)[REFLECTION_VIEW_AT.traced], 1)
+  assert.equal(traced[REFLECTION_VIEW_AT.traced], 1)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
-  assert.equal(
-    new Uint32Array(written[2].buffer)[REFLECTION_VIEW_AT.traced],
-    0,
-    'a stale depth is never marched',
-  )
+  assert.equal(traced[REFLECTION_VIEW_AT.traced], 0, 'a stale depth is never marched')
   // A still view writes once: nothing in the words turns with the frame.
+  const writes = sent.writes
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
   write({ ...frame, depthDrawn: false }, { ...held, valid: true }, 8)
-  assert.equal(written.length, 3)
+  assert.equal(sent.writes, writes)
 })
 
 test("the slab follows the projection: a perspective's depth at infinity, an orthographic one's step", () => {
   const slab = (viewProjection: number[], size: readonly [number, number]) => {
-    let words = new Float32Array(0)
-    const device = {
-      queue: { writeBuffer: (_: unknown, __: number, w: Float32Array) => (words = w.slice()) },
-    } as unknown as GPUDevice
+    const { device, buffer, held: sent } = viewDevice()
     const held: HeldImage = {
       valid: false,
       viewProjection: new Float64Array(16),
       size: [0, 0],
       still: false,
     }
-    createReflectionViewWriter(device, {} as GPUBuffer)(
+    createReflectionViewWriter(device, buffer)(
       { viewProjection, size, depthDrawn: true, proxyError: 0 },
       held,
       1,
     )
-    return [...words.slice(REFLECTION_VIEW_AT.slab, REFLECTION_VIEW_AT.slab + 4)]
+    return [...sent.words.slice(REFLECTION_VIEW_AT.slab, REFLECTION_VIEW_AT.slab + 4)]
   }
   // A finite reversed perspective, near 0.1 and far 100: z = n(f − w) / (w(f − n)) = A + B / w.
   const n = 0.1,

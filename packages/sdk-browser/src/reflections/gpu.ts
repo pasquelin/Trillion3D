@@ -1,4 +1,5 @@
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { shaderFailed } from '../gpu/core/shaderModule.ts'
 import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
@@ -26,7 +27,7 @@ import {
   createTraceTiles,
   TRACE_ARGS_BYTES,
   traceListBytes,
-  type TraceGroups,
+  createTraceGroups,
 } from './trace.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import {
@@ -181,15 +182,15 @@ export function createScreenReflection(
     store: answers,
     front,
     writeView: createReflectionViewWriter(device, uniform),
-    /** The reflection group over each depth it was bound with (`GpuHiz.depth`, a view's) and each
-     *  lit image the pyramid held as its level 0 (the two HDR targets take turns), and what else
-     *  it was made over. */
-    groups: new WeakMap<
-      HizDepth,
-      WeakMap<GPUTextureView, { group: GPUBindGroup; over: unknown[] }>
-    >(),
+    /** The reflection group over the depth it was bound with (`GpuHiz.depth`), the lit image the
+     *  pyramid holds as its level 0 and the lighting's view: two kept, the two HDR targets taking
+     *  turns (`reflectionGroup`). */
+    group: {
+      identity: createWebgpuBindIdentity(2),
+      slots: [] as (GPUBindGroup | undefined)[],
+    },
     /** The trace's bind groups, kept while its inputs stay (`encodeReflectionTrace`). */
-    traceGroups: undefined as TraceGroups | undefined,
+    trace: createTraceGroups(),
     dispose() {
       target.destroy()
       radiance.coarse.destroy()
@@ -205,25 +206,25 @@ export function createScreenReflection(
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
-/** What the reflection group holds beside the view's own buffers, the radiance pyramid and the
- *  depth: the deferred lighting's view. */
-export type ReflectionOver = { lightView: GPUBuffer }
-
 /** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
- *  image its pyramid holds now and `over`, made once a pyramid, lit image and depth, and while
- *  they stay: the two HDR targets taking turns find a group each. */
+ *  image its pyramid holds now and the lighting's view `lightView`, made again when one of them is
+ *  not the one it was made over: the two HDR targets taking turns find a group each. */
 export function reflectionGroup(
   reflection: ScreenReflection,
   depth: HizDepth,
-  over: ReflectionOver,
+  lightView: GPUBuffer,
 ) {
-  const image = reflection.radiance.image.view
-  let byImage = reflection.groups.get(depth)
-  if (!byImage) reflection.groups.set(depth, (byImage = new WeakMap()))
-  const kept = byImage.get(image)
-  if (kept && kept.over[0] === over.lightView) return kept.group
+  const image = reflection.radiance.image.view,
+    { identity, slots } = reflection.group
+  identity.next[0] = depth
+  identity.next[1] = image
+  identity.next[2] = lightView
+  identity.next.length = 3
+  const moved = identity.moved()
+  const kept = slots[identity.slot]
+  if (kept && !moved) return kept
   const { device } = reflection
-  const group = device.createBindGroup({
+  return (slots[identity.slot] = device.createBindGroup({
     label: 'Trillion3D reflection',
     layout: reflectionLayout(device),
     entries: [
@@ -231,15 +232,13 @@ export function reflectionGroup(
       { binding: 1, resource: reflection.radiance.view },
       { binding: 2, resource: reflection.radiance.sampler },
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
-      { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: over.lightView } },
+      { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
       { binding: REFLECTION_IMAGE_BINDING, resource: image },
     ],
-  })
-  byImage.set(image, { group, over: [over.lightView] })
-  return group
+  }))
 }
 
-/** What a frame holds that the reflection reads (`reflectionOver`). */
+/** What a frame holds that the reflection reads (`reflectionLightView`). */
 export type ReflectionHost = {
   gpu: {
     reflection?: ScreenReflection
@@ -249,19 +248,15 @@ export type ReflectionHost = {
 }
 
 /** The reflection group's other resource: the lighting's view. Undefined while the lighting is not made. */
-export function reflectionOver({ gpu }: ReflectionHost): ReflectionOver | undefined {
-  const { deferred } = gpu
-  if (!deferred) return undefined
-  return { lightView: deferred.uniform }
-}
+export const reflectionLightView = ({ gpu }: ReflectionHost) => gpu.deferred?.uniform
 
 /** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection
  *  over its depth pyramid, both made with the frame's targets and the visibility programs. */
 export function bindForwardReflection(pass: GPURenderPassEncoder, rt: ReflectionHost) {
   const depth = rt.vis.gpuHiz?.depth(),
-    over = reflectionOver(rt)
-  if (rt.gpu.reflection && depth && over)
-    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, over))
+    lightView = reflectionLightView(rt)
+  if (rt.gpu.reflection && depth && lightView)
+    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, lightView))
 }
 
 /** The image the reflections last reflected shows a scene that is no more: content joined it. The
