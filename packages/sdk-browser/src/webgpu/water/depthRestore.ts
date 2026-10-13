@@ -1,5 +1,5 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
 import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
@@ -23,27 +23,24 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
     entries: [computeTextureEntry(0, 'depth', '2d', GPUShaderStage.FRAGMENT)],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const pipelines = new Map<boolean, PreparedPipeline<GPURenderPipeline>>()
-  /** The restore of the surface pass with the lobes target or without. */
-  const restoreFor = (lobes: boolean) => {
-    let pipeline = pipelines.get(lobes)
-    if (!pipeline) {
-      const targets = waterSurfaceTargets(feedback, lobes)
-      pipeline = preparedPipeline(device, {
-        layout: pipelineLayout,
-        vertex: { module, entryPoint: 'fullscreen' },
-        fragment: {
-          module,
-          entryPoint: 'restore_fs',
-          targets: targets.map((target) => ({ ...target, writeMask: 0 })),
-        },
-        primitive: { topology: 'triangle-list' },
-        depthStencil: { format: DEPTH_FORMAT, depthCompare: 'always', depthWriteEnabled: true },
-      })
-      pipelines.set(lobes, pipeline)
-    }
-    return pipeline
-  }
+  /** The restore of the surface pass with the lobes target or without, made once each. */
+  const pipelines = preparedPipelines((lobes: boolean) =>
+    preparedPipeline(device, {
+      layout: pipelineLayout,
+      vertex: { module, entryPoint: 'fullscreen' },
+      fragment: {
+        module,
+        entryPoint: 'restore_fs',
+        targets: waterSurfaceTargets(feedback, lobes).map((target) => ({
+          ...target,
+          writeMask: 0,
+        })),
+      },
+      primitive: { topology: 'triangle-list' },
+      depthStencil: { format: DEPTH_FORMAT, depthCompare: 'always', depthWriteEnabled: true },
+    }),
+  )
+  const restoreFor = (lobes: boolean) => pipelines.of(lobes)
   await restoreFor(false).prepare()
   let group: GPUBindGroup | undefined
   return {
