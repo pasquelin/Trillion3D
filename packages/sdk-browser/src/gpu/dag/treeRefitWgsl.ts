@@ -24,18 +24,16 @@ import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
-import { partName } from './shader/splitWgsl.ts'
-import { DAG_BINDING, dagPartBindings, type DagPartTable } from './shader/bindings.ts'
-import { FRAME_ROW_WORDS, DAG_NODE_FLOATS } from './types.ts'
+import { coldTableBlock, nodeTableBlock, rangeReader, type TableLayout } from './cutTablesWgsl.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
 import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { REFIT_LANES } from './treeRefitLevels.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { ROOT_WORD } from './worlds.ts'
 
-/** Where a placement's root lies in its frame row (`primitiveFrameWords`). */
-const FRAME_ROOT = 1
 /** What the shader reads a level's parameters as: words of `Params`. */
 export const REFIT_PARAM_WORDS = 8
 
@@ -83,7 +81,7 @@ fn fitGroup(j:u32){
  for(var k=0u;k<gm;k++){
   let w=coldAt(params.members+first+k);
   if(w==${NO_INDEX}u){continue;}
-  if(frameWord(w,${FRAME_ROOT}u)==${NO_INDEX}u){continue;}
+  if(frameWord(w,${ROOT_WORD}u)==${NO_INDEX}u){continue;}
   for(var a=0u;a<3u;a++){
    lo[a]=dMin(lo[a],members[w*6u+a]);
    hi[a]=dMax(hi[a],members[w*6u+3u+a]);
@@ -112,8 +110,8 @@ fn fitCell(j:u32){
  *  node) and `cold` (a word), the parts a table has, and the first placement of each range of
  *  `frames`. */
 export type RefitLayout = {
-  nodes: { per: number; parts: number }
-  cold: { per: number; parts: number }
+  nodes: TableLayout
+  cold: TableLayout
   frames: readonly number[]
 }
 
@@ -124,73 +122,15 @@ export const WHOLE_LAYOUT: RefitLayout = {
   frames: [0],
 }
 
-/** Element `i` of a table of equal parts — word `k` of a record of `words`, a word when 1 — read or
- *  written through the part that holds it. */
-function acrossParts(table: string, { per, parts }: { per: number; parts: number }, words: number) {
-  const at = (part: number) => (part ? `(i-${part * per}u)` : 'i')
-  const index = (part: number) => (words > 1 ? `${at(part)}*${words}u+k` : at(part))
-  const target = (part: number) => `${partName(table, part)}[${index(part)}]`
-  let read = '',
-    write = ''
-  for (let part = 0; part < parts - 1; part++) {
-    const within = `if(i<${(part + 1) * per}u)`
-    read += `${within}{return ${target(part)};}`
-    write += `${within}{${target(part)}=v;return;}`
-  }
-  return {
-    read: `${read}return ${target(parts - 1)};`,
-    write: `${write}${target(parts - 1)}=v;`,
-  }
-}
-
-/** The tree's nodes as a pass in group `group` reads them: `nodes` at the cut's binding and each
- *  further part at its own (`dagPartBindings`), `nodeWord` across them — and `setNodeWord` where the
- *  pass `writable`ly binds them. Whole, one binding. */
-export function nodeTableBlock(
-  layout: RefitLayout['nodes'],
-  group: number,
-  writable: boolean,
-  /** The parts of every table the pass binds: the bindings number across them in turn. */
-  counts: Partial<Record<DagPartTable, number>> = { nodes: layout.parts },
-) {
-  const access = writable ? 'read_write' : 'read',
-    declare = (name: string, binding: number) =>
-      `@group(${group}) @binding(${binding}) var<storage,${access}> ${name}:array<u32>;`
-  const across = acrossParts('nodes', layout, DAG_NODE_FLOATS)
-  const key = `${layout.per}x${layout.parts} g${group}${writable ? 'w' : 'r'} ${JSON.stringify(counts)}`
-  return wgslBlock(
-    `nodeTable(${key})`,
-    [],
-    `${declare('nodes', DAG_BINDING.nodes)}
-${dagPartBindings(counts)
-  .filter(({ table }) => table === 'nodes')
-  .map(({ name, binding }) => declare(name, binding))
-  .join('\n')}
-fn nodeWord(i:u32,k:u32)->u32{${across.read}}
-${writable ? `fn setNodeWord(i:u32,k:u32,v:u32){${across.write}}` : ''}`,
-  )
-}
-
 /** The declarations and accessors of the tables a refit of `layout` reads. */
 function refitAccessBlock(layout: RefitLayout) {
-  const counts = { nodes: layout.nodes.parts, cold: layout.cold.parts },
-    extra = dagPartBindings(counts).filter(({ table }) => table === 'cold'),
-    cold = acrossParts('cold', layout.cold, 1)
+  const counts = { nodes: layout.nodes.parts, cold: layout.cold.parts }
   const ranges = layout.frames
-  let frames = ''
-  ranges.forEach((first, r) => {
-    const next = ranges[r + 1]
-    const read = `return frames${r}[(w-${first}u)*${FRAME_ROW_WORDS}u+k];`
-    frames += next === undefined ? read : `if(w<${next}u){${read}}`
-  })
   return wgslBlock(
     `refitAccess(${JSON.stringify(layout)})`,
-    [nodeTableBlock(layout.nodes, 0, true, counts)],
-    `@group(0) @binding(${DAG_BINDING.cold}) var<storage,read> cold:array<u32>;
-${extra.map(({ name, binding }) => `@group(0) @binding(${binding}) var<storage,read> ${name}:array<u32>;`).join('\n')}
-${ranges.map((_, r) => `@group(1) @binding(${3 + r}) var<storage,read> frames${r}:array<u32>;`).join('\n')}
-fn coldAt(i:u32)->u32{${cold.read}}
-fn frameWord(w:u32,k:u32)->u32{${frames}}`,
+    [nodeTableBlock(layout.nodes, 0, true, counts), coldTableBlock(layout.cold, 0, counts)],
+    `${ranges.map((_, r) => `@group(1) @binding(${3 + r}) var<storage,read> frames${r}:array<u32>;`).join('\n')}
+${rangeReader('frameWord', 'frames', ranges, () => `i*${FRAME_ROW_WORDS}u+k`)}`,
   )
 }
 
