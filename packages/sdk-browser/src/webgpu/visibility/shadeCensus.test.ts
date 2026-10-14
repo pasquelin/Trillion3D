@@ -5,8 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { createShadeCensus } from './shadeCensus.ts'
-import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { createMaterialTable } from '../material/materialTable.ts'
+import { testRowWriter } from '../row/pageRowWriter.fixture.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { scene } from '../core/materialClasses.fixture.ts'
@@ -29,14 +28,7 @@ function opened() {
     roots.map((root) => [root.pages[0].attributes, { ...block, hasColor: false }]),
   )
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const writeRow = createPageRowWriter(
-    {
-      ...{ geometryBlocks, ...layers, asIsShown: false, emissiveAoShown: false },
-      materialTable: createMaterialTable(),
-    },
-    () => {},
-    (packed) => packed,
-  )
+  const writeRow = testRowWriter(geometryBlocks, layers)
   const ints = new Uint32Array(ROW_WORDS)
   const rowClass = () => {
     writeRow(roots[0].pages[0], 0, 0, 0, new Float32Array(ints.buffer), ints)

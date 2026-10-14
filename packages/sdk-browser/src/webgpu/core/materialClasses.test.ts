@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
+import { testRowWriter } from '../row/pageRowWriter.fixture.ts'
 import {
   FLAG_MASK,
   MATERIAL_RANK_MASK,
@@ -93,14 +94,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
     ]),
   )
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const writeRow = createPageRowWriter(
-    {
-      ...{ geometryBlocks, ...layers, asIsShown: false, emissiveAoShown: false },
-      materialTable: createMaterialTable(),
-    },
-    () => {},
-    (packed) => packed,
-  )
+  const writeRow = testRowWriter(geometryBlocks, layers)
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer)
   const [mask, blend] = collected.roots.map((root) => root.pages[0])
