@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
-import { LOCK_OWNER, benchAlive, takeBenchLock, waitBenchLock } from './lock.ts'
+import { LOCK_OWNER, benchAlive, takeBenchLock, waitBenchLock, type LockHolder } from './lock.ts'
 import { lockHolder } from '../../scripts/machine-lock.ts'
 
 const scratch = () => join(mkdtempSync(join(tmpdir(), 'bench-lock-')), 'gpu-bench.lock')
@@ -13,7 +13,7 @@ test('a bench takes the free lock, names itself in it, and leaves it free once r
   const path = scratch()
   const release = takeBenchLock('v06', path)
   assert.equal(lockHolder(path)?.pid, process.pid)
-  assert.equal(lockHolder(path)?.what, 'v06')
+  assert.equal(lockHolder<LockHolder>(path)?.what, 'v06')
   release()
   assert.equal(existsSync(path), false)
 })
