@@ -10,7 +10,8 @@ import { createTravel } from './mobilityTravel.ts'
  * the ones `settle` walks; `dirty` and `dirtyList`: the placements whose rows' per-placement bits
  * must be written again, once each; `poses`: the pose each placement was last seen at, from the
  * layout on — a write that leaves it where it stands, a sleeping body's pose copied again, a row
- * inside a written range, is no move; a NaN first element once a parent slot held it, unknown; `rows`: one word per row; `rowRank`: the placement each row
+ * inside a written range, is no move; a NaN first element once a parent slot held it, unknown;
+ * `rows`: one word per row; `rowRank`: the placement each row
  * was last written with (-1: none), and `indexStart`/`indexRows` its rows by placement
  * (`indexStart[rank]..indexStart[rank + 1]` in `indexRows`), rebuilt when a row changed placement
  * and a placement is dirty (`indexStale`); `wholeRows`: every row is written at the next
