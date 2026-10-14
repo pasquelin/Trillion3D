@@ -4,7 +4,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { packedRowBase } from './pageRow.ts'
-import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts'
+import { emptyGeometryBlock, rowGeometry, type MaterialLayers } from './pageRowMaterial.ts'
+import { rowFlags, surfaceRow } from './surfaceRow.ts'
+import type { VisMaterial } from '../../visibility/materialType.ts'
 import { FLAG_COLOR, FLAG_UV } from '../../../../sdk-core/src/page/format.ts'
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR, FLAG_SAMPLED } from '../../visibility/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
@@ -13,6 +15,13 @@ import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/p
 import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { surfaceOf } from '../../page/surface.ts'
+
+/** A row's flags and class: what its surface brings to it, on `geo`. */
+const rowMaterial = (
+  mat: VisMaterial,
+  geo: Parameters<typeof rowFlags>[1],
+  layers: MaterialLayers,
+) => rowFlags(surfaceRow(mat, layers), geo, layers.textures)
 
 test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
   assert.equal(packedRowBase(0), 1 << VIS_TRIANGLE_BITS)

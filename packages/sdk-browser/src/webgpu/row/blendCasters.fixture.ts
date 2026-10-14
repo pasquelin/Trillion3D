@@ -6,6 +6,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import { createWebgpuRowState } from './state.ts'
 import { slotTable } from './pageState.fixture.ts'
@@ -58,6 +59,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
       dataLayer: new Map(),
       asIsShown: false,
       emissiveAoShown: false,
+      materialTable: createMaterialTable(),
     } as never,
     rows.markRowDirty,
     // The catalogue's meshes sit at the origin: every page's root is placed at the identity.

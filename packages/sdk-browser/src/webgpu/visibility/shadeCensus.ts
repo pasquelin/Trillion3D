@@ -5,12 +5,12 @@ import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import {
   emptyGeometryBlock,
   rowGeometry,
-  rowMaterial,
   type GeometryBlock,
   type MaterialLayers,
 } from '../row/pageRowMaterial.ts'
+import { emptySurfaceRow, rowFlags, surfaceRow } from '../row/surfaceRow.ts'
 
-/** What a resolve class reads of a row's geometry (`rowMaterial`): the attributes its block holds
+/** What a resolve class reads of a row's geometry (`rowFlags`): the attributes its block holds
  *  — uv, normal, tangent, colour —, one bit each. */
 const GEOMETRY_ATTRIBUTES = 4
 /** Every set of those attributes a row's geometry can hold: two to the power of their count. */
@@ -55,13 +55,16 @@ function classKeys(
   seen: Set<number>,
   keys: number[],
 ) {
-  const block = emptyGeometryBlock()
+  const block = emptyGeometryBlock(),
+    row = emptySurfaceRow()
   seen.clear()
   keys.length = 0
   for (const [mat, geometries] of worn) {
+    // What the surface brings to its rows, once for every geometry it is worn on.
+    surfaceRow(mat, layers, row)
     for (let bits = 0; bits < GEOMETRIES; bits++)
       if (geometries & (1 << bits))
-        seen.add(rowMaterial(mat, blockOf(bits, block), layers).classKey)
+        seen.add(rowFlags(row, blockOf(bits, block), layers.textures).classKey)
   }
   for (const key of seen) keys.push(key)
   return keys.sort((a, b) => a - b)

@@ -4,6 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFixture.ts'
 import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
+import { createMaterialTable } from '../webgpu/material/materialTable.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -29,6 +30,7 @@ test("a row's deformation words are its own, its neighbour's untouched", () => {
       asIsShown: false,
       emissiveAoShown: false,
       deformation: { rowWord: () => 123 },
+      materialTable: createMaterialTable(),
     },
     () => {},
     [{ world: new G.Matrix4() }],

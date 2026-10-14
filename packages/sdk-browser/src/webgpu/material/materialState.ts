@@ -1,6 +1,7 @@
 import type { Span } from '../../../../math/src/sequence/span.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MaterialSurface } from './materialRecord.ts'
+import type { SurfaceRow } from '../row/surfaceRow.ts'
 
 /**
  * A record's place in the table: its rank, its lobe extension's index (−1: none), the atlas epoch
@@ -15,14 +16,17 @@ export type MaterialEntry = {
 }
 
 /**
- * What the table last saw of a surface: the version and atlas epoch it wrote its record at, and
- * what its rows and items read of it beside the record (`materialSummary.ts`) — their flags'
- * surface bits, their resolve class's, and the facts a frame derives from its rows' surfaces —,
- * which an edit compares to tell whether a row must be written again.
+ * What the table last saw of a surface: the version and atlas epoch it wrote its record at, its
+ * record's rank, and what its rows and items read of it beside the record (`materialSummary.ts`) —
+ * what it brings to each row (`row`, `../row/surfaceRow.ts`), their flags' surface bits, their
+ * resolve class's, and the facts a frame derives from its rows' surfaces —, which an edit compares
+ * to tell whether a row must be written again, and a row write reads instead of its surface's maps.
  */
 export type SurfaceSeen = {
   version: number | undefined
   epoch: number
+  rank: number
+  row: SurfaceRow
   flags: number
   classKey: number
   facts: number

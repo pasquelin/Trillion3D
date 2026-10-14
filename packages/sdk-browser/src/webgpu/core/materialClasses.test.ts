@@ -95,7 +95,10 @@ test('a row carries its resolve class, the census of the scene knows it before a
   )
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
   const writeRow = createPageRowWriter(
-    { geometryBlocks, ...layers, asIsShown: false, emissiveAoShown: false },
+    {
+      ...{ geometryBlocks, ...layers, asIsShown: false, emissiveAoShown: false },
+      materialTable: createMaterialTable(),
+    },
     () => {},
     collected.roots,
     (packed) => packed,
@@ -130,7 +133,12 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer)
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
-    vis = { ...layers, asIsShown: false, emissiveAoShown: false }
+    vis = {
+      ...layers,
+      asIsShown: false,
+      emissiveAoShown: false,
+      materialTable: createMaterialTable(),
+    }
   const writeRow = createPageRowWriter(
     vis,
     () => {},

@@ -7,6 +7,7 @@ import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { uploadMaterials } from './materialUpload.ts'
 import { takeRank, writeEntry } from './materialWrite.ts'
 import { summarize } from './materialSummary.ts'
+import { emptySurfaceRow } from '../row/surfaceRow.ts'
 import type { MaterialEntry, MaterialRecords } from './materialState.ts'
 
 /**
@@ -42,9 +43,15 @@ export function createMaterialTable() {
     /** The word a row or an item names `mat` by: its record's rank, `MATERIAL_SECOND_UV` set where
      *  its geometry is read as floats and carries a second UV set (`vertUv1`). The record is
      *  written first where the surface's version or the atlases' slots moved since. */
-    word: (mat: MaterialSurface, layers: MaterialLayers, floatSecondUv = false) => {
-      const rank = recordOf(p, mat, layers).rank
-      return floatSecondUv ? (rank | MATERIAL_SECOND_UV) >>> 0 : rank
+    word: (mat: MaterialSurface, layers: MaterialLayers, floatSecondUv = false) =>
+      materialWord(recordOf(p, mat, layers).rank, floatSecondUv),
+    /** What the table holds of `mat` (`SurfaceSeen`): its record's rank, and what it brings to each
+     *  of its rows (`row`), which a row write reads instead of its maps — written first, with its
+     *  record, where its version or the atlases' slots moved since. */
+    surface(mat: MaterialSurface, layers: MaterialLayers) {
+      recordOf(p, mat, layers)
+      // Written by `refresh` at the latest above.
+      return p.seen.get(mat)!
     },
     /** The records of the surfaces written since the last call, and of every surface after an
      *  atlas census (`forget`), written again; true when one changed what its rows or items read
@@ -78,6 +85,11 @@ export function createMaterialTable() {
 
 export type MaterialTable = ReturnType<typeof createMaterialTable>
 
+/** The word a row or an item names the record of rank `rank` by: `MATERIAL_SECOND_UV` set where its
+ *  geometry is read as floats and carries a second UV set (`vertUv1`). */
+export const materialWord = (rank: number, floatSecondUv: boolean) =>
+  floatSecondUv ? (rank | MATERIAL_SECOND_UV) >>> 0 : rank
+
 /** The entry of `mat`'s record — its material's, shared by its variants (`variantPlain`): their
  *  values are one —, written first from `mat` where its version or the atlas moved since. */
 function recordOf(p: MaterialRecords, mat: MaterialSurface, layers: MaterialLayers) {
@@ -108,7 +120,10 @@ function refresh(
   let seen = p.seen.get(mat)
   const first = !seen
   if (!seen) {
-    seen = { version: undefined, epoch: -1, flags: 0, classKey: 0, facts: 0 }
+    seen = {
+      ...{ version: undefined, epoch: -1, rank: entry.rank, row: emptySurfaceRow() },
+      ...{ flags: 0, classKey: 0, facts: 0 },
+    }
     p.seen.set(mat, seen)
   }
   if (summarize(seen, mat, layers, changed, first)) p.moved = true

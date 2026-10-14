@@ -1,4 +1,4 @@
-import type { MaterialTable } from '../material/materialTable.ts'
+import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
@@ -8,10 +8,10 @@ import { createPageRowConstants } from './pageRowConstants.ts'
 import {
   emptyGeometryBlock,
   rowGeometry,
-  rowMaterial,
   type GeometryBlock,
   type MaterialLayers,
 } from './pageRowMaterial.ts'
+import { rowFlags } from './surfaceRow.ts'
 import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
@@ -37,8 +37,9 @@ type PageRowResources = MaterialLayers & {
   emissiveAoShown: boolean
   /** The session's GPU deformation, once prepared: the record each placement's rows name. */
   deformation?: Pick<SessionDeformation, 'rowWord'>
-  /** The surfaces' records (`../material/materialTable.ts`). */
-  materialTable?: Pick<MaterialTable, 'word'>
+  /** The surfaces' records (`../material/materialTable.ts`), and what each surface brings to its
+   *  rows, kept with its record (`surface`). */
+  materialTable: Pick<MaterialTable, 'surface'>
 }
 /** What every row write shares, made once with the writer. */
 type RowWriter = {
@@ -93,10 +94,11 @@ function writeRow(
 ) {
   const indexCount = rowIndexCount(rec)
   const base = row * ROW_WORDS,
-    material = constants.materialOf(rec.material),
+    mat = rec.material,
     geo = rowGeometry(rec, resources.geometryBlocks, block)
-  const mat = material.mat,
-    maps = rowMaterial(mat, geo, resources)
+  // What its surface brings to every row, kept with its record: no map of slots read per row.
+  const surface = resources.materialTable.surface(mat, resources),
+    maps = rowFlags(surface.row, geo, resources.textures)
   if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true
   if (!rec.transparent && !resources.emissiveAoShown && surfaceEmitsOrOccludes(mat))
     resources.emissiveAoShown = true
@@ -124,8 +126,10 @@ function writeRow(
   writeRowDeformation(ints, base, outputOf(pageIndex))
   // Its surface's record (`PageInfo.material`); a float block's second UV set rides in its high
   // bit (`MATERIAL_SECOND_UV`).
-  ints[base + PAGE_INFO.at.material] =
-    resources.materialTable?.word(mat, resources, !!geo && !geo.quantized && !!geo.hasUv1) ?? 0
+  ints[base + PAGE_INFO.at.material] = materialWord(
+    surface.rank,
+    !!geo && !geo.quantized && !!geo.hasUv1,
+  )
   ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
   floats[base + PAGE_INFO.at.pad1] = rec.role === 'coarse' ? 1 : 0

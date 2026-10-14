@@ -2,30 +2,9 @@ import type { HostAttributes } from '../../host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { slotSampled } from '../tile/samplingHeaders.ts'
-import { materialClassKey } from '../../visibility/shader/materialClass.ts'
 import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
-import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
-import { MODEL_SHIFT } from '../../scene/surfaceModel.ts'
 import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
-import {
-  FLAG_CLUSTER_PAGE,
-  FLAG_LIT,
-  FLAG_DOUBLE,
-  FLAG_HAS_UV,
-  FLAG_HAS_MAP,
-  FLAG_HAS_NORMAL,
-  FLAG_HAS_TANGENT,
-  FLAG_HAS_COLOR,
-  FLAG_MASK,
-  FLAG_BACK,
-  FLAG_HAS_ORM,
-  FLAG_HAS_NORMAL_MAP,
-  FLAG_SAMPLED,
-  FLAG_FOG_FREE,
-  FLAG_DYNAMIC,
-  FLAG_SPRITE,
-  FLAG_LINE,
-} from '../../visibility/types.ts'
+import { FLAG_SAMPLED } from '../../visibility/types.ts'
 
 export type GeometryBlock = {
   vertexBase: number
@@ -141,47 +120,4 @@ export function sampledFlag(
     slotSampled(data, data3)
     ? FLAG_SAMPLED
     : 0
-}
-
-/** What a page row says of its material: its map slots, its flags word, and its resolve class. */
-export function rowMaterial(
-  mat: VisMaterial,
-  geo: GeometryBlock | undefined,
-  { mapLayer, dataLayer, textures }: MaterialLayers,
-) {
-  const map = layerSlot(mapLayer, mat.map),
-    rough = layerSlot(dataLayer, mat.roughnessMap),
-    metal = layerSlot(dataLayer, mat.metalnessMap),
-    normal = layerSlot(dataLayer, mat.normalMap),
-    ao = layerSlot(dataLayer, mat.aoMap),
-    emissive = layerSlot(mapLayer, mat.emissiveMap),
-    subsurface = layerSlot(mapLayer, mat.subsurfaceMap)
-  let flags = 0
-  if (mat.lit) flags |= FLAG_LIT
-  if (mat.fog === false) flags |= FLAG_FOG_FREE
-  if (mat.side === 'double') flags |= FLAG_DOUBLE
-  if (geo?.hasUv) flags |= FLAG_HAS_UV
-  if (map) flags |= FLAG_HAS_MAP
-  if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL
-  if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT
-  // A dashed line cuts its gaps where a masked surface cuts its cutout (`maskKeep`).
-  if (mat.alphaTest > 0 || mat.dashSize !== undefined) flags |= FLAG_MASK
-  if (mat.side === 'back') flags |= FLAG_BACK
-  if (rough || metal) flags |= FLAG_HAS_ORM
-  if (normal) flags |= FLAG_HAS_NORMAL_MAP
-  // The material asks for its vertex colours, and the geometry has some: the forward rule.
-  if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR
-  // What every raster reads its record for (`pageShape`): a sprite, a line of a width.
-  if (mat.sprite) flags |= FLAG_SPRITE
-  if ((mat.lineWidth ?? 0) !== 0) flags |= FLAG_LINE
-  flags |= (mat.model ?? 0) << MODEL_SHIFT
-  flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface)
-  // The anisotropy and coat maps read through the data atlas as the others do (`physicalWgsl.ts`).
-  const physical = hasPhysicalLobes(mat)
-  if (physical) flags |= physicalSampledFlag(mat, { mapLayer, dataLayer, textures })
-  const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal, physical })
-  // Where the row reads its geometry is not a material feature: it never splits a resolve class.
-  if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE
-  if (geo?.dynamic) flags |= FLAG_DYNAMIC
-  return { map, rough, metal, normal, ao, emissive, subsurface, flags, classKey }
 }

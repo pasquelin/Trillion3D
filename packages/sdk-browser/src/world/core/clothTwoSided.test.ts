@@ -13,7 +13,8 @@ import { preparedGraph } from '../../host/prepared/graph.ts'
 import { clothPrimitives } from '../../host/prepared/meshes.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { emptyGeometryBlock, rowMaterial } from '../../webgpu/row/pageRowMaterial.ts'
+import { emptyGeometryBlock } from '../../webgpu/row/pageRowMaterial.ts'
+import { rowFlags, surfaceRow } from '../../webgpu/row/surfaceRow.ts'
 import { FLAG_DOUBLE } from '../../visibility/types.ts'
 import { createdSurface, assignment, PLAIN } from '../api/createdMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
@@ -34,7 +35,10 @@ function faces(surface: HostMaterials) {
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
   return {
     side: record.side,
-    rowDouble: (rowMaterial(record, emptyGeometryBlock(), layers).flags & FLAG_DOUBLE) !== 0,
+    rowDouble:
+      (rowFlags(surfaceRow(record, layers), emptyGeometryBlock(), undefined).flags &
+        FLAG_DOUBLE) !==
+      0,
   }
 }
 const BOTH = { side: 'double', rowDouble: true }

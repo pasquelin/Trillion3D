@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
-import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts'
+import { rowFlags, surfaceRow } from '../webgpu/row/surfaceRow.ts'
 import { writeMaterialRecord } from '../webgpu/material/materialRecord.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../webgpu/material/materialLayout.ts'
 import { FOG_FREE_MODEL_BIT } from '../scene/surfaceModel.ts'
@@ -22,7 +22,7 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
   const surface = surfaceOf(material)
   assert.equal(surface.fog, false)
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
-  const row = rowMaterial(surface, undefined, layers)
+  const row = rowFlags(surfaceRow(surface, layers), undefined, undefined)
   assert.equal(row.flags & (1 << 20), 1 << 20)
   assert.match(SHADE_SHADER, /page.flags&1048576u/)
   assert.match(DIRECT_LIGHTING_SHADER, /surfaceFlag&128u/)
@@ -35,7 +35,7 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
   material.fog = true
   surfaceWritten(material)
   assert.equal(surfaceOf(material).fog, true, 'a declared material change is heard')
-  assert.equal(rowMaterial(surface, undefined, layers).flags & (1 << 20), 0)
+  assert.equal(rowFlags(surfaceRow(surface, layers), undefined, undefined).flags & (1 << 20), 0)
 })
 
 test('a fog-free transmissive material reaches the water composite without changing opacity', () => {
