@@ -74,6 +74,7 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
   const blend = ENGINE_SHADERS.BLEND_SHADER
   assert.deepEqual(reservedNames(blend), [])
   assert.deepEqual(reservedNames(blend.replace(/\bclamped\b/g, 'from')), ['from'])
+  assert.deepEqual(reservedNames('struct S{diagnostic:f32,}'), ['diagnostic'])
 })
 
 /** The call sites that compile a text their caller hands them (the resolve's, the deferred

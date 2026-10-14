@@ -109,8 +109,23 @@ const WGSL_RESERVED = new Set(
 export function reservedNames(source: string) {
   const code = codeOf(source)
   const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
-  return [...names].filter((name) => WGSL_RESERVED.has(name)).sort()
+  // A keyword is no name either: a structure member or a binding that spells one is refused
+  // (`expected '}' for struct declaration` for a member named `diagnostic`).
+  const named = [...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)\s*:(?!:)/g)].map((m) => m[1])
+  const found = [...names].filter((name) => WGSL_RESERVED.has(name))
+  // `default:` opens a switch's default case, the one keyword a colon follows in code.
+  for (const name of new Set(named))
+    if (WGSL_KEYWORDS.has(name) && name !== 'default') found.push(name)
+  return found.sort()
 }
+
+/** The words WGSL's grammar takes as keywords: no member, variable nor parameter may spell one. */
+const WGSL_KEYWORDS = new Set(
+  (
+    'alias break case const const_assert continue continuing default diagnostic discard else ' +
+    'enable false fn for if let loop override requires return struct switch true var while'
+  ).split(' '),
+)
 
 /** Where `source`'s braces or parentheses fail to pair, comments aside: the first closing one
  *  with nothing open (`'}' at 1203`), or what is left open at the end (`'(' open`); '' when

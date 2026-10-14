@@ -104,9 +104,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  }
  if(uni.mode==${SHADE_MODE.clusters}u){return diagnosticSurface(hashColor(page.clusterHash),request);}
  if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(diagnosticFlat(),request);}
- if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(diagnosticLevel(page.diagnostic>0.5),request);}
+ if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(diagnosticLevel(page.diagnosticWord>0.5),request);}
  if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(diagnosticFlat(),request);}
- if(uni.mode==${SHADE_MODE['screen-error']}u){return diagnosticSurface(diagnosticError(clamp(page.diagnostic,0.0,1.0)),request);}
+ if(uni.mode==${SHADE_MODE['screen-error']}u){return diagnosticSurface(diagnosticError(clamp(page.diagnosticWord,0.0,1.0)),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
  var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
  // Original vertices may straddle the near plane; recover the clipped winding.
