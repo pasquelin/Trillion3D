@@ -37,6 +37,13 @@
 // words past its old place closed up, their pads gone; every other buffer kept.
 // Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes
 // for 192): the mip offsets moved up twelve words; every other buffer kept.
+// Retaken when the CPU's boxes joined the rows' shadow changes in one stale (`castInvalidation.ts`):
+// only each seed's third frame moved, the first that invalidates (the cache accepts from it). The
+// box pass's buffers (`vsm.invalidation.params0`, `.instances`, `.items`) are no longer written; the
+// stale's are, in their place — `vsm.castInvalidation.params` (the maps' count, the boxes' count),
+// `.maps` (each map's word, `vsmCastMaps`) and `.boxes` (each box's centre split high and low, its
+// flags, its half extent: the instance the box pass uploaded, without its identity rotation, which
+// the kernel now writes). The first two frames' digests, and so every other buffer, are kept.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -46,12 +53,12 @@ const DIGESTS: Record<number, string[]> = {
   1: [
     'd7cfd953f61c8125ec63b84ab31e47ca5b80626949264f9da5a8226ef9d623c1',
     '7348438683f5c6921031dd3c38604be28981edfb9d73ad34f31b5bb6177e03d0',
-    '7c56c84656ad5311d997fe4b21a430cdc4510a6ed1fa3f1a1ac4a8441b1e1ff7',
+    '25970d72c20094233647318abba80ac53f289ada5394d53e248d4eb0a22a3c54',
   ],
   2: [
     '27f03ebacd7be5a47813b08c1050d844e1392727cf9c0df75ea8c22a06a0060a',
     'ceb41ce775f40a480ce8ef1b075030b1c685a202c437cf034ef3dc9b3e82ea3d',
-    '6b387dcb757c4b5a8d4d979ac86661a686ce5bb9375405c37cb3b868d9cfe89f',
+    '14a8b6d94782d6e3cdad2401277b159939d1a93c30554eaf6129ce23e2f252a7',
   ],
 }
 

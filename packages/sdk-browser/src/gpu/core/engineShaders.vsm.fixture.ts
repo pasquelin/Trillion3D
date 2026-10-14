@@ -1,4 +1,4 @@
-import { vsmInvalidationWgsl } from '../../vsm/invalidationWgsl.ts'
+import { castInvalidationWgsl } from '../../vsm/castInvalidationWgsl.ts'
 import {
   vsmMarkingClears,
   vsmResetPageTableWgsl,
@@ -39,7 +39,7 @@ export function vsmVariants() {
     VSM_MARKING_RECTS: vsmPageRectInitWgsl(layout),
     VSM_MARKING_COARSE: vsmCoarseMarkingWgsl(layout),
     VSM_MARKING_PIXELS: vsmPixelPageMarkingWgsl(layout),
-    VSM_INVALIDATION: vsmInvalidationWgsl(layout),
+    VSM_INVALIDATION: castInvalidationWgsl(layout),
     VSM_RENDER_CANDIDATES: vsmRenderCandidatesWgsl(),
     VSM_RENDER_CULL: vsmRenderCullWgsl(layout),
     VSM_RENDER_EXPAND: vsmRenderExpandWgsl(layout),

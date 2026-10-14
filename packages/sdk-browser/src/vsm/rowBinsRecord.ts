@@ -14,7 +14,7 @@ import type { VsmRowSpheres } from './rowPageBound.ts'
 interface BinnedSun {
   clipmap: VsmClipmap
   axes: Float64Array
-  ref: Float64Array
+  ref: Float32Array
 }
 
 /** What a histogram was asked with. */
@@ -44,12 +44,14 @@ export interface RowBinsLanded extends RowBinsTag {
   movingRows: number
 }
 
-/** A bound's histograms: the last one's number, the last landed, the commits one took to land, and
- *  whether the lamps' bins pay (more rows than the worst case's chunk); the lamps' signature, as
- *  last read, their keys, and the keys found unable to beat the worst case. */
+/** A bound's histograms: the last one's number, the last encoded, the last landed, the commits one
+ *  took to land, and whether the lamps' bins pay (more rows than the worst case's chunk); the lamps'
+ *  signature, as last read, their keys, and the keys found unable to beat the worst case. */
 export function createRowBins() {
   return {
     seq: 0,
+    /** The last histogram encoded (`encodeRowBins`): an ask of the same inputs is not made again. */
+    asked: undefined as RowBinsTag | undefined,
     landed: undefined as RowBinsLanded | undefined,
     /** The landed histogram last read: its latency is taken when another is. */
     read: 0,
@@ -63,8 +65,9 @@ export function createRowBins() {
 }
 export type RowBins = ReturnType<typeof createRowBins>
 
-/** The histogram `tag` asked, its words in `mapped`, landed — unless a later one already did. Its
- *  words are copied into the last landed one's array when of its size. */
+/** The histogram `tag` asked, its words in `mapped`, landed — unless a later one already did —:
+ *  the tag itself becomes the landed record. Its words are copied into the last landed one's array
+ *  when of its size. */
 export function landRowBins(bins: RowBins, tag: RowBinsTag, mapped: ArrayBuffer) {
   const held = bins.landed
   if (held && held.seq > tag.seq) return
@@ -76,5 +79,8 @@ export function landRowBins(bins: RowBins, tag: RowBinsTag, mapped: ArrayBuffer)
     : [tag.jointAt + PAIR_EDGES.length, tag.jointAt + 2 * PAIR_EDGES.length]
   let movingRows = 0
   if (tag.suns.length || tag.lampKeys) for (let i = from; i < to; i++) movingRows += counts[i]
-  bins.landed = { ...tag, counts, movingRows }
+  const landed = tag as RowBinsLanded
+  landed.counts = counts
+  landed.movingRows = movingRows
+  bins.landed = landed
 }

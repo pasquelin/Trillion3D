@@ -36,8 +36,9 @@ test('a still scene makes no raster or marking group after its second frame', ()
 
 test('the same moved boxes every frame make their invalidation groups once a frame set', () => {
   const run = frames(randomWorld(mulberry32(4), [0, 2, 0]), 6)
-  const invalidation = ['vsm.invalidateInstancePages']
-  // The cache invalidates from the third frame on: its first two make a group 0 each.
+  const invalidation = ['vsm.invalidateCastPages']
+  // The cache invalidates from the third frame on: its first two make a group 0 each, the third
+  // its own two over the parameters, the maps, the boxes and an empty list of the rows' changes.
   assert.ok(only(run[2].groups, invalidation).length > 0, 'the third frame invalidates')
   for (const f of run.slice(4)) assert.deepEqual(only(f.groups, invalidation), [])
 })

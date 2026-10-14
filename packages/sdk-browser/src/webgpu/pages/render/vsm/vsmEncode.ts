@@ -19,7 +19,6 @@ import {
 import type { VsmPageManagementFrame } from '../../../../vsm/pageManagementPass.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { invalidationOf } from '../../../../vsm/invalidationPass.ts'
-import { encodeVsmInvalidations } from '../../../../vsm/invalidationEncode.ts'
 import { encodeCastInvalidation } from '../../../../vsm/castInvalidation.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
 import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
@@ -92,17 +91,16 @@ export function encodeVsmFrame(
   stats.pressureBiasStat = state.cache.pressureBias
   stats.render = undefined
   stats.projectionPasses = 0
-  // The instance page invalidation on the previous frame's maps, before the page addresses.
-  stats.invalidationThreads = encodeVsmInvalidations(
-    encoder,
-    res,
-    { device, mapSlotCount: vsm.prevSlots },
-    [vsm.pendingBoxes],
-  )
+  // The invalidation on the previous frame's maps, before the page addresses: the CPU's boxes and
+  // the rows' shadow changes, appended by the rows pass earlier in this command buffer, one stale.
+  stats.invalidationThreads = encodeCastInvalidation(encoder, res, invalidationOf(res), {
+    device,
+    mapSlotCount: vsm.prevSlots,
+    maps: vsm.pendingCastMaps,
+    boxes: vsm.pendingBoxes,
+    casts: lights.casts,
+  })
   vsm.pendingBoxes = null
-  // The rows' shadow changes, appended by the rows pass earlier in this command buffer.
-  const castFrame = { device, mapSlotCount: vsm.prevSlots, maps: vsm.pendingCastMaps }
-  encodeCastInvalidation(encoder, res, invalidationOf(res), { ...castFrame, casts: lights.casts })
   vsm.pendingCastMaps = null
   if (plan.projectionCount === 0) {
     vsm.renderedPlan = plan

@@ -1,6 +1,7 @@
 /**
- * THE BINS PASS ENCODED (`rowBinsWgsl.ts`): once a frame a bound's bins pay and a staging buffer is
- * free, after the rows pass wrote the spheres, the histograms cleared, every row of the range binned,
+ * THE BINS PASS ENCODED (`rowBinsWgsl.ts`): once a frame a bound's bins pay, what they are asked
+ * with moved since the last one encoded (`bins.asked`) and a staging buffer is free, after the rows
+ * pass wrote the spheres, the histograms cleared, every row of the range binned,
  * and the histograms copied into a buffer of the readback ring (`../gpu/core/readbackRing.ts`). It
  * maps after the frame's submit (`rowBinsSubmitted`) and lands a few frames later
  * (`landRowBins`): no frame waits for it, and a frame with every buffer in flight bins nothing. Its
@@ -8,10 +9,9 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { composeGroup, heldGroup } from '../placement/composeGroups.ts'
 import { rowBinTables } from './rowBins.ts'
 import { rowBinsRequest } from './rowBinsParams.ts'
@@ -24,16 +24,7 @@ const LABEL = 'Trillion3D shadow row bins'
 const IN_FLIGHT = 3
 
 /** The kernel, once a device, compiled off the thread. */
-const kernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: LABEL,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: LABEL, code: ROW_BINS_WGSL }),
-      entryPoint: 'main',
-    },
-  }),
-)
+const kernel = autoKernel(LABEL, ROW_BINS_WGSL, 'main')
 
 /** The joint bins' tables (`rowBinTables`) on `device`. */
 function createTables(device: GPUDevice) {
@@ -47,15 +38,24 @@ function createTables(device: GPUDevice) {
   return buffer
 }
 
-/** A bound's pass on one device: its tables, its parameters, its histograms, its group and its
- *  ring, all released with it (`releaseRowBins`). */
+/** A bound's pass on one device: its tables, its parameters, its histograms, its group over the
+ *  buffers `bound` names — the spheres, the mobility words, the parameters, the tables, the
+ *  histograms — and its ring, all released with it (`releaseRowBins`). */
 function createRowBinsGpu(device: GPUDevice, bound: VsmRowBound) {
+  const tables = createTables(device),
+    held = heldGroup()
+  const named: GPUBufferBinding[] = Array.from({ length: 5 }, () => ({ buffer: tables }))
+  held.identity.entries[0] = named.map((resource, binding) => ({ binding, resource }))
   return {
     device,
-    tables: createTables(device),
+    tables,
     params: undefined as GPUBuffer | undefined,
     bins: undefined as GPUBuffer | undefined,
-    held: heldGroup(),
+    held,
+    named,
+    /** The last histogram's encoder was submitted (`rowBinsSubmitted`): one never submitted is
+     *  asked again, its copy taking the place of the one that never ran. */
+    sent: true,
     ring: createReadbackRing<RowBinsTag>(
       device,
       { label: LABEL, bytes: 4, count: IN_FLIGHT },
@@ -76,6 +76,7 @@ export function releaseRowBins(bound: VsmRowBound | undefined) {
   held.params?.destroy()
   held.bins?.destroy()
   gpus.delete(bound)
+  bound.bins.asked = undefined
 }
 
 /** The pass of `bound` on `device`: the one it holds, or made again for another device. */
@@ -97,8 +98,8 @@ interface RowBinsScene {
 }
 
 /** The bins pass of `bound` over rows `[first, end)` of `scene` under `lights`, into `encoder`:
- *  nothing when the bins would bound nothing, the kernel is compiling, or every staging buffer is
- *  in flight. */
+ *  nothing when the bins would bound nothing, would bin what the last one encoded did over the same
+ *  buffers (`bins.asked`), the kernel is compiling, or every staging buffer is in flight. */
 export function encodeRowBins(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
@@ -107,6 +108,13 @@ export function encodeRowBins(
   range: { first: number; end: number },
   lights: readonly VsmBoundLight[],
 ) {
+  const last = gpus.get(bound)
+  if (
+    !last?.sent ||
+    last.named[0].buffer !== scene.spheres ||
+    last.named[1].buffer !== scene.mobility
+  )
+    bound.bins.asked = undefined
   const request = rowBinsRequest(bound.bins, scene.rowSpheres, range, lights)
   if (!request) return
   const compiled = kernel(device)
@@ -120,14 +128,11 @@ export function encodeRowBins(
   gpu.params = sizedBuffer(device, gpu.params, params.byteLength, storage, LABEL)
   device.queue.writeBuffer(gpu.params, 0, params)
   gpu.bins = sizedBuffer(device, gpu.bins, bytes, storage | GPUBufferUsage.COPY_SRC, LABEL)
-  const resources = [scene.spheres, scene.mobility, gpu.params, gpu.tables, gpu.bins]
-  const entries = (gpu.held.identity.entries[0] ??= resources.map((buffer, binding) => ({
-    binding,
-    resource: { buffer },
-  })))
-  resources.forEach(
-    (buffer, binding) => ((entries[binding].resource as GPUBufferBinding).buffer = buffer),
-  )
+  const named = gpu.named
+  named[0].buffer = scene.spheres
+  named[1].buffer = scene.mobility
+  named[2].buffer = gpu.params
+  named[4].buffer = gpu.bins
   const pipeline = compiled.get()
   composeGroup(device, gpu.held, pipeline)
   encoder.clearBuffer(gpu.bins, 0, bytes)
@@ -137,9 +142,14 @@ export function encodeRowBins(
   dispatchRows(pass, ceilDiv(range.end - range.first, WORKGROUP_THREADS))
   pass.end()
   encoder.copyBufferToBuffer(gpu.bins, 0, staging, 0, bytes)
+  bound.bins.asked = tag
+  gpu.sent = false
 }
 
 /** After the frame's submit: the histogram its encoder copied maps, and lands a few frames late. */
 export function rowBinsSubmitted(bound: VsmRowBound | undefined) {
-  if (bound) gpus.get(bound)?.ring.submitted()
+  const gpu = bound && gpus.get(bound)
+  if (!gpu) return
+  gpu.ring.submitted()
+  gpu.sent = true
 }
