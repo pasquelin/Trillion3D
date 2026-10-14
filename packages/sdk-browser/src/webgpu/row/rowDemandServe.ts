@@ -1,13 +1,6 @@
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { serveInOrder } from './claims.ts'
-import {
-  LISTED,
-  compact,
-  isWanted,
-  mark,
-  readsResident,
-  type DemandState,
-} from './rowDemandState.ts'
+import { LISTED, compact, isWanted, mark, type DemandState } from './rowDemandState.ts'
 
 // The row demand's serve (`rowDemand.ts`): its list asked in order, each entry once, the passed
 // ones unlisted, the refused one stopping it.
@@ -25,7 +18,7 @@ export function claimsAt(d: DemandState, page: number) {
   }
   if (d.serving.release(page)) return true
   mark(d, page, LISTED, false)
-  if (!readsResident(d, page)) d.waitingBy.set(page, by + 1)
+  if (!d.table.readsResident(page)) d.waitingBy.set(page, by + 1)
   return false
 }
 

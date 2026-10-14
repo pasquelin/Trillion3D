@@ -6,7 +6,6 @@ import {
   compact,
   isWanted,
   markWanted,
-  readsResident,
   rerank,
   want,
   type DemandState,
@@ -63,7 +62,8 @@ export function createRowDemand(
   closure: () => InstanceClosure,
 ) {
   const d: DemandState = {
-    ...{ table, drawsRow },
+    table,
+    drawsRow,
     lists: { asked: createCutDelta(), ahead: createCutDelta() },
     asking: closure(),
     marks: createSparseInts(),
@@ -72,7 +72,10 @@ export function createRowDemand(
     waitingBy: createSparseInts(),
     ranks: createSparseInts(),
     scratch: { keys: new Float64Array(0), pages: new Int32Array(0), by: new Int32Array(0) },
-    ...{ count: 0, next: 0, fresh: false, owed: false },
+    count: 0,
+    next: 0,
+    fresh: false,
+    owed: false,
     serving: { release: STOP, place: STOP, at: 0, claims: STOP, placed: STOP },
   }
   d.serving.claims = (page) => claimsAt(d, page)
@@ -91,7 +94,7 @@ export function createRowDemand(
       }
     },
     /** Whether the requests' closure holds `page` and the cut does not read it resident. */
-    wanted: (page: number) => isWanted(d, page) && !readsResident(d, page),
+    wanted: (page: number) => isWanted(d, page) && !d.table.readsResident(page),
     /** The live demand is served again: the table grew, was rebuilt, or a queue of victims came. */
     restart() {
       d.fresh = d.count > d.next

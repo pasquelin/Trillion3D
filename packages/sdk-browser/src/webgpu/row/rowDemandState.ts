@@ -13,6 +13,7 @@ export type InstanceClosure = Pick<GroupClosure, 'apply' | 'delta' | 'hostBytes'
 type DemandTable = {
   rowOf(page: number): number
   hasRow(page: number): boolean
+  /** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
   readsResident(page: number): boolean
 }
 
@@ -70,15 +71,12 @@ export const markWanted = (d: DemandState, page: number, on: boolean) => mark(d,
 /** Whether the requests' closure holds `page`. */
 export const isWanted = (d: DemandState, page: number) => (d.marks.get(page) & WANTED) !== 0
 
-/** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
-export const readsResident = (d: DemandState, page: number) => d.table.readsResident(page)
-
 /** `page`, wanted by the requests' closure: asked for unless the cut reads it resident — a row
  *  whose record is owed is asked as a missing one is —, behind the demand already listed, with the
  *  request `by` it came in with. */
 export function want(d: DemandState, page: number, by = page) {
-  if (readsResident(d, page) || !d.drawsRow(page)) return
-  mark(d, page, WANTED, true)
+  if (d.table.readsResident(page) || !d.drawsRow(page)) return
+  markWanted(d, page, true)
   if (d.marks.get(page) & LISTED) return
   if (d.count === d.list.length) {
     d.list = resized(d.list, d.count + 1)
@@ -98,7 +96,7 @@ export function compact(d: DemandState) {
     rowless = 0
   for (let i = d.next; i < d.count; i++) {
     const page = d.list[i]
-    if (!isWanted(d, page) || readsResident(d, page)) {
+    if (!isWanted(d, page) || d.table.readsResident(page)) {
       mark(d, page, LISTED, false)
       continue
     }
