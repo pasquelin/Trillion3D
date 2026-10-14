@@ -64,7 +64,7 @@ export function bloomLevelSizes(width: number, height: number) {
 }
 
 /** The texture of a bloom's levels `sizes` (`bloomLevelSizes`): one mip chain from the first. */
-export const bloomLevelsTexture = (sizes: readonly [number, number][]) => ({
+export const bloomLevelsTexture = (sizes: readonly (readonly [number, number])[]) => ({
   size: { width: sizes[0][0], height: sizes[0][1] },
   mipLevelCount: sizes.length,
   format: HDR_FORMAT,
