@@ -97,7 +97,7 @@ export function composeWebgpuPlacements(
     if (state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
     state.readers.delete(slot)
   }
-  if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
+  if (readers.length) holdReaders(state.readers, slot, parent, readers)
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)

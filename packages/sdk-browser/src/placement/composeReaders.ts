@@ -37,17 +37,17 @@ type Composition = { readonly version: number; readonly worlds: Float64Array }
 /** The views this module made read through their row's composition. */
 const composing = new WeakSet<MatrixElements>()
 
-/** `links` become the readers of `slot` (`parent`); `whole`: they are every reader it has. A reader
- *  held already takes its new local in place: the views reading through it follow. */
+/** `links` become readers of `slot` (`parent`) — every reader it has when the slot held none, as
+ *  a whole link deletes them first. A reader held already takes its new local in place: the views
+ *  reading through it follow. */
 export function holdReaders(
   readers: Readers,
   slot: number,
   parent: object,
   links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
-  whole: boolean,
 ) {
   let held = readers.get(slot)
-  if (whole || !held) readers.set(slot, (held = []))
+  if (!held) readers.set(slot, (held = []))
   // Where each row the slot holds stands in its list: a link finds its reader in one look.
   const at = new Map<PlacementRows, Map<number, number>>()
   const atOf = (rows: PlacementRows) => at.get(rows) ?? at.set(rows, new Map()).get(rows)!
