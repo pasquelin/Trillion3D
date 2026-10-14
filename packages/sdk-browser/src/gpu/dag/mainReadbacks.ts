@@ -1,10 +1,7 @@
 import { createReadbackRing, type ReadbackRing } from '../core/readbackRing.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
-import { admitInto, type CutAdmission, type CutHeld } from './cutBuffers.ts'
+import { admitInto, type CutHeld } from './cutBuffers.ts'
 import { chainMain, landMain, type MainCopy } from './dispatchRead.ts'
-
-/** A take's buffer, its budget asked by the growth that made room for it (`growDagList`). */
-const asked: CutAdmission = () => {}
 
 /**
  * THE MAIN VIEW'S READBACK RING (`../core/readbackRing.ts`): `DAG_READBACK_SLOTS` buffers the
@@ -17,18 +14,32 @@ const asked: CutAdmission = () => {}
  * leaves that frame without a copy, the next asks again.
  */
 export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<MainCopy> {
-  // The ring once made counts its buffers (`ReadbackRing.bytes`); while it makes its first ones,
-  // they are counted here. Neither is among the cut's lists: both count beside them.
   let ring: ReadbackRing<MainCopy> | undefined = undefined,
     first = 0,
     refusal: unknown
+  // The cut as its ring is admitted in: its tables, and the ring's buffers beside them — counted
+  // here while it makes its first ones, then by the ring (`ReadbackRing.bytes`); the budget asked
+  // for those first ones, a later take's asked by the growth that made room for it (`growDagList`).
+  const held: CutHeld = {
+    buffers: cut.buffers,
+    textures: cut.textures,
+    readbacks: {
+      get bytes() {
+        return ring ? ring.bytes : first
+      },
+    },
+    device: cut.device,
+    admit(bytes) {
+      if (!ring) cut.admit(bytes)
+    },
+    share: cut.share,
+  }
   const funded = {
     createBuffer(descriptor: GPUBufferDescriptor) {
       const made = { label: descriptor.label, bytes: descriptor.size },
         build = () => cut.device.createBuffer(descriptor)
       try {
-        const beside = ring ? ring.bytes : first
-        const buffer = admitInto(cut, made, build, -beside, ring ? asked : cut.admit)
+        const buffer = admitInto(held, made, build)
         if (!ring) first += buffer.size
         return buffer
       } catch (error) {

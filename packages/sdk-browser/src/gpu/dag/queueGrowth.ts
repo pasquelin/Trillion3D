@@ -2,7 +2,7 @@ import { validationScope } from '../core/errorScope.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
 import { createFlagTable } from './cutTables.ts'
-import { admitInto } from './cutBuffers.ts'
+import { admitBeside } from './cutBuffers.ts'
 import { cutHeldSlots, heldOpenAt, rankGroups } from './listCap.ts'
 import { growDagList } from './listGrowth.ts'
 import { regionsWanted } from './swap.ts'
@@ -34,15 +34,11 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
     old = cutTables.flags
   const made: { texture: GPUTexture; bytes: number }[] = []
   // What the flags replace leaves the share: the new table is made within what remains, beside
-  // what it made so far (`admitInto`).
+  // what it made so far (`admitBeside`).
+  const admit = admitBeside(resources, old.bytes)
   const make = (descriptor: GPUTextureDescriptor, bytes: number) => {
-    const beside = made.reduce((sum, held) => sum + held.bytes, 0),
-      build = () => device.createTexture(descriptor)
-    const texture = admitInto(
-      resources,
-      { label: descriptor.label, bytes },
-      build,
-      old.bytes - beside,
+    const texture = admit({ label: descriptor.label, bytes }, () =>
+      device.createTexture(descriptor),
     )
     made.push({ texture, bytes })
     return texture

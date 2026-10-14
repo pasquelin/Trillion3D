@@ -37,8 +37,11 @@ export type CutHeld = {
   admit: CutAdmission
   share: number
 }
-/** A cut whose buffers a resource made joins (`cutBuffer`, `cutTexture`). */
-type CutHolder = CutHeld & { buffers: GPUBuffer[] }
+/** A cut whose buffers and textures a resource made joins (`cutBuffer`, `cutTexture`). */
+type CutHolder = Omit<CutHeld, 'buffers' | 'textures'> & {
+  buffers: GPUBuffer[]
+  textures: { texture: GPUTexture; bytes: number }[]
+}
 
 /** THE CUT'S ONE BYTE LEDGER, read where its resources are held: its buffers, its record textures
  *  and its readback ring. */
@@ -57,25 +60,38 @@ export type TextureMaker = (
 /**
  * THE ONE ADMISSION OF A RESOURCE OF A CUT'S OWN: `made`, `bytes` large and named `label`, built
  * by `build` within `cut`'s share beside what it holds (`cutBytes`) less the `freed` bytes its
- * making releases — the resource it replaces; a growth made beside the cut's lists counts what it
- * made so far against them (`listGrowth.ts`, `queueGrowth.ts`) —; the budget asked first (`admit`,
- * the cut's own unless a growth asked it ahead: `mainReadbacks.ts`), then made tentatively on the
- * device's ledger (`ledgerTentative`): a refusal never refuses the session, the cut keeps the
- * tables it holds. Its buffers and textures (`cutBuffer`, `cutTexture`), at its setup
- * (`resources.ts`), its growths and its readback ring all go through it.
+ * making releases — the resources it replaces — and with the `beside` bytes a growth made or keeps
+ * aside, which the cut does not hold yet (`admitBeside`); the cut's budget asked first (`admit`),
+ * then made tentatively on the device's ledger (`ledgerTentative`): a refusal never refuses the
+ * session, the cut keeps the tables it holds. Its buffers and textures (`cutBuffer`,
+ * `cutTexture`), at its setup (`resources.ts`), its growths and its readback ring all go through it.
  */
 export function admitInto<T>(
   cut: CutHeld,
   { label, bytes }: { label?: string; bytes: number },
   build: () => T,
   freed = 0,
-  admit = cut.admit,
+  beside = 0,
 ) {
-  const held = cutBytes(cut) - freed + bytes
+  const held = cutBytes(cut) - freed + beside + bytes
   if (held > cut.share) throw pastShare(held, cut.share)
   if (!label?.startsWith(CUT_LABEL)) throw new Error(`GPU_CUT_BUFFER_UNNAMED`)
-  admit(bytes)
+  cut.admit(bytes)
   return ledgerTentative(cut.device, build)
+}
+
+/**
+ * A growth's admission (`listGrowth.ts`, `queueGrowth.ts`): each resource it makes, in place of
+ * the `freed` bytes it replaces, admitted (`admitInto`) beside the `reserved` bytes it keeps for
+ * later and what it made so far, which the cut holds only once the growth commits.
+ */
+export function admitBeside(cut: CutHeld, freed: number, reserved = 0) {
+  let beside = reserved
+  return <T>(made: { label?: string; bytes: number }, build: () => T) => {
+    const resource = admitInto(cut, made, build, freed, beside)
+    beside += made.bytes
+    return resource
+  }
 }
 
 /** A buffer of `cut`'s own (`admitInto`), `old`'s bytes leaving it, held in `old`'s place among
@@ -91,12 +107,12 @@ export function cutBuffer(cut: CutHolder, descriptor: GPUBufferDescriptor, old?:
 
 /** A texture of `cut`'s own, `bytes` large, made as `cutBuffer` makes a buffer. */
 export function cutTexture(
-  cut: CutHolder & { textures: { texture: GPUTexture; bytes: number }[] },
+  cut: CutHolder,
   descriptor: GPUTextureDescriptor,
   bytes: number,
   old?: GPUTexture,
 ) {
-  const textures: { texture: GPUTexture; bytes: number }[] = cut.textures
+  const { textures } = cut
   const at = old ? textures.findIndex((held) => held.texture === old) : -1
   const made = { label: descriptor.label, bytes },
     freed = at >= 0 ? textures[at].bytes : 0

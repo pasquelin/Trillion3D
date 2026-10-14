@@ -11,7 +11,7 @@ import {
 } from './layout.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { readoutRow } from './bufferTable.ts'
-import { admitInto } from './cutBuffers.ts'
+import { admitBeside } from './cutBuffers.ts'
 import type { DagResources } from './resources.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -63,7 +63,20 @@ export async function growDagList(
   const replaced = [resources.output, ...resources.ranks]
   // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).
   const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
-  const make = madeWithin(resources, replaced, made, Math.max(0, ring))
+  const admit = admitBeside(
+    resources,
+    replaced.reduce((sum, buffer) => sum + buffer.size, 0),
+    Math.max(0, ring),
+  )
+  // Each buffer noted in `made`: one past the share is never made, and the growth is refused by
+  // name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+  const make = (descriptor: GPUBufferDescriptor) => {
+    const label = descriptor.label,
+      bytes = descriptor.size
+    const buffer = admit({ label, bytes }, () => resources.device.createBuffer(descriptor))
+    made.push(buffer)
+    return buffer
+  }
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
@@ -78,8 +91,7 @@ export async function growDagList(
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
-  const old = [resources.output, ...resources.ranks]
-  const growth = cutGrowth(resources, made, old, () => {
+  const growth = cutGrowth(resources, made, replaced, () => {
     const from = { output: resources.output, listCap: resources.listCap },
       grown = heldSlots > resources.heldSlots
     Object.assign(resources, list)
@@ -152,27 +164,4 @@ function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap:
   })
   pass.end()
   device.queue.submit([encoder.finish()])
-}
-
-/**
- * A maker of the buffers that replace `replaced`, each noted in `made` and admitted against what
- * the cut holds (`admitInto`), less what it replaces, with what is made so far and the `reserved`
- * bytes a growth keeps for later: one past the share is never made, and the growth is refused by
- * name (`pastShare`): the view coarsens instead (`coarsening.ts`).
- */
-function madeWithin(
-  resources: DagResources,
-  replaced: readonly GPUBuffer[],
-  made: GPUBuffer[],
-  reserved = 0,
-) {
-  const leaving = replaced.reduce((sum, buffer) => sum + buffer.size, 0) - reserved
-  return (descriptor: GPUBufferDescriptor) => {
-    const beside = made.reduce((sum, buffer) => sum + buffer.size, 0),
-      bytes = descriptor.size,
-      build = () => resources.device.createBuffer(descriptor)
-    const buffer = admitInto(resources, { label: descriptor.label, bytes }, build, leaving - beside)
-    made.push(buffer)
-    return buffer
-  }
 }
