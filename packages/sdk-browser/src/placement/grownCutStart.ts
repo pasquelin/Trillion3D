@@ -17,8 +17,10 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
   if (!growth?.asked) return
   const cut = rt.run.gpuSelection
   // A list growing between two frames takes no root: asked again at the next frame entry, rather
-  // than a whole cut packed for a growth that ends within a frame or two.
-  if (cut?.growing) return
+  // than a whole cut packed for a growth that ends within a frame or two. Nor while a cut is made
+  // beside it: one cut is made at a time, the roots that came meanwhile asked once it landed — a
+  // stream of sources joining over many images never holds the tables of several cuts at once.
+  if (cut?.growing || growth.making) return
   growth.asked = false
   const added = growth.roots.slice(growth.appended)
   // Copies alone bring no root: the running cut holds what they join.
@@ -39,7 +41,7 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
     growth.ready = { cut, roots, moved: new Set(), inPlace: true }
     return
   }
-  growth.making = makeCut(rt, growth)
+  growth.making = makeCut(rt, growth).finally(() => (growth.making = undefined))
 }
 
 /** The capacity a cut over `roots` is packed at: twice the pages and placements the session held
@@ -64,6 +66,12 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
     roots = [...rt.layout.selectionRoots, ...growth.roots],
     { rows } = rt.layout,
     moved = new Set<number>()
+  // A cut made for fewer roots, landed but never adopted, is no cut this one can wait for: its
+  // tables are released before this one's are asked.
+  if (growth.ready && !growth.ready.inPlace && growth.ready.roots !== roots.length) {
+    growth.ready.cut.dispose()
+    growth.ready = undefined
+  }
   growth.moved = moved
   rows.logTouched(moved)
   // The poses named while it is made reach it at its swap (`replayMoves`).

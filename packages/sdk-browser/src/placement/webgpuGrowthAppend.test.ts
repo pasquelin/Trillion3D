@@ -3,7 +3,9 @@
 // adopted yet, is released when the running cut takes the roots instead; and a running cut whose
 // list is growing between two frames takes them at the next entry rather than a whole cut packed.
 // The worlds the host sends hold the appended roots' at once: a host walk before their adoption
-// compares them as the cut holds them, never as zeros.
+// compares them as the cut holds them, never as zeros. One cut is made beside it at a time, a
+// landed one for fewer roots released before the next is made: sources streamed over many images
+// never hold the tables of several cuts at once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
@@ -118,4 +120,37 @@ test('a cut the device refuses is said by name: the running cut stays, the sessi
   assert.equal(rt.run.lost, false, 'no lost device: nothing reopens')
   assert.equal(rt.growth!.ready, undefined)
   assert.equal(cut.disposed, 0)
+})
+
+test('one cut is made at a time: roots that come while it is made wait for it to land', async () => {
+  const { rt, cut, grow } = session()
+  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  cut.full = true
+  grow()
+  startGrownCut(rt)
+  const growth = rt.growth!,
+    making = growth.making
+  assert.ok(making, 'a cut is made beside the running one')
+  // A source streamed in a frame later: the cut being made holds its tables, no second one is asked.
+  grow()
+  startGrownCut(rt)
+  assert.equal(growth.making, making, 'no second cut made while the first one is')
+  assert.equal(growth.asked, true, 'asked again once it landed')
+  await making
+  assert.equal(growth.making, undefined, 'landed: the next entry may make one')
+})
+
+test('a landed cut for fewer roots is released before a cut over them all is made', async () => {
+  const { rt, cut, grow } = session()
+  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  cut.full = true
+  grow()
+  const landed = fakeCut(),
+    growth = rt.growth!
+  growth.ready = { cut: landed as unknown as GpuSelection, roots: 2, moved: new Set() }
+  grow()
+  startGrownCut(rt)
+  assert.equal(landed.disposed, 1, 'its tables released before the new cut asks its own')
+  assert.equal(growth.ready, undefined)
+  await growth.making
 })

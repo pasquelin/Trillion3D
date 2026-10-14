@@ -7,8 +7,10 @@
  * them is lost. Between two images (`webgpuGrownCut.ts`) the roots join every list the session
  * reads by rank, the new cut replaces the old one with the pool's residency and held pages, and the
  * new rows follow as any written row. Only the cut's tables are made again: no page is uploaded,
- * no texture tile moved; the pool, the row cache, the textures and the lights are the session's. A
- * growth while one is made restarts it on every root; the row cache is sized by the view, never by
+ * no texture tile moved; the pool, the row cache, the textures and the lights are the session's. One
+ * cut is made at a time: a growth while one is made waits for it to land, then one is made over
+ * every root, the landed one released unadopted first — the device never holds the tables of
+ * more than the running cut and the one made —; the row cache is sized by the view, never by
  * the placements (#1232).
  *
  * One cut is made per image however many growths it brought (`startGrownCut`, at frame entry),
