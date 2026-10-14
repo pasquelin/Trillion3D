@@ -1,9 +1,9 @@
 // What the reflection rig binds as the proxy (`runtime-proxy.gpu.ts` proves the engine's own): the scene's
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
 // emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
-// and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray.
+// and the engine's stand-in tree (the header names no tree) — or, without faces, the engine's own stand-ins
+// (`runtimeStandIns`): an empty header, no placement, no ray.
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
-import { RUNTIME_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import {
   proxyArena,
   proxyBuffer,
@@ -16,7 +16,7 @@ import {
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
-import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import type { DeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -62,16 +62,24 @@ function proxyWords(faces: readonly RigFace[]) {
 }
 
 /** The proxy's buffer over `faces`, the records they stand in — the identity, its exact translation
- *  zeros, and their instances —, and the table of no placement tree. */
-export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
-  const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
+ *  zeros, and their instances —, and the stand-in tree of `standIns`; without faces, the engine's
+ *  stand-ins whole, as an image without a proxy binds them. */
+export function rigProxy(
+  device: GPUDevice,
+  standIns: DeferredPlaceholders,
+  faces: readonly RigFace[] = [],
+) {
+  const tree = standIns.runtimeTree
+  if (!faces.length)
+    return { proxy: standIns.runtime, proxyWorlds: standIns.runtimeWorlds, proxyTree: tree }
+  const words = proxyWords(faces)
   const proxy = device.createBuffer({
     size: words.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
   // Each placement at the identity, written as the host writes a worlds' table.
-  const n = Math.max(1, faces.length),
+  const n = faces.length,
     identity = new Float32Array(n * 16)
   for (let k = 0; k < n; k++) identity.set(IDENTITY_MATRIX4, k * 16)
   const worlds = worldTableOn(
@@ -80,11 +88,6 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
     Array.from({ length: n }, () => ({ world: IDENTITY_WORLD })),
   )
   // The faces' instances in their records.
-  const held = instanceWords(faces)
-  if (held.length) worlds.write('Instance', 0, faces.length, held.buffer, 0)
-  return {
-    proxy,
-    proxyWorlds: worlds.view,
-    proxyTree: createTreeTable(device, undefined).view,
-  }
+  worlds.write('Instance', 0, n, instanceWords(faces).buffer, 0)
+  return { proxy, proxyWorlds: worlds.view, proxyTree: tree }
 }

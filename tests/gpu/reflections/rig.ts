@@ -26,14 +26,8 @@ import {
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/halfEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
-import {
-  BOUNCE_ATLAS_FORMAT,
-  PROBE_TEXELS,
-} from '../../../packages/sdk-browser/src/bounce/atlas.ts'
-import { standInTexture } from '../../../packages/sdk-browser/src/gpu/core/standInTexture.ts'
-import { arrayView } from '../../../packages/sdk-browser/src/gpu/core/textureViews.ts'
-import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
+import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
@@ -114,24 +108,18 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     surroundings,
   }
   let lightsEpoch = 0
-  // No bounce probes: an empty grid (no level, no light list read) holding a proxy ray's reach.
-  const bounceGrid = device.createBuffer({
-    size: BOUNCE_GRID_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const probes = standInTexture(device, 'reflection proof probes', BOUNCE_ATLAS_FORMAT, {
-    side: PROBE_TEXELS,
-  })
+  // No bounce probes, no light grid: the engine's stand-ins, as an image without them binds them.
+  const standIns = createDeferredPlaceholders(device)
   const inputs = {
     base: base.createView(),
     flags: flags.createView(),
     normals: normals.createView(),
     lobes: lobes.createView(),
     lights,
-    bounceGrid,
-    probes: arrayView(probes),
-    ...rigProxy(device, frame.proxy?.faces),
-    lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
+    bounceGrid: standIns.bounceGrid,
+    probes: standIns.probes,
+    ...rigProxy(device, standIns, frame.proxy?.faces),
+    lightLists: standIns.tiles,
   }
   return {
     reflection,
@@ -188,8 +176,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     dispose() {
       reflection.dispose()
       lights.destroy()
-      bounceGrid.destroy()
-      probes.destroy()
+      standIns.dispose()
       hiz.dispose()
       lightView.dispose()
       for (const made of partition) made.destroy()
