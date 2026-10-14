@@ -1,13 +1,22 @@
 // What the watch keeps stays bounded by the roots, and its classes hold where the image can see:
 // a root read every image under a still view holds one place in the heaps, never one per read; a
 // far root whose pivot lies just past the frustum's widest direction while its sphere still
-// reaches the image keeps the plan's verdict; a root appended to the list in place is read, its
+// reaches the image keeps the switch's verdict; a root appended to the list in place is read, its
 // radius taken.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planImpostors, type ImpostorRoot } from './plan.ts'
+import type { ImpostorRoot } from './switchTable.ts'
 import { createImpostorWatch } from './watch.ts'
-import { COS, FOCAL, PROJECTION, field, keptHeaps, section, viewAt } from './watch.fixture.ts'
+import {
+  COS,
+  FOCAL,
+  PROJECTION,
+  field,
+  keptHeaps,
+  readFromNothing,
+  section,
+  viewAt,
+} from './watch.fixture.ts'
 import { TREE } from './bakedMesh.fixture.ts'
 import { impostorTexelDepth, impostorTriangleDepth } from './switch.ts'
 
@@ -33,7 +42,7 @@ test('roots read every image under a still view hold one place each in the heaps
   assert.equal(watch.hostBytes, settled, 'the watch at its size')
 })
 
-test('a far root past the frustum’s widest direction whose sphere reaches the image keeps the plan’s verdict', () => {
+test('a far root past the frustum’s widest direction whose sphere reaches the image keeps the switch’s verdict', () => {
   const view = viewAt([0, 0, 0], 0)
   // The frustum's widest direction from its axis, as the watch widens it, then a little past it.
   const x = 1.01 / PROJECTION[0],
@@ -51,11 +60,11 @@ test('a far root past the frustum’s widest direction whose sphere reaches the 
   }
   // Its sphere reaches back across the frustum's edge: the root may be drawn.
   assert.ok(Math.asin(TREE.objectRadius / d) > Math.acos(COS) - Math.acos(-u[2]) + 0.001)
-  const plan = planImpostors([root], section, view, FOCAL)
-  assert.equal(plan.switched[0], 0, 'the plan draws its mesh there')
+  const fresh = readFromNothing([root], section, view, FOCAL)
+  assert.equal(fresh.switched[0], 0, 'the switch draws its mesh there')
   const watch = createImpostorWatch()
   watch.update([root], section, view, FOCAL, COS)
-  assert.equal(watch.switched[0], plan.switched[0])
+  assert.equal(watch.switched[0], fresh.switched[0])
 })
 
 test('a root appended to the list in place is read, its radius taken', () => {
@@ -73,7 +82,7 @@ test('a root appended to the list in place is read, its radius taken', () => {
   assert.equal(reads, 1, 'the appended root alone')
   assert.equal(watch.switched[rank], 1)
   assert.equal(watch.radiusOf(rank), TREE.objectRadius)
-  assert.equal(planImpostors(roots, section, view, FOCAL).switched[rank], 1)
+  assert.equal(readFromNothing(roots, section, view, FOCAL).switched[rank], 1)
 })
 
 test('roots whose scale changes every image keep the watch at its size', () => {

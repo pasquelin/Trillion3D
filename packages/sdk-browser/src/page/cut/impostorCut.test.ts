@@ -1,11 +1,11 @@
-// #1314 To-do 3, #1335: a root the impostor plan switches carries the card bit of its mark
+// #1314 To-do 3, #1335: a root the impostor watch switches carries the card bit of its mark
 // (`CARD_ROOT`), so every camera cut drops its clusters in the same breath as the card
-// `planImpostors` yields for it, while its mark keeps no shadow bit: the object keeps its
+// drawn for it, while its mark keeps no shadow bit: the object keeps its
 // mesh's shadow. A root without the bit — any pre-impostor cache — is cut as before. Fails
 // on develop: the card bit and its reading are new.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planImpostors } from '../../../../sdk-core/src/impostor/plan.ts'
+import { createImpostorWatch, impostorViewCosine } from '../../../../sdk-core/src/impostor/watch.ts'
 import type { ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
 import { collectClusterPages } from '../selection/collect.ts'
 import { selectVisiblePages } from './cut.fixture.ts'
@@ -78,12 +78,16 @@ function impostorRoots() {
 const focalOf = (cam: ReturnType<typeof frontCamera>) =>
   focalPixels(engineOf(cam).projection, VIEWPORT[0], VIEWPORT[1])
 
-/** A plan as a backend builds it: the engine camera's world-to-view and the pixel focal. */
-function planFor(
+/** The roots a watch switches as the engine's cards read it (`planImpostorCards`): the engine
+ *  camera's world-to-view, the pixel focal and the frustum's cosine. */
+function switchedFor(
   cam: ReturnType<typeof frontCamera>,
   roots: ReturnType<typeof impostorRoots>['roots'],
 ) {
-  return planImpostors(roots, section, engineOf(cam).view, focalOf(cam))
+  const watch = createImpostorWatch(),
+    engine = engineOf(cam)
+  watch.update(roots, section, engine.view, focalOf(cam), impostorViewCosine(engine.projection))
+  return [...watch.switched]
 }
 
 test('a switched root is left to its card by the camera cut, its shadow kept', () => {
@@ -91,11 +95,8 @@ test('a switched root is left to its card by the camera cut, its shadow kept', (
   const near = frontCamera(5),
     far = frontCamera(200, 5000)
   // The far camera switches the root; the near one draws it whole, so the switch is the view's.
-  const plan = planFor(far, roots)
-  assert.deepEqual([...plan.switched], [1], 'the far root switches')
-  assert.equal(plan.cards.length, 1)
-  assert.equal(plan.cards[0]?.mesh, MESH, 'the card reports the mesh, the mark sits on the root')
-  assert.deepEqual([...planFor(near, roots).switched], [0], 'the near root does not')
+  assert.deepEqual(switchedFor(far, roots), [1], 'the far root switches, keyed by its rank')
+  assert.deepEqual(switchedFor(near, roots), [0], 'the near root does not')
   const options = { pixelError: 0, viewport: VIEWPORT }
   const whole = selectVisiblePages(roots, engineOf(far), options)
   assert.ok(whole.shown.length > 0, 'the root draws whole without its card bit')

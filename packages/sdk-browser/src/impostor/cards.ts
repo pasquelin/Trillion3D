@@ -14,7 +14,7 @@
  */
 import type { ImpostorSection } from '../../../sdk-core/src/contracts/impostor.ts'
 import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
-import { bakedLookup } from '../../../sdk-core/src/impostor/switchTable.ts'
+import { bakedLookup } from '../../../sdk-core/src/impostor/baked.ts'
 import { core } from './borrowed.ts'
 import { createCardSlots, type CardHolder, type CardSegment } from './cardSlots.ts'
 import { followMoves, giveCard, mark, takeCard } from './cardHolders.ts'
