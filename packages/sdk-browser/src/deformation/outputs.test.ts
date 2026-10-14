@@ -4,6 +4,7 @@ import { assignDeformationOutputs, writeRowDeformation, writeSpanDeformation } f
 import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER } from '../visibility/types.ts'
 import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 const page = (url: string, count: number, deformed = true) =>
   ({
@@ -68,7 +69,7 @@ test('a row and a span name an output by its words', () => {
   const ints = new Uint32Array(200),
     spans = new Uint32Array(8)
   const at = 3 * 16
-  const [count, out] = [65, 66]
+  const { deformCount: count, deformOutput: out } = PAGE_INFO.at
   writeRowDeformation(ints, at, own)
   assert.deepEqual(
     [ints[at + count], ints[at + out]],

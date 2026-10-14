@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { ROW_WORDS } from '../visibility/types.ts'
+import { PAGE_INFO } from '../visibility/pageInfo.ts'
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
@@ -17,7 +18,7 @@ import { SUN } from '../webgpu/pages/io/memoryGrowth.fixture.ts'
 type Session = Awaited<ReturnType<typeof placedSession>>
 
 /** Word of a row holding its page's offset in the pool, in words: its address, not its placement. */
-const OFFSET_WORD = 24
+const OFFSET_WORD = PAGE_INFO.at.pageOffset
 
 /** A copy of what a buffer of the mocked device holds: what a pass that binds it reads. */
 const heldBytes = (buffer: GPUBuffer) =>
@@ -30,15 +31,10 @@ const heldBytes = (buffer: GPUBuffer) =>
 function digest({ rt }: Session) {
   const { rows, drawItemWords } = rt.layout
   const hash = createHash('sha256')
-  // Padding words hold physical-surface fields; the placement oracle compares
-  // the original row contract, leaving those independently tested material words out.
-  const originalWords = 64,
-    held = new Float32Array(heldBytes(rt.vis.pageTable!))
-  const table = new Float32Array((held.length / ROW_WORDS) * originalWords)
-  for (let row = 0; row < table.length / originalWords; row++)
-    table.set(held.subarray(row * ROW_WORDS, row * ROW_WORDS + originalWords), row * originalWords)
-  for (let row = 0; row < table.length; row += originalWords)
-    for (const word of [OFFSET_WORD, 38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0
+  // A row holds no surface value, only its surface's rank (`PAGE_INFO.material`): every word but
+  // the pool's offset is the placement oracle's.
+  const table = new Float32Array(heldBytes(rt.vis.pageTable!))
+  for (let row = 0; row < table.length; row += ROW_WORDS) table[row + OFFSET_WORD] = 0
   const corners = new Float32Array(heldBytes(rt.vis.gpuPartition!.corners))
   for (const words of [table, rows.packedPageIndex, drawItemWords, corners])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength))
@@ -126,7 +122,8 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
     // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
     // first run with the grown cut adopted: its seven rows are those the homes test below names.
     // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
-    // was recorded again at their new length — the seven rows alone digest as they did.
+    // was recorded again at their new length — the seven rows alone digest as they did. Recorded
+    // again when a row became its geometry and its surface's rank, 32 words (#1527).
     '897933baa11308dc',
   ])
 })
