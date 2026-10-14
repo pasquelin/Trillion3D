@@ -9,7 +9,7 @@ export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The HDR colour's usages: drawn into, sampled, copied from (the water's backdrop) and into (the
  *  proofs that lay a lit image). Both HDR targets that take turns have them
  *  (`../reflections/radiance.ts`). A function: `GPUTextureUsage` exists only beside a device. */
-export const hdrUsage = () =>
+const hdrUsage = () =>
   GPUTextureUsage.RENDER_ATTACHMENT |
   GPUTextureUsage.TEXTURE_BINDING |
   GPUTextureUsage.COPY_SRC |

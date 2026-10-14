@@ -11,7 +11,7 @@ import { CAST_HEADER_WORDS, CAST_RECORD_WORDS } from './castChanges.ts'
 
 /** The smallest half extent a record holds: the box of a point keeps the sign that says whether its
  *  casters move. Any box may be larger than its casters, never smaller. */
-export const CAST_MIN_EXTENT = 2 ** -40
+const CAST_MIN_EXTENT = 2 ** -40
 
 /** `emitCast(centre, extent, moving)`: the box of half extent `extent` about `centre` appended, its
  *  extent negative when its casters were moving before and after the change. */

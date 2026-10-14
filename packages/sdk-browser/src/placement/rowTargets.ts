@@ -29,7 +29,7 @@ export function target(state: RowWords, row: number, bits = 0) {
 }
 
 /** The rows named forgotten: every row is derived, its shadows staled anew (`spheresMadeAnew`). */
-export function forgetTargets(state: RowWords) {
+function forgetTargets(state: RowWords) {
   for (let k = 0; k < state.count; k++) state.at[state.targets[k] & ROW_NAMED] = 0
   state.count = state.emits = state.stales = 0
 }

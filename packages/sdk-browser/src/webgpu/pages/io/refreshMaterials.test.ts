@@ -22,7 +22,7 @@ import { surfaceOf } from '../../../page/surface.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 import { ROW_NAMED, ROW_STALES } from '../../../placement/rowWordsWgsl.ts'
-import { forgetTargets } from '../../../placement/rowTargets.ts'
+import { targetsTaken } from '../../../placement/rowTargets.ts'
 
 /** The records the material table sent up last (`Trillion3D material records`). */
 const lastRecords = (textureWrites: ReturnType<typeof fakeDevice>['textureWrites']) =>
@@ -194,7 +194,8 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   assert.equal(refreshWebgpuMaterials(runtime, true, alpha), true, 'no new session')
   assert.deepEqual(staled(), [0], 'the shadow pages over the cutout drawn again')
   assert.equal(worlds.length, 0, 'from the sphere the GPU holds: no box made on the CPU')
-  forgetTargets(runtime.rowWords!)
+  // The rows pass took the rows named.
+  targetsTaken(runtime.rowWords!, {} as GPUCommandEncoder)
   assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place')
   assert.deepEqual([staled(), worlds.length], [[], 0], 'and stale no shadow')
 })
