@@ -55,7 +55,6 @@ const passeTexture =
       for (const target of cibles) {
         if (input.remplacer && tour === 1)
           target.image = { data: contentAfter, width: 8, height: 8 }
-        // The engine reads the imported record; the host object is what a bench may still mutate.
         const rgba = fn(target)
         if (!rgba) {
           nuls++

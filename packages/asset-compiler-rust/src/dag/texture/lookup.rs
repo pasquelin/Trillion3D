@@ -165,7 +165,7 @@ impl<'a> Lookup<'a> {
             0.0
         } else {
             let on = weighted_sum([a, b, c], weights);
-            trillion3d_math::vecn::length([at[0] - on[0], at[1] - on[1]])
+            length([at[0] - on[0], at[1] - on[1]])
         };
         if miss > best.0 {
             return;

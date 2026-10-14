@@ -10,11 +10,12 @@ const alea = xorshiftRandom(107)
  *  engine's `!layer` guard — this bench deliberately probes that wider, unsigned contract). */
 type Couche = number | undefined | null
 
-// One third of the layers are hostile: out of bounds, non-finite, or missing. The engine brings them
-// all to zero without throwing, and this is what the oracle checks on both functions.
+// One third of the layers are hostile: out of bounds, non-finite, or missing. The engine caps a
+// layer past 15 at 15 and gives a negative, non-finite or missing one zero, without throwing; this
+// is what the oracle checks on both functions.
 const HOSTILES: Couche[] = [-1, 16, NaN, Infinity, -Infinity, undefined, null]
 /** The units of every layer the bench draws, frozen from the engine's contract: a layer's floor
- *  times 16 units, capped at layer 15; a hostile layer, none. */
+ *  times 16 units, capped at layer 15; a negative, non-finite or missing layer, none. */
 const GOLDEN_UNITS = new Map<Couche, number>([
   ...Array.from({ length: 16 }, (_, layer): [Couche, number] => [layer, layer * 16]),
   [-1, 0],
