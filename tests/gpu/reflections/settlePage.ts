@@ -9,6 +9,7 @@ import { animationFrame } from '../kit/frame.ts'
 import { openMirror } from './mirrorPage.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import type { openRig } from './rig.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: the images each loop drew and the target it held, as raw half words. */
 export type SettleReading = {
@@ -25,7 +26,7 @@ function frameLitBy(scale: number) {
   const { size, quad } = MIRROR
   // The quad's lit pixels are the ones of its colour; the floor's own colour stays.
   for (let p = 0; p < size * size; p++)
-    if (scene.flags[p] === 4)
+    if (scene.flags[p] === MODEL_FLAG.diffuse)
       for (let c = 0; c < 3; c++) scene.radiance[p * 4 + c] = quad[c] * scale
   return scene
 }

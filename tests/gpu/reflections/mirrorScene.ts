@@ -5,6 +5,7 @@
 // floor a lit standard surface, the quad a diffuse one, which reflects nothing), its normal and
 // roughness, and the lit colour the image holds there.
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 export const MIRROR = {
   size: 128,
   near: 0.1,
@@ -12,9 +13,6 @@ export const MIRROR = {
   quad: [1, 0.25, 0, 1],
   floor: [0.05, 0.05, 0.05, 1],
 }
-/** The surface flags of the frame (`scene/surfaceModel.ts`): lit standard, diffuse. */
-const STANDARD = 2,
-  DIFFUSE = 4
 
 export function mirrorScene() {
   const { size, near, quad, floor } = MIRROR
@@ -37,7 +35,7 @@ export function mirrorScene() {
       if (!onQuad && !onFloor) continue
       const distance = onQuad ? 6 : -1 / ray[1]
       depth[at] = near / distance
-      flags[at] = onQuad ? DIFFUSE : STANDARD
+      flags[at] = onQuad ? MODEL_FLAG.diffuse : MODEL_FLAG.physical
       normals.set(onQuad ? [0, 0, 1, 1] : [0, 1, 0, 0], at * 4)
       radiance.set(onQuad ? quad : floor, at * 4)
     }

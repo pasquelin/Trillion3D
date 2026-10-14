@@ -12,13 +12,10 @@ import {
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import type { RigFrame } from './rigFrame.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** A box of the frame: its geometry, its colour, and whether it is a mirror. */
 export type Block = { box: Box; color: V3; mirror?: boolean }
-
-/** The surface flags of the frame (`scene/surfaceModel.ts`): lit standard, diffuse. */
-const STANDARD = 2,
-  DIFFUSE = 4
 
 /** The outward normal of the face `face` of a box (`6 · box + face` of `rasterize`): axis `face >> 1`,
  *  the high side when odd. */
@@ -56,7 +53,7 @@ export function boxFrame(
   for (let p = 0; p < pixels; p++) {
     if (shown[p] < 0) continue
     const block = blocks[Math.floor(shown[p] / 6)]
-    frame.flags[p] = block.mirror ? STANDARD : DIFFUSE
+    frame.flags[p] = block.mirror ? MODEL_FLAG.physical : MODEL_FLAG.diffuse
     frame.normals.set([...faceNormal(shown[p] % 6), block.mirror ? 0 : 1], p * 4)
     frame.base.set(block.mirror ? [1, 1, 1, 1] : [...block.color, 0], p * 4)
     frame.radiance.set([...block.color, 1], p * 4)

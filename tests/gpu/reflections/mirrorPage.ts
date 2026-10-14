@@ -6,6 +6,7 @@ import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/scene/p
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { openRig } from './rig.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: per reflective family, three consecutive still images' reflection
  *  targets, as raw half-float words. */
@@ -52,7 +53,7 @@ export function roughFloor(coat: boolean, rough = ROUGH) {
   const { size } = MIRROR
   const lobes = new Uint32Array(size * size * 4)
   for (let p = 0; p < size * size; p++) {
-    if (scene.flags[p] !== STANDARD) continue
+    if (scene.flags[p] !== MODEL_FLAG.physical) continue
     scene.normals[p * 4 + 3] = rough
     if (!coat) continue
     scene.flags[p] |= PHYSICAL_SURFACE_FLAG
@@ -63,8 +64,6 @@ export function roughFloor(coat: boolean, rough = ROUGH) {
   return { scene, lobes: coat ? lobes : undefined }
 }
 
-/** The surface flag of a lit standard surface (`scene/surfaceModel.ts`), the floor's. */
-const STANDARD = 2
 /** The floor's roughness: its own lobe is wide, the coat's the narrowest the engine allows. */
 const ROUGH = 0.9
 /** The octahedral word of the normal +y (`lobeOctEncode`), and the unorm pair (strength 0, coat 1). */
