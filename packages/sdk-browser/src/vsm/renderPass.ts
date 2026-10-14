@@ -29,11 +29,8 @@
  *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import {
-  preparedPipeline,
-  preparedPipelines,
-  type PreparedPipeline,
-} from '../lighting/deferred/fullscreen.ts'
+import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import {

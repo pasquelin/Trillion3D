@@ -4,12 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import {
-  preparedComputePipeline,
-  preparedPipeline,
-  preparedPipelines,
-  started,
-} from './fullscreen.ts'
+import { preparedComputePipeline, preparedPipeline, started } from './fullscreen.ts'
+import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { pipelinesCompiling, pipelinesSettled } from './compileLedger.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { gatedDevice } from './gatedDevice.fixture.ts'

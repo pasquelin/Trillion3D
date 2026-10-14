@@ -32,12 +32,8 @@ import {
   negateRowMatrix4,
 } from '../../../math/src/matrix/matrix4.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
-import {
-  preparedComputePipeline,
-  preparedPipelines,
-  started,
-  type PreparedPipelines,
-} from '../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
+import { preparedPipelines, type PreparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { createVsmBlueNoiseTexture, VSM_BLUE_NOISE_BYTES } from './blueNoise.ts'
 import {
   VSM_LIGHT_KIND_DIRECTIONAL,

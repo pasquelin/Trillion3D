@@ -1,10 +1,7 @@
 import { PARTICLE_BLENDS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import { checkShaderModule } from '../../gpu/core/shaderModule.ts'
-import {
-  buildRenderPipeline,
-  preparedPipeline,
-  preparedPipelines,
-} from '../../lighting/deferred/fullscreen.ts'
+import { buildRenderPipeline, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../../particles/drawWords.ts'
 import { displayMaskLayout, type DisplayFilter } from '../blend/displayFilter.ts'
 import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL } from './particlesWgsl.ts'

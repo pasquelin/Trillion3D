@@ -5,11 +5,8 @@
  * the maths package's (`packages/math/src/scalar`).
  */
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import {
-  preparedComputePipeline,
-  preparedPipelines,
-  type PreparedPipeline,
-} from '../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 
 /** A compute pipeline and the layouts of its groups: `prepared` compiles it off the thread (the
  *  prepare step awaits it, `prepareVsmPipelines`); `pipeline`, read where it is bound, is the one
