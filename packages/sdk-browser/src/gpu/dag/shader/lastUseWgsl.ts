@@ -3,7 +3,7 @@ import { RAISED_PER_GROUP } from './floorWgsl.ts'
 import { EVICT_IN_USE } from '../../pool/rank.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
-import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Each key group's LAST USE, written by the GPU and nowhere else: the last frame a view drew a
@@ -31,7 +31,7 @@ export const dagFlagsWords = (queueWords: number, candCap: number) =>
 
 export const DAG_LAST_USE_WGSL = wgslBlock(
   'DAG_LAST_USE_WGSL',
-  [ceilDiv, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
+  [ceilDivWgsl, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   `/** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2), then
  *  the descent queues' (3 to 5, \`queueGroups\`): what the arming kernel copies (\`armWgsl.ts\`). */
 fn listGroups(l:u32)->u32{return drawnGroupsMax()+1u+2u*l;}

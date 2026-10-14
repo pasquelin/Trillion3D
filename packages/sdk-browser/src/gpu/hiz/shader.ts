@@ -18,7 +18,7 @@ import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
 import {
   HIZ_CULL_FARTHEST,
@@ -279,7 +279,7 @@ fn testBox(i:u32){
     GROUP_GRID_WGSL,
     WORKGROUP_THREADS_WGSL,
     NO_INDEX,
-    ceilDiv,
+    ceilDivWgsl,
     STATE_TALLY_WGSL,
     HIZ_HIDES_WGSL,
     HIZ_TEXEL_WGSL,

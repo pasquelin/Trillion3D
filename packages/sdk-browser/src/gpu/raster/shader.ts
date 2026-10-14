@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
 import { COLOR_SAMPLE_WGSL, TILE_POOL_WGSL, tileDeclarations } from '../../webgpu/tile/wgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
@@ -58,7 +58,7 @@ ${rasterKernels(capacity)}`,
       GROUP_GRID_WGSL,
       WORKGROUP_THREADS_WGSL,
       NO_INDEX,
-      ceilDiv,
+      ceilDivWgsl,
     ],
   )
 

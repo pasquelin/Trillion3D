@@ -1,6 +1,6 @@
 import { SELECTION_LIST_CAP } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { bitIsSet, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Cold record of a cluster and page residency, read by word in one buffer.
@@ -20,7 +20,7 @@ import { bitIsSet, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer
  */
 export const DAG_RECORD_WGSL = wgslBlock(
   'DAG_RECORD_WGSL',
-  [ceilDiv, bitWord, bitIsSet],
+  [ceilDivWgsl, bitWord, bitIsSet],
   `const COLD:u32=13u;
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
 fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,2u);}

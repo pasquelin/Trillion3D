@@ -50,7 +50,7 @@ import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import {
   bitIsSet,
   byteOf,
-  ceilDiv,
+  ceilDivWgsl,
   highHalf,
   lowHalf,
   rectCell,
@@ -913,7 +913,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  textureStore(memory,vec2u(t%${VSM_TRANSMISSION_WIDTH}u,t/${VSM_TRANSMISSION_WIDTH}u),w);
 }
 `,
-    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDiv, lowHalf, highHalf],
+    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDivWgsl, lowHalf, highHalf],
   )
 
 // ---- Consumer read ------------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import { STATE_WORDS } from './contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * What the frame's kernels count from zero, zeroed by the first dispatch of the partition's pass,
@@ -13,7 +13,7 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  */
 export const PARTITION_CLEAR_WGSL = wgslBlock(
   'PARTITION_CLEAR_WGSL',
-  [ceilDiv, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  [ceilDivWgsl, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
   `
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){

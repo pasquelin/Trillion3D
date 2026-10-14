@@ -6,7 +6,7 @@ import {
   bitLength,
   bitWord,
   byteOf,
-  ceilDiv,
+  ceilDivWgsl,
   lowBits,
   pow2FromExponent,
 } from '../../../math/src/wgsl/integer.ts'
@@ -67,7 +67,7 @@ export function clusterDecodeWgsl(buffer: string) {
       CLUSTER_HEADER_WGSL,
       bitLength,
       byteOf,
-      ceilDiv,
+      ceilDivWgsl,
       pow2FromExponent,
       lowBits,
       bitWord,

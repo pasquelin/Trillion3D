@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 
 /**
@@ -25,7 +25,7 @@ import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
  */
 export const LANE_SCAN_WGSL = wgslBlock(
   'LANE_SCAN_WGSL',
-  [ceilDiv, WORKGROUP_THREADS_WGSL],
+  [ceilDivWgsl, WORKGROUP_THREADS_WGSL],
   `
 var<workgroup> laneSums:array<u32,2u*WORKGROUP_THREADS>;
 fn laneScan(lane:u32,value:u32)->u32{

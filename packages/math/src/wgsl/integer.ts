@@ -10,7 +10,7 @@ import { wgslFn } from './decl.ts'
 
 /** The groups of `n` that `a` takes, the last one part full (`ceilDiv`); `a+n-1u` wraps past
  *  2³² − n, as every site's sum did. */
-export const ceilDiv = wgslFn('ceilDiv', [], 'fn ceilDiv(a:u32,n:u32)->u32{return (a+n-1u)/n;}')
+export const ceilDivWgsl = wgslFn('ceilDiv', [], 'fn ceilDiv(a:u32,n:u32)->u32{return (a+n-1u)/n;}')
 
 /** The side of mip level `level` of a texture whose base side is `size`: `size` halved `level`
  *  times by integer division, one texel at least (`mipSize`, `../scalar/integers.ts`); a level past
