@@ -2,8 +2,9 @@ import { validationScope } from '../core/errorScope.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
 import { createFlagTable } from './cutTables.ts'
-import { admitted, cutBytes } from './cutBuffers.ts'
-import { cutHeldSlots, growDagList, heldOpenAt, rankGroups } from './listCap.ts'
+import { cutBytes, cutTexture } from './cutBuffers.ts'
+import { cutHeldSlots, heldOpenAt, rankGroups } from './listCap.ts'
+import { growDagList } from './listGrowth.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import type { CutTablesAt } from './uniforms.ts'
@@ -33,16 +34,16 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
     old = cutTables.flags
   const made: { texture: GPUTexture; bytes: number }[] = []
   // What the flags replace leaves the share: the new table is made within what remains.
-  const kept = cutBytes(resources) - old.bytes
-  const make = (descriptor: GPUTextureDescriptor, bytes: number) => {
-    const held = kept + made.reduce((sum, { bytes: size }) => sum + size, 0)
-    const label = descriptor.label
-    const texture = admitted(device, resources.admit, held, resources.share, { label, bytes }, () =>
-      device.createTexture(descriptor),
-    )
-    made.push({ texture, bytes })
-    return texture
+  const growth = {
+    buffers: [],
+    textures: made,
+    aside: cutBytes(resources) - old.bytes,
+    device,
+    admit: resources.admit,
+    share: resources.share,
   }
+  const make = (descriptor: GPUTextureDescriptor, bytes: number) =>
+    cutTexture(growth, descriptor, bytes)
   let flags: ReturnType<typeof createFlagTable> | undefined
   try {
     const { value, error } = await validationScope(

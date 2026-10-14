@@ -9,7 +9,7 @@ import {
   type DagResources,
 } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagDifference } from '../../../packages/sdk-browser/src/gpu/dag/encodeDifference.ts'
-import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
+import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listGrowth.ts'
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import {
   SELECTION_HEADER_WORDS,

@@ -1,6 +1,6 @@
 import { createReadbackRing, type ReadbackRing } from '../core/readbackRing.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
-import { cutBytes, madeAsked, type CutAdmission } from './cutBuffers.ts'
+import { admitInto, type CutAdmission } from './cutBuffers.ts'
 import { chainMain, landMain, type MainCopy } from './dispatchRead.ts'
 
 /** A take's buffer, its budget asked by the growth that made room for it (`growDagList`). */
@@ -9,7 +9,7 @@ const asked: CutAdmission = () => {}
 /**
  * THE MAIN VIEW'S READBACK RING (`../core/readbackRing.ts`): `DAG_READBACK_SLOTS` buffers the
  * frame copies the cut's lists into, read in order behind the reads and growths in flight
- * (`chainMain`), each a buffer of the cut's own — within its `share` (`madeAsked`), counted in what
+ * (`chainMain`), each a buffer of the cut's own — within its `share` (`admitInto`), counted in what
  * it holds (`cutBytes`) —, made with the tables at `bytes`, asked of its budget first, and made
  * again at a take that asks more once the list grew: the growth kept that room in the share and
  * asked the budget for it (`growDagList`), so a frame's copy never moves the pools' funding. A
@@ -28,10 +28,19 @@ export function createMainReadbacks(
   const funded = {
     createBuffer(descriptor: GPUBufferDescriptor) {
       // The ring counts its own once made; while it makes its first buffers, they are counted here.
-      const held =
-        cutBytes({ buffers: cut.buffers, readbacks: made.ring }) + (made.ring ? 0 : first)
+      const { ring } = made,
+        holder = {
+          buffers: cut.buffers,
+          readbacks: ring ?? { bytes: first },
+          device,
+          admit: ring ? asked : cut.admit,
+          share: cut.share,
+        }
       try {
-        const buffer = madeAsked(device, made.ring ? asked : cut.admit, held, cut.share, descriptor)
+        const bytes = descriptor.size,
+          buffer = admitInto(holder, { label: descriptor.label, bytes }, () =>
+            device.createBuffer(descriptor),
+          )
         if (!made.ring) first += buffer.size
         return buffer
       } catch (error) {

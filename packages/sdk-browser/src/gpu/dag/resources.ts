@@ -8,7 +8,7 @@ import { createMaskSwap } from './swap.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
-import { admitted, madeAsked, type CutAdmission } from './cutBuffers.ts'
+import { cutBuffer, cutTexture, type CutAdmission } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 import { recordsIdentity } from './recordsFollow.ts'
 
@@ -53,25 +53,15 @@ export async function createDagResources(
   listCap ??= initialListCap(device.limits, packed.live?.pages ?? packed.pageCount, heldSlots)
   const buffers: GPUBuffer[] = [],
     textures: { texture: GPUTexture; bytes: number }[] = []
-  let held = 0
-  /** A buffer of this cut's: the runtime's dispose destroys them all. One past the share, or the
-   *  budget refuses, is never made: the cut is refused by name. */
-  const own = (descriptor: GPUBufferDescriptor) => {
-    const buffer = madeAsked(device, admit, held, share, descriptor)
-    held += buffer.size
-    buffers.push(buffer)
-    return buffer
-  }
+  /** The cut as its setup makes it: one past the share, or the budget refuses, is never made, and
+   *  the cut is refused by name. */
+  const setup = { buffers, textures, device, admit, share }
+  /** A buffer of this cut's: the runtime's dispose destroys them all (`cutBuffer`). */
+  const own = (descriptor: GPUBufferDescriptor) => cutBuffer(setup, descriptor)
   /** A record texture of this cut's (`../core/recordTexture.ts`), `bytes` large: the same
    *  admission, the same end. */
-  const ownTexture = (descriptor: GPUTextureDescriptor, bytes: number) => {
-    const texture = admitted(device, admit, held, share, { label: descriptor.label, bytes }, () =>
-      device.createTexture(descriptor),
-    )
-    held += bytes
-    textures.push({ texture, bytes })
-    return texture
-  }
+  const ownTexture = (descriptor: GPUTextureDescriptor, bytes: number) =>
+    cutTexture(setup, descriptor, bytes)
   /** Every resource made so far, each destroyed whatever the others do: a partial setup must not
    *  leak. */
   const destroyAll = () => {
