@@ -12,7 +12,10 @@
  */
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
-import type { PlacementRows } from './rows.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import type { PlacementOf, PlacementRows } from './rows.ts'
+import { rootRankOfRow } from './update.ts'
+import { composeOnRead, plainAgain } from './composeOnRead.ts'
 
 /** A row held by its parent's slot, composed for its readers. */
 type RowReader = {
@@ -31,15 +34,10 @@ export type Readers = Map<number, RowReader[]>
 /** The views a reader's row is read through, by its rows and its rank there. */
 export type ReaderViews = (rows: PlacementRows, index: number) => readonly MatrixElements[]
 
+const NO_VIEWS: readonly MatrixElements[] = []
+
 /** What a view composes from: each slot's version and the parents' worlds, read at the read. */
 type Composition = { readonly slotVersions: readonly number[]; readonly worlds: Float64Array }
-
-/** The views this module made read through their row's composition: the reader and the slot each
- *  one composes under, and the array it composes into. */
-const composing = new WeakMap<
-  MatrixElements,
-  { readonly reader: RowReader; readonly slot: number; readonly elements: Float64Array }
->()
 
 /** `links` become readers of `slot` (`parent`) — every reader it has when the slot held none, as
  *  a whole link deletes them first. A reader held already takes its new local in place: the views
@@ -96,44 +94,52 @@ export function rebindReaders(readers: Readers, from: PlacementRows, to: Placeme
       }
 }
 
-/** `view` reads `reader`'s row composed under slot `slot` of `composition`, the first time it is
- *  read since the slot's composition or the reader moved: each view keeps its own stamp, so that
- *  two views of one row each compose into their own array. A view another getter serves already —
- *  a root's composed world, the same product — is left to it; one this module made for another
- *  reader or slot, its row having changed parent, reads through this one from now on. */
+/** `view` reads `reader`'s row composed under slot `slot` of `at`, the first time it is read since
+ *  the slot's composition or the reader moved (`composeOnRead`): each view composes into its own
+ *  array. One composed for another reader — its row having changed parent — reads through this one
+ *  from now on. Both counters only grow: their sum moves whenever either does. */
 function readThrough(view: MatrixElements, reader: RowReader, slot: number, at: Composition) {
-  const made = composing.get(view)
-  if (made ? made.reader === reader && made.slot === slot : isServed(view)) return
-  const elements = made?.elements ?? (view.elements as Float64Array)
-  composing.set(view, { reader, slot, elements })
-  let slotAt = -1,
-    readerAt = -1
-  Object.defineProperty(view, 'elements', {
-    configurable: true,
-    enumerable: true,
-    get: () => {
-      if (slotAt !== at.slotVersions[slot] || readerAt !== reader.changes) {
-        slotAt = at.slotVersions[slot]
-        readerAt = reader.changes
-        multiplyMatrix4(elements, at.worlds.subarray(slot * 16, slot * 16 + 16), reader.local)
-      }
-      return elements
-    },
-  })
+  composeOnRead(
+    view,
+    reader,
+    () => at.slotVersions[slot] + reader.changes,
+    (out) => multiplyMatrix4(out, at.worlds.subarray(slot * 16, slot * 16 + 16), reader.local),
+  )
 }
 
-const isServed = (view: MatrixElements) => !!Object.getOwnPropertyDescriptor(view, 'elements')?.get
+/** The views `items` read rows through (`matrix`), indexed once: what a reader's row is read
+ *  through. Made only when the readers or the items change, never at a move. */
+export function readerViews(
+  items: readonly { readonly placement?: PlacementOf; readonly matrix: MatrixElements }[],
+): ReaderViews {
+  const byRows = new Map<PlacementRows, Map<number, MatrixElements[]>>()
+  for (const { placement, matrix } of items) {
+    if (!placement) continue
+    const views =
+      byRows.get(placement.rows) ?? byRows.set(placement.rows, new Map()).get(placement.rows)!
+    const held = views.get(placement.index)
+    if (held) held.push(matrix)
+    else views.set(placement.index, [matrix])
+  }
+  return (rows, index) => byRows.get(rows)?.get(index) ?? NO_VIEWS
+}
 
-/** The views (`viewsOf`) of the readers of `slot` read their rows composed (`readThrough`). */
+/** The views (`viewsOf`) of the readers of `slot` read their rows composed (`readThrough`) — but
+ *  the world of the root that reads the row, which the root's composition serves
+ *  (`gpuComposeWorld.ts`): a blended copy may stand on its root's very view (`growth.ts`). */
 export function readThroughViews(
   readers: Readers,
   slot: number,
   viewsOf: ReaderViews,
   composition: Composition,
+  roots: readonly ClusterRoot<PageRec>[],
 ) {
-  for (const reader of readers.get(slot) ?? [])
+  for (const reader of readers.get(slot) ?? []) {
+    const rank = rootRankOfRow(roots, reader.rows, reader.index)
+    const rooted = rank >= 0 ? roots[rank].world : undefined
     for (const view of viewsOf(reader.rows, reader.index))
-      readThrough(view, reader, slot, composition)
+      if (view !== rooted) readThrough(view, reader, slot, composition)
+  }
 }
 
 /** The views of `slot`'s readers are plain again, holding the world they were last read at: their
@@ -143,16 +149,7 @@ export function releaseReaderViews(readers: Readers, slot: number, viewsOf: Read
 }
 
 function releaseViews(reader: RowReader, viewsOf: ReaderViews) {
-  for (const view of viewsOf(reader.rows, reader.index)) {
-    if (composing.get(view)?.reader !== reader) continue
-    composing.delete(view)
-    Object.defineProperty(view, 'elements', {
-      configurable: true,
-      enumerable: true,
-      writable: true,
-      value: view.elements,
-    })
-  }
+  for (const view of viewsOf(reader.rows, reader.index)) plainAgain(view, reader)
 }
 
 /**

@@ -4,7 +4,7 @@
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { composeWebgpuPlacements, rebindComposedWorlds } from './gpuCompose.ts'
+import { adoptRootedReaders, composeItems, composeWebgpuPlacements } from './gpuCompose.ts'
 import { createPlacementRows, placementWorld } from './rows.ts'
 import { forgetRowRoots } from './update.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
@@ -59,7 +59,7 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   roots.push({ placement: { rows: pending, index: 0 }, world: placementWorld(pending, 0) })
   roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1) })
   forgetRowRoots(roots as never)
-  rebindComposedWorlds(rt)
+  adoptRootedReaders(rt)
   assert.deepEqual([...rt.compose!.parentOf].slice(0, 4), [0, NO_INDEX, 0, 0])
   const held = [...rt.compose!.readers.values()].flat()
   assert.deepEqual(
@@ -122,4 +122,34 @@ test('two views of one row, each its own array, both read the row composed', () 
   composeWebgpuPlacements(rt, parent, turn(0.8), [], false)
   assert.deepEqual(Array.from(first.matrix.elements), product(turn(0.8), local(2)))
   assert.deepEqual(Array.from(second.matrix.elements), product(turn(0.8), local(2)))
+})
+
+test('a blended item made after its row was linked follows the parent from its first read', () => {
+  const { rt } = session()
+  const extra = createPlacementRows(2),
+    parent = {}
+  // The row is linked before any item reads it, as a growth's new row is before its copy joins.
+  composeWebgpuPlacements(rt, parent, turn(0.2), [{ rows: extra, index: 1, local: local(6) }], true)
+  const item = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
+  rt.blendState.blendGpu.push(item as never)
+  // The item is made (`growBlend`): it reads its row through the composition at once.
+  composeItems(rt, [item as never])
+  composeWebgpuPlacements(rt, parent, turn(0.5), [], false)
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.5), local(6)))
+})
+
+test('a composition dropped with its root list leaves its readers plain, at their last world', () => {
+  const { rt } = session()
+  const extra = createPlacementRows(2),
+    parent = {}
+  const item = { placement: { rows: extra, index: 0 }, matrix: placementWorld(extra, 0) }
+  rt.blendState.blendGpu.push(item as never)
+  composeWebgpuPlacements(rt, parent, turn(0.3), [{ rows: extra, index: 0, local: local(2) }], true)
+  const roots = rt.layout.selectionRoots as unknown as object[]
+  roots.pop()
+  forgetRowRoots(roots as never)
+  // Another list: the composition is made again, the old one held by no view.
+  composeWebgpuPlacements(rt, {}, turn(0), [], false)
+  assert.equal(Object.getOwnPropertyDescriptor(item.matrix, 'elements')?.get, undefined)
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.3), local(2)))
 })

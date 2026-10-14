@@ -33,6 +33,7 @@ import { updateTransparentSpan } from '../transparent/spans.ts'
 import { growVolumes } from '../transparent/transmission.ts'
 import { buildBlendPipelines } from '../pages/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
+import { composeItems } from '../../placement/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
 
 /** Why the transparent pass cannot take a surface where the session stands, said by name; none
@@ -131,11 +132,14 @@ export function growBlend(
   const { blendState, gpu, setup } = rt,
     held = blendState.blendGpu.length
   blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, setup.scene)
+  const added = blendState.blendGpu.slice(held)
+  // An item made on a row a parent composes reads it composed from its first image.
+  composeItems(rt, added)
   growVolumes(rt, device)
   const { table } = blendState
   if (table) {
     const first = table.length
-    table.append(roots, base, blendState.blendGpu.slice(held))
+    table.append(roots, base, added)
     // A page of an address the pool holds already is named by no arrival: its span is read from the
     // pool, as the arrival of a page would give it.
     for (let entry = first; entry < table.length; entry++) {

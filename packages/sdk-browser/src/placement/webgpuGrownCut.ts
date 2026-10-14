@@ -14,6 +14,7 @@ import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
+import { adoptRootedReaders } from './gpuCompose.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
 import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
@@ -69,6 +70,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   // The blended copies join the pass with the ranks their pages hold now, before the first sync of
   // the rows names them.
   joinBlend(rt, copies, added, first)
+  // A row a parent composed for its readers while its root waited is the roots pass's now.
+  adoptRootedReaders(rt)
   placeDeformation(rt)
   // The worlds the cut takes, laid out for every placement its tables hold: a growth into its room
   // keeps them, one past it lays them out once more.

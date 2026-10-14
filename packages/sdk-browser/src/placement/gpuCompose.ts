@@ -36,12 +36,12 @@
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { PlacementRows } from './rows.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
 import { rootRankOfRow } from './update.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import {
   adoptReaders,
   holdReaders,
+  readerViews,
   readThroughViews,
   releaseReaderViews,
   type ReaderViews,
@@ -52,23 +52,6 @@ import { installComposedWorld } from './gpuComposeWorld.ts'
 
 /** A row linked to a parent: its rows, its rank there, its mesh's local matrix. */
 export type PlacementLink = { rows: PlacementRows; index: number; local: ArrayLike<number> }
-
-const NO_VIEWS: readonly MatrixElements[] = []
-
-/** The views the blended items read rows through (`matrix`), indexed once: what a reader's row is
- *  read through (`composeReaders.ts`). Made only when the readers change, never at a move. */
-function readerViews(rt: WebgpuPagesRuntime): ReaderViews {
-  const byRows = new Map<PlacementRows, Map<number, MatrixElements[]>>()
-  for (const { placement, matrix } of rt.blendState.blendGpu) {
-    if (!placement) continue
-    const views =
-      byRows.get(placement.rows) ?? byRows.set(placement.rows, new Map()).get(placement.rows)!
-    const held = views.get(placement.index)
-    if (held) held.push(matrix)
-    else views.set(placement.index, [matrix])
-  }
-  return (rows, index) => byRows.get(rows)?.get(index) ?? NO_VIEWS
-}
 
 /**
  * Takes `world` as `parent`'s world and links `links` to it. `whole`: they are every row that
@@ -91,7 +74,7 @@ export function composeWebgpuPlacements(
   const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p, world)
   let views: ReaderViews | undefined
-  const viewsOf = () => (views ??= readerViews(rt))
+  const viewsOf = () => (views ??= readerViews(rt.blendState.blendGpu))
   if (whole) {
     unlinkHeld(rt, state, slot, ranks)
     if (state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
@@ -107,7 +90,8 @@ export function composeWebgpuPlacements(
   const relinked = ranks.length > 0 || whole
   settleSlot(rt, state, { slot, p, world, relinked })
   // Its readers' views read their rows composed: a move composes none until one is read.
-  if (readers.length || whole) readThroughViews(state.readers, slot, viewsOf(), state)
+  if (readers.length || whole)
+    readThroughViews(state.readers, slot, viewsOf(), state, rt.layout.selectionRoots)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
 }
@@ -120,14 +104,30 @@ export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
   if (!state) return
   for (let rank = 0; rank < state.roots && rank < rt.layout.selectionRoots.length; rank++)
     if (state.parentOf[rank] !== NO_INDEX) installComposedWorld(rt, rank)
-  // The rows a root reads now are composed by the roots pass from here on.
-  const roots = rt.layout.selectionRoots,
-    viewsOf = readerViews(rt)
-  for (const slot of state.readers.keys()) readThroughViews(state.readers, slot, viewsOf, state)
+  composeItems(rt, rt.blendState.blendGpu)
+}
+
+/** Blended `items` read their rows through the composition, if a parent composes them: called
+ *  where an item is made (`growBlend`) and where one stands on a new view (`rebindComposedWorlds`),
+ *  so that no item reads a frozen row whatever order a growth runs its steps in. */
+export function composeItems(rt: WebgpuPagesRuntime, items: Parameters<typeof readerViews>[0]) {
+  const state = rt.compose
+  if (!state?.readers.size) return
+  const viewsOf = readerViews(items)
+  for (const slot of state.readers.keys())
+    readThroughViews(state.readers, slot, viewsOf, state, rt.layout.selectionRoots)
+}
+
+/** The roots that joined the session (`adoptGrownCut`) take the rows they read from the readers:
+ *  the roots pass composes them from now on, linked under the parent their readers followed. */
+export function adoptRootedReaders(rt: WebgpuPagesRuntime) {
+  const state = rt.compose
+  if (!state?.readers.size) return
+  const roots = rt.layout.selectionRoots
   const adopted = adoptReaders(
     state.readers,
     (rows, index) => rootRankOfRow(roots, rows, index),
-    viewsOf,
+    readerViews(rt.blendState.blendGpu),
   )
   for (const { slot, parent, readers } of adopted)
     composeWebgpuPlacements(

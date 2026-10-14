@@ -20,11 +20,13 @@ import {
   type ComposeState,
 } from './gpuComposeState.ts'
 import { installComposedWorld, removeComposedWorld } from './gpuComposeWorld.ts'
+import { readerViews, releaseReaderViews } from './composeReaders.ts'
 import type { PlacementLink } from './gpuCompose.ts'
 
 /** The session's composition over its root list: a growth appends to it, its links kept; a list
- *  shortened — another list — unlinks every root through the one unlink path (`unlinkHeld`)
- *  before it is made again. */
+ *  shortened — another list — unlinks every root through the one unlink path (`unlinkHeld`) and
+ *  lets every reader's views go plain, holding their last world (`releaseReaderViews`), before it
+ *  is made again: no view keeps the old composition alive. */
 export function composeState(rt: WebgpuPagesRuntime) {
   const roots = rt.layout.selectionRoots.length,
     state = rt.compose
@@ -32,6 +34,8 @@ export function composeState(rt: WebgpuPagesRuntime) {
   else if (state && roots < state.roots) {
     for (let slot = 0; slot < state.ranksOf.length; slot++)
       if (state.ranksOf[slot]?.length) unlinkHeld(rt, state, slot, [])
+    const viewsOf = readerViews(rt.blendState.blendGpu)
+    for (const slot of state.readers.keys()) releaseReaderViews(state.readers, slot, viewsOf)
     state.gpu?.dispose()
     rt.compose = undefined
   }

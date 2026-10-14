@@ -21,10 +21,9 @@ export function createComposeState(roots: number) {
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * MATRIX_VALUES),
-    /** The version each root's CPU world was composed at (`composedWorld`); the clock the
-     *  versions are drawn from; and each slot's: drawn anew whenever its parent's world, or one of
-     *  its links, moves — a moving parent leaves every other slot's roots composed. */
-    refreshed: new Uint32Array(Math.max(1, roots)),
+    /** The clock the versions are drawn from, and each slot's version: drawn anew whenever its
+     *  parent's world, or one of its links, moves — a moving parent leaves every other slot's
+     *  roots composed (`composeOnRead.ts`). */
     version: 1,
     slotVersions: [] as number[],
     /** The tree groups each slot's roots stand in, for the selection that named them. */
@@ -120,7 +119,6 @@ export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, ro
   state.parentOf = resized(state.parentOf, roots, NO_INDEX)
   state.locals = resized(state.locals, roots * PACKED_MATRIX_WORDS)
   state.localMats = resized(state.localMats, roots * MATRIX_VALUES)
-  state.refreshed = resized(state.refreshed, roots)
   state.roots = roots
   state.gpu?.dispose()
   state.gpu = undefined
