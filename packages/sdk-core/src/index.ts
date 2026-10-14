@@ -98,14 +98,17 @@ export { NODE_AUTO_UPDATE } from './world/transform-tree/nodeFlags.ts'
 export {
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
   type TransformTree,
 } from './world/transform-tree/transformTree.ts'
-export { removeTransformNode, reparentTransformNode } from './world/transform-tree/structure.ts'
+export {
+  removeTransformNode,
+  reparentTransformNode,
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+} from './scene/core/nodeEdits.ts'
 export {
   markNodeWorldNeedsUpdate,
   updateNodeMatrixWorld,

@@ -5,8 +5,8 @@ import assert from 'node:assert/strict'
 import {
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
+  setTreeNodeAutoUpdate,
+  setTreeNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -51,9 +51,9 @@ test('nodeWorldDirection: object presents +z, camera looks toward -z, at identit
 test('nodeWorldDirection: a zero z column in the world matrix stays zero after normalisation', () => {
   const tree = createTransformTree(4)
   const node = addTransformNode(tree)
-  setNodeAutoUpdate(tree, node, false) // the set local matrix must not be recomposed
+  setTreeNodeAutoUpdate(tree, node, false) // the set local matrix must not be recomposed
   const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] // zero z column
-  setNodeLocalMatrix(tree, node, m)
+  setTreeNodeLocalMatrix(tree, node, m)
   const out = new Float64Array(3)
   nodeWorldDirection(out, tree, node, false)
   assert.deepEqual([...out], [0, 0, 0])

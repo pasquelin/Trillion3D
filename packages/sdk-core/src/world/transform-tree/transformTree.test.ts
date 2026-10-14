@@ -7,8 +7,8 @@ import {
   addTransformNode,
   assertNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
+  setTreeNodeAutoUpdate,
+  setTreeNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -82,25 +82,25 @@ test('setNodePosition/Quaternion/Scale: write the components and mark NODE_TRS_D
   assert.ok(tree.flags[node] & NODE_TRS_DIRTY)
 })
 
-test('setNodeLocalMatrix: copies the sixteen values and marks NODE_LOCAL_CHANGED and NODE_TRS_DIRTY', () => {
+test('setTreeNodeLocalMatrix: copies the sixteen values and marks NODE_LOCAL_CHANGED and NODE_TRS_DIRTY', () => {
   const tree = createTransformTree(2)
   const node = addTransformNode(tree)
   tree.flags[node] = NODE_ALIVE // clean state
   const m = [2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 5, 6, 7, 1]
-  setNodeLocalMatrix(tree, node, m)
+  setTreeNodeLocalMatrix(tree, node, m)
   assert.deepEqual([...tree.localViews[node]], m)
   assert.ok(tree.flags[node] & NODE_LOCAL_CHANGED)
   assert.ok(tree.flags[node] & NODE_TRS_DIRTY)
 })
 
-test('setNodeAutoUpdate: toggles NODE_AUTO_UPDATE without touching the other flags', () => {
+test('setTreeNodeAutoUpdate: toggles NODE_AUTO_UPDATE without touching the other flags', () => {
   const tree = createTransformTree(2)
   const node = addTransformNode(tree)
   const othersBefore = tree.flags[node] & ~NODE_AUTO_UPDATE
-  setNodeAutoUpdate(tree, node, false)
+  setTreeNodeAutoUpdate(tree, node, false)
   assert.equal(tree.flags[node] & NODE_AUTO_UPDATE, 0)
   assert.equal(tree.flags[node] & ~NODE_AUTO_UPDATE, othersBefore)
-  setNodeAutoUpdate(tree, node, true)
+  setTreeNodeAutoUpdate(tree, node, true)
   assert.ok(tree.flags[node] & NODE_AUTO_UPDATE)
 })
 

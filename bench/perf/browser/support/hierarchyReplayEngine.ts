@@ -4,8 +4,8 @@
 import {
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
+  setTreeNodeAutoUpdate,
+  setTreeNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -24,8 +24,8 @@ import {
   nodeWorldQuaternion,
 } from '../../../../packages/sdk-core/src/world/transform-tree/read.ts'
 import {
-  removeTransformNode,
-  reparentTransformNode,
+  removeTreeNode,
+  reparentTreeNode,
 } from '../../../../packages/sdk-core/src/world/transform-tree/structure.ts'
 import {
   updateNodeMatrixWorld,
@@ -89,16 +89,16 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
         if (op[4]) setNodeScale(tree, n, op[4][0], op[4][1], op[4][2])
         break
       case 'local':
-        setNodeLocalMatrix(tree, n, op[2])
+        setTreeNodeLocalMatrix(tree, n, op[2])
         break
       case 'auto':
-        setNodeAutoUpdate(tree, n, op[2])
+        setTreeNodeAutoUpdate(tree, n, op[2])
         break
       case 'rattache':
-        reparentTransformNode(tree, n, op[2] < 0 ? -1 : nodes[op[2]])
+        reparentTreeNode(tree, n, op[2] < 0 ? -1 : nodes[op[2]])
         break
       case 'retire':
-        removeTransformNode(tree, n)
+        removeTreeNode(tree, n)
         for (const id of op[2]) vivants[id] = false
         break
       case 'maj':

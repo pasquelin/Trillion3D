@@ -10,8 +10,8 @@ import {
   reparentTransformNode,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
-  setNodeWorldLazy,
 } from './nodeEdits.ts'
+import { setNodeWorldLazy } from '../../world/transform-tree/structure.ts'
 import { updateNodeWorldMatrix } from '../../world/transform-tree/update.ts'
 import { attachSceneNode } from './nodeAttach.ts'
 import { copySceneNodeState } from './nodeCopy.ts'

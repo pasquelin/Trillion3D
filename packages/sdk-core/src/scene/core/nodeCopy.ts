@@ -1,7 +1,6 @@
 import { NODE_AUTO_UPDATE } from '../../world/transform-tree/nodeFlags.ts'
+import { setNodeAutoUpdate, setNodeLocalMatrix } from './nodeEdits.ts'
 import {
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,

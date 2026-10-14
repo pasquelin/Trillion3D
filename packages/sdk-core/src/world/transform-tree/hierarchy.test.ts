@@ -18,7 +18,7 @@ import {
 import { updateNodeMatrixWorld } from './update.ts'
 import { lookAtNode } from './lookAt.ts'
 import { nodeWorldDirection } from './read.ts'
-import { reparentTransformNode } from './structure.ts'
+import { reparentTreeNode } from './structure.ts'
 import { assertPoint, near, transformPoint } from './points.fixture.ts'
 
 const QUARTER_Z = [0, 0, Math.SQRT1_2, Math.SQRT1_2] as const // 90 degrees about z
@@ -72,7 +72,7 @@ test('reparenting: the world pose follows the new parent at the next update, and
   setNodePosition(tree, node, 1, 1, 1)
   updateNodeMatrixWorld(tree, left, true)
   assertPoint(tree.worldViews[node].subarray(12, 15), [-9, 1, 1], 'under left')
-  reparentTransformNode(tree, node, right)
+  reparentTreeNode(tree, node, right)
   setNodePosition(tree, left, 99, 0, 0)
   updateNodeMatrixWorld(tree, right, true)
   assertPoint(tree.worldViews[node].subarray(12, 15), [21, 1, 1], 'under right')

@@ -69,9 +69,9 @@ export function setNodeWorldLazy(tree: TransformTree, node: number, lazy: boolea
 
 /**
  * Removes `node` and all its descendants; their indices will be reused. To detach a
- * subtree while keeping it, `reparentTransformNode(tree, node, -1)`.
+ * subtree while keeping it, `reparentTreeNode(tree, node, -1)`.
  */
-export function removeTransformNode(tree: TransformTree, node: number) {
+export function removeTreeNode(tree: TransformTree, node: number) {
   assertNode(tree, node)
   unlinkTransformNode(tree, node)
   visitSubtree(tree, node, freeNode)
@@ -114,7 +114,7 @@ function freeNode(tree: TransformTree, node: number) {
  * Attaches `node` to `parent` (`-1`: root): matrices do not move
  * until the next update. Throws if `parent` is `node` or one of its descendants.
  */
-export function reparentTransformNode(tree: TransformTree, node: number, parent: number) {
+export function reparentTreeNode(tree: TransformTree, node: number, parent: number) {
   assertNode(tree, node)
   if (parent !== -1) assertNode(tree, parent)
   for (let walk = parent; walk >= 0; walk = tree.parent[walk])

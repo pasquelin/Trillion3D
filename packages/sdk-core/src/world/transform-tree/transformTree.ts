@@ -173,17 +173,17 @@ export function setNodeScale(tree: TransformTree, node: number, x: number, y: nu
  * Sets the local matrix. Under automatic update, the next update recomposes it from
  * position, rotation and scale, as a whole-matrix write does.
  */
-export function setNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLike<number>) {
+export function setTreeNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLike<number>) {
   copyMatrix4(tree.localViews[node], m)
   markTransformNode(tree, node, NODE_LOCAL_CHANGED | NODE_TRS_DIRTY)
 }
 
 /**
  * `matrixAutoUpdate`. Nothing else to mark when re-enabling it: a local matrix that differs from its
- * composition already carries `NODE_TRS_DIRTY`, set by `setNodeLocalMatrix` or by a pose setter.
+ * composition already carries `NODE_TRS_DIRTY`, set by `setTreeNodeLocalMatrix` or by a pose setter.
  * Either way the node is listed: how its local matrix is made changed.
  */
-export function setNodeAutoUpdate(tree: TransformTree, node: number, auto: boolean) {
+export function setTreeNodeAutoUpdate(tree: TransformTree, node: number, auto: boolean) {
   markTransformNode(tree, node)
   if (auto) tree.flags[node] |= NODE_AUTO_UPDATE
   else tree.flags[node] &= ~NODE_AUTO_UPDATE
