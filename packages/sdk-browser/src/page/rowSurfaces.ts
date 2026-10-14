@@ -31,15 +31,16 @@ export function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
   return held.surfaces
 }
 
-/** What a frame asks of the rows' surfaces: whether one of them, read fresh, answers `true`. */
+/** What a frame asks of the rows' surfaces: whether one of them, read in place, answers `true`. */
 export type SurfaceQuestion = (surface: PageSurface) => boolean | undefined
 
 /**
- * Whether a surface rows `[0, count)` wear answers `question` (each refreshed first), one answer
+ * Whether a surface rows `[0, count)` wear answers `question` (each read in place), one answer
  * held per surface list: taken again only once `surfacesOfRows` walked the rows again — a row
- * written, the table aged, as a material's new values do (`refreshWebgpuMaterials`) —, else read
- * where it was held. A frame over still rows and materials asks it in O(1), however many surfaces
- * they wear.
+ * written, or the table aged: a material's new values that change what its rows read beside its
+ * record (`materialTable.follow`, `../webgpu/pages/render/render.ts`), an alpha change
+ * (`refreshWebgpuMaterials`) —, else read where it was held. A frame over still rows and
+ * materials asks it in O(1), however many surfaces they wear.
  */
 export function someRowSurface(question: SurfaceQuestion) {
   const answers = new WeakMap<readonly PageSurface[], boolean>()
