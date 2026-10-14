@@ -1,3 +1,5 @@
+// The shadow read's pieces past the maps (`shadowWgsl.ts`): the translucent casters'
+// transmission at a receiver, a blend's or the water's own trace, the resolve's mask.
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { byteOf } from '../../../../math/src/wgsl/integer.ts'
@@ -13,9 +15,6 @@ import {
   type VsmConsumerBindings,
   type VsmTraceBindings,
 } from './shadowBindings.ts'
-
-/** The shadow read's pieces past the maps (`shadowWgsl.ts`): the translucent casters'
- *  transmission at a receiver, a blend's or the water's own trace, the resolve's mask. */
 
 /** The translucent casters' transmission at a receiver, every pass's (`directShadowWgsl`). */
 export const VSM_TRANSMISSION_AT_WGSL = wgslBlock(
