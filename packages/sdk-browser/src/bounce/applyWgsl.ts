@@ -1,5 +1,5 @@
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
-import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
@@ -20,10 +20,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(
     `bounceApplyWgsl(${grid}, ${probes})`,
-    [INVERSE_PI_BOUNCE, BOUNCE_GRID_WGSL],
+    [INVERSE_PI_BOUNCE, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
     `
-@group(0) @binding(${grid}) var<uniform> bounce:BounceGrid;
-@group(0) @binding(${probes}) var probes:texture_2d_array<f32>;
 /** Diffuse radiance a pixel returns of the bounced \`irradiance\` at it. */
 fn bounceDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*INVERSE_PI_BOUNCE*irradiance*ao;

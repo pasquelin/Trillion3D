@@ -103,6 +103,16 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
 `,
 )
 
+/** The cascades' uniform (`bounce`) and atlas (`probes`) at bindings `grid` and `probes` of
+ *  group `group`: every program that reads the cascades declares them so. */
+export const bounceBindingsWgsl = (group: number, grid: number, probes: number) =>
+  wgslBlock(
+    `bounceBindingsWgsl(${group}, ${grid}, ${probes})`,
+    [BOUNCE_GRID_HEAD_WGSL],
+    `@group(${group}) @binding(${grid}) var<uniform> bounce:BounceGrid;
+@group(${group}) @binding(${probes}) var probes:texture_2d_array<f32>;`,
+  )
+
 /**
  * A field of the cascades, written once for every field they hold: `name` at a point is the finest
  * level that can answer, from tightest to widest — exactly zero when none can, since a leak would

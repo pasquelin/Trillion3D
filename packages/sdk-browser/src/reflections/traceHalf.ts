@@ -3,7 +3,7 @@ import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
 import { RECT_SHADING_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
-import { BOUNCE_GRID_WGSL } from '../bounce/gridWgsl.ts'
+import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from '../bounce/gridWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_TRACE_BINDINGS as B, TRACE_SCENE_BINDINGS } from './halfBindings.ts'
@@ -93,8 +93,6 @@ import { reflectionShareWgsl } from './weight.ts'
 export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.lightLists}) var<storage,read> tileLights:array<u32>;
-@group(0) @binding(${B.bounceGrid}) var<uniform> bounce:BounceGrid;
-@group(0) @binding(${B.probes}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<${HALF_FORMAT},write>;
 /** The pixel of block \`block\` the surface \`layer\` is traced at this image: the first that reflects in
  *  the image's turn of the block — the diagonal, then the other —, its rank in the block plus one; zero
@@ -137,6 +135,7 @@ fn traceFront(@builtin(global_invocation_id) id:vec3u){
     RECT_SHADING_WGSL,
     LOBES_LIGHTING_WGSL,
     LOBES_DECODE_WGSL,
+    bounceBindingsWgsl(0, B.bounceGrid, B.probes),
     BOUNCE_GRID_WGSL,
     reflectionLightViewWgsl(REFLECTION_GROUP),
     reflectionShareWgsl(REFLECTION_GROUP, true, TRACE_SCENE_BINDINGS),

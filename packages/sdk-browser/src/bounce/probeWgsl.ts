@@ -1,7 +1,7 @@
 import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
-import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
@@ -38,10 +38,8 @@ import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
  */
 export const BOUNCE_PROBE_SHADER = wgslProgram(
   `
-@group(0) @binding(${PROBE_BINDINGS.grid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${PROBE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${PROBE_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
-@group(0) @binding(${PROBE_BINDINGS.snapshot}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${PROBE_BINDINGS.probes}) var probesOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
 @group(0) @binding(${PROBE_BINDINGS.lists}) var<storage,read> tileLights:array<u32>;
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
@@ -146,6 +144,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   [
     runtimeRadianceWgsl(PROBE_PROXY),
     DIRECT_LIGHT_WGSL,
+    bounceBindingsWgsl(0, PROBE_BINDINGS.grid, PROBE_BINDINGS.snapshot),
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
     PROBE_GROUP_WGSL,
@@ -164,9 +163,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  */
 export const BOUNCE_SNAPSHOT_SHADER = wgslProgram(
   `
-@group(0) @binding(${SNAPSHOT_BINDINGS.grid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${SNAPSHOT_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
-@group(0) @binding(${SNAPSHOT_BINDINGS.probes}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${SNAPSHOT_BINDINGS.snapshot}) var snapshotOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
@@ -177,7 +174,11 @@ fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let at=probeTexel(queued.probe,id.x%PROBE_TEXELS);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
 }`,
-  [BOUNCE_GRID_HEAD_WGSL, QUEUED_PROBE_WGSL, WORKGROUP_THREADS_WGSL],
+  [
+    bounceBindingsWgsl(0, SNAPSHOT_BINDINGS.grid, SNAPSHOT_BINDINGS.probes),
+    QUEUED_PROBE_WGSL,
+    WORKGROUP_THREADS_WGSL,
+  ],
 )
 
 /** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
