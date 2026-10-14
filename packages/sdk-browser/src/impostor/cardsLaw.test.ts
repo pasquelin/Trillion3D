@@ -7,7 +7,9 @@ import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from './cards.ts'
 import { uploaded } from './cardSlots.ts'
-import { cardField, impostorSection, RESIDENT } from './section.fixture.ts'
+import { impostorSection, MESH, RESIDENT } from './section.fixture.ts'
+import { field } from '../../../sdk-core/src/impostor/watch.fixture.ts'
+import type { ClusterRoot } from '../page/selection/types.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { fieldCamera } from '../gpu/dag/placementTree.fixture.ts'
 import { CARD_ROOT } from '../visibility/shader/spriteWgsl.ts'
@@ -26,7 +28,11 @@ function lawOf(count: number) {
   let moved = 0,
     read = 0
   // Each root read is asked once whether it may take a card: the reads counted there.
-  const roots = cardField(count),
+  const roots = field(count, {
+      mesh: MESH,
+      seed: 11,
+      varied: false,
+    }) as unknown as ClusterRoot<unknown>[],
     state = createImpostorCards(impostorSection, {
       ...RESIDENT,
       moved: () => moved++,
