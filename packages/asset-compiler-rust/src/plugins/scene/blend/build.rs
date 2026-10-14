@@ -10,6 +10,7 @@
 //! left, glTF at the top left, so `v` becomes `1 - v`. That is the convention of the ma, alembic
 //! and usd drivers, and it leaves the image bytes intact.
 use super::*;
+use crate::import::{primitive, Vertices};
 use crate::plugins::scene::{cancel, ngon::Ngon};
 
 /// A face that ear-clipping could not fully cut: a self-intersecting polygon, or one with no
@@ -17,13 +18,10 @@ use crate::plugins::scene::{cancel, ngon::Ngon};
 /// fill it beyond its silhouette, and that is what this count says.
 const NGON_UNCUT: &str = "blend-ngon-untriangulable";
 
-/// The arrays of a primitive under construction.
+/// The arrays of a primitive under construction, and the rank of each vertex already poured.
 #[derive(Default)]
 struct Primitive {
-    positions: Vec<f32>,
-    normals: Vec<f32>,
-    uv: Vec<f32>,
-    indices: Vec<u32>,
+    vertices: Vertices,
     seen: HashMap<[u32; 6], u32>,
 }
 
@@ -56,31 +54,24 @@ pub(super) fn mesh_json(
         for triangle in cutter.triangles() {
             for rank in triangle {
                 let vertex = group.vertex(geometry, normals, first + rank);
-                group.indices.push(vertex);
+                group.vertices.indices.push(vertex);
             }
         }
     }
     let mut primitives = Vec::new();
     let mut triangles = 0;
     for (slot, group) in groups {
-        if group.indices.is_empty() {
+        if group.vertices.indices.is_empty() {
             continue;
         }
-        triangles += group.indices.len() / 3;
-        let mut attributes = json!({
-            "POSITION": out.floats(&group.positions, 3, true),
-            "NORMAL": out.floats(&group.normals, 3, false),
-        });
-        if !group.uv.is_empty() {
-            attributes["TEXCOORD_0"] = json!(out.floats(&group.uv, 2, false));
-        }
-        let mut primitive = json!({
-            "attributes": attributes, "indices": out.indices(&group.indices), "mode": 4,
-        });
-        if let Some(Some(material)) = slots.get(slot as usize) {
-            primitive["material"] = json!(material);
-        }
-        primitives.push(primitive);
+        triangles += group.vertices.indices.len() / 3;
+        let material = slots.get(slot as usize).copied().flatten();
+        primitives.push(primitive(
+            &group.vertices,
+            &mut out.bin,
+            &mut out.accessors,
+            material,
+        ));
     }
     Ok((json!({"name": name, "primitives": primitives}), triangles))
 }
@@ -108,12 +99,13 @@ impl Primitive {
         if let Some(known) = self.seen.get(&key) {
             return *known;
         }
-        let rank = (self.positions.len() / 3) as u32;
-        self.positions
+        let out = &mut self.vertices;
+        let rank = out.count() as u32;
+        out.positions
             .extend_from_slice(&slice3(&geometry.positions, vertex as usize));
-        self.normals.extend_from_slice(&normal);
+        out.normals.extend_from_slice(&normal);
         if !geometry.uv.is_empty() {
-            self.uv.extend_from_slice(&uv);
+            out.uvs.extend_from_slice(&uv);
         }
         self.seen.insert(key, rank);
         rank

@@ -41,7 +41,7 @@ pub(super) fn scene_gltf(directory: &Path) -> Value {
 
 // Behaviour 29: the shared scene comes out as one mesh instanced three times,
 // fan-triangulated, one primitive per face material index, and each primitive
-// carries its UVs.
+// carries its UVs and indices as narrow as its vertex count allows.
 #[test]
 fn one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times() {
     let cache = scratch("blend", "instances");
@@ -60,6 +60,10 @@ fn one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times() {
         assert_eq!(
             gltf["accessors"][indices]["count"], 12,
             "two quads, therefore four triangles"
+        );
+        assert_eq!(
+            gltf["accessors"][indices]["componentType"], 5123,
+            "a few vertices index on 16 bits, as every driver's primitive writes them"
         );
         assert!(
             primitive["attributes"]["TEXCOORD_0"].is_u64(),
