@@ -10,4 +10,6 @@ test('the fixture reads its options in English, and checks them', () => {
   assert.equal(options.frames, 240)
   assert.throws(() => anisotropyOptions(['--anisotropy', '32']), /--anisotropy takes integers/)
   assert.throws(() => anisotropyOptions(['--width', '0']), /--width must be a positive integer/)
+  // A misspelt flag is refused by name, never measured as the default.
+  assert.throws(() => anisotropyOptions(['--anisotrpy', '4']), /--anisotrpy/)
 })

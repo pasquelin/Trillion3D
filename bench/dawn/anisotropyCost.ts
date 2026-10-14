@@ -8,7 +8,7 @@
 //        [--width 1920] [--height 1080]
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { parseArgs } from '../runner/harness/flags.ts'
+import { parseArgs } from 'node:util'
 import { takeBenchLock } from './lock.ts'
 import { loadPage, runOnDawn } from '../../tests/gpu/kit/onDawn.ts'
 import type { run } from '../../tests/gpu/texture/anisotropyCostPage.ts'
@@ -17,23 +17,31 @@ declare global {
   var anisotropyCost: { run: typeof run }
 }
 
-/** The fixture's options, read from the command line and checked. */
-export function anisotropyOptions(argv: string[]) {
-  const flags = parseArgs(argv)
-  const count = (name: string, fallback: number) => {
-    const value = Number(flags.get(name) ?? fallback)
+/** The fixture's options, read from the command line and checked; an unknown flag is refused. */
+export function anisotropyOptions(args: string[]) {
+  const { values } = parseArgs({
+    args,
+    options: {
+      anisotropy: { type: 'string', default: '1,16' },
+      width: { type: 'string', default: '1920' },
+      height: { type: 'string', default: '1080' },
+      images: { type: 'string', default: '240' },
+    },
+  })
+  const count = (name: 'width' | 'height' | 'images') => {
+    const value = Number(values[name])
     assert.ok(Number.isInteger(value) && value > 0, `--${name} must be a positive integer`)
     return value
   }
-  const anisotropies = (flags.get('anisotropy') ?? '1,16').split(',').map(Number)
+  const anisotropies = values.anisotropy.split(',').map(Number)
   assert.ok(
     anisotropies.every((value) => Number.isInteger(value) && value >= 1 && value <= 16),
     '--anisotropy takes integers from 1 to 16',
   )
   return {
     anisotropies,
-    size: [count('width', 1920), count('height', 1080)] as [number, number],
-    frames: count('images', 240),
+    size: [count('width'), count('height')] as [number, number],
+    frames: count('images'),
   }
 }
 
