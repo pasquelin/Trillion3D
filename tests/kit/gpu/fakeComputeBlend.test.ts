@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateComputeDispatch } from './fakeCompute.ts'
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 
 const GROUPS = 100
 /** Sitting in every group count before the pass: a count it did not write. */
@@ -29,8 +30,14 @@ test('the compaction counts the groups its dispatch reaches, and those alone', (
   const pipeline = { entryPoint: 'countTransparentGroups' }
   const short = compaction()
   simulateComputeDispatch(pipeline, short.bind, undefined, undefined, 1)
-  assert.deepEqual([...short.counts.subarray(0, 64)], new Array(64).fill(0))
-  assert.deepEqual([...short.counts.subarray(64)], new Array(GROUPS - 64).fill(UNWRITTEN))
+  assert.deepEqual(
+    [...short.counts.subarray(0, WORKGROUP_THREADS)],
+    new Array(WORKGROUP_THREADS).fill(0),
+  )
+  assert.deepEqual(
+    [...short.counts.subarray(WORKGROUP_THREADS)],
+    new Array(GROUPS - WORKGROUP_THREADS).fill(UNWRITTEN),
+  )
   const whole = compaction()
   simulateComputeDispatch(pipeline, whole.bind, undefined, undefined, 2)
   assert.deepEqual([...whole.counts], new Array(GROUPS).fill(0))
