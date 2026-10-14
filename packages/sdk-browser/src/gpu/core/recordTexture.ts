@@ -47,7 +47,8 @@ export function createRecordTexture(
     extent = [0, 0, 1],
     destination: GPUTexelCopyTextureInfo = { texture: table.texture, origin },
     source: GPUTexelCopyBufferLayout = { offset: 0, bytesPerRow: 0 },
-    sending = { data: new ArrayBuffer(0), dataOffset: 0, first: 0 }
+    none = new ArrayBuffer(0),
+    sending = { data: none, dataOffset: 0, first: 0 }
   const send: PieceVisit = (x, y, layer, width, rows, first) => {
     origin[0] = x
     origin[1] = y
@@ -72,6 +73,8 @@ export function createRecordTexture(
     sending.dataOffset = dataOffset
     sending.first = first
     texelPieces(layout, field, first, count, send)
+    // The caller's bytes are not held past its write.
+    sending.data = none
   }
   /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
    *  bytes, each record's field after the other. */
