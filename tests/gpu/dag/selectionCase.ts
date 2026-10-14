@@ -11,7 +11,10 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
+import {
+  primitiveFrameWords,
+  primitiveWordAt,
+} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { dagGroupEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
@@ -25,7 +28,6 @@ import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTab
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
-import { writeFrameRows } from '../../../packages/sdk-browser/src/gpu/dag/cameraFrames.ts'
 import {
   childBase,
   savedJournalWord,
@@ -166,7 +168,14 @@ export function bindCase(
   // The frame words' table, as the engine's host writes it (`cameraFrames.ts`).
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     frames = createRecordTexture(device, FRAME_TABLE, at.worldCount, read)
-  writeFrameRows(frames, at.frames, 0, at.worldCount)
+  frames.write('Row', 0, at.worldCount, at.frames.buffer, at.frames.byteOffset)
+  // The stretch each placement was made with, its row's first word, in its own field: as the host
+  // sends it once (`cameraFrames.ts`).
+  const stretches = Float32Array.from(
+    { length: at.worldCount },
+    (_, w) => at.frames[primitiveWordAt(w)],
+  )
+  frames.write('Stretch', 0, at.worldCount, stretches.buffer, 0)
   made.push(worlds, tree, frames, ...Object.values(tables))
   const views = {
     worlds: worlds.view,

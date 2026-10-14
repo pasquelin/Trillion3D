@@ -132,7 +132,7 @@ function writeRows(f: Frames, from: number, to: number) {
 /** Placements `[from, from + count)` of the host rows `frameData` to the frame words `rows`: their
  *  rows, and the stretch each was made with — its row's first word — into its own field, which the
  *  root boxes pass writes from then on (`frameTable.ts`). A placement made, never one sent again. */
-export function writeFrameRows(
+function writeFrameRows(
   rows: RecordTexture,
   frameData: Float32Array<ArrayBuffer>,
   from: number,
