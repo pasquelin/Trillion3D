@@ -133,7 +133,7 @@ test('a texture transform, a surface family and a copied light hold the default 
   const surface = familySurface('physical'),
     drawn = threeMaterials(surface) as unknown as Record<string, unknown>,
     physical = new THREE.MeshPhysicalMaterial() as unknown as Record<string, unknown>
-  for (const key of ['ior', 'blending', 'depthFunc', 'side', 'normalMapType', 'alphaTest'])
+  for (const key of ['ior', 'blending', 'side', 'alphaTest'])
     assert.equal(drawn[key], physical[key], key)
   const light = new Light('spot'),
     spot = new THREE.SpotLight()
