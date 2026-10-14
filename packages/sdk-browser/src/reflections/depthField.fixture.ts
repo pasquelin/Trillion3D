@@ -7,12 +7,13 @@ import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
 import { HIZ_MAX_LEVELS } from '../gpu/hiz/uniforms.ts'
 import {
+  HIZ_DEPTH_LAYERS,
   HIZ_FRONT_LAYER,
   HIZ_NEAREST,
   hizTextureSize,
   HIZ_WHOLE_FARTHEST,
-  hizLevelWords,
 } from '../gpu/hiz/pyramidTexture.ts'
+import { hizLevelWords } from '../gpu/hiz/levelsUniform.ts'
 import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 
 /** The depth readers of `hizDepthWgsl` a march runs (`shaderRun`), the shipped functions by name. */
@@ -81,7 +82,8 @@ export function depthField(
   )
   const row = hizTextureSize(layout).width
   const slopes = new Uint32Array(width * height)
-  const level0 = {}
+  // Level 0 with its front layer: the opaque depth, then the nearest transparent surface's.
+  const level0 = { layers: HIZ_DEPTH_LAYERS }
   const build = shaderRun<{
     hizSource: (at: number, x: number, y: number) => number[]
   }>(

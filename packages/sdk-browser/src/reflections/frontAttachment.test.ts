@@ -36,7 +36,7 @@ function carriedFront() {
     front,
     radiance: { held: { size: [8, 8] } },
   } as never
-  /** The Hi-Z level 0's front layer the carry folds into (`GpuHiz.frontView`). */
+  /** The Hi-Z level 0's front layer the carry folds into (`GpuHiz.front`). */
   const layer = () =>
     fake.device
       .createTexture({

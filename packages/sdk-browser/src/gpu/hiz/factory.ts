@@ -1,6 +1,6 @@
 import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
-import { HIZ_LEVELS_WORDS } from './pyramidTexture.ts'
+import { HIZ_LEVELS_WORDS } from './levelsUniform.ts'
 import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
 import { HIZ_TEST_ARGS_BYTES } from './shader.ts'
 import { TESTED_U32 } from '../partition/contract.ts'
@@ -10,6 +10,7 @@ import {
   bindHiz,
   hizExtent,
   hizFlags,
+  hizFront,
   hizGrowFlags,
   hizResize,
   hizTest,
@@ -20,9 +21,9 @@ import {
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
  *  nearest for the readers of the whole depth. Without compute, returns `undefined`. Its level 0
- *  holds beside the opaque depth the nearest transparent surface's, which the transparents' fold
- *  writes (`frontView`, `reflections/frontDepth.ts`); zero where none lies, whose fold is the
- *  opaque depth, bit for bit. */
+ *  holds the opaque depth and, once a scene's transparents ask it (`front`), the nearest transparent
+ *  surface's beside it, which the transparents' fold writes (`reflections/frontDepth.ts`); zero
+ *  where none lies, whose fold is the opaque depth, bit for bit. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,
@@ -36,7 +37,7 @@ export async function createGpuHiz(
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
     h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots, h.front))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -81,8 +82,9 @@ function hizState(
   return {
     ...pipelines,
     device,
-    // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread depth and lay their own;
-    // no frame copies. The front layer is written by the transparents' fold, a storage texture.
+    // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own, and the
+    // front layer's making, which copies the opaque depth once (`addFrontLayer`). The front layer
+    // is written by the transparents' fold, a storage texture.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |
@@ -100,6 +102,7 @@ function hizState(
     idle,
     buffers,
     disposed: false,
+    front: false,
     at: undefined,
     bindGroup: undefined,
     bounds: idle,
@@ -140,7 +143,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     levels: () => h.at?.drawn.levels ?? [],
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
-    frontView: () => (h.disposed ? undefined : h.at?.frontView),
+    front: (encoder) => hizFront(h, gpu, encoder),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

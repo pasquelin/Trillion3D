@@ -5,8 +5,9 @@
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { reporting } from '../kit/reportingDevice.ts'
 import { NEW_WALK, oldWalk, walk } from './proxyWalks.ts'
+import { engineWalk } from './proxyEngineWalk.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { cubeCut, world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
+import { world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -17,16 +18,7 @@ import {
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
-import {
-  scenePages,
-  sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import {
-  createGpuDagSelection,
-  packDagSelection,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { surface } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstances.fixture.ts'
 
 /** `count` rays over a field `side` cubes wide spaced three metres apart: half cast down at a cube's
  *  neighbourhood from above, half anywhere. */
@@ -139,40 +131,6 @@ export async function compareWalks({
   oldTree.destroy()
   const info = await gpu.fermer()
   return { adapter: info.court, errors, now, before, tree: !!scene.packed.placementTree }
-}
-
-/** `count` cubes on a field, each wearing the cube's cut. */
-function cubeField(count: number) {
-  const side = Math.ceil(Math.sqrt(count)),
-    cut = cubeCut(),
-    worn = { primitive: { runtimeProxy: cut }, surface: surface(1) }
-  const places = Array.from({ length: count }, (_, w) =>
-    new G.Matrix4().makeTranslation((w % side) * 3, 0, Math.floor(w / side) * 3),
-  )
-  const roots = sceneRoots(scenePages(16, 2), places)
-  roots.forEach((root) => (root.proxy = worn))
-  return { side, packed: packDagSelection(roots) }
-}
-
-/** The engine's proxy over `count` cubes on `device`: whether it is refused, and the hits of
- *  `cast`. */
-async function engineWalk(device: GPUDevice, count: number, cast: Float32Array<ArrayBuffer>) {
-  const { packed } = cubeField(count)
-  let refused: string | undefined
-  const selection = await createGpuDagSelection(device, packed, {
-    onRefused: (reason) => (refused = reason),
-  })
-  if (!selection) return { refused, hits: undefined }
-  const proxy = selection.proxy()
-  const hits =
-    proxy &&
-    (await walk(device, NEW_WALK, cast, {
-      proxy: proxy.buffer,
-      worlds: proxy.worlds,
-      tree: proxy.tree,
-    }))
-  selection.dispose()
-  return { refused, hits }
 }
 
 /** The engine's proxy over a world past one storage binding — the device reporting a binding four

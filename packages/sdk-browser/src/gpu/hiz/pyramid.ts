@@ -1,4 +1,5 @@
 import { arrayView } from '../core/textureViews.ts'
+import { retire } from '../core/frameRetire.ts'
 import type { WebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
@@ -11,19 +12,22 @@ import {
   HIZ_FORMAT,
   HIZ_FRONT_LAYER,
   HIZ_OPAQUE_LAYER,
-  hizLevelWords,
   hizRoute,
   hizTextureBytes,
   hizTextureSize,
 } from './pyramidTexture.ts'
+import { hizLevelWords } from './levelsUniform.ts'
 
 /** The label of a pyramid's level 0. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
-/** Bytes one view's pyramid holds at `width × height` (`allocPyramid`): its level 0, one r32float
- *  texel a pixel in each of its layers — the opaque depth and the front depth it folds in
- *  (`HIZ_DEPTH_LAYERS`) —, and its three layers of packed mips. */
+/** Bytes of one layer of level 0 at `width × height`: an r32float texel a pixel. The front layer,
+ *  a scene's whose transparents write a front depth, is one more (`GpuHiz.front`). */
+export const level0LayerBytes = (width: number, height: number) => width * height * 4
+
+/** Bytes one view's pyramid holds at `width × height` (`allocPyramid`) without the front layer:
+ *  its level 0's opaque depth, and its three layers of packed mips. */
 export const pyramidHeldBytes = (width: number, height: number) =>
-  width * height * 4 * HIZ_DEPTH_LAYERS + hizTextureBytes(pyramidBytes(width, height))
+  level0LayerBytes(width, height) + hizTextureBytes(pyramidBytes(width, height))
 
 /** Source texels one build workgroup covers per side: each thread reduces a 2 × 2 square. */
 const TILE = 2 * HIZ_BUILD_SIDE
@@ -72,8 +76,8 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
 }
 
 export type Pyramid = HizPyramid & {
-  /** Level 0: the opaque depth the image draws and, in a second layer, the nearest transparent
-   *  surface's (`HIZ_DEPTH_LAYERS`), each a view of its own, and both in one (`depthView`). */
+  /** Level 0: the opaque depth the image draws and, in a second layer once asked (`addFrontLayer`),
+   *  the nearest transparent surface's, each a view of its own, and all in one (`depthView`). */
   level0: GPUTexture
   level0View: GPUTextureView
   depthView: GPUTextureView
@@ -82,8 +86,9 @@ export type Pyramid = HizPyramid & {
   pyramid: GPUTexture
   pyramidView: GPUTextureView
   /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`): zero
-   *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. */
-  frontView: GPUTextureView
+   *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. None until a
+   *  scene's transparents ask it (`addFrontLayer`). */
+  frontView: GPUTextureView | undefined
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group, and the identity of what it names (`bindHiz`). */
@@ -93,23 +98,36 @@ export type Pyramid = HizPyramid & {
   depth?: HizDepth
 }
 
-/** One view's pyramid at `width × height`: its level 0 and its three layers of packed mips, its
- *  build's uniform words laid in `slots`. */
+/** Level 0 at `width × height` with `layers` layers — the opaque depth, then the front depth when
+ *  there are `HIZ_DEPTH_LAYERS` —, and its views. */
+function level0Of(device: GPUDevice, usage: number, width: number, height: number, layers: number) {
+  const level0 = device.createTexture({
+    label: HIZ_LEVEL0_LABEL,
+    size: { width, height, depthOrArrayLayers: layers },
+    format: 'r32float',
+    usage,
+  })
+  const layer = (baseArrayLayer: number) =>
+    level0.createView({ dimension: '2d', baseArrayLayer, arrayLayerCount: 1 })
+  return {
+    level0,
+    level0View: layer(HIZ_OPAQUE_LAYER),
+    depthView: arrayView(level0),
+    frontView: layers > HIZ_FRONT_LAYER ? layer(HIZ_FRONT_LAYER) : undefined,
+  }
+}
+
+/** One view's pyramid at `width × height`: its level 0 — with the front layer when `front` — and its
+ *  three layers of packed mips, its build's uniform words laid in `slots`. */
 export function allocPyramid(
   device: GPUDevice,
   usage: number,
   width: number,
   height: number,
   slots: UniformSlots,
+  front: boolean,
 ): Pyramid {
-  const level0 = device.createTexture({
-    label: HIZ_LEVEL0_LABEL,
-    size: { width, height, depthOrArrayLayers: HIZ_DEPTH_LAYERS },
-    format: 'r32float',
-    usage,
-  })
-  const layer = (baseArrayLayer: number) =>
-    level0.createView({ dimension: '2d', baseArrayLayer, arrayLayerCount: 1 })
+  const level0 = level0Of(device, usage, width, height, front ? HIZ_DEPTH_LAYERS : 1)
   // `COPY_DST` and `COPY_SRC` serve only the proof tools, which lay a pyramid of their own and
   // reread it; no frame copies.
   const pyramid = device.createTexture({
@@ -122,19 +140,38 @@ export function allocPyramid(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC,
   })
-  return {
+  const made: Pyramid = {
     width,
     height,
-    level0,
-    level0View: layer(HIZ_OPAQUE_LAYER),
-    depthView: arrayView(level0),
+    ...level0,
     pyramid,
     pyramidView: arrayView(pyramid),
-    frontView: layer(HIZ_FRONT_LAYER),
     drawn: pyramidLayout(width, height, slots),
     destroy() {
-      level0.destroy()
+      made.level0.destroy()
       pyramid.destroy()
     },
   }
+  return made
+}
+
+/**
+ * `at`'s front layer, made at the first ask: its level 0 made again with two layers, in `encoder`
+ * the opaque depth this image drew copied into the first — 4 bytes a pixel, once —, the one replaced
+ * retired after the frame (`retire`); its group and its readers' resources made again at their next
+ * ask, which follow the views' identity. The packed mips stay.
+ */
+export function addFrontLayer(
+  device: GPUDevice,
+  usage: number,
+  at: Pyramid,
+  encoder: GPUCommandEncoder,
+) {
+  if (at.frontView) return at.frontView
+  const old = at.level0
+  Object.assign(at, level0Of(device, usage, at.width, at.height, HIZ_DEPTH_LAYERS))
+  encoder.copyTextureToTexture({ texture: old }, { texture: at.level0 }, [at.width, at.height, 1])
+  retire(device, old)
+  at.group = at.bound = at.depth = undefined
+  return at.frontView
 }

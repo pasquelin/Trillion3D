@@ -28,12 +28,15 @@ export type GpuHiz = {
    *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
   /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0 — the
-   *  opaque depth and the front depth, its two layers —, the pyramid and its levels uniform, in
+   *  opaque depth, and the front depth once asked (`front`) —, the pyramid and its levels uniform, in
    *  that order: a new object whenever one changes, which a reader's bind group follows. */
   depth(): HizDepth | undefined
   /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`):
-   *  zero where no transparent surface lies. It changes identity on every target resize. */
-  frontView(): GPUTextureView | undefined
+   *  zero where no transparent surface lies. Asked only by a scene whose transparents write a front
+   *  depth: made at the first ask, level 0 made again with it in `encoder` (`addFrontLayer`), and
+   *  held by every pyramid after; an opaque scene's level 0 is one layer. It changes identity on
+   *  every target resize. */
+  front(encoder: GPUCommandEncoder): GPUTextureView | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does
