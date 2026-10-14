@@ -17,6 +17,7 @@ const FUNCTIONS = [
   'rtShade',
   'rtScene',
   'rtEnter',
+  'placementRay',
   'rtTraceCut',
   'rtSpent',
   'rtFloat',
@@ -33,7 +34,6 @@ const FUNCTIONS = [
   'rtTreeMembers',
   'rtTreeWord',
   'rtTreeMember',
-  'rtTreeCorner',
   'rtTreeLow',
   'rtTreeHigh',
   'rtBlocked',
@@ -96,6 +96,7 @@ export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0
       present,
     }),
     InvT3: (adj: unknown, scale: number, regular: boolean) => ({ adj, scale, regular }),
+    PlacedRay: (origin: Vec, direction: Vec, regular: boolean) => ({ origin, direction, regular }),
     RtHit: (distance: number, placement: number, triangle: number, found: boolean) => ({
       distance,
       placement,

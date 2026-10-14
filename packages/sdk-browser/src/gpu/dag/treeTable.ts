@@ -6,6 +6,7 @@ import { TREE_SPAN, treeNodeCount, type PlacementTree } from './placementTree.ts
 import { writeRanges } from './runWrites.ts'
 import { mirroredWords, takeMirrored } from '../../webgpu/cut/denseKeys.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
+import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 
 /**
  * THE PLACEMENT TREE'S HOME, one whatever the world's size: a record table
@@ -32,9 +33,14 @@ export const TREE_TABLE: RecordLayout = {
   layerShift: 13,
 }
 
+/** The three words of node `n`'s box corner from word `k` of `name`'s table, as a vector. */
+const corner = (name: string, k: number) =>
+  `bitcast<vec3f>(vec3u(${name}Word(n,${k}u),${name}Word(n,${k + 1}u),${name}Word(n,${k + 2}u)))`
+
 /**
  * The tree's table as a program binds it, named `name`: `<name>Word(n,k)`, word `k` of node `n`;
- * `<name>Member(k)`, member `k` of its order; `<name>AlwaysAt(j)`, the `j`-th member drawn whatever
+ * `<name>Low(n)` and `<name>High(n)`, the low and high corners of its world box (`nodeLayout.ts`),
+ * the one corner reader of every walk; `<name>Member(k)`, member `k` of its order; `<name>AlwaysAt(j)`, the `j`-th member drawn whatever
  * the view — and, bound `read_write`, `<name>SetWord(n,k,v)`.
  */
 export function treeTableWgsl(name: string, binding: Omit<RecordBinding, 'name'>) {
@@ -43,6 +49,8 @@ export function treeTableWgsl(name: string, binding: Omit<RecordBinding, 'name'>
     `treeTable(${name}, ${binding.group}, ${binding.binding}, ${binding.access})`,
     [recordTextureWgsl(TREE_TABLE, { name, ...binding })],
     `fn ${name}Word(n:u32,k:u32)->u32{return ${name}Node(n,k).x;}
+fn ${name}Low(n:u32)->vec3f{return ${corner(name, NODE_MIN)};}
+fn ${name}High(n:u32)->vec3f{return ${corner(name, NODE_MAX)};}
 fn ${name}Member(k:u32)->u32{return ${name}Members(k/${TREE_SPAN}u,k%${TREE_SPAN}u).x;}
 fn ${name}AlwaysAt(j:u32)->u32{return ${name}Always(j/${TREE_SPAN}u,j%${TREE_SPAN}u).x;}
 ${written ? `fn ${name}SetWord(n:u32,k:u32,v:u32){${name}NodeStore(n,k,vec4u(v,0u,0u,0u));}` : ''}`,

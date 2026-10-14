@@ -8,7 +8,7 @@ import { reflectionProxyWgsl } from './proxy.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import type { ProxyBindings } from './proxy.ts'
-import { sceneKey } from '../bounce/runtimeSceneWgsl.ts'
+import { sceneKey } from '../bounce/sceneBindings.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction

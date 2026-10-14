@@ -15,13 +15,9 @@ const TREE_DEPTH = 8
 type TreeWalk = {
   /** The tree's top node, an expression. */
   root: string
-  /** The functions reading word `field` of tree node `node`, and the low and high corners of its
-   *  world box. */
-  word: string
-  low: string
-  high: string
-  /** The placement member slot `slot` names, an expression of it. */
-  member: (slot: string) => string
+  /** The name the tree's record table is bound under: the walk reads its nodes' words, their box
+   *  corners and its members by the table's own readers (`treeTableWgsl`, `treeTable.ts`). */
+  table: string
   /** Statements entering placement `w`, which the walk leaves when they `return`. */
   enter: string
   /** A statement before each step, which may end the walk (`done=true;break;`); and one per child read. */
@@ -66,7 +62,7 @@ export const placementTreeWalk = (t: TreeWalk) => `
   for(var step=0u;step<${t.steps};step++){
    ${t.stop}
    let node=at[level];
-   let count=${t.word}(node,WALK_NODE_COUNT);
+   let count=${t.table}Word(node,WALK_NODE_COUNT);
    let k=next[level];
    if(k>=count){
     if(level==0u){done=true;break;}
@@ -75,15 +71,15 @@ export const placementTreeWalk = (t: TreeWalk) => `
    }
    next[level]=k+1u;
    ${t.visit}
-   let first=${t.word}(node,WALK_NODE_FIRST);
-   if(${t.word}(node,WALK_NODE_KIND)==WALK_GROUP){
-    let w=${t.member('first+k')};
+   let first=${t.table}Word(node,WALK_NODE_FIRST);
+   if(${t.table}Word(node,WALK_NODE_KIND)==WALK_GROUP){
+    let w=${t.table}Member(first+k);
     if(w!=NO_INDEX){
      ${t.enter}
     }
    }else{
     let child=first+k;
-    if(rayBoxEntry(${t.low}(child),${t.high}(child),origin,inverse,best.distance)<=best.distance&&level+1u<WALK_DEPTH){
+    if(rayBoxEntry(${t.table}Low(child),${t.table}High(child),origin,inverse,best.distance)<=best.distance&&level+1u<WALK_DEPTH){
      level++;
      at[level]=child;
      next[level]=0u;

@@ -4,10 +4,9 @@ import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
-import { invTranspose3Prep } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { placementRay } from '../gpu/dag/placementRayWgsl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
-import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { PLACEMENT_TREE_WALK_WGSL, placementTreeWalk } from '../gpu/dag/treeWalkWgsl.ts'
 import { wideNodeFns } from './nodeWgsl.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from './traceWgsl.ts'
@@ -20,21 +19,7 @@ import {
 } from './runtimeLayout.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 import { treeTableWgsl } from '../gpu/dag/treeTable.ts'
-
-/** The bindings of the proxy in a program that casts its rays, in one group: its own buffer
- *  (`runtimeLayout.ts`), and the culling's record tables, read where they lie — the placements'
- *  records, every placement's world and every instance (`gpu/dag/worldTable.ts`), and its placement
- *  tree, which the rays walk (`gpu/dag/treeTable.ts`). */
-export type SceneBindings = {
-  group: number
-  proxy: number
-  worlds: number
-  tree: number
-}
-
-/** What names a fragment of a program over `scene`: its bindings. */
-export const sceneKey = ({ group, proxy, worlds, tree }: SceneBindings) =>
-  `${group}, ${proxy}, ${worlds}, ${tree}`
+import { sceneKey, type SceneBindings } from './sceneBindings.ts'
 
 /**
  * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
@@ -62,7 +47,7 @@ export const runtimeSceneWgsl = (scene: SceneBindings) =>
       NO_INDEX,
       PLACEMENT_TREE_WALK_WGSL,
       toF32,
-      invTranspose3Prep,
+      placementRay,
       worldMatrix3,
       transformHalfExtent,
     ],
@@ -72,8 +57,6 @@ ${wgslConsts({
   RT_TRIANGLES: RAY_TRIANGLES,
   RT_STEPS: BOUNCE_SETTINGS.traversalSteps,
   RT_TREE_STEPS: 2 * RAY_WORK,
-  RT_NODE_MIN: NODE_MIN,
-  RT_NODE_MAX: NODE_MAX,
   RT_INSTANCE_NODE: INSTANCE.node,
   RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
   RT_INSTANCE_SURFACE: INSTANCE.surface,
@@ -151,23 +134,12 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let c=linear*((local.low+local.high)*0.5)+m[3].xyz;
  let extent=transformHalfExtent(m,(local.high-local.low)*0.5);
  if(rayBoxEntry(c-extent,c+extent,origin,inverse,best.distance)>best.distance){return best;}
- // The ray taken to the mesh's space by the inverse of the world's linear part: a row vector times
- // the engine's inverse-transpose (\`invTranspose3Prep\`). A singular world holds no volume a ray
- // can enter.
- let back=invTranspose3Prep(linear);
- if(!back.regular){return best;}
- let o=(origin-m[3].xyz)*back.adj*back.scale;
- let d=direction*back.adj*back.scale;
- let hit=rtTraceCut(o,d,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
+ let placed=placementRay(linear,origin-m[3].xyz,direction);
+ if(!placed.regular){return best;}
+ let hit=rtTraceCut(placed.origin,placed.direction,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
-/** Node \`node\` of the tree's box corner from word \`k\`, read in its record (\`rtTreeWord\`). */
-fn rtTreeCorner(node:u32,k:u32)->vec3f{
- return vec3f(bitcast<f32>(rtTreeWord(node,k)),bitcast<f32>(rtTreeWord(node,k+1u)),bitcast<f32>(rtTreeWord(node,k+2u)));
-}
-fn rtTreeLow(node:u32)->vec3f{return rtTreeCorner(node,RT_NODE_MIN);}
-fn rtTreeHigh(node:u32)->vec3f{return rtTreeCorner(node,RT_NODE_MAX);}
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
  *  placement tree walked depth first, a child entered when its box is met, a group's members one by one.
  *  \`found\` is false past the budget, with the ray's counters spent: ask \`rtSpent\`. A packing with no
@@ -186,10 +158,7 @@ fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
  }else{
 ${placementTreeWalk({
   root: 'rtProxy.treeRoot',
-  word: 'rtTreeWord',
-  low: 'rtTreeLow',
-  high: 'rtTreeHigh',
-  member: (slot) => `rtTreeMember(${slot})`,
+  table: 'rtTree',
   enter: 'best=rtEnter(w,origin,direction,inverse,best);if(rtAnyHit&&best.found){return best;}',
   stop: 'if(rtSpent()){done=true;break;}',
   visit: 'rtWork+=1u;',

@@ -124,6 +124,7 @@ export const builtins = {
   bitcast_vec3u: toBits,
   bitcast_vec4u: toBits,
   bitcast_f32: toFloat,
+  bitcast_vec3f: toFloat,
   bitcast_vec4f: toFloat,
   // A texture the scope binds answers its own loads: a record table's words
   // (`../gpu/core/recordTexture.fixture.ts`).
