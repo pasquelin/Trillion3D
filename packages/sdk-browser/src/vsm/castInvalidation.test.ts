@@ -76,7 +76,8 @@ test('a CPU box as a record of the list: its centre an f32, its largest half ext
   const far = 1e6 + 1 / 3
   const words = boxes({ min: [far - 1, -2, 0], max: [far + 1, 2, 8], moving: true })!.words
   assert.deepEqual([...words.subarray(0, 3)], [Math.fround(far), 0, 4])
-  assert.ok(words[3] < -4 && words[3] > -4 * (1 + 2 ** -20), 'the largest half extent, moving')
+  // 4 is a float32: the least float32 at or above it is 4 itself.
+  assert.equal(words[3], -4, 'the largest half extent, moving')
   // A point far out: its extent the centre's rounding, so that the record still holds it.
   const point = boxes({ min: [far, 0, 0], max: [far, 0, 0], moving: false })!.words
   assert.ok(point[3] >= Math.abs(far - point[0]) && point[3] > 0)
