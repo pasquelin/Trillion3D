@@ -22,8 +22,27 @@
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { INSTANCE, INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'
 import { createProxyCopies } from './proxyCopies.ts'
-import type { PoseHost } from './proxyPosed.ts'
+import type { RootProxy } from '../../page/selection/types.ts'
+import type { PlacementOf } from '../../placement/rows.ts'
 import { createProxyState, type ProxyResources } from './proxyState.ts'
+
+/** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
+ *  drawn (`BlendCopy`). */
+export type ProxyCopy = {
+  proxy?: RootProxy
+  matrix: { readonly elements: ArrayLike<number> }
+  hidden?: boolean
+  placement?: PlacementOf
+}
+
+/** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records
+ *  lie in, each placement's record in it (the first float plus one, zero for none) and the revision
+ *  of the records. */
+export type PoseHost = {
+  pool: GPUBuffer | undefined
+  recordOf(world: object): number
+  revision: number
+}
 
 export function createProxyInstances(resources: ProxyResources) {
   const state = createProxyState(resources),

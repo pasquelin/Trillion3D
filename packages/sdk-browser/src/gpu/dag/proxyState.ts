@@ -20,7 +20,7 @@ import {
 import { NO_TINT } from '../../bounce/runtimeSurface.ts'
 import type { RecordTexture } from '../core/recordTexture.ts'
 import type { DagRoot, PackedDag } from './types.ts'
-import type { ProxyCopy } from './proxyCopies.ts'
+import type { ProxyCopy } from './proxyInstances.ts'
 
 /** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
  *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */

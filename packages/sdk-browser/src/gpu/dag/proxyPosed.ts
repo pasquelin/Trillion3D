@@ -10,18 +10,10 @@ import type { ProxyArena } from './proxyArena.ts'
 import type { Placed, ProxyColumns } from './proxyColumns.ts'
 import { createProxyPose, type PoseEntry } from './proxyPose.ts'
 import type { DagRoot, PackedDag } from './types.ts'
+import type { PoseHost } from './proxyInstances.ts'
 
 /** The copy of a mesh's proxy a deformed placement owns, which the pose moves. */
 type Posed = { cut: RuntimeCutProxy; placed: Placed; node: number; triangle: number }
-
-/** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records
- *  lie in, each placement's record in it (the first float plus one, zero for none) and the revision
- *  of the records. */
-export type PoseHost = {
-  pool: GPUBuffer | undefined
-  recordOf(world: object): number
-  revision: number
-}
 
 /** The posed copies of `packed`'s `slots` placements, then of the blended copies `copies` holds,
  *  in `arena`, their columns taken among the meshes' (`columns`). */

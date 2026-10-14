@@ -7,22 +7,13 @@
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
-import type { RootProxy } from '../../page/selection/types.ts'
-import { rowParked, type PlacementOf } from '../../placement/rows.ts'
+import { rowParked } from '../../placement/rows.ts'
+import type { ProxyCopy } from './proxyInstances.ts'
 import { INSTANCE, INSTANCE_WORDS, RUNTIME_WORLD_WORDS } from '../../bounce/runtimeLayout.ts'
 import { tintOf, type ProxyState } from './proxyState.ts'
 
 /** A blended copy's world matrix, sixteen words. */
 const WORLD_WORDS = RUNTIME_WORLD_WORDS
-
-/** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
- *  drawn (`BlendCopy`). */
-export type ProxyCopy = {
-  proxy?: RootProxy
-  matrix: { readonly elements: ArrayLike<number> }
-  hidden?: boolean
-  placement?: PlacementOf
-}
 
 /** The copies of the proxy `state` holds: `set` takes the host's list, `sync` writes what moved. */
 export function createProxyCopies(state: ProxyState) {
