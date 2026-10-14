@@ -88,7 +88,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT)
   // A scene with transparents asks the front layer (`GpuHiz.front`): an opaque one holds none.
   const making = device.createCommandEncoder()
-  hiz.front(making)
+  hiz.front(making, true)
   device.queue.submit([making.finish()])
   const pyramid = hiz.swap(undefined) as Pyramid
   hiz.swap(pyramid)

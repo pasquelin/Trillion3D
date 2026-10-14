@@ -111,7 +111,7 @@ fn mean_sums_from_positive_zero_then_scales_by_the_reciprocal() {
     // Negative zeros summed from `+0.0` come out positive.
     assert!(mean([[-0.0f64; 3]])[0].is_sign_positive());
     let points = [[0.1, 0.2, 0.3], [0.7, 0.11, 0.13], [0.5, 0.9, 0.01]];
-    let sum = points.iter().fold([0.0; 3], |s, p| add(s, *p));
-    assert_eq!(mean(points), scale(sum, 1.0 / 3.0));
+    let by_hand = [0, 1, 2].map(|k| (points[0][k] + points[1][k] + points[2][k]) * (1.0 / 3.0));
+    assert_eq!(mean(points), by_hand);
     assert!(mean(core::iter::empty::<[f64; 2]>())[0].is_nan());
 }

@@ -1,4 +1,4 @@
-import { addFrontLayer, allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
+import { holdFrontLayer, allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
 import { HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../core/writeChanged.ts'
@@ -34,8 +34,8 @@ export type HizState = HizPipelines & {
   idle: GPUBuffer
   buffers: GPUBuffer[]
   disposed: boolean
-  /** Whether the scene's transparents asked level 0's front layer (`GpuHiz.front`): every pyramid
-   *  made from then on holds it. */
+  /** Whether the last image wrote level 0's front layer (`GpuHiz.front`): a pyramid made now holds
+   *  it. */
   front: boolean
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
@@ -175,13 +175,13 @@ export function hizResize(
   }
 }
 
-/** The drawn pyramid's front layer (`GpuHiz.front`), made at the first ask in `encoder`: its level 0
- *  published again. */
-export function hizFront(h: HizState, gpu: GpuHiz, encoder: GPUCommandEncoder) {
+/** The drawn pyramid's front layer (`GpuHiz.front`), held in `encoder` exactly while `wanted`: its
+ *  level 0 published again on a change, and every pyramid made after follows. */
+export function hizFront(h: HizState, gpu: GpuHiz, encoder: GPUCommandEncoder, wanted: boolean) {
   const { at } = h
   if (h.disposed || !at) return undefined
-  h.front = true
-  const view = addFrontLayer(h.device, h.level0Usage, at, encoder)
+  h.front = wanted
+  const view = holdFrontLayer(h.device, h.level0Usage, at, encoder, wanted)
   gpu.level0 = at.level0
   gpu.level0View = at.level0View
   return view

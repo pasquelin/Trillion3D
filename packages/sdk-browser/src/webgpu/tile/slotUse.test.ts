@@ -9,7 +9,7 @@ import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
-import { TILE_PLACE_WORD_WGSL } from './slotUse.ts'
+import { TILE_PLACE_WORD_WGSL, TILE_UNRANKED } from './slotUse.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { tileId } from './ids.ts'
 import { packEntry, placeOf, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
@@ -48,7 +48,7 @@ function scene() {
     now.clock++
   }
   const level0 = (i: number) => ({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })
-  return { atlas, frame, level0, pool: atlas.pools[0] }
+  return { atlas, device, frame, level0, pool: atlas.pools[0] }
 }
 
 test('a stamp finds the texture of its entry, an all-tail texture between two streamed ones included', () => {
@@ -154,6 +154,21 @@ test('under a full pool, the tiles a card holds are never victims, and rank agai
     pool.release(index)
   }
   assert.equal(ranked, card.length + 1, 'let go, each a victim again, beside the arrival')
+})
+
+// A free place left at zero reads as the oldest clock at tier 0, the first victim the queue ranks.
+// Old code: a new buffer wrote only the occupied places.
+test('a new place-use buffer writes every free place unranked', () => {
+  const { atlas, device } = scene()
+  atlas.flush(device)
+  const use = words((atlas.slotUse.buffer as unknown as { data: Uint8Array }).data)
+  const free = atlas.slotUse.pools.flatMap((pool, lane) =>
+    Array.from({ length: pool?.tiles ?? 0 }, (_, index) => index)
+      .filter((index) => pool!.freeAt(index))
+      .map((index) => tilePlaceWordAt(atlas.slotUse.base(lane), index)),
+  )
+  assert.ok(free.length > 0)
+  for (const at of free) assert.deepEqual([use[at], use[at + 1]], [0, TILE_UNRANKED])
 })
 
 // The place words are GPU memory made with the pools: the probe that asks the device for a pool

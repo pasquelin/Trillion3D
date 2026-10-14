@@ -70,8 +70,7 @@ fn waterCorners(box:array<vec2u,6>,e:array<vec2u,16>)->array<vec2u,4>{
   }
   let ahead=vec2u(depth.x^0x80000000u,depth.y);
   if(!dIsNan(ahead)&&!dIsNan(near)&&!dBelow(near,ahead)){return out;}
-  var cw=vec2u(viewZ.x^0x80000000u,viewZ.y);
-  if((form&VIEW_MIRRORED)==0u){cw=waterRow(e,3u,x,y,z);}
+  let cw=waterRow(e,3u,x,y,z);
   if(!dBelow(D_ZERO,cw)||!dIsFinite(cw)){return out;}
   let ndcX=dDiv(waterRow(e,0u,x,y,z),cw);
   let ndcY=dDiv(waterRow(e,1u,x,y,z),cw);
