@@ -13,8 +13,7 @@
 //!
 //! JavaScript's `Math.min`, `Math.max` and `Math.hypot` are those of `trillion3d_math::js`.
 
-use trillion3d_math::box_transform::box_transform;
-pub use trillion3d_math::box_transform::BOX_VALUES;
+use trillion3d_math::box_transform::{box_transform, BOX_VALUES};
 use trillion3d_math::matrix::MATRIX_VALUES;
 
 /// `n` boxes transformed by `n` matrices, the three buffers laid out flat and disjoint.

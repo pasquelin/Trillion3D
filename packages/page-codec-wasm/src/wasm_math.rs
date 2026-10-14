@@ -7,7 +7,8 @@
 //! memory and invalidate every view: that is the only moment it happens, and the JavaScript loader
 //! rebuilds its views there and nowhere else.
 
-use crate::math::{box_transform_batch, BOX_VALUES};
+use crate::math::box_transform_batch;
+use trillion3d_math::box_transform::BOX_VALUES;
 use trillion3d_math::matrix::{multiply_matrix4_batch, MATRIX_VALUES};
 
 /// Version of this ABI's contract. The loader refuses a module that does not return the one it expects.
