@@ -1,9 +1,10 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { raycast, type Intersection } from '../../../../sdk-core/src/world/object/raycast.ts'
-import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
-import { isHelper } from './helperMark.ts'
+import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
+import type { Engine } from '../../engine/types.ts'
+import type { Intersection } from '../query/types.ts'
+import { helperRoots } from './helperMark.ts'
 import { drawnAspect } from './worldCamera.ts'
 import {
   asksPhysics,
@@ -25,6 +26,8 @@ export type CanvasPoint = {
 export interface RaycastOptions {
   /** The objects tested, with their subtrees; unset, the whole scene. */
   objects?: readonly Object3D[]
+  /** The `helper` marks are met too — a transform control's handles —; passed by otherwise. */
+  helpers?: boolean
 }
 
 /** The world ray through a canvas point, as the world's camera draws it: the point is read on
@@ -41,57 +44,40 @@ export function canvasRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasP
   return camera.rayThrough(x, y, drawnAspect(canvas), out)
 }
 
-/**
- * The nearest object a canvas point or a world ray meets (`raycast`), on the CPU from the scene's
- * own geometry: the node the page added, the world point and normal, the distance. The `helper`
- * marks are never hit; a loaded model is hit on its box, its triangles living in GPU pages.
- * Asked `{ exact: true }` or `{ shape }`, the physics answers instead, asynchronously: a compiled
- * model is then hit on its cooked triangles (`physics.json`), a shape is swept (`physicsRaycast`).
- */
-function worldRaycast(
-  scene: Object3D,
-  camera: Camera,
-  canvas: HTMLCanvasElement,
-  at: CanvasPoint | Ray,
-  options?: RaycastOptions,
-): Intersection | null
-function worldRaycast(
-  scene: Object3D,
-  camera: Camera,
-  canvas: HTMLCanvasElement,
-  at: CanvasPoint | Ray,
-  options: PhysicsRaycastOptions,
-  physics: PhysicsSession | null,
-): Promise<PhysicsIntersection | null>
-function worldRaycast(
-  scene: Object3D,
-  camera: Camera,
-  canvas: HTMLCanvasElement,
-  at: CanvasPoint | Ray,
-  options: RaycastOptions | PhysicsRaycastOptions = {},
-  physics: PhysicsSession | null = null,
-): Intersection | null | Promise<PhysicsIntersection | null> {
+/** The world ray `at` names — a canvas point through the camera, or a ray —, its direction a unit
+ *  vector, so every distance is in world units whatever length the page gave it. */
+function worldRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasPoint | Ray) {
   const ray = (at as Ray).isRay ? (at as Ray) : canvasRay(camera, canvas, at as CanvasPoint)
-  if (asksPhysics(options)) return physicsRaycast(physics, ray, options, camera.far)
-  return raycast((options as RaycastOptions).objects ?? scene, ray, isHelper)[0] ?? null
+  return new Ray(ray.origin.clone(), ray.direction.clone().normalize())
 }
 
 /**
- * `world.raycast` for one world — its scene, its camera as it stands, its physics when on: at once
- * from the scene's own geometry, or, asked `{ exact: true }` or `{ shape }` (a sphere, box or
- * capsule swept along the ray; `maxDistance` defaults to the camera's `far`), by the physics, the
- * hit then naming the glTF `material` of a cooked triangle. The type is spelled out: the physics'
- * option types stay inside the engine.
+ * `world.raycast` for one world — its camera as it stands, its session's engine, its physics when
+ * on —, always a promise. By default the engine's ray query answers (`Engine.castRay`): the nearest
+ * triangle the world draws, at the finest detail it holds — a loaded model on its own triangles, a
+ * deformed mesh where it is drawn —, traced on the GPU with every ray cast in the same tick and
+ * answered a frame or so later, the main thread never waiting. The `helper` marks are passed by
+ * unless asked (`helpers`), lines, points and sprites always; a world whose session is not open
+ * answers `null`, a sizeless canvas rejects (`RAYCAST_NO_VIEW`). Asked `{ exact: true }` or
+ * `{ shape }` (a sphere, box or capsule swept along the ray; `maxDistance` defaults to the camera's
+ * `far`), the physics answers instead, on its collision shapes and cooked triangles, the hit then
+ * naming the glTF `material` of a cooked triangle. The type is spelled out: the physics' option
+ * types stay inside the engine.
  */
 export const createWorldRaycast = (
-  scene: Object3D,
   camera: () => Camera,
   canvas: HTMLCanvasElement,
   physics: () => PhysicsSession | null,
+  engine: () => Engine | undefined,
 ) =>
-  ((at: CanvasPoint | Ray, options?: RaycastOptions | PhysicsRaycastOptions) =>
-    worldRaycast(scene, camera(), canvas, at, options as never, physics())) as {
-    (at: CanvasPoint | Ray, options?: RaycastOptions): Intersection | null
+  (async (at: CanvasPoint | Ray, options: RaycastOptions | PhysicsRaycastOptions = {}) => {
+    const ray = worldRay(camera(), canvas, at)
+    if (asksPhysics(options)) return physicsRaycast(physics(), ray, options, camera().far)
+    const { objects, helpers } = options as RaycastOptions
+    const skip = helpers ? [] : helperRoots()
+    return (await engine()?.castRay(ray, { objects, skip })) ?? null
+  }) as {
+    (at: CanvasPoint | Ray, options?: RaycastOptions): Promise<Intersection | null>
     (
       at: CanvasPoint | Ray,
       options: {
@@ -103,5 +89,5 @@ export const createWorldRaycast = (
         maxDistance?: number
         ignore?: Object3D
       },
-    ): Promise<(Intersection & { material: number }) | null>
+    ): Promise<PhysicsIntersection | null>
   }

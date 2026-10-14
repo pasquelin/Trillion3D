@@ -45,12 +45,8 @@ test('texturePool reads what the last frame held', () => {
   assert.equal(budget({ texturePoolBytes: 2048 }, { texturePool: 4096 }).texturePool, 2048)
 })
 
-test('raycastTrees reads and sets the raycast tree cache budget', () => {
-  const handle = budget(null)
-  const before = handle.raycastTrees
-  handle.raycastTrees = 1024
-  assert.equal(handle.raycastTrees, 1024)
-  handle.raycastTrees = before
+test('the budget keeps no envelope for raycast trees: a ray is traced on the GPU, no tree kept', () => {
+  assert.equal('raycastTrees' in budget(null), false)
 })
 
 test("the default totals split into each pool's own default", () => {

@@ -1,4 +1,4 @@
-import type { GpuSelection, ProxyResources, SelectionUniforms } from '../core/selection.ts'
+import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
@@ -22,6 +22,7 @@ import {
   type DagRun,
 } from './runtimeOps.ts'
 import type { DagResources } from './resources.ts'
+import { cutReaders } from './cutReaders.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { followRecords } from './recordsFollow.ts'
@@ -71,8 +72,6 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
   const { packed, pageCount, frames, buffers, textures } = resources
   const live = () => !state.disposed && !state.dead
-  // What the programs read the proxy through, made again when its buffer is (`proxy`).
-  let proxy: ProxyResources | undefined
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
@@ -154,16 +153,10 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
     // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
+    // What the passes beside the cut read: its tables, the proxy (`cutReaders.ts`).
+    ...cutReaders(run, live),
     get proxyHostBytes() {
       return run.proxies.hostBytes
-    },
-    proxy() {
-      const buffer = live() ? run.proxies.buffer() : undefined,
-        worlds = frames.worlds.view
-      if (!buffer) return undefined
-      if (proxy?.buffer !== buffer || proxy.worlds !== worlds)
-        proxy = { buffer, worlds, tree: resources.treeTable.view }
-      return proxy
     },
     proxyPose: (encoder, host) => live() && run.proxies.pose(encoder, host),
     proxyArrived: () => live() && run.proxies.arrived(),

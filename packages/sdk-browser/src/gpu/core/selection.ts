@@ -14,20 +14,12 @@ import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
+import type { CutTables, ProxyResources } from '../dag/cutReaders.ts'
 
 /** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
  *  object the main view holds for the selection's life, or each view aside its own, never another
  *  view's — (`../dag/runtime.ts`, `syncTables`). */
 export type TableSync = (uniforms: SelectionUniforms, view: object) => void
-/** What a program reads the proxy through (`../dag/proxyInstances.ts`): its buffer, and the cut's
- *  record tables, read where they lie — the placements' records, the worlds it places its meshes by
- *  and its instances (`../dag/worldTable.ts`), and the placement tree its rays walk
- *  (`../dag/treeTable.ts`). */
-export type ProxyResources = {
-  readonly buffer: GPUBuffer
-  readonly worlds: GPUTextureView
-  readonly tree: GPUTextureView
-}
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
@@ -172,6 +164,9 @@ export type GpuSelection = {
   followRows?(rows: number): void
   /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one. */
   proxy(): ProxyResources | undefined
+  /** Its tables as a pass beside the cut reads them (`../dag/cutReaders.ts`), read again at each
+   *  call: a growth lays them out anew. None once released. */
+  cutTables(): CutTables | undefined
   /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the

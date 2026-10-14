@@ -24,14 +24,8 @@ import {
   closestSegmentTriangle,
   triangleNormal,
 } from '../../../packages/sdk-core/src/collision/closest.ts'
-import {
-  buildTriangleTree,
-  type TriangleTree,
-} from '../../../packages/sdk-core/src/collision/triangleTree.ts'
-import {
-  forEachTriangleInBox,
-  nearestTriangleOnRay,
-} from '../../../packages/sdk-core/src/collision/triangleQuery.ts'
+import { buildTriangleTree, type TriangleTree } from './triangleTree.ts'
+import { forEachTriangleInBox, nearestTriangleOnRay } from './triangleQuery.ts'
 import { focalPixels } from '../../../packages/math/src/projection/camera.ts'
 import { summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
 

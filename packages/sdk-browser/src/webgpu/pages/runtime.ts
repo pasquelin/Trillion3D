@@ -4,6 +4,7 @@ import type { RootBoxesGpu } from '../../placement/rootBoxes.ts'
 import type { TreeLeavesGpu } from '../../placement/treeLeaves.ts'
 import type { RowWords } from '../../placement/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/webgpuGrowth.ts'
+import type { RayQueue } from '../rays/rayQueue.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { TAA_CAPABILITIES } from '../../taa/capability.ts'
@@ -93,6 +94,8 @@ export interface WebgpuPagesRuntime {
   /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
    *  (`../../placement/webgpuGrowth.ts`). */
   growth?: GrowthInFlight
+  /** The rays cast at the engine, made at the first (`../rays/rayQueue.ts`). */
+  rays?: RayQueue
 }
 
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {

@@ -7,10 +7,15 @@ import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
  *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`) and
  *  its page count (`+ 6`), as `primitiveFrameWords` lays them. */
 export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
-/** The frame words of a placement's first page and of the open counts it holds (`primitiveWordAt`). */
-const PAGE_BASE_WORD = 4,
-  PAGE_COUNT_WORD = 6
-export const HELD_BY_WORD = 5
+/** The frame words of a placement's root node, its record shift, its mark, its first page and the
+ *  open counts it holds (`primitiveWordAt`): what a pass beside the cut reads of a placement
+ *  (`../../webgpu/rays/rayPlacementWgsl.ts`). */
+export const ROOT_WORD = 1,
+  RECORD_SHIFT_WORD = 2,
+  MARK_WORD = 3,
+  PAGE_BASE_WORD = 4,
+  HELD_BY_WORD = 5
+const PAGE_COUNT_WORD = 6
 
 /** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
  *  and word 15. Words 12 to 14 are no cut's — each makes the translation from the exact one at its
@@ -63,9 +68,9 @@ export function writePrimitiveWords(
   // A slot of the room a growth keeps holds no root yet: no stretch, as no world.
   const source = packed.worldSources[w]
   frameData[at] = source ? worldStretch(source) : 0
-  frameInts[at + 1] = packed.rootNodes[w]
-  frameInts[at + 2] = packed.recordShift[w]
-  frameInts[at + 3] = packed.mark?.[w] ?? 0
+  frameInts[at + ROOT_WORD] = packed.rootNodes[w]
+  frameInts[at + RECORD_SHIFT_WORD] = packed.recordShift[w]
+  frameInts[at + MARK_WORD] = packed.mark?.[w] ?? 0
   frameInts[at + PAGE_BASE_WORD] = packed.cutLinks?.[w]?.pageBase ?? 0
   frameInts[at + HELD_BY_WORD] = packed.heldOpen?.heldBy(w) ?? 0
   frameInts[at + PAGE_COUNT_WORD] = packed.cutLinks?.[w]?.pageCount ?? 0

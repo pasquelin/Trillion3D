@@ -17,7 +17,8 @@ import { DAG_NODE_FLOATS } from './types.ts'
  * node a group, so the lists fit beside the nodes.
  *
  * Every reader reads it in place — the culling's level loop (`shader/placementTreeWgsl.ts`), the
- * proxy's rays (`../../bounce/runtimeSceneWgsl.ts`) —, the refit reads and writes its boxes in place
+ * proxy's rays (`../../bounce/runtimeSceneWgsl.ts`), the ray query
+ * (`../../webgpu/rays/rayQueryWgsl.ts`) —, the refit reads and writes its boxes in place
  * (`treeRefitWgsl.ts`, the WGSL feature `readonly_and_readwrite_storage_textures`), and the host
  * writes what a packing, a join or an append moved (`createTreeTable`). Copied by none.
  *

@@ -31,7 +31,7 @@ import { measureView } from './screenErrorMeasure.ts'
 import { screenErrorPass } from './screenErrorVerdict.ts'
 import type { HoldOptions } from './screenErrorPage.ts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
-import { buildTriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
+import { buildTriangleTree } from './triangleTree.ts'
 import { REPOSITORY_ROOT, readJson } from '../../../scripts/repository-files.ts'
 import { git } from '../../../scripts/git-paths.ts'
 

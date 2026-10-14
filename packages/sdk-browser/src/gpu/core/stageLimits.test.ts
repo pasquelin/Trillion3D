@@ -1,5 +1,5 @@
-// Every program of the opaque resolve, the blends, the water pass, the reflections and the depth
-// pyramid, and of the cut — its culling, the composition of the poses, the root boxes, the tree's
+// Every program of the opaque resolve, the blends, the water pass, the reflections, the depth
+// pyramid and the ray query, and of the cut — its culling, the composition of the poses, the root boxes, the tree's
 // leaves and refit —, binds no more of a kind in one stage than WebGPU guarantees a device that
 // asks for nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on
 // any machine at the default limits, whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
@@ -31,6 +31,8 @@ import { TREE_LEAVES_WGSL } from '../../placement/treeLeavesWgsl.ts'
 import { ROOT_BOXES_WGSL } from '../../placement/rootBoxesWgsl.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/gpuComposeWgsl.ts'
 import { wgslComputeLayout } from './wgslBindings.fixture.ts'
+import { RAY_QUERY_WGSL } from '../../webgpu/rays/rayQueryWgsl.ts'
+import { DEFORM_INDEX_SHADER } from '../../webgpu/rays/deformIndexWgsl.ts'
 
 /** What WebGPU guarantees each stage of a device that asks for no more, by limit. */
 const WEBGPU_DEFAULTS: Readonly<Record<string, number>> = {
@@ -162,6 +164,10 @@ test("the cut's programs fit WebGPU's default limits, whatever the world", () =>
     ['the root boxes', ROOT_BOXES_WGSL],
     ['the compose roots', COMPOSE_ROOTS_WGSL],
     ['the compose worlds', COMPOSE_WORLDS_WGSL],
+    // The ray query reads the cut's nodes, frame words, worlds and tree where the culling reads
+    // them, at its bindings: four sampled textures, whatever the world's size.
+    ['the ray trace', RAY_QUERY_WGSL],
+    ['the deformation index', DEFORM_INDEX_SHADER],
   ] as const)
     withinDefaults([wgslComputeLayout(text)], name)
 })

@@ -9,8 +9,13 @@ import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts'
 import { fixtureDrag, fixtureSurface } from '../../camera/controls/controls.fixture.ts'
 import { createTransformControls } from './transform.ts'
+import type { CanvasPoint } from '../core/worldRaycast.ts'
 
-/** A 400 px square canvas seen by a 50° camera ten units in front of `at`, an orbit on it. */
+/**
+ * A 400 px square canvas seen by a 50° camera ten units in front of `at`, an orbit on it, and the
+ * world's ray query as the rig answers it (`under`): the nearest object the test names at a canvas
+ * point, a promise settled after the call — the GPU's answer, never the caller's wait.
+ */
 function rig(at: { x: number; y: number; z: number }) {
   const surface = fixtureSurface(400)
   const camera = new Camera('perspective', { fov: 50 })
@@ -19,14 +24,32 @@ function rig(at: { x: number; y: number; z: number }) {
   orbit.target.set(at.x, at.y, at.z)
   const scene = new Group()
   const canvas = surface.element as HTMLCanvasElement
-  const host = { canvas, scene, camera, onFrame: () => () => {} }
-  return { surface, camera, orbit, scene, gizmo: createTransformControls(host) }
+  const under = new Map<string, Object3D>()
+  const asked: CanvasPoint[] = []
+  const raycast = async (point: CanvasPoint) => {
+    asked.push(point)
+    const object = under.get(`${point.x},${point.y}`)
+    return object
+      ? { object, point: new Vector3(), normal: new Vector3(), distance: 1, face: 0 }
+      : null
+  }
+  const host = { canvas, scene, camera, onFrame: () => () => {}, raycast }
+  const gizmo = createTransformControls(host)
+  /** The x arrow's shaft: the translate group's first part (`transformHandles.ts`). */
+  const xArrow = () => gizmo.handles.children[0].children[0]
+  return { surface, camera, orbit, scene, gizmo, under, asked, xArrow }
+}
+
+/** The pointer moved over `(x, y)`, and the answer of its hover landed. */
+async function hover(surface: ReturnType<typeof rig>['surface'], x: number, y: number) {
+  surface.fire('pointermove', { pointerId: 1, button: 0, clientX: x, clientY: y })
+  await new Promise((settled) => setTimeout(settled, 0))
 }
 /** World units per canvas pixel on the plane ten units ahead. */
 const unit = (2 * 10 * Math.tan(25 * DEG2RAD)) / 400
 
-test('dragging an arrow moves the object and keeps the orbit still; beside it, the orbit turns', () => {
-  const { surface, camera, scene, gizmo } = rig({ x: 0, y: 0, z: 0 })
+test('dragging an arrow moves the object and keeps the orbit still; beside it, the orbit turns', async () => {
+  const { surface, camera, scene, gizmo, under, xArrow } = rig({ x: 0, y: 0, z: 0 })
   const box = object.mesh(geometry.box(1, 1, 1))
   scene.add(box)
   const events: string[] = []
@@ -35,34 +58,41 @@ test('dragging an arrow moves the object and keeps the orbit still; beside it, t
   gizmo.attach(box)
   assert.equal(gizmo.handles.parent, scene, 'the handles are in the scene while attached')
   // The x arrow's shaft crosses the canvas at 243 px: one world unit right of the centre.
+  under.set('243,200', xArrow())
+  await hover(surface, 243, 200)
   fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 })
   assert.ok(Math.abs(box.position.x - 40 * unit) < 1e-9, 'the box followed the pointer')
   assert.deepEqual(camera.position.toArray(), [0, 0, 10], 'the orbit never heard the press')
   assert.deepEqual(events, ['dragStart', 'change', 'dragEnd'])
   gizmo.snap.translate = 0.5
+  under.set('283,200', xArrow())
+  await hover(surface, 283, 200)
   fixtureDrag(surface, 30, 0, { clientX: 243 + 40, clientY: 200 })
   assert.ok(Math.abs(box.position.x - 40 * unit - 0.5) < 1e-9, 'snapped to half a unit')
+  await hover(surface, 100, 100)
   fixtureDrag(surface, 40, 0, { clientX: 100, clientY: 100 })
   assert.notDeepEqual(camera.position.toArray(), [0, 0, 10], 'a press beside turns the camera')
   gizmo.dispose()
   assert.equal(box.children.length + scene.children.length, 1, 'the handles left the scene')
 })
 
-test('a handle hidden behind a wall is not picked: the press turns the orbit', () => {
-  const { surface, camera, scene, gizmo } = rig({ x: 0, y: 0, z: 0 })
+test('a handle hidden behind a wall is not picked: the nearest hit is the wall, the press turns the orbit', async () => {
+  const { surface, camera, scene, gizmo, under } = rig({ x: 0, y: 0, z: 0 })
   const box = object.mesh(geometry.box(1, 1, 1)),
     wall = object.mesh(geometry.box(4, 4, 0.1))
   wall.position.set(0, 0, 3)
   scene.add(box, wall)
   gizmo.attach(box)
   const x = box.position.x
+  under.set('243,200', wall)
+  await hover(surface, 243, 200)
   fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 })
   assert.equal(box.position.x, x, 'the arrow behind the wall stayed where it was')
   assert.notDeepEqual(camera.position.toArray(), [0, 0, 10], 'the orbit heard the press')
 })
 
-test('a child under a moved, turned and scaled parent moves in the world as the handle shows', () => {
-  const { surface, scene, gizmo } = rig({ x: 5, y: 0, z: 0 })
+test('a child under a moved, turned and scaled parent moves in the world as the handle shows', async () => {
+  const { surface, scene, gizmo, under, xArrow } = rig({ x: 5, y: 0, z: 0 })
   const parent = new Object3D(),
     child = object.mesh(geometry.box(1, 1, 1))
   parent.position.set(5, 0, 0)
@@ -72,19 +102,23 @@ test('a child under a moved, turned and scaled parent moves in the world as the 
   scene.add(parent)
   gizmo.attach(child)
   // Pressed on the shaft 1.5 units out, past the box of side 2 that hides its inner part.
+  under.set('264,200', xArrow())
+  await hover(surface, 264, 200)
   fixtureDrag(surface, 40, 0, { clientX: 264, clientY: 200 })
   const at = child.getWorldPosition(new Vector3())
   assert.ok(Math.abs(at.x - 5 - 40 * unit) < 1e-9 && Math.abs(at.y) < 1e-9 && Math.abs(at.z) < 1e-9)
 })
 
-test('attaching another object during a drag ends the drag: dragEnd, and the old object rests', () => {
-  const { surface, scene, gizmo } = rig({ x: 0, y: 0, z: 0 })
+test('attaching another object during a drag ends the drag: dragEnd, and the old object rests', async () => {
+  const { surface, scene, gizmo, under, xArrow } = rig({ x: 0, y: 0, z: 0 })
   const first = object.mesh(geometry.box(1, 1, 1)),
     second = object.mesh(geometry.box(1, 1, 1))
   scene.add(first, second)
   const events: string[] = []
   gizmo.addEventListener('dragEnd', () => events.push('dragEnd'))
   gizmo.attach(first)
+  under.set('243,200', xArrow())
+  await hover(surface, 243, 200)
   const press = { pointerId: 1, button: 0, clientX: 243, clientY: 200 }
   surface.fire('pointerdown', press)
   assert.equal(gizmo.dragging, true)
@@ -93,4 +127,20 @@ test('attaching another object during a drag ends the drag: dragEnd, and the old
   assert.equal(gizmo.dragging, false)
   surface.fire('pointermove', { ...press, clientX: 283 })
   assert.deepEqual([first.position.x, second.position.x], [0, 0], 'no drag carried over')
+})
+
+test('a press never waits for an answer: with none, nothing is grabbed and it asks; the next press grabs', async () => {
+  const { surface, camera, scene, gizmo, under, asked, xArrow } = rig({ x: 0, y: 0, z: 0 })
+  const box = object.mesh(geometry.box(1, 1, 1))
+  scene.add(box)
+  gizmo.attach(box)
+  under.set('243,200', xArrow())
+  // A tap — a touch has no hover —: answered at once, nothing grabbed, its point asked.
+  fixtureDrag(surface, 0, 0, { clientX: 243, clientY: 200 })
+  assert.equal(gizmo.dragging, false)
+  assert.deepEqual(asked.at(-1), { x: 243, y: 200 }, 'the tap asked its point')
+  await new Promise((settled) => setTimeout(settled, 0))
+  fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 })
+  assert.ok(box.position.x > 0, 'the next press grabs the arrow')
+  assert.deepEqual(camera.position.toArray(), [0, 0, 10], 'the orbit never heard it')
 })

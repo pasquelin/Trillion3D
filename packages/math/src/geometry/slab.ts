@@ -1,6 +1,7 @@
 /**
  * THE SLAB TEST of a ray `o + t·d` against an axis-aligned box: the one rule
- * the engine's ray–box tests share (`Ray.intersectBox`, the triangle tree's `nearestTriangleOnRay`).
+ * the processor's ray–box tests share (`Ray.intersectBox`, and the screen-error measure's
+ * `nearestTriangleOnRay`, `bench/runner/screenError/triangleQuery.ts`).
  *
  * Each axis keeps the parameters where the ray lies between the box's two planes on that axis;
  * the box is hit between the largest entry and the smallest exit. A direction component of 0 keeps

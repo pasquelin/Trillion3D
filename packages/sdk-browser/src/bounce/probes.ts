@@ -22,7 +22,7 @@ import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
-import type { ProxyResources } from '../gpu/core/selection.ts'
+import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 
 /** Cascade uniform, the proxy, lights, queue, frozen probes and output — the atlases of `atlas.ts` —, the
  *  world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`), and the culling's worlds the proxy is placed by

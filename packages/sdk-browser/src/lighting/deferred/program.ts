@@ -15,7 +15,7 @@ import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
-import type { ProxyResources } from '../../gpu/core/selection.ts'
+import type { ProxyResources } from '../../gpu/dag/cutReaders.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */

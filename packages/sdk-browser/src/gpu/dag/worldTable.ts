@@ -10,7 +10,8 @@ import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl
  * words laid as `INSTANCE` says (`../../bounce/runtimeLayout.ts`), one texel —, then one record a
  * blended copy the proxy traces, its `Instance` alone (`proxyInstances.ts`). Every reader reads it
  * in place — the culling at its eye (`shader/worldPoseWgsl.ts`), the proxy's rays
- * (`../../bounce/runtimeSceneWgsl.ts`) —, written by the host (`cameraFrames.ts`,
+ * (`../../bounce/runtimeSceneWgsl.ts`), the ray query at its origin
+ * (`../../webgpu/rays/rayPlacementWgsl.ts`) —, written by the host (`cameraFrames.ts`,
  * `proxyInstances.ts`) and by the composition of the poses a parent moves
  * (`../../placement/gpuComposeWgsl.ts`), and copied by none but its growth when the copies outgrow
  * it (`RecordTexture.hold`).
