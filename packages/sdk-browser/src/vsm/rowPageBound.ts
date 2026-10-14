@@ -31,12 +31,11 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { RowMotion } from '../gpu/shadow/rowMotion.ts'
 import { VSM_MIPS } from './constants.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
-import type { VsmClipmap } from './clipmap.ts'
 import { answer, createScratch, type BoundFrame, type Scratch } from './rowBoundMeasure.ts'
 import { lampKeysOf } from './rowBinsKeys.ts'
 import { boundLights } from './rowBinsParams.ts'
 import { frameSuns, sameSuns } from './rowBinsSuns.ts'
-import { createRowBins, type RowBins, type RowBinsLanded } from './rowBinsRecord.ts'
+import { createRowBins, type RowBins } from './rowBinsRecord.ts'
 
 /** The rows' spheres as the bound reads them: the GPU's (`lights.spheres`), and what changed in
  *  them since a frame. */
