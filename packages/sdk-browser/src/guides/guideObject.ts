@@ -8,7 +8,6 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
-
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { GuideEntry } from './guidePack.ts'
 

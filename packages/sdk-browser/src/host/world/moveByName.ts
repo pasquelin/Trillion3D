@@ -9,7 +9,6 @@ import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import { assertFiniteTransform } from './matrices.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
-
 import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 

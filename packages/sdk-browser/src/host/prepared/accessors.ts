@@ -22,7 +22,6 @@ import {
   type BufferTypedArray,
   normalisedUnit,
 } from '../../../../sdk-core/src/world/buffer/elements.ts'
-
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts'
 
 /** Storage of each glTF component type. */
