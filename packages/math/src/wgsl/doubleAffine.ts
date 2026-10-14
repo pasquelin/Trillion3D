@@ -8,7 +8,7 @@ import { wgslFn } from './decl.ts'
 import { dAdd, dDiv, dMul } from './double.ts'
 import { dIsZero } from './doubleWords.ts'
 import { dMathMax, dMathMin } from './doubleOrder.ts'
-import { wgslDouble } from './number.ts'
+import { D_INFINITY, D_NEG_INFINITY, D_ONE } from './doubleConstants.ts'
 
 /** Row `i` of `w · (x, y, z, 1)`, `w` sixteen doubles column-major:
  *  `w[i]·x + w[4+i]·y + w[8+i]·z + w[12+i]`, summed left to right. */
@@ -26,16 +26,15 @@ export const affineAxis = wgslFn(
  *  two entry points (`dBoxTransform`, `dBoxAffine`): an affine world takes the same words in
  *  both. THE BOX IS NON-EMPTY AND ITS BOUNDS FINITE, its caller's guard: `boxTransform` returns an
  *  empty box as it is and takes an infinite bound down its projective path (`unitW`), neither of
- *  which this text tests — the water's enclosure and a carried root's box (`carriedBox`) guard
+ *  which this text tests — the enclosure (`doubleEnclosure.ts`) and a carried root's box (`carriedBox`) guard
  *  both. */
 function boxTransformText(name: string, projective: boolean) {
   // Whether `m` is affine, and each corner divided by its `w` when it is not.
   const affine = `
- let one=${wgslDouble(1)};
- let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==one.x&&m[15].y==one.y;`
+ let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==D_ONE.x&&m[15].y==D_ONE.y;`
   const divide = `
   if(!affine){
-   let mw=dDiv(one,affineAxis(m,3u,lx,ly,lz));
+   let mw=dDiv(D_ONE,affineAxis(m,3u,lx,ly,lz));
    x=dMul(x,mw);
    y=dMul(y,mw);
    z=dMul(z,mw);
@@ -43,8 +42,8 @@ function boxTransformText(name: string, projective: boolean) {
   return `fn ${name}(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{${projective ? affine : ''}
  var out:array<vec2u,6>;
  for(var k=0u;k<3u;k++){
-  out[k]=${wgslDouble(Infinity)};
-  out[k+3u]=${wgslDouble(-Infinity)};
+  out[k]=D_INFINITY;
+  out[k+3u]=D_NEG_INFINITY;
  }
  for(var i=0u;i<8u;i++){
   let lx=select(box[0],box[3],(i&1u)!=0u);
@@ -64,10 +63,10 @@ function boxTransformText(name: string, projective: boolean) {
 }`
 }
 
-/** `boxTransform` of a box by `m`, any matrix (`boxTransformText`): the water's enclosure. */
+/** `boxTransform` of a box by `m`, any matrix (`boxTransformText`): the enclosure's (`doubleEnclosure.ts`). */
 export const dBoxTransform = wgslFn(
   'dBoxTransform',
-  [affineAxis, dDiv, dMul, dIsZero, dMathMax, dMathMin],
+  [affineAxis, dDiv, dMul, dIsZero, dMathMax, dMathMin, D_ONE, D_INFINITY, D_NEG_INFINITY],
   boxTransformText('dBoxTransform', true),
 )
 
@@ -75,6 +74,6 @@ export const dBoxTransform = wgslFn(
  *  a node tree composes, every one affine (`../../../sdk-browser/src/placement/`). */
 export const dBoxAffine = wgslFn(
   'dBoxAffine',
-  [affineAxis, dMathMax, dMathMin],
+  [affineAxis, dMathMax, dMathMin, D_INFINITY, D_NEG_INFINITY],
   boxTransformText('dBoxAffine', false),
 )

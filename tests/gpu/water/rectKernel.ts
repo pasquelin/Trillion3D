@@ -57,9 +57,6 @@ const NAMES = [
   'waterProject',
   'waterCorners',
   'waterCorner',
-  'waterEnclose',
-  'waterWiden',
-  'waterStretch',
   'frameDouble',
   'keyedDouble',
   'flatIndex',
@@ -81,7 +78,6 @@ function gpuRect(state: WebgpuBlendState, waterDraws: Uint32Array) {
     items: Array.from(new Uint32Array(records.buffer)),
     volumes: Array.from(new Uint32Array(state.volumePacked.buffer)),
     verdict,
-    encloseError: [] as Vec[],
     projectNdc: [] as Vec[],
   }
   const kernel = shaderRun<Kernel>(WATER_RECT_SHADER, NAMES, scope)

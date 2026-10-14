@@ -109,7 +109,7 @@ function affineSurface(
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1
 }
 
-/** `waterStretch` of the GPU (`encloseWgsl.ts`), sum for sum: `max(‖M‖₁, ‖M‖∞)` of `m`. */
+/** `dStretchBound` of the GPU (`math/src/wgsl/doubleEnclosure.ts`), sum for sum: `max(‖M‖₁, ‖M‖∞)` of `m`. */
 function waterStretch(m: ArrayLike<number>, stretch = 0) {
   const sum = (a: number, b: number, c: number) => Math.abs(m[a]) + Math.abs(m[b]) + Math.abs(m[c])
   for (let k = 0; k < 3; k++)

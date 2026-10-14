@@ -1,11 +1,29 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst } from '../../../../math/src/wgsl/decl.ts'
+import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
+import { ROUND } from '../../../../math/src/geometry/boxEnclosure.ts'
 import { dAdd, dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { dIsNan, dIsZero, dNan } from '../../../../math/src/wgsl/doubleWords.ts'
 import { dBelow, dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
 import { dCeil, dFloor, dFromU32, dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
 import { affineAxis } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
-import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
+import {
+  D_HALF,
+  D_INFINITY,
+  D_NEG_INFINITY,
+  D_ONE,
+  D_TWO,
+  D_ZERO,
+} from '../../../../math/src/wgsl/doubleConstants.ts'
+import { D_ROUND, dEncloseTransform } from '../../../../math/src/wgsl/doubleEnclosure.ts'
+
+/** The guard on a volume's thickness taken to the world (`rectWgsl.ts`): the CPU's `1 + 16 · ROUND`
+ *  (`waterRect.fixture.ts`), bit for bit. */
+export const D_THICKNESS_GUARD = wgslConst(
+  'D_THICKNESS_GUARD',
+  [],
+  `const D_THICKNESS_GUARD=${wgslDouble(1 + 16 * ROUND)};`,
+)
 
 /**
  * THE SCREEN RECTANGLE OF A BOX, IN EMULATED DOUBLES: the CPU's `project` of the water bounds
@@ -21,8 +39,14 @@ import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
 export const WATER_PROJECT_WGSL = wgslBlock(
   'WATER_PROJECT_WGSL',
   [
-    WATER_DOUBLES_WGSL,
-    WATER_ENCLOSE_WGSL,
+    D_ZERO,
+    D_ONE,
+    D_HALF,
+    D_TWO,
+    D_INFINITY,
+    D_NEG_INFINITY,
+    D_ROUND,
+    dEncloseTransform,
     FRAME_HEAD_WGSL,
     affineAxis,
     dAdd,
@@ -89,14 +113,15 @@ fn waterCorners(box:array<vec2u,6>,e:array<vec2u,16>)->array<vec2u,4>{
 fn waterProject(box:array<vec2u,6>,e:array<vec2u,16>)->array<vec2u,4>{
  var rect:array<vec2u,4>;
  rect[0]=dNan();
- projectNdc=waterEnclose(box,e);
+ let enclosed=dEncloseTransform(box,e);
+ projectNdc=enclosed.box;
  if(dIsNan(projectNdc[0])){return rect;}
  let p=waterCorners(box,e);
  if(dIsNan(p[0])){return rect;}
  let width=dFromU32(frame[FRAME_WIDTH]);
  let height=dFromU32(frame[FRAME_HEIGHT]);
- let dx=dAdd(dCeil(dAdd(dDiv(dMul(encloseError[0],width),D_TWO),dMul(D_ROUND,width))),D_ONE);
- let dy=dAdd(dCeil(dAdd(dDiv(dMul(encloseError[1],height),D_TWO),dMul(D_ROUND,height))),D_ONE);
+ let dx=dAdd(dCeil(dAdd(dDiv(dMul(enclosed.error[0],width),D_TWO),dMul(D_ROUND,width))),D_ONE);
+ let dy=dAdd(dCeil(dAdd(dDiv(dMul(enclosed.error[1],height),D_TWO),dMul(D_ROUND,height))),D_ONE);
  rect[0]=dMathMax(D_ZERO,dMathMin(dSub(width,D_ONE),dSub(p[0],dx)));
  rect[1]=dMathMax(D_ZERO,dMathMin(dSub(height,D_ONE),dSub(p[1],dy)));
  rect[2]=dMathMax(D_ONE,dMathMin(width,dAdd(p[2],dx)));

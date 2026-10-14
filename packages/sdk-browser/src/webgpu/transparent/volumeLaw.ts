@@ -49,7 +49,7 @@ fn volumeTransmittance(k:vec3f,path:f32)->vec3f{return exp2(k*path);}`,
  * ray's length (`|det| · |ray| = |C · ray|`, a rigid pose) the path is the declared thickness
  * itself. No path is longer than the thickness times the matrix's stretch bound
  * `max(‖M‖₁, ‖M‖∞)`, which bounds its largest singular value: the reach the water rectangle widens
- * the backdrop by (`waterStretch`, `../water/encloseWgsl.ts`), held under the cofactors' rounding.
+ * the backdrop by (`dStretchBound`, `math/src/wgsl/doubleEnclosure.ts`), held under the cofactors' rounding.
  */
 export const volumeWorldPath = wgslFn(
   'volumeWorldPath',

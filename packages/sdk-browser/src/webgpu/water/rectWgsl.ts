@@ -11,8 +11,13 @@ import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
 import { BLEND_ITEM_WORDS, BLEND_ITEM_WORLD } from '../blend/items.ts'
 import { VOLUME_ITEM, VOLUME_WORDS } from '../transparent/transmission.ts'
-import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
-import { WATER_PROJECT_WGSL } from './projectWgsl.ts'
+import { D_ONE, D_TWO, D_ZERO } from '../../../../math/src/wgsl/doubleConstants.ts'
+import {
+  dEncloseTransform,
+  dStretchBound,
+  dWidenBox,
+} from '../../../../math/src/wgsl/doubleEnclosure.ts'
+import { D_THICKNESS_GUARD, WATER_PROJECT_WGSL } from './projectWgsl.ts'
 import { WATER_ITEM_WGSL } from './waterItems.ts'
 import { WATER_ARGS_WGSL } from './argsWgsl.ts'
 
@@ -45,7 +50,7 @@ export function waterRectBindEntries(): GPUBindGroupLayoutEntry[] {
  * Its surface rectangle is its local box, widened for single precision, enclosed under its pose,
  * projected (`projectWgsl.ts`); its backdrop's, the screen-space depth box the composite
  * reconstructs from, enclosed under the inverse projection, widened by the declared thickness taken
- * to the world by the pose's stretch bound (`waterStretch`) and projected again; its item rank is
+ * to the world by the pose's stretch bound (`dStretchBound`) and projected again; its item rank is
  * its volume's (`VOLUME_ITEM`). An item whose geometry may not crop — no local box, a paged or line
  * or sprite surface, a non-finite world box, a non-affine pose — or whose enclosure is refused
  * covers the full target. Each bound folds into the verdict's unions with one `atomicMax` (minima
@@ -55,7 +60,7 @@ export function waterRectBindEntries(): GPUBindGroupLayoutEntry[] {
  * WHY EMULATED DOUBLES, where the frustum verdict proves its test in single precision
  * (`../blend/verdictWgsl.ts`): the rectangle must hold every pixel the surfaces' own
  * single-precision raster reaches, so its enclosures already carry that raster's rounding
- * (`ROUNDING_GAMMA` on the world and clip magnitudes, `encloseWgsl.ts`). Computed in single
+ * (`ROUNDING_GAMMA` on the world and clip magnitudes, `doubleEnclosure.ts`). Computed in single
  * precision, each enclosure would add a rounding of the same size — twice the margins —, and the
  * near-plane decision, taken on the absolute world corners under the camera's double view, would
  * err by the world's magnitude — 64 roundoffs of 10⁶ m are about 4 m —: every water item within
@@ -111,7 +116,7 @@ fn includeWaterItem(rank:u32){
  for(var k=0u;k<6u;k++){local[k]=vec2u(waterItems[base+2u*k+1u],waterItems[base+2u*k]);}
  var world=local;
  world[0]=dNan();
- if(waterCrops(rank,item,pose)){world=waterEnclose(waterWiden(local,D_ZERO),pose);}
+ if(waterCrops(rank,item,pose)){world=dEncloseTransform(dWidenBox(local,D_ZERO),pose).box;}
  let projection=frameMatrix(FRAME_PROJECTION);
  var rect:array<vec2u,4>;
  rect[0]=dNan();
@@ -134,13 +139,13 @@ fn includeWaterItem(rank:u32){
  ndc[1]=dMathMin(ndc[1],dSub(D_ONE,dDiv(dMul(D_TWO,rect[3]),height)));
  ndc[3]=dMathMax(ndc[3],dSub(dDiv(dMul(D_TWO,rect[2]),width),D_ONE));
  ndc[4]=dMathMax(ndc[4],dSub(D_ONE,dDiv(dMul(D_TWO,rect[1]),height)));
- let reconstructed=waterEnclose(waterWiden(ndc,D_ZERO),frameMatrix(FRAME_INVERSE));
+ let reconstructed=dEncloseTransform(dWidenBox(ndc,D_ZERO),frameMatrix(FRAME_INVERSE)).box;
  if(dIsNan(reconstructed[0])){
   waterFull(VERDICT_BACKDROP);
   return;
  }
- let reach=dMul(dMul(dMathMax(D_ZERO,thickness),waterStretch(pose)),D_THICKNESS_GUARD);
- let back=waterProject(waterWiden(reconstructed,reach),projection);
+ let reach=dMul(dMul(dMathMax(D_ZERO,thickness),dStretchBound(pose)),D_THICKNESS_GUARD);
+ let back=waterProject(dWidenBox(reconstructed,reach),projection);
  if(dIsNan(back[0])){
   waterFull(VERDICT_BACKDROP);
   return;
@@ -158,8 +163,13 @@ fn boundWaterItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
 `,
   [
     WATER_ARGS_WGSL,
-    WATER_DOUBLES_WGSL,
-    WATER_ENCLOSE_WGSL,
+    D_ZERO,
+    D_ONE,
+    D_TWO,
+    D_THICKNESS_GUARD,
+    dEncloseTransform,
+    dWidenBox,
+    dStretchBound,
     WATER_PROJECT_WGSL,
     WATER_ITEM_WGSL,
     KEYED_WGSL,

@@ -6,6 +6,8 @@ import * as color from './color.ts'
 import * as constants from './constants.ts'
 import * as double from './double.ts'
 import * as doubleAffine from './doubleAffine.ts'
+import * as doubleConstants from './doubleConstants.ts'
+import * as doubleEnclosure from './doubleEnclosure.ts'
 import * as doubleOrder from './doubleOrder.ts'
 import * as doubleRound from './doubleRound.ts'
 import * as doubleWords from './doubleWords.ts'
@@ -29,6 +31,8 @@ const MODULES = {
   constants,
   double,
   doubleAffine,
+  doubleConstants,
+  doubleEnclosure,
   doubleOrder,
   doubleRound,
   doubleWords,
