@@ -2,6 +2,7 @@
  * THE CPU WORLD OF A ROOT A PARENT COMPOSES (`gpuCompose.ts`): lazy, its `elements` composed on
  * read — one product a read, none a move.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -24,8 +25,8 @@ function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
   if (slot === NO_INDEX) return
   multiplyMatrix4(
     view,
-    state.worlds.subarray(slot * 16, slot * 16 + 16),
-    state.localMats.subarray(rank * 16, rank * 16 + 16),
+    state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
+    state.localMats.subarray(rank * MATRIX_VALUES, rank * MATRIX_VALUES + MATRIX_VALUES),
   )
 }
 
