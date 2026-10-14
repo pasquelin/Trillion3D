@@ -11,6 +11,8 @@ import { rapport } from '../../core/report.ts'
 import type { Measurement } from '../../kit/measureTypes.ts'
 import { duel, N } from '../../oracles/core/three-duel.ts'
 import { prepareBatchData } from '../../oracles/core/batch-duel.ts'
+// Node cannot fetch the WebAssembly module by its URL: the fixture hands it the shipped bytes.
+import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
 const { mats, pts, outPts, outThreePts, oraclePts, boxes, threeBoxes } = prepareBatchData()
 const lines: Measurement[] = []
