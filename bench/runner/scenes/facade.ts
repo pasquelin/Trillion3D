@@ -20,7 +20,7 @@ import { join } from 'node:path'
 import { parseArgs } from '../harness/flags.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
-import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
+import { bufferPacker } from '../../../scripts/fixtures/gltf.ts'
 import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts'
 import { facadeTexture } from './facadeTexture.ts'
 
@@ -31,63 +31,16 @@ export const defaultTriangles = (seed: number) => 200_000 + Math.round(mulberry3
 
 /** The glTF of a block: one mesh, one primitive per wall, one material over the checker. */
 export function facadeGltf(walls: WallMesh[]) {
-  const chunks: Buffer[] = [],
-    views: Record<string, number>[] = [],
-    accessors: Record<string, unknown>[] = [],
-    primitives: Record<string, unknown>[] = []
-  let offset = 0
-  const push = (data: ArrayBufferView, target: number) => {
-    const start = alignUp(offset, 4),
-      bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
-    if (start > offset) chunks.push(Buffer.alloc(start - offset))
-    chunks.push(bytes)
-    views.push({ buffer: 0, byteOffset: start, byteLength: bytes.length, target })
-    offset = start + bytes.length
-    return views.length - 1
-  }
-  const accessor = (entry: Record<string, unknown>) => accessors.push(entry) - 1
-  for (const wall of walls) {
-    const count = wall.positions.length / 3
-    // glTF asks a POSITION accessor for its own bounds; one pass gives both corners.
-    const min = [...wall.positions.subarray(0, 3)],
-      max = [...min]
-    for (let i = 0; i < wall.positions.length; i++) {
-      const axis = i % 3
-      min[axis] = Math.min(min[axis], wall.positions[i])
-      max[axis] = Math.max(max[axis], wall.positions[i])
-    }
-    const position = accessor({
-      bufferView: push(wall.positions, 34962),
-      componentType: 5126,
-      type: 'VEC3',
-      count,
-      min,
-      max,
-    })
-    const normal = accessor({
-      bufferView: push(wall.normals, 34962),
-      componentType: 5126,
-      type: 'VEC3',
-      count,
-    })
-    const uv = accessor({
-      bufferView: push(wall.uvs, 34962),
-      componentType: 5126,
-      type: 'VEC2',
-      count,
-    })
-    const index = accessor({
-      bufferView: push(wall.indices, 34963),
-      componentType: 5125,
-      type: 'SCALAR',
-      count: wall.indices.length,
-    })
-    primitives.push({
-      attributes: { POSITION: position, NORMAL: normal, TEXCOORD_0: uv },
-      indices: index,
-      material: 0,
-    })
-  }
+  const { views, accessors, chunks, accessor } = bufferPacker(0)
+  const primitives = walls.map((wall) => ({
+    attributes: {
+      POSITION: accessor(wall.positions, 3),
+      NORMAL: accessor(wall.normals, 3),
+      TEXCOORD_0: accessor(wall.uvs, 2),
+    },
+    indices: accessor(wall.indices, 1),
+    material: 0,
+  }))
   const binary = Buffer.concat(chunks)
   return {
     binary,
