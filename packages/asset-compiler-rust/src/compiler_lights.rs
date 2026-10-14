@@ -13,7 +13,7 @@ mod emitter;
 mod fields;
 mod naming;
 use emitter::Emitter;
-use fields::{axis, colour_of, cone_of, number, range_of};
+use fields::{axis, colour_of, cone_of, range_of};
 use naming::unique_id;
 
 /// Luminous efficacy of photometric → radiometric conversion, in lumens per watt.
@@ -64,7 +64,8 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
     if !matches!(kind, "point" | "spot" | "directional") {
         return Err("light-unsupported-type");
     }
-    let radiant = number(light.get("intensity"), 1.0) / LUMENS_PER_WATT;
+    let radiant =
+        crate::compiler_validate::number_or(light.get("intensity"), 1.0) / LUMENS_PER_WATT;
     if !radiant.is_finite() || radiant <= 0.0 {
         return Err("light-non-positive-intensity");
     }

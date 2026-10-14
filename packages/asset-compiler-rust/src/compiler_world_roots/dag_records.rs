@@ -30,7 +30,11 @@ fn page_facts(r: &mut Records, page: Option<&Encoded>) -> Result<()> {
         r.word(index(value)?);
     }
     let error = header.quantization_error;
-    r.out.f64(if error.is_finite() { error } else { 0.0 });
+    r.out.f64(if error.is_finite() {
+        f64::from(error)
+    } else {
+        0.0
+    });
     Ok(())
 }
 
