@@ -57,7 +57,6 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
   if (tree) packPlacementTree({ ...p, worldSources }, tree)
   const tables = recordTables(roots, p, records, size.pages, plan),
     { clusters, pageCones, cold, linkBase } = tables
-  shared.records = records
   shared.keys = tables.keys
   shared.coldAt = tables.coldAt
   return {
