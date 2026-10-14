@@ -2,6 +2,7 @@
 use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
+use crate::compiler_validate::finite;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -11,10 +12,7 @@ fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_JOB", message)
 }
 fn number(value: Option<&Value>, what: &str) -> Result<f64> {
-    value
-        .and_then(Value::as_f64)
-        .filter(|v| v.is_finite())
-        .ok_or_else(|| bad(format!("{what} is not a finite number")))
+    finite(value).ok_or_else(|| bad(format!("{what} is not a finite number")))
 }
 fn vector(value: Option<&Value>, what: &str) -> Result<[f64; 3]> {
     let items = value

@@ -26,6 +26,14 @@ pub(super) fn optional_index(v: Option<&Value>, field: &str, default: usize) -> 
         None => Ok(default),
     }
 }
+/// A JSON number as the compiler reads one: finite, `None` when absent, not a number or not finite.
+pub(crate) fn finite(value: Option<&Value>) -> Option<f64> {
+    value.and_then(Value::as_f64).filter(|v| v.is_finite())
+}
+/// `finite`, `default` when absent, not a number or not finite.
+pub(crate) fn number_or(value: Option<&Value>, default: f64) -> f64 {
+    finite(value).unwrap_or(default)
+}
 pub(super) fn values<'a>(g: &'a Value, field: &str) -> Result<&'a Vec<Value>> {
     g.get(field)
         .and_then(Value::as_array)

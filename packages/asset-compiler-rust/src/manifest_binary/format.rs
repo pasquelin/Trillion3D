@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_validate::finite;
 
 pub(super) fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_MANIFEST", message)
@@ -53,9 +54,7 @@ pub(super) fn array<'a>(value: &'a Value, what: &str) -> Result<&'a Vec<Value>> 
         .ok_or_else(|| bad(format!("{what} is not an array")))
 }
 pub(super) fn number(value: Option<&Value>, what: &str) -> Result<f64> {
-    value
-        .and_then(Value::as_f64)
-        .ok_or_else(|| bad(format!("{what} is not a number")))
+    finite(value).ok_or_else(|| bad(format!("{what} is not a finite number")))
 }
 pub(super) fn integer(value: Option<&Value>, what: &str) -> Result<i64> {
     value

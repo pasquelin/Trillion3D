@@ -2,11 +2,9 @@
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
 use super::*;
+use crate::compiler_validate::number_or;
 use trillion3d_math::vec3::normalize_where;
 
-pub(super) fn number(value: Option<&Value>, fallback: f64) -> f64 {
-    value.and_then(Value::as_f64).unwrap_or(fallback)
-}
 /// Linear glTF color, constrained to finite non-negative channels.
 pub(super) fn colour_of(light: &Value) -> [f64; 3] {
     let items = light.get("color").and_then(Value::as_array);
@@ -43,7 +41,7 @@ pub(super) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
 /// Spot cone half-angle, mapped into the open interval accepted by the contract.
 ///  has no equivalent: the engine softens the edge using its own published setting.
 pub(super) fn cone_of(light: &Value) -> f64 {
-    let outer = number(light.pointer("/spot/outerConeAngle"), QUARTER_PI);
+    let outer = number_or(light.pointer("/spot/outerConeAngle"), QUARTER_PI);
     if !outer.is_finite() {
         return QUARTER_PI;
     }
