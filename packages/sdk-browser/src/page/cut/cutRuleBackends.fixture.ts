@@ -74,7 +74,8 @@ export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(
 /**
  * The same model where the kernel's own text decides (`DAG_SELECTION_SHADER`), run in Node. Its
  * residency reads `isResident(i)` and `childResident(i)` on the bit sets the host uploaded into the
- * cold buffer, and the rule itself. Only the projection is the model's: its screen errors are
+ * cold words' record table — `coldWord(r,0u).x`, word `r` of the packing, as the table's texel
+ * load returns it —, and the rule itself. Only the projection is the model's: its screen errors are
  * passed where the kernel projects. `dagWanted` keeps the rule's two comparisons in the page's cone
  * word, in its live entry (`liveAppend(entry,w,…);`), then `dagMask`'s `draw=drawsCompared(…);`
  * decides on that word.
@@ -94,7 +95,8 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
     const scope = wgslScope(source, {
       ...wgslConstants(source),
       views,
-      cold,
+      // The cold table's one-texel record `r`: its word in `x` (`../../gpu/dag/cutTables.ts`).
+      coldWord: (r: number) => ({ x: cold[r] }),
       vi: 0,
       select: (no: unknown, yes: unknown, condition: unknown) => (condition ? yes : no),
     })
