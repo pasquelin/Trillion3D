@@ -16,10 +16,7 @@ import {
 import { ROW_IN_USE } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
 import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
 import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
-import {
-  ROW_BURST,
-  SELECTION_HEADER_WORDS,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 
 /** The clock the queue is ranked at: the cut's rows in use, the others idle. */
 const CLOCK = CUT_FRAME + 1
@@ -27,7 +24,7 @@ const CLOCK = CUT_FRAME + 1
 for (const copies of [1, 64, 4096]) {
   test(`the closure's words are its twin's, and the queue stable, over ${copies} placements`, async () => {
     const scene = closureScene(copies)
-    const { reading, use, queues } = await runRowClosure(scene, CLOCK)
+    const { reading, use, queues, burst } = await runRowClosure(scene, CLOCK)
     assert.ok(reading.drawn.length > 4 && reading.requests.length > 0, 'the cut draws and asks')
     const seeds = [...reading.drawn, ...reading.requests].map((page) => ({
       page,
@@ -42,7 +39,7 @@ for (const copies of [1, 64, 4096]) {
     )
     assert.deepEqual(use, twin, 'the use and walk words, word for word')
     const age = (j: number) => CLOCK - Math.min(use[j * ROW_USE_WORDS + ROW_USE], CLOCK)
-    const ranked = sortPool(scene.count, (j) => poolRank(age(j), 0, ROW_IN_USE), ROW_BURST)
+    const ranked = sortPool(scene.count, (j) => poolRank(age(j), 0, ROW_IN_USE), burst)
     assert.deepEqual(queues[1], queues[0], 'two runs, the same queue')
     const [count, total, clock] = queues[0]
     assert.deepEqual([count, total, clock], [ranked.queue.length, ranked.total, CLOCK + 1])

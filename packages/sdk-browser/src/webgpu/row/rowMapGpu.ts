@@ -1,6 +1,7 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { writeRanges } from '../../gpu/dag/runWrites.ts'
 import { ROW_MAP_HEAD } from './rowMapWgsl.ts'
+import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
 
 /** What the row cache's page→row map (`pageState.ts`) wrote since the GPU's copy was last sent:
  *  the slots, or a rebuild of its tables — then sent whole. */
@@ -21,9 +22,12 @@ export function createRowMapJournal() {
 export type RowMapJournal = ReturnType<typeof createRowMapJournal>
 
 /** The map's two tables, as the sparse map shows them (`../../page/cut/sparseInts.ts`). */
-type MapTables = { readonly keys: Int32Array; readonly values: Int32Array }
+type MapTables = {
+  readonly keys: Int32Array<ArrayBuffer>
+  readonly values: Int32Array<ArrayBuffer>
+}
 
-const words = (a: Int32Array) => new Uint32Array(a.buffer, a.byteOffset, a.length)
+const words = (a: Int32Array<ArrayBuffer>) => new Uint32Array(a.buffer, a.byteOffset, a.length)
 
 /**
  * THE GPU'S COPY OF THE PAGE→ROW MAP (`rowMapWgsl.ts`): the slot count, the keys, the values, one
@@ -33,9 +37,11 @@ const words = (a: Int32Array) => new Uint32Array(a.buffer, a.byteOffset, a.lengt
  * second hash and no mirror on the host: the map is the cache's own. The CPU never reads it back.
  */
 export function createRowMapGpu(
-  device: Pick<GPUDevice, 'createBuffer' | 'queue'>,
+  device: Pick<GPUDevice, 'queue'>,
   map: MapTables,
   journal: RowMapJournal,
+  /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
+  make: BufferMaker,
 ) {
   let buffer: GPUBuffer | undefined,
     slots = -1
@@ -46,12 +52,16 @@ export function createRowMapGpu(
       bytes = (ROW_MAP_HEAD + 2 * Math.max(1, n)) * 4
     let made = false
     if (!buffer || buffer.size < bytes) {
-      buffer?.destroy()
-      buffer = device.createBuffer({
-        label: 'Trillion3D row map',
-        size: bytes,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      })
+      const old = buffer
+      buffer = make(
+        {
+          label: 'Trillion3D DAG row map',
+          size: bytes,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        },
+        old,
+      )
+      old?.destroy()
       made = true
     }
     device.queue.writeBuffer(buffer, 0, new Uint32Array([n]))
@@ -85,10 +95,6 @@ export function createRowMapGpu(
     /** The buffer the closure binds (`rowOfPage`), made at the first `upload`. */
     get buffer() {
       return buffer
-    },
-    destroy() {
-      buffer?.destroy()
-      buffer = undefined
     },
   }
 }

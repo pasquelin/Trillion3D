@@ -30,8 +30,8 @@ import {
   DAG_ARGS,
 } from '../../../packages/sdk-browser/src/gpu/dag/shader/armWgsl.ts'
 import {
-  ROW_BURST,
   SELECTION_HEADER_WORDS,
+  rowBurst,
   rowQueueWord,
 } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
@@ -56,7 +56,7 @@ export function closureScene(copies: number) {
   let count = 0
   for (let page = 0; page < packed.pageCount; page++) if (mixWord(page) & 3) rows.set(page, ++count)
   // The words as the host writes them: each row's page, never used, never walked.
-  const initial = new Uint32Array(count * ROW_USE_WORDS)
+  const initial: Uint32Array<ArrayBuffer> = new Uint32Array(count * ROW_USE_WORDS)
   rows.forEach((page, value) => void (initial[(value - 1) * ROW_USE_WORDS + ROW_PAGE] = page))
   const placementsOf = roots.map((root, w) => ({
     pageBase: index.baseOfRoot[w],
@@ -98,9 +98,22 @@ export function runRowClosure(scene: ReturnType<typeof closureScene>, clock: num
     const kernel = await openSelectionKernel()
     const { device } = kernel
     const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-    let use = new Uint32Array(0)
+    let use: Uint32Array = new Uint32Array(0),
+      burst = 0
     const queues: Uint32Array[] = []
-    const made: GPUBuffer[] = []
+    // What the engine's hosts make, the proof's own: freed once read.
+    const made: GPUBuffer[] = [],
+      textures: GPUTexture[] = []
+    const buffer = (d: GPUBufferDescriptor) => {
+      const next = device.createBuffer(d)
+      made.push(next)
+      return next
+    }
+    const texture = (d: GPUTextureDescriptor) => {
+      const next = device.createTexture(d)
+      textures.push(next)
+      return next
+    }
     const selection = { name: 'rows', packed: scene.packed, uniforms: scene.uniforms }
     const reading = await kernel.cut(selection, async (bound) => {
       const groups = workgroupCount(scene.packed.pageCount, WORKGROUP_THREADS)
@@ -113,31 +126,28 @@ export function runRowClosure(scene: ReturnType<typeof closureScene>, clock: num
       device.queue.writeBuffer(argsBuffer, 0, args)
       const useBuffer = device.createBuffer({ size: scene.count * ROW_USE_WORDS * 4, usage })
       device.queue.writeBuffer(useBuffer, 0, scene.initial)
-      const map = createRowMapGpu(device, scene.rows, scene.journal)
+      const map = createRowMapGpu(device, scene.rows, scene.journal, buffer)
       map.upload()
-      const closure = createRowClosure(device, kernel)
-      const owner = { textures: [] as { texture: GPUTexture; bytes: number }[] }
+      const closure = createRowClosure(device, kernel, texture)
       const rows = { map: map.buffer!, use: useBuffer }
       await encodeWhenReady(device, bound.group, (pass) =>
-        closure.encode(pass, argsBuffer, rows, structuresOf(scene.packed), owner),
+        closure.encode(pass, argsBuffer, rows, structuresOf(scene.packed)),
       )
       use = (await readGpuBuffer(device, useBuffer, useBuffer.size))!
-      const sort = createRowEvictSort(device),
+      const sort = createRowEvictSort(device, buffer),
         out = bound.buffers.out.buffer,
         queueAt = rowQueueWord(bound.at.listCap)
+      burst = rowBurst(bound.at.listCap)
       for (let run = 0; run < 2; run++) {
-        const at = { use: useBuffer, out, queueAt, clock, slots: scene.count }
-        await encodeWhenReady(device, bound.group, (pass) =>
-          sort.encode(pass, at, (next) => void made.push(next)),
-        )
-        const words = SELECTION_HEADER_WORDS + ROW_BURST
+        const at = { use: useBuffer, out, queueAt, clock, slots: scene.count, burst }
+        await encodeWhenReady(device, bound.group, (pass) => sort.encode(pass, at))
+        const words = SELECTION_HEADER_WORDS + burst
         queues.push((await readGpuBuffer(device, out, words * 4, queueAt * 4))!)
       }
-      for (const { texture } of owner.textures) texture.destroy()
-      for (const buffer of [argsBuffer, useBuffer, map.buffer!, sort.uniform, ...made])
-        buffer.destroy()
+      for (const held of textures) held.destroy()
+      for (const held of [argsBuffer, useBuffer, ...made]) held.destroy()
     })
     await kernel.close()
-    return { reading, use, queues }
+    return { reading, use, queues, burst }
   }, undefined)
 }

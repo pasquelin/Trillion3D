@@ -61,3 +61,54 @@ export const cutBytes = (resources: {
   resources.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
   (resources.textures ?? []).reduce((sum, texture) => sum + texture.bytes, 0) +
   (resources.readbacks?.bytes ?? 0)
+
+/** What a cut holds that a resource of its own is admitted against (`cutBuffer`, `cutTexture`). */
+type CutHolder = Parameters<typeof cutBytes>[0] & {
+  buffers: GPUBuffer[]
+  textures: { texture: GPUTexture; bytes: number }[]
+  device: GPUDevice
+  admit: CutAdmission
+  share: number
+}
+
+/** Makes a buffer, in place of `old` when it replaces one: a cut's (`cutBuffer`). */
+export type BufferMaker = (descriptor: GPUBufferDescriptor, old?: GPUBuffer) => GPUBuffer
+/** Makes a record texture's texture, `bytes` large, in place of `old` when it replaces one. */
+export type TextureMaker = (
+  descriptor: GPUTextureDescriptor,
+  bytes: number,
+  old?: GPUTexture,
+) => GPUTexture
+
+/** A buffer of `cut`'s own made after its tables (`admitted`): within its share, `old`'s bytes
+ *  leaving it, held in `old`'s place among its buffers — its dispose destroys it. */
+export function cutBuffer(cut: CutHolder, descriptor: GPUBufferDescriptor, old?: GPUBuffer) {
+  const held = cutBytes(cut) - (old?.size ?? 0)
+  const buffer = madeAsked(cut.device, cut.admit, held, cut.share, descriptor)
+  const at = old ? cut.buffers.indexOf(old) : -1
+  if (at >= 0) cut.buffers.splice(at, 1, buffer)
+  else cut.buffers.push(buffer)
+  return buffer
+}
+
+/** A texture of `cut`'s own, `bytes` large, made as `cutBuffer` makes a buffer. */
+export function cutTexture(
+  cut: CutHolder,
+  descriptor: GPUTextureDescriptor,
+  bytes: number,
+  old?: GPUTexture,
+) {
+  const at = old ? cut.textures.findIndex((held) => held.texture === old) : -1
+  const held = cutBytes(cut) - (at >= 0 ? cut.textures[at].bytes : 0)
+  const texture = admitted(
+    cut.device,
+    cut.admit,
+    held,
+    cut.share,
+    { label: descriptor.label, bytes },
+    () => cut.device.createTexture(descriptor),
+  )
+  if (at >= 0) cut.textures.splice(at, 1, { texture, bytes })
+  else cut.textures.push({ texture, bytes })
+  return texture
+}

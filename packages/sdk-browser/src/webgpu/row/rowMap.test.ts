@@ -17,7 +17,9 @@ test('the uploaded map answers every page as the cache does', () => {
     () => 1 << 20,
     () => -1,
   )
-  const gpu = createRowMapGpu(device, state.rowMap.tables, state.rowMap.journal)
+  const gpu = createRowMapGpu(device, state.rowMap.tables, state.rowMap.journal, (d) =>
+    device.createBuffer(d),
+  )
   const next = lcgRandom(5),
     seen = new Set<number>()
   let made = 0
@@ -43,7 +45,9 @@ test('an upload with nothing written sends nothing', () => {
     () => 16,
     () => -1,
   )
-  const gpu = createRowMapGpu(device, state.rowMap.tables, state.rowMap.journal)
+  const gpu = createRowMapGpu(device, state.rowMap.tables, state.rowMap.journal, (d) =>
+    device.createBuffer(d),
+  )
   state.setRowOf(3, 7)
   gpu.upload()
   const sent = writes.length

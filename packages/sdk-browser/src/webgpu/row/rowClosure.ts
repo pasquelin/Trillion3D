@@ -9,6 +9,7 @@ import {
   started,
 } from '../../lighting/deferred/fullscreen.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import type { TextureMaker } from '../../gpu/dag/cutBuffers.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
 
 /** Words of workgroup memory every device holds (`maxComputeWorkgroupStorageSize`, 16 KiB): the
@@ -27,8 +28,6 @@ function closureShape(bound: number) {
 
 /** What the closure binds of the row cache this frame: the page→row map and the use words. */
 type ClosureRows = { map: GPUBuffer; use: GPUBuffer }
-/** Who holds the structures' texture: the cut, whose dispose destroys its textures. */
-type TextureOwner = { textures: { texture: GPUTexture; bytes: number }[] }
 
 /**
  * THE ROWS' CLOSURE ON THE CUT'S PASS (`rowClosureWgsl.ts`): its two kernels on the cut's group and
@@ -42,6 +41,8 @@ type TextureOwner = { textures: { texture: GPUTexture; bytes: number }[] }
 export function createRowClosure(
   device: GPUDevice,
   dag: { layout: GPUBindGroupLayout; module: GPUShaderModule },
+  /** Makes the structures' texture, in place of the one it outgrew: the cut's (`cutTexture`). */
+  make: TextureMaker,
 ) {
   const B = ROW_CLOSURE_BINDING
   const layout = device.createBindGroupLayout({
@@ -74,21 +75,18 @@ export function createRowClosure(
     group: GPUBindGroup | undefined
   const bound = createWebgpuBindIdentity()
   /** The structures placed since the last frame, sent; the table grown first when they pass it,
-   *  its texture held among `owner`'s, which its dispose destroys. */
-  const flush = (table: StructureTable, owner: TextureOwner) => {
-    const old = structures?.texture
+   *  its texture made by `make` in place of the one it outgrew. */
+  const flush = (table: StructureTable) => {
+    const usage =
+      GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
     structures ??= createRecordTexture(
       device,
       STRUCTURE_TABLE,
       Math.max(1, table.words),
-      GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+      usage,
+      (d, bytes) => make(d, bytes, structures?.texture),
     )
     if (sent < table.count && !structures.hold(table.words)) return false
-    if (structures.texture !== old) {
-      const at = owner.textures.findIndex((held) => held.texture === old)
-      if (at >= 0) owner.textures.splice(at, 1)
-      owner.textures.push({ texture: structures.texture, bytes: structures.bytes })
-    }
     const target = structures.target('Word')
     table.flush(sent, (base, data) =>
       target(base * 4, data.buffer as ArrayBuffer, data.byteOffset, data.byteLength),
@@ -101,15 +99,9 @@ export function createRowClosure(
      * The closure of this cut's seeds on `pass`, the cut's group set, its arguments `args`: true
      * when it ran, false while its pipelines compile or its structures could not be held.
      */
-    encode(
-      pass: GPUComputePassEncoder,
-      args: GPUBuffer,
-      rows: ClosureRows,
-      table: StructureTable,
-      owner: TextureOwner,
-    ) {
+    encode(pass: GPUComputePassEncoder, args: GPUBuffer, rows: ClosureRows, table: StructureTable) {
       const shape = closureShape(table.stackBound)
-      if (!shape || !flush(table, owner)) return false
+      if (!shape || !flush(table)) return false
       const stages = pipelines.of(shape.stack)
       if (!stages.every((stage) => stage.ready)) return false
       bound.next[0] = rows.map

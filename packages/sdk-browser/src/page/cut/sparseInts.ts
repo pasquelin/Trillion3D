@@ -73,7 +73,12 @@ export function createSparseInts(journal?: SparseJournal) {
 }
 
 /** The two tables of a map, how many entries it holds, and who is told of its writes. */
-type Table = { keys: Int32Array; values: Int32Array; size: number; journal?: SparseJournal }
+type Table = {
+  keys: Int32Array<ArrayBuffer>
+  values: Int32Array<ArrayBuffer>
+  size: number
+  journal?: SparseJournal
+}
 
 /** Slot `at` of `t` holds `key` and `value` now: its reader told. */
 function write(t: Table, at: number, key: number, value: number) {

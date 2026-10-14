@@ -1,5 +1,6 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
 
 /** Words of a row's use: its last use, its walk gate, its page (`rowClosureWgsl.ts`). */
 export const ROW_USE_WORDS = 3
@@ -26,7 +27,7 @@ export const ROW_USE = 0,
  * (`../../gpu/pool/slotOrder.ts`).
  */
 export function createRowWords() {
-  let words = new Uint32Array(ROW_USE_WORDS),
+  let words: Uint32Array<ArrayBuffer> = new Uint32Array(ROW_USE_WORDS),
     generations = new Int32Array(1),
     arrivals = 0,
     whole = true
@@ -74,7 +75,7 @@ export function createRowWords() {
     },
     /** Sends what the host wrote through `send(firstRow, words)`, run by run, or every row of
      *  `[0, count)` when they are owed whole; nothing when nothing was written. */
-    flush(count: number, send: (row: number, data: Uint32Array) => void) {
+    flush(count: number, send: (row: number, data: Uint32Array<ArrayBuffer>) => void) {
       if (whole) {
         whole = false
         dirty.clear()
@@ -105,19 +106,27 @@ export type RowWords = ReturnType<typeof createRowWords>
  * (`rewriteAll`). `upload` sends the host's writes before the frame's commands and says whether
  * the buffer was made anew: the bind groups follow.
  */
-export function createRowWordsGpu(device: Pick<GPUDevice, 'createBuffer' | 'queue'>) {
+export function createRowWordsGpu(
+  device: Pick<GPUDevice, 'queue'>,
+  /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
+  make: BufferMaker,
+) {
   let buffer: GPUBuffer | undefined
   return {
     upload(words: RowWords, rows: number, count: number, clock: number) {
       const bytes = Math.max(1, rows) * ROW_USE_WORDS * 4
       let made = false
       if (!buffer || buffer.size < bytes) {
-        buffer?.destroy()
-        buffer = device.createBuffer({
-          label: 'Trillion3D row use',
-          size: bytes,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        })
+        const old = buffer
+        buffer = make(
+          {
+            label: 'Trillion3D DAG row use',
+            size: bytes,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+          },
+          old,
+        )
+        old?.destroy()
         words.rewriteAll(count, clock)
         made = true
       }
@@ -130,10 +139,6 @@ export function createRowWordsGpu(device: Pick<GPUDevice, 'createBuffer' | 'queu
     /** The buffer the closure and the sort bind, made at the first `upload`. */
     get buffer() {
       return buffer
-    },
-    destroy() {
-      buffer?.destroy()
-      buffer = undefined
     },
   }
 }
