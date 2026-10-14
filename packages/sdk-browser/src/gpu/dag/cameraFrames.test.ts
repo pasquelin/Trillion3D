@@ -10,7 +10,7 @@ import { primitiveWordAt } from './worlds.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { DAG_BINDING } from './shader/bindings.ts'
+import { dagBindingOf } from './shader/bindings.fixture.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { FRAME_TABLE } from './frameTable.ts'
 import { fieldStart } from '../core/recordLayout.ts'
@@ -38,9 +38,10 @@ test('the frame words are one record table the cut binds once, whatever one bind
   const { frames, bindGroup } = resources
   const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries)
   const at = (binding: number) => entries.find((e) => e.binding === binding)?.resource
-  assert.equal(at(DAG_BINDING.frames), frames.rows.view, 'the frame words, a view')
-  assert.equal(at(DAG_BINDING.worlds), frames.worlds.view, 'the worlds, a view')
-  assert.ok(!('range' in DAG_BINDING), 'no range a group is told of')
+  const binding = dagBindingOf()
+  assert.equal(at(binding.frames), frames.rows.view, 'the frame words, a view')
+  assert.equal(at(binding.worlds), frames.worlds.view, 'the worlds, a view')
+  assert.ok(!('range' in binding), 'no range a group is told of')
   const constants = (resources.preparePipeline as unknown as GPUProgrammableStage).constants
   assert.equal(constants, undefined, 'the stages of a whole table')
 })

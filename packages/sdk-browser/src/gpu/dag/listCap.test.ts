@@ -10,7 +10,7 @@ import { SELECTION_LIST_CAP, residentReadbackBytes, stagedOutputBytes } from './
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './selection.ts'
-import { DAG_BINDING } from './shader/bindings.ts'
+import { dagBindingOf } from './shader/bindings.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
@@ -92,7 +92,7 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
   assert.ok(copied.to.size >= copied.size && !fake.destroyed.includes(copied.to))
   const outOf = (group: GPUBindGroup) =>
     [...(group as unknown as GPUBindGroupDescriptor).entries].find(
-      (e) => e.binding === DAG_BINDING.out,
+      (e) => e.binding === dagBindingOf().out,
     )
   assert.equal((outOf(resources.bindGroup)?.resource as GPUBufferBinding).buffer, resources.output)
   const block = fake.writes.filter((w) => w.buffer === resources.uniforms).at(-1)!

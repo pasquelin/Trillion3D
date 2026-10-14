@@ -1,16 +1,16 @@
 // The GPU probes run on a native device (`tests/gpu`), so this Node test holds their bind groups to
 // the
 // engine's: `namedEntries` lays each buffer at its shader name's binding, and no probe
-// or oracle lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
+// or oracle lays its buffers out by position next to the selection group's / `EXPAND_BINDING`.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { DAG_BINDING } from './shader/bindings.ts'
+import { dagBindingOf } from './shader/bindings.fixture.ts'
 import { EXPAND_BINDING } from '../../webgpu/blend/expandBindings.ts'
 import { namedEntries } from '../core/computeBindings.ts'
 
 const KERNELS: [string, Record<string, number>][] = [
-  ['selection', DAG_BINDING],
+  ['selection', dagBindingOf()],
   ['expansion', EXPAND_BINDING],
 ]
 for (const [kernel, bindings] of KERNELS) {

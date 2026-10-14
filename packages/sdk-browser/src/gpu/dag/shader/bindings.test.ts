@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DAG_BINDING, dagBindEntries } from './bindings.ts'
+import { dagBindEntries } from './bindings.ts'
+import { dagBindingOf } from './bindings.fixture.ts'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import {
   entryBufferBindings,
@@ -23,14 +24,14 @@ test('the DAG layout entries are the bindings the selection shader declares', ()
   // Every other table is a record table (`../cutTables.ts`), no storage buffer of the stage's
   // eight; the flags the one the kernels write, a storage texture.
   const records = ['clusters', 'nodes', 'flags', 'worlds', 'frames', 'cold', 'tree'] as const
-  const bindings = records.map((name) => DAG_BINDING[name])
+  const bindings = records.map((name) => dagBindingOf()[name])
   assert.deepEqual(textures(), bindings)
   assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), bindings)
   assert.deepEqual(
     dagBindEntries()
       .filter((entry) => entry.storageTexture)
       .map((entry) => entry.binding),
-    [DAG_BINDING.flags],
+    [dagBindingOf().flags],
   )
 })
 
@@ -44,7 +45,7 @@ test('a binding whose access changes in the shader no longer matches the entries
 })
 
 test('each DAG buffer name owns its own binding, from 0 without a gap', () => {
-  const bindings = Object.values(DAG_BINDING).sort((a, b) => a - b)
+  const bindings = Object.values(dagBindingOf()).sort((a, b) => a - b)
   assert.deepEqual(bindings, [...bindings.keys()])
 })
 

@@ -16,7 +16,7 @@ import { CLUSTER_TABLE, COLD_TABLE, FLAG_TABLE } from '../cutTables.ts'
  *  the readout and `work` — two storage buffers, whatever the world —, and the record tables
  *  (`../cutTables.ts`, `../nodeTable.ts`, `../worldTable.ts`, `../frameTable.ts`,
  *  `../treeTable.ts`), the flags the one the kernels write. */
-export const DAG_BINDING = {
+const DAG_BINDING = {
   clusters: 0,
   nodes: 1,
   views: 2,
