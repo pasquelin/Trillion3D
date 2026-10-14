@@ -10,6 +10,19 @@ import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *  texel of halo each side. */
 const TILE = 2 * REFLECTION_SIDE + 2
 
+/** The pyramid's bindings (`RADIANCE_SHADER`), the one table its WGSL, its layouts
+ *  (`radianceLayouts`) and its groups read: the level read, the two written, their sampler, the
+ *  image before (level 0), the lighting's view and the image's hash. */
+export const RADIANCE_BINDINGS = {
+  finer: 0,
+  coarser: 1,
+  coarsest: 2,
+  halves: 3,
+  previous: 4,
+  view: 5,
+  hash: 6,
+} as const
+
 /**
  * The radiance pyramid: the lit image of the frame, before the temporal resolve, and its filtered
  * levels, which the next image's reflections read over their footprints. Level 0 is the lit image
@@ -49,14 +62,15 @@ const TILE = 2 * REFLECTION_SIDE + 2
  * two words beside hold what that image would have hashed, the very words, and the view settles on
  * the same image as when every image hashed.
  */
+const B = RADIANCE_BINDINGS
 export const RADIANCE_SHADER = wgslProgram(
-  `@group(0) @binding(0) var finer:texture_2d<f32>;
-@group(0) @binding(1) var coarser:texture_storage_2d<${HDR_FORMAT},write>;
-@group(0) @binding(2) var coarsest:texture_storage_2d<${HDR_FORMAT},write>;
-@group(0) @binding(3) var halves:sampler;
-@group(0) @binding(4) var previous:texture_2d<f32>;
-@group(0) @binding(5) var<uniform> view:View;
-@group(0) @binding(6) var<storage,read_write> hash:array<atomic<u32>>;
+  `@group(0) @binding(${B.finer}) var finer:texture_2d<f32>;
+@group(0) @binding(${B.coarser}) var coarser:texture_storage_2d<${HDR_FORMAT},write>;
+@group(0) @binding(${B.coarsest}) var coarsest:texture_storage_2d<${HDR_FORMAT},write>;
+@group(0) @binding(${B.halves}) var halves:sampler;
+@group(0) @binding(${B.previous}) var previous:texture_2d<f32>;
+@group(0) @binding(${B.view}) var<uniform> view:View;
+@group(0) @binding(${B.hash}) var<storage,read_write> hash:array<atomic<u32>>;
 var<workgroup> tile:array<vec4f,${TILE * TILE}>;
 var<workgroup> folded:array<atomic<u32>,4>;
 fn tent(k:i32)->f32{return select(1.0,3.0,k==1||k==2);}

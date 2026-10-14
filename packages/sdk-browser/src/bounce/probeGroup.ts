@@ -6,24 +6,7 @@ import {
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 import { atlasEntry } from './atlas.ts'
-import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
-import { PROBE_PROXY } from './probeWgsl.ts'
-
-/** The probe pass's bindings (`BOUNCE_PROBE_SHADER`): the cascades' uniform, the proxy, the lights,
- *  the queue, the frozen probes and the output — the atlases of `atlas.ts` —, the world grid's light
- *  lists (`BOUNCE_LIGHT_LIST_BINDING`), and the culling's worlds the proxy is placed by and its
- *  placement tree (`PROBE_PROXY`). */
-const PROBE_BINDINGS = {
-  grid: 0,
-  proxy: PROBE_PROXY.proxy,
-  lights: 2,
-  queue: 3,
-  snapshot: 4,
-  probes: 5,
-  lists: BOUNCE_LIGHT_LIST_BINDING,
-  worlds: PROBE_PROXY.worlds,
-  tree: PROBE_PROXY.tree,
-} as const
+import { PROBE_BINDINGS } from './probeBindings.ts'
 
 /** The probe pass's layout. */
 export function probeLayout(device: GPUDevice) {

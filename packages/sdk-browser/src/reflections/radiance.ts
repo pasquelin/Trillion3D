@@ -7,6 +7,7 @@ import {
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { RADIANCE_BINDINGS } from './radianceWgsl.ts'
 import {
   HDR_FORMAT,
   hdrAttachmentView,
@@ -26,30 +27,20 @@ import {
  *  image after a moving one hashes), the lighting's view, whose drawn size it reads, and the
  *  image's hash; for the roll, the hash alone. */
 export function radianceLayouts(device: GPUDevice) {
-  const finer = computeTextureEntry(0, 'float')
-  const halves = { binding: 3, visibility: COMPUTE, sampler: { type: 'filtering' } } as const
-  const view = computeBufferEntry(5, 'uniform')
-  const hash = computeBufferEntry(6, 'storage')
+  const B = RADIANCE_BINDINGS
+  const levels = [
+    computeTextureEntry(B.finer, 'float'),
+    computeStorageTextureEntry(B.coarser, HDR_FORMAT),
+    computeStorageTextureEntry(B.coarsest, HDR_FORMAT),
+    { binding: B.halves, visibility: COMPUTE, sampler: { type: 'filtering' } } as const,
+  ]
+  const view = computeBufferEntry(B.view, 'uniform')
+  const hash = computeBufferEntry(B.hash, 'storage')
   return {
     firstLayout: device.createBindGroupLayout({
-      entries: [
-        finer,
-        computeStorageTextureEntry(1, HDR_FORMAT),
-        computeStorageTextureEntry(2, HDR_FORMAT),
-        halves,
-        computeTextureEntry(4, 'float'),
-        view,
-        hash,
-      ],
+      entries: [...levels, computeTextureEntry(B.previous, 'float'), view, hash],
     }),
-    downLayout: device.createBindGroupLayout({
-      entries: [
-        finer,
-        computeStorageTextureEntry(1, HDR_FORMAT),
-        computeStorageTextureEntry(2, HDR_FORMAT),
-        halves,
-      ],
-    }),
+    downLayout: device.createBindGroupLayout({ entries: levels }),
     rollLayout: device.createBindGroupLayout({ entries: [hash] }),
   }
 }

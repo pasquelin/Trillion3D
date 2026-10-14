@@ -1,8 +1,9 @@
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
-import { computeBufferEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, namedEntries } from '../gpu/core/computeBindings.ts'
 import { atlasEntry } from './atlas.ts'
 import { BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
+import { SNAPSHOT_BINDINGS } from './probeBindings.ts'
 
 /** Encodes, in the probe pass after an update of `groups` probes, the snapshot's follow-up. */
 export type SnapshotFollow = (pass: GPUComputePassEncoder, groups: number) => void
@@ -21,13 +22,13 @@ export async function createSnapshotFollow(
   snapshot: GPUTextureView,
 ): Promise<SnapshotFollow> {
   const module = await createCheckedShaderModule(device, BOUNCE_SNAPSHOT_SHADER, 'BOUNCE_SNAPSHOT')
-  // The follow-up's bindings: grid, queue, the probes it reads and the snapshot it writes.
+  const B = SNAPSHOT_BINDINGS
   const layout = device.createBindGroupLayout({
     entries: [
-      computeBufferEntry(0, 'uniform'),
-      computeBufferEntry(1, 'read-only-storage'),
-      atlasEntry(2),
-      atlasEntry(3, true),
+      computeBufferEntry(B.grid, 'uniform'),
+      computeBufferEntry(B.queue, 'read-only-storage'),
+      atlasEntry(B.probes),
+      atlasEntry(B.snapshot, true),
     ],
   })
   const pipeline = await buildComputePipeline(device, {
@@ -36,7 +37,12 @@ export async function createSnapshotFollow(
   })
   const group = device.createBindGroup({
     layout,
-    entries: sequentialEntries([{ buffer: grid }, { buffer: queue }, probes, snapshot]),
+    entries: namedEntries(B, {
+      grid: { buffer: grid },
+      queue: { buffer: queue },
+      probes,
+      snapshot,
+    }),
   })
   return (pass, groups) => {
     pass.setPipeline(pipeline)

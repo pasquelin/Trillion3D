@@ -1,13 +1,13 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
-import { RESTORE_RECT_BINDING, WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
+import { RESTORE_BINDINGS, WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import {
   computeBufferEntry,
   computeTextureEntry,
-  sequentialEntries,
+  namedEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { VERDICT } from '../blend/verdictLayout.ts'
 
@@ -28,8 +28,8 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
   )
   const layout = device.createBindGroupLayout({
     entries: [
-      computeTextureEntry(0, 'depth', '2d', GPUShaderStage.FRAGMENT),
-      computeBufferEntry(RESTORE_RECT_BINDING, 'read-only-storage', GPUShaderStage.VERTEX),
+      computeTextureEntry(RESTORE_BINDINGS.layer, 'depth', '2d', GPUShaderStage.FRAGMENT),
+      computeBufferEntry(RESTORE_BINDINGS.rect, 'read-only-storage', GPUShaderStage.VERTEX),
     ],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
@@ -60,7 +60,7 @@ export async function createWaterDepthRestore(device: GPUDevice, feedback: boole
       rect = verdict
       group = device.createBindGroup({
         layout,
-        entries: sequentialEntries([source, { buffer: verdict }]),
+        entries: namedEntries(RESTORE_BINDINGS, { layer: source, rect: { buffer: verdict } }),
       })
     },
     /** Into an open pass: the lobed stage's when `lobes`, prepared with it. */

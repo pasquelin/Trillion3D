@@ -3,19 +3,15 @@ import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
-import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { PROBE_TEXELS } from './atlas.ts'
+import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from './atlas.ts'
+import { PROBE_BINDINGS, PROBE_PROXY, SNAPSHOT_BINDINGS } from './probeBindings.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
 import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
-
-/** The proxy in the probe pass (`probes.ts`): its buffer, the culling's records — the worlds it is
- *  placed by and its instances — and the placement tree its rays walk. */
-export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8 } as const
 
 /**
  * Update of the cascade irradiance probes.
@@ -42,12 +38,12 @@ export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8 } as const
  */
 export const BOUNCE_PROBE_SHADER = wgslProgram(
   `
-@group(0) @binding(0) var<uniform> bounce:BounceGrid;
-@group(0) @binding(2) var<storage,read> directLights:DirectLights;
-@group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
-@group(0) @binding(4) var probes:texture_2d_array<f32>;
-@group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
-@group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
+@group(0) @binding(${PROBE_BINDINGS.grid}) var<uniform> bounce:BounceGrid;
+@group(0) @binding(${PROBE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${PROBE_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
+@group(0) @binding(${PROBE_BINDINGS.snapshot}) var probes:texture_2d_array<f32>;
+@group(0) @binding(${PROBE_BINDINGS.probes}) var probesOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
+@group(0) @binding(${PROBE_BINDINGS.lists}) var<storage,read> tileLights:array<u32>;
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
@@ -168,10 +164,10 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  */
 export const BOUNCE_SNAPSHOT_SHADER = wgslProgram(
   `
-@group(0) @binding(0) var<uniform> bounce:BounceGrid;
-@group(0) @binding(1) var<storage,read> probeQueue:array<u32>;
-@group(0) @binding(2) var probes:texture_2d_array<f32>;
-@group(0) @binding(3) var snapshotOut:texture_storage_2d_array<rgba32float,write>;
+@group(0) @binding(${SNAPSHOT_BINDINGS.grid}) var<uniform> bounce:BounceGrid;
+@group(0) @binding(${SNAPSHOT_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
+@group(0) @binding(${SNAPSHOT_BINDINGS.probes}) var probes:texture_2d_array<f32>;
+@group(0) @binding(${SNAPSHOT_BINDINGS.snapshot}) var snapshotOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let entry=id.x/PROBE_VECTORS;

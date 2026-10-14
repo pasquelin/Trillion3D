@@ -1,9 +1,10 @@
-import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { namedEntries } from '../gpu/core/computeBindings.ts'
 import { levelViews } from '../texture/mipGroups.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import type { RadiancePyramid, RadianceStages } from './radiance.ts'
+import { RADIANCE_BINDINGS } from './radianceWgsl.ts'
 
 /** What a build reads and writes beyond the pyramid: the frame's HDR target — its level 0 the lit
  *  image, its mips the levels the build writes —, the lighting's view uniform, and the buffer that
@@ -24,27 +25,32 @@ function buildGroups(
   const groups = [
     device.createBindGroup({
       layout: firstLayout,
-      entries: sequentialEntries([
-        views[0],
-        views[1],
-        views[2],
-        sampler,
-        pyramid.image.view,
-        { buffer: inputs.view },
-        { buffer: inputs.hash },
-      ]),
+      entries: namedEntries(RADIANCE_BINDINGS, {
+        finer: views[0],
+        coarser: views[1],
+        coarsest: views[2],
+        halves: sampler,
+        previous: pyramid.image.view,
+        view: { buffer: inputs.view },
+        hash: { buffer: inputs.hash },
+      }),
     }),
   ]
   for (let at = 2; at + 2 < pyramid.levels; at += 2)
     groups.push(
       device.createBindGroup({
         layout: downLayout,
-        entries: sequentialEntries([views[at], views[at + 1], views[at + 2], sampler]),
+        entries: namedEntries(RADIANCE_BINDINGS, {
+          finer: views[at],
+          coarser: views[at + 1],
+          coarsest: views[at + 2],
+          halves: sampler,
+        }),
       }),
     )
   const roll = device.createBindGroup({
     layout: rollLayout,
-    entries: sequentialEntries([{ buffer: inputs.hash }], 6),
+    entries: namedEntries(RADIANCE_BINDINGS, { hash: { buffer: inputs.hash } }),
   })
   return { groups, roll }
 }

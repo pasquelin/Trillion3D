@@ -3,12 +3,12 @@ import {
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
-  sequentialEntries,
+  namedEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { VERDICT } from '../blend/verdictLayout.ts'
-import { WATER_COPY_SHADER } from './copyWgsl.ts'
+import { WATER_COPY_BINDINGS, WATER_COPY_SHADER } from './copyWgsl.ts'
 import { WATER_BACKDROP_PASS } from './passLabels.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
@@ -22,11 +22,12 @@ import { buildComputeStages } from '../../gpu/core/computeStages.ts'
  */
 export async function createWaterCopy(device: GPUDevice) {
   const module = await createCheckedShaderModule(device, WATER_COPY_SHADER, 'WATER_COPY')
+  const B = WATER_COPY_BINDINGS
   const layout = device.createBindGroupLayout({
     entries: [
-      computeTextureEntry(0, 'unfilterable-float'),
-      computeStorageTextureEntry(1, HDR_FORMAT),
-      computeBufferEntry(2, 'read-only-storage'),
+      computeTextureEntry(B.lit, 'unfilterable-float'),
+      computeStorageTextureEntry(B.backdrop, HDR_FORMAT),
+      computeBufferEntry(B.verdict, 'read-only-storage'),
     ],
   })
   const { copyBackdrop } = await buildComputeStages(device, [layout], module, ['copyBackdrop'])
@@ -45,7 +46,7 @@ export async function createWaterCopy(device: GPUDevice) {
       if (!identity.moved() && groups[identity.slot]) return
       groups[identity.slot] = device.createBindGroup({
         layout,
-        entries: sequentialEntries([lit, backdrop, { buffer: source }]),
+        entries: namedEntries(B, { lit, backdrop, verdict: { buffer: source } }),
       })
     },
     encode(encoder: GPUCommandEncoder) {
