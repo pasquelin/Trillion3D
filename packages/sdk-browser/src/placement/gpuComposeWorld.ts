@@ -4,10 +4,9 @@
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
-import type { ComposeState } from './gpuComposeState.ts'
+import type { ComposedView, ComposeState } from './gpuComposeState.ts'
 import { composeOnRead, plainAgain } from './composeOnRead.ts'
 
 /** The version of root `rank`'s composition: its slot's, which moves with its parent's world and
@@ -34,12 +33,13 @@ function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
 }
 
 /** The `elements` of root `rank`'s world refresh on read (`composedWorld`); its `stamp` moves with
- *  its slot's composition, which a memo of what is derived from the world is keyed by. */
+ *  its slot's composition, which a memo of what is derived from the world is keyed by. The state
+ *  keeps the view it composes, which its unlink lets go whatever list the ranks then name. */
 export function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
-  const world = rt.layout.selectionRoots[rank]?.world as
-    (MatrixElements & { stamp?: number }) | undefined
+  const world = rt.layout.selectionRoots[rank]?.world as ComposedView | undefined
   if (!world) return
   const state = rt.compose!
+  state.views.set(rank, world)
   composeOnRead(
     world,
     state,
@@ -49,11 +49,11 @@ export function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
   Object.defineProperty(world, 'stamp', { configurable: true, get: () => versionOf(state, rank) })
 }
 
-/** Root `rank`'s world is a plain view again: a parent composes it no more. */
-export function removeComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
-  const world = rt.layout.selectionRoots[rank]?.world as
-    (MatrixElements & { stamp?: number }) | undefined
+/** The view root `rank` was composed at is a plain view again: a parent composes it no more. */
+export function removeComposedWorld(state: ComposeState, rank: number) {
+  const world = state.views.get(rank)
   if (!world) return
-  plainAgain(world, rt.compose!)
+  state.views.delete(rank)
+  plainAgain(world, state)
   delete world.stamp
 }

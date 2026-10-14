@@ -12,6 +12,10 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import type { Readers } from './composeReaders.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
+
+/** A root's world a parent composes, its `stamp` moving with its composition. */
+export type ComposedView = MatrixElements & { stamp?: number }
 
 export function createComposeState(roots: number) {
   return {
@@ -63,6 +67,9 @@ export function createComposeState(roots: number) {
     composedAt: 0,
     /** The roots each slot composes, listed once as its links change (`slotRanks`). */
     linked: new Map<number, Int32Array>(),
+    /** The world view each composed root was composed at: what its unlink lets go, even once a
+     *  shortened list names another root, or none, at its rank (`removeComposedWorld`). */
+    views: new Map<number, ComposedView>(),
     /** Each linked parent's slot. */
     parentIds: new Map<object, number>(),
     /** The roots each slot linked, some since taken by another slot; the slots no parent holds. */

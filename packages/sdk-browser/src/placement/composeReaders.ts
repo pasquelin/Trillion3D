@@ -10,6 +10,7 @@
  * A growth that brings a row its root hands the link to the roots pass (`adoptReaders`): from then
  * on the GPU composes it, and this module holds none.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
@@ -99,11 +100,12 @@ export function rebindReaders(readers: Readers, from: PlacementRows, to: Placeme
  *  array. One composed for another reader — its row having changed parent — reads through this one
  *  from now on. Both counters only grow: their sum moves whenever either does. */
 function readThrough(view: MatrixElements, reader: RowReader, slot: number, at: Composition) {
+  const from = slot * MATRIX_VALUES
   composeOnRead(
     view,
     reader,
     () => at.slotVersions[slot] + reader.changes,
-    (out) => multiplyMatrix4(out, at.worlds.subarray(slot * 16, slot * 16 + 16), reader.local),
+    (out) => multiplyMatrix4(out, at.worlds.subarray(from, from + MATRIX_VALUES), reader.local),
   )
 }
 
