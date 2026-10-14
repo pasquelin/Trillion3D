@@ -1,9 +1,7 @@
 import { createSlotOrder } from '../../gpu/pool/slotOrder.ts'
-import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
+import { ROW_FRAMES, ROW_IN_USE, rowFrameSlot } from './rowEvictSortWgsl.ts'
 import type { RowUseWords } from './rowWords.ts'
 
-/** Frames the arrivals are remembered for: past the frames a readback lands behind its cut. */
-const FRAMES = 8
 /** Frames a request no row serves waits for the queue it asked a cut for: past them, no cut ranks
  *  one — a view drawn aside, a closure compiling — and it is denied, the table growing by it. */
 const STALE = 2 * ROW_IN_USE
@@ -34,21 +32,23 @@ export function createRowOrder(
     const row = rowOf(page)
     return row < 0 ? undefined : words.generationOf(row)
   })
-  const arrivals = new Float64Array(FRAMES).fill(-1),
-    at = new Float64Array(FRAMES).fill(-1)
+  /** Per frame of the last `ROW_FRAMES`, the rows' arrivals when its cut ran, and that frame. */
+  const arrivals = new Float64Array(ROW_FRAMES).fill(-1),
+    at = new Float64Array(ROW_FRAMES).fill(-1)
   /** The frame of the last queue followed, and of the ask no queue answered since. */
   let lastQueue = -Infinity,
     asked = -Infinity
   return {
     /** Frame `frame` cuts on the rows as they stand now: their arrivals noted. */
     noteFrame(frame: number) {
-      arrivals[frame % FRAMES] = words.arrivals
-      at[frame % FRAMES] = frame
+      const slot = rowFrameSlot(frame)
+      arrivals[slot] = words.arrivals
+      at[slot] = frame
     },
     /** A queue the GPU ranked at `frame` over `ranked` rows, its pages first victim first; none to
      *  trust (`undefined`): the order in hand closes. */
     follow(queue: Uint32Array | undefined, ranked: number, frame: number) {
-      const slot = frame % FRAMES
+      const slot = rowFrameSlot(frame)
       if (!queue || frame < 0 || at[slot] !== frame) return order.follow(NONE, 0, Infinity)
       order.follow(queue, arrivals[slot], ranked)
       lastQueue = Math.max(lastQueue, frame)
