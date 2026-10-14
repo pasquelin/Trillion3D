@@ -16,9 +16,10 @@ import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { proxyArena } from './proxyBuffer.fixture.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { subtract } from '../../../math/src/vector/vectorTuple.ts'
 import { recordTable } from '../gpu/core/recordTexture.fixture.ts'
 import { WORLD_TABLE } from '../gpu/dag/worldTable.ts'
-import type { ArenaColumns, Instance } from './runtimeOracle.fixture.ts'
+import type { ArenaColumns, Instance, Vec } from './runtimeOracle.fixture.ts'
 import type { OracleScene } from './runtimeSceneOracle.fixture.ts'
 
 /** A unit cube's cut, as the builder holds it. */
@@ -132,4 +133,13 @@ export function world(
     tree: treeTable,
     scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
   }
+}
+
+/** A random ray over the field of `count` cubes `world` lays three metres apart: from 4 to 6 m
+ *  above it, toward a point of it half a metre up, both drawn by `random` in one fixed order. */
+export function fieldRay(random: () => number, count: number) {
+  const side = Math.ceil(Math.sqrt(count)) * 3
+  const origin: Vec = [random() * side, 4 + random() * 2, random() * side]
+  const target: Vec = [random() * side, 0.5, random() * side]
+  return { origin, direction: subtract(target, origin) }
 }

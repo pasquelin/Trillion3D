@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import { world } from './runtimeScene.fixture.ts'
+import { fieldRay, world } from './runtimeScene.fixture.ts'
 import type { Vec } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { runOver } from './runtimeRun.fixture.ts'
@@ -13,13 +13,10 @@ for (const count of [5, 400]) {
   test(`${count} placements: the shipped WGSL walks the tree and the cuts as the oracle does`, () => {
     const w = world(count, count),
       run = runOver(w)
-    const random = lcgRandom(5),
-      side = Math.ceil(Math.sqrt(count)) * 3
+    const random = lcgRandom(5)
     let hits = 0
     for (let ray = 0; ray < 120; ray++) {
-      const origin: Vec = [random() * side, 4 + random() * 2, random() * side]
-      const target: Vec = [random() * side, 0.5, random() * side]
-      const direction = target.map((v, k) => v - origin[k]) as Vec
+      const { origin, direction } = fieldRay(random, count)
       const spent = { work: 0, tests: 0 }
       const want = traceScene(w.scene, origin, direction, 100, spent)
       run.rtBegin()

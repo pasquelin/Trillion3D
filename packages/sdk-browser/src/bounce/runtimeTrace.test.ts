@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { world } from './runtimeScene.fixture.ts'
+import { fieldRay, world } from './runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import type { Spent } from './runtimeOracle.fixture.ts'
@@ -16,12 +16,9 @@ for (const count of [5, 64, 65, 400]) {
     const world = scene(count, count)
     assert.equal(!!world.packed.placementTree, count > 64, 'the tree starts above 64 placements')
     const random = lcgRandom(7)
-    const side = Math.ceil(Math.sqrt(count)) * 3
     let hits = 0
     for (let ray = 0; ray < 300; ray++) {
-      const origin: [number, number, number] = [random() * side, 4 + random() * 2, random() * side]
-      const target: [number, number, number] = [random() * side, 0.5, random() * side]
-      const direction = target.map((v, k) => v - origin[k]) as [number, number, number]
+      const { origin, direction } = fieldRay(random, count)
       const spent = fresh()
       const got = traceScene(world, origin, direction, 100, spent)
       const want = bruteForce(world, origin, direction, 100)
