@@ -93,13 +93,17 @@ export function runPoolSort(
     ...scope,
   }
   // The count's halves either side of its barrier: every lane's local count, then every lane's
-  // flush of the group's counts, a lane counting nothing.
-  const run = shaderRun<Parts>(code, all, {
-    ...base,
-    workgroupBarrier() {
-      throw BARRIER
-    },
-  })
+  // flush of the group's counts, a lane counting nothing. The host's words are its text's when
+  // `names` lists them, else its `scope`'s.
+  const run: Parts = {
+    ...(scope as Partial<Parts>),
+    ...shaderRun<Parts>(code, all, {
+      ...base,
+      workgroupBarrier() {
+        throw BARRIER
+      },
+    }),
+  }
   const flushing = shaderRun<Parts>(
     code,
     all.filter((name) => name !== 'poolSlotRank'),
