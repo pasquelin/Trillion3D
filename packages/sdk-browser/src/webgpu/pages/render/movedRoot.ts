@@ -40,16 +40,19 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, ra
   worldMoved(root)
   if (rt.run) noteWorldMoved(rt.run, rank)
   noteRootWorld(rt, rank)
-  if (root.pages[0]?.transparent) poseEntries(rt, root)
+  poseEntries(rt, root)
   const cw = matrixWindingCw(root.world.elements)
   if (root.windingCw === cw) return 0
   root.windingEpoch = undefined
   return markRootRows(rt, root, 0, root.pages.length - 1)
 }
 
-/** A blended root moved: the entries of its pages have their corners derived again from its world
- *  (`../../transparent/entryCorners.ts`), every entry's without a table. */
-function poseEntries(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
+/** A root's world moved — a move of its own, or its parent's composing it on the GPU
+ *  (`../../../placement/gpuComposeSlot.ts`): a blended root's entries have their corners derived
+ *  again from its world (`../../transparent/entryCorners.ts`), every entry's without a table; an
+ *  opaque root holds no entry. */
+export function poseEntries(rt: Pick<MovedRootTarget, 'blendState'>, root: ClusterRoot<PageRec>) {
+  if (!root.pages[0]?.transparent) return
   const { blendState } = rt,
     { table, occlusionPosed: posed } = blendState,
     base = root.packedBase ?? -1

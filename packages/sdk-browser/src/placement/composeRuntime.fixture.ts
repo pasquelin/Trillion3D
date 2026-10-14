@@ -7,8 +7,10 @@ import {
 } from '../../../sdk-core/src/scene/light-shadow/changes.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
-/** A runtime of `roots`, `run` merged over the run state every composition reads. */
+/** A runtime of `roots` — a root given no pages holds none —, `run` merged over the run state
+ *  every composition reads. */
 export function composeRuntime(roots: readonly object[], run: object = {}) {
+  for (const root of roots as { pages?: unknown[] }[]) root.pages ??= []
   return {
     layout: { selectionRoots: roots, rootIndex: { revision: 0 } },
     lights: { mobility: createShadowMobility(), changes: createShadowChanges(SHADOW_CHANGE_BOXES) },
