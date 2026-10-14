@@ -2,6 +2,7 @@
 // the proof's device errors (`runOnDevice`) do not see. Listened for from the adapter's grant, before the world
 // is made; the proof asserts the list is empty.
 import { hookAfter, type Proto } from '../../../bench/dawn/hook.ts'
+import { onGrantedDevices } from './grantedDevices.ts'
 
 /** What the devices granted since a call of `listenToWorldDevices` raise and make. */
 type WorldSink = {
@@ -21,28 +22,18 @@ export function listenToWorldDevices() {
   const hooked = current !== undefined
   current = { errors: [], made: new Map(), textures: new Map() }
   if (hooked) return current
-  const gpu = navigator.gpu
-  const requestAdapter = gpu.requestAdapter.bind(gpu)
-  gpu.requestAdapter = async (...args) => {
-    const adapter = await requestAdapter(...args)
-    if (!adapter) return adapter
-    const requestDevice = adapter.requestDevice.bind(adapter)
-    adapter.requestDevice = async (...options) => {
-      const device = await requestDevice(...options)
-      const sink = current!
-      device.addEventListener('uncapturederror', (event) => sink.errors.push(event.error.message))
-      const keep =
-        <T>(into: Map<string, T>) =>
-        (_device: object, [descriptor]: never[], resource: unknown) => {
-          const label = (descriptor as GPUObjectDescriptorBase).label
-          if (label) into.set(label, resource as T)
-        }
-      hookAfter(device as unknown as Proto, 'createBuffer', keep(sink.made))
-      hookAfter(device as unknown as Proto, 'createTexture', keep(sink.textures))
-      return device
-    }
-    return adapter
-  }
+  onGrantedDevices((device) => {
+    const sink = current!
+    device.addEventListener('uncapturederror', (event) => sink.errors.push(event.error.message))
+    const keep =
+      <T>(into: Map<string, T>) =>
+      (_device: object, [descriptor]: never[], resource: unknown) => {
+        const label = (descriptor as GPUObjectDescriptorBase).label
+        if (label) into.set(label, resource as T)
+      }
+    hookAfter(device as unknown as Proto, 'createBuffer', keep(sink.made))
+    hookAfter(device as unknown as Proto, 'createTexture', keep(sink.textures))
+  })
   return current
 }
 

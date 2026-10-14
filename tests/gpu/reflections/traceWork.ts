@@ -6,6 +6,7 @@
 // starts that word again with the list. The engine's buffers, layouts and dispatches are its own.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { latestMade } from '../kit/worldErrors.ts'
+import { onGrantedDevices } from '../kit/grantedDevices.ts'
 
 /** The trace's text, whose ray of the proxy and whose entry the counter joins. */
 const RAY = 'return ReflectionProxied(seen.color,seen.confidence);'
@@ -49,28 +50,18 @@ let installed = false
 export function countTraceWork() {
   if (installed) return
   installed = true
-  const gpu = navigator.gpu
-  const requestAdapter = gpu.requestAdapter.bind(gpu)
-  gpu.requestAdapter = async (...args) => {
-    const adapter = await requestAdapter(...args)
-    if (!adapter) return adapter
-    const requestDevice = adapter.requestDevice.bind(adapter)
-    adapter.requestDevice = async (...options) => {
-      const device = await requestDevice(...options)
-      const createBuffer = device.createBuffer.bind(device),
-        createShaderModule = device.createShaderModule.bind(device)
-      device.createBuffer = (descriptor) =>
-        createBuffer(
-          descriptor.label?.startsWith('Trillion3D reflection tile list')
-            ? { ...descriptor, size: descriptor.size + 4 }
-            : descriptor,
-        )
-      device.createShaderModule = (descriptor) =>
-        createShaderModule({ ...descriptor, code: counted(descriptor.code) })
-      return device
-    }
-    return adapter
-  }
+  onGrantedDevices((device) => {
+    const createBuffer = device.createBuffer.bind(device),
+      createShaderModule = device.createShaderModule.bind(device)
+    device.createBuffer = (descriptor) =>
+      createBuffer(
+        descriptor.label?.startsWith('Trillion3D reflection tile list')
+          ? { ...descriptor, size: descriptor.size + 4 }
+          : descriptor,
+      )
+    device.createShaderModule = (descriptor) =>
+      createShaderModule({ ...descriptor, code: counted(descriptor.code) })
+  })
 }
 
 /** The work the frame's proxy rays spent, read on `device` in the last word of the world's newest
