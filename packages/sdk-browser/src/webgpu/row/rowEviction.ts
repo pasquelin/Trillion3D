@@ -23,7 +23,8 @@ type RowsHost = {
   order(queue: Uint32Array | undefined, ranked: number, frame: number): void
 }
 
-/** Frames a cut's readback lands behind it at most, with room (`DAG_READBACK_SLOTS`). */
+/** Frames a cut's readback lands behind it at most, with room (`DAG_READBACK_SLOTS`): what the
+ *  ring of frames whose closure could not run spans. */
 const FRAMES = 8
 
 /**
@@ -33,8 +34,9 @@ const FRAMES = 8
  * every row the cut's pages need (`rowClosure.ts`); then, when a readback copies the cut and the
  * table has fewer free rows than a burst, the pool sort ranks the live rows into the readout
  * (`rowEvictSort.ts`) — only on stamps the closure laid this cut. A readback brings the queue back
- * (`landed`): one the cut ranked is handed on, one from a cut that dropped work or ranked none on
- * stamps of its own is not trusted. Its buffers and texture are the cut's: admitted within its
+ * (`landed`): the readout's clock tells a queue this very cut ranked, handed on, from an older one
+ * or none, left; a cut whose closure could not run — the one ring the host keeps — ranks nothing
+ * to trust. Its buffers and texture are the cut's: admitted within its
  * share as its tables are (`cutBuffer`, `cutTexture`), gone with them.
  */
 export function createRowEviction(host: RowsHost) {
@@ -46,10 +48,8 @@ export function createRowEviction(host: RowsHost) {
       use = createRowUseWordsGpu(device, buffer),
       closure = createRowClosure(device, cut, (d, bytes, old) => cutTexture(cut, d, bytes, old)),
       sort = createRowEvictSort(device, buffer)
-    /** Per frame of the last `FRAMES`, whether its cut ranked a queue on its own stamps, or could
-     *  not stamp: a queue is read back only from the first. */
-    const ranked = new Int32Array(FRAMES).fill(-1),
-      unstamped = new Int32Array(FRAMES).fill(-1)
+    /** Per frame of the last `FRAMES`, the frame when its cut could not stamp. */
+    const unstamped = new Int32Array(FRAMES).fill(-1)
     /** Sends what the host wrote. */
     const upload = () => {
       map.upload()
@@ -65,11 +65,14 @@ export function createRowEviction(host: RowsHost) {
       const { blendFirst, packedCount } = host.table,
         burst = rowBurst(cut.listCap)
       if (!read || blendFirst - packedCount >= burst) return true
-      const at = {
-        ...{ use: rows.use, out: cut.output, queueAt: rowQueueWord(cut.listCap) },
-        ...{ clock: frame, slots: packedCount, burst },
-      }
-      if (sort.encode(pass, at)) ranked[frame % FRAMES] = frame
+      sort.encode(pass, {
+        use: rows.use,
+        out: cut.output,
+        queueAt: rowQueueWord(cut.listCap),
+        clock: frame,
+        slots: packedCount,
+        burst,
+      })
       return true
     }
     return {
@@ -88,11 +91,11 @@ export function createRowEviction(host: RowsHost) {
         // A cut whose closure could not run ranks nothing to trust, whatever its readout holds.
         const slot = ((frame % FRAMES) + FRAMES) % FRAMES
         if (!range || unstamped[slot] === frame) return host.order(undefined, 0, frame)
-        if (ranked[slot] !== frame) return
         const at = rowQueueWord(listCap)
         if (range.byteLength < (at + SELECTION_HEADER_WORDS) * 4) return
         const head = new Uint32Array(range, at * 4, SELECTION_HEADER_WORDS)
-        // The queue this very cut ranked: its clock is the cut's frame.
+        // The queue this very cut ranked: its clock is the cut's frame. A sort that did not run
+        // left an older clock, or none (0).
         if (head[2] !== frame + 1) return
         const count = Math.min(head[0], rowBurst(listCap))
         if (range.byteLength < (at + SELECTION_HEADER_WORDS + count) * 4) return
