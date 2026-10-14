@@ -30,20 +30,17 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
-import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import type { UniformSlots } from '../residency/pools.ts'
 import type { VsmLayout } from './layout.ts'
 import type { VsmComputePipe } from './passKit.ts'
-import type { VsmPerFrameSet, VsmResources } from './resources.ts'
-import type { VsmBoundLight, VsmRowBound, VsmRowSpheres } from './rowPageBound.ts'
-import { vsmChunkRows, type VsmChunkKernels, type vsmChunkPasses } from './chunkKernels.ts'
+import type { VsmResources } from './resources.ts'
+import type { VsmBoundLight, VsmRowSpheres } from './rowPageBound.ts'
+import { vsmChunkRows, type VsmChunkContext, type VsmChunkKernels } from './chunkKernels.ts'
 import type { vsmChunkListGroups } from './chunkGroups.ts'
 import {
   vsmChunkRowsWithin,
   vsmContextBytes,
   vsmEnsureLists,
   vsmReleaseContext,
-  type VsmListName,
 } from './chunkLists.ts'
 import {
   vsmRenderViews,
@@ -93,7 +90,7 @@ export interface VsmRenderStats {
   roomLimited: boolean
 }
 
-export interface VsmRenderContext extends VsmChunkKernels {
+export interface VsmRenderContext extends VsmChunkKernels, VsmChunkContext<RasterTables> {
   device: GPUDevice
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
@@ -105,20 +102,8 @@ export interface VsmRenderContext extends VsmChunkKernels {
   }
   target: GPUTextureView
   targetTexture: GPUTexture
-  buffers: Partial<Record<VsmListName, GPUBuffer>>
-  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
-  slots: UniformSlots
-  /** The chunks' pass labels and parameter offsets (`vsmChunkPasses`), made once a context. */
-  passes: ReturnType<typeof vsmChunkPasses>
-  /** The scene's rows and the lists the groups bound when made (`renderGroups`). */
-  bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
   groups?: ReturnType<typeof vsmChunkListGroups>
-  /** The groups over the tables of a frame set (`res.current`, the two in turn) and `groups`,
-   *  and again when the lists moved. */
-  tables: VsmPerFrameSet<RasterTables>
-  /** Where the rows are, binned for the chunks' bound. */
-  rowBound: VsmRowBound
 }
 
 /** Frees the raster's context of `res`, with the set it was made for (`destroyEngineVsm`). */

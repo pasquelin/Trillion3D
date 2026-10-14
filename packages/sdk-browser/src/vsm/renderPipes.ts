@@ -154,8 +154,7 @@ export function vsmRenderContext(
     raster: vsmRasterPipe(device, layout, pageLayout),
     target: targetTexture.createView(),
     targetTexture,
-    buffers: existing?.device === device ? existing.buffers : {},
-    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device.limits, existing),
+    ...vsmChunkContext<RasterTables>(RENDER_LABEL, device, existing),
   }
   res.render = ctx
   return ctx
