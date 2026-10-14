@@ -12,42 +12,47 @@ import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 type Light = { height: number; energy: number; casts?: boolean; range?: number }
 type Items = { params: Vec; positionRange: Vec; colorIntensity: Vec }[]
 
-/** The cell at the origin, facing up, lit by point lights straight above it at `height`; a wall
- *  fills the plane y = `wall`. Falloff and incidence are 1, so the result is the sum of the
- *  energies that reach the cell. `rays` counts the shadow rays traced. */
-const scene = { wall: 0, rays: 0 }
-const directLights = { count: 0, items: [] as Items }
-const { lightsIrradiance } = shaderRun<{
-  lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
-}>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
-  directLights,
-  RANGE_REJECT: 1.0001,
-  isRect: () => false,
-  isSun: () => false,
-  isSunKind: () => false,
-  // No world lists: every light, the loop's fallback (`bounceLightSlice`).
-  TILE_NO_SLICE,
-  bounceLightSlice: () => [0xffffffff, directLights.count],
-  tileLights: [],
-  rectIrradiance: () => [0, 0, 0, 0],
-  directIncidence: () => [0, 1, 0, 1],
-  rtBlocked: (origin: Vec, direction: Vec, span: number) => {
-    scene.rays++
-    const hit = (scene.wall - Number(origin[1])) / Number(direction[1])
-    return hit > 0 && hit < span
-  },
-})
-
-function irradiance(lights: Light[], wall: number) {
-  directLights.items = lights.map(({ height, energy, casts = true, range = 100 }) => ({
-    params: [0, 0, casts ? 1 : 0, 0],
-    positionRange: [0, height, 0, range],
-    colorIntensity: [energy, energy, energy, 1],
-  }))
-  directLights.count = lights.length
-  Object.assign(scene, { wall, rays: 0 })
-  return lightsIrradiance([0, 0, 0], [0, 1, 0], 100)[0]
+/** The engine's light loop over point lights — rectangle ones when `rect`, each of irradiance one —
+ *  straight above the cell at the origin, facing up, at `height`; a wall fills the plane y = `wall`.
+ *  Falloff and incidence are 1, so the result is the sum of the energies that reach the cell.
+ *  `rays` counts the shadow rays the last reading traced. */
+function lightLoop(rect: boolean) {
+  const scene = { wall: 0, rays: 0 }
+  const directLights = { count: 0, items: [] as Items }
+  const { lightsIrradiance } = shaderRun<{
+    lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
+  }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
+    directLights,
+    RANGE_REJECT: 1.0001,
+    isRect: () => rect,
+    isSun: () => false,
+    isSunKind: () => false,
+    // No world lists: every light, the loop's fallback (`bounceLightSlice`).
+    TILE_NO_SLICE,
+    bounceLightSlice: () => [0xffffffff, directLights.count],
+    tileLights: [],
+    rectIrradiance: () => [0, 0, 0, 1],
+    directIncidence: () => [0, 1, 0, 1],
+    rtBlocked: (origin: Vec, direction: Vec, span: number) => {
+      scene.rays++
+      const hit = (scene.wall - Number(origin[1])) / Number(direction[1])
+      return hit > 0 && hit < span
+    },
+  })
+  const irradiance = (lights: Light[], wall: number) => {
+    directLights.items = lights.map(({ height, energy, casts = true, range = 100 }) => ({
+      params: [0, 0, casts ? 1 : 0, 0],
+      positionRange: [0, height, 0, range],
+      colorIntensity: [energy, energy, energy, 1],
+    }))
+    directLights.count = lights.length
+    Object.assign(scene, { wall, rays: 0 })
+    return lightsIrradiance([0, 0, 0], [0, 1, 0], 100)[0]
+  }
+  return { scene, irradiance }
 }
+
+const { scene, irradiance } = lightLoop(false)
 
 const SIX = [2, 3, 4, 5, 6, 7].map((height, i) => ({ height, energy: 2 ** i }))
 
@@ -75,40 +80,12 @@ test('a light past its range is rejected on its sphere: no ray, no light', () =>
 })
 
 test('a rectangle light behind a wall lights no cell through it: one ray toward its centre', () => {
-  const rect = { count: 1, items: [] as Items }
-  let rays = 0
-  const { lightsIrradiance: rectIrradianceAt } = shaderRun<{
-    lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
-  }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
-    directLights: rect,
-    RANGE_REJECT: 1.0001,
-    isRect: () => true,
-    isSun: () => false,
-    isSunKind: () => false,
-    TILE_NO_SLICE,
-    bounceLightSlice: () => [0xffffffff, rect.count],
-    tileLights: [],
-    rectIrradiance: () => [0, 0, 0, 1],
-    directIncidence: () => [0, 1, 0, 1],
-    rtBlocked: (origin: Vec, direction: Vec, span: number) => {
-      rays++
-      const hit = (1 - Number(origin[1])) / Number(direction[1])
-      return hit > 0 && hit < span
-    },
-  })
-  const at = (height: number, casts: boolean) => {
-    rect.items = [
-      {
-        params: [0, 0, casts ? 1 : 0, 0],
-        positionRange: [0, height, 0, 100],
-        colorIntensity: [2, 2, 2, 1],
-      },
-    ]
-    return rectIrradianceAt([0, 0, 0], [0, 1, 0], 100)[0]
-  }
+  const rect = lightLoop(true)
+  const at = (height: number, casts: boolean) => rect.irradiance([{ height, energy: 2, casts }], 1)
   assert.equal(at(3, true), 0, 'the wall at y = 1 holds the rectangle above it')
+  assert.equal(rect.scene.rays, 1)
   assert.equal(at(0.5, true), 2, 'below the wall, it lights the cell')
-  assert.equal(rays, 2)
+  assert.equal(rect.scene.rays, 1)
   assert.equal(at(3, false), 2, 'a rectangle that casts no shadow lights it through the wall')
-  assert.equal(rays, 2, 'and traces no ray')
+  assert.equal(rect.scene.rays, 0, 'and traces no ray')
 })
