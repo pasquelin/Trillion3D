@@ -194,7 +194,6 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   assert.equal(refreshWebgpuMaterials(runtime, true, alpha), true, 'no new session')
   assert.deepEqual(staled(), [0], 'the shadow pages over the cutout drawn again')
   assert.equal(worlds.length, 0, 'from the sphere the GPU holds: no box made on the CPU')
-  // The rows pass took the rows named.
   targetsTaken(runtime.rowWords!, {} as GPUCommandEncoder)
   assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place')
   assert.deepEqual([staled(), worlds.length], [[], 0], 'and stale no shadow')
