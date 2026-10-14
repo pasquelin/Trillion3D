@@ -8,7 +8,11 @@ import {
   placements,
   stripCamera,
 } from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import { postPackedBases } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
+import {
+  postPackedBases,
+  rootOfPacked,
+} from '../../../packages/sdk-browser/src/page/selection/placements.ts'
+import { rowGpu } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
 import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
@@ -50,6 +54,8 @@ export function rowCacheScene(copies: number, table: number) {
     slots.set(pageAddress(pages[page]), page * 16)
     rows.touchPage(page)
   })
+  // The host's frame, which each round advances: the clock the rows' use is stamped with.
+  const clock = { frame: 100 }
   const sync = createWebgpuRowSync(
     rows,
     { sync: () => {}, dirty: true },
@@ -62,6 +68,18 @@ export function rowCacheScene(copies: number, table: number) {
       rows.markRowDirty(row)
     },
     () => createGroupClosure(roots, placement, pages, true),
+    undefined,
+    undefined,
+    undefined,
+    () => clock.frame,
+  )
+  // The rows' closure and queue each cut ranks (`rowEviction.ts`), by their CPU twins on the
+  // kernel's lists: each placement's own rows, through its groups.
+  const gpu = rowGpu(
+    sync,
+    rows,
+    roots.map((root, w) => ({ pageBase: placement.baseOfRoot[w], structure: root.structure })),
+    (page) => rootOfPacked(placement, page),
   )
   const packed = packDagSelection(roots)
   /** The view of the placement `back` places behind the one packed last: the strip camera slid
@@ -75,16 +93,20 @@ export function rowCacheScene(copies: number, table: number) {
   }
   /** The first packed instance of the placement `back` behind the one packed last. */
   const base = (back = 0) => placement.baseOfRoot[roots.length - 1 - back]
-  return { rows, sync, packed, view, base, pagesPer: dag.pages.length, instances: pages.length }
+  return {
+    ...{ rows, sync, packed, view, base, clock, gpu },
+    ...{ pagesPer: dag.pages.length, instances: pages.length },
+  }
 }
 
 /** Cuts the view `back` and follows until the drawn cut is the wanted one, `rounds` readbacks at
  *  most, every round on one device and one build of the kernel; returns what it settled on. */
 export function settleView(scene: ReturnType<typeof rowCacheScene>, back = 0, rounds = 8) {
-  const { rows, sync, packed } = scene
+  const { rows, sync, packed, clock, gpu } = scene
   const uniforms = scene.view(back)
   return runOnDawn(async () => {
     const kernel = await openSelectionKernel()
+    clock.frame++
     sync.syncRows(false)
     let drawn: number[] = [],
       wanted: number[] = []
@@ -93,7 +115,9 @@ export function settleView(scene: ReturnType<typeof rowCacheScene>, back = 0, ro
       const reading = await kernel.cut({ name: `round ${round}`, packed, uniforms, resident })
       ;({ drawn, pages: wanted } = reading)
       if (drawn.join() === wanted.join()) break
-      sync.followCut({ result: { drawablePageIds: drawn, pageIds: reading.requests } })
+      gpu(clock.frame, [...drawn, ...reading.requests])
+      sync.followCut({ result: { pageIds: reading.requests } })
+      clock.frame++
       sync.syncRows(false)
     }
     await kernel.close()

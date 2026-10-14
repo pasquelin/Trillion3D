@@ -9,7 +9,7 @@ import type { IdDelta } from '../cut/delta.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
-import { closeRows } from './rowClosure.fixture.ts'
+import { closeRows, type ClosurePlacement } from './rowClosure.fixture.ts'
 import { sortPool } from '../../gpu/pool/sort.fixture.ts'
 import { poolRank } from '../../gpu/pool/rank.fixture.ts'
 import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
@@ -70,10 +70,17 @@ const FIRST_FRAME = 100
 
 /**
  * The GPU's cut of the rows at `clock` over `sync`'s table: the host's writes sent to its words,
- * the rows of `seeds` stamped — each page alone, as without groups (`rowClosure.fixture.ts`) —, the
- * live rows ranked (`sortPool`), and the queue followed, as a readback of that cut brings it.
+ * the rows of `seeds` stamped with what their readiness needs in their placement
+ * (`rowClosure.fixture.ts`) — each page alone when no placement has groups —, the live rows ranked
+ * (`sortPool`), and the queue followed, as a readback of that cut brings it. `placementOf` names a
+ * packed page's placement among `placements`.
  */
-export function rowGpu(sync: ReturnType<typeof createWebgpuRowSync>, rows: WebgpuRowState) {
+export function rowGpu(
+  sync: ReturnType<typeof createWebgpuRowSync>,
+  rows: WebgpuRowState,
+  placements: readonly ClosurePlacement[] = [{ pageBase: 0 }],
+  placementOf: (page: number) => number = () => 0,
+) {
   let use = new Uint32Array(0)
   return (clock: number, seeds: readonly number[]) => {
     if (use.length < rows.blendFirst * ROW_USE_WORDS) {
@@ -82,8 +89,8 @@ export function rowGpu(sync: ReturnType<typeof createWebgpuRowSync>, rows: Webgp
       use = grown
     }
     sync.rowWords.flush(rows.packedCount, (row, data) => use.set(data, row * ROW_USE_WORDS))
-    const stamped = seeds.map((page) => ({ page, placement: 0, value: clock }))
-    closeRows(stamped, [{ pageBase: 0 }], rows.rowOf, use)
+    const stamped = seeds.map((page) => ({ page, placement: placementOf(page), value: clock }))
+    closeRows(stamped, placements, rows.rowOf, use)
     const age = (j: number) => clock - Math.min(use[j * ROW_USE_WORDS + ROW_USE], clock)
     const ranked = sortPool(rows.packedCount, (j) => poolRank(age(j), 0, ROW_IN_USE), ROW_BURST)
     const pages = Uint32Array.from(ranked.queue, (j) => use[j * ROW_USE_WORDS + ROW_PAGE])
