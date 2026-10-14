@@ -4,8 +4,9 @@
  * worlds pass wrote —, reading its world where every pass reads it, the roots' double worlds. It
  * writes the two things a root's world decides of the root itself: its world box, its local box
  * carried by that world (`composeBox`), which its rows' detail reads the radius of its object from,
- * and its stretch (`maxStretchBits`), in its row of the cut's frame words, which every cut projects
- * its errors through. The one writer of both on the GPU: no CPU box, no CPU stretch at a move.
+ * and its stretch (`maxStretchBits`), in the stretch field of the cut's frame words, which every cut
+ * projects its errors through. The one writer of both on the GPU: no CPU box, no CPU stretch at a
+ * move, and a row the host sends again never takes the stretch back (`../gpu/dag/frameTable.ts`).
  *
  *   params      uniform        the roots, the roots listed, and whether every root is (`whole`:
  *                              thread `j` is root `j`)
@@ -14,7 +15,7 @@
  *   rootBoxes   array<vec2u>   six doubles a root, its world box, none when it has no box
  *   ranks       array<u32>     the roots listed
  *   frames      r32uint        the cut's frame words, written alone (`../gpu/dag/frameTable.ts`):
- *                              the stretch, the first word of a root's row
+ *                              a root's stretch, its own field
  */
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { frameTableWgsl } from '../gpu/dag/frameTable.ts'
@@ -40,7 +41,7 @@ fn deriveRoot(rank:u32){
  if(rootInputs[rank*7u+6u].x!=0u){composeBox(rank,rank*7u,world);}
  else{for(var k=0u;k<6u;k++){rootBoxes[rank*6u+k]=vec2u(0u,0u);}}
  let stretch=maxStretchBits(world);
- if(stretch!=0xffffffffu){framesSetWord(rank,0u,stretch);}
+ if(stretch!=0xffffffffu){framesSetStretch(rank,stretch);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${ROOT_BOXES_ENTRY}(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}

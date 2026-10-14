@@ -60,8 +60,6 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     shadowsFollowSurfaces(
       rt.lights,
       rt.layout.rows,
-      rt.layout.selectionRoots,
-      rt.layout.placement,
       new Set(alpha.surfaces as readonly PageSurface[]),
     )
     rt.layout.rows.tableEpoch++

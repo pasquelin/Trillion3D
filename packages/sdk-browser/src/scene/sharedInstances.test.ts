@@ -15,6 +15,7 @@ import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
+import { rootWorldBox } from '../page/selection/rootWorld.ts'
 
 function blendGeometry(withUv: boolean) {
   const geometry = new Geometry()
@@ -149,7 +150,7 @@ test('two instances share the DAG shape, never what places them', () => {
   assert.equal(roots[0].localBox, roots[1].localBox)
   assert.deepEqual(Array.from(roots[0].localBox!), Array.from(roots[1].localBox!))
   assert.notEqual(roots[0].world, roots[1].world)
-  assert.notDeepEqual(Array.from(roots[0].worldBox!), Array.from(roots[1].worldBox!))
+  assert.notDeepEqual(Array.from(rootWorldBox(roots[0])!), Array.from(rootWorldBox(roots[1])!))
   for (let i = 0; i < roots[0].pages.length; i++) {
     const a = roots[0].pages[i],
       b = roots[1].pages[i]

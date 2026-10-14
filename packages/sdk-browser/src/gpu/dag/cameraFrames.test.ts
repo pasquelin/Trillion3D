@@ -46,14 +46,18 @@ test('the frame words are one record table the cut binds once, whatever one bind
   assert.equal(constants, undefined, 'the stages of a whole table')
 })
 
-test("the host's rows and words land at their placement's record", async () => {
+test("the host's rows and words land at their placement's record, never on the GPU's stretch", async () => {
   const { fake, resources } = await narrow()
   const { frames, frameData } = resources
   const rows = fake.textureWrites.filter((w) => w.destination.texture === frames.rows.texture)
   const texels = (w: (typeof rows)[number]) =>
     `${(w.destination.origin as number[])[0]}+${(w.size as number[])[0]}`
-  // The 48 rows in one write, eight words each, from the table's first texel.
-  assert.equal(rows.map(texels).join(' '), `0+${48 * FRAME_ROW_WORDS}`)
+  // The 48 rows in one write, eight words each, from the table's first texel; the stretch each was
+  // made with in one more, its own field's.
+  assert.equal(
+    rows.map(texels).join(' '),
+    `0+${48 * FRAME_ROW_WORDS} ${fieldStart(FRAME_TABLE, 'Stretch')}+48`,
+  )
   // The worlds: one write of the 48 matrices, four texels each, and one of their exact
   // translations, two texels each, beside them in the table's row (`worldTable.ts`). A translation
   // the new table holds already — zero — is never sent (`worldOrigins.ts`).
@@ -67,4 +71,11 @@ test("the host's rows and words land at their placement's record", async () => {
   const words = (frames.rows.texture as unknown as { words: Uint32Array }).words
   assert.equal(words[25 * FRAME_ROW_WORDS + 1], 7, 'its row, its root word')
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
+  // Once made, the stretch is the root boxes pass's: a row sent again leaves its field as it is.
+  const stretchAt = fieldStart(FRAME_TABLE, 'Stretch') + 25
+  words[stretchAt] = 0x40400000
+  frames.writeWord(25, 3, 9)
+  frames.flushWords()
+  assert.equal(words[stretchAt], 0x40400000, "the GPU's stretch kept")
+  assert.equal(words[25 * FRAME_ROW_WORDS + 3], 9, 'the row sent')
 })

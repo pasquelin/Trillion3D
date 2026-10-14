@@ -1,9 +1,10 @@
-import { worldStretch } from '../../page/selection/rootWorld.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 import { structuresOf } from './structureTable.ts'
 
-/** First word of primitive `w` in the frame buffer, its row: the stretch, then the root (`+ 1`),
+/** First word of primitive `w` in the frame buffer, its row: the stretch it was made with, then the
+ *  root (`+ 1`),
  *  the record shift (`+ 2`), the never-culled mark (`+ 3`), its first page (`+ 4`) — what its shared
  *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`), its
  *  page count (`+ 6`) and its group structure's base (`+ 7`, `structureTable.ts`), as
@@ -43,9 +44,11 @@ export function changedWorlds(
 }
 
 /**
- * Per-primitive frame words, behind the six planes of its first row: the stretch — the CPU's one
- * memo of it (`worldStretch`), which the GPU writes again from its doubles once the world moves
- * (`../../placement/rootBoxes.ts`) —, the root the descent starts from, the record shift that leads its pages to their shared records
+ * Per-primitive frame words, behind the six planes of its first row: the stretch at its making —
+ * `maxStretch` of its world, which the host sends once into the stretch field
+ * (`cameraFrames.ts`), the root boxes pass writing it from then on (`../../placement/rootBoxes.ts`):
+ * a placement made before its root joins the session's has no world on the GPU yet —, the root the
+ * descent starts from, the record shift that leads its pages to their shared records
  * (`layout.ts`), and the primitive's root mark (`PackedDag.mark`). Four words the
  * kernel reads without one more storage buffer bound to the stage.
  */
@@ -70,7 +73,7 @@ export function writePrimitiveWords(
     frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
   // A slot of the room a growth keeps holds no root yet: no stretch, as no world.
   const source = packed.worldSources[w]
-  frameData[at] = source ? worldStretch(source) : 0
+  frameData[at] = source ? maxStretch(source.world.elements) : 0
   frameInts[at + ROOT_WORD] = packed.rootNodes[w]
   frameInts[at + RECORD_SHIFT_WORD] = packed.recordShift[w]
   frameInts[at + MARK_WORD] = packed.mark?.[w] ?? 0

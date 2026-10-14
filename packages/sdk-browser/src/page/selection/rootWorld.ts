@@ -1,19 +1,19 @@
 /**
  * WHAT A ROOT'S WORLD DECIDES ON THE CPU, TAKEN WHEN READ: its world box — its local box carried by
  * its world — and its stretch — `maxStretch`, the largest singular value of its linear part, in
- * doubles. Each is a memo keyed by the world's stamp: `worldAt`, which `worldMoved` moves at each
- * place the engine takes a world that moved — a move (`../../webgpu/pages/render/movedRoot.ts`), a
- * row its owner wrote (`../../placement/update.ts`), a root taken (`collect.ts`,
- * `../../scene/worldRecords.ts`) —, and the `stamp` of a world a parent composes
- * (`../../placement/gpuComposeWorld.ts`). A move costs the CPU one increment: the box and the
- * stretch are taken at the first read after it, by the one reader that asks, never for a move no
- * one reads. The GPU derives its own from the world it holds (`../../placement/rootBoxes.ts`), the
- * same doubles.
+ * doubles. The GPU derives both for every root whose world moved, the one home every pass reads
+ * (`../../placement/rootBoxes.ts`, the box in the roots' boxes, the stretch in the frame words'
+ * field the cut projects its errors through); the CPU takes them for the readers that decide on
+ * the CPU in the frame that asks — the deformation's screen-size skip (`../../deformation/screen.ts`)
+ * and the shadow box of a deformation (`noteDeformed`) —, the same doubles, never sent.
  *
- * A reader of the box a root leaves reads it before its move is taken, at the stamp it holds. Where
- * the owner writes a world in place before the engine takes it — a row's view —, the box of the
- * last stamp must have been read when that stamp was taken: the follow that takes a row reads the
- * box it enters (`followPlacementRows`), and a root taken reads its own (`takeWorldBox`).
+ * Each is a memo keyed by the world's stamp: `worldAt`, which `worldMoved` moves at each place the
+ * engine takes a world that moved — a root made (`collect.ts`, `../../scene/worldRecords.ts`), a
+ * move (`../../webgpu/pages/render/movedRoot.ts`), a row its owner wrote (`../../placement/update.ts`)
+ * —, and the `stamp` of a world a parent composes (`../../placement/gpuComposeWorld.ts`). A move
+ * costs the CPU one increment: the box and the stretch are taken at the first read after it, by the
+ * one reader that asks, never for a root no reader asks. A box read before a move is taken is the
+ * one the root leaves.
  */
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
@@ -33,7 +33,7 @@ export type WorldMemo = {
 }
 
 /** The world of `root` moved: what is derived from it is taken again at its next read. */
-export function worldMoved(root: Pick<WorldMemo, 'worldAt'>) {
+export function worldMoved(root: Pick<WorldMemo, 'world' | 'worldAt'>) {
   root.worldAt = (root.worldAt ?? 0) + 1
 }
 
@@ -54,13 +54,6 @@ export function rootWorldBox(root: WorldMemo) {
   root.boxAt = root.worldAt
   root.boxStamp = stampOf(root.world)
   return box
-}
-
-/** A root taken: its world moved, and its box at that world read now — the box its first move
- *  leaves, should its owner write the world in place before it is taken again. */
-export function takeWorldBox(root: WorldMemo) {
-  worldMoved(root)
-  rootWorldBox(root)
 }
 
 /** `root`'s stretch, taken now when its world moved since. */

@@ -2,17 +2,10 @@ import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/typ
 import type { PageRec } from '../../../page/selection/types.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
-import { boxEmpty, boxIsEmpty } from '../../../../../math/src/geometry/box.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import { layerSlot } from '../../row/pageRowMaterial.ts'
 import { FAR_VALUE } from '../../../../../math/src/constants.ts'
-import { changeBoxes, recordMoves } from '../../shadow/bounds.ts'
-import { growClusterBox } from '../../shadow/spheres.ts'
-import {
-  rootOfPacked,
-  type PlacementIndex,
-  type Placements,
-} from '../../../page/selection/placements.ts'
+import { nameCastRow } from '../../shadow/castChanges.ts'
 
 const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
   EVERYWHERE_MAX = [FAR_VALUE, FAR_VALUE, FAR_VALUE]
@@ -27,8 +20,6 @@ interface ShadowRowTable {
   casterSlots: number
   pageTableInts: Uint32Array | undefined
   packedRecs: ArrayLike<PageRec | undefined>
-  /** The packed rank each row draws: a row's root is read from it. */
-  packedPageIndex: ArrayLike<number>
 }
 
 /**
@@ -36,18 +27,16 @@ interface ShadowRowTable {
  * reads has just changed for every masked surface that carries one of these textures — and the
  * coverage of every blended caster that does (`../../../gpu/shadow/transmittance.ts`) —, and a
  * map drawn at the previous level would describe foliage that is no longer the image's. The
- * pages the world box of those surfaces covers go back to waiting once the camera rests, under
- * the ordinary Shadows stage budget — and those alone: a colour tile of a texture no cutout
- * reads changes no depth, and stales nothing. One scan of the page table per pump, whatever
- * the tiles served. At `-1` the pool changed without naming a texture — a resize — and every
+ * pages the spheres of those rows cover go stale at the frame's next invalidation, under the
+ * ordinary Shadows stage budget (`shadowsFollowRows`) — and those alone: a colour tile of a texture
+ * no cutout reads changes no depth, and stales nothing. One scan of the page table per pump,
+ * whatever the tiles served. At `-1` the pool changed without naming a texture — a resize — and every
  * page restarts. Without this signal, two identical runs produced two different shadows,
  * depending on when each page had been drawn.
  */
 export function shadowsFollowTextures(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
-  roots: Placements,
-  placement: PlacementIndex,
   slots: ReadonlySet<number> | -1,
   /** The colour atlas's slots, by texture: where a row's surface's colour map lies. */
   mapLayer: ReadonlyMap<Texture, number>,
@@ -59,7 +48,7 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts
   if (!ints || !slots.size) return
-  shadowsFollowRows(lights, rows, roots, placement, (row) => {
+  shadowsFollowRows(lights, rows, (row) => {
     const base = row * ROW_WORDS
     return (
       !!(ints[base + PAGE_INFO.at.flags] & ALPHA_READERS) &&
@@ -76,51 +65,35 @@ export function shadowsFollowTextures(
 export function shadowsFollowSurfaces(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
-  roots: Placements,
-  placement: PlacementIndex,
   surfaces: ReadonlySet<PageSurface>,
 ) {
   if (lights.store.count)
-    shadowsFollowRows(
-      lights,
-      rows,
-      roots,
-      placement,
-      (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
-      'worldChanged',
+    shadowsFollowRows(lights, rows, (row) =>
+      surfaces.has(rows.packedRecs[row]?.material as PageSurface),
     )
 }
 
 /**
- * Stales the box of the rows, visibility then blended casters, that `stale` names, as the same
- * world at another precision or, `worldChanged`, as another world: one box for the rows the static
- * layer holds, one for the rows already moving — a blended caster's always is —, whose change
- * redraws the moving casters alone and leaves the static layer as it is.
+ * Names the rows, visibility then blended casters, that `stale` says hold a page, to the rows'
+ * shadow changes (`nameCastRow`): the GPU stales each by the sphere the rows pass holds for it, at
+ * the frame's rows pass — moving casters alone when the row moves, the static layer left as it is
+ * (`../../shadow/namedCastsWgsl.ts`). No sphere is made here. Without the list, no sphere buffer
+ * holds a row's yet: no shadow page was drawn from one, and the buffer made stales every page
+ * (`spheresMadeAnew`).
  */
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
-  roots: Placements,
-  placement: PlacementIndex,
   stale: (row: number) => boolean,
-  change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
-  for (const { box } of changeBoxes) boxEmpty(box, 0)
+  const casts = lights.casts
+  if (!casts) return
   for (const [from, to] of [
     [0, rows.rowCount],
     [rows.blendFirst, rows.casterSlots],
   ])
-    for (let row = from; row < to; row++) {
-      const rec = stale(row) && rows.packedRecs[row]
-      if (!rec) continue
-      const rank = rootOfPacked(placement, rows.packedPageIndex[row]) ?? -1
-      const moving = row >= rows.blendFirst || recordMoves(lights, rank)
-      growClusterBox(rec, roots, changeBoxes[+moving].box, rank)
-    }
-  for (const moving of [false, true]) {
-    const { box, min, max } = changeBoxes[+moving]
-    if (!boxIsEmpty(box, 0)) lights.changes[change](min, max, moving)
-  }
+    for (let row = from; row < to; row++)
+      if (rows.packedRecs[row] && stale(row)) nameCastRow(casts, row)
 }
 
 /**

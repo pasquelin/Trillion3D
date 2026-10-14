@@ -14,6 +14,7 @@ import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
+import { rootWorldBox } from '../page/selection/rootWorld.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {
@@ -46,7 +47,7 @@ test("a super-root is a geometry page worn in its primitive's surface", () => {
   })
   assert.equal(root.origins, world.origins)
   assert.deepEqual(root.structure!.roots, [world.pages.length - 1], 'the world top')
-  assert.deepEqual([...root.worldBox!], [0, -0.25, -0.25, 12, 0.25, 0.25])
+  assert.deepEqual([...rootWorldBox(root)!], [0, -0.25, -0.25, 12, 0.25, 0.25])
   // Nothing an opaque mesh wears: no world to pack.
   assert.equal(
     worldSelectionRoot(world, () => undefined, 7),

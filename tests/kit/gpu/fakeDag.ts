@@ -79,7 +79,12 @@ export function packedFromBindings(
       byBinding.get(dagBindingOf().views)!.data,
       worldCount * 16,
     ),
-    frameStretch: floatsAt(0),
+    // The stretch the cut reads, its own field (`frameTable.ts`).
+    frameStretch: new Float32Array(
+      Uint32Array.from({ length: worldCount }, (_, w) =>
+        recordWord(frames, FRAME_TABLE, 'Stretch', w),
+      ).buffer,
+    ),
     rootNodes,
     rootBases: rootNodes.slice(),
     recordShift: intsAt(2),
