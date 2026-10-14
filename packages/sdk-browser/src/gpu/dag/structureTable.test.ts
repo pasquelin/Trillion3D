@@ -3,13 +3,13 @@
 // bound no walk of the closure kernel passes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createStructureTable, STRUCTURE_HEAD } from './structureTable.ts'
+import { STRUCTURE_HEAD, structuresOf } from './structureTable.ts'
 import { structureFamily } from './structureFamily.fixture.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import type { ClusterStructureIndex } from '../../page/selection/types.ts'
 
 test('a structure is placed once, at its first placement, the next behind it', () => {
-  const table = createStructureTable()
+  const table = structuresOf({})
   const a = structureFamily(1, 40),
     b = structureFamily(2, 24)
   assert.equal(table.baseOf(undefined), NO_INDEX)
@@ -21,7 +21,7 @@ test('a structure is placed once, at its first placement, the next behind it', (
 })
 
 test('the words read back the structure: owners, members and outputs', () => {
-  const table = createStructureTable(),
+  const table = structuresOf({}),
     s = structureFamily(3, 32)
   table.baseOf(structureFamily(4, 16))
   const base = table.baseOf(s),
@@ -66,7 +66,7 @@ function walkedStack(s: ClusterStructureIndex, g: number) {
 test('no walk of a generated structure holds more than its stack bound, and one reaches it', () => {
   for (let seed = 1; seed <= 12; seed++) {
     const s = structureFamily(seed, 8 + seed * 13, 2 + (seed % 6))
-    const table = createStructureTable()
+    const table = structuresOf({})
     table.baseOf(s)
     let most = 0
     for (let g = 0; g < s.groupCount; g++) most = Math.max(most, walkedStack(s, g))

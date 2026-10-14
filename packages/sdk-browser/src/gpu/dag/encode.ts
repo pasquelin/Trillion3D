@@ -149,6 +149,12 @@ function encodeOnce(
   pass.dispatchWorkgroups(1)
   // A thread a slot of the pool's list, whose entries the list cap bounds (`../poolList.ts`).
   encodePoolSort(pass, evictSort, selectionListCap(resources.pageCount), width)
+  // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
+  // (`../../webgpu/row/rowEviction.ts`): the cut's group back after them.
+  if (resources.rowPass) {
+    resources.rowPass.encode(pass, differ)
+    pass.setBindGroup(0, resources.bindGroup)
+  }
   if (differ) encodeDifference(pass, resources)
   pass.end()
 }

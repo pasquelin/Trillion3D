@@ -4,7 +4,7 @@ import { AHEAD_VIEW } from './aheadWgsl.ts'
 
 /** The view bits a candidate's entry takes once its page is asked for (`DAG_SEED_WGSL`): past
  *  every view a cut runs (`AHEAD_VIEW` the last), within the entry's five view bits. */
-export const ROW_SEED_ASKED = AHEAD_VIEW + 1,
+const ROW_SEED_ASKED = AHEAD_VIEW + 1,
   ROW_SEED_AHEAD = AHEAD_VIEW + 2
 
 /**

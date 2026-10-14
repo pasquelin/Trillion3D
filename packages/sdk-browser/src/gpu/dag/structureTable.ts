@@ -82,7 +82,7 @@ function stackOf(s: ClusterStructureIndex) {
  * what was placed since (`flush`), as the content keys are (`evict.ts`). `stackBound` is the most a
  * walk of any of them holds on its stack: the closure kernel is compiled for it.
  */
-export function createStructureTable() {
+function createStructureTable() {
   const bases = new Map<ClusterStructureIndex, number>(),
     order: ClusterStructureIndex[] = []
   let words = 0,

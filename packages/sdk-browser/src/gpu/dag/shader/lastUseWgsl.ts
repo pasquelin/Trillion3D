@@ -54,9 +54,11 @@ fn raiseUse(g:u32,v:u32){
 }
 /** Record \`r\` is used by this cut, drawn or asked for: its key's group is stamped. */
 fn stampUse(r:u32){raiseUse(groupOfKey(keyOf(r)),useClock());}
-/** Record \`r\` is asked for by the view ahead: stamped as used \`EVICT_IN_USE\` frames ago
- *  (\`../evict.ts\`). */
-fn stampAhead(r:u32){let now=useClock();raiseUse(groupOfKey(keyOf(r)),max(now,${EVICT_IN_USE}u)-${EVICT_IN_USE}u);}
+/** The clock a page the view ahead asks for is stamped with: used \`EVICT_IN_USE\` frames ago
+ *  (\`../evict.ts\`), after every older page and before any in use. */
+fn aheadClock()->u32{let now=useClock();return max(now,${EVICT_IN_USE}u)-${EVICT_IN_USE}u;}
+/** Record \`r\` is asked for by the view ahead: stamped at \`aheadClock\`. */
+fn stampAhead(r:u32){raiseUse(groupOfKey(keyOf(r)),aheadClock());}
 /** The round of raised groups being walked: \`[x, y)\` of the list. */
 var<workgroup> raiseRound:vec2u;
 /** The groups replacing each raised group raised to its clock, round after round, until a round
