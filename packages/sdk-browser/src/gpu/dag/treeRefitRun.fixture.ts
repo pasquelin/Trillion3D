@@ -8,6 +8,7 @@ import { refitLevels } from './refitSchedule.ts'
 import { boxTransform, boxGrow } from '../../../../math/src/geometry/box.ts'
 
 import { fromHalf } from '../../../../math/src/float/half.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
@@ -45,7 +46,7 @@ export function leafBoxes(dag: PackedDag) {
     leaves = new Float64Array(count * 6),
     box = new Float64Array(12)
   for (let w = 0; w < count; w++) {
-    if (dag.rootNodes[w] === NONE) continue
+    if (dag.rootNodes[w] === NO_INDEX) continue
     const at = dag.rootBases[w] * DAG_NODE_FLOATS
     for (let a = 0; a < 3; a++) {
       box[a] = dag.nodes[at + NODE_MIN + a]
@@ -109,9 +110,6 @@ export function refitTree(dag: PackedDag, groups?: Iterable<number>) {
   return fitted
 }
 
-/** No node: a parked root's. */
-const NONE = 0xffffffff
-
 /** The change the refit proofs fit again, on `dag` packed from `roots`: poses a long way off, a
  *  park, a mark drawn whatever the view, a reach, a whole group parked. Returns the placements it touched. */
 export function treeChange(dag: PackedDag, roots: readonly { world: { elements: unknown } }[]) {
@@ -129,12 +127,12 @@ export function treeChange(dag: PackedDag, roots: readonly { world: { elements: 
     [9999, 1e5],
   ])
     move(w, x)
-  dag.rootNodes[130] = NONE
+  dag.rootNodes[130] = NO_INDEX
   dag.mark[200] = SPRITE_UNCULLED
   mirrorKey(tree.always, 200, true)
   // A reach grows the leaf the GPU writes again.
   dag.mark[7000] = 5 << 16
-  for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NONE
+  for (let k = 0; k < TREE_SPAN; k++) dag.rootNodes[tree.order[640 + k]] = NO_INDEX
   for (const w of [130, 200, 7000, tree.order[640]]) touched.add(w)
   return touched
 }
