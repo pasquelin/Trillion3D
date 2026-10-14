@@ -22,9 +22,10 @@ export const proxyKey = (runtime: ProxyBindings) =>
  * a certified error of the proxy off its normal (`ReflectionView.proxy`), so that it never meets the proxy's own
  * copy of the surface it leaves. Its confidence comes from the hit alone, for every width of the lobe, a
  * mirror's included: the share of the ray the surfaces met stop. Zero where it hits nothing, or where the scene
- * has no proxy. The opaque trace keeps each pixel's answer from image to image within its frame's budget
- * (`rtAnswer`, `bounce/runtimeAnswerWgsl.ts`); a forward program casts its fragment's ray and binds nothing
- * writable (a binding its stage could write would cost the pass its early depth reject).
+ * has no proxy. The opaque trace keeps each surface's answer from image to image within its frame's budget
+ * (`rtAnswer`, `bounce/runtimeAnswerWgsl.ts`), told the surface it answers; a forward program casts its
+ * fragment's ray and binds nothing writable (a binding its stage could write would cost the pass its early
+ * depth reject).
  */
 export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
   const answers = 'store' in runtime
@@ -40,7 +41,7 @@ export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
     `struct ReflectionProxied{color:vec3f,confidence:f32,}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let seen=${answers ? 'rtAnswer' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
+ let seen=${answers ? 'rtAnswer(P,N,' : 'rtRadiance('}P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  return ReflectionProxied(seen.color,seen.confidence);
 }`,
   )

@@ -10,7 +10,7 @@ import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
  * one texel of each record table the rays read beside it — the culling's records, worlds and
  * instances (`../gpu/dag/worldTable.ts`), and its placement tree (`../gpu/dag/treeTable.ts`) —, which
  * no ray reads; and the opaque trace's store of answers (`../reflections/proxyStore.ts`), one texel of
- * its two layers, which no pixel reads or writes. A session without proxy renders exactly the same image on opaque and on blend.
+ * its layers, which no pixel reads or writes. A session without proxy renders exactly the same image on opaque and on blend.
  */
 export function runtimeStandIns(device: GPUDevice) {
   const runtime = device.createBuffer({
