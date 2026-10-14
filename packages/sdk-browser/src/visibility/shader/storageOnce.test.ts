@@ -36,7 +36,7 @@ test('every way out of the resolve leaves the receiver word the double write lef
     storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
   }>(
     wgslModule(receiverStoreWgsl(0)),
-    ['storeReceiver', 'octEncode', 'ndcToUvUnflipped', 'pow2FromExponent'],
+    ['storeReceiver', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
     {
       receiverOutput: {},
       textureDimensions: () => [8, 8],

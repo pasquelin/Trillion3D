@@ -6,6 +6,7 @@
 //! - `octahedral_encode`, `octahedral_decode`: a direction on `[-1, 1]²` (the grid `[0, 1]²` back),
 //!   in `f64`, `+Y` the upper pole, the full sphere or its upper half — the impostor atlas.
 
+use crate::real::Real;
 use crate::vec3::unit_or_itself;
 use crate::vecn::{length, scale};
 
@@ -22,14 +23,7 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
         return 128 | (128 << 8);
     }
     let (px, py) = (x / sum, y / sum);
-    let (px, py) = if z < 0.0 {
-        (
-            (1.0 - py.abs()) * if px >= 0.0 { 1.0 } else { -1.0 },
-            (1.0 - px.abs()) * if py >= 0.0 { 1.0 } else { -1.0 },
-        )
-    } else {
-        (px, py)
-    };
+    let [px, py] = if z < 0.0 { fold([px, py]) } else { [px, py] };
     let cell = |v: f32| ((v + 1.0) * 127.5).floor().clamp(0.0, 254.0) as u32;
     let (bx, by) = (cell(px), cell(py));
     let length = length(normal);
@@ -55,27 +49,19 @@ pub fn oct_decode(q: u32) -> [f32; 3] {
     let x = (q & 255) as f32 * OCT_SCALE - 1.0;
     let y = ((q >> 8) & 255) as f32 * OCT_SCALE - 1.0;
     let z = 1.0 - x.abs() - y.abs();
-    let (x, y) = if z < 0.0 {
-        (
-            (1.0 - y.abs()) * if x >= 0.0 { 1.0 } else { -1.0 },
-            (1.0 - x.abs()) * if y >= 0.0 { 1.0 } else { -1.0 },
-        )
-    } else {
-        (x, y)
-    };
+    let [x, y] = if z < 0.0 { fold([x, y]) } else { [x, y] };
     let length = length([x, y, z]);
     [x / length, y / length, z / length]
 }
 
-/// `±1`, never `0`: the fold of the lower half needs a side even on an axis, where `sign(0) = 0`
-/// would send the direction to the wrong face.
+/// The lower half folded over the upper one: each axis `1 − |other|`, on its own side, `+` at zero
+/// (`sign(0) = 0` would send the direction to the wrong face). One rounding, in the caller's
+/// precision: the shaders' `octFold`, for the four maps here.
 #[inline]
-fn side(x: f64) -> f64 {
-    if x < 0.0 {
-        -1.0
-    } else {
-        1.0
-    }
+fn fold<T: Real + PartialOrd>([a, b]: [T; 2]) -> [T; 2] {
+    let side = |x: T| if x < T::ZERO { -T::ONE } else { T::ONE };
+    let abs = |x: T| if x < T::ZERO { -x } else { x };
+    [(T::ONE - abs(b)) * side(a), (T::ONE - abs(a)) * side(b)]
 }
 
 /// Direction `d` to the plane `[-1, 1]²`, `(x, z)` on the octahedron: the full octahedron, its
@@ -93,10 +79,7 @@ pub fn octahedral_encode(d: [f64; 3], hemi: bool) -> [f64; 2] {
     }
     let o = scale(d, 1.0 / (d[0].abs() + d[1].abs() + d[2].abs()));
     if o[1] < 0.0 {
-        return [
-            side(o[0]) * (1.0 - o[2].abs()),
-            side(o[2]) * (1.0 - o[0].abs()),
-        ];
+        return fold([o[0], o[2]]);
     }
     [o[0], o[2]]
 }
@@ -111,7 +94,8 @@ pub fn octahedral_decode(f: [f64; 2], hemi: bool) -> [f64; 3] {
     let (u, v) = (f[0] * 2.0 - 1.0, f[1] * 2.0 - 1.0);
     let y = 1.0 - u.abs() - v.abs();
     if y < 0.0 {
-        return unit_or_itself([side(u) * (1.0 - v.abs()), y, side(v) * (1.0 - u.abs())]);
+        let [x, z] = fold([u, v]);
+        return unit_or_itself([x, y, z]);
     }
     unit_or_itself([u, y, v])
 }

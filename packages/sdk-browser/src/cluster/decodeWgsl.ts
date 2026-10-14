@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { OCT_BYTE_STEP, octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
+import { OCT_BYTE_STEP, octDecode } from '../../../math/src/wgsl/octahedral.ts'
 import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
 import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import {
@@ -62,7 +62,7 @@ export function clusterDecodeWgsl(buffer: string) {
   return wgslBlock(
     `clusterDecodeWgsl(${buffer})`,
     [
-      octDecodeScalar,
+      octDecode,
       OCT_BYTE_STEP,
       CLUSTER_HEADER_WGSL,
       bitLength,
@@ -183,7 +183,7 @@ fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
 // Two octahedral bytes back to a unit vector.
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let q=clusterField(base+h.normal,vertex*16u,16u);
- return octDecodeScalar(vec2f(f32(byteOf(q,0u))*OCT_BYTE_STEP-1.0,f32(byteOf(q,1u))*OCT_BYTE_STEP-1.0));
+ return octDecode(vec2f(f32(byteOf(q,0u))*OCT_BYTE_STEP-1.0,f32(byteOf(q,1u))*OCT_BYTE_STEP-1.0));
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
