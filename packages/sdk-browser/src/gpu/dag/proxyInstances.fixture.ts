@@ -13,6 +13,7 @@ import { RUNTIME_HEADER, RUNTIME_HEADER_WORDS } from '../../bounce/runtimeLayout
 import { WORLD_TABLE } from './worldTable.ts'
 import { recordWordAt } from '../core/recordTexture.fixture.ts'
 import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 export const LIMITS = {
   maxBufferSize: 1 << 28,
@@ -82,6 +83,8 @@ export async function open(wear: (w: number) => RootProxy | undefined) {
   roots.forEach((root, w) => (root.proxy = wear(w)))
   const packed = packDagSelection(roots)
   const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
-  const selection = (await createGpuDagSelection(gpu.device, packed))!
+  const selection = (await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  }))!
   return { roots, packed, gpu, selection }
 }

@@ -13,13 +13,15 @@ import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from './worlds.ts'
 import { markReach } from '../../deformation/halfFloat.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
+import { MARK_WORD } from './frameTable.ts'
 
 test('a reach written again keeps the cut in hand, and the frame words keep the reach', async () => {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const { device } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   const word = markReach(SHADOWLESS_ROOT, 1.66)
   assert.ok(word > 0xffff, 'the reach lies above the mark')
@@ -32,7 +34,11 @@ test('a reach written again keeps the cut in hand, and the frame words keep the 
   assert.equal(selection.peek(), held, 'the same word voids no cut')
   assert.equal(dag.mark[0], word)
   const frame = new Uint32Array(primitiveFrameWords(dag).buffer)
-  assert.equal(frame[primitiveWordAt(0) + 3], word, 'the frame words made again keep the reach')
+  assert.equal(
+    frame[primitiveWordAt(0) + MARK_WORD],
+    word,
+    'the frame words made again keep the reach',
+  )
   selection.markWorld(0, markReach(SHADOWLESS_ROOT, 0))
   assert.equal(selection.peek(), null, 'another reach is another cut')
   selection.dispose()

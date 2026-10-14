@@ -23,6 +23,7 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { reporting } from '../kit/reportingDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first half behind the camera,
  *  the second before it, its outer columns past the frustum's sides; the binding holds the frame
@@ -55,6 +56,8 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
       selectionListCap(packed.pageCount),
     )
     if (!resources) return undefined
+    // The stretches the session's root boxes pass writes, as no session runs here.
+    writeHostStretches(resources.frames.rows, packed.worldSources)
     // Every page resident: the cut draws every page it wants.
     residentAll(resources)
     const cuts = []

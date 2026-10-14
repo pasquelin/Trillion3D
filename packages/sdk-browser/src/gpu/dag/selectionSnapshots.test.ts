@@ -14,10 +14,11 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { moveRoot } from './pack.fixture.ts'
 import { pageResidency } from './readiness.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('an in-flight snapshot that a world change crosses is never drained as the current cut', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   selection.dispatch(uniforms)
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
@@ -45,7 +46,7 @@ test('a snapshot copy only leaves when a readback is due', async () => {
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const { device, readbackCopies } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   selection.dispatch(uniforms)
   await selection.flush()
@@ -66,7 +67,7 @@ test('a residency republished identically does not drop the held cut', async () 
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const { device } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   const resident = new Uint32Array(dag.pageCount).fill(1),
     moved: number[] = []
@@ -90,7 +91,7 @@ test('a residency republished identically does not drop the held cut', async () 
 
 test('a disposal with both readbacks in flight maps none of the buffers it destroyed', async () => {
   const { release, fixture, dag, uniforms, device, destroyedMaps } = gatedDag()
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   // Two snapshots in flight: slot 0 is mapping, held by the gate; slot 1's read waits behind it.
   selection.dispatch(uniforms)

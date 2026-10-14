@@ -19,6 +19,7 @@ import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { deviceListCap } from './deviceListCap.ts'
 import { destroyRetired } from '../core/frameRetire.ts'
 import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
   const limits = { maxStorageBufferBindingSize: 128 << 20 }
@@ -54,7 +55,7 @@ async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) 
   const resources = await createDagResources(fake.device, dag, null, cap, undefined, 0)
   assert.ok(resources)
   held = () => resources.listCap
-  const selection = createDagRuntime(resources)
+  const selection = createDagRuntime(resources, undefined, hostStretches(resources.packed))
   const uniforms = createSelectionUniforms()
   /** One frame and its drain, whose readbacks hold `pages` under the list they were cut on. */
   const frame = async (pages: number[]) => {

@@ -25,15 +25,13 @@ import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { treeTableWgsl } from './treeTable.ts'
-import { frameTableWgsl } from './frameTable.ts'
+import { frameTableWgsl, ROOT_WORD } from './frameTable.ts'
 import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
-/** Where a placement's root lies in its frame row (`primitiveFrameWords`). */
-const FRAME_ROOT = 1
 /** What the shader reads a level's parameters as: words of `Params`. */
 export const REFIT_PARAM_WORDS = 8
 
@@ -81,7 +79,7 @@ fn fitGroup(j:u32){
  for(var k=0u;k<gm;k++){
   let w=treeMember(first+k);
   if(w==${NO_INDEX}u){continue;}
-  if(framesWord(w,${FRAME_ROOT}u)==${NO_INDEX}u){continue;}
+  if(framesWord(w,${ROOT_WORD}u)==${NO_INDEX}u){continue;}
   for(var a=0u;a<3u;a++){
    lo[a]=dMin(lo[a],members[w*6u+a]);
    hi[a]=dMax(hi[a],members[w*6u+3u+a]);

@@ -21,7 +21,7 @@ import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.
 import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type PackedDag } from './types.ts'
 import { recordTable } from '../core/recordTexture.fixture.ts'
 import { TREE_TABLE } from './treeTable.ts'
-import { FRAME_TABLE } from './frameTable.ts'
+import { FRAME_TABLE, MARK_WORD, ROOT_WORD } from './frameTable.ts'
 
 /** `tree`'s record table as the host writes it: its nodes, then its order. */
 function treeTableOf(tree: PlacementTree) {
@@ -39,7 +39,7 @@ const frameWords = (dag: PackedDag) =>
   Array.from({ length: dag.worldSources.length * FRAME_ROW_WORDS }, (_, k) => {
     const w = Math.floor(k / FRAME_ROW_WORDS),
       at = k % FRAME_ROW_WORDS
-    return at === 1 ? dag.rootNodes[w] : at === 3 ? dag.mark[w] : 0
+    return at === ROOT_WORD ? dag.rootNodes[w] : at === MARK_WORD ? dag.mark[w] : 0
   })
 
 /** Every placement's leaf as the GPU writes it (`../../placement/treeLeavesWgsl.ts`, proven word

@@ -13,6 +13,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import type { DagRoot } from './types.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('a still camera holds the world to one scale; a moved one takes the next', async () => {
   const world = worldDag(),
@@ -22,7 +23,7 @@ test('a still camera holds the world to one scale; a moved one takes the next', 
     fakeDevice({ limits: SHADOW_LIMITS }).device,
     packed,
   ))!
-  const selection = createDagRuntime(resources)
+  const selection = createDagRuntime(resources, undefined, hostStretches(resources.packed))
   const camera = stripCamera(world)
   const scales = (moves: number[]) =>
     moves.map((x) => {

@@ -7,7 +7,7 @@ import type { CameraFrames } from './cameraFrames.ts'
 import { OPEN_SLOT_WORDS, type HeldOpen } from './heldOpen.ts'
 import { heldOpenAt } from './listCap.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
-import { HELD_BY_WORD } from './worlds.ts'
+import { HELD_BY_WORD } from './frameTable.ts'
 import { createDagReadiness } from './readiness.ts'
 import { writeRanges, type RangeTarget } from './runWrites.ts'
 

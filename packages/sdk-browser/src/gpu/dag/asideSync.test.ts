@@ -7,7 +7,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
-import { createDagRuntime, type RootsOnGpu } from './runtime.ts'
+import { createDagRuntime } from './runtime.ts'
+import type { RootsOnGpu } from './runtimeOps.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
@@ -16,6 +17,7 @@ import { worldFadeScale } from './worldFade.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { DagRoot } from './types.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** The followed selection over `roots`, its view aside made and its regions asked by one main
  *  image; `side`: one image of the view aside alone. Its tree's leaves are the GPU's one writer's
@@ -25,7 +27,7 @@ async function asideOver(roots: DagRoot[]) {
     gpu = fakeDevice({ ...BACKEND, packed })
   const named: number[][] = []
   const onGpu: RootsOnGpu = {
-    roots: () => undefined,
+    roots: hostStretches(packed).roots,
     leaves: {
       ready: () => true,
       encode: (_encoder, _tables, { ranks, count }) =>

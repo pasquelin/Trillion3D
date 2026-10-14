@@ -7,10 +7,9 @@ import { FRAME_TABLE } from './frameTable.ts'
 import { writtenTexels } from '../core/recordTexture.fixture.ts'
 import { fieldStart } from '../core/recordLayout.ts'
 
-/** The first texel of the stretch's field in a row of the frame words, and the texels of the rows'
- *  field a row holds (`frameTable.ts`). */
-const STRETCH_AT = fieldStart(FRAME_TABLE, 'Stretch'),
-  ROW_TEXELS = FRAME_ROW_WORDS << FRAME_TABLE.rowShift
+/** The first texel of the stretch's field in a row of the frame words (`frameTable.ts`): the rows'
+ *  field lies before it. */
+const STRETCH_AT = fieldStart(FRAME_TABLE, 'Stretch')
 
 /**
  * The kit's device running the DAG selection on the CPU double of its kernel, its mappings meeting
@@ -35,12 +34,10 @@ export function mockDagDevice(
     rows: () =>
       gpu.textureWrites
         .filter(({ destination }) => destination.texture.label === FRAME_TABLE.label)
-        // The rows' field alone: the stretch's, its own, goes up once, when a placement is made.
+        // The rows' field alone: the stretch's is the root boxes pass's, a test's stand-in here.
         .filter(({ destination }) => ((destination.origin as number[])[0] ?? 0) < STRETCH_AT)
         .flatMap((write) => {
-          const [x = 0, y = 0, layer = 0] = write.destination.origin as number[],
-            first = ((layer << FRAME_TABLE.layerShift) + y) * ROW_TEXELS + x,
-            { words } = writtenTexels(FRAME_TABLE, write as never)
+          const { first, words } = writtenTexels(FRAME_TABLE, write as never, 'Row')
           // A write of the frame words is whole rows, from a row's start: never a word alone.
           if (first % FRAME_ROW_WORDS || words.length % FRAME_ROW_WORDS)
             throw new Error(`a frames write of ${words.length} words at ${first} is no whole rows`)

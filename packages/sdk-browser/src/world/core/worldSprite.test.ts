@@ -23,6 +23,7 @@ import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts'
 import { planCull } from '../../webgpu/blend/planCull.ts'
+import { MARK_WORD } from '../../gpu/dag/frameTable.ts'
 
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false })
@@ -64,7 +65,7 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
     const { roots, dag } = packed(fixture)
     const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
     assert.equal(roots[0].mark, dag.mark[0], 'the CPU cut root and the packed DAG agree')
-    marks.push(frames[primitiveWordAt(0) + 3])
+    marks.push(frames[primitiveWordAt(0) + MARK_WORD])
     fixture.geometry.dispose()
   }
   assert.deepEqual(marks, [1, SPRITE_UNCULLED | 1, 1], 'the GPU frame word follows')

@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
+import { HELD_BY_WORD, MARK_WORD, PAGE_BASE_WORD, ROOT_WORD } from '../frameTable.ts'
 import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
@@ -78,14 +79,14 @@ fn drawnCounter()->u32{return liveCounter()+9u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** The log the running cut writes: its count (\`dagCommitMask\` makes it the drawn log). */
 fn writtenCounter()->u32{return liveCounter()+12u;}
-/** Index of the primitive's root node, deposited once and for all behind its stretch. */
-fn rootOf(w:u32)->u32{return framesWord(w,1u);}
+/** Index of the primitive's root node, deposited once and for all. */
+fn rootOf(w:u32)->u32{return framesWord(w,${ROOT_WORD}u);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return framesWord(w,3u);}
+fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}
 /** Placement \`w\`'s first page: its shared nodes count their pages from it. */
-fn pageBaseOf(w:u32)->u32{return framesWord(w,4u);}
+fn pageBaseOf(w:u32)->u32{return framesWord(w,${PAGE_BASE_WORD}u);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
-fn heldByOf(w:u32)->u32{return framesWord(w,5u);}
+fn heldByOf(w:u32)->u32{return framesWord(w,${HELD_BY_WORD}u);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each slice of \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\`
  *  without a one-thread kernel pulling it afterwards (\`openSlice\`). \`stride\` words an entry,

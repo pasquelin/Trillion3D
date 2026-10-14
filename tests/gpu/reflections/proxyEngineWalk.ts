@@ -12,7 +12,8 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 import { leafBoxes } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
-import type { RootsOnGpu } from '../../../packages/sdk-browser/src/gpu/dag/runtime.ts'
+import type { RootsOnGpu } from '../../../packages/sdk-browser/src/gpu/dag/runtimeOps.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import {
   scenePages,
@@ -35,11 +36,11 @@ function cubeField(count: number) {
   return packDagSelection(roots)
 }
 
-/** The session's writes before a cut, on `device`: no root to write, every placement's leaf as the
- *  GPU writes it, the first time, whole. */
+/** The session's writes before a cut, on `device`: each placement's stretch (`hostStretches`), every
+ *  placement's leaf as the GPU writes it, the first time, whole. */
 function leavesOf(device: GPUDevice, packed: PackedDag): RootsOnGpu {
   return {
-    roots() {},
+    roots: hostStretches(packed).roots,
     leaves: {
       ready: () => true,
       encode(_encoder, { members }, { whole }) {

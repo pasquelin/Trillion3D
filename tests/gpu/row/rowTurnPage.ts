@@ -14,6 +14,7 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { rowCacheScene } from './rowCacheScene.ts'
 import { ROW_IN_USE } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 /** The slide: across `span` placements in `flight` frames, then held still; a table of `table`. */
 const TURN = { copies: 64, table: 512, span: 3, flight: 90, hold: 60 }
@@ -54,10 +55,11 @@ export async function runRowTurn(options: typeof TURN = TURN) {
   }
   const reference = packDagSelection(roots)
   const selection = await createGpuDagSelection(device, packed, {
+    roots: hostStretches(packed),
     rowPass: createRowEviction(host),
   })
   held.selection = selection
-  const whole = await createGpuDagSelection(device, reference)
+  const whole = await createGpuDagSelection(device, reference, { roots: hostStretches(reference) })
   if (!selection || !whole) return { error: 'GPU_SELECTION_UNAVAILABLE', errors: gpu.errors }
   whole.updateResidency(pageResidency(new Uint8Array(reference.pageCount).fill(1)))
   const closure = createGroupClosure(roots as never, placement, pages, true)

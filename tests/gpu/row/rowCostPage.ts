@@ -13,6 +13,7 @@ import { createRowUseWords } from '../../../packages/sdk-browser/src/webgpu/row/
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { closureScene } from './rowClosureRun.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 interface Sweep {
   /** Live rows of each table measured. */
@@ -68,8 +69,11 @@ export async function measureRowCost({ rows, frames, rounds }: Sweep) {
     const { scene, host, clock, live } = rowScene(count)
     const all = pageResidency(new Uint8Array(scene.packed.pageCount).fill(1))
     const [plain, withRows] = await Promise.all([
-      createGpuDagSelection(device, scene.packed),
-      createGpuDagSelection(device, scene.packed, { rowPass: createRowEviction(host) }),
+      createGpuDagSelection(device, scene.packed, { roots: hostStretches(scene.packed) }),
+      createGpuDagSelection(device, scene.packed, {
+        roots: hostStretches(scene.packed),
+        rowPass: createRowEviction(host),
+      }),
     ])
     if (!plain || !withRows) {
       sizes.push({ rows: count, refused: true })

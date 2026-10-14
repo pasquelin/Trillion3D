@@ -16,6 +16,7 @@ import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readine
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { evictionWorld } from './evictionWorld.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 /** One generated frame: the GPU's queue and old head, the oracle's, and what the cut read. */
 type RankFrame = {
@@ -35,7 +36,9 @@ export async function runEvictionRank(frames = 48, seed = 0x5eed) {
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const world = evictionWorld(6)
   const { packed } = world
-  const selection = await createGpuDagSelection(gpu.device, packed)
+  const selection = await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  })
   if (!selection) return { error: 'GPU_SELECTION_UNAVAILABLE', errors: gpu.errors }
   selection.updateResidency(pageResidency(new Uint8Array(packed.pageCount).fill(1)))
   for (let page = 0; page < packed.pageCount; page++) selection.notePool(page, true)

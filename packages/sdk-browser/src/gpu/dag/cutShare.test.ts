@@ -12,6 +12,7 @@ import { pageResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import { defaultGpuBudget, splitMemoryBudget } from '../../residency/memoryBudget.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** `device` counting the bytes its live buffers hold, and the most they ever held. */
 function counted(device: GPUDevice) {
@@ -56,7 +57,9 @@ test('the default total funds the cut’s tables as they hold them, before the p
 test('a cut past its share is refused by name, before the buffer past it is made', async () => {
   installGpuGlobals()
   const { dag } = gridScene()
-  const whole = (await createGpuDagSelection(mockDagDevice(dag).device, dag))!
+  const whole = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+  }))!
   const bytes = whole.gpuBytes!
   whole.dispose()
   assert.ok(bytes > 0 && bytes <= CUT_TABLE_BYTES, `${bytes} bytes within the share`)
@@ -65,6 +68,7 @@ test('a cut past its share is refused by name, before the buffer past it is made
   let reason = ''
   const share = Math.floor(bytes / 2)
   const refused = await createGpuDagSelection(device, dag, {
+    roots: hostStretches(dag),
     share,
     onRefused: (why) => (reason = why),
   })
@@ -79,10 +83,15 @@ test('a growth past the share is not made: the view coarsens, and a dropped cut 
   const { roots, camera, dag } = gridScene()
   // Lists the fine cut passes, and a share they cannot grow in.
   Object.assign(dag, { queueEntries: 100, candCount: 1000 })
-  const probe = (await createGpuDagSelection(mockDagDevice(dag).device, dag))!
+  const probe = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+  }))!
   const share = probe.gpuBytes! + 64
   probe.dispose()
-  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, { share }))!
+  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+    share,
+  }))!
   selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
   selection.dispatch(kernelUniforms(dag, roots, camera, 0.5))
   const result = await selection.flush()
@@ -99,6 +108,7 @@ test('each buffer of the cut is asked of the budget before it is made, and a ref
     held = counted(device)
   const asked: number[] = []
   const selection = (await createGpuDagSelection(device, dag, {
+    roots: hostStretches(dag),
     admit: (bytes) => void asked.push(held.now + bytes),
   }))!
   assert.ok(asked.length > 5, 'every buffer asked')
@@ -106,6 +116,7 @@ test('each buffer of the cut is asked of the budget before it is made, and a ref
   selection.dispose()
   let reason = ''
   const refused = await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
     admit: () => {
       throw new Error('GPU_BUDGET_UNDER_MINIMUM: the pools need it')
     },

@@ -1,10 +1,10 @@
 // What the cut's frame words take of the worlds: a render frame that follows the eye only moves
-// their translations, so no row's read words move; the frame words carry each primitive's stretch —
-// the one memo of it, `maxStretch` of its double world —, its root and its record shift.
+// their translations, so no row's read words move; the frame words carry each primitive's root and
+// record shift, and no stretch — the root boxes pass's alone (`frameTable.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
-import { FRAME_VEC4 } from './types.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
+import { RECORD_SHIFT_WORD, ROOT_WORD } from './frameTable.ts'
 import { primitiveFrameWords, primitiveWordAt, changedWorlds } from './worlds.ts'
 
 const WORLDS = 4
@@ -38,7 +38,7 @@ test('changedWorlds lists the rows whose read words moved; a translation alone m
   assert.deepEqual([...into.subarray(0, 2)], [0, 2])
 })
 
-test('the frame words carry each primitive stretch, root and record shift, as the kernel reads them', () => {
+test('the frame words carry each primitive root and record shift, as the kernel reads them', () => {
   const scaled = (k: number) => ({
     world: { elements: Float64Array.of(k, 0, 0, 0, 0, k / 3, 0, 0, 0, 0, 1, 0, 9, 8, 7, 1) },
   })
@@ -51,12 +51,11 @@ test('the frame words carry each primitive stretch, root and record shift, as th
   }
   const frames = primitiveFrameWords(packed),
     ints = new Uint32Array(frames.buffer)
-  assert.equal(frames.length, 3 * FRAME_VEC4 * 4)
+  assert.equal(frames.length, 3 * FRAME_ROW_WORDS)
   for (let w = 0; w < 3; w++) {
     const at = primitiveWordAt(w)
-    assert.equal(frames[at], Math.fround(maxStretch(packed.worldSources[w].world.elements)))
-    assert.equal(ints[at + 1], packed.rootNodes[w])
-    assert.equal(ints[at + 2], packed.recordShift[w])
+    assert.equal(ints[at + ROOT_WORD], packed.rootNodes[w])
+    assert.equal(ints[at + RECORD_SHIFT_WORD], packed.recordShift[w])
   }
-  assert.equal((12 + ints[primitiveWordAt(1) + 2]) >>> 0, 2)
+  assert.equal((12 + ints[primitiveWordAt(1) + RECORD_SHIFT_WORD]) >>> 0, 2)
 })

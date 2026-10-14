@@ -9,6 +9,7 @@ import { cpuUrls, kernelUrls, packed } from '../../gpu/dag/selectionHelpers.fixt
 import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts'
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts'
 import { neverCulled, spriteMark } from './spriteWgsl.ts'
+import { MARK_WORD } from '../../gpu/dag/frameTable.ts'
 
 /** The test DAG worn as a sprite, its record's sprite facts written in place; `hierarchical` gives
  *  it its culling hierarchy. */
@@ -59,7 +60,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   const { dag } = packed(fixture)
   assert.deepEqual(Array.from(dag.mark), [3])
   const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
-  assert.equal(frames[primitiveWordAt(0) + 3], 3)
+  assert.equal(frames[primitiveWordAt(0) + MARK_WORD], 3)
   assert.ok(DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'))
   assert.ok(
     DAG_SELECTION_SHADER.includes(

@@ -12,8 +12,8 @@ import { packed } from './selectionHelpers.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { dagBindingOf } from './shader/bindings.fixture.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
-import { FRAME_TABLE } from './frameTable.ts'
-import { fieldStart } from '../core/recordLayout.ts'
+import { FRAME_TABLE, MARK_WORD, ROOT_WORD } from './frameTable.ts'
+import { recordWordAt } from '../core/recordTexture.fixture.ts'
 
 /** Forty-eight placements of the fixture's primitive, each `k + 1` metres along x — a translation
  *  a new table does not hold already —, on a device whose storage binding holds twenty rows of
@@ -46,36 +46,33 @@ test('the frame words are one record table the cut binds once, whatever one bind
   assert.equal(constants, undefined, 'the stages of a whole table')
 })
 
-test("the host's rows and words land at their placement's record, never on the GPU's stretch", async () => {
+test("the host's rows and words land at their placement's record, never on the stretch", async () => {
   const { fake, resources } = await narrow()
   const { frames, frameData } = resources
   const rows = fake.textureWrites.filter((w) => w.destination.texture === frames.rows.texture)
   const texels = (w: (typeof rows)[number]) =>
     `${(w.destination.origin as number[])[0]}+${(w.size as number[])[0]}`
-  // The 48 rows in one write, eight words each, from the table's first texel; the stretch each was
-  // made with in one more, its own field's.
-  assert.equal(
-    rows.map(texels).join(' '),
-    `0+${48 * FRAME_ROW_WORDS} ${fieldStart(FRAME_TABLE, 'Stretch')}+48`,
-  )
+  // The 48 rows in one write, from the table's first texel: no stretch, the root boxes pass's alone.
+  assert.equal(rows.map(texels).join(' '), `0+${48 * FRAME_ROW_WORDS}`)
   // The worlds: one write of the 48 matrices, four texels each, and one of their exact
   // translations, two texels each, beside them in the table's row (`worldTable.ts`). A translation
   // the new table holds already — zero — is never sent (`worldOrigins.ts`).
   const worlds = fake.textureWrites.filter((w) => w.destination.texture === frames.worlds.texture)
   assert.equal(worlds.map(texels).join(' '), '0+192 4096+96')
   const before = fake.textureWrites.length
-  frames.writeWord(25, 1, 7)
+  frames.writeWord(25, ROOT_WORD, 7)
   frames.flushWords()
   const sent = fake.textureWrites.slice(before)
-  assert.equal(sent.map(texels).join(' '), `${fieldStart(FRAME_TABLE, 'Row') + 25 * 8}+8`)
+  const row = recordWordAt(FRAME_TABLE, frames.rows.texture, 'Row', 25)
+  assert.equal(sent.map(texels).join(' '), `${row}+${FRAME_ROW_WORDS}`)
   const words = (frames.rows.texture as unknown as { words: Uint32Array }).words
-  assert.equal(words[25 * FRAME_ROW_WORDS + 1], 7, 'its row, its root word')
-  assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
-  // Once made, the stretch is the root boxes pass's: a row sent again leaves its field as it is.
-  const stretchAt = fieldStart(FRAME_TABLE, 'Stretch') + 25
+  assert.equal(words[row + ROOT_WORD], 7, 'its row, its root word')
+  assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + ROOT_WORD], 7)
+  // The stretch is the root boxes pass's: a row sent again leaves its field as it is.
+  const stretchAt = recordWordAt(FRAME_TABLE, frames.rows.texture, 'Stretch', 25)
   words[stretchAt] = 0x40400000
-  frames.writeWord(25, 3, 9)
+  frames.writeWord(25, MARK_WORD, 9)
   frames.flushWords()
   assert.equal(words[stretchAt], 0x40400000, "the GPU's stretch kept")
-  assert.equal(words[25 * FRAME_ROW_WORDS + 3], 9, 'the row sent')
+  assert.equal(words[row + MARK_WORD], 9, 'the row sent')
 })

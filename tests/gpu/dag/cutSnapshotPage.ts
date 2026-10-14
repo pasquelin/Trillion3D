@@ -13,6 +13,7 @@ import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/da
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 interface Sweep {
   /** Scene sizes, in leaves: the pyramid holds about twice as many pages. */
@@ -50,6 +51,8 @@ async function measure(
 ) {
   const cut = await createDagResources(device, packed)
   if (!cut) return undefined
+  // The stretches the session's root boxes pass writes, as no session runs here.
+  writeHostStretches(cut.frames.rows, packed.worldSources)
   const block = new Float32Array(VIEW_BLOCK_WORDS)
   const setThreshold = (pixelError: number) => {
     writeDagUniforms(block, packed, { ...uniforms, pixelError }, cut.listCap)

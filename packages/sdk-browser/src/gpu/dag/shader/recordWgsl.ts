@@ -1,4 +1,5 @@
 import { SELECTION_LIST_CAP } from '../layout.ts'
+import { RECORD_SHIFT_WORD } from '../frameTable.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
@@ -14,7 +15,7 @@ import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/int
  * it (`levelWgsl.ts`).
  *
  * A page reaches its hot and cold records through `recordOf`: its index plus its placement's
- * shift, the third frame word (`../worlds.ts`). Ranks are those of `../layout.ts`, sole source of
+ * shift, its frame row's `RECORD_SHIFT_WORD` (`../frameTable.ts`). Ranks are those of `../layout.ts`, sole source of
  * the layout: the oracle rereads them through `../records.fixture.ts`, which keeps it bit-for-bit on the
  * shader.
  */
@@ -23,7 +24,7 @@ export const DAG_RECORD_WGSL = wgslBlock(
   [ceilDivWgsl, bitWord, bitIsSet],
   `const COLD:u32=13u;
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
-fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,2u);}
+fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,${RECORD_SHIFT_WORD}u);}
 fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
 fn poolBase()->u32{return 2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` keys (\`../layout.ts\`), whatever the readout's cap. */

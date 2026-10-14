@@ -14,13 +14,12 @@ import type { ContentKeys } from './evict.ts'
 import type { StructureTable } from './structureTable.ts'
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
- *  sphere, the floor and a flags word (`packNodes.ts`). A row of `frames` is the placement's words,
- *  two vec4s (`worlds.ts`): nothing is derived into it (`shader/primitiveWgsl.ts`). */
+ *  sphere, the floor and a flags word (`packNodes.ts`). */
 export const DAG_NODE_FLOATS = 24,
-  FRAME_VEC4 = 2,
   CULL_STRIDE = 15
-/** Words of a placement's row of `frames`. */
-export const FRAME_ROW_WORDS = FRAME_VEC4 * 4
+/** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
+ *  into it (`shader/primitiveWgsl.ts`). */
+export const FRAME_ROW_WORDS = 7
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */

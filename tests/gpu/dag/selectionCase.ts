@@ -11,10 +11,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import {
-  primitiveFrameWords,
-  primitiveWordAt,
-} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { dagGroupEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
@@ -37,6 +34,7 @@ import {
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 /** Slots of the open counts a case's placements hold: every count of the cases fits. */
 const HELD_SLOTS = heldOpenSlots(1 << 16)
@@ -169,13 +167,8 @@ export function bindCase(
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     frames = createRecordTexture(device, FRAME_TABLE, at.worldCount, read)
   frames.write('Row', 0, at.worldCount, at.frames.buffer, at.frames.byteOffset)
-  // The stretch each placement was made with, its row's first word, in its own field: as the host
-  // sends it once (`cameraFrames.ts`).
-  const stretches = Float32Array.from(
-    { length: at.worldCount },
-    (_, w) => at.frames[primitiveWordAt(w)],
-  )
-  frames.write('Stretch', 0, at.worldCount, stretches.buffer, 0)
+  // The stretches the session's root boxes pass writes, as no session runs here.
+  writeHostStretches(frames, selection.packed.worldSources)
   made.push(worlds, tree, frames, ...Object.values(tables))
   const views = {
     worlds: worlds.view,

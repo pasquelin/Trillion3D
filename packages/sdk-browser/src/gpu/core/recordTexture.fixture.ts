@@ -33,8 +33,9 @@ export function recordWordAt(
   return ((layer * height + y) * width + x) * channels(layout)
 }
 
-/** The texels a `queue.writeTexture` of a table of one field of `layout` sent: the first one's
- *  index along the field's line — a record's texels after the record before —, and their words. */
+/** The texels a `queue.writeTexture` into field `field` of `layout` — its one field by default —
+ *  sent: the first one's index along the field's line — a record's texels after the record
+ *  before —, and their words. */
 export function writtenTexels(
   layout: RecordLayout,
   write: {
@@ -43,6 +44,7 @@ export function writtenTexels(
     layout: GPUTexelCopyBufferLayout
     size: GPUExtent3D
   },
+  field = Object.keys(layout.fields)[0],
 ) {
   const [x = 0, y = 0, layer = 0] = write.destination.origin as number[],
     [width, rows] = textureExtent(write.size),
@@ -56,7 +58,9 @@ export function writtenTexels(
       row * width * texel,
     )
   }
-  return { first: ((layer << layout.layerShift) + y) * fieldStart(layout) + x, words }
+  const line = layout.fields[field] << layout.rowShift,
+    row = (layer << layout.layerShift) + y
+  return { first: row * line + x - fieldStart(layout, field), words }
 }
 
 /** A texture's words as `textureLoad` answers them — four words, an `r32uint`'s word in the first —

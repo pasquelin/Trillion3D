@@ -13,6 +13,7 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('roots appended into the room read as a packing of every root at that capacity', () => {
   const { roots, counts, capacity } = scene()
@@ -80,7 +81,9 @@ test('the GPU cut over the roots appended in place selects what a cut over every
   installGpuGlobals()
   const { roots, capacity } = scene()
   const cutOf = async (packed: ReturnType<typeof packDagSelection>) => {
-    const selection = await createGpuDagSelection(mockDagDevice(packed).device, packed)
+    const selection = await createGpuDagSelection(mockDagDevice(packed).device, packed, {
+      roots: hostStretches(packed),
+    })
     assert.ok(selection)
     return selection
   }
@@ -121,7 +124,9 @@ test('roots appended under a still eye are brought to it before the next cut', a
     grown = packDagSelection(roots.slice(0, 2), capacity)
   const uniforms = kernelUniforms(whole, roots, frontCamera(20), 1)
   const cut = async (packed: ReturnType<typeof packDagSelection>, append = false) => {
-    const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed))!
+    const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed, {
+      roots: hostStretches(packed),
+    }))!
     selection.dispatch(uniforms)
     await selection.flush()
     // The eye has not moved: the cut reads the worlds the append wrote at it.

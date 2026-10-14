@@ -13,7 +13,7 @@ import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.
 import { DAG_WORLD_POSE_WGSL } from './shader/worldPoseWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { createCameraFrames } from './cameraFrames.ts'
-import { FRAME_VEC4 } from './types.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
 import { cutOnce, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
@@ -24,6 +24,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { viewTexture } from '../../../../../tests/kit/gpu/fakeWorldPose.ts'
 import { recordWordAt } from '../core/recordTexture.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** The double functions the pose's subtraction reaches: those of the compose passes but the
  *  product's. */
@@ -84,7 +85,7 @@ test('the main view and a view aside, each at its own eye, run no pass over ever
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const gpu = fakeDevice({ ...BACKEND, packed: dag })
-  const selection = (await createGpuDagSelection(gpu.device, dag))!
+  const selection = (await createGpuDagSelection(gpu.device, dag, { roots: hostStretches(dag) }))!
   const aside = selection.aside()
   const main = kernelUniforms(dag, roots, wideCamera(), 0)
   const side = { ...main, cameraWorld: [main.cameraWorld[0] + 3, 1, 2] as [number, number, number] }
@@ -114,7 +115,7 @@ test('a pose sent writes its world and its exact translation, nothing more', () 
   const fake = fakeDevice()
   const table = createCameraFrames(
     fake.device,
-    new Float32Array(2 * FRAME_VEC4 * 4),
+    new Float32Array(2 * FRAME_ROW_WORDS),
     2,
     worlds,
     sources as never,
