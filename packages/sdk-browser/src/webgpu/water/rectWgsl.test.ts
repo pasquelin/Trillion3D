@@ -9,7 +9,7 @@ import { refreshBlendPlan } from '../blend/plan.ts'
 import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { WATER_RANK_SHIFT } from './rank.ts'
-import { frame, scene } from './rectKernel.fixture.ts'
+import { blankVolumes, frame, scene } from './rectKernel.fixture.ts'
 import { SIZE } from '../../../../../tests/gpu/water/waterCostScene.ts'
 
 const full = [0, 0, ...SIZE]
@@ -83,7 +83,7 @@ test('a clipped water box keeps legal edge texels, and two kept copies make one 
   const width = other.item.bounds![3] - other.item.bounds![0]
   other.state.blendGpu.splice(0, 1, other.item, moved(-1.2 * width, 2), moved(100 * width, 3))
   other.state.transmissive = 3
-  other.state.volumePacked = new Float32Array(8 * 3)
+  blankVolumes(other.state)
   buildBlendStatics(other.state, uniformStride())
   refreshBlendPlan(other.state)
   const union = frame(other.state, other.camera)

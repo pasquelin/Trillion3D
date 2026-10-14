@@ -35,7 +35,7 @@ export interface MaterialParameters {
   transmission?: number
   /** How much light bends going in: 1.5 for glass, 1.33 for water. */
   ior?: number
-  /** How thick a see-through surface is. */
+  /** How thick a see-through surface is, in the mesh's own units: a scaled placement scales it. */
   thickness?: number
   /** Declared anisotropy strength, 0 to 1; not rendered yet. */
   anisotropy?: number

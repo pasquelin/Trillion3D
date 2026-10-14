@@ -10,7 +10,7 @@ import { KEYED_WGSL } from '../blend/keyLayout.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
 import { BLEND_ITEM_WORDS, BLEND_ITEM_WORLD } from '../blend/items.ts'
-import { VOLUME_WORDS } from '../transparent/transmission.ts'
+import { VOLUME_ITEM, VOLUME_WORDS } from '../transparent/transmission.ts'
 import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
 import { WATER_PROJECT_WGSL } from './projectWgsl.ts'
 import { WATER_ITEM_WGSL } from './waterItems.ts'
@@ -44,10 +44,11 @@ export function waterRectBindEntries(): GPUBindGroupLayoutEntry[] {
  * `waterRect.fixture.ts`): one thread per water item the verdict says draws (`verdictWgsl.ts`).
  * Its surface rectangle is its local box, widened for single precision, enclosed under its pose,
  * projected (`projectWgsl.ts`); its backdrop's, the screen-space depth box the composite
- * reconstructs from, enclosed under the inverse projection, widened by the declared thickness and
- * projected again. An item whose geometry may not crop — no local box, a paged or line or sprite
- * surface, a non-finite world box, a non-affine pose — or whose enclosure is refused covers the
- * full target. Each bound folds into the verdict's unions with one `atomicMax` (minima stored
+ * reconstructs from, enclosed under the inverse projection, widened by the declared thickness taken
+ * to the world by the pose's stretch bound (`waterStretch`) and projected again; its item rank is
+ * its volume's (`VOLUME_ITEM`). An item whose geometry may not crop — no local box, a paged or line
+ * or sprite surface, a non-finite world box, a non-affine pose — or whose enclosure is refused
+ * covers the full target. Each bound folds into the verdict's unions with one `atomicMax` (minima stored
  * complemented): the union does not depend on the threads' order, and is the CPU's walk's.
  * Then one thread writes what the pass draws from the unions (`argsWgsl.ts`).
  */
@@ -91,7 +92,7 @@ fn waterCrops(rank:u32,item:u32,pose:array<vec2u,16>)->bool{
 /** Water item \`rank\` (zero-based) folded into the surface and backdrop unions. */
 fn includeWaterItem(rank:u32){
  let base=rank*WATER_ITEM_WORDS;
- let item=waterItems[base+WATER_ITEM_RANK];
+ let item=volumes[rank*${VOLUME_WORDS}u+${VOLUME_ITEM}u];
  var pose:array<vec2u,16>;
  for(var k=0u;k<16u;k++){pose[k]=fromF32(items[item*${BLEND_ITEM_WORDS}u+${BLEND_ITEM_WORLD}u+k]);}
  var local:array<vec2u,6>;
@@ -126,7 +127,7 @@ fn includeWaterItem(rank:u32){
   waterFull(VERDICT_BACKDROP);
   return;
  }
- let reach=dMul(dMathMax(D_ZERO,thickness),D_THICKNESS_GUARD);
+ let reach=dMul(dMul(dMathMax(D_ZERO,thickness),waterStretch(pose)),D_THICKNESS_GUARD);
  let back=waterProject(waterWiden(reconstructed,reach),projection);
  if(dIsNan(back[0])){
   waterFull(VERDICT_BACKDROP);

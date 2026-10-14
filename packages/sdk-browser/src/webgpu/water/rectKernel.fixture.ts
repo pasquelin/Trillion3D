@@ -19,6 +19,7 @@ import { WATER_RECT_SHADER } from './rectWgsl.ts'
 import { writeWaterItems } from './waterItems.ts'
 import { writeWaterFrame } from './frameWords.ts'
 import { waterRectCpu } from './waterRect.fixture.ts'
+import { VOLUME_ITEM, VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
 import { device, prepared } from './pass.fixture.ts'
 import {
   waterCostScene,
@@ -49,6 +50,7 @@ const NAMES = [
   'waterBoxTransform',
   'waterRow',
   'waterWiden',
+  'waterStretch',
   'frameDouble',
   'keyedDouble',
   'flatIndex',
@@ -85,6 +87,17 @@ function gpuRect(state: WebgpuBlendState, waterDraws: Uint32Array) {
   }
 }
 
+/** Volumes of no declared thickness for `state`'s transmissive items, each naming its item's rank
+ *  in the item records as `writeVolumeRecords` names it. */
+export function blankVolumes(state: WebgpuBlendState) {
+  state.volumePacked = new Float32Array(VOLUME_WORDS * Math.max(1, state.transmissive))
+  const words = new Uint32Array(state.volumePacked.buffer)
+  state.blendGpu.forEach((item, index) => {
+    const rank = waterRankOf(item.flags)
+    if (rank) words[(rank - 1) * VOLUME_WORDS + VOLUME_ITEM] = index
+  })
+}
+
 /** The collected water-cost scene, prepared as the frame prepares it, and its camera. */
 export function scene(enabled = true) {
   const source = waterCostScene(1 / 16, enabled)
@@ -108,7 +121,7 @@ export function scene(enabled = true) {
   )
   buildBlendStatics(state, uniformStride())
   refreshBlendPlan(state)
-  state.volumePacked = new Float32Array(8 * Math.max(1, state.transmissive))
+  blankVolumes(state)
   const host = waterCostCamera()
   poseWaterCost(host, 0, false)
   const camera = readCameraWorld(createEngineCamera(), host)

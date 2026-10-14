@@ -16,10 +16,12 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 import { waterQuadWgsl } from './quadWgsl.ts'
+import { BLEND_ITEM_WGSL } from '../blend/items.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
- *  opaque depth, the blend view uniform, the material volumes and the rectangle its quad covers. */
+ *  opaque depth, the blend view uniform, the material volumes, the item records whose poses they
+ *  name and the rectangle its quad covers. */
 export const WATER_BINDINGS = {
   baseMetal: 0,
   normalRough: 1,
@@ -46,6 +48,9 @@ export const WATER_BINDINGS = {
   volumes: 17,
   proxyWorlds: 20,
   proxyTree: 21,
+  /** The transparent items' records (`../blend/items.ts`), whose world matrix takes a volume's
+   *  declared thickness to the world (`volumeWorldPath`). */
+  items: 37,
   /** The verdict, whose water rectangle the composite's quad covers (`quadWgsl.ts`). */
   rect: 36,
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
@@ -98,7 +103,8 @@ export const waterCompositeShader = (
     trace: CONTRACT_TRACE_BINDINGS,
   }
   return wgslProgram(
-    `struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,}
+    `struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,item:u32,}
+@group(0) @binding(${WATER_BINDINGS.items}) var<storage,read> items:array<BlendItem>;
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
@@ -127,6 +133,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       surfaceBindingsWgsl('waterWord:texture_2d<f32>'),
       CONTRACT_BINDINGS_WGSL,
       waterQuadWgsl(WATER_BINDINGS.rect),
+      BLEND_ITEM_WGSL,
       ...(lobes ? [] : [WATER_LOBELESS_WGSL]),
       ...(route ? [route] : []),
     ],

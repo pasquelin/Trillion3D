@@ -125,7 +125,7 @@ test('the composite reads the per-volume terms and the shadow its law', () => {
   const composite = waterCompositeShader()
   assert.match(
     composite,
-    /struct Volume\{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,\}/,
+    /struct Volume\{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,item:u32,\}/,
   )
   assert.match(composite, /refract\(-V,N,vol\.eta\)/)
   assert.match(composite, /sample\.rgb\*volumeTransmittance\(vol\.attenuation\.rgb,path\)/)
