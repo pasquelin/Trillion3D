@@ -5,6 +5,7 @@ import {
   boxIsEmpty,
   boxTransform,
   boxGrow,
+  boxUnion,
 } from '../../../../../math/src/geometry/box.ts'
 import { boxUnionBatch } from '../../../../../math/src/batch/batch.ts'
 
@@ -42,13 +43,36 @@ function holds(own: MovedBox, boxes: Float64Array, b: number) {
   return true
 }
 
+/** The union of a page list's own boxes (`PageRec.moved`), by its first record — the records its
+ *  placements share —, written with the boxes: what a root's reach reads in one look, never its
+ *  pages (`../../shadow/rowTravel.ts`). */
+const movedUnions = new WeakMap<PageRec, Float64Array>()
+
+/** The union of the boxes `pages` hold (`takeBoxes`), none while they hold none. */
+export const movedPagesBox = (pages: readonly PageRec[]) =>
+  pages.length ? movedUnions.get(pages[0]) : undefined
+
 const span = { from: 0, to: -1 }
 /** Root `root` takes its pages' boxes of `boxes` (`BOX_VALUES` a page, page `k` its `k`-th), and
- *  widens `span` to the pages whose box moved. A record its placements share takes its box once —
- *  every placement's rows then follow the span. */
+ *  widens `span` to the pages whose box moved; their union is kept (`movedPagesBox`). A record its
+ *  placements share takes its box once — every placement's rows then follow the span. */
 function takeBoxes(root: ClusterRoot<PageRec>, boxes: Float64Array) {
+  const first = root.pages[0]
+  if (!first) return
+  const union = movedUnions.get(first) ?? new Float64Array(BOX_VALUES)
+  boxEmpty(union, 0)
   for (let k = 0, b = 0; k < root.pages.length; k++, b += BOX_VALUES) {
     const rec = root.pages[k]
+    boxUnion(
+      union,
+      0,
+      boxes[b],
+      boxes[b + 1],
+      boxes[b + 2],
+      boxes[b + 3],
+      boxes[b + 4],
+      boxes[b + 5],
+    )
     if (rec.moved && holds(rec.moved, boxes, b)) continue
     const own = (rec.moved ??= { min: [0, 0, 0], max: [0, 0, 0] })
     for (let a = 0; a < 3; a++) {
@@ -57,6 +81,7 @@ function takeBoxes(root: ClusterRoot<PageRec>, boxes: Float64Array) {
     }
     extendSpan(span, k)
   }
+  movedUnions.set(first, union)
 }
 
 /** Root `rank`'s vertices moved: its pages `from` to `to` lie in other boxes, which every
@@ -144,6 +169,7 @@ export function releasePageBoxes(rt: WebgpuPagesRuntime, ranks: readonly number[
   const roots = rt.layout.selectionRoots,
     { pages } = roots[ranks[0]]
   for (const rec of pages) rec.moved = undefined
+  if (pages.length) movedUnions.delete(pages[0])
   for (const rank of ranks) markRootRows(rt, roots[rank], 0, pages.length - 1)
 }
 

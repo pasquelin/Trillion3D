@@ -8,8 +8,8 @@
  * root's world (`../../placement/rowSphere.ts`): a world whose translation moves by `a` and whose
  * linear part moves by `b` (Frobenius) moves the sphere's centre by at most `a + b·|c|` and grows
  * its radius by at most `b·|h|` — the new sphere lies in the old one grown by `a + b·ρ`, ρ = |c| +
- * |h|. A root's ρ is bounded from the box its pages lie in: its own local box, and a dynamic page's
- * box (`PageRec.moved`), grown by its reach: the farthest corner's distance plus the half diagonal.
+ * |h|. A root's ρ is bounded from the box its pages lie in: its own local box, and its dynamic pages'
+ * boxes (`PageRec.moved`, their union `movedPagesBox`), grown by its reach: the farthest corner's distance plus the half diagonal.
  * A parent slot moves its roots by `ΔP·C`: their points at `|t_C| + |L_C|·ρ` of its origin.
  */
 import { commitMotion } from '../../gpu/shadow/rowMotion.ts'
@@ -18,25 +18,24 @@ import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import { takeFarthest } from './mobilityTravel.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { movedPagesBox } from '../pages/render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 const box = new Float64Array(6)
 
-/** Widens `box` to the box `min`, `max`. */
-function widen(min: ArrayLike<number>, max: ArrayLike<number>) {
-  for (let a = 0; a < 3; a++) {
-    box[a] = Math.min(box[a], min[a])
-    box[3 + a] = Math.max(box[3 + a], max[a])
-  }
-}
-
 /** ρ of `root`: no row of it lies farther from its origin, centre and half extent summed;
- *  unbounded without a local box. */
+ *  unbounded without a local box. Its pages' own boxes are read as their one union, kept where
+ *  they are written (`movedPagesBox`): one look a mover, whatever its pages. */
 function rootReach(root: ClusterRoot<PageRec> | undefined) {
   const local = root?.localBox
   if (!root || !local || !(local[3] >= local[0])) return Infinity
   box.set(local)
-  for (const page of root.pages) if (page.moved) widen(page.moved.min, page.moved.max)
+  const moved = movedPagesBox(root.pages)
+  if (moved)
+    for (let a = 0; a < 3; a++) {
+      box[a] = Math.min(box[a], moved[a])
+      box[3 + a] = Math.max(box[3 + a], moved[3 + a])
+    }
   const reach = root.reach ?? 0
   let corner = 0,
     half = 0

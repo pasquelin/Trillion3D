@@ -123,3 +123,22 @@ test('a parent’s move holds its roots’ rows: their points at their reach abo
     within(root, product(from, locals[i]), product(to, locals[i]), motion.travel),
   )
 })
+
+test('a mover’s reach walks none of its pages: their boxes are read as one union', () => {
+  const rand = mulberry32(5)
+  const root = rootOf(rand, [2, 3, 4], 4, 0)
+  const { rt, mobility, motion } = runtime([root])
+  const from = world(rand, 1, 1, [0, 0, 0]),
+    to = world(rand, 2, 1, [9, 0, 0])
+  root.world.elements.set(from)
+  mobility.move(0, from, true)
+  commitRowMotion(rt, 0)
+  // Walking the pages a frame is what a mover of many pages cannot afford.
+  Object.defineProperty(root.pages, Symbol.iterator, {
+    value: () => assert.fail('a page walked'),
+  })
+  const before = motion.travel
+  mobility.move(0, to, true)
+  commitRowMotion(rt, 0)
+  assert.ok(motion.travel > before, 'its travel is committed')
+})
