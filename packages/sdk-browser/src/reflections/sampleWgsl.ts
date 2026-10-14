@@ -1,6 +1,6 @@
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
-import { GOLDEN_U32, PLASTIC_STEP, TWO_PI } from '../../../math/src/wgsl/constants.ts'
-import { mixWord } from '../../../math/src/wgsl/sampling.ts'
+import { GOLDEN_U32, TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { additive2d, mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
@@ -56,9 +56,9 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     REFLECTION_CONSTANTS_WGSL,
     REFLECTION_CONE_WGSL,
     GOLDEN_U32,
-    PLASTIC_STEP,
     TWO_PI,
     mixWord,
+    additive2d,
     tangentFallback,
     reflectionCentreRadiance,
   ],
@@ -66,7 +66,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
  let shift=vec2f(f32(seed&0xffffu),f32(seed>>16u))/65536.0;
- return fract(shift+f32(reflectionView.temporal.x%REFLECTION_SEQUENCE)*PLASTIC_STEP);
+ return additive2d(shift,reflectionView.temporal.x%REFLECTION_SEQUENCE);
 }
 fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->vec3f{
  var T=axis-N*dot(axis,N);

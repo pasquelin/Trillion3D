@@ -1,4 +1,5 @@
 import { wgslFn } from './decl.ts'
+import { PLASTIC_STEP } from './constants.ts'
 
 /**
  * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, a texel
@@ -22,6 +23,14 @@ export const mixWord = wgslFn(
  h^=h>>15u;h*=0x85ebca77u;h^=h>>13u;
  return h;
 }`,
+)
+
+/** Point `n` of the additive two-dimensional sequence (`PLASTIC_STEP`), its points spread evenly
+ *  over the unit square, turned by `shift` (a rotation of the square; zero for none). */
+export const additive2d = wgslFn(
+  'additive2d',
+  [PLASTIC_STEP],
+  'fn additive2d(shift:vec2f,n:u32)->vec2f{return fract(shift+f32(n)*PLASTIC_STEP);}',
 )
 
 export const hashUnit = wgslFn(

@@ -38,11 +38,11 @@ import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {
   FLOAT32_MAX,
   FLOAT32_MIN_NORMAL,
-  PLASTIC_STEP,
   QUARTER_PI,
   SQRT2,
 } from '../../../math/src/wgsl/constants.ts'
 import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
+import { additive2d } from '../../../math/src/wgsl/sampling.ts'
 import { perspectiveDivide, transformPoint } from '../../../math/src/wgsl/projection.ts'
 import {
   Frame3,
@@ -242,16 +242,13 @@ fn vsmLocalMipAt(pd:VsmProjectionData,receiverInMap:vec3f,receiverDepthEye:f32)-
 const vsmRayNoiseWgsl = (noise: WgslDecl) =>
   wgslBlock(
     'vsmRayNoiseWgsl',
-    [VSM_NOISE_TILE, PLASTIC_STEP, noise],
+    [VSM_NOISE_TILE, additive2d, noise],
     `
-/** Point n of the additive 2D sequence (\`PLASTIC_STEP\`): its points spread evenly over the
- *  unit square. */
-fn vsmAdditive2d(n:i32)->vec2f{return fract(f32(n)*PLASTIC_STEP);}
 /** Four blue-noise random values for a pixel, sample and frame (two reads of the blue-noise texture, offset by the additive sequence). */
 fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
  let dims=vec2f(VSM_NOISE_TILE.xy);
- let offset1=vec2i(vsmAdditive2d(i32(rayIndex))*dims);
- let offset2=vec2i(vsmAdditive2d(i32(rayIndex+rayTotal))*dims);
+ let offset1=vec2i(additive2d(vec2f(0.0),rayIndex)*dims);
+ let offset2=vec2i(additive2d(vec2f(0.0),rayIndex+rayTotal)*dims);
  return vec4f(vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset1),timeIndex),vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset2),timeIndex));
 }
 `,
