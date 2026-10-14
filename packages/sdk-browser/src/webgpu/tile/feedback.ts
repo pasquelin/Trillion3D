@@ -78,23 +78,31 @@ type MutableHits = { count: number; index: Uint32Array; weight: Uint32Array }
 export function createWebgpuTileFeedback(device: GPUDevice, entries: number): WebgpuTileFeedback {
   let latest: FeedbackHits | undefined
   let gen = feedbackBuffers(device, entries, 0)
-  // The tiles that came back, one per readback buffer and generation: nothing is allocated per image.
-  const held = new WeakMap<
+  /** Each readback buffer's record: the eviction queues it carries behind its list and where they
+   *  start, and the tiles that came back in it, kept per generation — nothing allocated per image. */
+  const staged = new WeakMap<
     GPUBuffer,
-    { generation: number; read: Uint32Array; hits: MutableHits }
+    {
+      cut: TileQueueCut | undefined
+      at: number
+      came?: { generation: number; read: Uint32Array; hits: MutableHits }
+    }
   >()
-  /** The eviction queues each readback buffer carries behind its list, and where they start. */
-  const carried = new WeakMap<GPUBuffer, { cut: TileQueueCut | undefined; at: number }>()
+  const stagedOf = (buffer: GPUBuffer) => {
+    let record = staged.get(buffer)
+    if (!record) staged.set(buffer, (record = { cut: undefined, at: 0 }))
+    return record
+  }
   const ring = createReadbackRing<number>(
     device,
     { label: 'Trillion3D texture feedback readback', bytes: gen.listBytes, count: 2, eager: true },
     (mapped, staging, generation) => {
       // A queue names places, never ranks: read whatever the generation.
-      const queues = carried.get(staging)
-      if (queues?.cut) queues.cut.read(new Uint32Array(mapped, queues.at, queues.cut.bytes / 4))
+      const record = stagedOf(staging)
+      if (record.cut) record.cut.read(new Uint32Array(mapped, record.at, record.cut.bytes / 4))
       if (generation !== gen.generation) return
       const { capacity, words } = gen
-      let slot = held.get(staging)
+      let slot = record.came
       if (slot?.generation !== generation) {
         const read = new Uint32Array(Math.max(4, words))
         slot = {
@@ -106,7 +114,7 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
             weight: read.subarray(1 + capacity, 1 + 2 * capacity),
           },
         }
-        held.set(staging, slot)
+        record.came = slot
       }
       const view = new Uint32Array(mapped, 0, words)
       const count = Math.min(view[0], capacity)
@@ -147,10 +155,9 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
       if (!target) return
       encoder.copyBufferToBuffer(gen.list, 0, target, 0, gen.listBytes)
       if (cut) encoder.copyBufferToBuffer(cut.buffer, 0, target, gen.listBytes, cut.bytes)
-      let queues = carried.get(target)
-      if (!queues) carried.set(target, (queues = { cut, at: 0 }))
-      queues.cut = cut
-      queues.at = gen.listBytes
+      const record = stagedOf(target)
+      record.cut = cut
+      record.at = gen.listBytes
       encoder.clearBuffer(gen.list, 0, 4)
       encoded = true
     },
