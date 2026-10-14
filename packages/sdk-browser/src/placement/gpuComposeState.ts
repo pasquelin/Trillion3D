@@ -7,6 +7,7 @@ import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { createMirroredKeys } from '../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import type { Readers } from './composeReaders.ts'
@@ -52,8 +53,10 @@ export function createComposeState(roots: number) {
     motionIdentity: false,
     /** Whether `previous` was current before the roots pass last ran. */
     ranCurrent: false,
-    /** A parent's world was set since the parents went up. */
-    parentsDirty: true,
+    /** The slots whose parent's world was set since the parents went up, and the roots whose link
+     *  moved since the links did: sent in runs (`frameParents`), every one with a table made. */
+    parentsMoved: createChangedRuns(),
+    linksMoved: createChangedRuns(),
     /** Moves with what the passes compose — a parent's world, the links, a motion's start, the
      *  parents' buffer —, as each frame sends it (`frameParents`): a pass runs until it ran at it. */
     composedAt: 0,
@@ -81,7 +84,6 @@ export function createComposeState(roots: number) {
     /** The motion buffer the roots pass bound this frame, which the motion pass writes
      *  (`composedMotionPass.ts`); undefined without one. */
     motionBound: undefined as GPUBuffer | undefined,
-    linksDirty: true,
     /** The frame whose parents the GPU holds. */
     frame: -1,
     /** A parent moved since the last drawn frame: the temporal pass reads the motion. */
@@ -120,7 +122,6 @@ export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, ro
   state.roots = roots
   state.gpu?.dispose()
   state.gpu = undefined
-  state.linksDirty = true
   for (let rank = 0; rank < held; rank++)
     if (state.parentOf[rank] !== NO_INDEX) seedMotion(rt, state, rank)
 }

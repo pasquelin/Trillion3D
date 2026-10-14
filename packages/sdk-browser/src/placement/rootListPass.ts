@@ -2,12 +2,13 @@
  * THE PASSES OVER LISTED ROOTS (`rootBoxes.ts`, `treeLeaves.ts`): one kernel in two dispatches — the
  * roots a list names, or every root, then the roots a parent composes (`rankList`) —, each with its
  * parameters (`passParams`) and its group, the list sent and a stand-in for it. With them, the one
- * way a placement pass sends a list of words (`sendWords`) and dispatches a thread an entry of it
- * (`dispatchGroup`).
+ * way a placement pass sends a list of words (`sendWords`), or the runs of it that moved
+ * (`writeBufferRuns`), and dispatches a thread an entry of it (`dispatchGroup`).
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
+import { writeRanges } from '../gpu/dag/runWrites.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -27,6 +28,30 @@ export function sendWords(
     buffer = sizedBuffer(device, held, count * 4, usage, label)
   device.queue.writeBuffer(buffer, 0, words, 0, count)
   return buffer
+}
+
+/** Where `writeBufferRuns` sends its runs, set for each call: no writer is made a send. */
+const runTarget = {
+  device: undefined as GPUDevice | undefined,
+  buffer: undefined as unknown as GPUBuffer,
+}
+const writeRun = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+  runTarget.device!.queue.writeBuffer(runTarget.buffer, offset, data, from, size)
+
+/** The `count` increasing indices of `sorted`, records of `stride` words of `words`, sent into
+ *  `buffer` at the same places in the engine's one run writer's runs (`writeRanges`). */
+export function writeBufferRuns(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  sorted: Int32Array,
+  count: number,
+  words: Uint32Array,
+  stride: number,
+) {
+  runTarget.device = device
+  runTarget.buffer = buffer
+  writeRanges(writeRun, sorted, count, { data: words, sourceBase: 0, targetBase: 0, stride })
+  runTarget.device = undefined
 }
 
 /** `held`'s group bound into `pass`, its pipeline set, a thread each of `listed` entries. */

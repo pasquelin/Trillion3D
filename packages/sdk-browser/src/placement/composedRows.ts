@@ -14,7 +14,7 @@ import {
   type MirroredKeys,
 } from '../webgpu/cut/denseKeys.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
-import { writeRanges } from '../gpu/dag/runWrites.ts'
+import { writeBufferRuns } from './rootListPass.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import type { ComposeState } from './gpuComposeState.ts'
@@ -42,15 +42,7 @@ export function sendList(
   }
   if (!moves.count) return buffer
   const moved = takeMirrored(list)
-  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-    device.queue.writeBuffer(buffer, offset, data, from, size)
-  if (moved.length)
-    writeRanges(into, moved, moved.length, {
-      data: mirroredWords(list),
-      sourceBase: 0,
-      targetBase: 0,
-      stride: 1,
-    })
+  if (moved.length) writeBufferRuns(device, buffer, moved, moved.length, mirroredWords(list), 1)
   return buffer
 }
 

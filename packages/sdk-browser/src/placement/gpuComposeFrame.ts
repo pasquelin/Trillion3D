@@ -11,7 +11,8 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
 import { sendList } from './composedRows.ts'
 import type { ComposeState } from './gpuComposeState.ts'
-import { createComposeGpu } from './gpuComposeGpu.ts'
+import { createComposeGpu, type ComposeGpu } from './gpuComposeGpu.ts'
+import { writeBufferRuns } from './rootListPass.ts'
 import { COMPOSE_MOTION_ENTRY, COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
 
 /** The worlds', the roots' and the motion's kernels, once a device, compiled off the thread: asked at a frame's
@@ -32,30 +33,59 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   composeKernels.motion(device).ask()
 }
 
-/** Parent matrices for this frame, each world in doubles, packed when one was set since they last
- *  went up; notes whether one moved since the last frame. */
-function writeParents(state: ComposeState) {
+/** Slot `p`'s world packed in doubles; whether it moved since the last frame. */
+function packParent(state: ComposeState, p: number) {
+  const at = p * MATRIX_VALUES,
+    { worlds, previous } = state
+  packDoubles(state.packed, p * PACKED_MATRIX_WORDS, worlds, at, MATRIX_VALUES)
+  for (let k = at; k < at + MATRIX_VALUES; k++)
+    if (previous[k] !== worlds[k]) {
+      state.moving = true
+      previous[k] = worlds[k]
+    }
+}
+
+/** The parents' worlds set since they last went up, packed and sent in runs — every one into a
+ *  buffer made anew (`whole`) —; notes whether one moved since the last frame. */
+function writeParents(device: GPUDevice, gpu: ComposeGpu, state: ComposeState, whole: boolean) {
   state.moving = false
-  if (!state.parentsDirty) return false
-  const count = state.slots
+  const count = state.slots,
+    moved = state.parentsMoved
+  if (!whole && !moved.count) return
   state.packed = resized(state.packed, count * PACKED_MATRIX_WORDS)
-  const { worlds, previous } = state
-  for (let p = 0; p < count; p++) {
-    const at = p * MATRIX_VALUES
-    packDoubles(state.packed, p * PACKED_MATRIX_WORDS, worlds, at, MATRIX_VALUES)
-    for (let k = at; k < at + MATRIX_VALUES; k++)
-      if (previous[k] !== worlds[k]) {
-        state.moving = true
-        previous[k] = worlds[k]
-      }
+  if (whole) {
+    moved.clear()
+    for (let p = 0; p < count; p++) packParent(state, p)
+    device.queue.writeBuffer(gpu.parents!, 0, state.packed, 0, count * PACKED_MATRIX_WORDS)
+    return
   }
-  state.parentsDirty = false
+  const slots = moved.take()
+  for (let k = 0; k < slots.length; k++) packParent(state, slots[k])
+  writeBufferRuns(device, gpu.parents!, slots, slots.length, state.packed, PACKED_MATRIX_WORDS)
+}
+
+/** The links moved since they last went up, sent in runs: the local matrix and the parent of each
+ *  root whose link moved — every root's into tables made anew (`fresh`). Whether any went up. */
+function writeLinks(device: GPUDevice, gpu: ComposeGpu, state: ComposeState, fresh: boolean) {
+  const moved = state.linksMoved
+  if (fresh) {
+    moved.clear()
+    // The tables are the capacity (`resized`): the roots' words alone go up.
+    const roots = Math.max(1, state.roots)
+    device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * PACKED_MATRIX_WORDS)
+    device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
+    return true
+  }
+  if (!moved.count) return false
+  const ranks = moved.take()
+  writeBufferRuns(device, gpu.locals, ranks, ranks.length, state.locals, PACKED_MATRIX_WORDS)
+  writeBufferRuns(device, gpu.parentOf, ranks, ranks.length, state.parentOf, 1)
   return true
 }
 
 /** The links, this frame's parents and the list of composed roots on the GPU, each sent once per
- *  frame and only when it moved; undefined without links. What the passes compose moved, its
- *  version moves (`composedAt`). */
+ *  frame and only what moved; undefined without links. What the passes compose moved, its version
+ *  moves (`composedAt`). */
 export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const state = rt.compose
   if (!state || !state.parentIds.size) return undefined
@@ -65,14 +95,7 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   state.frame = rt.run.frame
   // The roots pass names the motion buffer it binds, on the frames it runs.
   state.motionBound = undefined
-  const linked = state.linksDirty || fresh
-  if (linked) {
-    // The tables are the capacity (`resized`): the roots' words alone go up.
-    const roots = Math.max(1, state.roots)
-    device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * PACKED_MATRIX_WORDS)
-    device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
-    state.linksDirty = false
-  }
+  const linked = writeLinks(device, gpu, state, fresh)
   const seeded = state.seeds.size > 0
   for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
   state.seeds.clear()
@@ -84,21 +107,18 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     'Trillion3D composed roots',
     state.rankList,
   )
-  const count = state.slots
   // Room for the parents to come before it is made again (`sizedBuffer`): what it held is sent
   // again whole.
   const held = gpu.parents
   gpu.parents = sizedBuffer(
     device,
     held,
-    count * PACKED_MATRIX_WORDS * 4,
+    state.slots * PACKED_MATRIX_WORDS * 4,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     'Trillion3D composed parent worlds',
   )
   const made = gpu.parents !== held
-  if (made) state.parentsDirty = true
-  if (writeParents(state))
-    device.queue.writeBuffer(gpu.parents, 0, state.packed, 0, count * PACKED_MATRIX_WORDS)
+  writeParents(device, gpu, state, made)
   if (state.moving || linked || seeded || made) state.composedAt++
   return gpu
 }

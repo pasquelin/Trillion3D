@@ -2,6 +2,7 @@
 // which compares the CPU worlds it is sent, must still cut again under the composed ones. The roots
 // pass announces the move to the selection on exactly the frames a parent moved.
 import { NO_INDEX } from '../../../math/src/constants.ts'
+import { PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
@@ -168,4 +169,31 @@ test('a whole link set sent again keeps the motion pose of the roots it already 
   composeWebgpuPlacements(rt, parent, turn(0.1), links, true)
   frame()
   assert.deepEqual(seeded(), [0], 'root 0 linked anew starts from its CPU pose again')
+})
+
+test('a link or a parent that moves sends its own words alone, never the whole tables', () => {
+  const { rt, rows, frame, writes } = session()
+  const a = {},
+    b = {},
+    link = (local: number[]) => [{ rows, index: 1, local }]
+  composeWebgpuPlacements(rt, a, turn(0), [{ rows, index: 0, local: turn(0.4) }], true)
+  composeWebgpuPlacements(rt, b, turn(1), link(turn(0.4)), true)
+  frame()
+  const sent = (label: string) =>
+    writes
+      .filter((write) => (write.buffer as { label?: string }).label === label)
+      .map((write) => [write.offset, (write.data as { byteLength: number }).byteLength])
+  const matrix = PACKED_MATRIX_WORDS * 4
+  writes.length = 0
+  composeWebgpuPlacements(rt, b, turn(1), link(turn(0.5)), false)
+  composeWebgpuPlacements(rt, a, turn(0.1), [], false)
+  frame()
+  assert.deepEqual(sent('Trillion3D composed locals'), [[matrix, matrix]], "root 1's link")
+  assert.deepEqual(sent('Trillion3D composed parents of'), [[4, 4]])
+  assert.deepEqual(sent('Trillion3D composed parent worlds'), [[0, matrix]], 'parent a alone')
+  writes.length = 0
+  composeWebgpuPlacements(rt, a, turn(0.1), [], true)
+  composeWebgpuPlacements(rt, a, turn(0.1), [{ rows, index: 0, local: turn(0.4) }], true)
+  frame()
+  assert.deepEqual(sent('Trillion3D composed parents of'), [[0, 4]], 'root 0 left and came back')
 })

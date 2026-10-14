@@ -20,8 +20,7 @@ function remakeBins(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
   const was = state.winding[slot]
   state.winding[slot] = cw
   if (was === undefined || was === cw) return
-  for (const rank of state.ranksOf[slot])
-    if (state.parentOf[rank] === slot) moveRootRows(rt, rt.layout.selectionRoots[rank], rank)
+  for (const rank of slotRanks(state, slot)) moveRootRows(rt, rt.layout.selectionRoots[rank], rank)
 }
 
 /** The groups of the placement tree `slot`'s roots stand in fit again before the next cut: their
@@ -76,7 +75,7 @@ export function settleSlot(
       state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
       world,
     )
-  if (moved || p === undefined) state.parentsDirty = true
+  if (moved || p === undefined) state.parentsMoved.mark(slot)
   state.worlds.set(world, slot * MATRIX_VALUES)
   state.version++
   remakeBins(rt, state, slot)
