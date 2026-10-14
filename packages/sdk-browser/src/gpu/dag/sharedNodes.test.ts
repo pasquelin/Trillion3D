@@ -64,8 +64,7 @@ test('the node table holds each primitive once, from one placement to ten thousa
  *  slots: the bit sets the oracle reads. */
 function residency(packed: PackedDag, resident: ArrayLike<number>, slots?: number) {
   const device = { queue: { writeBuffer() {} } } as unknown as GPUDevice
-  const parts = { buffers: [{} as GPUBuffer], bytes: Number.MAX_SAFE_INTEGER }
-  createDagResidencyUpload({ device, packed, coldParts: parts, heldSlots: slots })(
+  createDagResidencyUpload({ device, packed, cold: () => {}, heldSlots: slots })(
     pageResidency(resident),
   )
   const bits = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset)

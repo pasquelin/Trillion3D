@@ -14,11 +14,12 @@
  *   ranks    array<u32>     the placements listed
  *   frames   r32uint        the cut's frame words (`../gpu/dag/frameTable.ts`): the root (`+ 1`),
  *                           the mark (`+ 3`)
+ *   nodes    rgba32uint     the cut's nodes (`../gpu/dag/nodeTable.ts`): the root's box
  */
 import { CARRIED_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
-import { nodeTableBlock, WHOLE_NODES, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
+import { nodeTableWgsl } from '../gpu/dag/nodeTable.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { frameTableWgsl } from '../gpu/dag/frameTable.ts'
@@ -26,14 +27,14 @@ import { fromF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 
-/** The binding of the cut's frame words, read (`frameTableWgsl`). */
-export const TREE_LEAVES_FRAMES_BINDING = 4
+/** The bindings of the cut's frame words and of its nodes, read (`frameTableWgsl`,
+ *  `nodeTableWgsl`). */
+export const TREE_LEAVES_FRAMES_BINDING = 4,
+  TREE_LEAVES_NODES_BINDING = 5
 
-/** The pass's text for a layout of the tree's nodes (`nodeTableBlock`): one thread a placement,
- *  each writing its leaf (`writeLeaf`). */
-export const treeLeavesWgsl = (nodes: NodeTableLayout = WHOLE_NODES) =>
-  wgslProgram(
-    `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
+/** The pass's text: one thread a placement, each writing its leaf (`writeLeaf`). */
+export const TREE_LEAVES_WGSL = wgslProgram(
+  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> members:array<vec2u>;
@@ -50,8 +51,8 @@ fn writeLeaf(w:u32){
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
  for(var a=0u;a<3u;a++){
-  lo[a]=dSub(fromF32(nodeWord(root,${NODE_MIN}u+a)),reach);
-  hi[a]=dAdd(fromF32(nodeWord(root,${NODE_MAX}u+a)),reach);
+  lo[a]=dSub(fromF32(nodesWord(root,${NODE_MIN}u+a)),reach);
+  hi[a]=dAdd(fromF32(nodesWord(root,${NODE_MAX}u+a)),reach);
  }
  let box=carriedBox(world,lo,hi);
  for(var k=0u;k<6u;k++){members[w*6u+k]=box[k];}
@@ -63,14 +64,14 @@ fn writeLeaf(w:u32){
  if(w>=params.rootCount){return;}
  writeLeaf(w);
 }`,
-    [
-      FLAT_INDEX_WGSL,
-      WORKGROUP_THREADS_WGSL,
-      fromF32,
-      dAdd,
-      dSub,
-      CARRIED_BOX_WGSL,
-      nodeTableBlock(nodes, 1),
-      frameTableWgsl('frames', { group: 0, binding: TREE_LEAVES_FRAMES_BINDING, access: 'read' }),
-    ],
-  )
+  [
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    fromF32,
+    dAdd,
+    dSub,
+    CARRIED_BOX_WGSL,
+    nodeTableWgsl('nodes', { group: 0, binding: TREE_LEAVES_NODES_BINDING }),
+    frameTableWgsl('frames', { group: 0, binding: TREE_LEAVES_FRAMES_BINDING, access: 'read' }),
+  ],
+)

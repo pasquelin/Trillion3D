@@ -1,5 +1,5 @@
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
+import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
@@ -17,11 +17,23 @@ export const dagQueueWords = (packed: {
  *  running cut writes, `candCap` entries each (`shader/levelWgsl.ts`, `shader/liveWgsl.ts`). */
 const LIST_SECTIONS = 4
 
-/** Sections of a camera cut's `flags`: queue 0, the lists, then the other queues. */
-export const FLAG_SECTIONS = 1 + LIST_SECTIONS + (LEVEL_QUEUES - 1)
-
 /** What a cut's `flags` is laid out for: the words of each queue, the entries of each list. */
 export type FlagShape = { queueWords: number; candCap: number }
+
+/** The lists behind queue 0, where each starts, in words of an entry (`shader/levelWgsl.ts`): the
+ *  candidates, two; the live list, three; the drawn log and the log being written, one each. */
+const LIST_STARTS = [0, 2, 5, 6]
+
+/** First word of section `s` of a `flags` of `shape`: the kernel's `queueBase` and list bases. */
+export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) {
+  if (s === 0) return 0
+  if (s <= LIST_SECTIONS) return queueWords + LIST_STARTS[s - 1] * candCap
+  return (s - LIST_SECTIONS) * queueWords + CAND_LIVE_WORDS * candCap
+}
+
+/** The section a cut keeps from one cut to the next: the drawn log of the last cut that ran whole.
+ *  The others each cut writes before it reads them. */
+export const JOURNAL_SECTION = 3
 
 /** The words of a `flags` of `shape` (`dagFlagsWords`). */
 export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWords, shape.candCap)

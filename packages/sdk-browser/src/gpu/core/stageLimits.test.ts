@@ -1,7 +1,8 @@
 // Every program of the opaque resolve, the blends, the water pass, the reflections and the depth
-// pyramid binds no more of a kind in one stage than WebGPU guarantees a device that asks for
-// nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on any
-// machine at the default limits. The kit's device, holding the defaults, refuses a pipeline layout
+// pyramid, and of the cut — its culling, the composition of the poses, the root boxes, the tree's
+// leaves and refit —, binds no more of a kind in one stage than WebGPU guarantees a device that
+// asks for nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on
+// any machine at the default limits, whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
 // past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -22,6 +23,14 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/gpu/bindRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
+import { dagBindEntries } from '../dag/shader/bindings.ts'
+import { dagDeviceRefusal } from '../dag/deviceRefusal.ts'
+import type { PackedDag } from '../dag/types.ts'
+import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
+import { TREE_LEAVES_WGSL } from '../../placement/treeLeavesWgsl.ts'
+import { ROOT_BOXES_WGSL } from '../../placement/rootBoxesWgsl.ts'
+import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import { wgslComputeLayout } from './wgslBindings.fixture.ts'
 
 /** What WebGPU guarantees each stage of a device that asks for no more, by limit. */
 const WEBGPU_DEFAULTS: Readonly<Record<string, number>> = {
@@ -142,4 +151,33 @@ test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", a
   assert.ok(await createReflectionPipelines(device), 'the reflection kernels build')
   assert.ok(await createHizPipelines(device), 'the depth pyramid kernels build')
   withinDefaults(layouts, 'the reflections and the depth pyramid')
+})
+
+test("the cut's programs fit WebGPU's default limits, whatever the world", () => {
+  // The culling's one layout, whatever the device splits nothing: its tables are record tables.
+  withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'the culling')
+  for (const [name, text] of [
+    ['the refit', TREE_REFIT_WGSL],
+    ['the tree leaves', TREE_LEAVES_WGSL],
+    ['the root boxes', ROOT_BOXES_WGSL],
+    ['the compose roots', COMPOSE_ROOTS_WGSL],
+    ['the compose worlds', COMPOSE_WORLDS_WGSL],
+  ] as const)
+    withinDefaults([wgslComputeLayout(text)], name)
+})
+
+test('a device whose binding holds a third of the frame words binds the cut at the defaults', () => {
+  // The frame-ranges proof's split case (`tests/gpu/dag/frame-ranges.gpu.ts`): its binding holds
+  // two thirds of 600 placements' frame words, once past what its stage bound in parts.
+  const packed = {
+    pageCount: 1000,
+    nodeCount: 10,
+    worldCount: 600,
+    ...Object.fromEntries(
+      ['clusters', 'nodes', 'worlds', 'pageCones'].map((name) => [name, new Float32Array(16)]),
+    ),
+  } as unknown as PackedDag
+  const limits = { maxStorageBufferBindingSize: 400 * 32, ...WEBGPU_DEFAULTS }
+  assert.equal(dagDeviceRefusal(limits, packed), undefined, 'the device holds the cut')
+  withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
 })

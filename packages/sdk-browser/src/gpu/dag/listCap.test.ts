@@ -100,13 +100,10 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
 })
 
 test('a cut the device cannot list even at its coarsest is handed over by its head', async () => {
-  // A binding this small splits every table in parts: the device binds them all, as the cut's
-  // refusal asks of a real one (`deviceRefusal.ts`).
+  // A binding this small holds the readout of four ranks: every other table is a record table
+  // (`cutTables.ts`), the device's eight storage bindings hold the cut (`deviceRefusal.ts`).
   const { resources, selection, frame } = await cut(4, {
-    limits: {
-      maxStorageBufferBindingSize: stagedOutputBytes(4),
-      maxStorageBuffersPerShaderStage: 64,
-    },
+    limits: { maxStorageBufferBindingSize: stagedOutputBytes(4) },
   })
   // Ten clusters whatever the threshold: the cut coarsens to its coarsest, then hands its head.
   const drawn = Array.from({ length: 10 }, (_, page) => page)

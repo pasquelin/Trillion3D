@@ -18,11 +18,9 @@ test('every moved link reaches the mirror, past the list’s first room', () => 
     linksMoved: (placements: Int32Array, count: number) =>
       void told.push(Array.from(placements.subarray(0, count))),
   }
-  const device = { queue: { writeBuffer: () => {} } } as unknown as GPUDevice
-  const coldParts = { buffers: [{} as GPUBuffer], bytes: 4 * 300 }
   const packed = { world } as unknown as PackedDag
   const links = createLinkFollower(
-    { device, packed, coldParts },
+    { packed, cold: () => {} },
     { updateResidency: (rows) => links.residency(pageResidency(rows)), linkMoved: () => {} },
   )!
   const view = {},

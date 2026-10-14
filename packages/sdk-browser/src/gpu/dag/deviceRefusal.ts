@@ -1,5 +1,4 @@
 import { cameraCutBuffers, pastBinding, readoutRow } from './bufferTable.ts'
-import { dagPartCounts } from './split.ts'
 import { dagBindEntries } from './shader/bindings.ts'
 import type { PackedDag } from './types.ts'
 import { type Limits } from './deviceListCap.ts'
@@ -14,20 +13,18 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
  * buffer past one binding would fail on the device — a bind group refused — and the GPU cut would
  * be gone without a word. Refused here, before any buffer, the host names it and refuses the scene.
- * The frame words and the worlds are record textures (`frameTable.ts`, `worldTable.ts`), no
- * storage binding. `clusters`,
- * `nodes`, `pageCones` and `flags` split in parts, bound at once (`split.ts`): refused only when one
- * part is still past a binding — one element, or queue 0's root slots, each flag section starting
- * within one (`dagFlagShape`) —, or when the device cannot bind every part in one stage. No
- * dispatch is: each runs in rows (`../dispatch/grid.ts`). The readout starts within one binding and
- * grows no further (`listCap.ts`): refused only if not one rank fits.
+ * Its tables — the clusters, the nodes, the cold words, the flags, the frame words, the worlds and
+ * the placement tree — are record tables (`cutTables.ts`), no storage binding: whatever the world,
+ * the stage binds the readout and `work` alone. No dispatch is refused: each runs in rows
+ * (`../dispatch/grid.ts`). The readout starts within one binding and grows no further
+ * (`listCap.ts`): refused only if not one rank fits; `work`, a quarter of a byte a page, past it.
  */
 export function dagDeviceRefusal(limits: DagDeviceLimits, packed: PackedDag) {
   const table = cameraCutBuffers(packed, limits)
   const past = pastBinding(limits, { ...table.rows, out: readoutRow(1) })
   if (past) return past
-  // The layout's own storage bindings, split parts included: never a count of its own.
-  const bindings = dagBindEntries(dagPartCounts(table.split)).filter(
+  // The layout's own storage bindings: never a count of its own.
+  const bindings = dagBindEntries().filter(
       (entry) => entry.buffer && entry.buffer.type !== 'uniform',
     ).length,
     limit = limits?.maxStorageBuffersPerShaderStage ?? GUARANTEED_STORAGE_BINDINGS

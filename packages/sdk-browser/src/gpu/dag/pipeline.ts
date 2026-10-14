@@ -1,6 +1,5 @@
-import { dagSelectionShader } from './shader/splitWgsl.ts'
+import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import type { CutSteps } from './cutSteps.ts'
-import { dagPartCounts, type DagSplit } from './split.ts'
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts'
 import { validatedOrWhy } from '../core/errorScope.ts'
 import { checkShaderModule } from '../core/shaderModule.ts'
@@ -8,25 +7,19 @@ import type { CameraFrames } from './cameraFrames.ts'
 import { createDagStages } from './stages.ts'
 
 /** The selection stages, and the cut's bind group over `frames`, under one validation scope, or
- *  why the device refused them. `split`, the tables in parts on this
- *  device (`split.ts`): the layout binds every part, and the text reads across them. A text that
- *  does not compile throws its compiler's messages. */
+ *  why the device refused them. One layout and one text whatever the world: every table is a
+ *  record table (`cutTables.ts`). A text that does not compile throws its compiler's messages. */
 export function createDagPipeline(
   device: GPUDevice,
   buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
   frames: CameraFrames,
-  split?: DagSplit,
   steps?: CutSteps,
 ) {
   return validatedOrWhy(device, async () => {
-    const layout = device.createBindGroupLayout({
-      entries: dagBindEntries(split && dagPartCounts(split)),
-    })
+    const layout = device.createBindGroupLayout({ entries: dagBindEntries() })
     steps?.begin('shader module')
     const module = await checkShaderModule(
-      device.createShaderModule({
-        code: dagSelectionShader(split),
-      }),
+      device.createShaderModule({ code: DAG_SELECTION_SHADER }),
       'camera cut selection',
     )
     steps?.begin('pipelines')

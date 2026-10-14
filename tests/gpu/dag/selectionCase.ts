@@ -20,10 +20,8 @@ import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/re
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { readoutRow } from '../../../packages/sdk-browser/src/gpu/dag/bufferTable.ts'
-import {
-  dagFlagShape,
-  flagShapeWords,
-} from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import { dagFlagShape } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
+import { createCutTables } from '../../../packages/sdk-browser/src/gpu/dag/cutTables.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
@@ -102,7 +100,7 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),
-    flagsWords: flagShapeWords(dagFlagShape(packed)),
+    flagShape: dagFlagShape(packed),
     /** `out` with the staged requests behind the readout, for a list of `listCap` ranks, then the
      *  open counts the placements hold. */
     outBytes: readoutRow(listCap, 0, heldSlots).size,
@@ -145,14 +143,17 @@ export function bindCase(
   stage?.(out, at)
   const uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   const buffers = {
-    clusters: buffer(64, at.clusters),
-    nodes: buffer(64, at.nodes),
     views: buffer(256, at.views, uniform),
-    flags: buffer(at.flagsWords * 4),
     out: buffer(at.outBytes, out),
     work: buffer(at.work.words * 4),
-    cold: buffer(48, at.cold),
   }
+  // The clusters, the nodes, the cold words and the flags, as the engine makes them
+  // (`cutTables.ts`).
+  const tables = createCutTables(
+    device,
+    { clusters: at.clusters, nodes: at.nodes, pageCones: new Float32Array(at.cold.buffer) },
+    at.flagShape,
+  )
   // The worlds' table, as the engine's host writes it (`worldTable.ts`).
   const worlds = worldTableOn(device, selection.packed.worlds, selection.packed.worldSources)
   // The placement tree's table, as the engine makes it (`treeTable.ts`).
@@ -161,8 +162,16 @@ export function bindCase(
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     frames = createRecordTexture(device, FRAME_TABLE, at.worldCount, read)
   frames.write('Row', 0, at.worldCount, at.frames.buffer, at.frames.byteOffset)
-  made.push(worlds, tree, frames)
-  const views = { worlds: worlds.view, frames: frames.view, tree: tree.view }
+  made.push(worlds, tree, frames, ...Object.values(tables))
+  const views = {
+    worlds: worlds.view,
+    frames: frames.view,
+    tree: tree.view,
+    clusters: tables.clusters.view,
+    nodes: tables.nodes.view,
+    cold: tables.cold.view,
+    flags: tables.flags.view,
+  }
   const group = device.createBindGroup({
     layout,
     entries: namedEntries(DAG_BINDING, { ...buffers, ...views }),

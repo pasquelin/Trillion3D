@@ -9,7 +9,7 @@ import {
   recordWordAt,
   texelWords,
 } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.fixture.ts'
-import type { RecordLayout } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
+import type { RecordLayout } from '../../../packages/sdk-browser/src/gpu/core/recordLayout.ts'
 import { words } from './fakeBuffers.ts'
 import type { FakeTexture } from './fakeRecords.ts'
 
@@ -34,6 +34,12 @@ export function viewWords(view: unknown) {
   )
   return texture.words
 }
+
+/** A bound resource's bytes: a buffer's, or the words of the texture a view names. */
+export const boundData = (resource: unknown) =>
+  (resource as { buffer?: { data: Uint8Array } }).buffer ?? {
+    data: new Uint8Array(viewWords(resource).buffer),
+  }
 
 /** The texels of the texture a bound view names, as a shader run loads and stores them
  *  (`texelWords`). */

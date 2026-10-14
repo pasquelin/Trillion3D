@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { fieldStart, type RecordLayout } from './recordTexture.ts'
+import { fieldStart, type RecordLayout } from './recordLayout.ts'
 
 /** How a program binds a record table (`recordTexture.ts`): sampled and read, written alone by a
  *  storage texture, or read and written by one (the WGSL feature

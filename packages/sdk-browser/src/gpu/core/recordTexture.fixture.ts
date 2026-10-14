@@ -2,7 +2,8 @@
 // words, laid as WebGPU lays a texture's — layer after layer, row after row, texel after texel —,
 // what the kit's device keeps of a written table (`tests/kit/gpu`) and what a shader run in JavaScript
 // loads (`textureLoad`, `../../texture/shaderRun.fixture.ts`).
-import { fieldStart, type RecordLayout } from './recordTexture.ts'
+import { fieldStart, type RecordLayout } from './recordLayout.ts'
+import { textureExtent } from './textureExtent.ts'
 
 /** Words a texel of `layout` holds. */
 const channels = (layout: RecordLayout) => (layout.format === 'rgba32uint' ? 4 : 1)
@@ -30,6 +31,32 @@ export function recordWordAt(
     layer = row >> layout.layerShift,
     x = fieldStart(layout, field) + (r & ((1 << layout.rowShift) - 1)) * layout.fields[field] + k
   return ((layer * height + y) * width + x) * channels(layout)
+}
+
+/** The texels a `queue.writeTexture` of a table of one field of `layout` sent: the first one's
+ *  index along the field's line — a record's texels after the record before —, and their words. */
+export function writtenTexels(
+  layout: RecordLayout,
+  write: {
+    destination: GPUTexelCopyTextureInfo
+    data: ArrayBufferView
+    layout: GPUTexelCopyBufferLayout
+    size: GPUExtent3D
+  },
+) {
+  const [x = 0, y = 0, layer = 0] = write.destination.origin as number[],
+    [width, rows] = textureExtent(write.size),
+    texel = channels(layout)
+  const bytes = new Uint8Array(write.data.buffer, write.data.byteOffset, write.data.byteLength),
+    words = new Uint32Array(width * rows * texel)
+  for (let row = 0; row < rows; row++) {
+    const from = (write.layout.offset ?? 0) + row * (write.layout.bytesPerRow ?? 0)
+    words.set(
+      new Uint32Array(bytes.slice(from, from + width * texel * 4).buffer),
+      row * width * texel,
+    )
+  }
+  return { first: ((layer << layout.layerShift) + y) * fieldStart(layout) + x, words }
 }
 
 /** A texture's words as `textureLoad` answers them — four words, an `r32uint`'s word in the first —

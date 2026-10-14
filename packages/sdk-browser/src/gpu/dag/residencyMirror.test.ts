@@ -11,7 +11,9 @@ import { createDagRuntime } from './runtime.ts'
 import { ruleDag, coverFault } from '../../page/cut/cutRule.fixture.ts'
 import { coverAt, worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { writtenTexels } from '../core/recordTexture.fixture.ts'
+import { COLD_TABLE } from './cutTables.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { oracleBackend, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import { pageResidency, residencySlice } from './readiness.fixture.ts'
@@ -155,14 +157,16 @@ test('a placement that gives its object back turns it out before the next cut, n
   // descent's gate reads them.
   const cut = () =>
     selection.dispatch(cameraSelectionUniforms(stripCamera(scene().world), 0.1, [64, 64]))
-  // The writes to the cold records, where the links lie: the cut's own writes aside.
-  const cold = () => host.writes.filter((x) => x.buffer === resources.coldParts.buffers[0])
+  // The writes to the cold words, where the links lie, each as its first word and its words.
+  const cold = () =>
+    host.textureWrites
+      .filter((x) => x.destination.texture === resources.cutTables.cold.texture)
+      .map((x) => writtenTexels(COLD_TABLE, x as never))
   const writes = cold().length
   const linkOf = (w: number) => {
-    const at = ((packed.world!.linkBase + w) * 4) % resources.coldParts.bytes,
-      write = cold().findLast((x) => x.offset <= at && at < x.offset + written(x).byteLength)!
-    const bytes = written(write)
-    return new DataView(bytes.buffer, bytes.byteOffset + at - write.offset, 4).getUint32(0, true)
+    const at = packed.world!.linkBase + w,
+      write = cold().findLast((x) => x.first <= at && at < x.first + x.words.length)!
+    return write.words[at - write.first]
   }
   cut()
   assert.equal(cold().length - writes, 1, 'four links, one write')
@@ -176,25 +180,17 @@ test('a placement that gives its object back turns it out before the next cut, n
   assert.equal(linkOf(5), 0xffffffff)
   assert.equal(linkOf(7), 0xffffffff)
   // Two links a word apart go up in one write of the three words, not one each.
-  const at = ((packed.world!.linkBase + 5) * 4) % resources.coldParts.bytes
-  const linked = cold()
-    .slice(moved)
-    .filter((write) => write.offset === at)
-  assert.deepEqual(
-    linked.map((write) => written(write).byteLength),
-    [12],
-  )
-  // Two links within the run writer's gap go up in one write too (`split.ts`).
+  /** The words of each write since `from` that starts at placement `w`'s link. */
+  const sent = (from: number, w: number) =>
+    cold()
+      .slice(from)
+      .filter((write) => write.first === packed.world!.linkBase + w)
+      .map((write) => write.words.length)
+  assert.deepEqual(sent(moved, 5), [3])
+  // Two links within the run writer's gap go up in one write too (`runWrites.ts`).
   const before = cold().length
   selection.placeObject(0, 0)
   selection.placeObject(11, 11)
   cut()
-  const first = ((packed.world!.linkBase + 0) * 4) % resources.coldParts.bytes
-  const joined = cold()
-    .slice(before)
-    .filter((write) => write.offset === first)
-  assert.deepEqual(
-    joined.map((write) => written(write).byteLength),
-    [48],
-  )
+  assert.deepEqual(sent(before, 0), [12])
 })

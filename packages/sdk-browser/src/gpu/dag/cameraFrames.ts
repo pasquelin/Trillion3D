@@ -4,7 +4,7 @@ import { FRAME_ROW_WORDS } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { worldStretch } from '../../page/selection/rootWorld.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
-import { writeRanges } from './split.ts'
+import { writeRanges } from './runWrites.ts'
 import { createChangedRuns, type ChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { createRecordTexture, type RecordTexture } from '../core/recordTexture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
@@ -32,7 +32,6 @@ export function createCameraFrames(
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     written = read | GPUTextureUsage.STORAGE_BINDING
   const f: Frames = {
-    device,
     frameData,
     worldCount,
     rows: createRecordTexture(device, FRAME_TABLE, worldCount, written, make),
@@ -48,7 +47,7 @@ export function createCameraFrames(
     pending: createChangedRuns(),
     writes: 0,
   }
-  const origins = createWorldOrigins(device, worldCount, f.worlds.target('Origin'), sources)
+  const origins = createWorldOrigins(worldCount, f.worlds.target('Origin'), sources)
   const table = {
     /** The placements' frame words (`frameTable.ts`): the cut's kernels, the tree's leaves and
      *  refit read them, the root boxes pass writes their stretch. */
@@ -108,7 +107,6 @@ export function createCameraFrames(
 }
 
 type Frames = {
-  device: GPUDevice
   frameData: Float32Array<ArrayBuffer>
   frameInts: Uint32Array<ArrayBuffer>
   worldCount: number
@@ -126,7 +124,7 @@ type Frames = {
 function writeNamed(f: Frames, named: Int32Array, count: number) {
   if (count) f.writes++
   const source = { data: f.frameData, sourceBase: 0, targetBase: 0, stride: FRAME_ROW_WORDS }
-  writeRanges(f.device, f.rows.target('Row'), named, count, source)
+  writeRanges(f.rows.target('Row'), named, count, source)
 }
 
 function writeRows(f: Frames, from: number, to: number) {
@@ -156,7 +154,7 @@ function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
 function writeNamedWorlds(f: Frames, next: Float32Array, named: Int32Array, count: number) {
   if (count) f.writes++
   const source = { data: next, sourceBase: 0, targetBase: 0, stride: 16 }
-  writeRanges(f.device, f.worlds.target('Matrix'), named, count, source)
+  writeRanges(f.worlds.target('Matrix'), named, count, source)
 }
 
 /** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */

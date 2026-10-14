@@ -8,7 +8,7 @@ import { heldOpenAt } from './listCap.ts'
 import { SELECTION_HEADER_WORDS } from './layout.ts'
 import { HELD_BY_WORD } from './worlds.ts'
 import { createDagReadiness } from './readiness.ts'
-import { writeParts, writeRanges, type DagParts, type RangeTarget } from './split.ts'
+import { writeRanges, type RangeTarget } from './runWrites.ts'
 import type { PageResidency } from '../core/selection.ts'
 
 /**
@@ -84,9 +84,9 @@ type HeldTarget = {
  * never to the catalogue.
  */
 export function createDagResidencyUpload(
-  resources: { device: GPUDevice; packed: PackedDag; coldParts: DagParts } & Partial<HeldTarget>,
+  resources: { device: GPUDevice; packed: PackedDag; cold: RangeTarget } & Partial<HeldTarget>,
 ) {
-  const { device, packed, coldParts } = resources,
+  const { device, packed, cold } = resources,
     pageCount = packed.pageCount
   const readiness = createDagReadiness(packed, resources.heldSlots)
   const sendHeld = heldSender(device, resources, packed.heldOpen!)
@@ -105,14 +105,8 @@ export function createDagResidencyUpload(
   ]
   /** One write per range of the `count` sorted ranks of `touched`, `stride` words each from
    *  `base` (`writeRanges`): a thousand small writes are not worth the single one they replace. */
-  const upload = (
-    target: DagParts,
-    data: Float32Array,
-    base: number,
-    stride: number,
-    count: number,
-  ) =>
-    writeRanges(device, target, touched, count, {
+  const upload = (data: Float32Array, base: number, stride: number, count: number) =>
+    writeRanges(cold, touched, count, {
       data,
       sourceBase: base,
       targetBase: base,
@@ -122,16 +116,14 @@ export function createDagResidencyUpload(
   // nothing resident; the node counts are the packing's own, uploaded with the nodes
   // (`packCullingNodes`). From then on only what moves is.
   writeBlankBits(packed, readiness, bits)
-  const whole = (target: DagParts, source: Float32Array, from: number, words: number) =>
-    writeParts(
-      device,
-      target,
-      from * 4,
-      source.buffer as ArrayBuffer,
-      source.byteOffset + from * 4,
-      words * 4,
-    )
-  whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount))
+  const { pageCones } = packed,
+    from = residentBase(pageCount)
+  cold(
+    from * 4,
+    pageCones.buffer as ArrayBuffer,
+    pageCones.byteOffset + from * 4,
+    2 * residentWords(pageCount) * 4,
+  )
   const apply = (
     next: PageResidency,
     changes?: ResidencyChanges,
@@ -148,7 +140,6 @@ export function createDagResidencyUpload(
     changed.count = settled.pages.length
     for (const { values, base } of sets)
       upload(
-        coldParts,
         packed.pageCones,
         base,
         1,
@@ -196,7 +187,7 @@ function heldSender(device: GPUDevice, target: Partial<HeldTarget>, held: HeldOp
     const send: RangeTarget = (offset, data, dataOffset, size) =>
       device.queue.writeBuffer(output, at + offset, data, dataOffset, size)
     const source = { data: held.words, sourceBase: 0, targetBase: 0, stride: OPEN_SLOT_WORDS }
-    writeRanges(device, send, slots, slots.length, source)
+    writeRanges(send, slots, slots.length, source)
     for (const w of placements) frames.writeWord(w, HELD_BY_WORD, held.heldBy(w))
     if (placements.length) frames.flushWords()
     return slots.length > 0 || placements.length > 0

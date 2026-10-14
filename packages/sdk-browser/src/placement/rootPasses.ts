@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSED, ENCODED, encodeComposedRoots } from './gpuComposeEncode.ts'
 import { encodeRootBoxes, rootBoxesKernel } from './rootBoxes.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
-import { leafKernels, treeLeaves } from './treeLeaves.ts'
+import { leafKernel, treeLeaves } from './treeLeaves.ts'
 import { createImagePart } from '../webgpu/pages/render/encoder.ts'
 
 /** Runtime `rt`'s roots brought level on the GPU — the composition's passes first when `compose` —,
@@ -51,6 +51,5 @@ export const writeMovedRoots = (rt: WebgpuPagesRuntime) => writeRoots(rt, false)
 export function askRootPasses(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!rt.layout.selectionRoots.length) return
   rootBoxesKernel(device).ask()
-  const nodes = rt.run.gpuSelection?.treeNodes
-  if (nodes) leafKernels(device).of(nodes).ask()
+  if (rt.run.gpuSelection?.treeFollowed) leafKernel(device).ask()
 }

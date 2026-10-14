@@ -52,3 +52,25 @@ export function wgslStageBindings(shader: string) {
     return { stage: m[1] as 'vertex' | 'fragment' | 'compute', entry: m[2], bindings }
   })
 }
+
+/**
+ * The bind group layouts a compute text declares, every group's every binding seen by the compute
+ * stage — what a pipeline made with `layout: 'auto'` binds at most —: a uniform or storage buffer,
+ * a storage texture, or a sampled one. What a test counts a program's stage limits from.
+ */
+export function wgslComputeLayout(shader: string): GPUPipelineLayoutDescriptor {
+  const groups: GPUBindGroupLayoutEntry[][] = []
+  const declared = /@group\((\d+)\)\s*@binding\((\d+)\)\s*var(<[^>]*>)?\s*\w+\s*:\s*(\w+)/g
+  for (const [, group, binding, space, type] of shader.matchAll(declared)) {
+    const entry: GPUBindGroupLayoutEntry = { binding: Number(binding), visibility: COMPUTE }
+    if (space?.includes('uniform')) entry.buffer = { type: 'uniform' }
+    else if (space) entry.buffer = { type: 'storage' }
+    else if (type.startsWith('texture_storage')) entry.storageTexture = { format: 'r32uint' }
+    else if (type.startsWith('texture_')) entry.texture = {}
+    else entry.sampler = {}
+    ;(groups[Number(group)] ??= []).push(entry)
+  }
+  return {
+    bindGroupLayouts: Array.from(groups, (entries) => ({ entries: entries ?? [] })) as never,
+  }
+}

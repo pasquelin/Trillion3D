@@ -1,16 +1,9 @@
 import { validationScope } from '../core/errorScope.ts'
-import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
-import type { FlagShape } from './flagSections.ts'
-import { JOURNAL_SECTION, flagSectionPlace } from './splitFlags.ts'
-import { createDagPipeline } from './pipeline.ts'
-import {
-  cutGrowth,
-  cutHeldSlots,
-  growDagList,
-  heldOpenAt,
-  madeWithin,
-  rankGroups,
-} from './listCap.ts'
+import { pendingMade } from '../core/tableGrowth.ts'
+import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
+import { createFlagTable } from './cutTables.ts'
+import { admitted, cutBytes } from './cutBuffers.ts'
+import { cutHeldSlots, growDagList, heldOpenAt, rankGroups } from './listCap.ts'
 import { regionsWanted } from './swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtimeState.ts'
 import type { CutTablesAt } from './uniforms.ts'
@@ -29,71 +22,75 @@ export const cutTablesAt = (resources: {
 })
 
 /**
- * Gives the cut a `flags` of `shape`, between two frames and with no readback in flight: its parts
- * made under an out-of-memory scope, the kernels compiled again when the parts start at other
- * sections (`split.ts`), the drawn log and the last uses carried over, the bind groups made again
- * and the old parts destroyed. A device that refuses keeps the old `flags` whole and says `false`:
- * the next cut that drops work coarsens instead.
+ * Gives the cut a `flags` of `shape`, between two frames and with no readback in flight: its record
+ * table made within the cut's share under an out-of-memory scope (`createFlagTable`), the drawn
+ * log carried over to its new place, the bind groups made again and the old table retired. A
+ * device that refuses keeps the old `flags` whole and says `false`: the next cut that drops work
+ * coarsens instead. One layout and one text whatever the shape: nothing compiles again.
  */
 async function growDagFlags(resources: DagResources, shape: FlagShape, disposed: () => boolean) {
-  const { device, packed } = resources
-  const sized = { ...packed, queueEntries: shape.queueWords / 2, candCount: shape.candCap }
-  const cut = cameraCutBuffers(sized, device.limits)
-  const made: GPUBuffer[] = []
-  const make = madeWithin(resources, resources.flagParts, made)
-  let parts: GPUBuffer[] | undefined
+  const { device, cutTables } = resources,
+    old = cutTables.flags
+  const made: { texture: GPUTexture; bytes: number }[] = []
+  // What the flags replace leaves the share: the new table is made within what remains.
+  const kept = cutBytes(resources) - old.bytes
+  const make = (descriptor: GPUTextureDescriptor, bytes: number) => {
+    const held = kept + made.reduce((sum, { bytes: size }) => sum + size, 0)
+    const label = descriptor.label
+    const texture = admitted(device, resources.admit, held, resources.share, { label, bytes }, () =>
+      device.createTexture(descriptor),
+    )
+    made.push({ texture, bytes })
+    return texture
+  }
+  let flags: ReturnType<typeof createFlagTable> | undefined
   try {
     const { value, error } = await validationScope(
       device,
-      () => cut.parts.flags.map((row) => makeDagBuffer(make, row)),
+      () => createFlagTable(device, shape, make),
       'out-of-memory',
     )
-    if (!error) parts = value
+    if (!error) flags = value
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
-  const group = parts && {
-    ...resources.group,
-    flags: parts[0],
-    parts: { ...resources.group.parts, flags: parts.slice(1) },
-  }
-  const same = cut.split.flagCuts.join() === resources.split.flagCuts.join()
-  const compiled =
-    group && !same ? await createDagPipeline(device, group, resources.frames, cut.split) : undefined
-  const growth = cutGrowth(resources, made, resources.flagParts, () => {
-    carryFlags(resources, parts!, cut.split.flagCuts, shape)
-    Object.assign(resources, compiled?.value, {
-      flags: parts![0],
-      flagParts: parts,
-      split: cut.split,
-      flagShape: shape,
-      group,
-    })
-    if (!compiled) resources.bindGroup = resources.frames.bindGroup(resources.layout, group!)
-    resources.rankGroups = rankGroups(resources)
-  })
-  if (!parts || !group || (compiled && !compiled.value) || disposed()) {
-    growth.destroy()
+  if (!flags || disposed()) {
+    for (const { texture } of made) texture.destroy()
     return false
   }
-  growth.commit()
+  const grown = flags
+  pendingMade(
+    device,
+    made.map(({ texture }) => texture),
+    grown.bytes,
+    () => {
+      carryJournal(resources, grown, shape)
+      const at = resources.textures.findIndex(({ texture }) => texture === old.texture)
+      resources.textures.splice(at, 1, ...made)
+      cutTables.flags = grown
+      resources.flagShape = shape
+      resources.group.flags = grown.view
+      resources.bindGroup = resources.frames.bindGroup(resources.layout, resources.group)
+      resources.rankGroups = rankGroups(resources)
+      return [old.texture]
+    },
+  ).commit()
   return true
 }
 
 /** The section a cut keeps across cuts (`JOURNAL_SECTION`) copied from `resources`' flags into
- *  `parts`, cut at `cuts` for `shape`, at its new place. */
-function carryFlags(
-  resources: DagResources,
-  parts: GPUBuffer[],
-  cuts: readonly number[],
-  shape: FlagShape,
-) {
+ *  `flags`, laid out for `shape`, at its new place. */
+function carryJournal(resources: DagResources, flags: { texture: GPUTexture }, shape: FlagShape) {
   const from = resources.flagShape,
     encoder = resources.device.createCommandEncoder()
-  const a = flagSectionPlace(resources.split.flagCuts, from, JOURNAL_SECTION),
-    b = flagSectionPlace(cuts, shape, JOURNAL_SECTION)
-  const source = resources.flagParts[a.part]
-  encoder.copyBufferToBuffer(source, a.word * 4, parts[b.part], b.word * 4, from.candCap * 4)
+  resources.cutTables.flags.copyTexels(
+    encoder,
+    flags,
+    'Word',
+    flagSectionStart(JOURNAL_SECTION, from),
+    flagSectionStart(JOURNAL_SECTION, shape),
+    from.candCap,
+  )
   resources.device.queue.submit([encoder.finish()])
 }
 

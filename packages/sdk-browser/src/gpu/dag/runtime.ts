@@ -10,7 +10,6 @@ import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
 import { createTreeFollower, type TreeLeaves } from './treeFollow.ts'
-import { nodeLayout } from './nodeTableWgsl.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
   appendRoots,
@@ -49,7 +48,7 @@ export function createDagRuntime(
     // The cut rule's residency, derived from the pool's and uploaded by difference.
     uploadResidency: createDagResidencyUpload(resources),
     ...createDagDispatch(resources, state, chain),
-    poolList: createDagPoolList(device, packed, resources.coldParts, poolHeld),
+    poolList: createDagPoolList(packed, resources.cold, poolHeld),
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
@@ -124,7 +123,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
       if (!composed && live()) rewritePlacement(run, w)
       run.tree?.touch(w)
     },
-    treeNodes: run.tree && nodeLayout(resources.nodeParts),
+    treeFollowed: !!run.tree,
     groupOf: (w) => run.tree?.groupOf(w) ?? -1,
     groupsMoved: (groups) => run.tree?.groupsMoved(groups),
     placeObject: (w, object) => run.links?.place(w, object),

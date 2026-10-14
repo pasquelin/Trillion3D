@@ -1,9 +1,9 @@
 // The engine's real cut (`createDagResources`, `encodeDagKernels`) on the device the engine opens
 // (`requestExplorerDevice`), once whole and once through that same device reporting a binding two
-// thirds of the primitives' `frames` rows hold (`PRIMITIVE_BYTES`): `frames` then splits in two ranges
-// (`frameRanges.ts`), every table past the binding in parts bound at once (`split.ts`), and the worlds
-// stay one record table every range binds (`worldTable.ts`). Only the capacity the cut reads changes;
-// the device underneath is the same.
+// thirds of the placements' frame words hold (`FRAME_ROW_WORDS`): every table past the binding —
+// the frame words, the clusters, the nodes, the cold words, the flags, the worlds, the tree — is a
+// record table (`cutTables.ts`), bound once whatever the binding, the stage two storage buffers.
+// Only the capacity the cut reads changes; the device underneath is the same.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
@@ -14,6 +14,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
+import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { cutTablesAt } from '../../../packages/sdk-browser/src/gpu/dag/queueGrowth.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
@@ -24,11 +25,8 @@ import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first half behind the camera,
- *  the second before it, its outer columns past the frustum's sides; the first range holds the half
- *  behind and a third of the half before. Small, so its tables split in few parts where `frames`
- *  splits in two: a deeper hierarchy's would need more storage
- *  bindings than a stage holds (ten on Apple's Metal), and the engine refuses that device
- *  (`deviceRefusal.ts`). */
+ *  the second before it, its outer columns past the frustum's sides; the binding holds the frame
+ *  words of the half behind and a third of the half before. */
 const PLACEMENTS = 600
 const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
   new G.Matrix4().makeTranslation(
@@ -38,8 +36,8 @@ const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
   ),
 )
 
-/** The cut at each threshold of `pixelErrors`, whole and split, and what the engine's device check
- *  says of the split device. */
+/** The cut at each threshold of `pixelErrors`, whole and on the narrow device, what the engine's
+ *  device check says of the narrow device, and the storage buffers its cut's stage binds. */
 export async function cutWholeAndSplit(pixelErrors: number[]) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
@@ -91,10 +89,10 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
         selectedTriangles: result.selectedTriangles,
       })
     }
-    const parts = { nodes: resources.nodeParts.buffers.length, flags: resources.flagParts.length }
+    const storage = dagBindEntries().filter((entry) => entry.buffer?.type === 'storage').length
     for (const buffer of resources.buffers) buffer.destroy()
     for (const { texture } of resources.textures) texture.destroy()
-    return { parts, cuts }
+    return { storage, cuts }
   }
   const whole = await cut(device)
   const split = refusal ? undefined : await cut(lying)

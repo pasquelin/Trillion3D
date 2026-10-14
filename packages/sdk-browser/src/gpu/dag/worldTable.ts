@@ -1,4 +1,4 @@
-import type { RecordLayout } from '../core/recordTexture.ts'
+import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
 
 /**

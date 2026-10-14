@@ -1,8 +1,9 @@
-import { createRecordTexture, type RecordLayout } from '../core/recordTexture.ts'
+import { createRecordTexture } from '../core/recordTexture.ts'
+import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { TREE_SPAN, treeNodeCount, type PlacementTree } from './placementTree.ts'
-import { writeRanges } from './split.ts'
+import { writeRanges } from './runWrites.ts'
 import { mirroredWords, takeMirrored } from '../../webgpu/cut/denseKeys.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 
@@ -96,7 +97,7 @@ export function createTreeTable(
     writeNodes(ids: Int32Array) {
       if (!tree || !ids.length) return
       const source = { data: tree.nodes, sourceBase: 0, targetBase: 0, stride: DAG_NODE_FLOATS }
-      writeRanges(device, nodeTarget, ids, ids.length, source)
+      writeRanges(nodeTarget, ids, ids.length, source)
     },
     /** Member slots `[from, to)` of the tree's order. */
     writeMembers(from: number, to: number) {
@@ -116,7 +117,7 @@ export function createTreeTable(
       if (!tree?.always.moves.count) return
       const moved = takeMirrored(tree.always),
         source = { data: mirroredWords(tree.always), sourceBase: 0, targetBase: 0, stride: 1 }
-      writeRanges(device, alwaysTarget, moved, moved.length, source)
+      writeRanges(alwaysTarget, moved, moved.length, source)
     },
     destroy: table.destroy,
   }

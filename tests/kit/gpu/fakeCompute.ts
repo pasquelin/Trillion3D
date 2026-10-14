@@ -16,7 +16,7 @@ import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
 import { boundListCap, frameWord, packedFromBindings, readDagUniforms } from './fakeDag.ts'
-import { viewTexture, worldsAtEye } from './fakeWorldPose.ts'
+import { boundData, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
@@ -114,9 +114,8 @@ export function simulateComputeDispatch(
   if (stage === 'poolScatter' && computeBind.entries.length !== slots) return
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
-  const byBinding = new Map(
-    computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
-  )
+  // A record table reads as its texture's words, laid as its buffer was (`gpu/dag/cutTables.ts`).
+  const byBinding = new Map(computeBind.entries.map((e) => [e.binding, boundData(e.resource)]))
   const bound = (binding: number) =>
     computeBind.entries.find((e) => e.binding === binding)!.resource
   const boundWorlds = bound(DAG_BINDING.worlds),

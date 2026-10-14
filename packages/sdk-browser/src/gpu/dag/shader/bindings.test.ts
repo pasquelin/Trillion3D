@@ -9,28 +9,35 @@ import {
 } from '../../core/wgslBindings.fixture.ts'
 import { unresolvedNames } from '../../core/wgslNames.fixture.ts'
 
-/** The layout's buffer entries, and its texture entries' bindings. */
+/** The layout's buffer entries, and its texture entries' bindings, sampled or storage. */
 const buffers = () => entryBufferBindings(dagBindEntries().filter((entry) => entry.buffer))
 const textures = () =>
   dagBindEntries()
-    .filter((entry) => entry.texture)
+    .filter((entry) => entry.texture || entry.storageTexture)
     .map((entry) => entry.binding)
 
 test('the DAG layout entries are the bindings the selection shader declares', () => {
   const declared = wgslBufferBindings(DAG_SELECTION_SHADER)
-  assert.equal(declared.length, 7)
+  assert.equal(declared.length, 3, 'the uniforms, the readout and `work`, whatever the world')
   assert.deepEqual(buffers(), declared)
-  // The worlds, the frame words and the placement tree are record textures (`../worldTable.ts`,
-  // `../frameTable.ts`, `../treeTable.ts`), no storage buffer of the stage's eight.
-  const records = [DAG_BINDING.worlds, DAG_BINDING.frames, DAG_BINDING.tree]
-  assert.deepEqual(textures(), records)
-  assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), records)
+  // Every other table is a record table (`../cutTables.ts`), no storage buffer of the stage's
+  // eight; the flags the one the kernels write, a storage texture.
+  const records = ['clusters', 'nodes', 'flags', 'worlds', 'frames', 'cold', 'tree'] as const
+  const bindings = records.map((name) => DAG_BINDING[name])
+  assert.deepEqual(textures(), bindings)
+  assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), bindings)
+  assert.deepEqual(
+    dagBindEntries()
+      .filter((entry) => entry.storageTexture)
+      .map((entry) => entry.binding),
+    [DAG_BINDING.flags],
+  )
 })
 
 test('a binding whose access changes in the shader no longer matches the entries', () => {
   const drifted = DAG_SELECTION_SHADER.replace(
-    '@binding(8) var<storage, read> cold',
-    '@binding(8) var<storage, read_write> cold',
+    '@binding(5) var<storage, read_write> work',
+    '@binding(5) var<storage, read> work',
   )
   assert.notEqual(drifted, DAG_SELECTION_SHADER)
   assert.notDeepEqual(buffers(), wgslBufferBindings(drifted))

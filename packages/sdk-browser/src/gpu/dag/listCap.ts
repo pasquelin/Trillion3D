@@ -181,7 +181,7 @@ export async function growDagList(
  * The growth of the cut's buffers (`../core/tableGrowth.ts`): `made` replaces `replaced`, which
  * `adopt` puts in place; the cut's buffer list follows, and `replaced` is freed at commit.
  */
-export const cutGrowth = (
+const cutGrowth = (
   resources: DagResources,
   made: readonly GPUBuffer[],
   replaced: readonly GPUBuffer[],
@@ -249,7 +249,7 @@ export function rankGroups(resources: {
  * a growth keeps for later — is never made, and the growth is refused by name (`pastShare`): the
  * view coarsens instead (`coarsening.ts`).
  */
-export function madeWithin(
+function madeWithin(
   resources: DagResources,
   replaced: readonly GPUBuffer[],
   made: GPUBuffer[],

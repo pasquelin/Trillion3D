@@ -11,7 +11,10 @@ import { placementField } from '../gpu/dag/placementTree.fixture.ts'
 import { packDagSelection } from '../gpu/dag/selection.ts'
 import { frameTableOf, leafBoxes } from '../gpu/dag/treeRefitRun.fixture.ts'
 import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
-import { treeLeavesWgsl } from './treeLeavesWgsl.ts'
+import { TREE_LEAVES_WGSL } from './treeLeavesWgsl.ts'
+import { recordTable } from '../gpu/core/recordTexture.fixture.ts'
+import { NODE_TABLE } from '../gpu/dag/nodeTable.ts'
+import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 
 test('every leaf the GPU writes is the CPU formula’s, word for word', () => {
@@ -25,15 +28,21 @@ test('every leaf the GPU writes is the CPU formula’s, word for word', () => {
   dag.mark[5] = REACH_UNBOUNDED << 16
   dag.rootNodes[6] = 0xffffffff
   const members: Pair[] = Array.from({ length: roots.length * 6 }, () => [0, 0])
+  // The cut's nodes as their record table holds them (`nodeTable.ts`).
+  const count = dag.nodes.length / DAG_NODE_FLOATS,
+    nodes = recordTable(NODE_TABLE, count),
+    words = new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length)
+  for (let n = 0; n < count; n++)
+    nodes.set('Node', n, words.subarray(n * DAG_NODE_FLOATS, (n + 1) * DAG_NODE_FLOATS))
   const run = shaderRun<{ writeLeaf(w: number): void }>(
-    treeLeavesWgsl(),
+    TREE_LEAVES_WGSL,
     [
       ...DOUBLE_HELPERS,
-      ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodeWord'],
+      ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodesNode', 'nodesWord'],
       ...['framesRow', 'framesWord', 'writeLeaf'],
     ],
     {
-      nodes: Array.from(new Uint32Array(dag.nodes.buffer, dag.nodes.byteOffset, dag.nodes.length)),
+      nodes,
       worlds: roots.flatMap(({ world }) => Array.from(world.elements, (v) => pair(v))),
       frames: frameTableOf(dag),
       members,

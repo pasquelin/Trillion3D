@@ -15,8 +15,9 @@ export function uploadRecords(device: GPUDevice, state: WebgpuImpostors, buffer:
   }
   const ranks = slots.dirty.take()
   if (!ranks.length) return uploaded(slots)
-  const parts = { buffers: [buffer], bytes: buffer.size },
+  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+      device.queue.writeBuffer(buffer, offset, data, from, size),
     source = { data: records, sourceBase: 0, targetBase: 0, stride: CARD_FLOATS }
-  core.writeRanges(device, parts, ranks, ranks.length, source)
+  core.writeRanges(into, ranks, ranks.length, source)
   uploaded(slots)
 }

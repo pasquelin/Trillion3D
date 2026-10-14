@@ -13,7 +13,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_BINDING } from './shader/bindings.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { FRAME_TABLE } from './frameTable.ts'
-import { fieldStart } from '../core/recordTexture.ts'
+import { fieldStart } from '../core/recordLayout.ts'
 
 /** Forty-eight placements of the fixture's primitive, each `k + 1` metres along x — a translation
  *  a new table does not hold already —, on a device whose storage binding holds twenty rows of

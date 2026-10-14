@@ -3,7 +3,7 @@
 // between the lowest and the highest.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { writeRanges } from './split.ts'
+import { writeRanges } from './runWrites.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The bytes `count` scattered indices of `stride` words cost, written through `writeRanges`. */
@@ -12,7 +12,6 @@ function sent(stride: number, indices: number[]) {
     writes = 0
   const data = new Float32Array((indices.at(-1)! + 1) * stride)
   writeRanges(
-    {} as GPUDevice,
     (_offset, _data, _from, size) => ((bytes += size), writes++),
     Int32Array.from(indices),
     indices.length,

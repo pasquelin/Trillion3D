@@ -5,7 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { createRecordTexture, type RecordLayout } from './recordTexture.ts'
+import { createRecordTexture } from './recordTexture.ts'
+import type { RecordLayout } from './recordLayout.ts'
 import { recordWordAt } from './recordTexture.fixture.ts'
 import { destroyRetired } from './frameRetire.ts'
 
@@ -55,4 +56,28 @@ test('a growth its maker refuses keeps the table it had', () => {
   assert.equal(table.hold(64), false)
   assert.equal(table.texture, first)
   assert.equal(table.capacity, 4)
+})
+
+test('texels copied into a table of the same layout land at their place there, a run a row', () => {
+  // Four words a row, four rows a layer: the run crosses rows and a layer on both sides.
+  const words: RecordLayout = {
+    label: 'words under test',
+    format: 'r32uint',
+    fields: { Word: 1 },
+    rowShift: 2,
+    layerShift: 2,
+  }
+  const gpu = fakeDevice(),
+    usage = GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST
+  const from = createRecordTexture(gpu.device, words, 32, usage),
+    to = createRecordTexture(gpu.device, words, 32, usage)
+  const held = Uint32Array.from({ length: 32 }, (_, k) => 100 + k)
+  from.writeTexels('Word', 0, 32, held.buffer, 0)
+  const encoder = gpu.device.createCommandEncoder()
+  from.copyTexels(encoder, to, 'Word', 3, 9, 14)
+  gpu.device.queue.submit([encoder.finish()])
+  const texture = to.texture as unknown as FakeTexture
+  for (let k = 0; k < 14; k++)
+    assert.equal(texture.words![recordWordAt(words, texture, 'Word', 9 + k)], 103 + k, `word ${k}`)
+  assert.equal(gpu.textureCopies.length, 8, 'each run within a row on both sides')
 })

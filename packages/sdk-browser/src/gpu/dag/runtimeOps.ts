@@ -11,7 +11,7 @@ import type { DagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW } from './swap.ts'
 import { appendDagRoots, type DagAppended } from './pack.ts'
-import { writeParts, writeRanges } from './split.ts'
+import { writeRanges, type RangeTarget } from './runWrites.ts'
 import {
   COLD_WORDS,
   CLUSTER_WORDS,
@@ -264,29 +264,28 @@ export async function flushRuntime(
  *  and origins, and the placement tree's nodes and member words they joined. Nothing else of the
  *  tables moved: their nodes, records and content keys are their primitives', already there. */
 function writeAppended(resources: DagResources, added: DagAppended) {
-  const { device, packed, nodeParts, coldParts, clusterParts, frames, frameData, treeTable } =
-      resources,
+  const { packed, cutTables, cold, frames, frameData, treeTable } = resources,
     cones = packed.pageCones
-  const send = (target: typeof nodeParts, source: Float32Array, from: number, bytes: number) =>
-    bytes > 0 &&
-    writeParts(device, target, from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
+  const send = (target: RangeTarget, source: Float32Array, from: number, bytes: number) =>
+    bytes > 0 && target(from, source.buffer as ArrayBuffer, source.byteOffset + from, bytes)
   const [w0, w1] = added.worlds
   // The primitives it brought: their nodes, hot and cold records, the keys their records read by
   // and the key words they named or moved — written once, as a packing of every root wrote them.
   const [n0, n1] = added.nodes,
     [r0, r1] = added.records,
     nodeBytes = DAG_NODE_FLOATS * 4
-  send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
-  send(clusterParts, packed.clusters, r0 * CLUSTER_WORDS * 4, (r1 - r0) * CLUSTER_WORDS * 4)
+  send(cutTables.nodes.target('Node'), packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
+  const clusters = cutTables.clusters.target('Cluster')
+  send(clusters, packed.clusters, r0 * CLUSTER_WORDS * 4, (r1 - r0) * CLUSTER_WORDS * 4)
   const coldAt = packed.shared!.coldAt!
-  send(coldParts, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
-  send(coldParts, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
+  send(cold, cones, (coldAt + r0 * COLD_WORDS) * 4, (r1 - r0) * COLD_WORDS * 4)
+  send(cold, cones, (recordKeyBase(packed.pageCount) + r0) * 4, (r1 - r0) * 4)
   // The keys' words and groups, each table's in the cut's one run writer's ranges.
   if (added.keys.length) {
     const keys = Int32Array.from(new Set(added.keys)).sort(),
       words = new Uint32Array(cones.buffer, cones.byteOffset, cones.length)
     for (const base of [keyWordBase(packed), keyGroupBase(packed)])
-      writeRanges(device, coldParts, keys, keys.length, {
+      writeRanges(cold, keys, keys.length, {
         data: words,
         sourceBase: base,
         targetBase: base,
@@ -297,8 +296,8 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   const parentAt = groupParentBase(packed),
     [g0, g1] = added.groups,
     [e0, e1] = added.edges
-  send(coldParts, cones, (parentAt + g0 + 1) * 4, (g1 - g0) * 4)
-  send(coldParts, cones, (parentAt + packed.groupCount + 1 + e0) * 4, (e1 - e0) * 4)
+  send(cold, cones, (parentAt + g0 + 1) * 4, (g1 - g0) * 4)
+  send(cold, cones, (parentAt + packed.groupCount + 1 + e0) * 4, (e1 - e0) * 4)
   // The tree nodes joined, in the run writer's ranges, and the member slots they took.
   treeTable.writeNodes(added.tree.nodes)
   treeTable.writeMembers(...added.tree.members)

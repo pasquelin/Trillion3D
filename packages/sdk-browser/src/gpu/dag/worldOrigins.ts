@@ -1,6 +1,6 @@
 import type { PackedDag } from './types.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
-import { writeRanges, type RangeTarget } from './split.ts'
+import { writeRanges, type RangeTarget } from './runWrites.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Words of a primitive's exact translation, the `Origin` field of its worlds' record
@@ -16,7 +16,6 @@ const writeOrigin = (out: Uint32Array, at: number, source: PackedDag['worldSourc
 /** The exact translations of `slots` placements — the live ones, and those a growth appends to
  *  `sources` —, each sent to `target`, the `Origin` field of the worlds' records, when it moved. */
 export function createWorldOrigins(
-  device: GPUDevice,
   slots: number,
   target: RangeTarget,
   sources: PackedDag['worldSources'],
@@ -56,7 +55,7 @@ export function createWorldOrigins(
         if (count === changed.length) changed = resized(changed, count + 1)
         changed[count++] = row
       }
-      if (count) writeRanges(device, target, changed, count, source)
+      if (count) writeRanges(target, changed, count, source)
       return changed.subarray(0, count)
     },
   }

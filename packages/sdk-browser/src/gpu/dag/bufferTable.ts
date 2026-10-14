@@ -3,10 +3,8 @@ import { storageBufferCap } from '../../residency/pools.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { OPEN_SLOT_WORDS } from './heldOpen.ts'
-import { dagFlagShape, flagShapeWords, type FlagShape } from './flagSections.ts'
+import { dagFlagShape } from './flagSections.ts'
 import { type PackedDag } from './types.ts'
-import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
-import { type TableSplit } from './splitFlags.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
@@ -23,103 +21,29 @@ export const makeDagBuffer = (make: (d: GPUBufferDescriptor) => GPUBuffer, row: 
       (row.copySource ? GPUBufferUsage.COPY_SRC : 0),
   })
 
-/** The rows of a table in parts of `per` elements of `bytes` each, over `total` bytes: the first
- *  under `row`'s label, the others numbered behind it. A whole table is `row` itself. */
-function partRows(row: DagBufferRow, total: number, per: number, parts: number) {
-  if (parts === 1) return [row]
-  return Array.from({ length: parts }, (_, k) => ({
-    ...row,
-    label: k ? `${row.label} ${k}` : row.label,
-    size: Math.min(per, total - k * per),
-  }))
-}
-
-/** Each part of `parts` a row of the one table, named `name`, `name1`… as the kernel binds them. */
-const namedParts = (name: string, parts: DagBufferRow[]) =>
-  Object.fromEntries(parts.map((row, k) => [k ? `${name}${k}` : name, row]))
-
 /**
  * THE BUFFERS OF A CAMERA CUT, as `createDagResources` makes them: one table read by the resources
  * and by the device check (`deviceRefusal.ts`), so the check can never judge a size the cut does
  * not ask for. `blockCount` is the kernel's `blockCount()`, word for word, and `workLayout` the layout
- * of `work` (`dagWorkLayout`). On `limits`, a table past one binding is in parts (`split.ts`):
- * `parts` the rows of each, `rows` all of them, each part one row.
+ * of `work` (`dagWorkLayout`); `shape`, what its flags are laid out for as the cut starts
+ * (`flagSections.ts`). Its other tables are record tables, no storage buffer (`cutTables.ts`).
  */
 export function cameraCutBuffers(
-  packed: Pick<
-    PackedDag,
-    'pageCount' | 'nodeCount' | 'worldCount' | 'clusters' | 'nodes' | 'pageCones'
-  > &
+  packed: Pick<PackedDag, 'pageCount' | 'nodeCount' | 'worldCount'> &
     Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'groupCount'>>,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
     workLayout = dagWorkLayout(blockCount, packed.groupCount)
-  const shape = dagFlagShape(packed, limits),
-    flagWords = flagShapeWords(shape)
-  const split = dagSplit(limits, shape, {
-    clusters: packed.clusters.byteLength,
-    nodes: packed.nodes.byteLength,
-    cold: packed.pageCones.byteLength,
-  })
-  const table = (label: string, bytes: number, least: number, part: TableSplit, element: number) =>
-    partRows({ label, size: Math.max(least, bytes) }, bytes, part.per * element, part.parts)
-  const parts = {
-    clusters: table(
-      'Trillion3D DAG clusters',
-      packed.clusters.byteLength,
-      64,
-      split.clusters,
-      ELEMENT_BYTES.clusters,
-    ),
-    nodes: table(
-      'Trillion3D DAG nodes',
-      packed.nodes.byteLength,
-      64,
-      split.nodes,
-      ELEMENT_BYTES.nodes,
-    ),
-    pageCones: table(
-      'Trillion3D DAG page cones',
-      packed.pageCones.byteLength,
-      48,
-      split.cold,
-      ELEMENT_BYTES.cold,
-    ),
-    flags: flagRows('Trillion3D DAG flags', split.flagCuts, shape, flagWords, true),
-  }
   return {
     blockCount,
     workLayout,
-    split,
     /** What `flags` is laid out for: the cut's queues and lists as they start (`queueGrowth.ts`). */
-    shape,
-    parts,
+    shape: dagFlagShape(packed, limits),
     rows: {
-      ...namedParts('clusters', parts.clusters),
-      ...namedParts('nodes', parts.nodes),
-      ...namedParts('pageCones', parts.pageCones),
-      ...namedParts('flags', parts.flags),
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
     } satisfies Record<string, DagBufferRow>,
   }
-}
-
-/** The rows of a `flags` of `shape`, `words` in all, cut at `cuts` (`split.ts`); a camera's are copy
- *  sources. */
-function flagRows(
-  label: string,
-  cuts: readonly number[],
-  shape: FlagShape,
-  words: number,
-  copySource?: true,
-): DagBufferRow[] {
-  const sizes = flagPartWords(cuts, shape, words)
-  return sizes.map((part, k) => ({
-    label: k ? `${label} ${k}` : label,
-    size: Math.max(16, part * 4),
-    ...(copySource && { copySource }),
-  }))
 }
 
 /** The readout of a cut whose list holds `listCap` ranks and `regions` saved journals, then the

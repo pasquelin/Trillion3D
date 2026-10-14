@@ -4,7 +4,7 @@
  * A placement row that takes an object of the world DAG — a cell placed — or gives it back — a cell
  * left — tells the selection which (`placeObject`): the links that moved go up behind the cold
  * records before the next cut, the moved ranks joined into writes by the cut's one run writer,
- * by their bytes (`split.ts`) — what is written follows the moves (`worldLinks.ts`) —, read
+ * by their bytes (`runWrites.ts`) — what is written follows the moves (`worldLinks.ts`) —, read
  * by the descent's gate, and the residency mirror reads the move at the next residency it hands
  * the cut (`residencyMirror.ts`). A move with no residency change behind it is handed
  * over before the next cut is encoded, on the rows' flags the cut last received: the object's
@@ -14,7 +14,7 @@
 import type { PageResidency, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
-import { writeRanges, type DagParts } from './split.ts'
+import { writeRanges, type RangeTarget } from './runWrites.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
@@ -24,18 +24,18 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 /** No page of the rows moved: only the links did. */
 const NO_ROWS: ResidencyChanges = { pages: new Int32Array(0), count: 0 }
 
-/** The follower of the placements' links to `packed`'s world DAG on `coldParts`; none without a
+/** The follower of the placements' links to `packed`'s world DAG in its cold words; none without a
  *  world DAG. A member of the run (`runtime.ts`): `place` moves a link, every cut takes the moves
  *  up first (`sync`), and a residency the cut receives hands them to the mirror once
  *  (`residency`). `hooks`: the cut's residency update, and the listener of a link moved. */
 export function createLinkFollower(
-  resources: { device: GPUDevice; packed: PackedDag; coldParts: DagParts },
+  resources: { packed: PackedDag; cold: RangeTarget },
   hooks: {
     updateResidency: (rows: PageResidency, changes: ResidencyChanges) => void
     linkMoved: (world: number) => void
   },
 ) {
-  const { device, packed, coldParts } = resources,
+  const { packed, cold } = resources,
     world = packed.world
   if (!world) return undefined
   const { links } = world
@@ -72,7 +72,7 @@ export function createLinkFollower(
   const takeUp = () => {
     if (high < 0) return
     const count = listMoved()
-    writeRanges(device, coldParts, moved, count, linkWords)
+    writeRanges(cold, moved, count, linkWords)
     if (!handed) world.linksMoved?.(moved, count)
     dirty.fill(0, low >>> 5, (high >>> 5) + 1)
     low = links.length

@@ -2,7 +2,7 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { keyWordBase, poolBase, recordKeyBase, selectionListCap } from './layout.ts'
 import { canonicalPage } from './evict.ts'
 import type { PackedDag } from './types.ts'
-import { writeParts, type DagParts } from './split.ts'
+import type { RangeTarget } from './runWrites.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
@@ -12,9 +12,8 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
  * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved.
  */
 export function createDagPoolList(
-  device: GPUDevice,
   packed: PackedDag,
-  pageCones: DagParts,
+  cold: RangeTarget,
   /** The pages a pool already holds, for a cut made beside it (a growth in place): listed at once,
    *  in one write. */
   held?: (page: number) => boolean,
@@ -31,8 +30,7 @@ export function createDagPoolList(
   const entry = createSparseInts()
   let writes = true
   const write = (word: number, count = 1) =>
-    writes &&
-    writeParts(device, pageCones, word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4 * count)
+    writes && cold(word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4 * count)
   const note = (page: number, held: boolean) => {
     const key = keyOf(page)
     if (pageOf(key) !== page || entry.has(page) === held) return false

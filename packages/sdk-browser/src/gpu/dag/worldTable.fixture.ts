@@ -16,6 +16,6 @@ export function worldTableOn(
     usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
   const table = createRecordTexture(device, WORLD_TABLE, count, usage)
   table.write('Matrix', 0, worlds.length / 16, worlds.buffer as ArrayBuffer, worlds.byteOffset)
-  createWorldOrigins(device, count, table.target('Origin'), sources).write()
+  createWorldOrigins(count, table.target('Origin'), sources).write()
   return table
 }

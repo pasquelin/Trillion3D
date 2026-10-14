@@ -85,9 +85,11 @@ test('a cut made beside a pool lists its held pages by asking the keys, never ev
   const roots = world(60, 3, { sphere: 0, url: 0, parentError: 0 })
   const packed = packDagSelection(roots)
   const asked: number[] = []
-  const device = { queue: { writeBuffer() {} } } as unknown as GPUDevice
-  const parts = { buffers: [{} as GPUBuffer], bytes: Number.MAX_SAFE_INTEGER }
-  const list = createDagPoolList(device, packed, parts, (page) => (asked.push(page), true))
+  const list = createDagPoolList(
+    packed,
+    () => {},
+    (page) => (asked.push(page), true),
+  )
   assert.ok(asked.length <= packed.keyCount, `${asked.length} asked for ${packed.keyCount} keys`)
   assert.ok(asked.length < packed.pageCount / 10)
   assert.equal(

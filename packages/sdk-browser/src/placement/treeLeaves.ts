@@ -11,34 +11,29 @@ import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { DAG_BINDING, dagPartEntries } from '../gpu/dag/shader/bindings.ts'
-import { nodeLayout, type NodeTableLayout } from '../gpu/dag/nodeTableWgsl.ts'
 import type { TreeLeaves } from '../gpu/dag/treeFollow.ts'
-import { preparedComputePipeline, preparedPipelines } from '../lighting/deferred/fullscreen.ts'
+import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { TREE_LEAVES_PASS } from '../stage/passLabels.ts'
 import { composeGroup, heldGroup, type HeldGroup } from './composeGroups.ts'
 import { PASS_PARAM_BYTES, passParams, writePassParams } from './gpuComposeGpu.ts'
-import { TREE_LEAVES_FRAMES_BINDING, treeLeavesWgsl } from './treeLeavesWgsl.ts'
+import {
+  TREE_LEAVES_FRAMES_BINDING,
+  TREE_LEAVES_NODES_BINDING,
+  TREE_LEAVES_WGSL,
+} from './treeLeavesWgsl.ts'
 
-/** The leaves kernel for each layout of the nodes it reads, made once a device. */
-export const leafKernels = oncePerDevice((device) =>
-  preparedPipelines(
-    (nodes: NodeTableLayout) =>
-      preparedComputePipeline(device, {
-        label: TREE_LEAVES_PASS,
-        layout: 'auto',
-        compute: {
-          module: device.createShaderModule({
-            label: TREE_LEAVES_PASS,
-            code: treeLeavesWgsl(nodes),
-          }),
-          entryPoint: 'main',
-        },
-      }),
-    (nodes) => `${nodes.per}x${nodes.parts}`,
-  ),
+/** The leaves kernel, made once a device. */
+export const leafKernel = oncePerDevice((device) =>
+  preparedComputePipeline(device, {
+    label: TREE_LEAVES_PASS,
+    layout: 'auto',
+    compute: {
+      module: device.createShaderModule({ label: TREE_LEAVES_PASS, code: TREE_LEAVES_WGSL }),
+      entryPoint: 'main',
+    },
+  }),
 )
 
 function createTreeLeavesGpu(device: GPUDevice) {
@@ -51,13 +46,13 @@ function createTreeLeavesGpu(device: GPUDevice) {
       size: 16,
       usage: GPUBufferUsage.STORAGE,
     }),
-    /** Each dispatch's group, and the group of the tree's nodes. */
+    /** Each dispatch's group. */
     groups: [heldGroup(), heldGroup()] as HeldGroup[],
-    nodes: heldGroup(),
-    /** What the groups read live while the pass binds them: the frame words of the cut whose tree
-     *  it writes the leaves of, and its leaves. */
+    /** What the groups read live while the pass binds them: the frame words and the nodes of the
+     *  cut whose tree it writes the leaves of, and its leaves. */
     frame: {
       frames: undefined as GPUTextureView | undefined,
+      nodes: undefined as GPUTextureView | undefined,
       members: undefined as GPUBuffer | undefined,
     },
   }
@@ -85,6 +80,7 @@ const entries = (rt: WebgpuPagesRuntime, gpu: TreeLeavesGpu, g: number) => [
     liveBuffer(() => (g ? rt.compose?.gpu?.rankList : gpu.list) ?? gpu.absent),
   ]),
   resourceEntry(TREE_LEAVES_FRAMES_BINDING, () => gpu.frame.frames),
+  resourceEntry(TREE_LEAVES_NODES_BINDING, () => gpu.frame.nodes),
 ]
 
 /** The named placements, sent; a list made again when they outgrow it. */
@@ -105,33 +101,11 @@ function sendList(
   device.queue.writeBuffer(gpu.list, 0, ranks, 0, count)
 }
 
-/** The tree's nodes as group 1 of `pipeline`, made again when the pipeline or a part moved. */
-function nodesGroup(
-  device: GPUDevice,
-  gpu: TreeLeavesGpu,
-  pipeline: GPUComputePipeline,
-  parts: GPUBuffer[],
-) {
-  const held = gpu.nodes,
-    named = held.identity.next
-  named.length = 0
-  named.push(pipeline, ...parts)
-  if (held.identity.moved() || !held.group)
-    held.group = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(1),
-      entries: [
-        { binding: DAG_BINDING.nodes, resource: { buffer: parts[0] } },
-        ...dagPartEntries({ nodes: parts.slice(1) }),
-      ],
-    })
-  return held.group
-}
-
 /** The tree's leaves of runtime `rt`: what the follower of its cut's tree writes them by. */
 export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
   return {
     ready: () => !!rt.rootWorlds?.worlds && !rt.rootWorlds.whole,
-    encode(encoder, { members, nodeParts, frames }, { ranks, count, whole }) {
+    encode(encoder, { members, nodes, frames }, { ranks, count, whole }) {
       const device = rt.gpu.device,
         roots = rt.rootWorlds?.sent ?? 0
       if (!device || !roots) return
@@ -140,11 +114,11 @@ export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
         listed = whole ? roots : count
       if (!listed && !composed) return
       if (count && !whole) sendList(device, gpu, ranks, count)
-      const pipeline = leafKernels(device).of(nodeLayout(nodeParts)).ask().get()
+      const pipeline = leafKernel(device).ask().get()
       const pass = encoder.beginComputePass({ label: TREE_LEAVES_PASS })
       pass.setPipeline(pipeline)
-      pass.setBindGroup(1, nodesGroup(device, gpu, pipeline, nodeParts.buffers))
       gpu.frame.frames = frames
+      gpu.frame.nodes = nodes
       gpu.frame.members = members
       for (let g = 0; g < 2; g++) {
         const n = g ? composed : listed,
@@ -158,6 +132,7 @@ export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
         rt.run.gpuComputeDispatches++
       }
       gpu.frame.frames = undefined
+      gpu.frame.nodes = undefined
       gpu.frame.members = undefined
       pass.end()
     },

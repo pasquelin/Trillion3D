@@ -6,10 +6,10 @@
  *
  * Two records per UNIQUE cluster, split by what the frame rereads:
  *
- * - hot (`CLUSTER_WORDS` words, `clusters` buffer) only holds what all five passes of
+ * - hot (`CLUSTER_WORDS` words, the `clusters` record table) only holds what all five passes of
  *   a frame read: the cluster sphere and its parent's, both errors and the flags — level
  *   included, in their high bits;
- * - cold (`COLD_WORDS` words, `pageCones` buffer) holds what the open pass alone reads:
+ * - cold (`COLD_WORDS` words, the cold words' record table) holds what the open pass alone reads:
  *   the normal cone, the box, and the cut node that owns the page, relative to its
  *   placement's first node, which only the oracle uses to replay descent.
  *

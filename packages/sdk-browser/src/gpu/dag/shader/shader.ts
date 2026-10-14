@@ -1,7 +1,6 @@
 import { FAR_PLANE_SLOT } from '../../../../../math/src/geometry/frustum/frustum.ts'
 import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
 import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
-import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
@@ -32,13 +31,10 @@ import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
-/** The selection kernel over the tables `access` reads (`DAG_ACCESS_WGSL`, or a split's,
- *  `splitWgsl.ts`): the accessors are a declaration the program lists, never text replaced.
- *  The `DAG_*_WGSL` fragments are this program's parts, which it lists all (`docs/MATHS.md`,
- *  "The WGSL library"). */
-export const dagSelectionWgsl = (access: WgslDecl = DAG_ACCESS_WGSL) =>
-  wgslProgram(
-    `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
+/** The selection kernel over the record tables `DAG_ACCESS_WGSL` reads. The `DAG_*_WGSL`
+ *  fragments are this program's parts, which it lists all (`docs/MATHS.md`, "The WGSL library"). */
+export const DAG_SELECTION_SHADER = wgslProgram(
+  `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,kind:u32,pad:u32,}
 // \`view\` and \`planes\` are those of the render frame, whose origin is \`cameraWorld\` — the camera sits at zero
 // there —; \`eye\` is that origin in doubles, which every translation a cut reads is taken off (\`worldPoseWgsl.ts\`).
@@ -120,39 +116,37 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  verseTotaux(lid);
 }
 `,
-    [
-      access,
-      DAG_BINDINGS_WGSL,
-      DAG_CONE_WGSL,
-      DAG_PRIMITIVE_WGSL,
-      DAG_WORLD_POSE_WGSL,
-      DAG_ERROR_WGSL,
-      CUT_RULE_WGSL,
-      DAG_COMPACT_WGSL,
-      DAG_COMMIT_WGSL,
-      DAG_TOTALS_WGSL,
-      DAG_REQUEST_WGSL,
-      DAG_READING_WGSL,
-      DAG_DIFFERENCE_WGSL,
-      DAG_SWAP_WGSL,
-      DAG_WANTED_WGSL,
-      DAG_LIVE_WGSL,
-      DAG_LEVEL_WGSL,
-      DAG_TREE_DESCENT_WGSL,
-      DAG_TREE_PREPARE_WGSL,
-      DAG_WORLD_GATE_WGSL,
-      DAG_LAST_USE_WGSL,
-      DAG_EVICT_WGSL,
-      DAG_FLOOR_WGSL,
-      DAG_HELD_OPEN_WGSL,
-      FLAT_INDEX_WGSL,
-      WORKGROUP_THREADS_WGSL,
-      DAG_VIEWS_WGSL,
-      DAG_RECORD_WGSL,
-      DAG_AHEAD_WGSL,
-      boxBehindPlane,
-      isNanWord,
-    ],
-  )
-
-export const DAG_SELECTION_SHADER = dagSelectionWgsl()
+  [
+    DAG_ACCESS_WGSL,
+    DAG_BINDINGS_WGSL,
+    DAG_CONE_WGSL,
+    DAG_PRIMITIVE_WGSL,
+    DAG_WORLD_POSE_WGSL,
+    DAG_ERROR_WGSL,
+    CUT_RULE_WGSL,
+    DAG_COMPACT_WGSL,
+    DAG_COMMIT_WGSL,
+    DAG_TOTALS_WGSL,
+    DAG_REQUEST_WGSL,
+    DAG_READING_WGSL,
+    DAG_DIFFERENCE_WGSL,
+    DAG_SWAP_WGSL,
+    DAG_WANTED_WGSL,
+    DAG_LIVE_WGSL,
+    DAG_LEVEL_WGSL,
+    DAG_TREE_DESCENT_WGSL,
+    DAG_TREE_PREPARE_WGSL,
+    DAG_WORLD_GATE_WGSL,
+    DAG_LAST_USE_WGSL,
+    DAG_EVICT_WGSL,
+    DAG_FLOOR_WGSL,
+    DAG_HELD_OPEN_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    DAG_VIEWS_WGSL,
+    DAG_RECORD_WGSL,
+    DAG_AHEAD_WGSL,
+    boxBehindPlane,
+    isNanWord,
+  ],
+)

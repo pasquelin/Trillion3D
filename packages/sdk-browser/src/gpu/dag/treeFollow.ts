@@ -9,7 +9,6 @@
  */
 import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { type PackedDag } from './types.ts'
-import type { DagParts } from './split.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { createTreeRefit } from './treeRefit.ts'
@@ -25,7 +24,7 @@ export type TreeLeaves = {
   ready(): boolean
   encode(
     encoder: GPUCommandEncoder,
-    tables: { members: GPUBuffer; nodeParts: DagParts; frames: GPUTextureView },
+    tables: { members: GPUBuffer; nodes: GPUTextureView; frames: GPUTextureView },
     named: { ranks: Int32Array<ArrayBuffer>; count: number; whole: boolean },
   ): void
 }
@@ -37,15 +36,16 @@ export function createTreeFollower(
   resources: {
     device: GPUDevice
     packed: PackedDag
-    nodeParts: DagParts
+    cutTables: { nodes: { view: GPUTextureView } }
     treeTable: TreeTable
     frames: { rows: { view: GPUTextureView } }
   },
   leaves?: TreeLeaves,
 ) {
-  const { device, packed, nodeParts, treeTable } = resources,
+  const { device, packed, treeTable } = resources,
     tree = packed.placementTree,
-    frames = resources.frames.rows.view
+    frames = resources.frames.rows.view,
+    nodes = resources.cutTables.nodes.view
   if (!tree) return undefined
   const refit = createTreeRefit(device, packed, tree, { tree: treeTable.view, frames })
   // What moved since the tree was last read, each placement once, and the groups a composition
@@ -114,7 +114,7 @@ export function createTreeFollower(
       const encoder = device.createCommandEncoder({ label: 'Trillion3D placement tree refit' })
       leaves.encode(
         encoder,
-        { members: refit.members, nodeParts, frames },
+        { members: refit.members, nodes, frames },
         { ranks: written, count, whole },
       )
       whole = false

@@ -1,6 +1,6 @@
 // A camera cut the device cannot hold is refused by name before any buffer: the host says
 // why the session is refused, instead of a GPU cut gone without a word. A dispatch is not one of
-// them: past one dimension, it runs in rows; nor is a table past one binding, split in parts.
+// them: past one dimension, it runs in rows; nor is a table past one binding, a record table.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
@@ -26,43 +26,31 @@ const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones') =>
     ),
   }) as unknown as PackedDag
 
-test('a table past one binding splits in parts the device binds at once, instead of refused', () => {
+test('every table past one binding is a record table: two storage buffers, whatever the world', () => {
   const limits = { maxStorageBufferBindingSize: LIMIT, maxComputeWorkgroupsPerDimension: 65535 }
-  const wide = { ...limits, maxStorageBuffersPerShaderStage: 16 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'under every limit: the cut of before')
+  for (const name of ['clusters', 'nodes', 'worlds', 'pageCones'] as const)
+    assert.equal(dagDeviceRefusal(limits, dag(name)), undefined, `${name}: a record table`)
+  // The readout and `work` alone are storage buffers: a stage of two holds the cut.
   assert.equal(
-    dagDeviceRefusal(limits, dag('worlds')),
+    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 2 }, dag()),
     undefined,
-    'worlds and frame words, record tables',
   )
-  for (const name of ['clusters', 'nodes', 'pageCones'] as const) {
-    assert.equal(dagDeviceRefusal(wide, dag(name)), undefined, `${name} in parts`)
-    assert.equal(
-      dagDeviceRefusal(limits, dag(name))?.buffer,
-      'storage bindings',
-      `${name}: its parts past WebGPU's eight bindings, the session is refused by name`,
-    )
-  }
-  // The readout and `work` — a quarter of a byte a page (`dagWorkLayout`) — fit, flags do not: the
-  // live list, three words an entry, is their widest section (`liveWgsl.ts`).
-  const tiny = { maxStorageBufferBindingSize: 12288, maxBufferSize: 1 << 20 }
   assert.equal(
-    dagDeviceRefusal({ ...tiny, maxStorageBuffersPerShaderStage: 16 }, dag()),
-    undefined,
-    'flags in parts of whole sections',
+    dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 1 }, dag())?.buffer,
+    'storage bindings',
   )
-  // A list starts within one binding and grows no further (`flagSectionCaps`); queue 0 keeps a root
-  // slot a placement, and those past one binding refuse the device.
-  const section = { maxStorageBufferBindingSize: 2048, maxStorageBuffersPerShaderStage: 64 }
-  assert.equal(dagDeviceRefusal(section, dag()), undefined, 'each list within the binding')
+  // The flags too: a list starts within one binding's worth and grows no further
+  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table.
+  const section = { maxStorageBufferBindingSize: 2048 }
   const roots = { ...dag(), worldCount: 1000, nodeCount: 1000 }
-  assert.match(dagDeviceRefusal(section, roots)?.buffer ?? '', /^flags/, 'the roots past it')
+  assert.equal(dagDeviceRefusal(section, roots), undefined, 'the roots past one binding held')
 })
 
 test('`work` holds no word per page: a binding past one list section holds the cut', () => {
   // 12,000 bytes the live list of `flags`; the kept lists' ranks follow the readout's list
   // (`keptRanks.ts`), never the pages.
-  const limits = { maxStorageBufferBindingSize: 12000, maxStorageBuffersPerShaderStage: 64 }
+  const limits = { maxStorageBufferBindingSize: 12000 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(dag(), limits).rows
   // Past the eviction sort's counts and places, a constant whatever the pages (`POOL_SORT_WORDS`).
@@ -94,5 +82,6 @@ test('the host is told why, and no buffer is made', async () => {
   assert.equal(selection, undefined)
   assert.equal(fake.buffers.length, 0)
   assert.equal(refusals.length, 1)
-  assert.match(JSON.stringify(refusals[0]), /past the device limits.*"buffer":"nodes"/)
+  // `work`, past the eviction sort's counts, is no record table: the binding cannot hold it.
+  assert.match(JSON.stringify(refusals[0]), /past the device limits.*"buffer":"work"/)
 })

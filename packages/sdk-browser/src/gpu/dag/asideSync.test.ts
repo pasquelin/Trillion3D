@@ -88,7 +88,8 @@ test('a view aside cut alone reads the links of a cell placed since', async () =
   for (let o = 4; o < 8; o++) selection.placeObject(o, o)
   await side()
   const { links, linkBase } = packed.world!
-  const cold = new Uint32Array(held(resources.coldParts.buffers[0]).buffer)
+  // The cold words, one a record, laid as the packing laid them (`cutTables.ts`).
+  const cold = (resources.cutTables.cold.texture as unknown as { words: Uint32Array }).words
   for (let w = 4; w < 8; w++) assert.equal(cold[linkBase + w], links[w], `placement ${w}`)
 })
 

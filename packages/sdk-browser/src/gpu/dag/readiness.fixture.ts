@@ -6,7 +6,6 @@ import { residentFlags } from './layout.fixture.ts'
 
 /** A device that takes the writes and keeps nothing: the host copy is what the kernel would read. */
 const NO_DEVICE = { queue: { writeBuffer() {} } } as unknown as GPUDevice
-const NO_PARTS = { buffers: [{} as GPUBuffer], bytes: Number.MAX_SAFE_INTEGER }
 
 /** Runs the kernel's residency upload (`residencyUpload.ts`) on `packed`, as its host does: the
  *  rule's two bit sets land in `packed.pageCones`, the open counts the placements hold in
@@ -15,7 +14,7 @@ export function uploadResidency(packed: PackedDag, resident: ArrayLike<number> |
   const upload = createDagResidencyUpload({
     device: NO_DEVICE,
     packed,
-    coldParts: NO_PARTS,
+    cold: () => {},
   })
   upload('flag' in resident ? resident : pageResidency(resident))
   return upload

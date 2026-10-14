@@ -7,7 +7,7 @@ import {
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { FRAME_TABLE } from './frameTable.ts'
-import { textureExtent } from '../core/textureExtent.ts'
+import { writtenTexels } from '../core/recordTexture.fixture.ts'
 
 /**
  * The kit's device running the DAG selection on the CPU double of its kernel, its mappings meeting
@@ -32,27 +32,18 @@ export function mockDagDevice(
     rows: () =>
       gpu.textureWrites
         .filter(({ destination }) => destination.texture.label === FRAME_TABLE.label)
-        .flatMap(({ destination, data, layout, size }) => {
-          const [x, y, layer] = destination.origin as number[],
-            [width, lines] = textureExtent(size)
+        .flatMap((write) => {
+          const { first, words } = writtenTexels(FRAME_TABLE, write as never)
           // A write of the frame words is whole rows, from a row's start: never a word alone.
-          if (x % FRAME_ROW_WORDS || width % FRAME_ROW_WORDS)
-            throw new Error(`a frames write of ${width} words at ${x} is no whole rows`)
-          const bytes = data as unknown as Uint8Array,
-            rows: [number, Uint32Array][] = []
-          for (let line = 0; line < lines; line++)
-            for (let k = 0; k < width / FRAME_ROW_WORDS; k++) {
-              const row =
-                  (((layer << FRAME_TABLE.layerShift) + y + line) << FRAME_TABLE.rowShift) +
-                  x / FRAME_ROW_WORDS +
-                  k,
-                from = (layout.offset ?? 0) + line * layout.bytesPerRow! + k * FRAME_ROW_WORDS * 4
-              rows.push([
-                row * FRAME_ROW_WORDS,
-                new Uint32Array(bytes.slice(from, from + FRAME_ROW_WORDS * 4).buffer),
-              ])
-            }
-          return rows
+          if (first % FRAME_ROW_WORDS || words.length % FRAME_ROW_WORDS)
+            throw new Error(`a frames write of ${words.length} words at ${first} is no whole rows`)
+          return Array.from(
+            { length: words.length / FRAME_ROW_WORDS },
+            (_, k): [number, Uint32Array] => [
+              first + k * FRAME_ROW_WORDS,
+              words.subarray(k * FRAME_ROW_WORDS, (k + 1) * FRAME_ROW_WORDS),
+            ],
+          )
         }),
   }
 }
