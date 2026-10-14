@@ -139,7 +139,7 @@ test('a still view with transparents writes its view once: the front pass sets a
     size: [64, 32] as const,
     depthDrawn: true,
     proxyError: 0,
-    runtime: [3, 0, 0, 0],
+    epoch: 3,
     front: true,
   }
   write(frame, held, 6)

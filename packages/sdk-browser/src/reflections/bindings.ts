@@ -12,7 +12,7 @@ export const storageEntry = (
   storageTexture: { access: 'write-only', format },
 })
 
-/** The run-time proxy's store at `binding`: its layers of `r32uint`, read and written by the trace. */
+/** The run-time proxy's store at `binding`: two layers of `r32uint`, read and written by the trace. */
 export const storeEntry = (binding: number): GPUBindGroupLayoutEntry => ({
   binding,
   visibility: COMPUTE,

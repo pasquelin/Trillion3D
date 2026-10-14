@@ -8,9 +8,8 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  * order: what the reflection knows of the view beyond the deferred lighting's own (`View`: the
  * pixel's world point, the eye, the drawn size, the exposure, the display curve and the background
  * are read there, from the one uniform every pass of the image reads).
- *  - `viewProj`, the view-projection the depth was drawn with, `radianceViewProj`, the one the
- *    radiance pyramid's image was drawn with, and `radianceEye`, that image's eye (`xyz`): the run-time
- *    proxy's history is read where that view saw a surface (`bounce/runtimeHistoryWgsl.ts`);
+ *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
+ *    radiance pyramid's image was drawn with;
  *  - `radiance`, the radiance image's drawn size and its top level (`z`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
@@ -21,10 +20,8 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    (`yz`);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
- *  - `runtime`, the run-time proxy's words (`proxyStore.ts`): its epoch (`x`), what its answers are
- *    stamped with, whether this image's trace answers the transparents' front surface (`y`, one or
- *    zero, `frontLayer.ts`), the ranks of the sets of its store the trace reads and writes (`z`: the read
- *    one in the low bit, the written one above it), and how it reads them (`w`, `STORE_MODE`);
+ *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with, and whether this
+ *    image's trace answers the transparents' front surface (`y`, one or zero, `frontLayer.ts`);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
@@ -32,7 +29,6 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
   ['radianceViewProj', 'mat4x4f'],
-  ['radianceEye', 'vec4f'],
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
   ['traced', 'vec4u'],
