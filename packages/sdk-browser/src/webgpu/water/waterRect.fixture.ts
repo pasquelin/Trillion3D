@@ -186,10 +186,10 @@ export function waterRectCpu(
     drawn = true
     includeWaterItem(b, item, blendState.volumePacked)
   }
-  const full = [0, 0, size[0], size[1]]
+  const whole = [0, 0, size[0], size[1]]
   const bounded = b.surface[2] > b.surface[0]
-  const rect = bounded ? Array.from(b.surface) : full,
-    copied = bounded ? Array.from(b.backdrop) : full
+  const rect = bounded ? Array.from(b.surface) : whole,
+    copied = bounded ? Array.from(b.backdrop) : whole
   return {
     drawn,
     rect,
