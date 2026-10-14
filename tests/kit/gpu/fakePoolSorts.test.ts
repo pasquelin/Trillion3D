@@ -1,6 +1,7 @@
 // The double replays a pool sort by the program its pipeline runs (`fakePoolSorts.ts`): the rows'
-// victim queue lands in the readout as `rowEvictSortWgsl.ts` writes it, and a pool sort the double
-// does not know stops the run, where a buffer label once sent both silently to nothing.
+// victim queue is known by name and left unwritten — the closure that stamps its use words is not
+// replayed —, and a pool sort the double does not know stops the run, where a buffer label once
+// sent both silently to nothing.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateComputeDispatch } from './fakeCompute.ts'
@@ -19,16 +20,17 @@ const group = (use: number[], uniform: number[]) => ({
 })
 const sort = (code: string) => ({ entryPoint: 'poolScatter', module: { code } })
 
-test('the rows’ sort writes their queue: the oldest rows’ pages, a row in use never', () => {
-  const clock = 100
-  // Per row: its last use, its walk word, its page; the second row was used a frame ago.
+test('the rows’ sort is known by its program and writes no queue: the double runs no closure', () => {
+  // Per row: its last use, its walk word, its page.
   const rows = [10, 0, 7, 99, 0, 8, 50, 0, 9]
   assert.equal(rows.length, 3 * ROW_USE_WORDS)
-  const bind = group(rows, [clock, 3, 0, 4])
+  const bind = group(rows, [100, 3, 0, 4])
   simulateComputeDispatch(sort(ROW_SORT_WGSL), bind)
   const out = new Uint32Array(bind.entries[2].resource.buffer.data.buffer)
-  assert.deepEqual([...out.subarray(0, 3)], [2, 2, clock + 1])
-  assert.deepEqual([...out.subarray(SELECTION_HEADER_WORDS, SELECTION_HEADER_WORDS + 2)], [7, 9])
+  assert.ok(
+    out.every((word) => word === 0),
+    'no queue the host would trust',
+  )
 })
 
 test('a pool sort the double does not replay stops the run', () => {
