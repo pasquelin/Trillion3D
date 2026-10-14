@@ -152,7 +152,7 @@ export async function createCompilationJob(
   output: string,
   options: CompilationJobOptions,
 ): Promise<CompilationJob> {
-  const { createJob } = await import('../../sdk-core/src/index.ts')
+  const { createJob } = await import('../../sdk-core/src/runtime/jobs/jobs.ts')
   return createJob(
     id,
     ({ signal, progress }) =>
