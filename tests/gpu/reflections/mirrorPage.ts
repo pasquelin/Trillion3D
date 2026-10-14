@@ -7,43 +7,36 @@ import { runOnDevice } from '../kit/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { openRig } from './rig.ts'
 
-/** What the proof reads: each image's reflection target, as its raw half-float words. */
-export type MirrorReading = { targets: number[][]; size: number }
+/** What the proof reads: per reflective family, three consecutive still images' reflection
+ *  targets, as raw half-float words. */
+export type MirrorReading = { families: Record<string, number[][]>; size: number }
 
-/** The rig over the mirror scene `scene` (`mirrorScene`): its floor a polished metal, white and of
- *  metalness one, so that the share is the lobe's own weight; its pixels wear `lobes` if given. */
-export function openMirror(
-  device: GPUDevice,
-  scene = mirrorScene(),
-  lobes?: Uint32Array<ArrayBuffer>,
-) {
-  const { size } = MIRROR
-  return openRig(device, {
-    size: [size, size],
-    viewProjection: scene.viewProjection,
-    eye: [0, 0, 0],
-    depth: scene.depth,
-    flags: scene.flags,
-    normals: scene.normals,
-    base: new Float32Array(size * size * 4).fill(1),
-    radiance: scene.radiance,
-    lobes,
-  })
+/** The reflective families the rig draws, by name: the mirror floor, rough floors, a coated one. */
+const FAMILIES = {
+  mirror: () => roughFloor(false, 0),
+  'rough 0.35': () => roughFloor(false, 0.35),
+  'rough 0.9': () => roughFloor(false, 0.9),
+  'coated rough': () => roughFloor(true, 0.9),
 }
 
 export function run() {
   return runOnDevice<MirrorReading>(async (device, _events, result) => {
-    const { size } = MIRROR
-    const rig = await openMirror(device)
-    // The first image has no radiance pyramid yet: the environment alone, then the lit image's.
-    rig.image()
-    result.targets = []
-    for (let k = 0; k < 2; k++) {
+    result.families = {}
+    for (const [name, made] of Object.entries(FAMILIES)) {
+      const { scene, lobes } = made()
+      const rig = await openMirror(device, scene, lobes)
+      // The first image has no radiance pyramid yet: the environment alone; the next three reflect
+      // the lit image, the HDR targets taking turns between them.
       rig.image()
-      result.targets.push(Array.from(await rig.read()))
+      const targets: number[][] = []
+      for (let k = 0; k < 3; k++) {
+        rig.image()
+        targets.push(Array.from(await rig.read()))
+      }
+      rig.dispose()
+      result.families[name] = targets
     }
-    result.size = size
-    rig.dispose()
+    result.size = MIRROR.size
   })
 }
 

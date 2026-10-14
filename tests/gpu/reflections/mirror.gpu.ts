@@ -1,5 +1,6 @@
-// The reflection on the GPU (`mirrorPage.ts`, `mirrorScene.ts`): two consecutive still images give
-// the same reflection target to the bit — nothing it reads turns with the frame —, and a mirror
+// The reflection on the GPU (`mirrorPage.ts`, `mirrorScene.ts`): three consecutive still images of
+// each reflective family (mirror, rough, coated rough) give the same reflection target to the bit,
+// the HDR targets taking turns between them — nothing it reads turns with the frame —, and a mirror
 // floor shows an emissive quad standing on it where the analytic mirror puts it, sharp, while a
 // floor pixel whose mirror ray meets nothing reads the radiance around the scene alone — no light
 // around it and a black background: zero.
@@ -12,7 +13,7 @@ import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { MIRROR, reflectedPixel } from './mirrorScene.ts'
 
-test('a still mirror reflects the same bits twice, the quad where the mirror puts it', async () => {
+test('a still floor reflects the same bits every image, the quad where the mirror puts it', async () => {
   const page = (await loadPage(
     resolve(import.meta.dirname, 'mirrorPage.ts'),
     'reflectionMirror',
@@ -20,8 +21,11 @@ test('a still mirror reflects the same bits twice, the quad where the mirror put
   const result = await runOnDawn(page.run, undefined)
   assert.equal(result.error, undefined, result.error)
   assert.deepEqual(result.errors, [])
-  const [first, second] = result.targets!
-  assert.deepEqual(second, first, 'two still images: one reflection target, bit for bit')
+  for (const [name, targets] of Object.entries(result.families!)) {
+    assert.deepEqual(targets[1], targets[0], `${name}: the second image, the other HDR target`)
+    assert.deepEqual(targets[2], targets[0], `${name}: the third, the first target again`)
+  }
+  const [first] = result.families!.mirror
   const { size, quad } = MIRROR
   const rgb = (x: number, y: number) =>
     [0, 1, 2].map((c) => fromHalf(first[(y * size + x) * 4 + c]))
