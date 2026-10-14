@@ -49,7 +49,9 @@ export function pendingMade(
  * retired (`retire`): commands of this image not yet submitted may name it, so it is destroyed
  * after the frame's submit. A growth that waits for no refusal calls it at once — a table grown by
  * the CPU (`sizedBuffer.ts`), with no copy; the roots' tables (`../../placement/rootWorlds.ts`) and
- * the proxy's arena (`../dag/proxyArena.ts`), copied —; a pending one at its `commit`.
+ * the proxy's arena (`../dag/proxyArena.ts`), copied —; a pending one at its `commit`. The copy is
+ * submitted at once, ahead of the frame's encoder: a growth runs before that encoder records any
+ * GPU write to `held`, whose writes the copy would otherwise miss.
  */
 export function grownByCopy(
   device: GPUDevice,

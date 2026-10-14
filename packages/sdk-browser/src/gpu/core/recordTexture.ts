@@ -1,5 +1,5 @@
 import { arrayView } from './textureViews.ts'
-import { retire } from './frameRetire.ts'
+import { grownByCopy } from './tableGrowth.ts'
 
 import {
   heldRecords,
@@ -20,9 +20,11 @@ import {
  * creates it, `bytes` large: an owner's admission and ledger (`../dag/resources.ts`).
  *
  * A table grows in place of a second one beside it (`hold`): made larger, the records it held
- * copied on the GPU once, in the queue's order behind every write sent to it, the one replaced
- * retired after the frame that may name it (`retire`). Its texture and view are then new: every
- * group that binds it follows the view's identity (`createWebgpuBindIdentity`).
+ * copied on the GPU once, submitted at once — behind every host write sent to it, ahead of any
+ * command the frame's encoder holds, so it grows before that encoder records a GPU write to it —,
+ * the one replaced retired after the frame that may name it (`grownByCopy`). Its texture and view
+ * are then new: every group that binds it follows the view's identity
+ * (`createWebgpuBindIdentity`).
  */
 export function createRecordTexture(
   device: GPUDevice,
@@ -113,9 +115,9 @@ export function createRecordTexture(
     },
     /**
      * A table that holds `wanted` records: this one, or one made larger — twice the last at
-     * least, so a growth costs a constant a record —, its records copied once on the GPU in the
-     * queue's order, the texture replaced retired (`retire`). Whether it holds them: a growth its
-     * maker refuses keeps the table it had.
+     * least, so a growth costs a constant a record —, its records copied once on the GPU and the
+     * texture replaced retired, by the one growth's release (`grownByCopy`, whose order it
+     * keeps). Whether it holds them: a growth its maker refuses keeps the table it had.
      */
     hold(wanted: number) {
       if (wanted <= table.capacity) return true
@@ -125,10 +127,17 @@ export function createRecordTexture(
       } catch {
         return false
       }
-      const encoder = device.createCommandEncoder({ label: `${layout.label} growth` })
-      encoder.copyTextureToTexture({ texture: old.texture }, { texture: table.texture }, old.size)
-      device.queue.submit([encoder.finish()])
-      retire(device, old.texture)
+      grownByCopy(
+        device,
+        [old.texture],
+        (encoder) =>
+          encoder.copyTextureToTexture(
+            { texture: old.texture },
+            { texture: table.texture },
+            old.size,
+          ),
+        `${layout.label} growth`,
+      )
       return true
     },
     /** Texels `[from, from + count)` of field `field` copied, in `encoder`, to texels from `at` of
