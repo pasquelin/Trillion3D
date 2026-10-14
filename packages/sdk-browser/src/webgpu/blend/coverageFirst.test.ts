@@ -21,7 +21,7 @@ test('the blend and water stages take every derivative before their coverage tes
     .map(([, name]) => name)
     .filter((name) => DERIVATIVE.test(functionsOf(STAGES, [name])))
   assert.deepEqual(taking, ['blendGrads', 'blendFragment'])
-  for (const stage of ['blendFragment', 'fsWater', 'fsWaterLobed']) {
+  for (const stage of ['blendFragment', 'fsWater', 'fsWaterLobed', 'fsFront']) {
     const body = functionsOf(STAGES, [stage]),
       coverage = body.search(COVERAGE)
     assert.ok(coverage > 0, `${stage} returns at its coverage test`)
@@ -46,6 +46,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'lineDash',
     'floorMod',
     'blendShadowFootprint',
+    'blendSurfaceModel',
     // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
     'blendPhysicalBegin',
     'blendLobes',

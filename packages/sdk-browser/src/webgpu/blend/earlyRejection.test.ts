@@ -27,11 +27,9 @@ test('the blend fragment stage writes nothing to memory', () => {
   // No writable storage binding, wherever it is declared: the driver reads the declaration,
   // not the use, to decide early rejection.
   assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/)
-  assert.match(
-    BLEND_SHADER,
-    /var<storage,read> rtProxy:/,
-    'the proxy stays read, the ray is traced',
-  )
+  // No ray of the proxy in a fragment: the trace cast it, and the front surface reads what it wrote.
+  assert.doesNotMatch(BLEND_SHADER, /\brtProxy\b/, 'no proxy bound, no ray traced')
+  assert.match(BLEND_SHADER, /var frontTraced:texture_2d<u32>;/, 'the front radiance, read by load')
 })
 
 test('the blend layout declares no writable storage buffer', async () => {
@@ -44,7 +42,7 @@ test('the blend layout declares no writable storage buffer', async () => {
       (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 && entry.buffer?.type === 'storage',
   )
   assert.deepEqual(inscriptibles, [], 'a single one would be enough to lose early rejection')
-  // The proxy is there, and read-only: the far surface keeps its sun shadow.
+  // The lights and the shadow maps are there, and read-only: the far surface keeps its sun shadow.
   assert.ok(
     entries.some((entry) => entry.buffer?.type === 'read-only-storage'),
     'the blend storage buffers are all read',

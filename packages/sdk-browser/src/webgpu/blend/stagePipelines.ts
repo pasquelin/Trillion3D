@@ -31,6 +31,14 @@ export type RankedPipelines = {
   skips?(rank: number): boolean
 }
 
+/** The front stage's pipelines of a blend program (`frontStage.ts`): its three culls, picked by a plan
+ *  rank's cull, whether they write the lobes target, whether they are compiled, and their compile asked. */
+export type FrontStagePipelines = RankedPipelines & {
+  readonly lobes: boolean
+  readonly ready: boolean
+  ask(): void
+}
+
 /** What a transparent pass compiles per blending mode (`BLEND_MODES`): each mode's pipelines, one
  *  per descriptor its `describe` gives, prepared off the frame (`preparedPipeline`). `precompile`
  *  compiles modes without blocking the thread; `at` gives a mode's pipeline at `rank` of its
@@ -85,6 +93,9 @@ export const declaredBlendModes = (
 export interface BlendModePipelines extends RankedPipelines {
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number }
+  /** The front stage's, which draws the transparents' front surface the reflection trace reads
+   *  (`frontPass.ts`). */
+  readonly front: FrontStagePipelines
   /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
    *  or not (`createForwardVariants`). */
   lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines

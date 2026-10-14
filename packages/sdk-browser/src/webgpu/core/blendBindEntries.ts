@@ -23,12 +23,9 @@ export type BlendLighting = {
   probes: GPUTextureView
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer
-  /** What a ray can meet of the scene: the proxy's buffer, the culling's records — the worlds it
-   *  places its meshes by and its instances — and the placement tree its rays walk (`../../bounce/runtimeSceneWgsl.ts`), read by
-   *  the reflection of the forward programs. */
-  proxy: GPUBuffer
-  proxyWorlds: GPUTextureView
-  proxyTree: GPUTextureView
+  /** The transparents' front radiance the reflection trace wrote (`../../reflections/frontLayer.ts`),
+   *  or its stand-in: what a fragment of the front surface reflects. */
+  frontTraced: GPUTextureView
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -97,15 +94,9 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
-  // The proxy, **read-only**: a binding the fragment stage could write would cost the pass its early
-  // depth reject (4232 hidden fragment draws). The probes are an atlas (`../../bounce/atlas.ts`), no
-  // storage buffer.
-  proxy: ['fragment', STORAGE],
-  // The culling's records — the worlds the proxy is placed by and its instances — and its placement
-  // tree (`../../gpu/dag/worldTable.ts`, `treeTable.ts`): record textures, the fragment stage holding
-  // the eight storage buffers WebGPU guarantees.
-  proxyWorlds: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
-  proxyTree: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
+  // The front's traced radiance, a texture read by load: nothing the fragment stage could write, which
+  // would cost the pass its early depth reject (4232 hidden fragment draws).
+  frontTraced: ['fragment', { texture: { sampleType: 'uint' } }],
   // The surfaces' records (`../material/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.

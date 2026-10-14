@@ -11,7 +11,8 @@ import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from '../prepare/contractLight.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
-import { encodeBlend, prepareBlend } from './encodeBlend.ts'
+import { bindBlend, encodeBlend, prepareBlend } from './encodeBlend.ts'
+import { encodeFrontPass } from '../../blend/frontPass.ts'
 import {
   encodeDepthPyramid,
   encodeReflectionRadiance,
@@ -65,8 +66,12 @@ export function encodeSurfaceLighting(
   const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
-  // What every surface reflects: the opaque ones traced here, the resolve's input; the blends and
-  // the water read the same view inline.
+  // The transparents bound for the image, and their front surface drawn: the trace reads it.
+  const blendKey = blendRuns ? bindBlend(rt, device) : undefined
+  if (blendKey) encodeFrontPass(rt, device, encoder, blendKey)
+  // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
+  // transparents' front one, which the blends and the water read; behind it, they read the same
+  // view inline.
   encodeReflections(rt, encoder)
   gpu.deferred.bind(
     gpu.surfaces,
@@ -84,7 +89,7 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls++
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
-  encodeBlend(rt, device, encoder, true, blendRuns)
+  encodeBlend(rt, device, encoder, true, blendKey)
   drawParticles(rt, encoder, directTiles())
   // The lit image whole, before its resolve: the next image's reflections read it.
   encodeReflectionRadiance(rt, encoder)

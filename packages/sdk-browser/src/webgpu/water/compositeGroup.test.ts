@@ -1,7 +1,7 @@
 // The water composite's layout is made of the bindings it holds (`compositeGroup.ts`): the opaque
 // resolve's deferred bounce layout with the pool where the composite reads a binding as the resolve
-// does, its own where it does not — the water word, a colour in the flags' place, the proxy's record
-// tables, the backdrop and its depth, the blend view, the volumes and the item records, and for the
+// does, its own where it does not — the water word, a colour in the flags' place, the transparents'
+// front radiance, the backdrop and its depth, the blend view, the volumes and the item records, and for the
 // vertex stage the verdict its quad reads —, then the lobes target. The very entries the layout was
 // written as by hand.
 import test from 'node:test'
@@ -28,13 +28,8 @@ test('the water composite layout is the one its bindings name, laid out as the r
     ),
     { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
     { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
-    { binding: b.proxy, visibility: fragment, buffer: readOnly },
-    // The proxy's record tables: the culling's records, worlds and instances, and the placement tree.
-    ...[b.proxyWorlds, b.proxyTree].map((binding) => ({
-      binding,
-      visibility: fragment,
-      texture: { sampleType: 'uint', viewDimension: '2d-array' },
-    })),
+    // The front's radiance the reflection trace wrote: words, read by load.
+    { binding: b.frontTraced, visibility: fragment, texture: { sampleType: 'uint' } },
     { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
     { binding: b.volumes, visibility: fragment, buffer: readOnly },
     { binding: b.items, visibility: fragment, buffer: readOnly },

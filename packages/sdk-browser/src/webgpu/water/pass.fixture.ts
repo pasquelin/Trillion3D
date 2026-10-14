@@ -135,7 +135,7 @@ export function targets(gpu: WebgpuGpuState) {
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(
-        ['bounceGrid', 'probes', 'tiles', 'proxy'].map((k) => [k, {}]),
+        ['bounceGrid', 'probes', 'tiles', 'frontTraced'].map((k) => [k, {}]),
       ),
     },
   })

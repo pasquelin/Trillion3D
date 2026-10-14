@@ -20,6 +20,7 @@ import { REFLECTION_FRONT_WGSL } from '../../reflections/frontTarget.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../../reflections/viewLayout.ts'
 import { f0Of } from '../../../../math/src/wgsl/lighting.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
+import { blendSurfaceModel, frontStageWgsl } from './frontStageWgsl.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -42,17 +43,14 @@ const blendProgram = (key: Partial<ContractKey>) => {
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
       blendSurfaceWgsl(lobes),
-      forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
-        group: 0,
-        proxy: BLEND_BINDINGS.proxy,
-        worlds: BLEND_BINDINGS.proxyWorlds,
-        tree: BLEND_BINDINGS.proxyTree,
-      }),
+      forwardReflectionWgsl(REFLECTION_GROUP, lobes, BLEND_BINDINGS.frontTraced),
       reflectionLightViewWgsl(REFLECTION_GROUP),
       REFLECTION_FRONT_WGSL,
       f0Of,
       ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
       blendFragmentWgsl(lobes),
+      // The transparents' front surface the reflection trace reads (`fsFront`).
+      frontStageWgsl(lobes),
     ],
     `${tileDeclarations(BLEND_BINDINGS.color, 'color')}
 @group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
@@ -81,6 +79,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
+      blendSurfaceModel,
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
       TRIANGLE_PALETTE_WGSL,
@@ -106,13 +105,12 @@ ${BLEND_DIAGNOSTIC}
  if(!unlit){
   if((flags&${itemFlags.FLAG_LIT}u)!=0u){
    let m=s.metal;
-   let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
-   surfaceModel=select(select(${surfaceModel.MODEL_FLAG.physical}u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
+   surfaceModel=blendSurfaceModel(flags);
    thinSubsurface=s.subsurface;
    shadowFootprint=blendShadowFootprint(in.view);
    shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);
    blendLobes(in,front,g,s,V,clamped);
-   rgb=litSurface(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z),bounceLighting(rgb,m,s.N,in.view,s.ao),environmentLighting(rgb,m,s.N,s.ao),surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view),s.emissive);
+   rgb=litSurface(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z),bounceLighting(rgb,m,s.N,in.view,s.ao),environmentLighting(rgb,m,s.N,s.ao),surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view,in.position),s.emissive);
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.

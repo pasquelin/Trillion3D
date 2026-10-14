@@ -22,6 +22,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
+import { frontStagePipelines } from './frontStage.ts'
 import { TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
@@ -180,6 +181,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   await catchUp()
   const pipelines: BlendModePipelines = {
     mask: maskSet.mask,
+    front: frontStagePipelines(device, module, layout, !key.lobeless),
     reach: reach.reach,
     lit: (frame, lobed) => setup.programs().pick(frame, lobed).pipelines,
     lobedAwaited: () => setup.programs().awaited(FULL_CONTRACT),

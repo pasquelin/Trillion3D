@@ -20,7 +20,7 @@ import { waterQuadWgsl } from './quadWgsl.ts'
 import { BLEND_ITEM_WGSL } from '../blend/items.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
- *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
+ *  the contract, the probe grid — then the transparents' front radiance, and what only water reads: the frozen backdrop, the
  *  opaque depth, the blend view uniform, the material volumes, the item records whose poses they
  *  name and the rectangle its quad covers. */
 export const WATER_BINDINGS = {
@@ -38,17 +38,14 @@ export const WATER_BINDINGS = {
   shadowSampler: 10,
   bounceGrid: 11,
   probes: 12,
-  /** The proxy's buffer, which the reflection traces, the culling's records — the worlds it places
-   *  its meshes by and its instances — and the placement tree its rays walk (`proxyWorlds`,
-   *  `proxyTree`, record textures: `../../gpu/dag/worldTable.ts`, `treeTable.ts`). */
-  proxy: 13,
+  /** The transparents' front radiance the reflection trace wrote (`../../reflections/frontLayer.ts`),
+   *  which a water pixel of the front surface reads its reflection from. */
+  frontTraced: 13,
   backdrop: 14,
   backdropDepth: 15,
   /** The blend view uniform, as written for the blend pass: projection, eye, tiles, flags. */
   uniform: 16,
   volumes: 17,
-  proxyWorlds: 20,
-  proxyTree: 21,
   /** The transparent items' records (`../blend/items.ts`), whose world matrix takes a volume's
    *  declared thickness to the world (`volumeWorldPath`). */
   items: 37,
@@ -67,7 +64,8 @@ export const WATER_BINDINGS = {
  * surface may have written, and none past them. A pixel the surface stage wrote is lit once here: the
  * transmitted backdrop, refracted by the material IOR and attenuated over the distance the ray
  * travels in the volume; the specular of the declared lights and what the surface reflects
- * (`reflectedRadiance`, `../../reflections/weight.ts`, traced once for both shares), weighted by
+ * (`forwardTrace`, `../../reflections/weight.ts`, traced once for both shares: the front's radiance
+ * the reflection trace wrote where the water is the front surface, else the chain without the proxy), weighted by
  * Fresnel; and the surface's own lit colour for what the material does not transmit.
  * Everything is read on the imported material — `KHR_materials_transmission`, `KHR_materials_ior`,
  * `KHR_materials_volume` — and the scene's declared sources, with the engine's only lighting
@@ -122,12 +120,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       declaredLightingWgsl(bindings, key, { pair: true }),
       bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes),
       ...(lobes ? [WATER_LOBES_WGSL] : []),
-      forwardReflectionWgsl(REFLECTION_GROUP, lobes, {
-        group: 0,
-        proxy: WATER_BINDINGS.proxy,
-        worlds: WATER_BINDINGS.proxyWorlds,
-        tree: WATER_BINDINGS.proxyTree,
-      }),
+      forwardReflectionWgsl(REFLECTION_GROUP, lobes, WATER_BINDINGS.frontTraced),
       WATER_COLOR_WGSL,
       VIEW_WGSL,
       BLEND_VIEW_WGSL,
