@@ -42,7 +42,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
 fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
  let depth=surfaceLinearDepth(P);
  // A neighbour's centre lies within two pixels of the pixel's on each axis.
- let g=historyGather(upsampleIn,(vec2f(coord)+vec2f(0.5))*0.5-vec2f(0.5),depth,N,V,2.0);
+ let g=historyGatherNear(upsampleIn,(vec2f(coord)+vec2f(0.5))*0.5-vec2f(0.5),depth,N,V,2.0);
  if(g.sharpWeight>REFLECTION_EPSILON){
   return Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight);
  }

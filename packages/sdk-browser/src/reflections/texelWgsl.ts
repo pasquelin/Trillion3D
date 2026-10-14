@@ -5,6 +5,31 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTED_WGSL } from './weight.ts'
 
+/** The gather `name` (`historyGather`): with `near`, the bilinear sum of the held taps too — the
+ *  upsample's fallback alone reads it, so the accumulation's gather adds none. One text, both. */
+const historyGatherFn = (name: string, near: boolean) =>
+  `fn ${name}(grid:texture_2d<u32>,q:vec2f,depth:f32,N:vec3f,V:vec3f,pixels:f32)->HistoryGather{
+ var g=HistoryGather(Reflected(vec3f(0.0),vec3f(0.0)),0.0,Reflected(vec3f(0.0),vec3f(0.0)),0.0,0.0);
+ let corner=vec2i(floor(q));
+ let f=q-floor(q);
+ let last=vec2i(textureDimensions(grid))-vec2i(1);
+ for(var k=0u;k<4u;k++){
+  let o=vec2u(k&1u,k>>1u);
+  let tap=corner+vec2i(o);
+  if(any(tap<vec2i(0))||any(tap>last)){continue;}
+  let t=textureLoad(grid,tap,0);
+  if(historyCount(t)==0u){continue;}
+  let r=texelReflected(t);
+  let w=mix(1.0-f.x,f.x,f32(o.x))*mix(1.0-f.y,f.y,f32(o.y));${
+    near ? '\n  g.near.base+=w*r.base;g.near.coat+=w*r.coat;g.nearWeight+=w;' : ''
+  }
+  let e=w*reflectionSameSurface(depth,N,V,historyDepth(t),historyNormal(t),pixels);
+  g.sharp.base+=e*r.base;g.sharp.coat+=e*r.coat;g.sharpWeight+=e;
+  g.count+=e*f32(historyCount(t));
+ }
+ return g;
+}`
+
 /**
  * THE HALF GRIDS' TEXELS (`halfTexture.ts`) and the one test that two of them saw the same surface.
  * Every texel holds the radiance of both lobes — the base's and the clear coat's — as six halves in
@@ -29,7 +54,7 @@ import { REFLECTED_WGSL } from './weight.ts'
  * `historyGather`: the four history texels of `grid` around `q` (half-grid coordinates, texel centres
  * on the integers), bilinear, those that hold a history (`near`), and those weighed by the same-surface
  * test too (`sharp`), with their mean count — the one read of a history, the accumulation's of the
- * last image's grid, the upsample's of this image's.
+ * last image's grid, the upsample's of this image's (`historyGatherNear`, the only reader of `near`).
  */
 export const REFLECTION_TEXEL_WGSL = wgslBlock(
   'REFLECTION_TEXEL_WGSL',
@@ -86,24 +111,6 @@ fn reflectionSameSurface(depth:f32,N:vec3f,V:vec3f,other:f32,otherN:vec3f,pixels
  return near*pow(max(dot(N,otherN),0.0),REFLECTION_NORMAL_POWER);
 }
 struct HistoryGather{sharp:Reflected,sharpWeight:f32,near:Reflected,nearWeight:f32,count:f32,}
-fn historyGather(grid:texture_2d<u32>,q:vec2f,depth:f32,N:vec3f,V:vec3f,pixels:f32)->HistoryGather{
- var g=HistoryGather(Reflected(vec3f(0.0),vec3f(0.0)),0.0,Reflected(vec3f(0.0),vec3f(0.0)),0.0,0.0);
- let corner=vec2i(floor(q));
- let f=q-floor(q);
- let last=vec2i(textureDimensions(grid))-vec2i(1);
- for(var k=0u;k<4u;k++){
-  let o=vec2u(k&1u,k>>1u);
-  let tap=corner+vec2i(o);
-  if(any(tap<vec2i(0))||any(tap>last)){continue;}
-  let t=textureLoad(grid,tap,0);
-  if(historyCount(t)==0u){continue;}
-  let r=texelReflected(t);
-  let w=mix(1.0-f.x,f.x,f32(o.x))*mix(1.0-f.y,f.y,f32(o.y));
-  g.near.base+=w*r.base;g.near.coat+=w*r.coat;g.nearWeight+=w;
-  let e=w*reflectionSameSurface(depth,N,V,historyDepth(t),historyNormal(t),pixels);
-  g.sharp.base+=e*r.base;g.sharp.coat+=e*r.coat;g.sharpWeight+=e;
-  g.count+=e*f32(historyCount(t));
- }
- return g;
-}`,
+${historyGatherFn('historyGather', false)}
+${historyGatherFn('historyGatherNear', true)}`,
 )
