@@ -19,9 +19,10 @@ const NONE = new Uint32Array(0)
  * brings no queue to trust closes the order in hand. No clock and no sweep on the host.
  *
  * A request no free row serves waits for the next queue, which it asks a cut for (`ask`) — a still
- * camera cuts no more —, unless the GPU found nothing more to give — every other row in use — or
- * no queue came `STALE` frames after the ask: then it is denied, and the table grows by it
- * (`denies`).
+ * camera cuts no more —, unless the GPU found nothing more to give — every other row in use —, no
+ * queue ever came — no cut ranks the rows: nothing says one may go —, or none came `STALE` frames
+ * after the ask: then it is denied, and the table grows by it (`denies`). The image never waits on
+ * a queue that may not come.
  */
 export function createRowOrder(
   rowOf: (page: number) => number,
@@ -57,7 +58,8 @@ export function createRowOrder(
     /** Whether a request no free row serves at frame `now` is denied — the table grows by it —
      *  rather than waiting for the next queue, which is asked for then. */
     denies(now: number) {
-      if (order.exhausted()) return true
+      // No queue ever came: nothing says a row may go, so none waits on one.
+      if (order.exhausted() || lastQueue === -Infinity) return true
       if (lastQueue >= asked) {
         asked = now
         ask()
