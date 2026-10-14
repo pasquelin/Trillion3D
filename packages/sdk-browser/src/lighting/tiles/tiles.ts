@@ -1,14 +1,7 @@
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { tileViewInverse } from './tileFrame.ts'
-import { lightTilesShader, type LightGridKind } from './shader.ts'
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
-import { createTileLightPool } from './pool.ts'
-import { buildComputePipeline } from '../deferred/fullscreen.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
-import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import {
@@ -16,74 +9,11 @@ import {
   computeUniformEntry,
   sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
+import { createGrid, encodeGrid, recordsOf, START_WORD, type Grid } from './lightGrid.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
 const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
-/** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows,
- *  the word the grid's records start at. */
-const UNIFORM_FLOATS = 36
-/** The uniform's word of the records' start (`TileView.start`). */
-const START_WORD = 32
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
-
-/** One grid of the buffer: its pass, its uniform and its pool, its columns and the words it takes. */
-type Grid = {
-  kind: LightGridKind
-  pipeline: GPUComputePipeline
-  uniform: GPUBuffer
-  pool: ReturnType<typeof createTileLightPool>
-  packed: Float32Array<ArrayBuffer>
-  words: Uint32Array<ArrayBuffer>
-  label: string
-  /** Cells a column holds: the view's depth slices, the bounce lattice's cells along z. */
-  slices: number
-  /** The light buffer its group names. */
-  bound: ReturnType<typeof createWebgpuBindIdentity>
-  group?: GPUBindGroup
-  tilesX: number
-  tilesY: number
-  poolWords: number
-  growths: number
-  /** Its records' first word in the buffer. */
-  start: number
-}
-
-/** The grid's records' words. */
-const recordsOf = (g: Grid) => g.tilesX * g.tilesY * g.slices * TILE_STRIDE_WORDS
-
-async function createGrid(device: GPUDevice, kind: LightGridKind, layout: GPUBindGroupLayout) {
-  const module = await createCheckedShaderModule(
-    device,
-    lightTilesShader(kind),
-    kind === 'view' ? 'LIGHT_TILES_SHADER' : 'LIGHT_TILES_WORLD_SHADER',
-  )
-  const pipeline = await buildComputePipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'lightTiles' },
-  })
-  const packed = new Float32Array(UNIFORM_FLOATS)
-  const grid: Grid = {
-    kind,
-    pipeline,
-    uniform: device.createBuffer({
-      label: `Trillion3D light tile ${kind} v1`,
-      size: UNIFORM_FLOATS * 4,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
-    pool: createTileLightPool(device),
-    packed,
-    words: new Uint32Array(packed.buffer),
-    label: kind === 'view' ? LIGHT_TILES_PASS : BOUNCE_LIGHT_LISTS_PASS,
-    slices: kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.cascadeSize,
-    bound: createWebgpuBindIdentity(),
-    tilesX: 0,
-    tilesY: 0,
-    poolWords: 0,
-    growths: 0,
-    start: 0,
-  }
-  return grid
-}
 
 /**
  * The light grid's passes (`./shader.ts`) over ONE buffer every reader of a list binds: the view's
@@ -256,24 +186,4 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
       state.tiles = undefined
     },
   }
-}
-
-/** A grid's pass (`createGpuLightTiles`), its group bound again first when its buffer moved
- *  (`bind`); none for a grid never sized. */
-function encodeGrid(
-  grid: Grid,
-  bind: (grid: Grid) => void,
-  encoder: GPUCommandEncoder,
-  frame: number,
-) {
-  if (!grid.group && !grid.bound.next[0]) return false
-  bind(grid)
-  if (!grid.group) return false
-  const pass = encoder.beginComputePass({ label: grid.label })
-  pass.setPipeline(grid.pipeline)
-  pass.setBindGroup(0, grid.group)
-  pass.dispatchWorkgroups(grid.tilesX, grid.tilesY, 1)
-  pass.end()
-  grid.pool.sampleState(encoder, frame)
-  return true
 }
