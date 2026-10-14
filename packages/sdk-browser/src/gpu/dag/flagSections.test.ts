@@ -1,6 +1,6 @@
-// A cut's flags start each section within one binding's worth of the device, as they grow: a reach
-// past it is grown into, never refused up front; queue 0 keeps a root slot a placement. The flags
-// are one record table (`cutTables.ts`): its sections are the kernel's, word for word.
+// A cut's flags start each section at a view's reach and grow past it on demand, bound by the entries
+// and pages alone, never by a storage binding: the flags are one record table (`cutTables.ts`),
+// its sections the kernel's, word for word.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -9,19 +9,27 @@ import {
   flagSectionStart,
   grownFlagShape,
 } from './flagSections.ts'
-import { QUEUE_DROPPED } from './shader/viewsWgsl.ts'
+import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 
-const packed = { queueEntries: 1811, worldCount: 600, pageCount: 1800, candCount: 1800 }
+const packed = { queueEntries: 1811, pageCount: 1800, candCount: 1800 }
 
-test('a device that binds less than the reach starts each section within one binding', () => {
-  const limits = { maxStorageBufferBindingSize: 12800 }
-  // One binding's 3200 words: a queue's even count of them, a list's live entries three each.
-  const shape = dagFlagShape(packed, limits)
-  assert.deepEqual(shape, { queueWords: 3200, candCap: 1066 })
-  // Growth stops at the same bound: one rule for the start and the growth.
-  const bounds = { entryCount: 1811, pageCount: 1800 }
-  assert.equal(grownFlagShape(limits, bounds, shape, QUEUE_DROPPED), undefined)
+test('the sections start at the reach: two words a queue entry, an entry a page', () => {
+  assert.deepEqual(dagFlagShape(packed), { queueWords: 3622, candCap: 1800 })
+})
+
+test('a section grows past one storage binding: the entries and pages alone bound it', () => {
+  // 2²⁶ words a queue and 2²⁵ live entries, three words each: past the 128 MiB binding a guaranteed
+  // device holds, which once capped every section, the record table holds them.
+  const shape = { queueWords: 1 << 25, candCap: 1 << 24 },
+    both = QUEUE_DROPPED | LIST_DROPPED
+  assert.deepEqual(grownFlagShape({ entryCount: 1 << 26, pageCount: 1 << 26 }, shape, both), {
+    queueWords: 1 << 26,
+    candCap: 1 << 25,
+  })
+  // Every entry and every page held already: nothing grows, the view coarsens.
+  const bounds = { entryCount: 1 << 24, pageCount: 1 << 24 }
+  assert.equal(grownFlagShape(bounds, shape, both), undefined)
 })
 
 test("the sections are the kernel's: queue 0, the lists and logs, the queues", () => {
@@ -37,16 +45,6 @@ test("the sections are the kernel's: queue 0, the lists and logs, the queues", (
     14 * (LEVEL_QUEUES - 1) + 7 * 100,
     'the last queue, behind the lists and the queues before it',
   )
-})
-
-test('a device holding the reach keeps it, and queue 0 never drops a placement’s root slot', () => {
-  assert.deepEqual(dagFlagShape(packed, { maxStorageBufferBindingSize: 1 << 27 }), {
-    queueWords: 3622,
-    candCap: 1800,
-  })
-  // A binding narrower than the roots: the queue keeps them, in its record table.
-  const narrow = dagFlagShape(packed, { maxStorageBufferBindingSize: 2048 })
-  assert.equal(narrow.queueWords, 1200)
 })
 
 test("the eviction sort's scratch follows the cut's pages, never the global cap", () => {

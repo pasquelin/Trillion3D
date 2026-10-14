@@ -32,8 +32,9 @@ export async function createGpuDagSelection(
     /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
     poolHeld?: (page: number) => boolean
     /** What the session writes of its roots on the GPU before every cut, the tree's leaves among
-     *  them (`RootsOnGpu`). */
-    roots?: RootsOnGpu
+     *  them (`RootsOnGpu`): the stretch's one writer — a cut without it projects every cluster to
+     *  nothing —, so never optional. */
+    roots: RootsOnGpu
     /** The rows the session's row cache holds: the open counts placements hold follow them. */
     rows?: number
     /** The most its tables may hold (`../../residency/cutTableBytes.ts`): past it, refused. */
@@ -46,7 +47,7 @@ export async function createGpuDagSelection(
     timed?: (steps: ReturnType<CutSteps['end']>) => void
     /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
     rowPass?: (cut: DagResources) => RowCutPass
-  } = {},
+  },
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
   const refusal = dagDeviceRefusal(device.limits, packed)

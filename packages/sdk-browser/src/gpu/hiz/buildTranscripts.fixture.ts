@@ -18,8 +18,6 @@ import { uniformStride } from '../../residency/pools.ts'
 // build also writes the finished depth's farthest layer, from level 1 (`whole`).
 const SLOT_WORDS = HIZ_SLOT_WORDS
 
-/** The tests' seeded random, the lcg32 sequence: the same on every run. */
-
 /** A compute pass that records each dispatch as its uniform slot's first word, then its grid. */
 function recordingPass() {
   const dispatches: number[][] = []

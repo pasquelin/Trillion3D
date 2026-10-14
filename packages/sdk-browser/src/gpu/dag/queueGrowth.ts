@@ -32,17 +32,11 @@ export const cutTablesAt = (resources: {
 async function growDagFlags(resources: DagResources, shape: FlagShape, disposed: () => boolean) {
   const { device, cutTables } = resources,
     old = cutTables.flags
-  const made: { texture: GPUTexture; bytes: number }[] = []
   // What the flags replace leaves the share: the new table is made within what remains, beside
   // what it made so far (`admitBeside`).
-  const admit = admitBeside(resources, old.bytes)
-  const make = (descriptor: GPUTextureDescriptor, bytes: number) => {
-    const texture = admit({ label: descriptor.label, bytes }, () =>
-      device.createTexture(descriptor),
-    )
-    made.push({ texture, bytes })
-    return texture
-  }
+  const admission = admitBeside<GPUTexture>(resources, old.bytes)
+  const make = (descriptor: GPUTextureDescriptor, bytes: number) =>
+    admission.admit({ label: descriptor.label, bytes }, () => device.createTexture(descriptor))
   let flags: ReturnType<typeof createFlagTable> | undefined
   try {
     const { value, error } = await validationScope(
@@ -54,19 +48,20 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
-  if (!flags || disposed()) {
-    for (const { texture } of made) texture.destroy()
-    return false
-  }
-  const grown = flags
-  pendingMade(
+  const { made } = admission
+  const growth = pendingMade(
     device,
-    made.map(({ texture }) => texture),
-    grown.bytes,
+    made.map(({ resource }) => resource),
+    flags?.bytes ?? 0,
     () => {
+      const grown = flags!
       carryJournal(resources, grown, shape)
       const at = resources.textures.findIndex(({ texture }) => texture === old.texture)
-      resources.textures.splice(at, 1, ...made)
+      resources.textures.splice(
+        at,
+        1,
+        ...made.map(({ resource, bytes }) => ({ texture: resource, bytes })),
+      )
       cutTables.flags = grown
       resources.flagShape = shape
       resources.group.flags = grown.view
@@ -74,7 +69,13 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
       resources.rankGroups = rankGroups(resources)
       return [old.texture]
     },
-  ).commit()
+  )
+  // Refused, or `dispose` came meanwhile: nothing made outlives this call.
+  if (!flags || disposed()) {
+    growth.destroy()
+    return false
+  }
+  growth.commit()
   return true
 }
 

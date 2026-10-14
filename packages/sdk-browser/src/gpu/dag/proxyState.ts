@@ -26,7 +26,8 @@ import type { ProxyCopy } from './proxyInstances.ts'
  *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */
 const CELL_ERROR_FACTOR = SQRT3 / 2
 
-export type ProxyResources = {
+/** What a proxy is made from: the device, the packing and the culling's records. */
+export type ProxySource = {
   device: GPUDevice
   packed: PackedDag
   /** The culling's records, whose `Instance` field the instances are (`worldTable.ts`). */
@@ -37,7 +38,7 @@ export type ProxyResources = {
  *  white. */
 export const tintOf = (cut: RuntimeCutProxy) => (cut.albedo.length ? cut.albedo[0] : NO_TINT)
 
-export function createProxyState({ device, packed, frames }: ProxyResources) {
+export function createProxyState({ device, packed, frames }: ProxySource) {
   const tree = packed.placementTree
   const slots = Math.max(1, packed.worldCount)
   // The instance a placement wears now, as written, and the one it keeps while parked.

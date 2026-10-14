@@ -31,8 +31,9 @@ import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
 export function createDagRuntime(
   resources: DagResources,
   /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
-  poolHeld?: (page: number) => boolean,
-  roots?: RootsOnGpu,
+  poolHeld: ((page: number) => boolean) | undefined,
+  /** The session's roots on the GPU: the stretch's one writer and the tree's leaves. */
+  roots: RootsOnGpu,
 ): GpuSelection {
   const { packed } = resources
   const state = createDagRuntimeState()
@@ -49,7 +50,7 @@ export function createDagRuntime(
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
-    tree: createTreeFollower(resources, roots?.leaves),
+    tree: createTreeFollower(resources, roots.leaves),
     // What a ray can meet of the run-time cuts, one instance a placement (`proxyInstances.ts`).
     proxies: createProxyInstances(resources),
     // A link move with no residency behind it goes to the cut's residency as the rows last stood;
@@ -64,7 +65,7 @@ export function createDagRuntime(
 }
 
 /** The camera cut's face (`GpuSelection`) over `run`. */
-function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
+function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
   const { packed, pageCount, frames, buffers, textures } = resources
   const live = () => !state.disposed && !state.dead
@@ -77,7 +78,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
   const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
-    roots?.roots(frames.rows)
+    roots.roots(frames.rows)
     run.tree?.sync()
     run.proxies.refresh()
     // The records the cut's groups bind, grown for the proxy's copies since: the groups follow.

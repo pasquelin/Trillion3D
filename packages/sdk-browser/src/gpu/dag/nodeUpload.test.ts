@@ -11,6 +11,7 @@ import { textureExtent } from '../core/textureExtent.ts'
 import { NODE_TABLE } from './nodeTable.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
 import { placementField } from './placementTree.fixture.ts'
 
@@ -19,7 +20,7 @@ for (const side of [1, 4, 12])
     const roots = placementField(side, 6)
     const dag = packDagSelection(roots)
     const fake = fakeDevice({ limits: { maxBufferSize: 1 << 28 } })
-    const cut = await createGpuDagSelection(fake.device, dag)
+    const cut = await createGpuDagSelection(fake.device, dag, { roots: hostStretches(dag) })
     assert.ok(cut, 'the cut is made')
     const writes = fake.textureWrites.filter(
       ({ destination }) => destination.texture.label === NODE_TABLE.label,

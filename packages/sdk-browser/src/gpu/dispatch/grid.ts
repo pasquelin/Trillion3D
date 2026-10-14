@@ -18,8 +18,9 @@ import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 export const DEFAULT_GROUP_WIDTH = 65535
 
 /** The threads of the engine's one-dimensional workgroup: every pass that runs a thread per page,
- *  node, slot or entry, the lane scan's width, a cluster block's pages. The one knob occupancy
- *  tunes; a host's `ceilDiv(n, WORKGROUP_THREADS)` and its kernel's width never disagree. */
+ *  node, slot or entry, the lane scan's width, a cluster block's pages — a multiple of 32, its draw
+ *  mask's words following it (`BLOCK_MASK_WORDS`, `../dag/shader/floorWgsl.ts`). The one knob
+ *  occupancy tunes; a host's `ceilDiv(n, WORKGROUP_THREADS)` and its kernel's width never disagree. */
 export const WORKGROUP_THREADS = 64
 
 /** `WORKGROUP_THREADS` as the kernels name it: `@workgroup_size(WORKGROUP_THREADS)`. */

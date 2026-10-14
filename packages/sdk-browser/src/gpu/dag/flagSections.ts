@@ -1,6 +1,4 @@
-import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { poolScratchWords } from '../pool/sortWords.ts'
@@ -50,35 +48,19 @@ export function evictScratchWords(pageCount: number) {
   return poolScratchWords(keys, Math.min(EVICTION_BURST, keys))
 }
 
-/** The most one section of a `flags` holds on a device of `limits`: a queue's words, two an entry,
- *  and a list's entries, the live list's three words each, the widest (`shader/liveWgsl.ts`). A
- *  cut starts within it (`dagFlagShape`) and grows no further (`grownFlagShape`). */
-function flagSectionCaps(limits?: Parameters<typeof storageBufferCap>[0]) {
-  const words = storageBufferCap(limits) / 4
-  return { queueWords: 2 * Math.floor(words / 2), candCap: Math.floor(words / 3) }
-}
-
-/** The shape of `packed`'s flags as a cut starts on a device of `limits`: a view's reach, each
- *  section within one binding (`flagSectionCaps`) — a reach past it is grown into on demand, never
- *  refused up front. Queue 0 keeps a root slot a placement (`pack.ts`), past one binding if it
- *  must: the flags are a record table (`cutTables.ts`), never refused for it. */
-export function dagFlagShape(
-  packed: {
-    queueEntries?: number
-    entryCount?: number
-    nodeCount?: number
-    worldCount?: number
-    pageCount: number
-    candCount?: number
-  },
-  limits?: Parameters<typeof storageBufferCap>[0],
-): FlagShape {
-  const cap = flagSectionCaps(limits),
-    queueWords = dagQueueWords(packed),
-    roots = Math.min(queueWords, 2 * (packed.worldCount ?? 0))
+/** The shape of `packed`'s flags as a cut starts: a view's reach — a reach past it is grown into on
+ *  demand (`grownFlagShape`), never refused up front —, queue 0 a root slot a placement at least
+ *  (`pack.ts`). The flags are a record table (`cutTables.ts`): no section is held to a binding. */
+export function dagFlagShape(packed: {
+  queueEntries?: number
+  entryCount?: number
+  nodeCount?: number
+  pageCount: number
+  candCount?: number
+}): FlagShape {
   return {
-    queueWords: clampLowWins(queueWords, roots, cap.queueWords),
-    candCap: clampLowWins(packed.candCount ?? packed.pageCount, 1, cap.candCap),
+    queueWords: dagQueueWords(packed),
+    candCap: Math.max(1, packed.candCount ?? packed.pageCount),
   }
 }
 
@@ -88,24 +70,23 @@ export function dagFlagShape(
  * world. A cut that passes one drops the work past it and says which (`shader/viewsWgsl.ts`,
  * `QUEUE_DROPPED`, `LIST_DROPPED`): it is not drawn (`shader/commitWgsl.ts`) — the frame draws the
  * last cut that ran whole — and never adopted, and what was full doubles here, the next cut cutting
- * again on it. A queue never holds more than every entry, a list more than every page, nor a
- * section more than one binding: past that, `undefined`, and the view coarsens instead
- * (`coarsening.ts`), as it does past the readout's list (`listCap.ts`).
+ * again on it. A queue never holds more than every entry, a list more than every page: past that,
+ * `undefined`, and the view coarsens instead (`coarsening.ts`), as it does past the readout's list
+ * (`listCap.ts`). What the record table or the cut's share cannot hold, its growth refuses
+ * (`queueGrowth.ts`), and the view coarsens the same.
  */
 export function grownFlagShape(
-  limits: Parameters<typeof storageBufferCap>[0],
   bounds: { entryCount: number; pageCount: number },
   shape: FlagShape,
   dropped: number,
 ): FlagShape | undefined {
-  const cap = flagSectionCaps(limits)
   const queueWords =
       dropped & QUEUE_DROPPED
-        ? Math.min(2 * Math.max(1, bounds.entryCount), 2 * shape.queueWords, cap.queueWords)
+        ? Math.min(2 * Math.max(1, bounds.entryCount), 2 * shape.queueWords)
         : shape.queueWords,
     candCap =
       dropped & LIST_DROPPED
-        ? Math.min(Math.max(1, bounds.pageCount), 2 * shape.candCap, cap.candCap)
+        ? Math.min(Math.max(1, bounds.pageCount), 2 * shape.candCap)
         : shape.candCap
   if (queueWords <= shape.queueWords && candCap <= shape.candCap) return undefined
   return { ...shape, queueWords, candCap }

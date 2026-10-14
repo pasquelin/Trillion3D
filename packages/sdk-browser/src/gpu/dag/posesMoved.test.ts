@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -18,6 +19,7 @@ test('the poses a send moved come back each once, increasing, nothing sorted', a
   const selection = (await createGpuDagSelection(
     fakeDevice({ ...BACKEND, packed }).device,
     packed,
+    { roots: hostStretches(packed) },
   ))!
   const next = lcgRandom(4271),
     sort = Int32Array.prototype.sort

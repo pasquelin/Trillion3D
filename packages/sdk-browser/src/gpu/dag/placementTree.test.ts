@@ -1,13 +1,12 @@
 // The placement tree: cells and instance groups above the placements change no cut, and a
 // frame reads the placements its kept groups hold, not the world's; a change refits what it moved.
-import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { refitLevels } from './placementTree.ts'
 import { leafBoxes, refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
-
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 

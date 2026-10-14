@@ -12,25 +12,15 @@ import {
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { heldBuffers } from '../core/heldBuffers.ts'
 import { writeChanged } from '../core/writeChanged.ts'
-import {
-  computeBufferEntry,
-  computeUniformEntry,
-  sequentialEntries,
-} from '../core/computeBindings.ts'
+import { sequentialEntries } from '../core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { poseLevels, poseSchedule } from '../../bounce/runtimePoseLevels.ts'
-import {
-  POSE_ENTRY,
-  POSE_STEP_WORDS,
-  POSE_WORDS,
-  RUNTIME_POSE_SHADER,
-} from '../../bounce/runtimePoseWgsl.ts'
+import { POSE_ENTRY, POSE_STEP_WORDS, POSE_WORDS } from '../../bounce/runtimePoseWgsl.ts'
 import { createRefitLevels, type RefitLevels } from './treeRefitLevels.ts'
+import { posePrograms } from './proxyPoseProgram.ts'
 import { PROXY_POSE_PASS } from '../../stage/passLabels.ts'
 
 /** Levels a fit serves at most: a wide tree of 16384 triangles is under a dozen deep. */
@@ -50,30 +40,6 @@ export type PoseEntry = {
   /** The placement's record in the float pool plus one, or zero. */
   record: number
 }
-
-/** The pose's program on a device: its layout and its two kernels, compiled off the frame. */
-const posePrograms = oncePerDevice((device: GPUDevice) => {
-  const layout = device.createBindGroupLayout({
-    entries: [
-      computeBufferEntry(0, 'storage'),
-      computeBufferEntry(1, 'read-only-storage'),
-      computeBufferEntry(2, 'read-only-storage'),
-      computeBufferEntry(3, 'read-only-storage'),
-      computeUniformEntry(4, { hasDynamicOffset: true, minBindingSize: POSE_STEP_WORDS * 4 }),
-    ],
-  })
-  const module = device.createShaderModule({ label: PROXY_POSE_PASS, code: RUNTIME_POSE_SHADER })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const kernel = (entryPoint: string) =>
-    started(
-      preparedComputePipeline(device, {
-        label: PROXY_POSE_PASS,
-        layout: pipelineLayout,
-        compute: { module, entryPoint },
-      }),
-    )
-  return { layout, corners: kernel('poseCorners'), fit: kernel('fitNodes') }
-})
 
 export function createProxyPose(device: GPUDevice) {
   // Its own hold: the buffers are this pose's, grown by the engine's one grower.

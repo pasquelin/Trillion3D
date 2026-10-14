@@ -4,9 +4,9 @@
 // against the uncached form is `tests/gpu/dag/prepare.gpu.ts`; here, the bytes, the sites that read
 // the thread's pose, and the one verdict that has a form of its own — a never-culled primitive's
 // open planes — on every box.
-import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
@@ -62,7 +62,7 @@ test('the frame’s prepare reads no placement: ten thousand cost it what their 
     groups = Number(prepare.groups) * (prepare.rows ?? 1)
   // The tree's top nodes and the block counts it resets, never a thread a placement.
   assert.equal(groups, ceilDiv(Math.max(top, blockCount), WORKGROUP_THREADS))
-  assert.ok(64 * groups < count / 4, `${groups} groups`)
+  assert.ok(WORKGROUP_THREADS * groups < count / 4, `${groups} groups`)
 })
 
 test('no kernel writes a placement’s row: its pose is made where it is read', () => {

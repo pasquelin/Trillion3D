@@ -4,6 +4,7 @@ import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { encodePoolSort } from '../pool/sort.ts'
 import { selectionListCap } from './layout.ts'
+import { BLOCK_MASK_WORDS } from './shader/floorWgsl.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
@@ -137,12 +138,7 @@ function encodeOnce(
   // The cut's mask and drawn log become the frame's, unless it dropped work: a thread a word of
   // the masks (`shader/commitWgsl.ts`).
   pass.setPipeline(commitPipeline)
-  dispatchRows(
-    pass,
-    Math.max(1, workgroupCount(2 * resources.blockCount, WORKGROUP_THREADS)),
-    1,
-    width,
-  )
+  dispatchRows(pass, workgroupCount(BLOCK_MASK_WORDS * blockCount, WORKGROUP_THREADS), 1, width)
   pass.setPipeline(requestSortPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(raisePipeline)

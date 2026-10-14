@@ -29,9 +29,8 @@ export const makeDagBuffer = (make: (d: GPUBufferDescriptor) => GPUBuffer, row: 
  * (`flagSections.ts`). Its other tables are record tables, no storage buffer (`cutTables.ts`).
  */
 export function cameraCutBuffers(
-  packed: Pick<PackedDag, 'pageCount' | 'nodeCount' | 'worldCount'> &
+  packed: Pick<PackedDag, 'pageCount' | 'nodeCount'> &
     Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'groupCount'>>,
-  limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
     workLayout = dagWorkLayout(blockCount, packed.groupCount)
@@ -39,7 +38,7 @@ export function cameraCutBuffers(
     blockCount,
     workLayout,
     /** What `flags` is laid out for: the cut's queues and lists as they start (`queueGrowth.ts`). */
-    shape: dagFlagShape(packed, limits),
+    shape: dagFlagShape(packed),
     rows: {
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
     } satisfies Record<string, DagBufferRow>,

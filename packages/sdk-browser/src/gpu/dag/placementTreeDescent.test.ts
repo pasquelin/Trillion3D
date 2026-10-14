@@ -6,7 +6,6 @@ import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { refitTree } from './treeRefitRun.fixture.ts'
 import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
-
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'

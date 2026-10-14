@@ -1,4 +1,5 @@
 import type { RecordLayout } from '../core/recordLayout.ts'
+import type { TextureMaker } from './cutBuffers.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { CLUSTER_WORDS } from './layout.ts'
 import { NODE_TABLE } from './nodeTable.ts'
@@ -36,9 +37,6 @@ export const COLD_TABLE: RecordLayout = {
 /** The flags, one word a record. */
 export const FLAG_TABLE: RecordLayout = { ...COLD_TABLE, label: 'Trillion3D DAG flags' }
 
-/** What makes a table's texture, `bytes` large: a cut's admission (`resources.ts`). */
-type Make = (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture
-
 /** The cut's flags laid out for `shape` (`flagSections.ts`), then the eviction sort's scratch of a
  *  cut of `pageCount` pages (`evictScratchWords`), made by `make`: read and written in place by the
  *  kernels, its kept section copied into the next when its queues grow (`queueGrowth.ts`). */
@@ -46,7 +44,7 @@ export const createFlagTable = (
   device: GPUDevice,
   shape: FlagShape,
   pageCount: number,
-  make?: Make,
+  make?: TextureMaker,
 ) =>
   createRecordTexture(
     device,
@@ -62,7 +60,7 @@ export function createCutTables(
   device: GPUDevice,
   packed: Pick<PackedDag, 'clusters' | 'nodes' | 'pageCones' | 'pageCount'>,
   shape: FlagShape,
-  make?: Make,
+  make?: TextureMaker,
 ) {
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
   const table = (layout: RecordLayout, field: string, source: Float32Array, words: number) => {

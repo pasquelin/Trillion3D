@@ -9,11 +9,12 @@ import { createDagList } from './listCap.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
 import { createTreeTable } from './treeTable.ts'
 import { createCutTables } from './cutTables.ts'
+import type { TextureMaker } from './cutBuffers.ts'
 
 /** What makes the cut's buffers and its record tables' textures: its admission (`resources.ts`). */
 type CutMakers = {
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer
-  ownTexture: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture
+  ownTexture: TextureMaker
 }
 
 /** Every buffer and record table of the cut, written as the packing laid them, and the group its
@@ -26,7 +27,7 @@ export function dagTables(
   listCap: number,
   heldSlots: number,
 ) {
-  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed, device.limits)
+  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed)
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * VIEW_BLOCK_WORDS)
   const frameData = primitiveFrameWords(packed)

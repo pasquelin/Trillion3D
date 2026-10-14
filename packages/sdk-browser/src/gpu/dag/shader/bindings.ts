@@ -1,6 +1,6 @@
 import {
-  COMPUTE,
   computeBufferEntry,
+  computeStorageTextureEntry,
   computeTextureEntry,
   namedEntries,
 } from '../../core/computeBindings.ts'
@@ -129,10 +129,6 @@ export function dagBindEntries(): GPUBindGroupLayoutEntry[] {
   return Object.entries(DAG_BINDING).map(([name, binding]) => {
     if (name in DAG_BUFFERS) return computeBufferEntry(binding, DAG_BUFFERS[name as DagBufferName])
     if (name !== 'flags') return computeTextureEntry(binding, 'uint', '2d-array')
-    return {
-      binding,
-      visibility: COMPUTE,
-      storageTexture: { access: 'read-write', format: 'r32uint', viewDimension: '2d-array' },
-    }
+    return computeStorageTextureEntry(binding, FLAG_TABLE.format, 'read-write', '2d-array')
   })
 }
