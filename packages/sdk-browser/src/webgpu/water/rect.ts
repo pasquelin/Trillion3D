@@ -1,10 +1,10 @@
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { WATER_RECT_BINDING, WATER_RECT_SHADER, waterRectBindEntries } from './rectWgsl.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** What the rectangle binds of the scene's kernel buffers (`../blend/expandBuffers.ts`). */
 type KernelBuffers = Record<'frame' | 'keyed' | 'waterItems' | 'verdict', GPUBuffer>

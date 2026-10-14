@@ -1,11 +1,11 @@
 import { UNIFORM_BYTES, drawBatches } from './contract.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import type { GpuDraw } from './contract.ts'
 import { constructGpuResources, validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { drawBindEntries, drawShader } from './shader.ts'
 import { drawBindGroup, encodeDraw, growDraw, uploadDrawItems, type Draw } from './drawOps.ts'
+import { buildComputeStages } from '../core/computeStages.ts'
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest

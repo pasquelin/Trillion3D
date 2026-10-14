@@ -10,7 +10,6 @@ import {
   groupWidth,
   DEFAULT_GROUP_WIDTH,
 } from '../gpu/dispatch/grid.ts'
-import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { directLightWgsl } from '../lighting/direct/lightWgsl.ts'
 import { RECT_SHADING_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../lighting/direct/lobesWgsl.ts'
@@ -28,6 +27,7 @@ import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
 import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
+import { buildComputeStages } from '../gpu/core/computeStages.ts'
 
 /**
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL

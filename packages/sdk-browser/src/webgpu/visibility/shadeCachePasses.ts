@@ -1,10 +1,10 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** The pipeline constant that turns the cache on in the shade and the triangles passes. */
 export const CACHED = { SHADE_CACHE: 1 }

@@ -1,11 +1,11 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { COMPUTE, computeBufferEntry, sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { VERDICT } from '../blend/verdictLayout.ts'
 import { WATER_COPY_SHADER } from './copyWgsl.ts'
 import { WATER_BACKDROP_PASS } from './passLabels.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /**
  * The backdrop freeze of the water pass: the lit image copied over the backdrop rectangle the GPU

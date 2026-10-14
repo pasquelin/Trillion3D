@@ -11,9 +11,9 @@ import { BLEND_VERDICT_SHADER, blendVerdictBindEntries, VERDICT_BINDING } from '
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 import type { ExpandBuffers } from './expandBuffers.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** One compute kernel as the frame binds it: its group, and its pipelines by entry rank. */
 export type Kernel = { group: GPUBindGroup; pipelines: GPUComputePipeline[] }

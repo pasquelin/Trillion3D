@@ -5,10 +5,10 @@ import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
-import { startedComputeStages } from '../../lighting/deferred/startedStages.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import type { TextureMaker } from '../../gpu/dag/cutBuffers.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
+import { startedComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** Words of workgroup memory every device holds (`maxComputeWorkgroupStorageSize`, 16 KiB): the
  *  stacks of a workgroup's lanes. */

@@ -1,6 +1,5 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
 import {
   MATERIAL_TILE_SLOTS,
@@ -15,6 +14,7 @@ import {
   computeBufferEntry,
   computeTextureEntry,
 } from '../../gpu/core/computeBindings.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16

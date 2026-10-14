@@ -1,6 +1,6 @@
 import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { REST_COMPACT_SHADER } from './restCompactWgsl.ts'
-import { buildComputePipeline, buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { cleanupFailedHiz } from '../hiz/pipelines.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
@@ -13,6 +13,7 @@ import {
   createWebgpuBindIdentity,
   type WebgpuBindIdentity,
 } from '../../webgpu/core/bindIdentity.ts'
+import { buildComputeStages } from '../core/computeStages.ts'
 
 export type GpuRestCompact = {
   /**

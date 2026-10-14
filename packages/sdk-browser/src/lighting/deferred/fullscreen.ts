@@ -5,9 +5,9 @@
 // held on it (`pipelinesCompiling`, `../../webgpu/frame/deviceAnswer.ts`) — and a frame finds it
 // compiled; one only started (`started`) holds no frame, and prepare's end waits for it. The
 // deferred lighting and composition, the temporal resolve, the water composite and the blend stages
-// build theirs here too. The compiles in flight are held in `compileLedger.ts`.
+// build theirs here too; compute stages by entry point are built on it in
+// `../../gpu/core/computeStages.ts`. The compiles in flight are held in `compileLedger.ts`.
 
-import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { track, untrack } from './compileLedger.ts'
 
 /** Builds a render pipeline, asynchronously when the device offers it. */
@@ -24,34 +24,6 @@ export const buildComputePipeline = (
   device.createComputePipelineAsync
     ? device.createComputePipelineAsync(descriptor)
     : Promise.resolve(device.createComputePipeline(descriptor))
-
-/** The compute stages of one module on one layout, by entry point, compiled together off the
- *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
- *  the bind-group layouts `layouts`, group by group. */
-export async function buildComputeStages<E extends string>(
-  device: GPUDevice,
-  layouts: readonly GPUBindGroupLayout[],
-  module: GPUShaderModule,
-  entryPoints: readonly E[],
-  constants?: Record<string, number>,
-  /** Told of each pipeline as the device hands it back, with the ms since all were asked. */
-  handed?: (entryPoint: E, ms: number) => void,
-) {
-  const layout = device.createPipelineLayout({ bindGroupLayouts: layouts })
-  const asked = cpuNow()
-  const built = await Promise.all(
-    entryPoints.map((entryPoint) =>
-      buildComputePipeline(device, {
-        layout,
-        compute: { module, entryPoint, ...(constants && { constants }) },
-      }).then((pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline)),
-    ),
-  )
-  return Object.fromEntries(entryPoints.map((entry, at) => [entry, built[at]])) as Record<
-    E,
-    GPUComputePipeline
-  >
-}
 
 /** A pipeline compiled off the frame, once. */
 export type PreparedPipeline<P> = {

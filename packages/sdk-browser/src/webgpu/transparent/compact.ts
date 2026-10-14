@@ -2,11 +2,11 @@ import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 const UNIFORM_WORDS = 8
 

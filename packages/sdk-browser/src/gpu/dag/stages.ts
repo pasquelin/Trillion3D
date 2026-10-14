@@ -1,9 +1,9 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { POOL_SORT_STAGES, type PoolSortStage } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
+import { buildComputeStages } from '../core/computeStages.ts'
 
 /** Every selection stage of `module` on `layout`; a device whose dispatch width is not WebGPU's
  *  default sets its own (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these

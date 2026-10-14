@@ -2,7 +2,7 @@ import { encodePoolSort, POOL_SORT_STAGES } from './sort.ts'
 import { POOL_SORT_WORDS, poolScratchWords } from './sortWords.ts'
 import { groupWidth } from '../dispatch/grid.ts'
 import { computeBufferEntry, computeUniformEntry } from '../core/computeBindings.ts'
-import { startedComputeStages } from '../../lighting/deferred/startedStages.ts'
+import { startedComputeStages } from '../core/computeStages.ts'
 
 /** Bytes of a pool sort's counts and scratch over at most `slots` slots, a burst of `burst`. */
 export const poolSortBytes = (slots: number, burst: number) =>

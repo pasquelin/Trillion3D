@@ -8,7 +8,6 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
-import { buildComputeStages } from '../lighting/deferred/fullscreen.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
@@ -47,6 +46,7 @@ import {
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
+import { buildComputeStages } from '../gpu/core/computeStages.ts'
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and
