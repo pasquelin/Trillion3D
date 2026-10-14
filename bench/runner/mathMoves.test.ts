@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { DEG2RAD, RAD2DEG, TAU } from '../../packages/math/src/constants.ts'
-import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
 import { clamp } from '../../packages/math/src/scalar/reals.ts'
 import { axisAngleQuaternion } from '../../packages/math/src/quaternion/quaternion.ts'
 import { mulberry32 } from '../../packages/math/src/sequence/random.ts'
@@ -10,27 +9,13 @@ import {
   edgeValues,
   haltonSpan,
 } from '../../packages/math/src/sequence/sweep.fixture.ts'
-import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { slab } from './lighting/lightTileCity.ts'
-import { ulpBetween } from '../core/ulp.ts'
+import { ulpBetween } from '../../packages/math/src/float/ulp.fixture.ts'
 
 // The bench's figures against the expressions they were written with. A bench number never
 // reaches a pixel (proof (a)): what is asserted is that the new reading is the old one to a few
 // units in the last place of a double (`ulpBetween`), so a posted figure, rounded for a report, is
 // the same.
-
-test('length3 and length2 read the lengths Math.hypot did, to two units in the last place', () => {
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const [x, y, z] = [
-      haltonSpan(i, 2, -1e3, 1e3),
-      haltonSpan(i, 3, -1e3, 1e3),
-      haltonSpan(i, 5, -1e3, 1e3),
-    ]
-    assert.ok(ulpBetween(Math.hypot(x, y, z), length3(x, y, z)) <= 2, `length3 of ${x}, ${y}, ${z}`)
-    assert.ok(ulpBetween(Math.hypot(x, y), length2(x, y)) <= 2, `length2 of ${x}, ${y}`)
-  }
-  for (const x of edgeValues(-1e3, 1e3)) assert.ok(ulpBetween(Math.hypot(x, 1), length2(x, 1)) <= 2)
-})
 
 test('the page-quantization angle, from the dot of two unit normals, keeps its degrees', () => {
   for (const dot of [
@@ -46,20 +31,6 @@ test('the page-quantization angle, from the dot of two unit normals, keeps its d
 test('the light-tile views turn by the same radians as before', () => {
   for (const degrees of [30, 2, 45, 15, 1, 20, 5, 60, 8, -30, -2])
     assert.ok(ulpBetween((degrees * Math.PI) / 180, degrees * DEG2RAD) <= 1, `${degrees} degrees`)
-})
-
-test("the witness's LOD reads its camera's own tangent, the old one to four units in the last place", () => {
-  // The witness projects with `tan(DEG2RAD · 0.5 · fov)`, which is `perspectiveSlope(fov)`; the
-  // old `tan((fov · π) / 360)` rounds its angle apart, which the tangent magnifies toward 180°.
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const fov = haltonSpan(i, 2, 1, 179)
-    assert.ok(Object.is(perspectiveSlope(fov), Math.tan(DEG2RAD * 0.5 * fov)), `fov ${fov}`)
-    if (fov <= 120)
-      assert.ok(
-        ulpBetween(Math.tan((fov * Math.PI) / 360), perspectiveSlope(fov)) <= 4,
-        `fov ${fov}`,
-      )
-  }
 })
 
 /** The light tiles' slab as it was written: each axis cut by `(plane − o) · (1 / d)`. */

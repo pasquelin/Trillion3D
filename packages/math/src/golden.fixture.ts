@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { ulpBetween } from './float/ulp.fixture.ts'
 
 /**
  * The TypeScript reader of the reference values in `packages/math/golden/<file>.json`, which the
@@ -62,17 +63,7 @@ function token(kind: Kind, value: number): string {
 function matches(expected: Value, actual: number, ulps = 0): boolean {
   if (!holds(expected.kind, actual)) return false
   if (Object.is(expected.value, actual)) return true
-  return ulps > 0 && expected.kind === 'f64' && ulpDistance(expected.value, actual) <= ulps
-}
-
-/** The representable `f64` steps between two finite numbers of one sign. */
-function ulpDistance(a: number, b: number): number {
-  if (!Number.isFinite(a) || !Number.isFinite(b) || Math.sign(a) !== Math.sign(b)) return Infinity
-  view.setFloat64(0, Math.abs(a))
-  const x = view.getBigUint64(0)
-  view.setFloat64(0, Math.abs(b))
-  const y = view.getBigUint64(0)
-  return Number(x > y ? x - y : y - x)
+  return ulps > 0 && expected.kind === 'f64' && ulpBetween(expected.value, actual) <= ulps
 }
 
 /** The package's reference values, beside its sources. */

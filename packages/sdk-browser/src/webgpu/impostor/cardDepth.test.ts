@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
-import { singleUlp } from '../../../../../bench/core/ulp.ts'
+import { singleUlp } from '../../../../math/src/float/ulp.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const u = 2 ** -24,

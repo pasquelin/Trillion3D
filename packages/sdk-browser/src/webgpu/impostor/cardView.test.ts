@@ -9,7 +9,7 @@ import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrig
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { singleUlp } from '../../../../../bench/core/ulp.ts'
+import { singleUlp } from '../../../../math/src/float/ulp.fixture.ts'
 
 /** The composition the card pass wrote before, rounded once to single. */
 function before(matrix: ArrayLike<number>, eye: ArrayLike<number>) {
