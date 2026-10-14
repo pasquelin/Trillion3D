@@ -22,6 +22,7 @@ import { movedPagesBox } from '../pages/render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 const box = new Float64Array(6)
+const ascending = (a: number, b: number) => a - b
 
 /** ρ of `root`: no row of it lies farther from its origin, centre and half extent summed;
  *  unbounded without a local box. Its pages' own boxes are read as their one union, kept where
@@ -78,12 +79,16 @@ export function commitRowMotion(rt: WebgpuPagesRuntime, derived: number) {
     state = rt.compose
   let rows = derived
   const whole = (rank: number) => void (rows += roots[rank]?.pages.length ?? 0)
-  // A placement counted whole holds its rows: its travel bounds none of them.
-  for (const rank of travel.jumped) {
+  // A placement counted whole holds its rows: its travel bounds none of them. It may be named
+  // more than once a frame (let go, then its next move, then its promotion): sorted, each once.
+  const jumped = travel.jumped.sort(ascending)
+  for (let k = 0; k < jumped.length; k++) {
+    const rank = jumped[k]
+    if (k > 0 && rank === jumped[k - 1]) continue
     whole(rank)
     if (rank < travel.ranks.a.length) travel.ranks.a[rank] = travel.ranks.b[rank] = 0
   }
-  travel.jumped.length = 0
+  jumped.length = 0
   const farthest = Math.max(
     takeFarthest(travel.ranks, (rank) => rootReach(roots[rank]), whole),
     takeFarthest(
