@@ -142,7 +142,7 @@ export function encodeRowBins(
  *  its ask is the last asked. */
 export function rowBinsSubmitted(bound: VsmRowBound | undefined) {
   const gpu = bound && gpus.get(bound)
-  if (!gpu?.taken) return
+  if (!bound || !gpu?.taken) return
   gpu.ring.submitted()
   bound.bins.asked = gpu.taken
   gpu.taken = undefined
