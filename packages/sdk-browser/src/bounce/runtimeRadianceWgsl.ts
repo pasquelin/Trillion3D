@@ -52,6 +52,9 @@ const RT_THROUGH_FLOOR:f32=${wgslF32(RAY_THROUGH_FLOOR)};
 const RT_ERROR_FLOOR:f32=${wgslF32(RAY_ERROR_FLOOR)};
 /** What a ray brings back: the radiance of what it met, weighed by the confidence of the answer. */
 struct RtRadiance{color:vec3f,confidence:f32,}
+/** The distance from its origin the last \`rtRadiance\` ray met its first surface at, zero where it met none:
+ *  what the store keys its answer's reflected hit by (\`runtimeHistoryWgsl.ts\`). */
+var<private> rtFirst:f32;
 /** A surface's words (\`runtimeLayout.ts\`): its diffuse tint and opacity, its emission and its flags. */
 struct RtSurface{tint:vec3f,opacity:f32,emission:vec3f,blended:bool,}
 fn rtSurfaceVec(at:u32)->vec3f{return vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u));}
@@ -86,6 +89,7 @@ fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,wo
  */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  rtBegin();
+ rtFirst=0.0;
  var color=vec3f(0.0);
  var through=1.0;
  var start=origin;
@@ -94,6 +98,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let hit=rtScene(start,direction,left);
   if(rtSpent()){return RtRadiance(vec3f(0.0),0.0);}
   if(!hit.found){break;}
+  if(layer==0u){rtFirst=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
   let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
   let spread=hit.distance*tangent+RT_SPREAD_FLOOR;

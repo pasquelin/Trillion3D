@@ -76,7 +76,8 @@ export const SURFACE_BLENDED = 1
  * (`rtProbeRay`, `probeWgsl.ts`).
  *
  * A frame spends at most about `FRAME_WORK` units (`runtimeAnswerWgsl.ts`): the rays the budget leaves
- * out go on in the next frames, from the answer they last got (`reflections/proxyStore.ts`).
+ * out go on in the next frames, answered meanwhile by the history their surface holds
+ * (`runtimeHistoryWgsl.ts`, `reflections/proxyStore.ts`).
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
@@ -96,14 +97,23 @@ export const RAY_THROUGH_FLOOR = 0.02
 /** The least distance a ray leaves a hit by to look behind it, in metres, where the proxy's own
  *  error is smaller. */
 export const RAY_ERROR_FLOOR = 1e-3
+/** The share of `FRAME_WORK` a moving image spends on the pixels that hold a history: the rest is
+ *  kept for the ones that hold none, the holes (`rtAnswer`), cast first. */
+export const REFRESH_WORK = FRAME_WORK - FRAME_WORK / 4
 /**
- * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE, in the reflection's own store: a texture of two
- * layers of `r32uint` the image's size (`reflections/proxyStore.ts`), eight bytes a pixel, which the trace
- * reads and writes where it traces. Layer 0 is the pixel's mean radiance, premultiplied by its confidence, as
- * a shared-exponent `rgb9e5`; layer 1 holds the confidence on sixteen bits and, above them, the epoch's
- * stamp on eight (`rtStamp`): the low bits of an epoch (`follow`), never zero, so that a pixel never answered
- * holds none. Where the scene has transparents, two layers more past them: the cell of the pixel's
- * transparents' front surface (`rtLayer`, `reflections/frontLayer.ts`), answered as the opaque one's.
+ * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE, in the reflection's own store: a texture of
+ * `r32uint` layers the image's size (`reflections/proxyStore.ts`), two sets of `STORE_SET_LAYERS`, twelve
+ * bytes a pixel each, which the trace reads and writes at its own pixel alone. A cell (`runtimeCellWgsl.ts`):
+ * `color`, the radiance premultiplied by its confidence as a shared-exponent `rgb9e5`; `word`, the
+ * confidence on sixteen bits, the surface's normal above them on eight (`STORE_BITS.normal`: an
+ * octahedral code, four bits an axis), and the epoch's stamp on the top eight (`rtStamp`: the low bits
+ * of an epoch, `follow`, never zero, so that a cell that holds no answer holds none); `key`, the
+ * surface's linear depth under the view that wrote the cell and the distance its ray met a surface at,
+ * two halves. A still view reads and writes one set, a cell its own pixel's; a moving one reads the set
+ * the image before wrote and writes the other (`STORE_MODE`): a cell is only ever read where no
+ * invocation of the image writes it. Where the scene has transparents, as many layers more past them: the
+ * cells of the pixel's transparents' front surface (`rtLayer`, `reflections/frontLayer.ts`), keyed by its
+ * own depth and normal and answered as the opaque one's.
  *
  * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the
  * workgroups holding a pixel whose answer is older than the epoch (`left`: what the settle waits for,
@@ -113,10 +123,21 @@ export const RAY_ERROR_FLOOR = 1e-3
  */
 export const TRACE_LIST = { count: 0, left: 1, spent: 2, offset: 3, cursor: 4 } as const
 export const TRACE_LIST_FIRST = 8
-/** Layers of the store, and its bytes a pixel. */
-export const STORE_LAYERS = 2
-const STORE_BYTES_PER_PIXEL = 8
-/** Bytes of the store of an image of `width × height`, which a view that wants it holds. */
+/** Layers of a set of the store, each one word a pixel: a cell's three words. */
+export const STORE_SET_LAYERS = 3
+export const STORE_CELL = { color: 0, word: 1, key: 2 } as const
+/** Layers of a surface's cells in the store: its two sets. */
+export const STORE_LAYERS = 2 * STORE_SET_LAYERS
+const STORE_BYTES_PER_PIXEL = 4 * STORE_LAYERS
+/** Bytes of a surface's cells of an image of `width × height`, which a view that wants the store holds. */
 export const storeBytes = (width: number, height: number) => width * height * STORE_BYTES_PER_PIXEL
-/** Bits of a pixel's second word: the confidence from the low bit, the stamp from `stamp`. */
-export const STORE_BITS = { confidence: 16, stamp: 24 } as const
+/** Bits of a cell's word: the confidence from the low bit, the normal from `normal`, the stamp from `stamp`. */
+export const STORE_BITS = { confidence: 16, normal: 16, stamp: 24 } as const
+/**
+ * How an image reads the store (`ReflectionView.runtime.w`, its sets' ranks in `z`): `inPlace`, the view has not moved since the
+ * image that wrote the set — a pixel reads and writes its own cell —; `reproject`, it moved, and the
+ * image before wrote the set it reads, under the view the radiance pyramid holds — a pixel reads its
+ * surface's cell where that view saw it and writes its own in the other set —; `unknown`, it moved and
+ * no set is of the view the pyramid holds: no pixel holds a history.
+ */
+export const STORE_MODE = { inPlace: 0, reproject: 1, unknown: 2 } as const

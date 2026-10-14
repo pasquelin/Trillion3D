@@ -52,14 +52,16 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
     environmentExposure(environment),
     environmentCurve(environment),
   )
-  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
-  frame.epoch = reflection.store.follow(
+  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy;
+  // its store is read where the camera last wrote it.
+  frame.runtime = reflection.store.follow(
     rt.lights.store.epoch,
     run.gpuSelection?.proxy()?.writes ?? 0,
     run.gpuSelection?.worldRevision ?? 0,
     // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
     // would restart the budget for ever.
     gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
+    frame.size,
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
@@ -127,6 +129,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.store = reflection.store.view ?? deferred.placeholders.runtimeStore
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
+    reflection.store.traced()
   }
   tracePass.end()
 }
@@ -156,6 +159,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection.settle.verified,
   )
   pass.end()
+  reflection.store.built()
   reflection.settle.image(
     encoder,
     reflection.tiles.args,

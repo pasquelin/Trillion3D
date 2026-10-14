@@ -14,7 +14,8 @@ import { runtimeAnswerWgsl, runtimeKey, type RuntimeBindings } from '../bounce/r
  * mirror's included: the share of the ray the surfaces met stop. Zero where it hits nothing, or where the scene
  * has no proxy. The trace keeps each pixel's answer, on each of its surfaces — the opaque one and the
  * transparents' front one (`frontLayer.ts`) —, from image to image within its frame's budget (`rtAnswer`,
- * `bounce/runtimeAnswerWgsl.ts`): no other program casts a ray of the proxy.
+ * `bounce/runtimeAnswerWgsl.ts`), told the surface it answers, whose history it keeps: no other program
+ * casts a ray of the proxy.
  */
 export const reflectionProxyWgsl = (group: number, runtime: RuntimeBindings) =>
   wgslBlock(
@@ -29,7 +30,7 @@ export const reflectionProxyWgsl = (group: number, runtime: RuntimeBindings) =>
     `struct ReflectionProxied{color:vec3f,confidence:f32,}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let seen=rtAnswer(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
+ let seen=rtAnswer(P,N,P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  return ReflectionProxied(seen.color,seen.confidence);
 }`,
   )

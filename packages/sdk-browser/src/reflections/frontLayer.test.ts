@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { STORE_LAYERS } from '../bounce/runtimeLayout.ts'
-import { ahead, along, counters, makeStore, origin, runOver } from '../bounce/runtimeRun.fixture.ts'
+import { ahead, along, counters, origin, runOver } from '../bounce/runtimeRun.fixture.ts'
+import { facing, makeStore, point } from '../bounce/runtimeStore.fixture.ts'
 import { world } from '../bounce/runtimeScene.fixture.ts'
 import type { Vec } from '../bounce/runtimeOracle.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
@@ -30,7 +31,7 @@ test('a pixel’s front surface keeps its answer in its own cell, never the opaq
     const run = runOver(glow(emission), counters(0), 2, store)
     run.testLayer(layer)
     run.testPixel(5, 6, 0)
-    run.rtAnswer(origin, ahead, 1000, 0.01)
+    run.rtAnswer(point, facing, origin, ahead, 1000, 0.01)
   }
   // Read back with a frame whose budget is spent and a scene that would answer black: each surface
   // answers its own cell, no ray.
@@ -38,14 +39,14 @@ test('a pixel’s front surface keeps its answer in its own cell, never the opaq
     const run = runOver(glow([0, 0, 0]), counters(2 ** 30), 2, store)
     run.testLayer(layer)
     run.testPixel(5, 6, 0)
-    const seen = run.rtAnswer(origin, ahead, 1000, 0.01)
+    const seen = run.rtAnswer(point, facing, origin, ahead, 1000, 0.01)
     assert.ok(Math.abs(seen.confidence - 1) < 1e-4, `layer ${layer}`)
     seen.color.forEach((c, k) =>
       assert.ok(Math.abs(c - emission[k]) < 2e-2, `${layer}: ${seen.color}`),
     )
     assert.equal(run.testWork(), 0, 'no ray')
   }
-  // The front's cell lies a whole store past the opaque one's; nothing past it was written.
+  // The front's cells lie a whole surface's layers past the opaque one's; nothing past them was written.
   assert.ok(store.get([5, 6], STORE_LAYERS) !== 0)
   assert.equal(store.get([5, 6], 2 * STORE_LAYERS), 0)
 })
