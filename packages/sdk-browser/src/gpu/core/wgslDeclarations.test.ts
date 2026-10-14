@@ -61,3 +61,7 @@ test('the splice reader finds a fragment spliced or added, and leaves a paramete
   assert.deepEqual(found('const C = VIS_SHADER + DIAGNOSTIC_VIS_WGSL'), ['DIAGNOSTIC_VIS_WGSL'])
   assert.deepEqual(found('const D = `vec4f(${FULLSCREEN_XY},0.0,1.0)${CAMERA_FOG}`'), [])
 })
+
+test('every WGSL keyword is a word of the language, never an unresolved name', () => {
+  assert.deepEqual(unresolvedNames('const_assert 1 < 2;\nfn f() {}'), [])
+})
