@@ -19,7 +19,7 @@ const asked: CutAdmission = () => {}
 export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<MainCopy> {
   // The ring once made counts its buffers (`ReadbackRing.bytes`); while it makes its first ones,
   // they are counted here. Neither is among the cut's lists: both count beside them.
-  let ring: ReadbackRing<MainCopy> | undefined,
+  let ring: ReadbackRing<MainCopy> | undefined = undefined,
     first = 0,
     refusal: unknown
   const funded = {
