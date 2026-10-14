@@ -51,13 +51,23 @@ pub struct JobDefaults {
     pub ram_budget_mb: usize,
 }
 
+/// Batch file field naming a job, read by `parse_batch`.
+const ID_FIELD: &str = "id";
+
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
-/// command line's values keyed by `JOB_FIELDS`. The values themselves are checked by `compile`.
+/// command line's values keyed by `JOB_FIELDS`. A key outside `JOB_FIELDS`, `id` and
+/// `texturesFormat` is refused by name: a misspelt field never cooks at its default unannounced.
+/// The values themselves are checked by `compile`.
 pub fn job_options(
     job: &Map<String, Value>,
     defaults: &JobDefaults,
     cancelled: Arc<AtomicBool>,
 ) -> std::result::Result<Options, String> {
+    if let Some(key) = job.keys().find(|key| {
+        !JOB_FIELDS.contains(&key.as_str()) && key != ID_FIELD && key != TEXTURES_FORMAT_FIELD
+    }) {
+        return Err(format!("unknown job field {key}"));
+    }
     let text = |name: &str| job.get(name).and_then(Value::as_str);
     let number = |name: &str, default: usize| positive(job.get(name), default, name);
     let source = text(job_field::SOURCE).unwrap_or("");

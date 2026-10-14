@@ -85,7 +85,7 @@ fn parse_accepts_five_to_eight_args() {
 }
 // Behaviour: the command line's job and a batch file's job are one reading (`job_options`): the
 // same values give the same options, and the budget is read under `triangleBudget`, the name the
-// single job has always had, not the batch's former `triangles`.
+// single job has always had.
 #[test]
 fn command_line_and_batch_job_read_alike() {
     let cancelled = Arc::new(AtomicBool::new(false));
@@ -119,9 +119,29 @@ fn command_line_and_batch_job_read_alike() {
         )
     };
     assert_eq!(read(&positional), read(&batch));
-    let old = json!({"source":"s","cache":"c","resourceBaseUrl":"/a/","triangles":12});
-    let old = job_options(old.as_object().expect("object"), &defaults, cancelled).expect("old");
-    assert_eq!(old.triangle_budget, DEFAULT_TRIANGLE_BUDGET);
+}
+// Behaviour: a job key no reader takes is refused by name, never dropped: the former `triangles`
+// would otherwise cook at `DEFAULT_TRIANGLE_BUDGET` unannounced.
+#[test]
+fn an_unknown_job_field_is_refused_by_name() {
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let defaults = JobDefaults {
+        scope: "full",
+        threads: DEFAULT_THREADS,
+        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
+    };
+    let old = json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","triangles":12});
+    let refused = job_options(
+        old.as_object().expect("object"),
+        &defaults,
+        cancelled.clone(),
+    )
+    .err()
+    .expect("refused");
+    assert!(refused.contains("triangles"), "{refused}");
+    let named =
+        json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","texturesFormat":"none"});
+    job_options(named.as_object().expect("object"), &defaults, cancelled).expect("named");
 }
 // Behaviour: a cook writes every block family unless told otherwise — each device then streams
 // the blocks it samples, PNG the last fallback —, one family by name, or none.
