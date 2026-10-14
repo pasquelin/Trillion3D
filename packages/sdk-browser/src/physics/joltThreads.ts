@@ -11,6 +11,7 @@ import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { startModuleWorker } from '../host/besideModule.ts'
+import { cpuNow } from '../diagnostic/stopwatch.ts'
 
 /** The exports of the threaded module a thread's set-up reads. */
 interface ThreadExports {
@@ -58,7 +59,7 @@ export function joltImports(
   const env: Record<string, unknown> = { memory, emscripten_notify_memory_growth: none }
   const wasi: Record<string, unknown> = {
     clock_time_get(_id: number, _precision: bigint, at: number) {
-      new BigUint64Array(memory.buffer, at, 1)[0] = BigInt(Math.round(performance.now() * 1e6))
+      new BigUint64Array(memory.buffer, at, 1)[0] = BigInt(Math.round(cpuNow() * 1e6))
       return 0
     },
   }
