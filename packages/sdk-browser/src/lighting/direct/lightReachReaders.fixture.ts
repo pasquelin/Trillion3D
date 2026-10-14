@@ -116,7 +116,7 @@ export function listsOf(bounce: string) {
   )
   const { bounceLightSlice } = shaderRun<{ bounceLightSlice: (P: V3) => number[] }>(
     bounce,
-    ['bounceLightSlice'],
+    ['bounceLightSlice', 'bounceLevelLow'],
     {
       ...F32_SCOPE,
       ...B,

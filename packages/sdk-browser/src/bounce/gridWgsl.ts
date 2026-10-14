@@ -63,6 +63,10 @@ fn probeAddress(level:u32,wrapped:vec3u)->vec3u{
 }
 /** A probe's first texel: its level, then its cell stored toroidally. */
 fn probeOf(level:u32,cell:vec3i)->vec3u{return probeAddress(level,probeWrap(cell));}
+/** A level's low corner in the world: its base cell times its spacing. */
+fn bounceLevelLow(level:u32)->vec3f{
+ return bounce.levels[level].base.xyz*bounce.levels[level].originSpacing.w;
+}
 /** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */

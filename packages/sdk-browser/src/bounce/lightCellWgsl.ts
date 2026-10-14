@@ -1,7 +1,8 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { TILE_SLICE_WGSL } from '../lighting/direct/lightingWgsl.ts'
+import { BOUNCE_GRID_HEAD_WGSL } from './gridWgsl.ts'
 
-/** The binding both bounce passes read the light grid's buffer at (`bindings.ts`): the view's
+/** The binding the bounce probe pass reads the light grid's buffer at (`bindings.ts`): the view's
  *  records and lists, then the world grid's. */
 export const BOUNCE_LIGHT_LIST_BINDING = 6
 
@@ -25,14 +26,14 @@ export const BOUNCE_LIGHT_LIST_BINDING = 6
  */
 export const BOUNCE_LIGHT_CELL_WGSL = wgslBlock(
   'BOUNCE_LIGHT_CELL_WGSL',
-  [TILE_SLICE_WGSL],
+  [TILE_SLICE_WGSL, BOUNCE_GRID_HEAD_WGSL],
   `
 fn bounceLightSlice(P:vec3f)->vec2u{
  let start=bounce.lists.x;
  if(bounce.counts.y==0u||start==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
- let level=bounce.levels[bounce.counts.y-1u];
+ let last=bounce.counts.y-1u;
  let side=bounce.counts.x;
- let at=floor((P-level.base.xyz*level.originSpacing.w)*level.base.w);
+ let at=floor((P-bounceLevelLow(last))*bounce.levels[last].base.w);
  let cell=vec3u(clamp(at,vec3f(0.0),vec3f(f32(side-1u))));
  return cellSlice(start+((cell.y*side+cell.x)*side+cell.z)*TILE_STRIDE);
 }`,

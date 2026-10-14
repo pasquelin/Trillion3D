@@ -88,7 +88,7 @@ fn reflectionFieldSpacing(P:vec3f)->f32{
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
   let spacing=bounce.levels[level].originSpacing.w;
-  let low=bounce.levels[level].base.xyz*spacing;
+  let low=bounceLevelLow(level);
   if(all(P>=low)&&all(P<low+vec3f(side*spacing))){return spacing;}
  }
  return 0.0;
