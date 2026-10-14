@@ -8,7 +8,8 @@ import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase, GRID } from './runtimeFamilyCases.ts'
-import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
+import { familyWorld } from './runtimeFamilyWorld.ts'
+import { countTraceWork, traceWork } from './traceWork.ts'
 
 export type FamilyReading = {
   width: number
@@ -35,6 +36,7 @@ export async function hold(world: ReturnType<typeof familyWorld>['world'], limit
 
 async function draw(index: number, limit: number) {
   const c = familyCase(index)
+  countTraceWork()
   const { errors: worldErrors, made, textures } = listenToWorldDevices()
   const canvas = proofCanvas(`runtime-family-${index}`) as unknown as Canvas
   canvas.readable = true
@@ -58,7 +60,7 @@ async function draw(index: number, limit: number) {
       const at = (j * width + i) * 4
       samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
     }
-  const { spent } = (await traceCounters(canvasDevice(canvas), made)) ?? { spent: 0 }
+  const { spent } = (await traceWork(canvasDevice(canvas), made)) ?? { spent: 0 }
   world.dispose()
   canvas.remove()
   return {

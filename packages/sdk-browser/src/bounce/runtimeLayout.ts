@@ -76,7 +76,8 @@ export const SURFACE_BLENDED = 1
  * (`rtProbeRay`, `probeWgsl.ts`).
  *
  * A frame casts every reflection ray of the proxy its pixels ask for: no answer is kept from one image
- * to the next, none is left for a later one. What they cost is the frame's, counted (`TRACE_LIST.spent`).
+ * to the next, none is left for a later one. What they cost is the frame's, a GPU duration the proxy
+ * budget observes (`ProxyBudget`).
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
@@ -93,10 +94,8 @@ export const RAY_THROUGH_FLOOR = 0.02
  *  error is smaller. */
 export const RAY_ERROR_FLOOR = 1e-3
 /**
- * THE FRAME'S COUNTERS OF THE REFLECTION TRACE, in its list (`TRACE_LIST`): the tiles the classification
- * listed and the work units the proxy's rays spent — every ray cast in its frame, read by the GPU proofs
- * alone (`tests/gpu/reflections/`): the proxy budget observes durations (`ProxyBudget`) —, then the list
- * itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
+ * THE FRAME'S COUNTER OF THE REFLECTION TRACE, in its list (`TRACE_LIST`): the tiles the classification
+ * listed, then the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
  */
-export const TRACE_LIST = { count: 0, spent: 1 } as const
-export const TRACE_LIST_FIRST = 2
+export const TRACE_LIST = { count: 0 } as const
+export const TRACE_LIST_FIRST = 1

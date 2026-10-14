@@ -10,8 +10,8 @@ import {
 } from '../bounce/runtimeTraceWgsl.ts'
 import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 
-/** The bindings a program reads the proxy through: with the list the opaque trace counts its rays' work in
- *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */
+/** The bindings a program reads the proxy through: with the opaque trace's list (`RuntimeBindings`), or
+ *  the proxy alone (`SceneBindings`), as the forward programs read it. */
 export type ProxyBindings = SceneBindings | RuntimeBindings
 
 /**
@@ -24,23 +24,23 @@ export type ProxyBindings = SceneBindings | RuntimeBindings
  * has no proxy. Every ray is cast in its frame.
  */
 export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
-  // The opaque trace counts its rays' work for the frame (`rtCounted`); a forward program casts its
-  // fragment's ray and writes nothing (a binding its stage could write would cost the pass its early depth
-  // reject).
-  const counted = 'list' in runtime
+  // The opaque trace casts its ray where a placement wears a proxy (`rtCast`), beside its writable list;
+  // a forward program casts its fragment's ray and binds nothing writable (a binding its stage could
+  // write would cost the pass its early depth reject).
+  const traced = 'list' in runtime
   return wgslBlock(
-    `reflectionProxyWgsl(${group}, ${sceneKey(runtime)}, ${counted})`,
+    `reflectionProxyWgsl(${group}, ${sceneKey(runtime)}, ${traced})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_CONE_WGSL,
-      counted ? runtimeTraceWgsl(runtime) : runtimeRadianceWgsl(runtime),
+      traced ? runtimeTraceWgsl(runtime) : runtimeRadianceWgsl(runtime),
     ],
     `struct ReflectionProxied{color:vec3f,confidence:f32,}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let seen=${counted ? 'rtCounted' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
+ let seen=${traced ? 'rtCast' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  return ReflectionProxied(seen.color,seen.confidence);
 }`,
   )

@@ -1,7 +1,7 @@
 // Every ray of the run-time proxy is cast in its frame: at a size whose rays once outnumbered a frame's
 // budget, no frame leaves a ray for a later one, so the view holds as soon as its image is final, and each
-// frame's work (`TRACE_LIST.spent`) is what its pixels asked — the proxy budget's number, `N·ū`, reported
-// here for the recette (the image it holds is the one the family proof, `runtime-proxy.gpu.ts`, judges).
+// frame's work — counted by the proof's own counter (`traceWork.ts`), the engine counting none — is what
+// its pixels asked, `N·ū`, reported here for the recette (the image it holds is the one the family proof, `runtime-proxy.gpu.ts`, judges).
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/runtime-every-ray.gpu.ts
 import test from 'node:test'

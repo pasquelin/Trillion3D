@@ -15,7 +15,6 @@ import {
   SURFACE,
   SURFACE_BLENDED,
   SURFACE_WORDS,
-  TRACE_LIST,
 } from './runtimeLayout.ts'
 
 /**
@@ -134,44 +133,25 @@ fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 `,
   )
 
-/** The bindings of the program that counts its rays' work: the proxy's, and the trace's list with the frame's
- *  counters (`runtimeLayout.ts`). */
+/** The bindings of the opaque trace's program: the proxy's, and the trace's list (`runtimeLayout.ts`). */
 export type RuntimeBindings = SceneBindings & { list: number }
 
 /**
- * THE RUN-TIME PROXY'S RAYS OF A TRACE, COUNTED: the radiance above, every ray cast in its frame — no answer kept
- * from one image to the next, no frame budget cutting a ray —, and the work each spends summed over the
- * workgroup and sent once to the frame's counter (`rtShare`, called by every invocation of the trace at its end):
- * one global atomic a workgroup, never one a pixel. That counter is read by the GPU proofs alone; the proxy
- * budget observes durations (`ProxyBudget`).
+ * THE RUN-TIME PROXY'S RAYS OF THE OPAQUE TRACE: the radiance above, every ray cast in its frame — no answer
+ * kept from one image to the next, no frame budget cutting a ray —, none where no placement wears a proxy;
+ * beside it the trace's list, which the trace binds writable. What the rays cost is the frame's GPU
+ * duration, which the proxy budget observes (`ProxyBudget`): nothing is counted in the kernel.
  */
 export const runtimeTraceWgsl = ({ list, ...scene }: RuntimeBindings) =>
   wgslBlock(
     `runtimeTraceWgsl(${sceneKey(scene)}, ${list})`,
     [runtimeRadianceWgsl(scene)],
     `
-${wgslConsts({ RT_SPENT: TRACE_LIST.spent })}
 @group(${scene.group}) @binding(${list}) var<storage,read_write> rtList:array<atomic<u32>>;
-/** What this invocation's rays spent, and the workgroup's sum of it. */
-var<private> rtSpentHere:u32;
-var<workgroup> rtGroupSpent:array<atomic<u32>,1>;
-/** A reflection's ray of the proxy (\`rtRadiance\`), its work counted for the frame. No placement wearing a
- *  proxy, no ray. */
-fn rtCounted(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
+/** A reflection's ray of the proxy (\`rtRadiance\`). No placement wearing a proxy, no ray. */
+fn rtCast(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  if(rtProxy.instances==0u){return RtRadiance(vec3f(0.0),0.0);}
- let seen=rtRadiance(origin,direction,reach,tangent);
- rtSpentHere+=rtWork+rtExtra;
- return seen;
-}
-/** The workgroup's work sent once: called by every invocation, in uniform control flow, after its pixel's
- *  last ray. */
-fn rtShare(lane:u32){
- if(rtSpentHere!=0u){atomicAdd(&rtGroupSpent[0],rtSpentHere);}
- workgroupBarrier();
- if(lane==0u){
-  let spent=atomicLoad(&rtGroupSpent[0]);
-  if(spent!=0u){atomicAdd(&rtList[RT_SPENT],spent);}
- }
+ return rtRadiance(origin,direction,reach,tangent);
 }
 `,
   )

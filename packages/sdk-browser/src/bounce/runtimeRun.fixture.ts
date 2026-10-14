@@ -3,7 +3,7 @@
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { TRACE_LIST, TRACE_LIST_FIRST } from './runtimeLayout.ts'
+import { TRACE_LIST_FIRST } from './runtimeLayout.ts'
 import { runtimeTraceWgsl } from './runtimeTraceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit, Vec } from './runtimeOracle.fixture.ts'
@@ -11,7 +11,7 @@ import type { Hit, Vec } from './runtimeOracle.fixture.ts'
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
   'rtRadiance',
-  'rtCounted',
+  'rtCast',
   'rtSurfaceOf',
   'rtSurfaceVec',
   'rtShade',
@@ -41,15 +41,14 @@ const FUNCTIONS = [
   'rtBlocked',
   'rtLit',
   'rtProbeRay',
-  'rtShare',
 ]
 const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14, list: 8 }
 
-export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0)) {
+export function runOver(w: ReturnType<typeof world>, list: number[] = traceList()) {
   const { header } = w
   const text =
     wgslModule(runtimeTraceWgsl(BINDINGS)) +
-    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\nfn testShare(){rtShare(0u);atomicStore(&rtGroupSpent[0],0u);rtSpentHere=0u;}\n'
+    'fn testWork()->u32{return rtWork+rtExtra;}\nfn testTests()->u32{return rtTests;}\nfn testReset(){rtWork=0u;rtTests=0u;}\n'
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -58,17 +57,11 @@ export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0
       reach: number,
       tangent: number,
     ) => { color: Vec; confidence: number }
-    rtCounted: (
-      o: Vec,
-      d: Vec,
-      reach: number,
-      tangent: number,
-    ) => { color: Vec; confidence: number }
+    rtCast: (o: Vec, d: Vec, reach: number, tangent: number) => { color: Vec; confidence: number }
     testWork: () => number
     testTests: () => number
     testReset: () => void
-    testShare: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testShare'], {
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset'], {
     rtProxy: header,
     rtWorlds: w.worlds,
     rtTree: w.tree,
@@ -77,10 +70,7 @@ export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0
     rtExtra: 0,
     rtAnyHit: false,
     rtLost: false,
-    rtSpentHere: 0,
-    rtGroupSpent: [0],
     rtList: list,
-    workgroupBarrier: () => {},
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -118,9 +108,5 @@ export const along = (count: number, gap: number) =>
 export const ahead: Vec = [1, 0, 0]
 export const origin: Vec = [0, 0, 0]
 
-/** The trace's list of a frame that has spent `spent` of its work: the counters, no tile. */
-export const counters = (spent: number) => {
-  const words = new Array<number>(TRACE_LIST_FIRST).fill(0)
-  words[TRACE_LIST.spent] = spent
-  return words
-}
+/** The trace's list of a frame: its counter, no tile. */
+export const traceList = () => new Array<number>(TRACE_LIST_FIRST).fill(0)

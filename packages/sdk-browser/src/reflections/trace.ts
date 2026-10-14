@@ -63,10 +63,8 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  }
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
+fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u){
  tracePixel(flatIndex(wg,rows,1u),lid.xy);
- // The run-time proxy's work, one atomic a workgroup.
- rtShare(lane);
 }
 /** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
 fn tracePixel(rank:u32,lid:vec2u){
@@ -105,7 +103,7 @@ fn tracePixel(rank:u32,lid:vec2u){
 
 /**
  * The frame's reflection state, one thread: the tile list emptied, its indirect arguments set
- * (`TRACE_SHADER`); the run-time proxy's work counter started again.
+ * (`TRACE_SHADER`).
  * The radiance around the scene (`surroundings`) is the CPU's, written with the view
  * (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
@@ -115,7 +113,7 @@ export const BEGIN_SHADER = wgslProgram(
 @compute @workgroup_size(1)
 fn reflectionBegin(){
  work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
- traceList[${TRACE_LIST.count}u]=0u;traceList[${TRACE_LIST.spent}u]=0u;
+ traceList[${TRACE_LIST.count}u]=0u;
 }`,
   [],
 )

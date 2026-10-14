@@ -12,9 +12,6 @@ import { math } from '../../../packages/sdk-core/src/world/math/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
-import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { latestMade } from '../kit/worldErrors.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
 /** A linear colour: an array is read as it is, never as the sRGB a hex string names. */
@@ -91,15 +88,6 @@ function shapeMesh(s: Shape) {
   mesh.position.set(...s.centre)
   if (s.kind === 'morph') mesh.morphTargetInfluences![0] = s.weight
   return mesh
-}
-
-/** The trace's counter in the world's newest tile list (`TRACE_LIST`): the work the frame's proxy rays
- *  spent, read on `device`; none before the world made a list. */
-export async function traceCounters(device: GPUDevice, made: Map<string, GPUBuffer>) {
-  const list = latestMade(made, (label) => label.startsWith('Trillion3D reflection tile list'))
-  if (!list) return undefined
-  const words = (await readGpuBuffer(device, list, (TRACE_LIST.spent + 1) * 4))!
-  return { spent: words[TRACE_LIST.spent] }
 }
 
 /** The world of case `c` on `canvas`; `moved()` carries the moving shapes to where their moves end. */

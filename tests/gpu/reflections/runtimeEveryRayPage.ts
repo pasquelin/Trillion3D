@@ -1,12 +1,13 @@
 // The page of the proof that every ray of the run-time proxy is cast in its frame: case 25 of the family drawn
 // at a size whose rays once outnumbered a frame's budget, the temporal accumulation off so that the image
-// holds; each frame's work read (`traceCounters`) until the image holds.
+// holds; each frame's work read (`traceWork`, the proof's own counter) until the image holds.
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase } from './runtimeFamilyCases.ts'
-import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
+import { familyWorld } from './runtimeFamilyWorld.ts'
+import { countTraceWork, traceWork } from './traceWork.ts'
 
 /** What the proof reads: each frame's work spent, and whether the world holds its image at the end. */
 export type EveryRayReading = {
@@ -20,6 +21,7 @@ const EVERY_RAY_CASE = 25
 
 export const run = (size: readonly [number, number]) =>
   runOnDevice<EveryRayReading>(async (_device, _events, result) => {
+    countTraceWork()
     const { errors, made } = listenToWorldDevices()
     const canvas = proofCanvas('runtime-every-ray') as unknown as HTMLCanvasElement & {
       readable: boolean
@@ -53,7 +55,7 @@ export const run = (size: readonly [number, number]) =>
     ) {
       await animationFrame()
       if (!context.current) continue
-      const counters = await traceCounters(context.getConfiguration().device, made)
+      const counters = await traceWork(context.getConfiguration().device, made)
       if (counters) trail.push(counters)
     }
     Object.assign(result, { trail, held: held > 0, worldErrors: errors })

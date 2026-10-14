@@ -115,11 +115,11 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
 })
 
-test('the frame state restarts the tile list and the work the proxy rays spent', () => {
+test('the frame state restarts the tile list', () => {
   const work = [7, 0, 0, 0]
-  // The trace's list of the frame before (its tiles, the work its rays spent, then two tiles): every
-  // ray was cast in its frame, so nothing carries over.
-  const traceList = [9, 4, 7, 3]
+  // The trace's list of the frame before (its count, then two tiles): every ray was cast in its
+  // frame, so nothing carries over.
+  const traceList = [9, 7, 3]
   const run = shaderRun<{ reflectionBegin: () => void }>(BEGIN_SHADER, ['reflectionBegin'], {
     work,
     traceList,
@@ -127,6 +127,6 @@ test('the frame state restarts the tile list and the work the proxy rays spent',
   run.reflectionBegin()
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
-  // The count and the work spent start again; the entries past them are written before any read.
-  assert.deepEqual(traceList, [0, 0, 7, 3], 'the count and the work spent restart')
+  // The count starts again; the entries past it are written before any read.
+  assert.deepEqual(traceList, [0, 7, 3], 'the count restarts')
 })
