@@ -6,6 +6,7 @@ import {
   REQUEST_STAGED_WORDS,
 } from '../request.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ROW_QUEUE_WORDS } from '../readoutWords.ts'
 
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
@@ -44,9 +45,10 @@ fn emitOne(page:u32,priority:u32){
 }
 /** A staged request: its page, then its priority (\`REQUEST_STAGED_WORDS\`). */
 fn stage(at:u32,page:u32,priority:u32){out.pages[at]=page;out.pages[at+1u]=priority;}
-/** Where the camera's request \`s\` waits for the sort: behind the cut's two lists' differences
- *  (\`stagedRequestsWord\`, \`../layout.ts\`, less \`out\`'s header: an index of \`out.pages\`). */
-fn stagedAt(s:u32)->u32{return differenceAt(2u*views[0u].listCap+${REQUEST_STAGED_WORDS}u*s);}
+/** Where the camera's request \`s\` waits for the sort: behind the cut's two lists' differences and
+ *  the rows' queue (\`stagedRequestsWord\`, \`../readoutWords.ts\`, less \`out\`'s header: an index of
+ *  \`out.pages\`). */
+fn stagedAt(s:u32)->u32{return differenceAt(2u*views[0u].listCap+${ROW_QUEUE_WORDS}u+${REQUEST_STAGED_WORDS}u*s);}
 /** The requests ahead one sample stages (\`aheadRequestCap\`, \`../layout.ts\`), and where the
  *  request ahead \`s\` waits: behind the camera's whole staged region, which it never enters. */
 fn aheadCap()->u32{return views[0u].listCap/2u;}

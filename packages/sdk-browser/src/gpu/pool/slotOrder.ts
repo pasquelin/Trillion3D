@@ -32,13 +32,13 @@ export function createSlotOrder(generationOf: (key: number) => number | undefine
    *  draw — its `old` and `open` unsaid. */
   const order = { count: 0, arrivals: 0, keyAt: (at: number) => keys[at] }
   return {
-    /** Evicts from now on in `queue` — its count, then its keys, the first victim first —, cut when
-     *  the pool had seen `arrivals` arrivals, the GPU having ranked `ranked` slots, the count by
-     *  default. */
+    /** Evicts from now on in `queue`, the first victim first — copied: the readback it lies in is
+     *  read again —, cut when the pool had seen `arrivals` arrivals, the GPU having ranked `ranked`
+     *  slots, the keys listed by default. */
     follow(queue: Uint32Array, arrivals: number, ranked?: number) {
-      const count = Math.min(queue[0], queue.length - 1)
+      const count = queue.length
       if (keys.length < count) keys = new Uint32Array(count)
-      keys.set(queue.subarray(1, 1 + count))
+      keys.set(queue)
       order.count = count
       order.arrivals = arrivals
       total = Math.max(count, ranked ?? count)

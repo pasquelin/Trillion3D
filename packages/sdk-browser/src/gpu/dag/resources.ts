@@ -17,8 +17,13 @@ export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResour
 
 /** What a cut encodes for the row cache after its own kernels, on its pass, its group set
  *  (`../../webgpu/row/rowEviction.ts`): the rows' closure, and their victim queue when `read` — a
- *  readback copies this cut. Set by the session that holds the rows (`selection.ts`). */
-export type RowCutPass = { encode(pass: GPUComputePassEncoder, read: boolean): void }
+ *  readback copies this cut —; and what a main readback brings back of it, mapped, cut at `frame`
+ *  on a list of `listCap` (`landed`): none from a cut that dropped work. Set by the session that
+ *  holds the rows (`selection.ts`). */
+export type RowCutPass = {
+  encode(pass: GPUComputePassEncoder, read: boolean): void
+  landed(range: ArrayBuffer | undefined, listCap: number, frame: number): void
+}
 
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */

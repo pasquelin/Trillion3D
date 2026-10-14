@@ -9,6 +9,7 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createRowUse } from './rowUse.ts'
 import type { createRowDemand } from './rowDemand.ts'
 import type { RowWords } from './rowWords.ts'
+import type { RowOrder } from './rowOrder.ts'
 
 /** What the row cache's passes share (`slots.ts`): the table, the catalogue, the ranks freed, the
  *  claims, the rows' use, the cut's demand, the writers, and the counts of the pass. */
@@ -23,9 +24,9 @@ export type RowSlots = {
   /** Arrivals that claim a record and wait their turn, from one image to the next. */
   claims: ReturnType<typeof createWebgpuRowClaims>
   use: ReturnType<typeof createRowUse>
-  /** The rows' use words the GPU stamps, as the host writes them (`rowWords.ts`). */
+  /** The rows' use words the GPU stamps (`rowWords.ts`), its queues (`rowOrder.ts`), its clock. */
   words: RowWords
-  /** The host's frame: the clock the GPU stamps with (`../../gpu/dag/shader/lastUseWgsl.ts`). */
+  order: RowOrder
   frame: () => number
   demand: ReturnType<typeof createRowDemand>
   writers: ReturnType<typeof createWebgpuRowWriters>

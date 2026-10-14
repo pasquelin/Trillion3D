@@ -69,6 +69,8 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rt.clock,
     // The host's frame: the clock every cut stamps with, the rows' use words too.
     () => run.frame,
+    // A request waiting for the rows' queue asks the cut to cut again and rank one.
+    () => run.gpuSelection?.askEvictions(),
   )
   return rowSync
 }

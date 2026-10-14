@@ -8,6 +8,7 @@ import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { createRowUse } from './rowUse.ts'
 import { createRowWords } from './rowWords.ts'
+import { createRowOrder } from './rowOrder.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import {
   closeFreeRows,
@@ -42,9 +43,12 @@ export function createWebgpuRowSlots(
   closure: () => InstanceClosure,
   /** The host's frame, the clock the GPU stamps the rows' use with (`rowWords.ts`). */
   frame: () => number,
+  /** Asks the next cut to cut again: a request waits for the queue it ranks (`rowOrder.ts`). */
+  askOrder?: () => void,
 ) {
   const { recordOf } = createPageCatalogue(packedPages)
-  const use = createRowUse(0)
+  const use = createRowUse(0),
+    words = createRowWords()
   const drawsRow = (page: number) => {
     const rec = recordOf(page)!
     return !rec.transparent && rowHasGeometry(rec)
@@ -56,7 +60,8 @@ export function createWebgpuRowSlots(
     drawsRow,
     onResidenceChange,
     use,
-    words: createRowWords(),
+    words,
+    order: createRowOrder(rows.rowOf, words, askOrder),
     frame,
     free: { rows: new Int32Array(0), count: 0 },
     claims: createWebgpuRowClaims(),
@@ -87,6 +92,8 @@ export function createWebgpuRowSlots(
     },
     /** The rows' use words the GPU stamps (`rowWords.ts`). */
     words: s.words,
+    /** The rows' victim order, the queues the GPU ranks (`rowOrder.ts`). */
+    order: s.order,
   }
 }
 

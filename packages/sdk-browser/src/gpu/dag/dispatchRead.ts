@@ -110,6 +110,13 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
     recutMain(resources.swap, state)
   }
   if (grown) state.grow = Math.max(state.grow, grown)
+  // The rows' queue the cut ranked, while the range is mapped; none trusted from a cut that dropped
+  // work, its stamps short of it.
+  resources.rowPass?.landed(
+    parsed && !parsed.dropped ? range : undefined,
+    listCap,
+    read.captured.frame ?? -1,
+  )
   // A cut that dropped work was not drawn: its queues or lists grow, and it is never adopted.
   if (grownFlags) state.growFlags = widerFlagShape(state.growFlags, grownFlags)
   if (retried) return

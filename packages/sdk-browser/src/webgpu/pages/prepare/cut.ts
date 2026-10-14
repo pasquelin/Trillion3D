@@ -75,6 +75,7 @@ export async function createSessionCut(
       words: rt.services.rowWords,
       table: rt.layout.rows,
       frame: () => rt.run.frame,
+      order: rt.services.followRowOrder,
     }),
   })
   return { cut, refused }

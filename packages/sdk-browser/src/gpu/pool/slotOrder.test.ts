@@ -10,7 +10,7 @@ function pool(held: Map<number, number>) {
   return createSlotOrder((key) => held.get(key))
 }
 
-const queueOf = (keys: number[]) => Uint32Array.from([keys.length, ...keys])
+const queueOf = (keys: number[]) => Uint32Array.from(keys)
 
 test('keys leave in the order listed; one gone or arrived since the cut is skipped', () => {
   const held = new Map([

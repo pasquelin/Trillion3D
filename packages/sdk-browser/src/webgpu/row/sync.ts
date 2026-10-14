@@ -27,6 +27,8 @@ export function createWebgpuRowSync(
   budget?: FrameClock,
   /** The host's frame, the clock the GPU stamps the rows' use with (`rowWords.ts`). */
   frame: () => number = () => 0,
+  /** Asks the next cut to cut again: a request waits for the queue it ranks (`rowOrder.ts`). */
+  askOrder?: () => void,
 ) {
   const slots = createWebgpuRowSlots(
     rows,
@@ -35,6 +37,7 @@ export function createWebgpuRowSync(
     onResidenceChange,
     closure,
     frame,
+    askOrder,
   )
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here. */
@@ -49,6 +52,13 @@ export function createWebgpuRowSync(
    * barrier image). Returns whether the table was passed over.
    */
   const syncRows = (bounded = true) => {
+    const passed = passRows(bounded)
+    // The frame's cut ranks the rows as they stand now: a page that takes a row later is no victim
+    // of its queue (`rowOrder.ts`).
+    slots.order.noteFrame(frame())
+    return passed
+  }
+  const passRows = (bounded: boolean) => {
     if (!cacheReady() || !rows.pageTableFloats) return false
     // The journal describes only this pass: what it named has already been applied or dropped.
     rows.clearResidencyChanges()
@@ -86,6 +96,8 @@ export function createWebgpuRowSync(
     blendCasters,
     /** The rows' use words the GPU stamps (`rowWords.ts`). */
     rowWords: slots.words,
+    /** A queue of the rows' victims a readback brought (`rowOrder.ts`). */
+    followRowOrder: slots.order.follow,
     /** Bytes of the row cache's own tables (`slots.ts`). */
     get cacheBytes() {
       return slots.bytes

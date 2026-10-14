@@ -152,7 +152,9 @@ export function createWebgpuTilePool(
     victim: order.victim,
     victims: order.victims,
     rankOf: order.rankOf,
-    follow: order.follow,
+    // The queue's count, then its places.
+    follow: (queue, arrivals) =>
+      order.follow(queue.subarray(1, 1 + Math.min(queue[0], queue.length - 1)), arrivals),
     occupied: () => occupied(places),
     placeOf,
     destroy() {
