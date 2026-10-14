@@ -1,15 +1,14 @@
 // The run-time proxy kept to the placements it traces: an instance a placement, a surface a material,
 // a cut's columns once however many placements wear it — written as the culling's rows are, appended,
 // parked, marked —, and no buffer while none wears one. Over the device double.
-import { NO_INDEX } from '../../../../math/src/constants.ts'
-import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import { fieldCamera, placementField } from './placementTree.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection, dagRootCounts } from './pack.ts'
-
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'

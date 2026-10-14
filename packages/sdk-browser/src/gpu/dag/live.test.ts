@@ -2,9 +2,9 @@
 // the previous level filled, `dagWanted` over candidate pages only, and the kernels
 // that follow over the live-cluster list. This file holds the list each kernel walks;
 // `encode.test.ts` holds the number of commands a frame opens.
-import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE } from './encode.fixture.ts'
