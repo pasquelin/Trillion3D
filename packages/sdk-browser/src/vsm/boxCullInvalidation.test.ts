@@ -19,7 +19,7 @@ import { vsmLayout } from './layout.ts'
 const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
-const GOLDEN = ''
+const GOLDEN = '69ead8bb74d6710ba5654554de1a4991d4e0b8b13a7cf09f00b6982999cf1065'
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],

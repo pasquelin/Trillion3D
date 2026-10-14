@@ -24,6 +24,7 @@ import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
 
 /** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
@@ -65,7 +66,7 @@ ${wgslConsts({ VSM_BOX_CASTS, VSM_BOX_MOVING })}
  *  every invalidation entry runs over the previous frame's maps. */
 const VSM_STALE_PAGES_WGSL = wgslBlock(
   'VSM_STALE_PAGES_WGSL',
-  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL],
+  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL, transformPoint],
   `
 /** Clips the page rect of a pixel rect to the allocated bounds (at map id · 8 + mip). */
 fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
@@ -87,14 +88,23 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 /** Invalidates the pages of one instance. */
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
- // The box's centre in the shadow view's shifted space (the origin shift split high and low).
- let translation=(inst.centre+pd.originShiftHigh)+pd.originShiftLow;
+ // The box's centre in the shadow view's shifted space (the origin shift split high and low; the
+ // record holds no low part: its zero is summed as the old split translation's was).
+ let translation=(inst.centre+pd.originShiftHigh)+(vec3f(0.0)+pd.originShiftLow);
+ // Its world axes and that translation, as a matrix: the products and sums its images take keep
+ // the roundings, signed zeros and non-finite values of the general instance it replaced, bit for
+ // bit (boxCullInvalidation.test.ts); a translation alone is all a record moves.
+ let localToShifted=mat4x4f(
+  vec4f(1.0,0.0,0.0,0.0),
+  vec4f(0.0,1.0,0.0,0.0),
+  vec4f(0.0,0.0,1.0,0.0),
+  vec4f(translation,1.0));
  let boxRadius=length(inst.extent);
  // The bounds' shifted centre, which a local light's tests alone read.
  var shiftedCenter=vec3f(0.0);
  // Distance cull for local lights.
  if(!sunMap){
-  shiftedCenter=translation;
+  shiftedCenter=transformPoint(localToShifted,vec3f(0.0));
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
@@ -102,10 +112,10 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
- // The box to clip space, its axes the world's, through the view's world-to-clip.
+ // The box to clip space through its local-to-shifted, then the view's shifted-to-clip.
  let toClip=uvToClip*pd.shiftedToMapUv;
  let boxPoint=vsmBoxCullPoint(vec3f(0.0),inst.extent,isOrtho,nearClip);
- let cull=vsmBoxInView(toClip*vec4f(boxPoint+translation,1.0),toClip[0],toClip[1],toClip[2],
+ let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
   inst.extent,pd.lightViewToClip,isOrtho,nearClip);
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
