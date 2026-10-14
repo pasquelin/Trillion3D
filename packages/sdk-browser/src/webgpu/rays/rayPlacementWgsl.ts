@@ -9,11 +9,8 @@ import {
   NODE_CHILD_COUNT,
   NODE_FIRST_CHILD,
   NODE_FIRST_PAGE,
-  NODE_MAX,
-  NODE_MIN,
   NODE_PAGE_COUNT,
 } from '../../gpu/dag/nodeLayout.ts'
-import { TRANSLATION_AT_EYE_WGSL } from '../../gpu/dag/shader/worldPoseWgsl.ts'
 import { MARK_WORD, PAGE_BASE_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from '../../gpu/dag/worlds.ts'
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
@@ -39,32 +36,19 @@ const RAY_TABLES_WGSL = wgslBlock(
 @group(1) @binding(3) var<storage,read> positions:array<f32>;`,
 )
 
-/** A placement's world, its linear part and its translation at the ray's origin (the eye `e0`,
- *  `e1`, `TRANSLATION_AT_EYE_WGSL`), and the boxes and children of its hierarchy's nodes, each box
- *  grown by its deformation's reach as the cut grows it. */
+/** The boxes and children of a placement's hierarchy's nodes, each box grown by its deformation's
+ *  reach as the cut grows it, its corners read by the nodes table's own reader (`nodesLow`,
+ *  `nodesHigh`). */
 const RAY_NODES_WGSL = wgslBlock(
   'RAY_NODES_WGSL',
-  [TRANSLATION_AT_EYE_WGSL, WIDE_TRAVERSAL_WGSL],
+  [DAG_READ_TABLES_WGSL, WIDE_TRAVERSAL_WGSL],
   `${wgslConsts({
-    RQ_NODE_MIN: NODE_MIN,
-    RQ_NODE_MAX: NODE_MAX,
     RQ_FIRST_CHILD: NODE_FIRST_CHILD,
     RQ_CHILD_COUNT: NODE_CHILD_COUNT,
     RQ_FIRST_PAGE: NODE_FIRST_PAGE,
     RQ_PAGE_COUNT: NODE_PAGE_COUNT,
   })}
-/** Column \`c\` of placement \`w\`'s world, in its record (\`worldsMatrix\`). */
-fn rqColumn(w:u32,c:u32)->vec4f{return bitcast<vec4f>(worldsMatrix(w,c));}
-fn rqLinear(w:u32)->mat3x3f{return mat3x3f(rqColumn(w,0u).xyz,rqColumn(w,1u).xyz,rqColumn(w,2u).xyz);}
-/** Its world with the translation at the eye \`e0\`, \`e1\`, from the exact one beside the matrix
- *  (\`worldsOrigin\`). */
-fn rqWorld(w:u32,e0:vec4u,e1:vec4u)->mat4x4f{
- let t=bitcast<vec3f>(translationAtEye(worldsOrigin(w,0u),worldsOrigin(w,1u),e0,e1));
- return mat4x4f(rqColumn(w,0u),rqColumn(w,1u),rqColumn(w,2u),vec4f(t,rqColumn(w,3u).w));
-}
-fn rqNodeLow(n:u32)->vec3f{return bitcast<vec3f>(vec3u(nodesWord(n,RQ_NODE_MIN),nodesWord(n,RQ_NODE_MIN+1u),nodesWord(n,RQ_NODE_MIN+2u)));}
-fn rqNodeHigh(n:u32)->vec3f{return bitcast<vec3f>(vec3u(nodesWord(n,RQ_NODE_MAX),nodesWord(n,RQ_NODE_MAX+1u),nodesWord(n,RQ_NODE_MAX+2u)));}
-fn rqBox(n:u32,reach:f32)->Box{return Box(rqNodeLow(n)-vec3f(reach),rqNodeHigh(n)+vec3f(reach));}
+fn rqBox(n:u32,reach:f32)->Box{return Box(nodesLow(n)-vec3f(reach),nodesHigh(n)+vec3f(reach));}
 /** Child \`slot\` of node \`n\`: a node with children of its own is entered, one without them is a
  *  leaf whose pages — counted from the placement's first, \`pageBase\` — are tested, as the cut
  *  deposits them (\`../../gpu/dag/shader/levelWgsl.ts\`); a leaf with no page holds nothing. */
@@ -137,7 +121,7 @@ fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
  if(w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
  let root=framesWord(w,RQ_ROOT_WORD);
  if(root==NO_INDEX){return best;}
- let m=rqWorld(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
+ let m=worldsWorldAtEye(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
  // The origin is the eye: at zero, the placement at its translation from it.
  let placed=placementRay(worldMatrix3(m),-m[3].xyz,ray.direction);
  if(!placed.regular){return best;}

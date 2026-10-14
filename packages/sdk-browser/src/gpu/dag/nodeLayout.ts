@@ -20,3 +20,14 @@ export const NODE_MIN = 0,
 export const NODE_KIND = 22
 /** The pad word that brings the node to ninety-six bytes, vec4-aligned. */
 export const NODE_PAD = 23
+
+/** The low and high corners of node `n`'s box, `<name>Low(n)` and `<name>High(n)`, from the words
+ *  `<name>Word(n,k)` of the table `name` names: the one corner reader of every walk, emitted by each
+ *  table a node lies in (`nodeTable.ts`, `treeTable.ts`). */
+export const nodeCornersWgsl = (name: string) =>
+  [NODE_MIN, NODE_MAX]
+    .map(
+      (k, i) =>
+        `fn ${name}${i ? 'High' : 'Low'}(n:u32)->vec3f{return bitcast<vec3f>(vec3u(${name}Word(n,${k}u),${name}Word(n,${k + 1}u),${name}Word(n,${k + 2}u)));}`,
+    )
+    .join('\n')

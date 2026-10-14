@@ -2,6 +2,7 @@ import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
+import { nodeCornersWgsl } from './nodeLayout.ts'
 
 /**
  * THE CUT'S NODES, one home whatever the world's size: a record table (`../core/recordTexture.ts`)
@@ -22,10 +23,12 @@ export const NODE_TABLE: RecordLayout = {
 }
 
 /** The nodes as a program binds them, read, named `name`: `<name>Node(i,t)`, texel `t` of node
- *  `i`, and `<name>Word(i,k)`, its word `k`. */
+ *  `i`, `<name>Word(i,k)`, its word `k`, and `<name>Low(n)`, `<name>High(n)`, its box's corners
+ *  (`nodeCornersWgsl`). */
 export const nodeTableWgsl = (name: string, binding: Omit<RecordBinding, 'name' | 'access'>) =>
   wgslBlock(
     `nodeTable(${name}, ${binding.group}, ${binding.binding})`,
     [recordTextureWgsl(NODE_TABLE, { name, ...binding, access: 'read' })],
-    `fn ${name}Word(i:u32,k:u32)->u32{return ${name}Node(i,k>>2u)[k&3u];}`,
+    `fn ${name}Word(i:u32,k:u32)->u32{return ${name}Node(i,k>>2u)[k&3u];}
+${nodeCornersWgsl(name)}`,
   )
