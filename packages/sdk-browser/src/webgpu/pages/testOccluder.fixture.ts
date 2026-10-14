@@ -12,7 +12,7 @@ import { webgpuPagesEngine } from './pages.ts'
 import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { DAG, dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { camera, withDraws } from './testScenes.fixture.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
@@ -21,7 +21,6 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
-import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function occluderScene() {
   const geometry = new Geometry()
@@ -40,7 +39,7 @@ export function occluderScene() {
     mesh = G.mesh(geometry, material),
     source = new Group()
   source.add(mesh)
-  const pages = dagRoots([
+  const roots = dagRoots([
     {
       id: 0,
       url: 'front',
@@ -59,20 +58,11 @@ export function occluderScene() {
       bytes: 24,
       sha256: 'x',
     },
-  ]).pages
+  ])
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
-    clusterStrategy: 'dag-groups',
-    primitives: [
-      {
-        mesh: 0,
-        primitive: 0,
-        pass: 'exact-clusters',
-        pages,
-        structure: { version: 1, roots: [0, 1], groups: [] },
-        culling: manifestCulling(pages),
-      },
-    ],
+    errorModel: DAG.errorModel,
+    clusterStrategy: DAG.clusterStrategy,
+    primitives: [exactPrimitive(roots)],
   }
   const indices = new Map([
     ['front', new Uint32Array([0, 1, 2, 0, 2, 3])],

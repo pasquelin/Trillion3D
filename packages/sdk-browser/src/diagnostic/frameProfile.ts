@@ -5,8 +5,9 @@ import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
+import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
 
-/** The first limit the frame hits, in the order stutters, main thread, submit, streaming. */
+/** The first limit the frame hits: stutters, main thread past a 60 Hz frame, submit, streaming. */
 function diagnoseBottleneck(
   stutters: number,
   cpuFrameMs: number,
@@ -18,7 +19,7 @@ function diagnoseBottleneck(
       bottleneck: 'memory_pressure',
       bottleneckMessage: `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms)`,
     }
-  if (cpuFrameMs > 16.6)
+  if (cpuFrameMs > FALLBACK_REFRESH_MS)
     return {
       bottleneck: 'cpu_bound',
       bottleneckMessage: `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`,
@@ -75,9 +76,8 @@ function streamingReport(m: FrameMetrics | null | undefined): TelemetryReport['s
  * never asks for debug mode never downloads.
  */
 export class FrameProfile {
-  /** Circular interval buffer: one write per frame, never a shift of the whole
-   *  array. `frameStatistics` receives the same values, in the same order, from oldest to
-   *  newest. */
+  /** Circular interval buffer: one write per frame, never a shift of the whole array.
+   *  `frameStatistics` receives the same values, in the same order, from oldest to newest. */
   private readonly intervals: Float64Array
   private intervalCount = 0
   private intervalHead = 0

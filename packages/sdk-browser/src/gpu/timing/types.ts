@@ -29,7 +29,7 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number }
  * previous SAMPLED image is not `frame − 1` (a stride, a busy readback, a held frame between them)
  * it is `null`, never the gap to the older one, whose span holds the untimed images' work. Also
  * `null` when either image is not whole (truncated, an invalid timestamp), when the timeline went
- * backwards, and past a pause (`IDLE_CEILING_MS`, `timeline.ts`). Untimed GPU work between the two
+ * backwards, and past a pause (`PAUSE_MS`, `../../frame/refreshClock.ts`). Untimed GPU work between the two
  * images — uploads and copies outside a timed pass — counts in it.
  */
 export type GpuTimingSample = GpuPassTimings & {

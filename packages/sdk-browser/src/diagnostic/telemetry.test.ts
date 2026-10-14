@@ -7,6 +7,7 @@ import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { MIB } from '../../../math/src/constants.ts'
+import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
 
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
   const profiler = new FrameProfile()
@@ -89,6 +90,16 @@ test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget'
   const report = profiler.getReport()
   assert.equal(report.bottleneck, 'cpu_bound')
   assert.ok(report.bottleneckMessage.includes('CPU thread choke'))
+})
+
+test('the main thread chokes past a frame of a 60 Hz display, the engine one 60 Hz frame', () => {
+  const bottleneck = (cpuFrameMs: number) => {
+    const profiler = new FrameProfile()
+    profiler.record({ cpuFrameMs } as FrameMetrics, 1000)
+    return profiler.getReport().bottleneck
+  }
+  assert.equal(bottleneck(16.65), 'healthy', 'within 1000 / 60 ms: no hand-rounded 16.6')
+  assert.equal(bottleneck(FALLBACK_REFRESH_MS + 0.01), 'cpu_bound')
 })
 
 // `record()` writes into a circular buffer instead of `push` then `shift()` of the whole

@@ -4,26 +4,24 @@ import type { HostMesh } from '../../host/resources.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
-import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
+import { DAG, dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 
-const page = (id: number, url: string, start: number) => ({
-  id,
-  url,
-  count: 3,
-  bytes: 12,
-  sha256: url,
-  min: [-1, -1, 0],
-  max: [1, 1, 0],
-  role: 'exact' as const,
-  start,
-  level: 0,
-  lodError: 0,
-  sphere: [0, 0, 0, 1.5],
-  parentError: null,
-  parentSphere: null,
-  group: null,
-  source: null,
-})
+/** Primitive `index`'s one root cluster, its triangle's three corners from 0. */
+const roots = (index: number) =>
+  dagRoots(
+    [
+      {
+        id: 0,
+        url: `p${index}`,
+        count: 3,
+        bytes: 12,
+        sha256: `p${index}`,
+        min: [-1, -1, 0],
+        max: [1, 1, 0],
+      },
+    ],
+    [0],
+  )
 
 /** Three primitives, one per material class, the way the compiler classifies them. */
 export function scene() {
@@ -49,19 +47,15 @@ export function scene() {
     meshes.push(mesh)
     associations.set(mesh, { meshes: index, primitives: 0 })
     return {
-      mesh: index,
-      primitive: 0,
+      ...exactPrimitive(roots(index), index),
       pass: passes[index],
-      clusterStrategy: 'dag-groups' as const,
-      pages: [page(0, `p${index}`, 0)],
-      structure: { version: 1, roots: [0], groups: [] },
-      culling: manifestCulling([page(0, `p${index}`, 0)]),
+      clusterStrategy: DAG.clusterStrategy,
     }
   })
   source.updateMatrixWorld(true)
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
-    clusterStrategy: 'dag-groups',
+    errorModel: DAG.errorModel,
+    clusterStrategy: DAG.clusterStrategy,
     primitives,
   } as unknown as ClusterManifest
   const indices = new Map(

@@ -40,6 +40,16 @@ export function dagRoots<T extends Cluster>(pages: T[], starts?: number[]) {
   }
 }
 
+/** A manifest's primitive over `roots` (`dagRoots`): mesh `mesh`'s first, its exact clusters. */
+export const exactPrimitive = <R extends ReturnType<typeof dagRoots>>(roots: R, mesh = 0) => ({
+  mesh,
+  primitive: 0,
+  pass: 'exact-clusters' as const,
+  pages: roots.pages,
+  structure: roots.structure,
+  culling: roots.culling,
+})
+
 /** `leaves` replaced by the `coarse` clusters of error `error`, beside the untouched `roots`. */
 export function dagLevel<T extends Cluster>(
   leaves: T[],

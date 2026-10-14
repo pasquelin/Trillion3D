@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MS, timer } from './imageTimer.fixture.ts'
 import { createTimeline } from './timeline.ts'
+import { PAUSE_MS } from '../../frame/refreshClock.ts'
 
 /** A device span from `begin` to `end` ms. */
 const span = (begin: number, end: number) => ({
@@ -80,7 +81,7 @@ test('a timeline that went backwards, or a pause, publishes no idle; a zero idle
   }
   assert.equal(after(1, 2), null, 'backwards')
   assert.equal(after(3, 4), 0, 'no bubble, measured')
-  // The ceiling, `IDLE_CEILING_MS`: 100 ms, the refresh clock's pause.
-  assert.equal(after(103, 200), 100)
-  assert.equal(after(104, 200), null, 'a pause')
+  // The ceiling: the refresh clock's pause, one rule for a gap that is no frame.
+  assert.equal(after(3 + PAUSE_MS, 200 + PAUSE_MS), PAUSE_MS)
+  assert.equal(after(4 + PAUSE_MS, 200 + PAUSE_MS), null, 'a pause')
 })

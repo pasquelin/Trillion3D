@@ -7,10 +7,9 @@ import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { DAG, dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
-import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals()
@@ -31,7 +30,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     mesh = G.mesh(geometry, material),
     source = new Group()
   source.add(mesh)
-  const pages = dagRoots([
+  const roots = dagRoots([
     {
       id: 0,
       url: '0',
@@ -59,10 +58,10 @@ test('the initial cover also protects regions first discovered after a camera ju
       bytes: 12,
       sha256: 'x',
     },
-  ]).pages
+  ])
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
-    clusterStrategy: 'dag-groups',
+    errorModel: DAG.errorModel,
+    clusterStrategy: DAG.clusterStrategy,
     schema: 1,
     status: 'ready',
     key: 'k',
@@ -71,16 +70,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     selectedTriangles: 0,
     selectedNodes: 0,
     totalNodes: 0,
-    primitives: [
-      {
-        mesh: 0,
-        primitive: 0,
-        pass: 'exact-clusters',
-        pages,
-        structure: { version: 1, roots: [0, 1, 2], groups: [] },
-        culling: manifestCulling(pages),
-      },
-    ],
+    primitives: [exactPrimitive(roots)],
   }
   const indices = new Map([
     ['0', new Uint32Array([0, 1, 2])],

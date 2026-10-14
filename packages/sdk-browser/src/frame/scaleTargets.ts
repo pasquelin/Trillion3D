@@ -1,9 +1,13 @@
 /** A second, ms: the span the frame clock judges over — the refresh measured, a cadence, a frame
  *  missing its refresh once. */
 export const SECOND_MS = 1000
-/** What the render-scale control and its targets share (`scaleControl.ts`): the refresh
- *  assumed before the display's is measured, and an interval long enough to be a pause (a hidden
- *  page), not a frame. */
+/** What the render-scale control and its targets share (`scaleControl.ts`): 60 Hz, the slowest
+ *  display the engine draws for — the refresh assumed before the display's is measured, the
+ *  slowest steady cadence (`cadence.ts`), the main thread's frame past which it chokes
+ *  (`../diagnostic/frameProfile.ts`) —, and an interval long enough to be a pause (a hidden
+ *  page), not a frame. Longer than the refresh clock's pause (`PAUSE_MS`, `refreshClock.ts`), which
+ *  bounds the intervals the vsync grid is read on: a frame of 100 to 500 ms on an overloaded device
+ *  says nothing of the grid, yet is a miss the scale must answer. */
 export const FALLBACK_REFRESH_MS = SECOND_MS / 60,
   INTERVAL_PAUSE_MS = 500
 /** What the controller reads: the share of the budget they aim at, the display frames a sample is

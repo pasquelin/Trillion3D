@@ -10,8 +10,38 @@ import { mapStaging } from './readbackRing.ts'
  * that wants to check what the GPU wrote calls them.
  */
 
-/** Copies `bytes` bytes of a GPU buffer from byte `offset`, `undefined` under four bytes: through
- *  the device's held mapped buffer, as `readGpuImage` (a failed copy's is destroyed). */
+/**
+ * The one held read: `bytes` taken from the device's held mapped buffer (`heldReadback.ts`) under
+ * `label`, `encode` copying into it, submitted, mapped, `read` from its mapped range, given back —
+ * a failed read's buffer destroyed instead. `signal` is checked once mapped.
+ */
+async function heldRead<T>(
+  device: GPUDevice,
+  bytes: number,
+  label: string,
+  encode: (encoder: GPUCommandEncoder, staging: GPUBuffer) => void,
+  read: (mapped: ArrayBuffer) => T,
+  signal?: AbortSignal,
+) {
+  const staging = takeReadback(device, bytes, label)
+  let done = false
+  try {
+    const encoder = device.createCommandEncoder({ label })
+    encode(encoder, staging)
+    device.queue.submit([encoder.finish()])
+    await mapStaging(staging)
+    signal?.throwIfAborted()
+    const value = read(staging.getMappedRange())
+    staging.unmap()
+    done = true
+    return value
+  } finally {
+    if (done) giveReadback(device, staging)
+    else staging.destroy()
+  }
+}
+
+/** Copies `bytes` bytes of a GPU buffer from byte `offset`, `undefined` under four bytes. */
 export async function readGpuBuffer(
   device: GPUDevice,
   source: GPUBuffer,
@@ -19,21 +49,13 @@ export async function readGpuBuffer(
   offset = 0,
 ): Promise<Uint32Array | undefined> {
   if (bytes < 4) return undefined
-  const staging = takeReadback(device, bytes, 'Trillion3D buffer readback')
-  let read = false
-  try {
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D buffer readback' })
-    encoder.copyBufferToBuffer(source, offset, staging, 0, bytes)
-    device.queue.submit([encoder.finish()])
-    await mapStaging(staging)
-    const copy = new Uint32Array(staging.getMappedRange().slice(0))
-    staging.unmap()
-    read = true
-    return copy
-  } finally {
-    if (read) giveReadback(device, staging)
-    else staging.destroy()
-  }
+  return heldRead(
+    device,
+    bytes,
+    'Trillion3D buffer readback',
+    (encoder, staging) => encoder.copyBufferToBuffer(source, offset, staging, 0, bytes),
+    (mapped) => new Uint32Array(mapped.slice(0)),
+  )
 }
 
 /** Copies an `r32float` target as one float per texel, rows packed, the top first: four bytes a
@@ -71,30 +93,26 @@ export async function readGpuImage(
   signal?.throwIfAborted()
   const bytesPerRow = copyRowBytes(width),
     row = width * 4
-  const buffer = takeReadback(device, bytesPerRow * height, 'Trillion3D explicit capture')
-  let read = false
-  try {
-    const encoder = device.createCommandEncoder()
-    encoder.copyTextureToBuffer(
-      { texture, mipLevel },
-      { buffer, bytesPerRow, rowsPerImage: height },
-      { width, height, depthOrArrayLayers: 1 },
-    )
-    device.queue.submit([encoder.finish()])
-    await mapStaging(buffer)
-    signal?.throwIfAborted()
-    const mapped = new Uint8Array(buffer.getMappedRange()),
-      pixels = new Uint8Array(row * height)
-    for (let y = 0; y < height; y++)
-      pixels.set(
-        mapped.subarray(y * bytesPerRow, y * bytesPerRow + row),
-        (topDown ? y : height - 1 - y) * row,
-      )
-    buffer.unmap()
-    read = true
-    return pixels
-  } finally {
-    if (read) giveReadback(device, buffer)
-    else buffer.destroy()
-  }
+  return heldRead(
+    device,
+    bytesPerRow * height,
+    'Trillion3D explicit capture',
+    (encoder, buffer) =>
+      encoder.copyTextureToBuffer(
+        { texture, mipLevel },
+        { buffer, bytesPerRow, rowsPerImage: height },
+        { width, height, depthOrArrayLayers: 1 },
+      ),
+    (range) => {
+      const mapped = new Uint8Array(range),
+        pixels = new Uint8Array(row * height)
+      for (let y = 0; y < height; y++)
+        pixels.set(
+          mapped.subarray(y * bytesPerRow, y * bytesPerRow + row),
+          (topDown ? y : height - 1 - y) * row,
+        )
+      return pixels
+    },
+    signal,
+  )
 }

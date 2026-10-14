@@ -1,4 +1,5 @@
 import { nanosecondsToMs } from './types.ts'
+import { PAUSE_MS } from '../../frame/refreshClock.ts'
 
 /**
  * The device's idle between two consecutive images.
@@ -15,24 +16,20 @@ import { nanosecondsToMs } from './types.ts'
  * end that is not the image's last.
  */
 
-/** A gap longer than this is a pause, not a frame: the refresh clock's own bound (under 10 fps,
- *  `../../frame/refreshClock.ts`). The loop sleeps on a still scene and wakes seconds later, and a
- *  device clock can stop (a frozen tab, a device loss): such a gap is withheld, never published as
- *  an idle the frame period cannot hold. */
-const IDLE_CEILING_MS = 100
-
 /** An image's first and last timestamps on the device timeline, ns. */
 export type ImageSpan = { beginNs: bigint; endNs: bigint }
 
 /**
  * The idle from `previous`'s last timestamp to `span`'s first, ms, or `null` when the two are not
  * comparable: no predecessor, an image with no whole span, a timeline that went backwards, or a gap
- * past `IDLE_CEILING_MS`. Zero is a measurement: the image began the nanosecond the last ended.
+ * past the refresh clock's pause (`PAUSE_MS`): the loop sleeps on a still scene and wakes seconds
+ * later, and a device clock can stop (a frozen tab, a device loss), so such a gap is withheld,
+ * never published as an idle the frame period cannot hold. Zero is a measurement: the image began the nanosecond the last ended.
  */
 function idleBetweenMs(span: ImageSpan | null, previous: ImageSpan | null): number | null {
   if (!span || !previous || span.beginNs < previous.endNs) return null
   const idle = nanosecondsToMs(Number(span.beginNs - previous.endNs))
-  return idle > IDLE_CEILING_MS ? null : idle
+  return idle > PAUSE_MS ? null : idle
 }
 
 /** The last image's span, kept by the timer that runs the images, and the idle read against it. */
