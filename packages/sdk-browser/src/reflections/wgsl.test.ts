@@ -84,8 +84,6 @@ test('nothing a reflection reads turns with the frame: no seed, no frame rank, n
   )
   for (const name of ['jitter', 'seed', 'noise', 'history', 'random', 'hash'])
     assert.doesNotMatch(text, new RegExp(`\\b${name}\\b`, 'i'), name)
-  // The frame's rank is a member of the cascades' grid (`bounce.frame`) and of nothing else. The chain
-  // without the proxy's stage, a forward fragment's behind the front: the proxy's answers are the trace's,
-  // kept under an epoch (`bounce/runtimeAnswerWgsl.ts`).
+  // The frame's rank is a member of the cascades' grid (`bounce.frame`) and of nothing else.
   assert.doesNotMatch(text, /\.frame\b/, 'the rank of the frame')
 })

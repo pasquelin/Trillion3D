@@ -1,17 +1,14 @@
-// The opaque trace over images of the sizes displays have, every pixel a mirror: the tiles it lists
-// outnumber what one dimension of a dispatch holds (3840 × 2160 lists 129,600, against the 65,535
-// of a dimension), and it traces them all, in rows (`reflections/trace.ts`, `gpu/dispatch/grid.ts`).
+// The opaque trace over images of the sizes displays have, every pixel a mirror: its half grid traced
+// whole and upsampled to every pixel (`reflections/traceHalf.ts`).
 // The reflection target is set to a not-a-number first; after the second image — the first builds
 // the radiance pyramid the screen is marched on — each of its words must have been written.
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
-import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { openRig } from './rig.ts'
 import { HALF_NAN } from './rigFrame.ts'
 
-/** What the proof reads: per size, the pixels the trace left as it found them, and the tiles the
- *  image holds. */
-export type TilesReading = { sizes: { size: number[]; unwritten: number; tiles: number }[] }
+/** What the proof reads: per size, the pixels the trace left as it found them. */
+export type CoverageReading = { sizes: { size: number[]; unwritten: number }[] }
 
 /** A wall facing the eye at a depth of 0.3 of its near plane, lit: every pixel a mirror. */
 function wall(width: number, height: number) {
@@ -53,7 +50,7 @@ function wall(width: number, height: number) {
 }
 
 export function run(sizes: number[][]) {
-  return runOnDevice<TilesReading>(async (device, _events, result) => {
+  return runOnDevice<CoverageReading>(async (device, _events, result) => {
     result.sizes = []
     for (const [width, height] of sizes) {
       const rig = await openRig(device, wall(width, height))
@@ -64,11 +61,7 @@ export function run(sizes: number[][]) {
       let unwritten = 0
       for (let p = 0; p < width * height; p++)
         if ((words[4 * p + 3] & 0x7fff) !== 0x3c00) unwritten++
-      result.sizes.push({
-        size: [width, height],
-        unwritten,
-        tiles: ceilDiv(width, 8) * ceilDiv(height, 8),
-      })
+      result.sizes.push({ size: [width, height], unwritten })
       rig.dispose()
     }
   })

@@ -6,8 +6,7 @@ import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import { drawShader } from '../draw/shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
 import { RADIANCE_SHADER } from '../../reflections/radianceWgsl.ts'
-import { TRACE_SHADER } from '../../reflections/trace.ts'
-import { BEGIN_SHADER } from '../../reflections/traceTiles.ts'
+import { REFLECTION_TRACE_SHADER } from '../../reflections/traceHalf.ts'
 import { blendFrontShader } from '../../webgpu/blend/frontStageWgsl.ts'
 import { RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
 import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
@@ -83,8 +82,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DAG_SELECTION_SHADER,
   DRAW_SHADER: drawShader(2),
   HIZ_SHADER,
-  BEGIN_SHADER,
-  TRACE_SHADER,
+  REFLECTION_TRACE_SHADER,
   // The transparents' front stage, each of what its pass writes (`webgpu/blend/frontStage.ts`).
   FRONT_STAGE_DEPTH: blendFrontShader(0),
   FRONT_STAGE_REFLECTING: blendFrontShader(1),

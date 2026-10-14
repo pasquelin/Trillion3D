@@ -41,7 +41,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
+  /** The reflection target the opaque trace wrote (`../../reflections/traceHalf.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
   receiver?: ReceiverResources // what the receiver offset reads

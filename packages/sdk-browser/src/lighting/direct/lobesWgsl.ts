@@ -130,7 +130,7 @@ export const LOBELESS_LIGHTING_WGSL = wgslBlock(
 /** The decode of a texel of the lobes target into a pixel's lobes (`lobesAt`), at its roughness
  *  `rough`, its coat normal turned by `side` (-1 where the water composite turned the stored
  *  normal to face the eye, `../../webgpu/water/waterLobesWgsl.ts`): the one reading of the opaque
- *  resolve, the water and the opaque reflection (`../../reflections/trace.ts`). */
+ *  resolve, the water and the opaque reflection (`../../reflections/traceHalf.ts`). */
 export const LOBES_DECODE_WGSL = wgslBlock(
   'LOBES_DECODE_WGSL',
   [LOBE_PACK_WGSL, LOBE_AXIS_WGSL],

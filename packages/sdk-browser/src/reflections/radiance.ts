@@ -1,4 +1,9 @@
-import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeStorageTextureEntry,
+  computeTextureEntry,
+} from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import {
@@ -8,7 +13,6 @@ import {
   hdrTargetShape,
   radianceLevels,
 } from '../scene/targetFormats.ts'
-import { storageEntry } from './bindings.ts'
 
 /**
  * THE RADIANCE PYRAMID OF A VIEW (`radianceWgsl.ts`): its kernels' layouts, what it holds, its
@@ -29,8 +33,8 @@ export function radianceLayouts(device: GPUDevice) {
     firstLayout: device.createBindGroupLayout({
       entries: [
         finer,
-        storageEntry(1, HDR_FORMAT),
-        storageEntry(2, HDR_FORMAT),
+        computeStorageTextureEntry(1, HDR_FORMAT),
+        computeStorageTextureEntry(2, HDR_FORMAT),
         halves,
         computeTextureEntry(4, 'float'),
         view,
@@ -38,7 +42,12 @@ export function radianceLayouts(device: GPUDevice) {
       ],
     }),
     downLayout: device.createBindGroupLayout({
-      entries: [finer, storageEntry(1, HDR_FORMAT), storageEntry(2, HDR_FORMAT), halves],
+      entries: [
+        finer,
+        computeStorageTextureEntry(1, HDR_FORMAT),
+        computeStorageTextureEntry(2, HDR_FORMAT),
+        halves,
+      ],
     }),
     rollLayout: device.createBindGroupLayout({ entries: [hash] }),
   }

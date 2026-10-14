@@ -20,8 +20,8 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    (`yz`);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
- *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with, and whether this
- *    image's trace answers the transparents' front surface (`y`, one or zero, `frontLayer.ts`);
+ *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
+ *    `frontLayer.ts`);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
@@ -33,7 +33,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['slab', 'vec4f'],
   ['traced', 'vec4u'],
   ['proxy', 'vec4f'],
-  ['runtime', 'vec4u'],
+  ['front', 'vec4u'],
   ['surroundings', 'vec4f'],
 ] as const)
 
@@ -92,13 +92,13 @@ export const reflectionLightViewWgsl = (group: number) =>
   )
 
 /** The transparents' front surface as a program of the reflection group `group` reads it
- *  (`frontLayer.ts`): whether this image's trace answered it (`reflectionView.runtime.y`), and its depth
+ *  (`frontLayer.ts`): whether this image's trace answered it (`reflectionView.front.x`), and its depth
  *  at a pixel — the front pass's own depth. One reading for the trace and the forward programs. */
 export const reflectionFrontWgsl = (group: number) =>
   wgslBlock(
     `reflectionFrontWgsl(${group})`,
     [reflectionBindingsWgsl(group)],
     `@group(${group}) @binding(${REFLECTION_FRONT_BINDING}) var reflectionFront:texture_2d<f32>;
-fn reflectionFrontTraced()->bool{return reflectionView.runtime.y!=0u;}
+fn reflectionFrontTraced()->bool{return reflectionView.front.x!=0u;}
 fn reflectionFrontDepth(coord:vec2i)->f32{return textureLoad(reflectionFront,coord,0).r;}`,
   )

@@ -1,54 +1,21 @@
-// The transparents' front layer (`frontLayer.ts`), the shipped WGSL run as JavaScript: a pixel's front
-// surface keeps its proxy's answer in a cell of its own in the one store, never the opaque surface's; a forward fragment
-// reads the radiance the trace wrote where it is the front surface of this image, one load, and the chain
-// without the proxy anywhere else — no program but the trace casts a ray of the proxy.
+// The transparents' front layer (`frontLayer.ts`), the shipped WGSL run as JavaScript: a forward fragment
+// reads the radiance the trace's upsample wrote where it is the front surface of this image, one load, and
+// the chain without the proxy anywhere else — no program but the trace casts a ray of the proxy.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { STORE_LAYERS } from '../bounce/runtimeLayout.ts'
-import { ahead, along, counters, makeStore, origin, runOver } from '../bounce/runtimeRun.fixture.ts'
+import { along, runOver } from '../bounce/runtimeRun.fixture.ts'
 import { world } from '../bounce/runtimeScene.fixture.ts'
 import type { Vec } from '../bounce/runtimeOracle.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { RUNTIME_BINDINGS } from './traceBindings.ts'
-import { TRACE_SHADER } from './trace.ts'
+import { TRACE_SCENE_BINDINGS } from './halfBindings.ts'
+import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
 
 /** A cube ahead of the origin emitting `emission`. */
 const glow = (emission: Vec) =>
   world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, ...emission, 0]] })
-
-test('a pixel’s front surface keeps its answer in its own cell, never the opaque one’s', () => {
-  const store = makeStore()
-  const surfaces: [number, Vec][] = [
-    [0, [3, 2, 1]],
-    [1, [1, 2, 3]],
-  ]
-  // Each surface's ray cast within the budget and kept under the epoch's stamp.
-  for (const [layer, emission] of surfaces) {
-    const run = runOver(glow(emission), counters(0), 2, store)
-    run.testLayer(layer)
-    run.testPixel(5, 6, 0)
-    run.rtAnswer(origin, ahead, 1000, 0.01)
-  }
-  // Read back with a frame whose budget is spent and a scene that would answer black: each surface
-  // answers its own cell, no ray.
-  for (const [layer, emission] of surfaces) {
-    const run = runOver(glow([0, 0, 0]), counters(2 ** 30), 2, store)
-    run.testLayer(layer)
-    run.testPixel(5, 6, 0)
-    const seen = run.rtAnswer(origin, ahead, 1000, 0.01)
-    assert.ok(Math.abs(seen.confidence - 1) < 1e-4, `layer ${layer}`)
-    seen.color.forEach((c, k) =>
-      assert.ok(Math.abs(c - emission[k]) < 2e-2, `${layer}: ${seen.color}`),
-    )
-    assert.equal(run.testWork(), 0, 'no ray')
-  }
-  // The front's cell lies a whole store past the opaque one's; nothing past it was written.
-  assert.ok(store.get([5, 6], STORE_LAYERS) !== 0)
-  assert.equal(store.get([5, 6], 2 * STORE_LAYERS), 0)
-})
 
 type Reflected = { base: Vec; coat: Vec }
 
@@ -72,7 +39,7 @@ function forward(texel: number[], depth: number, answered = true) {
     {
       frontTraced: { load: () => texel },
       reflectionFront: { load: () => [depth, 0, 0, 0] },
-      reflectionView: { runtime: [2, answered ? 1 : 0, 0, 0] },
+      reflectionView: { front: [answered ? 1 : 0, 0, 0, 0] },
       reflectionTrace: () => chain,
       Reflected: (base: Vec, coat: Vec) => ({ base, coat }),
     },
@@ -100,13 +67,13 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
 
 test('only the trace casts the proxy’s rays: a forward program binds no proxy', () => {
   const forwardText = wgslModule(forwardReflectionWgsl(1, true, 24))
-  for (const name of ['rtRadiance', 'rtAnswer', 'rtProxy', 'reflectionProxied'])
+  for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
-  assert.match(wgslModule(reflectedRadianceWgsl(1, RUNTIME_BINDINGS)), /\breflectionProxied\b/)
-  // The trace writes the front's radiance where this image answers the front surface.
-  assert.ok(TRACE_SHADER.includes('textureStore(frontOut,'))
-  assert.ok(TRACE_SHADER.includes('reflectionFrontTraced()'))
-  // A tile is listed for each surface, and its trace answers that surface's cell.
-  assert.ok(TRACE_SHADER.includes('|(layer<<31u)'))
-  assert.ok(TRACE_SHADER.includes('rtLayer=tile>>31u;'))
+  assert.match(wgslModule(reflectedRadianceWgsl(1, TRACE_SCENE_BINDINGS)), /\breflectionProxied\b/)
+  // The front surface has its own half grid, traced and upsampled as the opaque one's, and the upsample
+  // writes its radiance where the forward fragments read it.
+  assert.ok(
+    REFLECTION_TRACE_SHADER.includes('textureStore(frontHalfOut,id.xy,traceTexel(id.xy,1u));'),
+  )
+  assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))
 })

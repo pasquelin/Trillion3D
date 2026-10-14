@@ -1,9 +1,9 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
- * A radiance on a shared exponent, nine bits a channel (rgb9e5): a colour in one word, as the run-time
- * proxy's store keeps its answers (`runtimeAnswerWgsl.ts`) and the transparents' front layer its traced
- * radiance (`../reflections/frontLayer.ts`). One home for both: what one packs, the other unpacks.
+ * A radiance on a shared exponent, nine bits a channel (rgb9e5): a colour in one word, as the
+ * transparents' front layer keeps its traced radiance (`../reflections/frontLayer.ts`). One home: the
+ * reflections' upsample packs, the forward fragments unpack.
  */
 export const SHARED_EXPONENT_WGSL = wgslBlock(
   'SHARED_EXPONENT_WGSL',

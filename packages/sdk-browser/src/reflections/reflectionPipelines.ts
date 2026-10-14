@@ -11,8 +11,8 @@ import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
-import { TRACE_SHADER, createTraceStages } from './trace.ts'
-import { BEGIN_SHADER } from './traceTiles.ts'
+import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
+import { createTraceStages } from './halfEncode.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
@@ -44,18 +44,14 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   })
 })
 
-/** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
- *  radiance pyramid's two — compiled once a device under one validation scope. */
+/** The reflection's kernels — the trace and the upsample of both surfaces, the radiance pyramid's —
+ *  compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {
     const modules = {
       trace: device.createShaderModule({
         label: 'Trillion3D reflection trace',
-        code: TRACE_SHADER,
-      }),
-      begin: device.createShaderModule({
-        label: 'Trillion3D reflection begin',
-        code: BEGIN_SHADER,
+        code: REFLECTION_TRACE_SHADER,
       }),
       radiance: device.createShaderModule({
         label: 'Trillion3D reflection radiance',
@@ -65,7 +61,7 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
     const [trace, first, down, roll] = await Promise.all([
-      createTraceStages(device, modules, reflectionLayout(device)),
+      createTraceStages(device, modules.trace, reflectionLayout(device)),
       buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
         'radianceFirst',
         'radianceFirstHashed',

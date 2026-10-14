@@ -5,7 +5,7 @@ import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
-import { runtimeKey, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
+import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
@@ -13,7 +13,7 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
  * `R` is one function, `reflectedRadiance`, every program shares — the opaque surfaces in one
- * compute pass (`trace.ts`), the transparents' front surface in the same pass (`frontLayer.ts`), the
+ * compute pass (`traceHalf.ts`), the transparents' front surface in the same pass (`frontLayer.ts`), the
  * blended surfaces and the water behind it inline in their fragment stage (`weight.ts`) — and it reads
  * what the view holds: its depth, the previous lit image of the same view, the resident proxy and the
  * bounce probes, and the environment. It is one chain of
@@ -23,8 +23,8 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
  *
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
  * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees — in the
- *   trace alone, whose frame has a budget: a program that reads no store (`runtime` absent, a
- *   transparent fragment behind the front surface) has no such stage, and its share goes on;
+ *   trace alone, one ray a lobe of a half-resolution texel: a program without the proxy (`scene`
+ *   absent, a transparent fragment behind the front surface) has no such stage, and its share goes on;
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
  *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
  *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes;
@@ -33,11 +33,8 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
  *
  * Every confidence is continuous in what it reads, there is no hit or miss: a stage whose share
  * of the radiance is left under `REFLECTION_EPSILON` is not evaluated. Nothing of the chain reads a
- * count of images, a seed or a history of its own, so two images of a still view give the same
- * bits — but the run-time proxy's stage, in the trace alone (`reflectionProxyWgsl`): its
- * frame has a budget, and the rays it leaves out go on in the next images from the answer they last got
- * (`bounce/runtimeAnswerWgsl.ts`, `proxyStore.ts`); a still view reaches the same bits once none
- * is left, which is what its settling waits for (`settle.ts`).
+ * count of images, a seed or a history of its own, the proxy's stage included (every ray cast again
+ * each image, `proxy.ts`), so two images of a still view give the same bits.
  *
  * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;
  * - `footprint.ts`: the cone of the lobe, the footprint it reads of the radiance pyramid
@@ -106,15 +103,15 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  * from `V`, reflects through `lobe` — the one function of every program, the chain of the
  * answers above. `lobe` is the lobe's long axis: its direction (`xyz`, any on a round lobe) and its
  * α along it (`w`; the roughness's α on a round lobe, `lobeAlpha`): the material's anisotropic GGX
- * parameters (`reflectionLobeOf`). With `runtime`, the store the trace keeps the proxy's answers in, the
- * chain holds the proxy's stage; without, it has none.
+ * parameters (`reflectionLobeOf`). With `scene`, the proxy's bindings, the chain holds the proxy's
+ * stage; without, it has none.
  */
-export const reflectedRadianceWgsl = (group: number, runtime?: RuntimeBindings) =>
+export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${runtimeKey(runtime)})`,
+    `reflectedRadianceWgsl(${group}, ${scene ? sceneKey(scene) : 'none'})`,
     [
       reflectionSeenWgsl(group),
-      ...(runtime ? [reflectionProxyWgsl(group, runtime)] : []),
+      ...(scene ? [reflectionProxyWgsl(group, scene)] : []),
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_ENVIRONMENT_WGSL,
       REFLECTION_PROBES_WGSL,
@@ -130,7 +127,7 @@ export const reflectedRadianceWgsl = (group: number, runtime?: RuntimeBindings) 
   rest*=1.0-seen.confidence;
  }
 ${
-  runtime
+  scene
     ? ` if(rest>REFLECTION_EPSILON){
   let proxied=reflectionProxied(P,N,ellipse);
   radiance+=rest*proxied.confidence*proxied.color;

@@ -1,10 +1,10 @@
 // The run-time proxy's rays, the shipped WGSL run as JavaScript: a ray answers what it meets and binds nothing
-// writable; the opaque trace's budget and store are `rtAnswer`'s (`runtimeAnswer.test.ts`).
+// writable; the reflections' trace casts one a lobe, every image (`../reflections/traceHalf.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
-import { TRACE_SHADER } from '../reflections/trace.ts'
+import { REFLECTION_TRACE_SHADER } from '../reflections/traceHalf.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 
@@ -13,8 +13,8 @@ const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 
 test('the proxy’s rays bind nothing writable, and read a placement’s instance whole', () => {
   const rays = wgslModule(runtimeRadianceWgsl({ group: 0, proxy: 12, worlds: 13, tree: 14 }))
   assert.ok(!rays.includes('read_write'), 'the rays write no binding')
-  assert.ok(!TRACE_SHADER.includes('rtInstanceWord'), 'never a texel load a word')
-  assert.ok(TRACE_SHADER.includes('var<storage,read_write> traceList:array<atomic<u32>>'))
+  assert.ok(!REFLECTION_TRACE_SHADER.includes('rtInstanceWord'), 'never a texel load a word')
+  assert.ok(!REFLECTION_TRACE_SHADER.includes('atomic'), 'no counter shared between rays')
 })
 
 test('a ray answers what it meets, a second of the same pixel as well', () => {

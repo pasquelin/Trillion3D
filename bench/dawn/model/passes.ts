@@ -141,19 +141,22 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_TRACE_PASS),
-    formula: `P texels classified; P·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps, ${K.TRACE_BYTES} B written) — 16 iterations on average, 35 at p99`,
+    formula: `P/4 half texels traced, P/4·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps), ${K.HALF_BYTES} B a half texel written; P pixels upsampled, P·reflecting·${K.UPSAMPLE_LOADS} loads, ${K.TRACE_BYTES} B written — 16 iterations on average, 35 at p99`,
     work: (f) => ({
       texels:
         f.P +
-        f.P * f.reflecting * (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS),
-      filtered: f.P * f.reflecting * K.HIT_TAPS,
-      bytes: K.TRACE_BYTES * f.P * f.reflecting,
+        (f.P / 4) *
+          f.reflecting *
+          (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS) +
+        f.P * f.reflecting * K.UPSAMPLE_LOADS,
+      filtered: (f.P / 4) * f.reflecting * K.HIT_TAPS,
+      bytes: K.HALF_BYTES * (f.P / 4) + K.TRACE_BYTES * f.P * f.reflecting,
       passes: 1,
     }),
     sources: [
       K.engine('reflections/frame.ts', 'encodeReflections'),
       K.engine('gpu/hiz/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
-      K.engine('reflections/trace.ts', 'TRACE_SHADER'),
+      K.engine('reflections/traceHalf.ts', 'REFLECTION_TRACE_SHADER'),
     ],
   },
   {

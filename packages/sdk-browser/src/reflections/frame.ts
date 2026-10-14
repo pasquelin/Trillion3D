@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
-import { encodeReflectionTrace, type TraceInputs } from './traceEncode.ts'
+import { encodeReflectionTrace, type TraceInputs } from './halfEncode.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 import {
@@ -22,7 +22,7 @@ import {
 } from '../../../sdk-core/src/scene/core/environment.ts'
 
 /** The depth pyramid's nearest layer's compute pass, and the trace's, each opened by its first
- *  dispatch: the trace is timed alone, the proxy budget's measure (`reflectionTraceGpuMs`). */
+ *  dispatch: the trace and its upsample are timed alone (`reflectionTraceGpuMs`). */
 const reflectionPass = new LazyComputePass(REFLECTION_PASS)
 const tracePass = new LazyComputePass(REFLECTION_TRACE_PASS)
 
@@ -52,15 +52,6 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
     environmentExposure(environment),
     environmentCurve(environment),
   )
-  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
-  frame.epoch = reflection.store.follow(
-    rt.lights.store.epoch,
-    run.gpuSelection?.proxy()?.writes ?? 0,
-    run.gpuSelection?.worldRevision ?? 0,
-    // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
-    // would restart the budget for ever.
-    gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
-  )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
@@ -87,9 +78,10 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
 }
 
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — the frame
- * state and the opaque surfaces' trace into the reflection target the resolve reads, when the image is lit, its field read from the bounce
- * cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
+ * The image's reflections, before its lighting: the view uniform, then one compute pass — the trace
+ * of both surfaces' half grids and their upsample (`traceHalf.ts`) into the reflection target the
+ * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
+ * read from the bounce cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
  * reads there (`gpu.deferred.update`, written before the image is submitted).
  */
@@ -124,9 +116,16 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.proxy = proxy?.buffer ?? deferred.placeholders.runtime
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
     inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
-    inputs.store = reflection.store.view ?? deferred.placeholders.runtimeStore
     const group = reflectionGroup(reflection, depth, lightView)
-    encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
+    encodeReflectionTrace(
+      open.pass,
+      reflection,
+      stages,
+      inputs,
+      group,
+      gpu.targetSize,
+      !!frame.front,
+    )
   }
   tracePass.end()
 }
@@ -156,12 +155,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection.settle.verified,
   )
   pass.end()
-  reflection.settle.image(
-    encoder,
-    reflection.tiles.args,
-    reflection.tiles.list,
-    reflection.radiance.hashed,
-  )
+  reflection.settle.image(encoder, reflection.radiance.hashed)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

@@ -11,9 +11,6 @@ export type ProxyResources = {
   readonly buffer: GPUBuffer
   readonly worlds: GPUTextureView
   readonly tree: GPUTextureView
-  /** Writes to what a ray meets so far (`proxyInstances.ts`): the reflections' answers of before are of
-   *  another epoch when this moved (`../../reflections/proxyStore.ts`). */
-  readonly writes: number
 }
 
 /**
@@ -74,9 +71,6 @@ export function cutReaders(
           buffer,
           worlds,
           tree: resources.treeTable.view,
-          get writes() {
-            return proxies.writes
-          },
         }
       return proxy
     },

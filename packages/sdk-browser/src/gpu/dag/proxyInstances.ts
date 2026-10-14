@@ -59,10 +59,6 @@ export function createProxyInstances(resources: ProxySource) {
     buffer() {
       return arena.buffer
     },
-    /** Writes to what a ray meets so far (`ProxyArena.writes`). */
-    get writes() {
-      return arena.writes
-    },
     /** The world box of each placement that wears a proxy, and which of them are new or moved
      *  since the last call: what the probes' occupancy map keeps (`bounce/probes.ts`). */
     worldBoxes: boxes.worldBoxes,

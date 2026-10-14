@@ -8,7 +8,7 @@ import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase, GRID } from './runtimeFamilyCases.ts'
-import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
+import { familyWorld } from './runtimeFamilyWorld.ts'
 
 export type FamilyReading = {
   width: number
@@ -17,8 +17,6 @@ export type FamilyReading = {
   samples: number[]
   frames: number
   worldErrors: string[]
-  spent: number
-  left: number
 }
 
 type Canvas = HTMLCanvasElement & { readable: boolean }
@@ -36,7 +34,7 @@ export async function hold(world: ReturnType<typeof familyWorld>['world'], limit
 
 async function draw(index: number, limit: number) {
   const c = familyCase(index)
-  const { errors: worldErrors, made, textures } = listenToWorldDevices()
+  const { errors: worldErrors, textures } = listenToWorldDevices()
   const canvas = proofCanvas(`runtime-family-${index}`) as unknown as Canvas
   canvas.readable = true
   const { world, moved } = familyWorld(canvas, c)
@@ -59,7 +57,6 @@ async function draw(index: number, limit: number) {
       const at = (j * width + i) * 4
       samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
     }
-  const { spent, left } = (await traceCounters(canvasDevice(canvas), made)) ?? { spent: 0, left: 0 }
   world.dispose()
   canvas.remove()
   return {
@@ -68,8 +65,6 @@ async function draw(index: number, limit: number) {
     samples,
     frames,
     worldErrors,
-    spent,
-    left,
   }
 }
 

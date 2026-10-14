@@ -6,11 +6,9 @@ import { REFLECTION_FORMAT } from './constants.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
-import { createTraceGroups } from './trace.ts'
-import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes } from './traceTiles.ts'
+import { createTraceGroups } from './halfEncode.ts'
+import { createHalfTexture, halfBytes, halfExtent } from './halfTexture.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
-import { createProxyStore } from './proxyStore.ts'
-import { storeBytes } from '../bounce/runtimeLayout.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
@@ -25,36 +23,32 @@ import { reflectionLayout } from './reflectionPipelines.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
- *  after it in the mips of both targets (`radianceBytes`) —, its tile list, its uniform, its radiance
- *  hash, the transparents' front layer (`frontLayerBytes`, which `blends` sizes) and, while a placement
- *  wears a proxy (`store`), the run-time proxy's answers (`proxyStore.ts`); the depth it marches is the
- *  Hi-Z's, the front layer's covering depth folded in. */
-export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
+ *  after it in the mips of both targets (`radianceBytes`) —, its half grid (`halfBytes`), its uniform,
+ *  its radiance hash and the transparents' front layer (`frontLayerBytes`, which `blends` sizes); the
+ *  depth it marches is the Hi-Z's, the front layer's covering depth folded in. */
+export function reflectionBytes(width: number, height: number, blends: boolean) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
     radianceBytes(width, height) +
     frontLayerBytes(width, height, blends) +
-    traceListBytes(width, height) +
-    TRACE_ARGS_BYTES +
+    halfBytes(width, height) +
     REFLECTION_VIEW_BYTES +
-    SETTLE_BYTES +
-    (store ? storeBytes(width, height) : 0)
+    SETTLE_BYTES
   )
 }
 
 /**
- * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
- * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
- * reprojects its hits with its view-projection), the tile list of the trace, the view uniform and
- * its writer. `blends`, whether the scene has any, sizes the transparents' front layer (`createFrontLayer`);
- * `store`, whether a placement wears a proxy, makes the store of its answers (`createProxyStore`).
+ * A view's reflection at `width × height`: the target the upsample writes, the radiance pyramid of
+ * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
+ * hits with its view-projection), the half grid the trace writes (`halfTexture.ts`), the view uniform
+ * and its writer. `blends`, whether the scene has any, sizes the transparents' front layer
+ * (`createFrontLayer`).
  */
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
   height: number,
   blends: boolean,
-  store = false,
 ) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
@@ -70,20 +64,21 @@ export function createScreenReflection(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const radiance = createRadiancePyramid(device, width, height)
-  const tiles = createTraceTiles(device, width, height)
+  const half = createHalfTexture(
+    device,
+    'Trillion3D reflection half grid',
+    halfExtent(width, height),
+  )
   const settle = createRadianceSettle(device)
   const front = createFrontLayer(device, width, height, blends)
-  const answers = createProxyStore(device, width, height, store)
   return {
     device,
     target,
     targetView: target.createView(),
     radiance,
-    tiles,
+    halfView: half.createView(),
     uniform,
     settle,
-    /** The run-time proxy's answers, kept from image to image (`proxyStore.ts`). */
-    store: answers,
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),
@@ -94,16 +89,15 @@ export function createScreenReflection(
       identity: createWebgpuBindIdentity(2),
       slots: [] as (GPUBindGroup | undefined)[],
     },
-    /** The trace's bind groups, kept while its inputs stay (`encodeReflectionTrace`). */
+    /** The trace's and the upsample's bind groups, kept while their inputs stay
+     *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()
-      tiles.args.destroy()
-      tiles.list.destroy()
+      half.destroy()
       uniform.destroy()
       settle.dispose()
-      answers.dispose()
       front.dispose()
     },
   }

@@ -1,4 +1,4 @@
-// The radiance around the scene a reflection reads, and the frame's state, shipped WGSL run as JavaScript (`shaderRun`):
+// The radiance around the scene a reflection reads, shipped WGSL run as JavaScript (`shaderRun`):
 // the GGX lobe's zonal moments over a radiance field's bands (the probes' field reads through it),
 // the background the screen draws as the escape's one radiance, and the background as the display
 // shows it (`createSurroundings`).
@@ -9,7 +9,6 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { BEGIN_SHADER } from './traceTiles.ts'
 import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
@@ -113,29 +112,4 @@ test('a scene is surrounded by its background, as the display shows it, declared
     shown.map((c) => Math.round(linearToSrgb(c) * 255)),
     [0x17, 0x1d, 0x28],
   )
-})
-
-test('the frame state restarts the tile list and the next frame starts at the next tile', () => {
-  const work = [7, 0, 0, 0]
-  // The trace's list of a frame that left rays (its tiles, the pixels left, the work spent, the offset and the
-  // cursor): the next frame starts where its budget ended.
-  const traceList = [9, 4, 7, 3, 5]
-  const run = shaderRun<{ reflectionBegin: () => void }>(BEGIN_SHADER, ['reflectionBegin'], {
-    work,
-    traceList,
-  })
-  run.reflectionBegin()
-  // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
-  assert.deepEqual(work, [0, 1, 1, 0])
-  // Answers were left (4) and the budget ended at tile 5 from tile 3: the next frame starts at 8, the
-  // counters start again.
-  assert.deepEqual(
-    traceList,
-    [0, 0, 0, 8, 0],
-    'the count, left, spent and cursor restart, the offset moves on',
-  )
-  // Every answer was in: the next frame starts where this one did.
-  traceList.splice(0, 5, 3, 0, 6, 8, 2)
-  run.reflectionBegin()
-  assert.deepEqual(traceList, [0, 0, 0, 8, 0])
 })

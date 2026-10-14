@@ -139,15 +139,14 @@ test('a still view with transparents writes its view once: the front pass sets a
     size: [64, 32] as const,
     depthDrawn: true,
     proxyError: 0,
-    epoch: 3,
     front: true,
   }
   write(frame, held, 6)
-  assert.equal(sent.bits[REFLECTION_VIEW_AT.runtime + 1], 1, 'the front answered')
+  assert.equal(sent.bits[REFLECTION_VIEW_AT.front], 1, 'the front answered')
   const writes = sent.writes
   for (let image = 0; image < 4; image++) write(frame, held, 6)
   assert.equal(sent.writes, writes, 'nothing sent again')
   frame.front = false
   write(frame, held, 6)
-  assert.equal(sent.bits[REFLECTION_VIEW_AT.runtime + 1], 0, 'no front answered')
+  assert.equal(sent.bits[REFLECTION_VIEW_AT.front], 0, 'no front answered')
 })

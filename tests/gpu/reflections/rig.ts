@@ -22,7 +22,7 @@ import {
   hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
-import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
+import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/halfEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
@@ -76,8 +76,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
-  const reflection = createScreenReflection(device, width, height, true, !!frame.proxy)
-  const { tiles } = reflection
+  const reflection = createScreenReflection(device, width, height, true)
   // The HDR target of the image's turn, and the lit image each image lays in it.
   const targets = { hdrTexture: hdr, hdrView: hdrAttachmentView(hdr), reflection }
   let lit = frame.radiance
@@ -114,7 +113,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lights,
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
-    ...rigProxy(device, reflection, frame.proxy?.faces),
+    ...rigProxy(device, frame.proxy?.faces),
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
   return {
@@ -140,7 +139,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
       const group = reflectionGroup(reflection, depth, over.lightView)
-      encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size)
+      encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size, false)
       pass.end()
       if (radiance) {
         write(targets.hdrTexture, halves(lit), 8)
@@ -155,7 +154,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           frame.viewProjection,
         )
         build.end()
-        reflection.settle.image(encoder, tiles.args, tiles.list, reflection.radiance.held.still)
+        reflection.settle.image(encoder, reflection.radiance.held.still)
       }
       device.queue.submit([encoder.finish()])
       reflection.settle.submitted()

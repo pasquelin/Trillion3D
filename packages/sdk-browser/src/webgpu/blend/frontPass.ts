@@ -36,7 +36,6 @@ export function encodeFrontPass(
   const hizFront = hiz.front(encoder, true)
   if (!hizFront) return
   const { front } = reflection
-  if (outputs > 0) gpu.targetBytes += reflection.store.holdFront()
   encoder.copyTextureToTexture({ texture: gpu.depthTexture }, { texture: front.depth }, [
     front.depth.width,
     front.depth.height,

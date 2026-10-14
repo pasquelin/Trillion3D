@@ -1,20 +1,17 @@
 // What the reflection rig binds as the proxy (`runtime-proxy.gpu.ts` proves the engine's own): the scene's
 // proxy of a few faces, each one placement of a two-triangle mesh at the identity, wearing a surface that
 // emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
-// and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray —, and
-// the store of the answers when the view holds one, else a texel.
+// and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray.
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
-  STORE_LAYERS,
   SURFACE_WORDS,
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
-import type { ScreenReflection } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
@@ -71,12 +68,8 @@ function proxyWords(faces: readonly RigFace[]) {
 }
 
 /** The proxy's buffer over `faces`, the records they stand in — the identity, its exact translation
- *  zeros, and their instances —, the table of no placement tree, and the store of the answers. */
-export function rigProxy(
-  device: GPUDevice,
-  reflection: ScreenReflection,
-  faces: readonly RigFace[] = [],
-) {
+ *  zeros, and their instances —, and the table of no placement tree. */
+export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
   const words = faces.length ? proxyWords(faces) : new Uint32Array(RUNTIME_HEADER_WORDS + 1)
   const proxy = device.createBuffer({
     size: words.byteLength,
@@ -99,14 +92,5 @@ export function rigProxy(
     proxy,
     proxyWorlds: worlds.view,
     proxyTree: createTreeTable(device, undefined).view,
-    store:
-      reflection.store.view ??
-      device
-        .createTexture({
-          size: [1, 1, STORE_LAYERS],
-          format: 'r32uint',
-          usage: GPUTextureUsage.STORAGE_BINDING,
-        })
-        .createView({ dimension: '2d-array' }),
   }
 }

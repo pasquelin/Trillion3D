@@ -11,7 +11,6 @@ import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
 import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
-import { wantsProxyStore } from '../../../reflections/proxyStore.ts'
 import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
@@ -67,7 +66,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
-    reflectionBytes(width, height, sceneBlends(rt), wantsProxyStore(rt)) +
+    reflectionBytes(width, height, sceneBlends(rt)) +
     // The Hi-Z level 0's front layer, a scene's whose transparents write a front depth, kept once
     // made (`GpuHiz.holdsFront`): a pyramid made after holds it.
     (hiz && (sceneBlends(rt) || rt.vis.gpuHiz?.holdsFront) ? level0LayerBytes(width, height) : 0) +

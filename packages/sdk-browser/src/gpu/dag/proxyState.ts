@@ -62,7 +62,6 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     if (end <= first) return
     const at = words.byteOffset + first * INSTANCE_WORDS * 4
     records.write('Instance', first, end - first, words.buffer as ArrayBuffer, at)
-    arena.wrote()
   }
   /**
    * The records grown to hold every copy's instance, at the cut's prepare (`refresh`, before the

@@ -31,6 +31,14 @@ export const REFLECTION_CONSTANTS = {
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */
   REFLECTION_FAR: 2 ** 23,
+  /** The upsample's plane test (`upsampleWgsl.ts`), in pixels of the pixel's footprint: a traced
+   *  texel whose point lies this far off the pixel's tangent plane weighs nothing, one on the plane
+   *  whole — a texel two pixels away on the same surface lies on its plane to within its curvature,
+   *  a texel of a surface in front or behind lies off it by the depth between them. */
+  REFLECTION_UPSAMPLE_PLANE: 2,
+  /** The upsample's normal test: a texel weighs (N·Nₜ)^this, one under 10° apart (0.79), a tenth at
+   *  30°, nothing across a crease. */
+  REFLECTION_UPSAMPLE_NORMAL: 16,
 } as const
 
 /** The format of the reflection target and of the radiance pyramid: the lit image's. */

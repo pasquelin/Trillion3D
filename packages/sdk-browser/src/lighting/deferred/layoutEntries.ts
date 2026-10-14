@@ -82,7 +82,7 @@ function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
     PHYSICAL_LOBES_TARGET.layoutEntry(),
     // The translucent casters' transmission (the mask holds the transmittance's number).
     computeTextureEntry(DEFERRED_BINDINGS.transmissionResolve, 'uint', '2d-array', fragment),
-    // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
+    // The share of the radiance the reflection trace wrote (`../../reflections/traceHalf.ts`).
     REFLECTION_TARGET.layoutEntry(),
     computeTextureEntry(DEFERRED_BINDINGS.maskTiles, 'uint', '2d', fragment),
   ]

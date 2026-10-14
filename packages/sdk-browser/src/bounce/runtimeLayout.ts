@@ -64,7 +64,7 @@ export const SURFACE_WORDS = SURFACE_LAYOUT.words
 export const SURFACE_BLENDED = 1
 
 /**
- * THE BUDGETS OF A RAY AND OF A FRAME. One counter of `work` units per ray, shared by the placement
+ * THE BUDGET OF A RAY. One counter of `work` units per ray, shared by the placement
  * tree and the cuts' own nodes: a child a tree node examines costs one, a cut's node four, a triangle
  * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests.
  *
@@ -74,16 +74,9 @@ export const SURFACE_BLENDED = 1
  * zero confidence, its share left to the next stage of the chain (`rtRadiance`), and a probe's ray
  * is dropped from the probe's estimate, which is renormalised over the rays that answered
  * (`rtProbeRay`, `probeWgsl.ts`).
- *
- * A frame spends at most about `FRAME_WORK` units (`runtimeAnswerWgsl.ts`): the rays the budget leaves
- * out go on in the next frames, from the answer they last got (`reflections/proxyStore.ts`).
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
-/** 2²² units. Measured on the generated scene (Metal, `tests/gpu/reflections/runtime-proxy.gpu.ts`): 1.7 million
- *  units cost 0.5 ms of the trace, 3.4 G units a second, so 2²² units are ~1.2 ms, and up to twice that with
- *  the rays in flight when the counter fills: inside the 2 ms the proxy may take of an 8.33 ms frame. */
-export const FRAME_WORK = 2 ** 22
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3
@@ -96,27 +89,3 @@ export const RAY_THROUGH_FLOOR = 0.02
 /** The least distance a ray leaves a hit by to look behind it, in metres, where the proxy's own
  *  error is smaller. */
 export const RAY_ERROR_FLOOR = 1e-3
-/**
- * THE RUN-TIME PROXY'S ANSWERS, KEPT FROM IMAGE TO IMAGE, in the reflection's own store: a texture of two
- * layers of `r32uint` the image's size (`reflections/proxyStore.ts`), eight bytes a pixel, which the trace
- * reads and writes where it traces. Layer 0 is the pixel's mean radiance, premultiplied by its confidence, as
- * a shared-exponent `rgb9e5`; layer 1 holds the confidence on sixteen bits and, above them, the epoch's
- * stamp on eight (`rtStamp`): the low bits of an epoch (`follow`), never zero, so that a pixel never answered
- * holds none. Where the scene has transparents, two layers more past them: the cell of the pixel's
- * transparents' front surface (`rtLayer`, `reflections/frontLayer.ts`), answered as the opaque one's.
- *
- * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the
- * workgroups holding a pixel whose answer is older than the epoch (`left`: what the settle waits for,
- * `settle.ts`), the work the frame has spent, the tile the next frame starts at (`offset`) and the tiles the
- * last one served from it (`cursor`), then the list itself from `TRACE_LIST_FIRST`. The trace binds that one
- * buffer, writable, and the store: no buffer of its own for the answers.
- */
-export const TRACE_LIST = { count: 0, left: 1, spent: 2, offset: 3, cursor: 4 } as const
-export const TRACE_LIST_FIRST = 8
-/** Layers of the store, and its bytes a pixel. */
-export const STORE_LAYERS = 2
-const STORE_BYTES_PER_PIXEL = 8
-/** Bytes of the store of an image of `width × height`, which a view that wants it holds. */
-export const storeBytes = (width: number, height: number) => width * height * STORE_BYTES_PER_PIXEL
-/** Bits of a pixel's second word: the confidence from the low bit, the stamp from `stamp`. */
-export const STORE_BITS = { confidence: 16, stamp: 24 } as const
