@@ -10,6 +10,7 @@ import {
 } from './constants.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
+import { unitF32 } from '../../../math/src/vector/unitF32.fixture.ts'
 
 export const PROJECTION_CODE = vsmProjectionWgsl(
   vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
@@ -43,11 +44,6 @@ export interface Pixel {
 }
 export type Result = { shadowFactor: number; rayCount: number }
 
-const unit = (v: number[]) => {
-  const l = Math.hypot(...v)
-  return v.map((x) => Math.fround(x / l)) as V3
-}
-
 /** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles;
  *  some lamps' spheres end a few units in the last place past or short of a pixel of the tile
  *  (`edge`) — with `corner`, the tile's least corner, half of them beyond it, where that pixel is
@@ -76,7 +72,7 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
     return {
       shiftedPosition: at,
       radius: Math.fround(radius),
-      direction: unit([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
+      direction: unitF32([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
       sourceRadius: Math.fround(rand() * 0.5),
       cosCone: kind === VSM_LIGHT_KIND_SPOT ? cosCone : -2,
       mapId: k,
@@ -107,7 +103,7 @@ export function pixelsOf(rand: () => number, group: [number, number], kind: stri
       : [0, 0, 0]
     if (valid && kind === 'infinite' && i === 9) shifted[1] = Infinity
     const facing = kind === 'corner' ? [-1, -1, -1] : [0, 0, 1]
-    const normal = valid ? unit(facing.map((c) => c + rand() - 0.5)) : ([0, 0, 0] as V3)
+    const normal = valid ? unitF32(facing.map((c) => c + rand() - 0.5)) : ([0, 0, 0] as V3)
     const subsurface = rand() < 0.1
     return {
       pos,

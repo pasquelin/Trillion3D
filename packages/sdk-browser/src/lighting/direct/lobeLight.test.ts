@@ -18,6 +18,7 @@ import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { unitF32 } from '../../../../math/src/vector/unitF32.fixture.ts'
 import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
@@ -42,19 +43,18 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
   assert.notEqual(before, shipped)
   const r = lcgRandom(1483),
     u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
-  const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   // What a pixel's lights share of a surface, as the shipped loop takes it (`lobeSurface`).
   const { lobeSurface } = shaderRun<Record<string, Light>>(shipped, NAMES, F32_SCOPE)
   let zeros = 0,
     lit = 0
   for (let round = 0; round < 400; round++) {
-    const N = unit([u(-1, 1), u(-1, 1), u(0.2, 1)])
-    const V = unit([u(-1, 1), u(-1, 1), u(0, 1)])
+    const N = unitF32([u(-1, 1), u(-1, 1), u(0.2, 1)])
+    const V = unitF32([u(-1, 1), u(-1, 1), u(0, 1)])
     const coat = [0, 0, 1, u(0.1, 1)][round % 4]
     const strength = [0, 0.7][Math.floor(round / 4) % 2]
-    const T = unit([N[1], -N[0], 0])
+    const T = unitF32([N[1], -N[0], 0])
     const coatRough = u(0.05, 1),
-      coatN = unit([u(-1, 1), u(-1, 1), u(-1, 1)])
+      coatN = unitF32([u(-1, 1), u(-1, 1), u(-1, 1)])
     const at = u(0.05, 1),
       ab = u(0.05, 1)
     const lobes = {
@@ -113,7 +113,6 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
   }, shipped)
   const r = lcgRandom(1484),
     u = (lo: number, hi: number) => Math.fround(lerp(lo, hi, r()))
-  const unit = (v: number[]) => v.map((x) => Math.fround(x / Math.hypot(...v)))
   const lobes: Record<string, unknown> = {}
   const ours = shaderRun<Record<string, Light>>(shipped, NAMES, { ...F32_SCOPE, lobes })
   const theirs = shaderRun<Record<string, Light>>(divides, NAMES, { ...F32_SCOPE, lobes })
@@ -122,19 +121,19 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
   let lit = 0,
     moved = 0
   for (let round = 0; round < 4000; round++) {
-    const N = unit([u(-1, 1), u(-1, 1), u(0.2, 1)])
-    const T = unit(fcross(N, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
+    const N = unitF32([u(-1, 1), u(-1, 1), u(0.2, 1)])
+    const T = unitF32(fcross(N, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
     const B = fcross(N, T)
     // Every other pixel seen at grazing, N·V down to 1e-3; the others from anywhere in front.
     const across = [u(-1, 1), u(-1, 1)],
       lift = round % 2 ? u(0.001, 0.2) : u(0.2, 1)
-    const V = unit(N.map((n, i) => n * lift + T[i] * across[0] + B[i] * across[1]))
+    const V = unitF32(N.map((n, i) => n * lift + T[i] * across[0] + B[i] * across[1]))
     // A third of the pixels at the roughness floor, the narrowest lobe.
     const rough = round % 3 ? u(ROUGHNESS_FLOOR, 1) : floor
     const strength = u(0.05, 1),
       coat = round % 5 ? 0 : u(0.1, 1),
       coatRough = u(0.05, 1),
-      coatN = unit(N.map((n) => n + u(-0.2, 0.2)))
+      coatN = unitF32(N.map((n) => n + u(-0.2, 0.2)))
     const alpha = Math.fround(rough * rough),
       at = Math.fround(
         alpha + Math.fround(Math.fround(1 - alpha) * Math.fround(strength * strength)),
@@ -158,7 +157,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
       coatSurface: ours.lobeSurface([0, 0, 0], 0, coatRough, coatN, V),
     })
     const surface = ours.lobeSurface([u(0, 1), u(0, 1), u(0, 1)], u(0, 1), rough, N, V)
-    const toward = unit([u(-1, 1), u(-1, 1), u(-1, 1)]),
+    const toward = unitF32([u(-1, 1), u(-1, 1), u(-1, 1)]),
       L = fdot(N, toward) < 0 ? toward.map((x) => -x) : toward
     const args = [surface, N, V, [...L, u(0.1, 20)]]
     const a = ours.lobeLight(...args),
