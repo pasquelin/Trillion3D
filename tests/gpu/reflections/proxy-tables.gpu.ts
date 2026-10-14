@@ -48,11 +48,19 @@ for (const [count, seed] of [
     async () => {
       const { compareWalks } = await page()
       const result = await runOnDawn(compareWalks, { count, seed, rayCount: 4096 })
-      const { now, before, errors, tree } = result
+      const { now, before, errors, tree, echo } = result
+      // The first rays that answer otherwise, word for word: the walk's and the walk of before's.
+      const words = (hits: readonly number[], r: number) =>
+        hits.slice(r * HIT_WORDS, (r + 1) * HIT_WORDS)
+      const otherwise = differing(now, before)
+        .slice(0, 8)
+        .map((r) => ({ ray: r, now: words(now, r), before: words(before, r) }))
       console.log(
         JSON.stringify({ count, tree, hits: found(now).length, rays: now.length / HIT_WORDS }),
+        JSON.stringify(otherwise),
       )
       assert.deepEqual(errors, [])
+      assert.deepEqual(echo, [], 'the table holds the records the host wrote, word for word')
       assert.equal(now.length, before.length)
       assert.ok(found(now).length > 100, 'the rays meet the cubes')
       assert.deepEqual(differing(now, before), [], 'no ray answers otherwise')
