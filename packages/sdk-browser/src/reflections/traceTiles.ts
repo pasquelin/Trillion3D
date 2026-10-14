@@ -29,9 +29,10 @@ fn reflectionBegin(){
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
 export const TRACE_ARGS_BYTES = 16
 
-/** Bytes of the list of a view at `width × height`: its counters, then a tile a word. */
+/** Bytes of the list of a view at `width × height`: its counters, then a tile a word, twice: a tile is
+ *  listed for each of its pixels' two surfaces, the opaque one and the transparents' front one. */
 export const traceListBytes = (width: number, height: number) =>
-  TRACE_LIST_FIRST * 4 + ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
+  TRACE_LIST_FIRST * 4 + 2 * ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
 
 /** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), and the list the classification
  *  writes and the trace reads, with the frame's counters (`TRACE_LIST`). */

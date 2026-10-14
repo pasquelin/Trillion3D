@@ -10,6 +10,7 @@ import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vs
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
 import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
+import { FRONT_TRACED_FORMAT } from '../../reflections/frontLayer.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
 export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
@@ -55,6 +56,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: REFLECTION_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
+  // One texel: the transparents' front radiance a pass binds before any front layer exists, which
+  // no image without a front pass reads (`../../reflections/frontLayer.ts`).
+  const frontTraced = device.createTexture({
+    label: 'Trillion3D empty reflection front',
+    size: [1, 1],
+    format: FRONT_TRACED_FORMAT,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
   return {
     ...vsm.views,
     tiles,
@@ -67,11 +76,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     runtimeStore: standIns.runtimeStore,
     receiver: receiver.resources,
     reflection: reflection.createView(),
+    frontTraced: frontTraced.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
     emptyNormals: receiver.normals,
     dispose() {
       receiver.dispose()
       reflection.destroy()
+      frontTraced.destroy()
       vsm.destroy()
       tiles.destroy()
       transmittance.destroy()

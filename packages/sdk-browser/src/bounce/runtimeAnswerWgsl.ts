@@ -1,8 +1,9 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
+import { SHARED_EXPONENT_WGSL } from './sharedExponentWgsl.ts'
 import { sceneKey, type SceneBindings } from './sceneBindings.ts'
-import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
+import { FRAME_WORK, STORE_BITS, STORE_LAYERS, TRACE_LIST } from './runtimeLayout.ts'
 
 /** The bindings of the program that answers a pixel from the store: the proxy's, the trace's list with the
  *  frame's counters and the store of the answers (`runtimeLayout.ts`). */
@@ -33,7 +34,7 @@ export type RuntimeBindings = SceneBindings & { list: number; store: number }
 export const runtimeAnswerWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
   wgslBlock(
     `runtimeAnswerWgsl(${sceneKey(scene)}, ${list}, ${store})`,
-    [runtimeRadianceWgsl(scene)],
+    [runtimeRadianceWgsl(scene), SHARED_EXPONENT_WGSL],
     `
 ${wgslConsts({
   RT_FRAME_WORK: FRAME_WORK,
@@ -42,6 +43,7 @@ ${wgslConsts({
   RT_CURSOR: TRACE_LIST.cursor,
   RT_CONFIDENCE_MAX: 2 ** STORE_BITS.confidence - 1,
   RT_STAMP_SHIFT: STORE_BITS.stamp,
+  RT_STORE_LAYERS: STORE_LAYERS,
 })}
 @group(${scene.group}) @binding(${list}) var<storage,read_write> traceList:array<atomic<u32>>;
 @group(${scene.group}) @binding(${store}) var rtStore:texture_storage_2d_array<r32uint,read_write>;
@@ -50,33 +52,24 @@ ${wgslConsts({
 var<private> rtPixel:vec2u;
 var<private> rtRank:u32;
 var<private> rtCalls:u32;
+/** The surface the trace is at in its pixel: 0 the opaque one, 1 the transparents' front one
+ *  (\`../reflections/frontLayer.ts\`), whose cell lies \`RT_STORE_LAYERS\` layers past the opaque one's. */
+var<private> rtLayer:u32;
+/** The layer of the store that holds word \`k\` of the surface \`rtLayer\`'s cell. */
+fn rtCellLayer(k:u32)->u32{return rtLayer*RT_STORE_LAYERS+k;}
 /** A pixel's cell of the store: its radiance premultiplied by its confidence, its confidence and the stamp of its epoch. */
 struct RtCell{premult:vec3f,confidence:f32,stamp:u32,}
-/** A radiance on a shared exponent, nine bits a channel (rgb9e5): the pixel's colour in one word. */
-fn rtPackShared(c:vec3f)->u32{
- let v=clamp(c,vec3f(0.0),vec3f(65408.0));
- let top=max(v.x,max(v.y,v.z));
- var exponent=max(-16.0,floor(log2(max(top,1e-30))))+16.0;
- var step=exp2(exponent-24.0);
- if(floor(top/step+0.5)>=512.0){exponent+=1.0;step*=2.0;}
- let m=vec3u(floor(v/step+vec3f(0.5)));
- return m.x|(m.y<<9u)|(m.z<<18u)|(u32(exponent)<<27u);
-}
-fn rtUnpackShared(w:u32)->vec3f{
- let m=vec3f(f32(w&511u),f32((w>>9u)&511u),f32((w>>18u)&511u));
- return m*exp2(f32(w>>27u)-24.0);
-}
 /** An epoch's stamp on eight bits, never zero: a pixel never answered holds none. */
 fn rtStamp(epoch:u32)->u32{return epoch%255u+1u;}
 fn rtCellRead(at:vec2u)->RtCell{
- let a=textureLoad(rtStore,at,0u).x;
- let b=textureLoad(rtStore,at,1u).x;
+ let a=textureLoad(rtStore,at,rtCellLayer(0u)).x;
+ let b=textureLoad(rtStore,at,rtCellLayer(1u)).x;
  return RtCell(rtUnpackShared(a),f32(b&RT_CONFIDENCE_MAX)/f32(RT_CONFIDENCE_MAX),b>>RT_STAMP_SHIFT);
 }
 fn rtCellWrite(at:vec2u,answer:RtRadiance,stamp:u32){
  let c=u32(round(clamp(answer.confidence,0.0,1.0)*f32(RT_CONFIDENCE_MAX)));
- textureStore(rtStore,at,0u,vec4u(rtPackShared(answer.color*answer.confidence),0u,0u,0u));
- textureStore(rtStore,at,1u,vec4u(c|(stamp<<RT_STAMP_SHIFT),0u,0u,0u));
+ textureStore(rtStore,at,rtCellLayer(0u),vec4u(rtPackShared(answer.color*answer.confidence),0u,0u,0u));
+ textureStore(rtStore,at,rtCellLayer(1u),vec4u(c|(stamp<<RT_STAMP_SHIFT),0u,0u,0u));
 }
 /** What a cell answers: the radiance of the share it holds, and that share. */
 fn rtCellAnswer(cell:RtCell)->RtRadiance{

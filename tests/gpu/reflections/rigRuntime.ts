@@ -3,6 +3,7 @@
 // emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
 // and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray —, and
 // the store of the answers when the view holds one, else a texel.
+import { FRONT_TRACED_FORMAT } from '../../../packages/sdk-browser/src/reflections/frontLayer.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import {
   RUNTIME_HEADER,
@@ -108,5 +109,28 @@ export function rigProxy(
           usage: GPUTextureUsage.STORAGE_BINDING,
         })
         .createView({ dimension: '2d-array' }),
+  }
+}
+
+/** The trace's inputs `opaque` with no transparents' front layer, as the engine binds them without one
+ *  (`reflections/frame.ts`): the opaque surface's targets in its place, which no pixel reads, and a
+ *  texel of its radiance target, which none writes. */
+export function withoutFront<
+  T extends { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
+>(device: GPUDevice, opaque: T) {
+  const frontTarget = device
+    .createTexture({
+      size: [1, 1],
+      format: FRONT_TRACED_FORMAT,
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    })
+    .createView()
+  return {
+    ...opaque,
+    frontFlags: opaque.flags,
+    frontNormals: opaque.normals,
+    frontLobes: opaque.lobes,
+    frontDepth: opaque.normals,
+    frontTarget,
   }
 }

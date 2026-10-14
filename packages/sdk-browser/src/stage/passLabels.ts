@@ -63,6 +63,8 @@ export const TRANSMISSION_PASS = 'Trillion3D transmission'
 export const BLEND_ORDER_PASS = 'Trillion3D blend order and expansion'
 export const DISPLAY_MASK_PASS = 'Trillion3D display mask'
 export const DISPLAY_FILTER_PASS = 'Trillion3D display filter'
+/** The transparents' front surface the reflection trace reads (`../reflections/frontLayer.ts`). */
+export const TRANSPARENT_FRONT_PASS = 'Trillion3D transparent front'
 /** The transparents' compaction (`../webgpu/transparent/compact.ts`) and occlusion test
  *  (`../gpu/core/transparentOcclusion.ts`). */
 export const TRANSPARENT_COMPACTION_PASS = 'Trillion3D transparent compaction'
@@ -155,6 +157,7 @@ export const ENGINE_PASSES = [
   definePass({ label: BLEND_ORDER_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_MASK_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_FILTER_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: TRANSPARENT_FRONT_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: PARTICLE_DRAW_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),

@@ -9,8 +9,7 @@ import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
 import { createTraceGroups } from './trace.ts'
 import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes } from './traceTiles.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
-import { createProxyStore } from './proxyStore.ts'
-import { storeBytes } from '../bounce/runtimeLayout.ts'
+import { createProxyStore, proxyStoreBytes } from './proxyStore.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_GROUP,
@@ -26,8 +25,8 @@ import { reflectionLayout } from './reflectionPipelines.ts'
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
  *  after it in the mips of both targets (`radianceBytes`) —, its tile list, its uniform, its radiance
  *  hash, the front depth (`frontBytes`, which `blends` sizes) and, while a placement wears a proxy
- *  (`store`), the run-time proxy's answers (`proxyStore.ts`); the depth it marches is the Hi-Z's, its
- *  front depth folded in. */
+ *  (`store`), the run-time proxy's answers (`proxyStore.ts`), with the transparents' front layer where
+ *  it has `blends`; the depth it marches is the Hi-Z's, its front depth folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
@@ -37,7 +36,7 @@ export function reflectionBytes(width: number, height: number, blends: boolean, 
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
     SETTLE_BYTES +
-    (store ? storeBytes(width, height) : 0)
+    (store ? proxyStoreBytes(width, height, blends) : 0)
   )
 }
 
@@ -72,7 +71,7 @@ export function createScreenReflection(
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
   const front = createFrontDepth(device, width, height, blends)
-  const answers = createProxyStore(device, width, height, store)
+  const answers = createProxyStore(device, width, height, store, blends)
   return {
     device,
     target,

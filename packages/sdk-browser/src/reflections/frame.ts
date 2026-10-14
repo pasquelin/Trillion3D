@@ -11,6 +11,7 @@ import {
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { encodeFrontDepth } from './frontCarry.ts'
+import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 import { encodeReflectionTrace, type TraceInputs } from './traceEncode.ts'
@@ -61,6 +62,10 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     // would restart the budget for ever.
     gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
+  // The transparents' front surface, where this very image drew it (`encodeFrontPass`).
+  const front = reflection.store.front,
+    stamp = frontStamp(run.frame)
+  frame.front = front?.drawn === stamp ? stamp : 0
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -136,6 +141,13 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
     inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
     inputs.store = reflection.store.view ?? deferred.placeholders.runtimeStore
+    // The transparents' front surface, or the opaque one's targets in its place, which no pixel reads.
+    const front = reflection.store.front
+    inputs.frontFlags = front?.flagsView ?? inputs.flags
+    inputs.frontNormals = front?.normalsView ?? inputs.normals
+    inputs.frontLobes = front?.lobesView ?? inputs.lobes
+    inputs.frontDepth = front?.depthView ?? inputs.normals
+    inputs.frontTarget = front?.tracedView ?? deferred.placeholders.frontTraced
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }

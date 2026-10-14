@@ -2,32 +2,45 @@ import { STORE_LAYERS, storeBytes } from '../bounce/runtimeLayout.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { createFrontLayer, frontLayerBytes, type FrontLayer } from './frontLayer.ts'
+
+/** Bytes of the store of a view at `width × height` (`createProxyStore`), with the transparents' front
+ *  layer where the scene has `blends`. */
+export const proxyStoreBytes = (width: number, height: number, blends: boolean) =>
+  blends
+    ? 2 * storeBytes(width, height) + frontLayerBytes(width, height)
+    : storeBytes(width, height)
 
 /**
  * THE STORE OF THE RUN-TIME PROXY'S ANSWERS (`bounce/runtimeLayout.ts`), one home: made with the view
  * when a placement wears a proxy (`wantsProxyStore`), else when the first does (`followProxyStore`) — its
  * bytes asked of the frame's allocation as the lobes target's are —, none before: the trace binds the
- * engine's stand-in (`deferred.placeholders`).
+ * engine's stand-in (`deferred.placeholders`). Where the scene has `blends`, each pixel holds two cells,
+ * its opaque surface's then its transparents' front one's (`rtLayer`), and the front layer is made with
+ * them (`frontLayer.ts`): the surface the trace reads of it, and the radiance it writes.
  */
 export function createProxyStore(
   device: GPUDevice,
   width: number,
   height: number,
   wanted: boolean,
+  blends = false,
 ) {
   let made: GPUTexture | undefined
   let view: GPUTextureView | undefined
+  let front: FrontLayer | undefined
   /** The store made, if it was not: the bytes it adds, none if it was. */
   const ensure = () => {
     if (made) return 0
     made = device.createTexture({
       label: 'Trillion3D run-time proxy store',
-      size: [width, height, STORE_LAYERS],
+      size: [width, height, STORE_LAYERS * (blends ? 2 : 1)],
       format: 'r32uint',
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC,
     })
     view = made.createView({ dimension: '2d-array' })
-    return storeBytes(width, height)
+    if (blends) front = createFrontLayer(device, width, height)
+    return proxyStoreBytes(width, height, blends)
   }
   if (wanted) ensure()
   const camera = new Float64Array(16)
@@ -67,10 +80,15 @@ export function createProxyStore(
     get view() {
       return view
     },
+    /** The transparents' front layer, made with the store where the scene has blends. */
+    get front() {
+      return front
+    },
     /** Made now, if it was not: the bytes it adds, none if it was. */
     make: ensure,
     dispose() {
       made?.destroy()
+      front?.dispose()
     },
   }
 }

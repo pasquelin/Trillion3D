@@ -14,7 +14,6 @@ import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
-import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
@@ -22,41 +21,51 @@ import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { RUNTIME_BINDINGS, TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
 import type { TraceGroups } from './traceEncode.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
+import { TRACE_SURFACE_WGSL } from './traceSurfaceWgsl.ts'
+import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 
 /**
- * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
- * `REFLECTION_SIDE`² pixels holds a surface with a specular lobe (`classifyReflections`: a thread a
- * pixel, a tile listed once, in the tile list), the trace (`traceReflections`) runs over the listed
- * tiles alone, and each pixel of such a surface writes the share of the radiance it reflects
- * (`reflectedShare`: both its lobes, traced, weighed on its reflectance and coated); any other
- * pixel writes nothing and the resolve reads nothing of it (`resolvedReflection`). The tiles are
- * dispatched indirectly, in rows (`work`: the workgroups along x and y, then 1, then the count of
- * tiles): the classification opens a slice for each tile it lists (`openSlice`), so that an image of
- * any size, whose tiles outnumber what a dimension of a dispatch holds, is traced whole; the trace
- * finds its tile by the rank of its workgroup in the rows (`flatIndex`) and leaves where it is past
- * the count. Its lobes are the ones its lights read: where the surface carries the physical lobes
- * (`PHYSICAL_SURFACE_FLAG`), those the lobes target holds (`lobesAt`). Its radiance is the chain of
- * the screen, the proxy, the probes and the environment (`reflectedRadiance`).
+ * The surfaces' reflection, in the compute pass of the image, for each pixel's two surfaces — the opaque
+ * one and the transparents' front one (`frontLayer.ts`), where the image drew it: where a tile of
+ * `REFLECTION_SIDE`² pixels holds a surface with a specular lobe (`classifyReflections`: a thread a pixel,
+ * a tile listed once for each of its surfaces that reflects, the surface in the word's top bit), the trace
+ * (`traceReflections`) runs over the listed tiles alone: each opaque pixel of such a surface writes the share
+ * of the radiance it reflects (`reflectedShare`: both its lobes, traced, weighed on its reflectance and
+ * coated), each front pixel the radiance its lobes reflect, with the depth it was traced at and the stamp of
+ * the image, which the transparent fragment weighs (`forwardReflectionWgsl`); any other pixel writes nothing
+ * and the resolve reads nothing of it (`resolvedReflection`). The tiles are dispatched indirectly, in rows
+ * (`work`: the workgroups along x and y, then 1, then the count of tiles): the classification opens a slice
+ * for each tile it lists (`openSlice`), so that an image of any size, whose tiles outnumber what a dimension
+ * of a dispatch holds, is traced whole; the trace finds its tile by the rank of its workgroup in the rows
+ * (`flatIndex`) and leaves where it is past the count. Both surfaces' tiles share one list, one rotating
+ * offset and one frame budget of the proxy's rays (`rtAnswer`), each surface in its own cell of the one
+ * store (`rtLayer`). Its lobes are the ones its lights read: where the surface carries the physical lobes
+ * (`PHYSICAL_SURFACE_FLAG`), those its lobes target holds (`lobesAt`). Its radiance is the chain of the
+ * screen, the proxy, the probes and the environment (`reflectedRadiance`).
  */
 export const TRACE_SHADER = wgslProgram(
-  `@group(0) @binding(${TRACE_BINDINGS.flags}) var traceFlags:texture_2d<u32>;
-@group(0) @binding(${TRACE_BINDINGS.normals}) var traceNormals:texture_2d<f32>;
-@group(0) @binding(${TRACE_BINDINGS.target}) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
+  `@group(0) @binding(${TRACE_BINDINGS.target}) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
 @group(0) @binding(${TRACE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${TRACE_BINDINGS.lobes}) var traceLobes:texture_2d<u32>;
 @group(0) @binding(${TRACE_BINDINGS.bounceGrid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${TRACE_BINDINGS.probes}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${TRACE_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 @group(0) @binding(${TRACE_BINDINGS.base}) var traceBase:texture_2d<f32>;
 @group(0) @binding(${TRACE_BINDINGS.lightLists}) var<storage,read> tileLights:array<u32>;
+@group(0) @binding(${TRACE_BINDINGS.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 var<workgroup> reflecting:atomic<u32>;
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
- if(all(vec2f(id.xy)<view.viewport.xy)&&surfaceReflects(textureLoad(traceFlags,vec2i(id.xy),0).r)){atomicOr(&reflecting,1u);}
+ let inside=all(vec2f(id.xy)<view.viewport.xy);
+ let coord=vec2i(id.xy);
+ if(inside&&surfaceReflects(textureLoad(traceFlags,coord,0).r)){atomicOr(&reflecting,1u);}
+ if(inside&&traceFront()&&surfaceReflects(textureLoad(frontFlags,coord,0).r)){atomicOr(&reflecting,2u);}
  workgroupBarrier();
- if(lane==0u&&atomicLoad(&reflecting)!=0u){
+ if(lane!=0u){return;}
+ let layers=atomicLoad(&reflecting);
+ for(var layer=0u;layer<2u;layer++){
+  if((layers&(1u<<layer))==0u){continue;}
   let rank=atomicAdd(&work[3],1u);
-  atomicStore(&traceList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u));
+  atomicStore(&traceList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u)|(layer<<31u));
   atomicMax(&traceList[${TRACE_LIST.count}u],rank+1u);
   openSlice(0u,rank);
  }
@@ -68,26 +77,34 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
  // The run-time proxy's frame counters, one atomic of each a workgroup.
  rtShare(lane);
 }
-/** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
+/** The pixel \`lid\` of the listed tile of rank \`rank\`, traced on the tile's surface (\`rtLayer\`). */
 fn tracePixel(rank:u32,lid:vec2u){
  let count=atomicLoad(&traceList[${TRACE_LIST.count}u]);
  if(rank>=count){return;}
  // The run-time proxy's budget goes to the first tiles it meets, and the next frame's start where this
  // one's ended (the list's offset).
  let tile=atomicLoad(&traceList[${TRACE_LIST_FIRST}u+(rank+atomicLoad(&traceList[${TRACE_LIST.offset}u]))%count]);
- let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid;
+ rtLayer=tile>>31u;
+ let id=vec2u(tile&65535u,(tile>>16u)&32767u)*${REFLECTION_SIDE}u+lid;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
- let flags=textureLoad(traceFlags,coord,0).r;
+ let flags=traceFlagsAt(coord);
  if(!surfaceReflects(flags)){return;}
  rtPixel=id;
  rtCalls=0u;
- let base=textureLoad(traceBase,coord,0);
- let P=worldAt(vec2f(id)+vec2f(0.5),textureLoad(hizDepth,coord,${HIZ_OPAQUE_LAYER},0).r);
- let normal=textureLoad(traceNormals,coord,0);
+ let depth=traceDepthAt(coord);
+ let P=worldAt(vec2f(id)+vec2f(0.5),depth);
+ let normal=traceNormalAt(coord);
  let N=normalize(normal.xyz);
  let V=viewToEye(P);
- if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(textureLoad(traceLobes,coord,0),1.0,N,V,normal.a);}
+ if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(traceLobesAt(coord),1.0,N,V,normal.a);}
+ if(rtLayer!=0u){
+  // The front's radiance as its lobes reflect it, weighed by the fragment that reads it.
+  let traced=reflectionTrace(P,N,V,normal.a);
+  textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),bitcast<u32>(depth),reflectionView.runtime.y));
+  return;
+ }
+ let base=textureLoad(traceBase,coord,0);
  textureStore(traceOut,coord,vec4f(reflectedShare(f0Of(base.rgb,base.a),normal.a,N,V,P),1.0));
 }`,
   [
@@ -100,6 +117,7 @@ fn tracePixel(rank:u32,lid:vec2u){
     BOUNCE_GRID_WGSL,
     reflectionLightViewWgsl(REFLECTION_GROUP),
     reflectionShareWgsl(REFLECTION_GROUP, true, RUNTIME_BINDINGS),
+    TRACE_SURFACE_WGSL,
     FLAT_INDEX_WGSL,
     OPEN_SLICE_WGSL,
     surfaceReflects,

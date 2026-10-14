@@ -1,6 +1,7 @@
 import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import type { RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
 import { storageEntry, storeEntry } from './bindings.ts'
+import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 
 /**
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
@@ -8,8 +9,9 @@ import { storageEntry, storeEntry } from './bindings.ts'
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
  * (`work`), the trace's list with the frame's counters, the store of the run-time proxy's answers,
  * the proxy's buffer and instances, the
- * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
- * lists the proxy hits walk.
+ * culling's worlds it places its meshes by and the placement tree its rays walk, the light grid's buffer, whose world
+ * lists the proxy hits walk, and the transparents' front surface (`frontLayer.ts`): its flags, normals, lobes and
+ * depth, and the target its traced radiance is written to.
  */
 export const TRACE_BINDINGS = {
   flags: 0,
@@ -27,6 +29,11 @@ export const TRACE_BINDINGS = {
   proxyWorlds: 12,
   proxyTree: 13,
   lightLists: 17,
+  frontFlags: 18,
+  frontNormals: 19,
+  frontLobes: 20,
+  frontDepth: 21,
+  frontTarget: 22,
 } as const
 
 /** The bindings of the proxy in the trace's group 0 (`bounce/runtimeAnswerWgsl.ts`), the table's. */
@@ -61,11 +68,18 @@ export function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
         computeTextureEntry(TRACE_BINDINGS.proxyWorlds, 'uint', '2d-array'),
         computeTextureEntry(TRACE_BINDINGS.proxyTree, 'uint', '2d-array'),
+        computeTextureEntry(TRACE_BINDINGS.frontFlags, 'uint'),
+        computeTextureEntry(TRACE_BINDINGS.frontNormals, 'unfilterable-float'),
+        computeTextureEntry(TRACE_BINDINGS.frontLobes, 'uint'),
+        // The front pass's depth attachment itself, read as the float it holds.
+        computeTextureEntry(TRACE_BINDINGS.frontDepth, 'unfilterable-float'),
+        storageEntry(TRACE_BINDINGS.frontTarget, FRONT_TRACED_FORMAT),
       ],
     }),
     classifyLayout: device.createBindGroupLayout({
       entries: [
         computeTextureEntry(TRACE_BINDINGS.flags, 'uint'),
+        computeTextureEntry(TRACE_BINDINGS.frontFlags, 'uint'),
         computeBufferEntry(TRACE_BINDINGS.work, 'storage'),
         computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
       ],

@@ -18,6 +18,8 @@ export type ReflectionFrame = {
   proxyError: number
   /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
   epoch?: number
+  /** The stamp of this image's front pass (`frontLayer.ts`), zero where it drew none. */
+  front?: number
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
@@ -28,9 +30,10 @@ export type ReflectionFrame = {
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced, the resident proxy's error, its epoch and the surroundings. The words that differ from those it
- * sent go up (`writeChanged`): a still view writes once, and nothing in it is a frame index or a
- * seed. Nothing is allocated by a call.
+ * is traced, the resident proxy's error, its epoch, the stamp of the image's front pass and the surroundings. The words that differ from those it
+ * sent go up (`writeChanged`): a still view without transparents writes once, and nothing in it is a
+ * seed — the front pass's stamp, the image's rank, only tells a front texel of this image from an older
+ * one, and no colour depends on its value. Nothing is allocated by a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
   const staged = new Float32Array(REFLECTION_VIEW_WORDS)
@@ -58,6 +61,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     runtime[0] = frame.epoch ?? 0
+    runtime[1] = frame.front ?? 0
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)
