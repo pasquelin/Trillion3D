@@ -5,7 +5,7 @@
  * without layers samples.
  */
 export function standInTexture(
-  device: GPUDevice,
+  device: Pick<GPUDevice, 'createTexture' | 'queue'>,
   label: string,
   format: GPUTextureFormat,
   { side = 1, fill }: { side?: number; fill?: number } = {},

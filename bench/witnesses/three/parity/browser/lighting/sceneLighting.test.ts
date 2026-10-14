@@ -12,7 +12,7 @@ import {
   lightProbe,
 } from '../../../../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
 import type { Light } from '../../../../../../packages/sdk-core/src/world/light/light.ts'
-import { installSceneLighting } from '../../../../sceneLighting.ts'
+import { installSceneLighting } from '../../../sceneLighting.ts'
 import { lighting } from '../../../displayObjects.ts'
 
 test('the witness scene copies the authored directional target in world space', () => {
