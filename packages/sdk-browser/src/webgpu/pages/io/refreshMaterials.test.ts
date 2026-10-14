@@ -97,7 +97,7 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
           (destination.texture as { label?: string }).label === 'Trillion3D material records',
       )
     assert.equal(sent.length, 1, 'one write of the table')
-    assert.deepEqual(sent[0].size, [MATERIAL_RECORD_WORDS / 4, 1], 'of one record')
+    assert.deepEqual(sent[0].size, [MATERIAL_RECORD_WORDS / 4, 1, 1], 'of one record, one layer')
   } finally {
     backend.dispose()
     fixture.geometry.dispose()
