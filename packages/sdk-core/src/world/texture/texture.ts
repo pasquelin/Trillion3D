@@ -4,7 +4,7 @@ import { createListeners } from '../../runtime/listeners.ts'
 import type { ColorSpace, Filter, Wrap } from '../constants/index.ts'
 import type { Texture as TextureRecord } from '../../texture/contract.ts'
 import { textureJournals } from '../../texture/writes.ts'
-import { composeUvTransform } from './uvTransform.ts'
+import { composeAffine2 } from '../../../../math/src/matrix/matrix3.ts'
 
 let nextTexture = 1
 
@@ -69,7 +69,7 @@ export class Texture implements TextureRecord {
   /** Bumped by a write of `repeat`, `offset` or `rotation`: placed again, nothing sent. */
   placement = 0
   /** `repeat`, `offset` and `rotation` composed into a 3 × 3 matrix, column-major: written again
-   *  by every placement write (`composeUvTransform`). */
+   *  by every placement write (`composeAffine2`). */
   readonly transform = new Float64Array(9)
   readonly _listeners = createListeners()
   /** The record as its holders hold it: the proxy that hears its writes. */
@@ -85,7 +85,7 @@ export class Texture implements TextureRecord {
     this.image = image
     this.layout = layout
     this.format = format
-    composeUvTransform(this.transform, this.offset, this.repeat, this.rotation)
+    composeAffine2(this.transform, this.offset, this.repeat, this.rotation)
     const placed = () => this.touch('placement')
     listen(this.repeat, placed)
     listen(this.offset, placed)
@@ -129,7 +129,7 @@ export class Texture implements TextureRecord {
   }
   private touch(counter: 'version' | 'sampling' | 'placement' = 'version') {
     if (counter === 'placement')
-      composeUvTransform(this.transform, this.offset, this.repeat, this.rotation)
+      composeAffine2(this.transform, this.offset, this.repeat, this.rotation)
     this[counter]++
     textureJournals.written(this.record)
     this._listeners.emit()

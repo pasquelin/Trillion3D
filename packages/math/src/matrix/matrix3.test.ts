@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalMatrix3 } from './matrix3.ts'
+import { composeAffine2, normalMatrix3 } from './matrix3.ts'
 import { dotVector3 } from '../vector/vector.ts'
 
 test('normalMatrix3: affine identity block yields the 3×3 identity', () => {
@@ -112,4 +112,14 @@ test('normalMatrix3: preserves normal/tangent perpendicularity under shear', () 
     m[2] * tangentObject[0] + m[6] * tangentObject[1] + m[10] * tangentObject[2],
   ]
   assert.ok(Math.abs(dotVector3(normalWorld, tangentWorld)) < 1e-12)
+})
+
+test('composeAffine2: a point is turned by -rotation, scaled, then slid; zero rotation keeps -0 terms', () => {
+  const m = composeAffine2(new Float64Array(9), { x: 0.25, y: -0.5 }, { x: 2, y: 3 }, Math.PI / 2)
+  const at = (u: number, v: number) => [m[0] * u + m[3] * v + m[6], m[1] * u + m[4] * v + m[7]]
+  const [x, y] = at(1, 0)
+  assert.ok(Math.abs(x - 0.25) < 1e-12 && Math.abs(y - -3.5) < 1e-12)
+  assert.deepEqual([m[2], m[5], m[8]], [0, 0, 1])
+  const plain = composeAffine2(new Float64Array(9), { x: 0, y: 0 }, { x: 1, y: 1 }, 0)
+  assert.ok(Object.is(plain[1], -0), 'the -sy·sin(0) term stays -0, the bits a sampling word takes')
 })
