@@ -4,7 +4,6 @@ import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { uniformSlots } from '../../residency/pools.ts'
 import { TEXTURE_EVICTION_PASS } from '../../stage/passLabels.ts'
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { POOL_MAX_LAYERS, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { TILE_BURST, TILE_SORT_WGSL } from './evictSortWgsl.ts'
 import { createQueueCuts, TILE_QUEUES, TILE_QUEUE_WORDS, type TileQueueCut } from './queueCut.ts'
@@ -25,7 +24,13 @@ const UNIFORM_WORDS = 4
  * read less than then. Pipelines compiled off the frame.
  */
 export function createTileEvictions(device: GPUDevice) {
-  const kit = createPoolSortKit(device, TEXTURE_EVICTION_PASS, TILE_SORT_WGSL, UNIFORM_WORDS * 4)
+  const kit = createPoolSortKit(
+    device,
+    TEXTURE_EVICTION_PASS,
+    TILE_SORT_WGSL,
+    UNIFORM_WORDS * 4,
+    TILE_QUEUES / PREVIEW_LAYOUT_NAMES.length,
+  )
   const buffer = (label: string, size: number, usage: number) =>
     device.createBuffer({ label: `Trillion3D texture eviction ${label}`, size, usage })
   // The sort's words, then its scratch over the most places a lane pool holds.
@@ -37,19 +42,11 @@ export function createTileEvictions(device: GPUDevice) {
   const slots = uniformSlots(device.limits, TILE_QUEUES, UNIFORM_WORDS)
   const uniform = buffer('uniforms', slots.bytes, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
   const words = new Uint32Array(slots.bytes / 4)
-  const bound = [createWebgpuBindIdentity(), createWebgpuBindIdentity()]
-  const groups: GPUBindGroup[] = []
   /** Per queue: the clock and the pool's arrivals at its last cut. */
   const cutClock = new Uint32Array(TILE_QUEUES),
     cutArrivals = new Uint32Array(TILE_QUEUES)
   /** Whether a pixel stamped since each queue's last cut. */
   const stampedSince = new Uint8Array(TILE_QUEUES)
-  /** The group of atlas `a`, rebuilt when its places' words moved. */
-  const groupOf = (a: number, use: GPUBuffer) => {
-    bound[a].next[0] = use
-    if (bound[a].moved()) groups[a] = kit.group(use, sortWords, cuts.buffer, uniform)
-    return groups[a]
-  }
   return {
     /** Ranks every lane pool of `atlases` short of a burst of free places whose queue may have
      *  moved, at `clock`, `stamped` when a pixel stamped this image; the cut to carry back, none
@@ -91,8 +88,16 @@ export function createTileEvictions(device: GPUDevice) {
       for (let q = 0; q < TILE_QUEUES; q++) {
         const pool = record.pools[q]
         if (!pool) continue
-        const { slotUse } = atlases[Math.floor(q / lanes)]
-        pass.setBindGroup(0, groupOf(Math.floor(q / lanes), slotUse.buffer), slots.offset(q))
+        const a = Math.floor(q / lanes)
+        kit.bind(
+          pass,
+          a,
+          atlases[a].slotUse.buffer,
+          sortWords,
+          cuts.buffer,
+          uniform,
+          slots.offset(q),
+        )
         kit.encode(pass, pool.tiles)
       }
       pass.end()
