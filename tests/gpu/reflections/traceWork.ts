@@ -43,9 +43,15 @@ function counted(code: string) {
   )
 }
 
+/** Whether the hook is on: the proof's GPU is installed once a process (`installProofGpu`), and a
+ *  second hook would count the counted text again. */
+let installed = false
+
 /** Counts the trace's work on every device granted from now on: the tile lists are made a word
- *  longer, that word the frame's work. */
+ *  longer, that word the frame's work. Hooked once a process, whatever the cases it draws. */
 export function countTraceWork() {
+  if (installed) return
+  installed = true
   const gpu = navigator.gpu
   const requestAdapter = gpu.requestAdapter.bind(gpu)
   gpu.requestAdapter = async (...args) => {
@@ -75,6 +81,7 @@ export function countTraceWork() {
 export async function traceWork(device: GPUDevice, made: Map<string, GPUBuffer>) {
   const list = latestMade(made, (label) => label.startsWith('Trillion3D reflection tile list'))
   if (!list) return undefined
-  const words = (await readGpuBuffer(device, list, list.size))!
-  return { spent: words[words.length - 1] }
+  // Its last word alone: the tiles before it are the engine's.
+  const words = (await readGpuBuffer(device, list, 4, list.size - 4))!
+  return { spent: words[0] }
 }
