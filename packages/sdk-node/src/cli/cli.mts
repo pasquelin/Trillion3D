@@ -10,6 +10,7 @@ import {
 } from '../../../sdk-core/src/contracts/base.ts'
 import {
   DEFAULT_RAM_BUDGET_MB,
+  DEFAULT_SIMPLIFICATION,
   DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
   SIMPLIFICATIONS,
@@ -29,7 +30,7 @@ const [
   resourceBaseUrl,
   threads = String(DEFAULT_THREADS),
   ramBudgetMb = String(DEFAULT_RAM_BUDGET_MB),
-  simplification = SIMPLIFICATIONS[0],
+  simplification = DEFAULT_SIMPLIFICATION,
 ] = argv.filter((arg) => !arg.startsWith('--'))
 const triangleBudget = Number(budget)
 const unknown = [...flags].filter((flag) => !FLAGS.has(flag))
