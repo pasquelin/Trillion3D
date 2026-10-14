@@ -1,7 +1,7 @@
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
+import { clampToExtent, depthStep } from '../../../math/src/wgsl/sampling.ts'
 
 /**
  * The guide program: every instance is a segment `a → b` (a point is a segment of zero length)
@@ -59,13 +59,13 @@ struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
 fn sceneAt(p: vec2i) -> f32 {
   return textureLoad(sceneDepth, clampToExtent(p, vec2i(view.scene)), 0);
 }
-fn slopeAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
-  return min(abs(sceneAt(p + axis) - centre), abs(centre - sceneAt(p - axis)));
+fn stepAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
+  return depthStep(centre, sceneAt(p - axis), sceneAt(p + axis));
 }
-// The rule of jitterDepthSlack: the scene depth is off by at most the jitter times its slope.
+// The scene depth is off by at most the jitter times its step across a texel, per axis.
 fn jitterSlack(p: vec2i, centre: f32) -> f32 {
-  return abs(view.viewport.z) * slopeAlong(p, vec2i(1, 0), centre)
-    + abs(view.viewport.w) * slopeAlong(p, vec2i(0, 1), centre);
+  return abs(view.viewport.z) * stepAlong(p, vec2i(1, 0), centre)
+    + abs(view.viewport.w) * stepAlong(p, vec2i(0, 1), centre);
 }
 // Reversed depth: the greater is nearer; the scene in front, beyond the slack, hides the guide.
 // The guide draws at the display; the scene depth may be drawn below it, in the top-left
@@ -77,5 +77,5 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   return in.color;
 }
 `,
-  [GUIDE_CORNER_WGSL, clampToExtent],
+  [GUIDE_CORNER_WGSL, clampToExtent, depthStep],
 )

@@ -1,7 +1,7 @@
 import { MATERIAL_MIP_WGSL } from './mipsWgsl.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../gpu/core/computeStages.ts'
 import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import type { PoolEncoding } from './blockFormats.ts'
 import { prepareCoveragePipelines } from './coverageMips.ts'
@@ -65,13 +65,9 @@ const materialProgram = oncePerDevice((device: GPUDevice) => {
     module = device.createShaderModule({ code: MATERIAL_MIP_WGSL })
   const pipelines = preparedPipelines(
     ({ srgb, weighted }: { srgb: boolean; weighted: boolean }) =>
-      preparedComputePipeline(device, {
-        layout: pipelineLayout,
-        compute: {
-          module,
-          entryPoint: 'reduceLevel',
-          constants: { weighted: Number(weighted), srgb: Number(srgb) },
-        },
+      preparedComputeStage(device, pipelineLayout, module, 'reduceLevel', {
+        weighted: Number(weighted),
+        srgb: Number(srgb),
       }),
     ({ srgb, weighted }) => `${Number(srgb)}/${Number(weighted)}`,
   )

@@ -7,12 +7,14 @@ import assert from 'node:assert/strict'
 import '../../../impostor/lent.fixture.ts'
 import { createImpostorCards, planImpostorCards } from '../../../impostor/cards.ts'
 import {
-  cardField,
   engineAt,
   impostorSection,
+  MESH,
   RESIDENT,
   VIEWPORT,
 } from '../../../impostor/section.fixture.ts'
+import { field } from '../../../../../sdk-core/src/impostor/watch.fixture.ts'
+import type { ClusterRoot } from '../../../page/selection/types.ts'
 import { hostTableBytesOf } from './memory.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -26,7 +28,12 @@ const PER_ROOT = 1 + 4 + 8 + 4 + 4 + 8 + 8 + 24 + 8 + (11 + 4) * 8 + 2 * 8 + 8
  *  the bytes of its card records. */
 function bytesAt(count: number) {
   const cards = createImpostorCards(impostorSection, RESIDENT)
-  planImpostorCards(cards, cardField(count), engineAt(200), VIEWPORT)
+  const roots = field(count, {
+    mesh: MESH,
+    seed: 11,
+    varied: false,
+  }) as unknown as ClusterRoot<unknown>[]
+  planImpostorCards(cards, roots, engineAt(200), VIEWPORT)
   const rt = {
     services: { hostTableBytes: () => 0 },
     bounce: {},

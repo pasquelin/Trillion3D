@@ -1,24 +1,20 @@
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { MOIRE_FORMAT, SHARE_FORMAT, createTaaResolves, resolveTargetUsage } from './resolve.ts'
+import { createTaaResolves, resolveTargetUsage } from './resolve.ts'
+import { createTaaHistoryTargets } from './historyTargets.ts'
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts'
 import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts'
 import { createPlacementMotion, type MotionRoot } from './motion.ts'
 import { createTaaFilterHistory } from './layers.ts'
-import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { TAA_PASS } from '../stage/passLabels.ts'
-import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const
-/** Both ping-pong histories: colour, share/flicker gradient/still weight/count, full
- *  identity/depth, and the flicker measure (`shadingHistoryWgsl.ts`). */
-export const TAA_HISTORY_BYTES_PER_PIXEL = 48
 
 /**
  * Temporal antialiasing pass: two histories in ping-pong, each a colour, its share target, its
- * geometry and its flicker measure (`TAA_HISTORY_BYTES_PER_PIXEL`), one read and the other
+ * geometry and its flicker measure (`historyTargets.ts`), one read and the other
  * written each frame, and composition reads the one just written. Targets follow the display size
  * (`resize`); bind groups are rebuilt when an input changes identity, never per frame. With
  * `upscale`, the resolves that reconstruct a frame drawn below the display are compiled at once
@@ -58,26 +54,22 @@ export async function createTemporalAntialiasing(
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
   const noReactiveView = noReactive.createView()
-  const textures: GPUTexture[] = [],
-    images: AccumulatedImage[] = [],
-    geometry: GPUTextureView[] = [],
-    shading: GPUTextureView[] = [],
+  const history = createTaaHistoryTargets(device),
+    { images, geometry, shading } = history,
     /** The two groups (one a history target read) for each identity the inputs were seen with:
      *  the lit image is one of two HDR targets that take turns (`reflections/radiance.ts`). */
     held: (GPUBindGroup | undefined)[][] = []
-  let width = 0,
-    height = 0,
-    /** Target read on the next frame: the other is written. */
-    read = 0
+  /** Target read on the next frame: the other is written. */
+  let read = 0
   /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`); two held, the
    *  HDR targets' turns. */
   const identity = createWebgpuBindIdentity(2)
-  /** Where the last ordinary frame started: what a convergence frame replays. */
-  const saved = createTaaCheckpoint()
+  const frame = createTaaFrameState()
+  /** Where the last ordinary frame started: what a convergence frame replays, `read` with it. */
+  const saved = createTaaCheckpoint(frame)
+  let savedRead = 0
   const dropTargets = () => {
-    for (const texture of textures) texture.destroy()
-    textures.length = 0
-    images.length = geometry.length = shading.length = 0
+    history.drop()
     held.length = 0
     filterHistory.drop()
   }
@@ -89,62 +81,30 @@ export async function createTemporalAntialiasing(
     upscales: () => !!resolves.upscaled(),
     /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
-      const colour = textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0
-      return colour + filterHistory.bytes
+      return history.bytes + filterHistory.bytes
     },
     /** Draft of the frame inputs, filled by `encodeTaaPass`: nothing is allocated per frame. */
     inputs: {} as TaaInputs,
     /** What the pass keeps from frame to frame on the CPU: jitter, history, hold. */
-    frame: createTaaFrameState(),
+    frame,
     /** An ordinary frame's entry remembers where it started; a convergence frame (re-rendering the
      *  pose for arrived tiles) COMES BACK to it, remaking the image to the bit without accumulating. */
     checkpoint(quiet: boolean) {
-      const { frame } = this
-      saved.read = read
-      saved.sample = frame.sample
-      saved.stochasticSample = frame.stochasticSample
-      saved.stillFrames = frame.stillFrames
-      saved.hasHistory = frame.hasHistory
-      saved.sceneSeen = frame.sceneSeen
-      saved.quiet = quiet
-      saved.previousViewProjection.set(frame.previousViewProjection)
-      saved.previousEye.set(frame.previousEye)
+      savedRead = read
+      saved.save(quiet)
       filterHistory.checkpoint()
     },
     /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
     replay() {
-      const { frame } = this
-      read = saved.read
-      frame.sample = saved.sample
-      frame.stochasticSample = saved.stochasticSample
-      frame.stillFrames = saved.stillFrames
-      frame.hasHistory = saved.hasHistory
-      frame.sceneSeen = saved.sceneSeen
-      frame.previousViewProjection.set(saved.previousViewProjection)
-      frame.previousEye.set(saved.previousEye)
+      read = savedRead
       filterHistory.replay()
-      return saved.quiet
+      return saved.restore()
     },
     /** Remakes the targets at another size, history gone: true when something was reallocated. */
     resize(w: number, h: number) {
-      if (w === width && h === height && images.length === 2) return false
+      if (w === history.width && h === history.height && images.length === 2) return false
       dropTargets()
-      ;[width, height] = [w, h]
-      const usage = resolveTargetUsage(),
-        size = { width: w, height: h }
-      const target = (label: string, format: GPUTextureFormat) => {
-        const texture = device.createTexture({ label, size, format, usage })
-        textures.push(texture)
-        return texture.createView()
-      }
-      for (let i = 0; i < 2; i++) {
-        geometry.push(target(`Trillion3D TAA geometry ${i}`, 'rg32uint'))
-        shading.push(target(`Trillion3D TAA flicker ${i}`, MOIRE_FORMAT))
-        images.push({
-          color: target(`Trillion3D TAA history ${i}`, HDR_FORMAT),
-          share: target(`Trillion3D TAA as-is share ${i}`, SHARE_FORMAT),
-        })
-      }
+      history.allocate(w, h)
       return true
     },
     /** Encode the pass, its uniform written first: reads `inputs.current` and history, writes the
@@ -160,7 +120,7 @@ export async function createTemporalAntialiasing(
       // Without a reactive value, the resolve that reads none once compiled: the same words.
       const quiet = !twin && !inputs.reactive && resolves.unreactive(kind, !!inputs.upscale)
       const resolve = twin || quiet || set[kind]
-      filterHistory.follow(inputs.filter, width, height)
+      filterHistory.follow(inputs.filter, history.width, history.height)
       const { layout } = resolve
       const { next } = identity
       next[0] = layout

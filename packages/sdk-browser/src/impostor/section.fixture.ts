@@ -5,13 +5,11 @@
  */
 import type { ImpostorSection } from '../../../sdk-core/src/contracts/impostor.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
-import type { ClusterRoot } from '../page/selection/types.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
-import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 /** Deliberately not the root's rank: the card names the mesh, the cut reads the rank. */
@@ -69,15 +67,3 @@ export const engineAt = (z: number) => readCameraWorld(createEngineCamera(), fro
 /** The CPU camera cut of `roots` from `z`. */
 export const cutAt = (roots: ReturnType<typeof impostorScene>['roots'], z: number) =>
   selectVisiblePages(roots, engineAt(z), { pixelError: 0, viewport: VIEWPORT })
-
-/** `count` objects at one per 400 m² on a disk about the origin: the near ones whole, most far. */
-export function cardField(count: number) {
-  const radius = Math.sqrt((count * 400) / Math.PI)
-  const next = lcgRandom(11)
-  return Array.from({ length: count }, () => {
-    const r = radius * Math.sqrt(next()),
-      a = 2 * Math.PI * next()
-    const elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, r * Math.cos(a), 0, r * Math.sin(a), 1]
-    return { mesh: MESH, world: { elements } } as unknown as ClusterRoot<unknown>
-  })
-}

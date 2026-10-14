@@ -1,6 +1,6 @@
 // The fog law (#345): a CPU oracle — the linear ramp, and the transmittance of a medium whose
 // density falls off with height, integrated numerically along the view ray — against the shipped
-// shader text, read out of `FOG_WGSL` and evaluated here, so a shader edit is what the test sees.
+// shader text, `FOG_WGSL` run as shipped (`shaderRun`), so a shader edit is what the test sees.
 // With no fog the shader hands the lit colour back untouched.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -10,10 +10,10 @@ import {
   SCENE_ENVIRONMENT_FLOATS,
 } from '../../../sdk-core/src/scene/core/environment.ts'
 import { packFog, type SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
-import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
-import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
-import { distanceVector3, length3 } from '../../../math/src/vector/vector.ts'
+import { distanceVector3 } from '../../../math/src/vector/vector.ts'
 
 type V3 = [number, number, number]
 
@@ -30,44 +30,17 @@ function oracle(fog: SceneFog, eye: V3, P: V3) {
   return Math.exp(-tau)
 }
 
-/** A vector as the shader reads it: components by name and by swizzle. */
-const vec = (v: ArrayLike<number>) => {
-  const [x, y, z, w] = Array.from(v)
-  return Object.assign([x, y, z] as V3, { x, y, z, w, rgb: [x, y, z] as V3 })
-}
-const sub = (a: V3, b: V3) => vec([a[0] - b[0], a[1] - b[1], a[2] - b[2]])
-const BUILTINS = {
-  clamp,
-  select: (no: unknown, yes: unknown, when: boolean) => (when ? yes : no),
-  mix: (a: V3, b: V3, t: number) => a.map((value, i) => lerp(value, b[i], t)),
-  length: (v: V3) => length3(v[0], v[1], v[2]),
-  sub,
-  ...{ exp: Math.exp, abs: Math.abs, min: Math.min, max: Math.max },
-}
-
-/** Every function of `source` as JavaScript: headers stripped of their types. */
-function evaluate(source: string, operators: [string, string][]) {
-  let js = source.replace(/^fn (\w+)\(([^)]*)\)->\w+\{/gm, (_, name: string, params: string) => {
-    const names = params.split(',').map((param) => param.split(/[\s:]/).filter(Boolean)[0])
-    return `function ${name}(${names.join(',')}){`
-  })
-  for (const [from, to] of operators) js = js.replace(from, to)
-  const scope = { ...BUILTINS, directLights: {} }
-  const run = new Function(...Object.keys(scope), `${js};return {fogTransmittance,fogged};`)
-  const bind = (values: Partial<typeof scope> & Record<string, unknown>) =>
-    run(...Object.values({ ...scope, ...values })) as {
-      fogged: (...args: unknown[]) => number[]
-    }
-  return bind
-}
-
-const wgsl = evaluate(wgslSource(FOG_WGSL), [['P-eye', 'sub(P,eye)']])
-
-/** The WGSL `fogged` on the contract buffer's fog block, as `packEnvironment` writes it. */
+/** The WGSL `fogged` on the contract buffer's fog block, as `packEnvironment` writes it: the
+ *  shipped text run by the shared WGSL run. */
 function wgslFogged(fog: SceneFog | undefined, rgb: V3, P: V3, eye: V3) {
   const packed = packEnvironment({ exposure: 1, fog }, new Float32Array(SCENE_ENVIRONMENT_FLOATS))
-  const block = [vec(packed.subarray(36, 40)), vec(packed.subarray(40, 44))]
-  return wgsl({ directLights: { fog: block } }).fogged(rgb, vec(P), vec(eye))
+  const block = [Array.from(packed.subarray(36, 40)), Array.from(packed.subarray(40, 44))]
+  const { fogged } = shaderRun<{ fogged: (rgb: V3, P: V3, eye: V3) => number[] }>(
+    FOG_WGSL,
+    ['fogTransmittance', 'fogged'],
+    { directLights: { fog: block } },
+  )
+  return fogged(rgb, P, eye)
 }
 
 const RGB: V3 = [0.8, 0.3, 0.1]
@@ -152,6 +125,6 @@ test('no fog: the shader hands the lit colour back as it is, the block all zero'
     [0, 0, 5],
     [1e4, -300, 2],
   ] as V3[]) {
-    assert.equal(wgslFogged(undefined, RGB, P, [0, 1, 0]), RGB)
+    assert.deepEqual(wgslFogged(undefined, RGB, P, [0, 1, 0]), RGB)
   }
 })

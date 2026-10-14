@@ -12,7 +12,7 @@ import { RESOLVE, rasterSource } from './shader.ts'
 import { SMALL_BINDINGS, atlasLayoutEntries } from '../../webgpu/core/bindLayout.ts'
 import { createRasterBindings } from './bindings.ts'
 import { createRasterResolves } from './resolve.ts'
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../core/computeStages.ts'
 import type { GpuRasterInput } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
@@ -127,10 +127,7 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number
   // Asked, compiled off the thread from now, the frames held on them: the raster is made at a
   // frame's entry (`../../webgpu/frame/framePipelines.ts`), and the frame that draws it finds them.
   const pipelineFor = (entryPoint: string) =>
-    preparedComputePipeline(device, {
-      layout: computePipelineLayout,
-      compute: { module: computeModule, entryPoint },
-    }).ask()
+    preparedComputeStage(device, computePipelineLayout, computeModule, entryPoint).ask()
   const clear = pipelineFor('clear'),
     bin = pipelineFor('bin'),
     plan = pipelineFor('plan')

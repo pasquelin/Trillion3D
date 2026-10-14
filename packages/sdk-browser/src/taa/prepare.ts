@@ -1,5 +1,6 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './temporalAntialiasing.ts'
+import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
+import { TAA_HISTORY_BYTES_PER_PIXEL } from './historyTargets.ts'
 import { restartTaaAverage } from './landing.ts'
 import { grantCapability } from '../webgpu/pages/io/drops.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'

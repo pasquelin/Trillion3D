@@ -15,7 +15,8 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { GATHER_WGSL, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
+import { started } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { TEXTURE_FEEDBACK_REDUCE_PASS } from '../../stage/passLabels.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import {
@@ -69,18 +70,24 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
     ],
   })
   const pipeline = started(
-    preparedComputePipeline(device, {
-      label: 'Trillion3D texture feedback reduce',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module: device.createShaderModule({ code: REDUCE_WGSL }), entryPoint: 'reduce' },
-    }),
+    preparedComputeStage(
+      device,
+      device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      device.createShaderModule({ code: REDUCE_WGSL }),
+      'reduce',
+      undefined,
+      'Trillion3D texture feedback reduce',
+    ),
   )
   const gathering = started(
-    preparedComputePipeline(device, {
-      label: 'Trillion3D texture feedback gather',
-      layout: device.createPipelineLayout({ bindGroupLayouts: [gatherLayout] }),
-      compute: { module: device.createShaderModule({ code: GATHER_WGSL }), entryPoint: 'gather' },
-    }),
+    preparedComputeStage(
+      device,
+      device.createPipelineLayout({ bindGroupLayouts: [gatherLayout] }),
+      device.createShaderModule({ code: GATHER_WGSL }),
+      'gather',
+      undefined,
+      'Trillion3D texture feedback gather',
+    ),
   )
   const uniform = device.createBuffer({
     label: 'Trillion3D texture feedback reduce uniform',

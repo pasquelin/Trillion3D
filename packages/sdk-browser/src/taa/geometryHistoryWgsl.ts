@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 import { RANGE_BOUND } from '../../../math/src/wgsl/constants.ts'
+import { depthStep } from '../../../math/src/wgsl/sampling.ts'
 /** Geometry retained with every display pixel: full placement identity and reversed depth.
  * Four taps bound the slope represented by the historical pixel footprint; `slack`, the current
  * surface's own depth step across one render texel (`closestSurface`), widens it: a frame drawn
@@ -40,7 +41,7 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
  *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step (`CLOSEST_SURFACE_WGSL`). */
 const NEAREST_OF_WGSL = wgslBlock(
   'NEAREST_OF_WGSL',
-  [],
+  [depthStep],
   `
 struct TaaNearest{depth:f32,slope:f32,id:u32}
 fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u)->TaaNearest{
@@ -54,7 +55,7 @@ fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u
   }
  }
  let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
- let slope=max(min(abs(west-centre),abs(east-centre)),min(abs(north-centre),abs(south-centre)));
+ let slope=max(depthStep(centre,west,east),depthStep(centre,north,south));
  return TaaNearest(nearDepth,slope,nearId);
 }`,
 )
@@ -62,9 +63,8 @@ fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u
 /** Same closest-surface selection for native and reconstructed display pixels. Reversed depth
  * makes the largest depth the foreground; its identity and motion travel together: the identifier
  * of its texel, which the pixel's page record and motion are read by. `slope` is the surface's
- * depth step across one texel, a measure of its depth error: per axis the smaller of the two
- * one-sided differences around the centre, so a silhouette on one side does not count, the larger
- * of both axes.
+ * depth step across one texel, a measure of its depth error: the larger of both axes'
+ * `depthStep`.
  *
  * The 3×3 depths come in four gathers, not nine loads, and their identifiers in four more, taken
  * with them: the nearest's identifier waits on no read of its own. Each gathers the 2×2 whose

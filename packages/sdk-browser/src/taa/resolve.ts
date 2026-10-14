@@ -11,6 +11,10 @@ export const SHARE_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /** The flicker measure: the blurred luma history's half-float bits, then the flicker total and
  *  count in a byte each, one word (`shadingPack`). */
 export const MOIRE_FORMAT: GPUTextureFormat = 'r32uint'
+/** Full placement identity and reversed depth of each display pixel (`geometryHistoryWgsl.ts`). */
+export const GEOMETRY_FORMAT: GPUTextureFormat = 'rg32uint'
+/** A history's targets, in the resolve's order: colour, as-is share, geometry, flicker measure. */
+export const HISTORY_FORMATS = [HDR_FORMAT, SHARE_FORMAT, GEOMETRY_FORMAT, MOIRE_FORMAT] as const
 
 /** The usage of a target a resolve writes: drawn and read, never stored — a stored texture is never
  *  losslessly compressed on an Apple GPU (Metal's `shaderWrite`, which Dawn sets for
@@ -56,12 +60,7 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
       (scaled ? taaUpscaleShader : taaShader)(asIs, blended, filtered, reactive),
       name,
     )
-    const targets: GPUColorTargetState[] = [
-      { format: HDR_FORMAT },
-      { format: SHARE_FORMAT },
-      { format: 'rg32uint' },
-      { format: MOIRE_FORMAT },
-    ]
+    const targets: GPUColorTargetState[] = HISTORY_FORMATS.map((format) => ({ format }))
     if (filtered) targets.push({ format: FILTER_FORMAT }, { format: FILTER_FORMAT })
     return {
       layout,

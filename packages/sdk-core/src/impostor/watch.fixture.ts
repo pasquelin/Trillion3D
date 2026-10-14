@@ -34,16 +34,20 @@ export function readFromNothing(
   return watch
 }
 
-/** `count` trees at one per 400 m² on a disk about the origin, a few scaled or another mesh-less. */
-export function field(count: number): ImpostorRoot[] {
+/** `count` trees at one per 400 m² on a disk about the origin, drawn from `seed`, each of mesh
+ *  `mesh`; `varied`, a few scaled or another mesh-less. */
+export function field(
+  count: number,
+  { mesh = 1, seed = 7, varied = true }: { mesh?: number; seed?: number; varied?: boolean } = {},
+): ImpostorRoot[] {
   const radius = Math.sqrt((count * 400) / Math.PI)
-  const next = lcgRandom(7)
+  const next = lcgRandom(seed)
   return Array.from({ length: count }, (_, k) => {
     const r = radius * Math.sqrt(next()),
       a = 2 * Math.PI * next(),
-      s = k % 7 === 0 ? 1.5 : 1
+      s = varied && k % 7 === 0 ? 1.5 : 1
     const elements = [s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, r * Math.cos(a), 0, r * Math.sin(a), 1]
-    return { mesh: k % 11 === 0 ? undefined : 1, world: { elements } }
+    return { mesh: varied && k % 11 === 0 ? undefined : mesh, world: { elements } }
   })
 }
 
