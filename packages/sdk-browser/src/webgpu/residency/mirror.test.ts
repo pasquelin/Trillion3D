@@ -97,10 +97,7 @@ function pooled(slots: number) {
     { pageBytes: 8, slots },
   )
   const pages = Array.from({ length: 8 }, (_, i) => ({ url: `p${i}` }) as PageRec)
-  const rows = createWebgpuRowState(pages, 4, 0, undefined, (address) => {
-    const page = cache.get(address)
-    return page ? page.offset / 4 : -1
-  })
+  const rows = createWebgpuRowState(pages, 4, 0, undefined, (address) => cache.slotWords(address))
   return { cache, pages, rows }
 }
 

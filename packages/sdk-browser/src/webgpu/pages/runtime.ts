@@ -111,10 +111,11 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
   const setup = createWebgpuPagesSetup(context, diag)
   const gpu = createWebgpuGpuState(setup.viewport)
   // A page's slot is read on the cache, the truth, never mirrored (`../row/pageState.ts`).
-  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits, (address) => {
-    const page = gpu.cache?.get(address)
-    return page ? page.offset / 4 : -1
-  })
+  const layout = createWebgpuPagesLayout(
+    setup,
+    context.gpuDevice?.limits,
+    (address) => gpu.cache?.slotWords(address) ?? -1,
+  )
   // A page table past one binding holds what the binding does, said: a page left without a row
   // draws through its nearest resident ancestor (`../row/tableRows.ts`).
   if (layout.pageTableBound)

@@ -59,6 +59,12 @@ export function createGpuPageCache(
     get(key: string) {
       return resident.get(key)
     },
+    /** `key`'s slot in words — its page's byte offset over four —, or -1 when it is not resident:
+     *  what the row state reads a page's place by, on the cache, never mirrored. */
+    slotWords(key: string) {
+      const page = resident.get(key)
+      return page ? page.offset / 4 : -1
+    },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
      *  not taken yet, never of a page it leaves out. `undefined`: no victim until the next one. */
     evictInOrder: (order?: EvictionOrder) => context.eviction.follow(order),
