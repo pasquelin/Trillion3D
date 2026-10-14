@@ -1,6 +1,6 @@
 /**
  * THE ROOT BOXES PASS ON THE GPU (`rootBoxesWgsl.ts`): each root whose world moved has its world box
- * and its stretch derived from the world the GPU holds — the roots a send moved (`takeMovedRoots`),
+ * and its stretch derived from the world the GPU holds — the roots a send moved (`takeMoved`),
  * every root after a whole send, and the roots a parent composes once the compose worlds pass wrote
  * their worlds anew. It runs in the roots' command buffer before every cut (`rootPasses.ts`), after
  * the composition's passes: the cut reads the stretches, the rows pass the boxes. A move costs the
@@ -16,7 +16,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { ROOT_BOXES_PASS } from '../stage/passLabels.ts'
 import { composeGroup, heldGroup, type HeldGroup } from './composeGroups.ts'
 import { PASS_PARAM_BYTES, passParams, writePassParams } from './gpuComposeGpu.ts'
-import { takeMovedRoots } from './rootMoves.ts'
+import { takeMoved } from './rootMoves.ts'
 import { ROOT_BOXES_ENTRY, ROOT_BOXES_FRAMES_BINDING, ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 
 /** The pass's kernel, once a device, compiled off the thread (`askRootPasses`). */
@@ -110,7 +110,7 @@ export function encodeRootBoxes(
   if (!held?.worlds || !frames) return
   const listedComposed = composed ? (rt.compose?.rankList.set.count ?? 0) : 0
   if (!held.roots.whole && !held.roots.count && !listedComposed) return
-  const named = takeMovedRoots(held),
+  const named = takeMoved(held.roots),
     listed = named ? named.length : held.held
   const gpu = (rt.rootBoxes ??= createRootBoxesGpu(device))
   if (named?.length) sendList(device, gpu, named)
