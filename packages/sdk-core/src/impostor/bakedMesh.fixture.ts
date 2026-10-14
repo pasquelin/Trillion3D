@@ -2,7 +2,7 @@ import type { ImpostorMesh, ImpostorSection } from '../contracts/impostor.ts'
 import type { ImpostorSwitchInput } from './switch.ts'
 
 /** Three empty atlas maps: the switch and the plan read their presence, never their levels. */
-export const MAPS = {
+const MAPS = {
   colourCoverage: { kind: 'coverage', levels: [] },
   normalDepth: { kind: 'data', levels: [] },
   orm: { kind: 'data', levels: [] },
