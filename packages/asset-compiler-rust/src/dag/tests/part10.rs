@@ -68,3 +68,27 @@ fn own_normals_reports_a_face_no_copy_of_which_agrees() {
     );
     assert_eq!(foreign, vec![0, 2, 1]);
 }
+
+// Behaviour: a coarse face its source already shades from behind keeps the source's copies when
+// the copy one corner prefers alone would turn the mean of its normals further away.
+#[test]
+fn own_normals_keeps_the_source_shading_of_a_face_lit_from_behind() {
+    // A chamfer facing +x (0, 1, 2) whose corners 0 and 1 carry a wall's normal; corner 2's
+    // position has a second copy, 3, on a face (3, 4, 5) facing (1, 0, 1), its normal nearer +x.
+    let positions = [
+        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0,
+    ];
+    let normals = [
+        -0.75, 0.0, -0.66, -0.75, 0.0, -0.66, 0.65, 0.0, -0.76, 0.76, 0.0, 0.65, 0.71, 0.0, 0.71,
+        0.71, 0.0, 0.71,
+    ];
+    let source = [0, 1, 2, 3, 4, 5];
+    let mut simplified = vec![0u32, 1, 3];
+    let weld_seam = [0u32, 1, 2, 2, 4, 5];
+    let foreign =
+        attributes::own_normals(&mut simplified, &source, &weld_seam, &positions, &normals);
+    assert_eq!(simplified, vec![0, 1, 2]);
+    assert!(foreign.is_empty());
+    let deviation = |indices: &[u32]| quality::normal_deviation(indices, &positions, &normals, 0.0);
+    assert!(deviation(&simplified) < deviation(&[0, 1, 3]));
+}
