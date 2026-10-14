@@ -3,10 +3,8 @@ import assert from 'node:assert/strict'
 import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { PHYSICS_MATERIALS, PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
-import {
-  HUMAN_BODY,
-  type CharacterInput,
-} from '../../../sdk-core/src/collision/characterSettings.ts'
+import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts'
+import type { CharacterInput } from '../../../sdk-core/src/collision/characterDrive.ts'
 import { createCharacterDriver } from './characterDriver.ts'
 import { standCharacter, startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'

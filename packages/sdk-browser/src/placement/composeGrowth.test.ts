@@ -45,6 +45,7 @@ test('a growth keeps every link; a shortened list unlinks them all', () => {
   assert.ok(parentOf.subarray(2, 39).every((p) => p === NO_INDEX))
   assert.deepEqual(unlinked, [], 'nothing unlinked')
   // Another, shorter list: every root unlinked, through the one path.
+  const dropped = (roots[39] as { world: object }).world
   roots.length = 2
   forgetRowRoots(roots)
   composeWebgpuPlacements(rt, first, turn(0), [], false)
@@ -52,4 +53,7 @@ test('a growth keeps every link; a shortened list unlinks them all', () => {
     unlinked.sort((a, b) => a - b),
     [0, 1, 39],
   )
+  // The root the list no longer names is let go by its view, not by a rank the new list reads.
+  assert.equal(Object.getOwnPropertyDescriptor(dropped, 'elements')?.writable, true)
+  assert.ok(!('stamp' in dropped), 'its stamp no longer follows the discarded composition')
 })

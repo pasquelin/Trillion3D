@@ -1,5 +1,5 @@
-import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 
 /**
  * The two lists that drive the row table.
@@ -10,27 +10,33 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
  * of the 124,000 pages.
  *
  * `residencyChanges` is what the pass actually changed: pages whose residency FLAG flipped. GPU
- * selection writes only their ranges, and the list is SORTED at the end of the
- * pass rather than filled in order: a page that leaves and a page that arrives are not named in the
- * same order, and requiring indices to increase sent selection back to walking the 124,000 pages as
- * soon as a pass mixed both. Per-page marking forbids the duplicate, so the list cannot overflow
- * either.
+ * selection writes only their ranges, and the list is read SORTED rather than in the order filled:
+ * a page that leaves and a page that arrives are not named in the same order, and requiring
+ * indices to increase sent selection back to walking the 124,000 pages as soon as a pass mixed
+ * both. The one changed list (`createChangedRuns`) marks each page once, so it cannot overflow
+ * either; a read takes what was noted since the last, joined to what it took before.
  */
 export function createWebgpuRowJournal() {
-  const changed = createDenseKeySet()
+  const changed = createChangedRuns()
+  let taken: Int32Array = new Int32Array(0)
+  /** Every page noted since the last clear, increasing: GPU selection reads ranges. */
+  const settled = () => {
+    if (!changed.count) return taken
+    for (const page of taken) changed.mark(page)
+    return (taken = changed.take())
+  }
   const residencyChanges = {
     get pages() {
-      return changed.list
+      return settled()
     },
     get count() {
-      return changed.count
+      return settled().length
     },
   }
-  /** Sorts the journal: GPU selection reads ranges, therefore increasing indices. */
-  const sortResidencyChanges = () => {
-    sortPages(changed.list, changed.count)
+  const clearResidencyChanges = () => {
+    changed.clear()
+    taken = taken.subarray(0, 0)
   }
-  const clearResidencyChanges = () => changed.clear()
   const touchedSet = createDenseKeySet()
   const touched = {
     get pages() {
@@ -61,8 +67,7 @@ export function createWebgpuRowJournal() {
   }
   return {
     residencyChanges,
-    noteResidencyChange: (page: number) => void changed.add(page),
-    sortResidencyChanges,
+    noteResidencyChange: (page: number) => changed.mark(page),
     clearResidencyChanges,
     touched,
     touchPage,

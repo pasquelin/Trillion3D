@@ -10,6 +10,7 @@ import {
 } from './nodeFlags.ts'
 
 import { reserve } from './storage.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 
 /**
  * Engine transform hierarchy, data-oriented: a node is an index into flat arrays — parent, flags,
@@ -106,7 +107,7 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
   let node: number
   if (tree.freeCount) node = tree.free[--tree.freeCount]
   else {
-    if (tree.end === tree.capacity) reserve(tree, tree.capacity * 2)
+    if (tree.end === tree.capacity) reserve(tree, grownLength(tree.capacity, tree.end + 1))
     node = tree.end++
   }
   tree.parent[node] = -1

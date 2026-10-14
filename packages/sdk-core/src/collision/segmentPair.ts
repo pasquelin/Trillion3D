@@ -4,11 +4,14 @@
 import { clampCompare } from '../../../math/src/scalar/reals.ts'
 import { distanceSqVector3, dotScalar3 } from '../../../math/src/vector/vector.ts'
 
-type Numbers = ArrayLike<number>
-
 /** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
-const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, dz: number) =>
-  dotScalar3(first[3] - second[0], first[4] - second[1], first[5] - second[2], dx, dy, dz)
+const endParameter = (
+  first: ArrayLike<number>,
+  second: ArrayLike<number>,
+  dx: number,
+  dy: number,
+  dz: number,
+) => dotScalar3(first[3] - second[0], first[4] - second[1], first[5] - second[2], dx, dy, dz)
 
 /**
  * The closest points of segments `(p, q)` and `(r, s)` — six numbers each, start then end —
@@ -18,7 +21,11 @@ const endParameter = (first: Numbers, second: Numbers, dx: number, dy: number, d
  * clamped end is written as itself, never rebuilt as `start + 1·(end − start)`, and the second's
  * parameter against the first's end is read from that end, not from `b·1 + f`.
  */
-export function closestBetweenSegments(out: Float64Array, first: Numbers, second: Numbers) {
+export function closestBetweenSegments(
+  out: Float64Array,
+  first: ArrayLike<number>,
+  second: ArrayLike<number>,
+) {
   const d1x = first[3] - first[0],
     d1y = first[4] - first[1],
     d1z = first[5] - first[2]

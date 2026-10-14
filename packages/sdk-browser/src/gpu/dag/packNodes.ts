@@ -1,6 +1,7 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
 import type { ClusterCut } from '../../page/selection/math.ts'
-import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
+import { CULL_STRIDE, DAG_NODE_FLOATS } from './types.ts'
+import type { Culling } from './packRoots.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import {
   NODE_MIN,
@@ -37,8 +38,6 @@ import {
  * cut uploads at creation is already the one the rule reads; the kernel's host keeps it from
  * then on (`readiness.ts`), and descent never drops an open subtree on its floor.
  */
-
-type Culling = NonNullable<DagRoot['culling']>
 
 /** Primitive bounds: those the host already derived, otherwise ours. The same
  *  node array always comes with the same pages — a placement copies the envelope,

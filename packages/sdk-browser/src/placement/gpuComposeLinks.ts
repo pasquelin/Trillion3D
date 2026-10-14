@@ -93,7 +93,7 @@ export function unlinkHeld(
     kept = new Set(ranks)
   for (const rank of held) {
     if (state.parentOf[rank] !== slot || kept.has(rank)) continue
-    removeComposedWorld(rt, rank)
+    removeComposedWorld(state, rank)
     state.parentOf[rank] = NO_INDEX
     // Its world is the CPU's again: sent from it, its rows derived from it, the pages they leave
     // and enter staled.

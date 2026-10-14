@@ -1,5 +1,6 @@
 import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/page/integrationContracts.ts'
 import { createPageIntegrationLane } from './lane.ts'
+import { createWorkerLatch } from '../workerLatch.ts'
 import { createPageIntegrationRunner } from './task.ts'
 import type { PageIntegrationAnswer } from '../../../../sdk-core/src/page/integrationContracts.ts'
 
@@ -21,32 +22,10 @@ const counters = { plans: 0, offThread: 0, planMs: 0 }
 /** Fallback: the same task, the same function, run on the main thread. */
 const inline = createPageIntegrationRunner()
 const inlineKnown = new Set<string>()
-let lane: ReturnType<typeof createPageIntegrationLane> | undefined
 let laneKnown = new Set<string>()
-/** `undefined` until the startup check has answered, then its verdict. */
-let started: boolean | undefined
-
-/**
- * The integration lane if its startup probe has already succeeded, `undefined` otherwise.
- * The probe is launched but **never awaited**: until it has answered, and always if it
- * does not, the plan is made on the main thread. An arrival therefore never depends on
- * a worker starting. A lane broken after its start does not come back.
- */
-function openLane() {
-  if (started === false) return undefined
-  if (!lane) {
-    lane = createPageIntegrationLane()
-    void lane.start().then((ok) => {
-      started = ok
-      if (!ok) lane = undefined
-    })
-  }
-  if (started && !lane.alive) {
-    started = false
-    return undefined
-  }
-  return started ? lane : undefined
-}
+/** The integration lane, serving once its startup probe succeeded (`createWorkerLatch`): until
+ *  it answered, and always if it does not, the plan is made on the main thread. */
+const lane = createWorkerLatch(createPageIntegrationLane, (made) => made.start())
 
 const read = (answer: PageIntegrationAnswer, offThread: boolean): ArrivalPlan | undefined => {
   if (!answer.ok) return undefined
@@ -103,7 +82,7 @@ export function planArrival(
   words: number,
   specs: Int32Array | undefined,
 ): ArrivalPlan | undefined | Promise<ArrivalPlan | undefined> {
-  const open = openLane()
+  const open = lane.open()
   // Without a record, and without a record already known to the lane, there is nothing to
   // plan: the inline fallback says so at once rather than sending a message for a refusal.
   if (!open || (!specs && !laneKnown.has(url))) return planArrivalHere(url, words, specs)
@@ -131,9 +110,7 @@ export function pageIntegrationStats() {
 
 /** Closes the lane and resets the counters to their unmeasured state. */
 export function releasePageIntegration() {
-  lane?.retire()
-  lane = undefined
-  started = undefined
+  lane.release()
   laneKnown = new Set()
   inlineKnown.clear()
   counters.plans = 0

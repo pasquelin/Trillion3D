@@ -1,10 +1,12 @@
 import {
   HUMAN_BODY,
   type CharacterBody,
-  type CharacterEvents,
-  type CharacterInput,
   type CharacterSettings,
 } from '../../../sdk-core/src/collision/characterSettings.ts'
+import type {
+  CharacterEvents,
+  CharacterInput,
+} from '../../../sdk-core/src/collision/characterDrive.ts'
 import type { CharacterReport } from './characterDriver.ts'
 import type { TickRecords, ToPhysics } from './protocol.ts'
 import { createTwoSteps, eachRecord } from './twoSteps.ts'

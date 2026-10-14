@@ -1,4 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
+import type { XYZLike } from '../world/math/likes.ts'
 import type { Geometry } from '../world/geometry/geometry.ts'
 import { readPoints } from '../world/geometry/bounds.ts'
 import type { CompoundPart } from './bodyRecord.ts'
@@ -16,15 +17,13 @@ export interface ResolvedShape {
   triangles: number
 }
 
-type Scale = { x: number; y: number; z: number }
-
 /** How far two components of a scale may differ and still be one: relative to the first past 1,
  *  absolute below it. A uniform scale's rounding, never a stretch. */
 const SCALE_TOLERANCE = 1e-6
 const same = (a: number, b: number) => Math.abs(a - b) <= SCALE_TOLERANCE * Math.max(1, Math.abs(a))
 
 /** The geometry's positions scaled into the body's frame. */
-function scaledVertices(geometry: Geometry, scale: Scale) {
+function scaledVertices(geometry: Geometry, scale: XYZLike) {
   const source = readPoints(geometry.getAttribute('position'))
   const vertices = new Float32Array(source.length)
   for (let i = 0; i < source.length; i += 3) {
@@ -43,7 +42,7 @@ function triangleIndices(geometry: Geometry, vertexCount: number) {
 }
 
 /** A primitive the declared or inferred shape names exactly, or `null` when the scale bends it. */
-export function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape | null {
+export function primitive(declared: PhysicsPrimitive, s: XYZLike): ResolvedShape | null {
   const x = Math.abs(s.x),
     y = Math.abs(s.y),
     z = Math.abs(s.z)
@@ -78,7 +77,7 @@ export function primitive(declared: PhysicsPrimitive, s: Scale): ResolvedShape |
  * a turned part, and a mirrored one (a negative determinant) would move each part to its mirror
  * image with its turn unchanged: both are refused rather than approximated, the mesh `name`d.
  */
-function compound(parts: readonly PhysicsPart[], s: Scale, name: string): ResolvedShape {
+function compound(parts: readonly PhysicsPart[], s: XYZLike, name: string): ResolvedShape {
   if (!(s.x > 0 && s.y > 0 && s.z > 0) || !same(s.x, s.y) || !same(s.x, s.z)) {
     const mirror = s.x * s.y * s.z < 0 ? ', a mirror' : ''
     throw new EngineError(
@@ -124,7 +123,7 @@ function recipeShape(geometry: Geometry): PhysicsShape | null {
  */
 export function resolveShape(
   geometry: Geometry,
-  scale: Scale,
+  scale: XYZLike,
   type: PhysicsType,
   declared?: PhysicsShape,
   /** The mesh's name, in a refusal. */

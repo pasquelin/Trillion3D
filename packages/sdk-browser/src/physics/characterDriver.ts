@@ -9,10 +9,10 @@ import {
   createDrive,
   driveAtRest,
   driveTick,
+  type CharacterInput,
 } from '../../../sdk-core/src/collision/characterDrive.ts'
 import {
   RESHAPING,
-  type CharacterInput,
   type CharacterSettings,
 } from '../../../sdk-core/src/collision/characterSettings.ts'
 

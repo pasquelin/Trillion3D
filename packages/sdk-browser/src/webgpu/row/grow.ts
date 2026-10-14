@@ -2,7 +2,7 @@ import type { WebgpuRowState } from './state.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 
 /** `from` copied into the head of `to`, the rest of `to` set to `fill`. */
-function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
+function widened<T extends Int32Array | Float32Array>(from: T, to: T, fill: number) {
   to.set(from)
   to.fill(fill, from.length)
   return to
@@ -34,8 +34,7 @@ export function growRowState(rows: WebgpuRowState, drawSlots: number, blendSlots
   const floats = rows.pageTableFloats
   if (floats) {
     const grown = new Float32Array(Math.max(1, casterSlots) * ROW_WORDS)
-    grown.set(floats.subarray(0, held * ROW_WORDS))
-    rows.pageTableFloats = grown
+    rows.pageTableFloats = widened(floats.subarray(0, held * ROW_WORDS), grown, 0)
     rows.pageTableInts = new Uint32Array(grown.buffer)
   }
   rows.blendFirst = drawSlots

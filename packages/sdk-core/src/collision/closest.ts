@@ -14,8 +14,6 @@ import { closestBetweenSegments } from './segmentPair.ts'
 import { triangleCross } from '../../../math/src/geometry/triangle.ts'
 import { dotScalar3, lengthSqVector3, writeCrossVector3 } from '../../../math/src/vector/vector.ts'
 
-type Numbers = ArrayLike<number>
-
 const edge = new Float64Array(6),
   onPlane = new Float64Array(3),
   tail = new Float64Array(3),
@@ -29,7 +27,13 @@ const edge = new Float64Array(6),
  * wrote for it; `Infinity` otherwise (outside, or a flat triangle), as the nearest point is then on
  * an edge, which `closestSegmentTriangle`'s edge pairs measure.
  */
-function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number, area: number) {
+function projectionInside(
+  out: Float64Array,
+  p: ArrayLike<number>,
+  v: ArrayLike<number>,
+  at: number,
+  area: number,
+) {
   // Stryker disable next-line EqualityOperator,ConditionalExpression: flat: NaN height, never kept
   if (area > 0) {
     const h = heightAbove(p, 0, v, at, normal) / area
@@ -42,14 +46,21 @@ function projectionInside(out: Float64Array, p: Numbers, v: Numbers, at: number,
 
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
  *  length (four times the squared area), zero for a degenerate triangle. */
-export function triangleNormal(out: Float64Array, v: Numbers, at: number) {
+export function triangleNormal(out: Float64Array, v: ArrayLike<number>, at: number) {
   triangleCross(out, 0, v, at, at + 3, at + 6)
   return lengthSqVector3(out)
 }
 
 /** Whether a point of the triangle's plane lies on the inner side of all three edges, the
  *  sides being read against the triangle's normal `n` as `triangleNormal` wrote it. */
-function insideTriangle(x: number, y: number, z: number, v: Numbers, at: number, n: Numbers) {
+function insideTriangle(
+  x: number,
+  y: number,
+  z: number,
+  v: ArrayLike<number>,
+  at: number,
+  n: ArrayLike<number>,
+) {
   for (let e = 0; e < 3; e++) {
     const from = at + 3 * e,
       to = at + 3 * ((e + 1) % 3)
@@ -73,8 +84,8 @@ function insideTriangle(x: number, y: number, z: number, v: Numbers, at: number,
  */
 export function closestSegmentTriangle(
   out: Float64Array,
-  segment: Numbers,
-  v: Numbers,
+  segment: ArrayLike<number>,
+  v: ArrayLike<number>,
   at: number,
 ) {
   const area = triangleNormal(normal, v, at)
@@ -107,7 +118,13 @@ export function closestSegmentTriangle(
 
 /** Whether the segment passes through the triangle: its ends on opposite sides of the plane,
  *  the crossing inside the edges. The crossing is then written to both halves of `out`. */
-function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, area: number) {
+function pierces(
+  out: Float64Array,
+  segment: ArrayLike<number>,
+  v: ArrayLike<number>,
+  at: number,
+  area: number,
+) {
   // A flat triangle leaves both ends at height 0 (`d0 === d1`), and an end on the plane is found at
   // distance 0, as its own pair, by the end search.
   // Stryker disable all: flat triangle, end on the plane
@@ -123,6 +140,12 @@ function pierces(out: Float64Array, segment: Numbers, v: Numbers, at: number, ar
 
 /** The signed, unnormalised height of point `p[k..k+3]` above the plane through vertex `v[at]` of
  *  normal `n`: `(p − vertex) · n`. */
-function heightAbove(p: Numbers, k: number, v: Numbers, at: number, n: Numbers) {
+function heightAbove(
+  p: ArrayLike<number>,
+  k: number,
+  v: ArrayLike<number>,
+  at: number,
+  n: ArrayLike<number>,
+) {
   return dotScalar3(p[k] - v[at], p[k + 1] - v[at + 1], p[k + 2] - v[at + 2], n[0], n[1], n[2])
 }

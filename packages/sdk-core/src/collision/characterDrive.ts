@@ -1,13 +1,25 @@
-import {
-  DECLARED_FLOOR,
-  RESPONSE_LEFT,
-  type CharacterEvents,
-  type CharacterInput,
-  type CharacterSettings,
-} from './characterSettings.ts'
+import { DECLARED_FLOOR, type CharacterSettings } from './characterSettings.ts'
 import { length2 } from '../../../math/src/vector/vector.ts'
 import { decayFactor, decayRate } from '../../../math/src/scalar/reals.ts'
 import { gripOf } from './grip.ts'
+
+/** The fraction of the gap to the wished speed left after the response time: 95 % is closed. */
+const RESPONSE_LEFT = 0.05
+
+/** What the player asks for: a horizontal wish of length at most 1, and the sprint key. */
+export interface CharacterInput {
+  wishX: number
+  wishZ: number
+  sprint: boolean
+}
+
+/** The moments a game answers with a sound or a shake. */
+export interface CharacterEvents {
+  /** Landed, `impact` being the downward speed in metres per second. */
+  onLand?(impact: number): void
+  /** Left the ground on a jump. */
+  onJump?(): void
+}
 
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,

@@ -17,3 +17,21 @@ test('the journal has one watcher, told every page named, and counts the names',
   assert.equal(journal.touchRevision(), before + 2)
   assert.equal(journal.touched.count, 1)
 })
+
+test('the residency changes read increasing, each page once, those named after a read joined', () => {
+  const journal = createWebgpuRowJournal()
+  for (const page of [9, 2, 9, 5]) journal.noteResidencyChange(page)
+  assert.deepEqual(
+    [...journal.residencyChanges.pages],
+    [2, 5, 9],
+    'sorted at the read, no sort asked',
+  )
+  journal.noteResidencyChange(3)
+  journal.noteResidencyChange(5)
+  assert.equal(journal.residencyChanges.count, 4)
+  assert.deepEqual([...journal.residencyChanges.pages], [2, 3, 5, 9], 'a later name joins in order')
+  journal.clearResidencyChanges()
+  assert.equal(journal.residencyChanges.count, 0)
+  journal.noteResidencyChange(1)
+  assert.deepEqual([...journal.residencyChanges.pages], [1], 'a clear forgets what was read')
+})
