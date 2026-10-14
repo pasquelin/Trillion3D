@@ -4,7 +4,7 @@ import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../gpu/pool/sortWgsl.ts'
 import { POOL_SORT_WORDS } from '../../gpu/pool/sortWords.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
-import { ROW_BURST, SELECTION_HEADER_WORDS } from '../../gpu/dag/readoutWords.ts'
+import { SELECTION_HEADER_WORDS } from '../../gpu/dag/readoutWords.ts'
 import { ROW_PAGE, ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
 
 /** Frames a row stays in use after the last cut that stamped it: the pool's rule (`EVICT_IN_USE`),
@@ -19,22 +19,23 @@ export const ROW_IN_USE = EVICT_IN_USE + DAG_READBACK_SLOTS
  * listed. The queue names each victim by the page its row holds (`ROW_PAGE`), so a row moved since
  * is still taken by its page, and lands in the cut's readout (`rowQueueWord`): its count, the rows
  * ranked in all, the clock plus one — what tells a queue of this cut from an older one —, then at
- * most `ROW_BURST` pages. The uniform: the clock, the live rows, the queue's first word in `out`.
+ * most a burst of pages (`rowBurst`). The uniform: the clock, the live rows, the queue's first word
+ * in `out`, the burst.
  */
 export const ROW_SORT_WGSL = wgslProgram(
-  `struct RowSortUni{clock:u32,slots:u32,queueAt:u32,pad:u32,}
+  `struct RowSortUni{clock:u32,slots:u32,queueAt:u32,burst:u32,}
 @group(0) @binding(0) var<storage,read> rowUse:array<u32>;
 @group(0) @binding(1) var<storage,read_write> sortWords:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> out:array<u32>;
 @group(0) @binding(3) var<uniform> sortUni:RowSortUni;
-${wgslConsts({ ROW_USE_WORDS, ROW_USE, ROW_PAGE, ROW_IN_USE, ROW_BURST, ROW_HEAD: SELECTION_HEADER_WORDS })}
+${wgslConsts({ ROW_USE_WORDS, ROW_USE, ROW_PAGE, ROW_IN_USE, ROW_HEAD: SELECTION_HEADER_WORDS })}
 fn poolSlotCount()->u32{return sortUni.slots;}
 fn poolSlotAge(j:u32)->u32{return sortUni.clock-min(rowUse[ROW_USE_WORDS*j+ROW_USE],sortUni.clock);}
 fn poolSlotTier(j:u32)->u32{return 0u;}
 fn poolInUse()->u32{return ROW_IN_USE;}
-fn poolBurst()->u32{return ROW_BURST;}
+fn poolBurst()->u32{return sortUni.burst;}
 fn poolPlaced(total:u32){
- out[sortUni.queueAt]=min(total,ROW_BURST);out[sortUni.queueAt+1u]=total;out[sortUni.queueAt+2u]=sortUni.clock+1u;
+ out[sortUni.queueAt]=min(total,sortUni.burst);out[sortUni.queueAt+1u]=total;out[sortUni.queueAt+2u]=sortUni.clock+1u;
 }
 fn poolEmit(at:u32,j:u32){out[sortUni.queueAt+ROW_HEAD+at]=rowUse[ROW_USE_WORDS*j+ROW_PAGE];}
 `,
