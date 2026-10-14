@@ -2,7 +2,6 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { REFLECTION_DEPTH_BINDING, reflectionBindingsWgsl } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 
@@ -24,7 +23,6 @@ export const reflectionRayWgsl = (group: number) =>
     [
       reflectionBindingsWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
-      REFLECTION_CONE_WGSL,
       REFLECTION_LOBE_WGSL,
       clipToFramebuffer,
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
@@ -32,7 +30,7 @@ export const reflectionRayWgsl = (group: number) =>
     `fn reflectionReach(A:vec4f,toward:vec4f,lobe:ReflectionLobe)->f32{
  let grow=toward.z-toward.w;
  let near=select(REFLECTION_FAR,(A.w-A.z)/grow,grow>0.0);
- let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
+ let tangent=reflectionReadTangent(lobe);
  let top=exp2(reflectionView.radiance.z)*reflectionView.slab.x;
  let room=2.0*tangent-top*toward.w;
  return min(near,select(REFLECTION_FAR,top*A.w/room,room>0.0));

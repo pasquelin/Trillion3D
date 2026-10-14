@@ -7,7 +7,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { withoutComments } from '../../../math/src/wgsl/comments.fixture.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
+import { REFLECTION_CONE_WGSL } from './field.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 
 type Cone = {

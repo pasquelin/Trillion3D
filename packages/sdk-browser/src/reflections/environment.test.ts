@@ -14,7 +14,7 @@ import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.
 import { linearToSrgb } from '../../../math/src/color/color.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 
-type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[] }
+type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[]; tangents: number[] }
 /** An order-2 field's radiance through a lobe, as the probes' field reads it (`lobeRadianceShader`
  *  over `REFLECTION_LOBE_WGSL`), here over the coefficients `environment`. */
 const FIELD_THROUGH_LOBE = wgslBlock(
@@ -30,16 +30,23 @@ const environmentRun = (environment: number[][], surroundings: number[]) =>
     fieldThrough: (lobe: Lobe) => number[]
   }>(
     wgslModule(REFLECTION_ENVIRONMENT_WGSL, FIELD_THROUGH_LOBE),
-    ['reflectionEnvironment', 'fieldThrough', 'reflectionLobeOf', 'reflectionBands'],
+    [
+      'reflectionEnvironment',
+      'fieldThrough',
+      'reflectionLobeOf',
+      'reflectionBands',
+      'reflectionConeTangent',
+    ],
     {
       directLights: { environment },
       reflectionView: { surroundings },
-      ReflectionLobe: (R: number[], T: number[], bands: number[], widths: number[]) => ({
-        R,
-        T,
-        bands,
-        widths,
-      }),
+      ReflectionLobe: (
+        R: number[],
+        T: number[],
+        bands: number[],
+        widths: number[],
+        tangents: number[],
+      ) => ({ R, T, bands, widths, tangents }),
     },
   )
 const zero = () => Array.from({ length: 9 }, () => [0, 0, 0, 0])

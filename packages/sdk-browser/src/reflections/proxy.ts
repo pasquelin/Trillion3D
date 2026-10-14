@@ -1,7 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
 import { runtimeRadianceWgsl } from '../bounce/runtimeRadianceWgsl.ts'
@@ -25,7 +24,6 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
-      REFLECTION_CONE_WGSL,
       REFLECTION_REACH_WGSL,
       runtimeRadianceWgsl(scene),
     ],
@@ -34,10 +32,10 @@ fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  if(rtProxy.instances==0u){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
  let narrow=min(lobe.widths.x,lobe.widths.y);
  let pixel=(reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;
- let reach=reflectionProxyReach(P,narrow,reflectionConeTangent(narrow),pixel);
+ let reach=reflectionProxyReach(P,narrow,min(lobe.tangents.x,lobe.tangents.y),pixel);
  let lift=max(reflectionView.proxy.x,rtProxy.error);
  if(reach<=lift){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
- let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
+ let tangent=reflectionReadTangent(lobe);
  let seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent);
  return ReflectionProxied(seen.color,seen.confidence,lift+rtHitDistance);
 }`,

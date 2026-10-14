@@ -13,7 +13,7 @@ import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
 
 type Seen = { color: number[]; confidence: number }
-type Lobe = { R: V3; T: V3; bands: number[]; widths: number[] }
+type Lobe = { R: V3; T: V3; bands: number[]; widths: number[]; tangents: number[] }
 type Cone = { short: number; long: number; level: number }
 type ReflectionView = {
   viewProj: Mat
@@ -112,6 +112,7 @@ export function reflectionRunner(
       'reflectionLevelTrust',
       'reflectionEdgeFade',
       'reflectionConeTangent',
+      'reflectionReadTangent',
     ].filter((name) => !(name in overrides)),
     {
       reflectionView,
@@ -126,11 +127,12 @@ export function reflectionRunner(
         confidence,
         distance,
       }),
-      ReflectionLobe: (R: V3, T: V3, bands: number[], widths: number[]) => ({
+      ReflectionLobe: (R: V3, T: V3, bands: number[], widths: number[], tangents: number[]) => ({
         R,
         T,
         bands,
         widths,
+        tangents,
       }),
       ReflectionRay: (o: number[], d: number[], end: number) => ({ o, d, end }),
       ScreenHit: (t: number, plane: number[], pixel: number[], front: boolean) => ({

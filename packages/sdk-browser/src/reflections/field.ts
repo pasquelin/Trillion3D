@@ -2,6 +2,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { probeFieldWgsl } from '../bounce/gridWgsl.ts'
 import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
+import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
 /**
  * The round GGX lobe of width `alpha`, its zonal moments for an order-2 radiance field: with z =
@@ -37,6 +39,37 @@ const REFLECTION_BANDS_WGSL = wgslBlock(
 )
 
 /**
+ * The cone and the fades, pure functions of their arguments.
+ *
+ * `reflectionConeTangent`: tan of the half-angle of the reflected GGX lobe of width `alpha`
+ * (rough², or a stretched lobe's α along its direction), twice the half-vector's angle at half the
+ * distribution's peak — D(θ)/D(0) = ½ gives tan²θ = α²(√2 − 1)/(1 − √2 α²) —, the half-vector's
+ * angle bounded at 40°: the half-maximum angle of a lobe past α² = 1/√2 does not exist, and a
+ * half-vector at 45° reflects 90° off the centre, a tangent without bound; 40° keeps it finite
+ * (tan 80°), a footprint far wider than the radiance pyramid's coarsest level, which the level
+ * trust (`reflectionLevelTrust`) already gives up. Zero on a mirror.
+ * `reflectionEdgeFade`: 1 inside the image of `size`, falling smoothly to 0 at its edge over
+ * `REFLECTION_EDGE` of its height. `reflectionLevelTrust`: the screen's share by the footprint's
+ * pyramid level against the pyramid's top one: 1 up to the level below the top, falling smoothly
+ * to 0 at the top, whose texel spans the whole image.
+ */
+export const REFLECTION_CONE_WGSL = wgslBlock(
+  'REFLECTION_CONE_WGSL',
+  [REFLECTION_CONSTANTS_WGSL, SQRT2],
+  `fn reflectionConeTangent(alpha:f32)->f32{
+ let a2=alpha*alpha;
+ let h=min(sqrt(a2*(SQRT2-1.0)/max(1.0-SQRT2*a2,1e-4)),REFLECTION_CONE_LIMIT);
+ return 2.0*h/(1.0-h*h);
+}
+fn reflectionEdgeFade(pixel:vec2f,size:vec2f)->f32{
+ let inside=clamp(min(pixel,size-pixel)/(REFLECTION_EDGE*size.y),vec2f(0.0),vec2f(1.0));
+ let s=inside*inside*(3.0-2.0*inside);
+ return s.x*s.y;
+}
+fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,top,level);}`,
+)
+
+/**
  * The reflected lobe (`reflectionLobeOf`): one ellipse of directions around its centre `R` for both
  * answers — the screen footprint's two axes (`footprint.ts`) and the filter of the radiance field.
  * Its long axis `T` is the material's direction `lobe.xyz` across `R`, unit, zero on a round lobe;
@@ -45,20 +78,25 @@ const REFLECTION_BANDS_WGSL = wgslBlock(
  * share of the mean cosine's deficit, (1 − a₁)/2, and its variance, σ² = (1 − a₂)/3 —, so with s
  * the short axis and t the long one `bands` is: band 1 × (a₁s + a₁t)/2 at `R`, band 2 × (2a₂s +
  * a₂t)/3 at `R` plus × (a₂s − a₂t)/3 at `T`; a round lobe is the zonal convolution, its bands
- * read once.
+ * read once. `tangents` are the cone's tangents at the two widths (`reflectionConeTangent`), computed
+ * once a lobe; `reflectionReadTangent` is the tangent the footprint reads at — the short axis's, or
+ * the long axis's share of `REFLECTION_TAPS` taps.
  */
 export const REFLECTION_LOBE_WGSL = wgslBlock(
   'REFLECTION_LOBE_WGSL',
-  [REFLECTION_BANDS_WGSL],
-  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,widths:vec2f,}
+  [REFLECTION_BANDS_WGSL, REFLECTION_CONE_WGSL],
+  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,widths:vec2f,tangents:vec2f,}
 fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  let s=reflectionBands(alpha);
+ let ts=reflectionConeTangent(alpha);
  var t=s;
- if(lobe.w!=alpha){t=reflectionBands(lobe.w);}
+ var tt=ts;
+ if(lobe.w!=alpha){t=reflectionBands(lobe.w);tt=reflectionConeTangent(lobe.w);}
  let across=lobe.xyz-R*dot(lobe.xyz,R);
  let T=across*inverseSqrt(max(dot(across,across),1e-30));
- return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(alpha,lobe.w));
-}`,
+ return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(alpha,lobe.w),vec2f(ts,tt));
+}
+fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
 )
 
 /** The radiance around the scene (`reflectionEnvironment`), one rule: a ray that leaves the scene

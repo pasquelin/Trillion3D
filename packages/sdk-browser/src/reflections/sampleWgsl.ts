@@ -3,7 +3,7 @@ import { GOLDEN_U32, PLASTIC_STEP, TWO_PI } from '../../../math/src/wgsl/constan
 import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
+import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 
 /** One lobe of normal `N`, width `alpha` across and `lobe.w` along `lobe.xyz`, read along its centre

@@ -1,40 +1,8 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_LOBE_WGSL } from './field.ts'
+import { REFLECTION_CONE_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
-
-/**
- * The cone and the fades, pure functions of their arguments.
- *
- * `reflectionConeTangent`: tan of the half-angle of the reflected GGX lobe of width `alpha`
- * (rough², or a stretched lobe's α along its direction), twice the half-vector's angle at half the
- * distribution's peak — D(θ)/D(0) = ½ gives tan²θ = α²(√2 − 1)/(1 − √2 α²) —, the half-vector's
- * angle bounded at 40°: the half-maximum angle of a lobe past α² = 1/√2 does not exist, and a
- * half-vector at 45° reflects 90° off the centre, a tangent without bound; 40° keeps it finite
- * (tan 80°), a footprint far wider than the radiance pyramid's coarsest level, which the level
- * trust (`reflectionLevelTrust`) already gives up. Zero on a mirror.
- * `reflectionEdgeFade`: 1 inside the image of `size`, falling smoothly to 0 at its edge over
- * `REFLECTION_EDGE` of its height. `reflectionLevelTrust`: the screen's share by the footprint's
- * pyramid level against the pyramid's top one: 1 up to the level below the top, falling smoothly
- * to 0 at the top, whose texel spans the whole image.
- */
-export const REFLECTION_CONE_WGSL = wgslBlock(
-  'REFLECTION_CONE_WGSL',
-  [REFLECTION_CONSTANTS_WGSL, SQRT2],
-  `fn reflectionConeTangent(alpha:f32)->f32{
- let a2=alpha*alpha;
- let h=min(sqrt(a2*(SQRT2-1.0)/max(1.0-SQRT2*a2,1e-4)),REFLECTION_CONE_LIMIT);
- return 2.0*h/(1.0-h*h);
-}
-fn reflectionEdgeFade(pixel:vec2f,size:vec2f)->f32{
- let inside=clamp(min(pixel,size-pixel)/(REFLECTION_EDGE*size.y),vec2f(0.0),vec2f(1.0));
- let s=inside*inside*(3.0-2.0*inside);
- return s.x*s.y;
-}
-fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,top,level);}`,
-)
 
 /**
  * The footprint a hit reads, its resources in bind group `group`: the previous image, reprojected
@@ -70,8 +38,8 @@ struct ReflectionSurface{pixel:vec2f,plane:vec3f,thickness:f32,}
 struct ReflectionCone{short:f32,long:f32,level:f32,}
 fn reflectionConeAt(distance:f32,pixel:f32,lobe:ReflectionLobe)->ReflectionCone{
  let reach=2.0*distance/max(pixel,1e-30);
- let short=max(reach*reflectionConeTangent(lobe.widths.x),1.0);
- let long=max(reach*reflectionConeTangent(lobe.widths.y),short);
+ let short=max(reach*lobe.tangents.x,1.0);
+ let long=max(reach*lobe.tangents.y,short);
  return ReflectionCone(short,long,log2(max(short,long/REFLECTION_TAPS)));
 }
 fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
