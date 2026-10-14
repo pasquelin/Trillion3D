@@ -53,7 +53,7 @@ export const assigned = (target: string, value: string) => {
 
 /** A copy of a value: a vector's or an array's elements, a structure's members (a matrix is never
  *  written in place). */
-const $cp = <T>(value: T): T =>
+export const $cp = <T>(value: T): T =>
   Array.isArray(value)
     ? (value.map($cp) as T)
     : value?.constructor === Object
