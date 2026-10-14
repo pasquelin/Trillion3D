@@ -20,7 +20,8 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
  *   `w`, plus the cone's width there, 2·t·tan θ — covers a field cell: the field holds one radiance
  *   a cell, and a footprint a cell wide averages the proxy's answer over what that cell holds.
  *   `t_eye = (s − w) / (2·tan θ)`, θ the lobe's narrower half-angle (`reflectionConeTangent`),
- *   `s` the spacing of the finest cascade that holds the surface.
+ *   `s` the spacing of the cascade that answers the surface: the finest whose eight probes around
+ *   it, read off its normal, it holds (`bounceRead`, the field's own rule).
  *
  * A surface whose own pixel is already as wide as a cell (`w ≥ s`, far away) casts no ray at all:
  * `t_eye ≤ 0`, the field answers whole (the same two conditions, the second at `t = 0`). Wherever
@@ -31,8 +32,9 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
  * √3 · side · s_last; without a field, `REFLECTION_FAR`. It costs nothing: the placement tree's walk
  * stops at the root's box anyway, the bound only keeps `reach` finite.
  *
- * Cost of the rule: a level loop of `CASCADE_LEVELS` box tests at most, once a ray. What it saves:
- * the walk's work grows with the length of the ray it walks (the tree nodes the ray crosses), so a
+ * Cost of the rule: a level loop of `CASCADE_LEVELS` corner tests at most (the field's own), once
+ * a ray; the probes' weights are not read, so a level whose eight probes all weigh nothing (the
+ * field then answers from the next) keeps its finer cut. What it saves: the walk's work grows with the length of the ray it walks (the tree nodes the ray crosses), so a
  * rough far surface walks `t_eye` metres or none, a mirror walks to the scene's edge, and every ray
  * stays under `RAY_WORK` units whatever its length (`../bounce/runtimeLayout.ts`).
  */
@@ -72,24 +74,22 @@ export function fieldAlpha(step = 1 / 255) {
 export const REFLECTION_FIELD_ALPHA = fieldAlpha()
 
 /**
- * `reflectionFieldSpacing`: the cell of the finest cascade whose cube holds `P`, zero where none
- * does or the field is off. `reflectionSceneReach`: the hard bound, the last cascade's diagonal, or
- * `REFLECTION_FAR`. `reflectionProxyReach`: the length of the proxy's ray from a surface at `P`, its
- * pixel `pixel` metres wide, through a lobe whose narrower width is `alpha` and cone tangent
- * `tangent` (zero: no ray). The program declares `bounce` (`BounceGrid`).
+ * `reflectionFieldSpacing`: the cell of the cascade the field reads a surface at `P` of normal `N`
+ * from (`bounceRead`), zero where none holds it or the field is off. `reflectionSceneReach`: the
+ * hard bound, the last cascade's diagonal, or `REFLECTION_FAR`. `reflectionProxyReach`: the length
+ * of the proxy's ray from a surface at `P` of normal `N`, its pixel `pixel` metres wide, through a
+ * lobe whose narrower width is `alpha` and cone tangent `tangent` (zero: no ray). The program
+ * declares `bounce` (`BounceGrid`).
  */
 export const REFLECTION_REACH_WGSL = wgslBlock(
   'REFLECTION_REACH_WGSL',
   [BOUNCE_GRID_HEAD_WGSL, REFLECTION_CONSTANTS_WGSL],
   `const REFLECTION_FIELD_ALPHA:f32=${wgslF32(REFLECTION_FIELD_ALPHA)};
-fn reflectionFieldSpacing(P:vec3f)->f32{
+fn reflectionFieldSpacing(P:vec3f,N:vec3f)->f32{
  if(bounce.counts.w==0u){return 0.0;}
- let side=f32(bounce.counts.x);
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
-  let spacing=bounce.levels[level].originSpacing.w;
-  let low=bounceLevelLow(level);
-  if(all(P>=low)&&all(P<low+vec3f(side*spacing))){return spacing;}
+  if(bounceRead(level,P,N).holds){return bounce.levels[level].originSpacing.w;}
  }
  return 0.0;
 }
@@ -98,10 +98,10 @@ fn reflectionSceneReach()->f32{
  let last=min(bounce.counts.y,CASCADE_LEVELS)-1u;
  return sqrt(3.0)*f32(bounce.counts.x)*bounce.levels[last].originSpacing.w;
 }
-fn reflectionProxyReach(P:vec3f,alpha:f32,tangent:f32,pixel:f32)->f32{
+fn reflectionProxyReach(P:vec3f,N:vec3f,alpha:f32,tangent:f32,pixel:f32)->f32{
  let far=reflectionSceneReach();
  if(alpha<REFLECTION_FIELD_ALPHA){return far;}
- let spacing=reflectionFieldSpacing(P);
+ let spacing=reflectionFieldSpacing(P,N);
  if(spacing<=0.0){return far;}
  return clamp((spacing-pixel)/(2.0*max(tangent,1e-6)),0.0,far);
 }`,

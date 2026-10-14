@@ -60,6 +60,23 @@ fn probeOf(level:u32,cell:vec3i)->vec3u{return probeAddress(level,probeWrap(cell
 fn bounceLevelLow(level:u32)->vec3f{
  return bounce.levels[level].base.xyz*bounce.levels[level].originSpacing.w;
 }
+/**
+ * Where a level reads a surface at \`P\` of normal \`N\`: the point pushed off it by the normal bias
+ * (\`biased\`), in the level's cells half a cell back (\`local\`, a probe's centre on an integer), the
+ * first of the eight probes around it (\`corner\`), and whether the level holds all eight
+ * (\`holds\`): a partial answer would make a seam. The one rule of the level that answers a point:
+ * the field reads by it (\`probeFieldWgsl\`), the reflections' proxy ray is cut by it (\`reach.ts\`).
+ */
+struct BounceRead{biased:vec3f,local:vec3f,corner:vec3i,holds:bool,}
+fn bounceRead(level:u32,P:vec3f,N:vec3f)->BounceRead{
+ let spacing=bounce.levels[level].originSpacing.w;
+ let base=vec3i(bounce.levels[level].base.xyz);
+ let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
+ let local=biased/spacing-vec3f(0.5);
+ let corner=vec3i(floor(local));
+ let holds=all(corner>=base)&&all(corner+vec3i(1)<base+vec3i(i32(bounce.counts.x)));
+ return BounceRead(biased,local,corner,holds);
+}
 /** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */
@@ -107,15 +124,12 @@ export const probeFieldWgsl = (name: string, level: string, params: string, valu
     `probeFieldWgsl(${name})`,
     [BOUNCE_GRID_HEAD_WGSL, perspectiveDivide, bitAt],
     `fn ${level}(level:u32,P:vec3f,N:vec3f${params})->vec4f{
+ let read=bounceRead(level,P,N);
+ if(!read.holds){return vec4f(0.0);}
  let spacing=bounce.levels[level].originSpacing.w;
- let base=vec3i(bounce.levels[level].base.xyz);
- let side=i32(bounce.counts.x);
- let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
- let local=biased/spacing-vec3f(0.5);
- let corner=vec3i(floor(local));
- // The level answers only if it holds all eight corners: a partial answer would make a seam.
- if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return vec4f(0.0);}
- let fraction=clamp(local-floor(local),vec3f(0.0),vec3f(1.0));
+ let biased=read.biased;
+ let corner=read.corner;
+ let fraction=clamp(read.local-floor(read.local),vec3f(0.0),vec3f(1.0));
  let margin=BOUNCE_VISIBILITY*spacing;
  var sum=vec3f(0.0);
  var total=0.0;

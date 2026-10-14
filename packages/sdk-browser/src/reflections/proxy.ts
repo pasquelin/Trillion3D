@@ -31,7 +31,7 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->ReflectionProxied{
  if(rtProxy.instances==0u){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
  let narrow=min(lobe.widths.x,lobe.widths.y);
- let reach=reflectionProxyReach(P,narrow,min(lobe.tangents.x,lobe.tangents.y),pixel);
+ let reach=reflectionProxyReach(P,N,narrow,min(lobe.tangents.x,lobe.tangents.y),pixel);
  let lift=rtProxy.error;
  if(reach<=lift){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
  let tangent=reflectionReadTangent(lobe);
