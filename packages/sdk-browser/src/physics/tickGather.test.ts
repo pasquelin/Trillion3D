@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  ASLEEP_BIT,
-  BODY_INDEX,
-  DEFAULT_PHYSICS_BUDGET,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { ASLEEP_BIT, BODY_INDEX, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
 import { beforesAt, resultWords } from './protocol.ts'
 import { createTickResults } from './tickResults.ts'
 import { tickModule } from './tickResults.fixture.ts'

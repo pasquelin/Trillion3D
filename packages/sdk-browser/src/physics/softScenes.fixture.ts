@@ -1,6 +1,7 @@
 // The soft scenes several tests step: the fine cloth the solver throws apart on a box, and a cloth
 // clamped along two rows.
-import { CommandWriter, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { addSoft, BOX, settle, softWorld } from './soft.fixture.ts'

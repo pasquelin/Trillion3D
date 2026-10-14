@@ -5,10 +5,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { primitive, session } from '../../../placement/appendSession.fixture.ts'
-import { BASE_SLOTS, slotCount } from '../../../gpu/draw/draw.ts'
+import { BASE_SLOTS, slotCount } from '../../../gpu/draw/contract.ts'
 import { visUniformLayout } from '../../core/bindLayout.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
-import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/index.ts'
+import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/lod/depthLayer.ts'
 
 test('a source whose pages stack deeper than the session’s slots is granted the slots it needs', async () => {
   const world = await session(1_000)

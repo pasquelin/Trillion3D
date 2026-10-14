@@ -3,27 +3,25 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   PHYSICS_STEP,
-  CommandWriter,
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
-  FLAG,
-  OP,
-  ObjectPhysics,
-  SOFT_VERTEX_WORDS,
-  type PhysicsHost,
-  type SoftBodyOptions,
-} from '../../../sdk-core/src/physics/index.ts'
-import { SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { FLAG, OP } from '../../../sdk-core/src/physics/layout.ts'
+import { ObjectPhysics, type PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
+import { SOFT_VERTEX_WORDS, SOFT_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
+import { type SoftBodyOptions, SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
+
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { createPhysicsBodies, type Bodied } from './bodies.ts'
+import { createPhysicsBodies } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import { createSessionHost } from './session/sessionHost.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { createSoftVertices } from './softVertices.ts'
 import { createSoftTick } from './recordTick.ts'
-import { SOFT_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 
 /** A scene whose bodies are written to `writer`, `softVertices` soft vertices allowed. */
 function sceneOf(softVertices: number, host = {} as PhysicsHost) {

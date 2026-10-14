@@ -1,4 +1,4 @@
-import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts'
+import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { StageAdd } from './profiler.ts'
 import { WEBGPU_STAGES, type GpuPassBlock, type WebgpuStage } from './passDeclaration.ts'
 import { passRowOf } from './passTable.ts'

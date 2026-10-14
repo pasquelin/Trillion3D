@@ -1,4 +1,4 @@
-import type { CommandWriter } from '../../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import type { ToPhysics } from '../protocol.ts'
 import type { startPhysicsWorker } from '../sessionWorker.ts'
 import { along, type createStepClock } from '../stepClock.ts'

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { generateMaterialMips } from './mipBatch.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
 import { REDUCE, oneChain, scratch, wider } from './mips.fixture.ts'
-import { dispatchedEntries, writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries, writtenBytes } from '../../../../tests/kit/gpu/fakeRecords.ts'
 
 // #748: a chain with a cutoff counts each level — level 0 first — and picks its `t` before reducing
 // it, every level's block carrying the cutoff and its first bin word, the reduction reading `t` from

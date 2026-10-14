@@ -10,7 +10,7 @@ import { PALETTE_FLOATS, Skeleton } from '../../../sdk-core/src/world/animation/
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
 
 test('a still rig turned static, its palette held, stales its shadows the frame a bone moves', () => {

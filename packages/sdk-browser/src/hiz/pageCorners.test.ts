@@ -2,7 +2,7 @@
 // those a per-page table holds, bit for bit, before and after a model moves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { boxCornersInto } from '../../../sdk-core/src/index.ts'
+import { boxCornersInto } from '../../../math/src/geometry/box.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from './corners.ts'
 import type { HizPage } from './types.ts'
 import { lcgFloatRandom } from '../../../math/src/sequence/seeded.fixture.ts'

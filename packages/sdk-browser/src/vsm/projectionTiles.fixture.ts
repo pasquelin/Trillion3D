@@ -3,10 +3,10 @@
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts'
 import {
-  VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL,
-  VSM_LIGHT_KIND_POINT as POINT,
-  VSM_LIGHT_KIND_RECT as RECT,
-  VSM_LIGHT_KIND_SPOT as SPOT,
+  VSM_LIGHT_KIND_DIRECTIONAL,
+  VSM_LIGHT_KIND_POINT,
+  VSM_LIGHT_KIND_RECT,
+  VSM_LIGHT_KIND_SPOT,
 } from './constants.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
@@ -54,12 +54,19 @@ const unit = (v: number[]) => {
  *  the box's nearest point. */
 export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
   return Array.from({ length: count }, (_, k) => {
-    const kind = [DIRECTIONAL, POINT, SPOT, RECT, POINT, SPOT][Math.floor(rand() * 6)]
+    const kind = [
+      VSM_LIGHT_KIND_DIRECTIONAL,
+      VSM_LIGHT_KIND_POINT,
+      VSM_LIGHT_KIND_SPOT,
+      VSM_LIGHT_KIND_RECT,
+      VSM_LIGHT_KIND_POINT,
+      VSM_LIGHT_KIND_SPOT,
+    ][Math.floor(rand() * 6)]
     let at: V3 = [0, 1, 2].map(() => Math.fround((rand() - 0.5) * 40)) as V3
     if (corner && rand() < 0.5)
       at = corner.map((c) => Math.fround(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
     let radius = 0.5 + rand() * 20
-    if (kind !== DIRECTIONAL && rand() < (corner ? 0.6 : 0.3)) {
+    if (kind !== VSM_LIGHT_KIND_DIRECTIONAL && rand() < (corner ? 0.6 : 0.3)) {
       // Its sphere through a pixel of the tile, give or take a few units in the last place.
       const p = corner ?? edge[Math.floor(rand() * edge.length)]
       const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
@@ -71,7 +78,7 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
       radius: Math.fround(radius),
       direction: unit([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
       sourceRadius: Math.fround(rand() * 0.5),
-      cosCone: kind === SPOT ? cosCone : -2,
+      cosCone: kind === VSM_LIGHT_KIND_SPOT ? cosCone : -2,
       mapId: k,
       kind,
     }

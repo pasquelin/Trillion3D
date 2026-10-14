@@ -1,4 +1,4 @@
-import { LIGHT_KIND } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_KIND } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'

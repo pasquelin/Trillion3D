@@ -1,7 +1,7 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import type { PageSource } from '../../../../sdk-core/src/index.ts'
+import type { PageSource } from '../../../../sdk-core/src/contracts/cache.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import { lazyDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 
 /** `key`'s bytes from `source`, a source that throws as it is asked included. */

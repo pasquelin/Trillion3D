@@ -1,6 +1,6 @@
 import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
-import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
+
 import type { HostAttributes } from '../host/resources.ts'
 import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER, ROW_WORDS } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'

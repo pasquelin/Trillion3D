@@ -8,11 +8,13 @@
 // before the readback's. And a uniform whose words did not change is not sent again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from '../../../page/selection/selection.ts'
+import { collectClusterPages } from '../../../page/selection/collect.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import {
   HIZ_PASS,
   MATERIAL_COMPUTE_PASS,
@@ -21,7 +23,7 @@ import {
 } from '../../../stage/passLabels.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { packDagSelection } from '../../../gpu/dag/selection.ts'
+import { packDagSelection } from '../../../gpu/dag/pack.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
 

@@ -15,7 +15,8 @@
  * last stamp must have been read when that stamp was taken: the follow that takes a row reads the
  * box it enters (`followPlacementRows`), and a root taken reads its own (`takeWorldBox`).
  */
-import { boxTransform, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 
 /** A root's world and what its memos hold. */

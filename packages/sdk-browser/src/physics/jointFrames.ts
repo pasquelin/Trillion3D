@@ -1,6 +1,7 @@
 import { wrap } from '../../../math/src/scalar/reals.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
-import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts'
+import type { Joint } from '../../../sdk-core/src/physics/joint.ts'
+import type { SixDofAxis } from '../../../sdk-core/src/physics/jointOptions.ts'
 import { conjugateQuaternion, rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import {
   addScaledVector3,

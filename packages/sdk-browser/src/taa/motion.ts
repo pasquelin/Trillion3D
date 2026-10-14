@@ -1,15 +1,11 @@
-import {
-  IDENTITY_MATRIX4,
-  copyMatrix4,
-  invertMatrix4,
-  multiplyMatrix4,
-  transformAffinePoint,
-  worldToRenderOrigin,
-} from '../../../sdk-core/src/index.ts'
+import { IDENTITY_MATRIX4, copyMatrix4, multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { worldToRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { extendSpan } from '../../../math/src/sequence/span.ts'
-import { type MatrixElements } from '../host/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import { createDenseKeySet } from '../webgpu/cut/denseKeys.ts'
 
 /** What a placement's motion asks of a root: its host world matrix. */

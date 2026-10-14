@@ -1,4 +1,4 @@
-import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts'
 import { isCancelled } from '../../../engine/common.ts'
 import { log } from '../../../diagnostic/log.ts'

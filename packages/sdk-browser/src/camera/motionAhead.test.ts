@@ -9,7 +9,7 @@ import type { CameraMotion } from './motion.ts'
 import type { EngineCamera } from './engineCamera.ts'
 import { aheadViewOf } from '../gpu/core/aheadView.ts'
 import * as G from '../host/graph/graph.fixture.ts'
-import { engineCamera as engineCameraOf } from './camera.fixture.ts'
+import { engineCamera } from './camera.fixture.ts'
 import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../engine/common.ts'
 import { restartCameraMotion } from './motion.fixture.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
@@ -98,7 +98,7 @@ test('the view ahead at the published horizon is the one of before; a longer one
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
   camera.position.set(0, 0, 10)
   camera.updateMatrixWorld(true)
-  const cam = engineCameraOf(camera)
+  const cam = engineCamera(camera)
   const still: CameraMotion = { velocity: new Float64Array(3), turn: 0, horizonMs: 330 }
   assert.equal(aheadViewOf(cam, still), null, 'still: none')
   const motion: CameraMotion = { velocity: Float64Array.of(40, 0, 0), turn: 0.5 }
@@ -120,7 +120,7 @@ const along = (x: number) => {
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
   camera.position.set(x, 0, 10)
   camera.updateMatrixWorld(true)
-  return engineCameraOf(camera)
+  return engineCamera(camera)
 }
 /** Reads the camera along a path of `[ms, x]` frames; returns how far ahead its view looks, 0 for
  *  none. */
@@ -168,7 +168,7 @@ test('a turn that reverses at the same rate is a cut: the view ahead turns no fu
     camera.position.set(0, 0, 10)
     camera.lookAt(10 * Math.tan(yaw), 0, 0)
     camera.updateMatrixWorld(true)
-    return engineCameraOf(camera)
+    return engineCamera(camera)
   }
   const motion: CameraMotion = {}
   for (let i = 0; i <= 20; i++) readCameraMotion(yawed(0.016 * i), motion, 16 * i)

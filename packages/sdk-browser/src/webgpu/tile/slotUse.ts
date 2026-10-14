@@ -1,4 +1,4 @@
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'

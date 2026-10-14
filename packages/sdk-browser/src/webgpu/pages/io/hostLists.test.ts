@@ -3,7 +3,8 @@
 // walk the cut: the delta holds the set of pages waiting for their bytes, and that is what is read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { RequestStamps, type PageRec } from '../../../page/selection/selection.ts'
+import { RequestStamps } from '../../../page/selection/requests.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 import { createCutDelta } from '../../cut/delta.ts'
 import { createCutPending } from '../../cut/pending.ts'
 import { createHostRankDelta } from '../../../streaming/hostRanks.ts'

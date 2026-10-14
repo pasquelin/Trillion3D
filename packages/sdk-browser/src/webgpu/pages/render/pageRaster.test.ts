@@ -2,17 +2,14 @@ import test from 'node:test'
 import { MANIFEST_IDENTITY } from '../../../engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import {
   drawnPageIds,
   indirectDraws,
   installGpuGlobals,
 } from '../../../../../../tests/kit/gpu/globals.ts'
-import {
-  BACKEND,
-  dispatchedEntries,
-  fakeDevice,
-} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   quadScene,
   camera,

@@ -1,5 +1,5 @@
 import { FLOAT32_MAX, FLOAT32_STEP } from '../../../../math/src/constants.ts'
-import { boxTransform } from '../../../../sdk-core/src/index.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
 
 // Eight binary32 unit roundoffs cover WGSL division's allowed error as well as separate
 // multiply/add evaluation. Products/sums accumulate by gamma(n), not a fixed world-space epsilon.

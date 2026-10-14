@@ -1,5 +1,5 @@
 import { TAU } from '../../../../math/src/constants.ts'
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { cone } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

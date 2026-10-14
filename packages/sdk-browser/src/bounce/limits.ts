@@ -8,7 +8,7 @@
  * refused bounce with the measurement that missed, never with a guess.
  */
 
-import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { BOUNCE_GRID_BYTES } from './uniform.ts'
 

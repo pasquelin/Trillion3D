@@ -1,12 +1,10 @@
-import {
-  JOINT,
-  MOTOR,
-  type CommandWriter,
-  type Joint,
-  type JointMotor,
-} from '../../../sdk-core/src/physics/index.ts'
+import { JOINT, MOTOR } from '../../../sdk-core/src/physics/layout.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import type { Joint } from '../../../sdk-core/src/physics/joint.ts'
+import type { JointMotor } from '../../../sdk-core/src/physics/jointOptions.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { hasBody, type Bodied, type createPhysicsBodies } from './bodies.ts'
+import { hasBody, type Bodied } from './bodied.ts'
+import type { createPhysicsBodies } from './bodies.ts'
 import { framesOf, sixDofAxis } from './jointFrames.ts'
 import { createSimulatedIds, engineIdOf } from './simulatedIds.ts'
 

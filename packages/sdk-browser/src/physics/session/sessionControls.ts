@@ -1,6 +1,6 @@
-import type { WaterSpec } from '../../../../sdk-core/src/fluids/index.ts'
+import type { WaterSpec } from '../../../../sdk-core/src/fluids/buoyancy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { hasBody } from '../bodies.ts'
+import { hasBody } from '../bodied.ts'
 import { followMove } from '../nodePose.ts'
 import { placeBodies } from '../placeBodies.ts'
 import type { SessionParts } from './sessionParts.ts'

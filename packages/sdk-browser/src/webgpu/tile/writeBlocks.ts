@@ -1,11 +1,10 @@
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { blocksAcross, levelBlockBytes } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import {
-  blocksAcross,
-  levelBlockBytes,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
-} from '../../../../sdk-core/src/index.ts'
-import { type TilePlace } from '../../texture/tiles.ts'
+} from '../../../../sdk-core/src/texture/previewFormat.ts'
+import type { TilePlace } from '../../texture/tiles.ts'
 import { LevelBytesError } from '../../texture/heldLevels.ts'
 import { cellOrigin, type TailLevelWriter, type TileRegion } from './write.ts'
 

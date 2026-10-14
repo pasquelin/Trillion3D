@@ -1,5 +1,6 @@
 import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import { CommandWriter, type PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
+import type { PhysicsBudget } from '../../../../sdk-core/src/physics/options.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { emptyPhysicsStats } from '../protocol.ts'
 import { createSessionBodies } from './sessionBodies.ts'

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { metricsOf, vertexBytesOf } from './metrics.ts'
-import { createWebgpuRunState } from '../state/run.ts'
+import { createWebgpuRunState } from '../state/runState.ts'
 import { createWebgpuVisState } from '../state/vis.ts'
 import { createWebgpuBlendState } from '../../blend/state.ts'
 import { createWebgpuLightState } from '../state/lights.ts'

@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CONTRACT_COMPOSITIONS } from './deferred/shaders.ts'
 import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL } from '../webgpu/blend/viewLayout.ts'
-import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts'
+import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
@@ -32,7 +32,7 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
     )
   }
   assert.match(
-    SURFACE_SHADE,
+    SHADE_SHADER,
     /select\(3u,1u\|select\(0u,128u,\(page\.flags&1048576u\)!=0u\),model==4u\)/,
   )
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/)

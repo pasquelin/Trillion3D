@@ -4,7 +4,8 @@
 // the sweep's cameras, accumulation on and off, against the view header the projection uploads.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, replayWrites } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { createVsmMarking, vsmForwardZViewToClip } from '../../../../vsm/markingPass.ts'
 import { createVsmResources } from '../../../../vsm/resources.ts'
 import { cam, camera, now, sweptHeaders } from './vsmProject.fixture.ts'

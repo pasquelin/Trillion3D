@@ -1,6 +1,6 @@
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageSurface } from '../page/surface.ts'
-import type { Texture } from '../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
 /** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */

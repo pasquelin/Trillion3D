@@ -1,6 +1,6 @@
-import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts'
-import type { ClusterRoot } from '../../../page/selection/types.ts'
-import type { PageRec } from '../../../page/selection/selection.ts'
+import { matrixWindingCw } from '../../../../../math/src/matrix/orientation.ts'
+import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
+
 import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'

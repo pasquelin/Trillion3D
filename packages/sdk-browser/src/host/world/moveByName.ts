@@ -1,14 +1,15 @@
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import {
-  EngineError,
-  decomposeMatrix4,
   determinantMatrix4,
-  invertMatrix4,
   multiplyMatrix4,
-} from '../../../../sdk-core/src/index.ts'
+  copyMatrix4,
+} from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import { assertFiniteTransform } from './matrices.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
-import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+
 import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 

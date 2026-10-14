@@ -1,5 +1,5 @@
 import { createCutReadiness, type CutReadiness } from '../../page/cut/readiness.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import type { CutTables } from '../../gpu/dag/cutReaders.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'

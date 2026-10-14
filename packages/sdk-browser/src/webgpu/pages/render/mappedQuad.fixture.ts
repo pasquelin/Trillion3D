@@ -1,6 +1,7 @@
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { PageSurface } from '../../../page/surface.ts'

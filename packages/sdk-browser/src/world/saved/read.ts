@@ -1,5 +1,5 @@
 import { fogOf, type Fog } from '../core/sceneFog.ts'
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'

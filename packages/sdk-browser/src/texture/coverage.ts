@@ -1,4 +1,4 @@
-import type { Texture } from '../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { surfaceOpacity, type PageSurface } from '../page/surface.ts'
 import { weighsByAlpha } from '../scene/materialBlending.ts'
 import { cutoffByte } from './cutoffByte.ts'

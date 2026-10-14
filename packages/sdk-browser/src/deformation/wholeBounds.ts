@@ -1,5 +1,6 @@
-import { boxTransform, boxUnionBatch } from '../../../sdk-core/src/index.ts'
-import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
+import { boxTransform, boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
+import { boxUnionBatch } from '../../../math/src/batch/batch.ts'
+
 import { readHostBox } from '../host/world/bounds.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { SessionDeformation } from './session.ts'

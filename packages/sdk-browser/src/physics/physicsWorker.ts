@@ -12,17 +12,17 @@
  * step alone, `water.ts`), and the page, told so, sends no more until something wakes it.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { checked } from '../cluster/checked.ts'
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts'
 import { JOLT_THREAD_LOADED, joltWorkerPool, runJoltThread } from './joltThreads.ts'
 import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
-import { type FromPhysics, type ToPhysics } from './protocol.ts'
+import type { FromPhysics, ToPhysics } from './protocol.ts'
 import { createTickResults } from './tickResults.ts'
 import { createCharacterDriver } from './characterDriver.ts'
 import { createWaterStep } from './water.ts'
 import { createThreadTuner } from './threadTuner.ts'
-import { type WorkerScope } from '../host/workerScope.ts'
+import type { WorkerScope } from '../host/workerScope.ts'
 
 const scope = globalThis as unknown as WorkerScope<
   ToPhysics,

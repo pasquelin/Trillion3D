@@ -2,7 +2,7 @@
 // a page is resident when it holds its index array; held with one, the host's answer decides.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from './selection.ts'
+import { collectClusterPages } from './collect.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'

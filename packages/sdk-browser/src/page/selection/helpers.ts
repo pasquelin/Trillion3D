@@ -5,7 +5,7 @@ import {
   type Page,
   type Primitive,
   type StreamCatalogue,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
 
 /**

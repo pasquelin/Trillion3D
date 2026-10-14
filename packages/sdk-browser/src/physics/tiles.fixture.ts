@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import {
   PHYSICS_STEP,
-  CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
-  type CookedBody,
   type PhysicsBudget,
-  type PhysicsHost,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import type { CookedBody } from '../../../sdk-core/src/physics/cooked.ts'
+import type { PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts'
 import { createPhysicsPoses } from './poses.ts'

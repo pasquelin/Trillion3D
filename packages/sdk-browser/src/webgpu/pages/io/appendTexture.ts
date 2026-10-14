@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
-import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
+import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import { poolLayerBytes, poolLayerLimit } from '../../../texture/tiles.ts'
 import { poolTaking } from '../../residency/memoryBudgets.ts'
 import { tileCatalogue } from '../../tile/catalogue.ts'

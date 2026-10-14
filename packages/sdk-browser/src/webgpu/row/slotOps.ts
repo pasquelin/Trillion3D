@@ -1,6 +1,6 @@
 import type { createWebgpuRowWriters } from './writers.ts'
 import type { createWebgpuRowClaims } from './claims.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import type { WebgpuRowState } from './state.ts'

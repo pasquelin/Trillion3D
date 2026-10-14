@@ -1,11 +1,11 @@
 import {
   CONE_LENGTH_RATIO,
   CONE_ORTHO_EPS,
-  HALF_PI,
   boxConeRejects,
-  linearPartScale,
-  normalMatrix3,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../math/src/geometry/cone.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
+import { linearPartScale } from '../../../../math/src/matrix/singular.ts'
+import { normalMatrix3 } from '../../../../math/src/matrix/matrix3.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { OPEN_CONE, type NormalCone } from './cone.ts'
 import { surfaceFrontOnly, type PageSurface } from '../surface.ts'

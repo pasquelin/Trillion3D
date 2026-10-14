@@ -5,8 +5,7 @@ import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { ClusterRoot } from '../page/selection/types.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 type Roots = readonly (ClusterRoot<PageRec> | undefined)[]
 

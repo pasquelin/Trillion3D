@@ -1,5 +1,5 @@
-import type { PageSource } from '../../../../sdk-core/src/index.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { PageSource } from '../../../../sdk-core/src/contracts/cache.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import { createGpuPageReader } from './reader.ts'
 import { createGpuPageLoader } from './load.ts'
 import { createGpuPagePins } from './gpuPagePins.ts'

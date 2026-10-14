@@ -13,7 +13,7 @@
  * the tile atlases (`CardTiles`). Nothing in it depends on the view; a world moved without turning
  * or scaling rewrites its translation alone.
  */
-import { invertMatrix4 } from '../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'

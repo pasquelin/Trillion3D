@@ -3,7 +3,7 @@ import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/texture/previewLevels.ts'
 import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 

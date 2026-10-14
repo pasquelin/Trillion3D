@@ -1,20 +1,16 @@
 import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  PHYSICS_STEP,
-  ASLEEP_BIT,
-  CommandWriter,
-  DEFAULT_PHYSICS_BUDGET,
-  GENERATION_SHIFT,
-  ObjectPhysics,
-  type PhysicsHost,
-} from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP, DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
+import { ASLEEP_BIT, GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { ObjectPhysics, type PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { createPhysicsBodies, type Bodied } from './bodies.ts'
+import { createPhysicsBodies } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import { interpolateAll } from './drawnPoses.ts'
 import { createPosePlacer } from './placer.ts'

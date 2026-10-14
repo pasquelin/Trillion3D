@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import { createModelJoins, type ModelSession } from './worldModelJoin.ts'

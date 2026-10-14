@@ -1,6 +1,6 @@
 /** The per-page half of the cut's descent: a leaf's clusters tested and kept (`visit.ts`). */
 import { coneSkipsPage } from '../cone/cone.fixture.ts'
-import { frustumClipBox } from '../../../../sdk-core/src/index.ts'
+import { frustumClipBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { framePixels } from '../selection/frame.fixture.ts'
 import { drawsCluster } from './rule.fixture.ts'
 import {

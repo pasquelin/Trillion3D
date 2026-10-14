@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mirrorDrawnFromShown } from '../pages/helpers.ts'
 import { fixturePages, fixtureUniforms, mountCutAdopter, peekOnly } from './adopter.fixture.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 // On the GPU path, `drawn` is only a copy of `shown`. Adoption remakes it when the shown list
 // changes; the frame does not remake it again. A flag says

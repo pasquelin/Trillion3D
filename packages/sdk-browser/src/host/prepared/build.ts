@@ -5,7 +5,8 @@
  * No glTF is parsed and no loader runs — the host objects are made by the files beside this one,
  * each under the rules the host loader applied, so the scene is the one it built.
  */
-import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { DrawAssociations } from '../../page/selection/drawSource.ts'
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts'

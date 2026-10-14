@@ -6,7 +6,8 @@ import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
-import { fakeDevice, type FakeBuffer } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import type { FakeBuffer } from '../../../../tests/kit/gpu/fakeRecords.ts'
 
 /** A device whose queue lays each write into the words of one view uniform: what the buffer holds
  *  after each call, and the writes it took. */

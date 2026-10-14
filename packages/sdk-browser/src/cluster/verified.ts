@@ -4,7 +4,7 @@
  * at open —: its size, the cheaper refusal, then its fingerprint, taken where the bytes landed
  * (`verifyPageBytes`), each page where it lies in the bytes one request read, never copied.
  */
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { verifyPageBytes } from '../page/work/host.ts'
 
 /** What a cache object announced: its size and fingerprint. */

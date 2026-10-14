@@ -1,10 +1,10 @@
 import type { wholeDeformationPool } from '../../deformation/wholePool.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import type { HostAttributes } from '../../host/resources.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec, DeformationOutput } from '../../page/selection/types.ts'
 import type { GeometryBlock } from '../row/pageRowMaterial.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
-import type { DeformationOutput } from '../../page/selection/types.ts'
+
 import { createVertexPool, type VertexPool } from './geometryPool.ts'
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>
 type WholeTable = { table: GPUBuffer; count: number } | undefined

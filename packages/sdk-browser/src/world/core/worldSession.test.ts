@@ -1,8 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { attachParticles, awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts'
+import { attachParticles, awaitViewPages, registerWorld } from './worldSession.ts'
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
-import type { BeforeFrameInfo, World } from './world.ts'
+import type { BeforeFrameInfo } from './worldFrames.ts'
+import type { World } from './world.ts'
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 
 test('world.awaitPages says the view opens, waits for it, then for pages alone, never an image', async () => {

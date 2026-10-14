@@ -1,12 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  acceptPageArray,
-  collectClusterPages,
-  collectPendingUrls,
-  indexPagesByUrl,
-  pageRequestUrl,
-} from './selection.ts'
+import { acceptPageArray, collectPendingUrls, indexPagesByUrl, pageRequestUrl } from './requests.ts'
+import { collectClusterPages } from './collect.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { withBundles } from './helpers.fixture.ts'

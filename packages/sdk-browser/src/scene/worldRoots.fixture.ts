@@ -2,7 +2,7 @@
 // roots' tests and the cut's world root read (`worldRoots.test.ts`, `../webgpu/pages/prepare/`).
 import type { TestContext } from 'node:test'
 import { createHash } from 'node:crypto'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'

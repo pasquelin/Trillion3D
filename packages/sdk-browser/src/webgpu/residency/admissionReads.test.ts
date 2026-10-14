@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'

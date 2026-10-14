@@ -20,7 +20,9 @@
  * The rows are sized when the session opens for every node that keep sphere can hold, wherever
  * the page moves the cells' parents (`sizing.ts`).
  */
-import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { transformAffinePoint, length3 } from '../../../math/src/vector/vector.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
 import {
   drawnView,
@@ -30,7 +32,7 @@ import {
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
+
 import { AHEAD } from './aheadShare.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 

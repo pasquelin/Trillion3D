@@ -1,4 +1,4 @@
-import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
+import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'

@@ -1,4 +1,4 @@
-import type { SceneLink } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts'
 
 /** The scene link a world's runtime set, with the physics told of every change too; what else
  *  that link answers (the scene's `background`) is kept. A listener that is not the physics may

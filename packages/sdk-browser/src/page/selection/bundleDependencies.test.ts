@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
 import { linkBundleDependencies, withClosure } from './bundleDependencies.ts'
 import { awaitedPages } from '../../webgpu/row/pageSlots.ts'

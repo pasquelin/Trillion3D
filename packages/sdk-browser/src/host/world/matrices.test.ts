@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { assertFiniteTransform, resolveHostSubtree } from './matrices.ts'
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts'
 

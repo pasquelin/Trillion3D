@@ -1,17 +1,16 @@
 // A fixed floor and a caster named `caster` over it, lit by one light, on the whole pages backend
 // over a mock GPU that runs the GPU cut: what the shadow tests open.
-import {
-  createSceneLightStore,
-  type ClusterManifest,
-  type SceneLight,
-} from '../../../../sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import { MANIFEST_IDENTITY } from '../../engine/pagesEngine.fixture.ts'
 import type { EngineContext } from '../../engine/types.ts'
-import { collectClusterPages } from '../../page/selection/selection.ts'
-import { packDagSelection } from '../../gpu/dag/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
+import { packDagSelection } from '../../gpu/dag/pack.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts'
 import type { DrawAssociations } from '../../page/selection/drawSource.ts'

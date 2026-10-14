@@ -1,4 +1,4 @@
-import type { MovedRows } from '../../../sdk-core/src/index.ts'
+import type { MovedRows } from '../../../sdk-core/src/bounce/occupancy.ts'
 
 /** The placements' world boxes as the proxy keeps them (`gpu/dag/proxyInstances.ts`): six world bounds a
  *  placement (an empty box for one that wears no proxy), the runs of those that moved since the last call,

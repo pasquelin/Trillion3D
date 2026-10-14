@@ -9,7 +9,7 @@ import { createPackedPages } from '../../page/selection/catalogue.ts'
 import { postPackedBases } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
 import { slotTable } from './pageState.fixture.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 /** `count` placements of one primitive of sixty-four pages, its packed pages and their row table of
  *  `rows` rows. */

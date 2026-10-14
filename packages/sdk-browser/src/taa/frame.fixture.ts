@@ -1,4 +1,4 @@
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { beginTaaFrame, encodeTaaPass, taaRenderMatrix } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'

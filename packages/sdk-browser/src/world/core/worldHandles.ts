@@ -1,5 +1,6 @@
 import { createWorldNotices } from '../diagnostic/worldNotices.ts'
-import { DIAGNOSTICS, type EngineError } from '../../../../sdk-core/src/index.ts'
+import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
+import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
 import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts'
 import { familyRefusals } from '../../host/families.ts'

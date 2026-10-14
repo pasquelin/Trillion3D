@@ -11,7 +11,7 @@ import { device, mountDevice, prepared, replay, targets, writesOf } from './pass
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
 import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts'
-import { createWebgpuRunState } from '../pages/state/run.ts'
+import { createWebgpuRunState } from '../pages/state/runState.ts'
 import { disposeVis } from '../pages/io/drops.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts'

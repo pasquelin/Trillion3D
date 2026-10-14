@@ -1,5 +1,5 @@
 import type { CookedParts } from './cookedObjects.ts'
-import type { CookedPhysics } from '../../../sdk-core/src/physics/index.ts'
+import type { CookedPhysics } from '../../../sdk-core/src/physics/cooked.ts'
 import type { SlotOwner } from './bodySlots.ts'
 import { createCookedBodies } from './cookedBodies.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'

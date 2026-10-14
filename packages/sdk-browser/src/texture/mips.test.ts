@@ -7,7 +7,7 @@ import { generateMaterialMips } from './mipBatch.ts'
 import { mipLevelCountFor } from './tiles.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
 import { REDUCE, oneChain, scratch, wider } from './mips.fixture.ts'
-import { writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { writtenBytes } from '../../../../tests/kit/gpu/fakeRecords.ts'
 
 test('reduction submits without waiting for the device and keeps its buffers', () => {
   const { device, texture, buffers, submits } = scratch()

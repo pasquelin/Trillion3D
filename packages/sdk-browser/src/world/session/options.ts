@@ -1,6 +1,11 @@
 import type { AdmitGpuMemory } from '../../residency/activeMemory.ts'
-import type { AssetScope, CameraPose, PreparationProgress } from '../../../../sdk-core/src/index.ts'
-import type { EngineDiagnostic, EngineFactory, DiagnosticDetail } from '../../engine/types.ts'
+import type {
+  AssetScope,
+  CameraPose,
+  PreparationProgress,
+} from '../../../../sdk-core/src/contracts/base.ts'
+import type { EngineDiagnostic, DiagnosticDetail } from '../../diagnostic/types.ts'
+import type { EngineFactory } from '../../engine/factory.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 

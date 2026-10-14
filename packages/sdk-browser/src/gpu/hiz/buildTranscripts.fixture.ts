@@ -1,6 +1,6 @@
 import { encodeHizPyramid } from './pyramid.ts'
 import {
-  HIZ_BUILD_SIDE as S,
+  HIZ_BUILD_SIDE,
   HIZ_SLOT_WORDS,
   hizBuildPasses,
   hizBuildWords,
@@ -77,8 +77,14 @@ export function buildAfter(
     for (let y = 0; y < gy; y++)
       for (let x = 0; x < gx; x++) {
         // Whatever workgroup memory holds: an exact kernel never reads a texel it did not write.
-        const tile = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8)
-        const tileWhole = Float32Array.from({ length: S * S }, () => rand() * 1e9 - 5e8)
+        const tile = Float32Array.from(
+          { length: HIZ_BUILD_SIDE * HIZ_BUILD_SIDE },
+          () => rand() * 1e9 - 5e8,
+        )
+        const tileWhole = Float32Array.from(
+          { length: HIZ_BUILD_SIDE * HIZ_BUILD_SIDE },
+          () => rand() * 1e9 - 5e8,
+        )
         workgroup(scene, u, first, pyramid, whole, [x, y], tile, tileWhole)
       }
   }

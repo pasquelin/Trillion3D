@@ -5,7 +5,7 @@
  * those matrices onto rows (`cells.ts`). Without a worker, the same function runs on the main
  * thread (`../page/work/host.ts`).
  */
-import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { PageTaskDone } from '../../../sdk-core/src/page/taskContracts.ts'
 import { assertCellNodes, type CellNode } from '../../../sdk-core/src/scene/core/tableCell.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'

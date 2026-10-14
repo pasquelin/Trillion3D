@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createCutDelta } from '../cut/delta.ts'
 import { frame, keysOf, scene } from './sets.fixture.ts'
 

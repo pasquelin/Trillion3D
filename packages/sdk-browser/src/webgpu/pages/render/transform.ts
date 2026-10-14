@@ -1,4 +1,5 @@
-import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
+import { copyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../../host/world/rooted.ts'
 import { namedNode, poseNode } from '../../../host/world/moveByName.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'

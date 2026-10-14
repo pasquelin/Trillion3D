@@ -1,8 +1,5 @@
-import {
-  textureLevelUrl,
-  type ClusterManifest,
-  type TextureLevelFormat,
-} from '../../../sdk-core/src/index.ts'
+import { textureLevelUrl, type TextureLevelFormat } from '../../../sdk-core/src/texture/levelUrl.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { PageCache } from '../streaming/pageCache.ts'
 

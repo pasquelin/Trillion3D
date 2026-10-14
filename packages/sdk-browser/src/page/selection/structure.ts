@@ -1,4 +1,4 @@
-import type { ClusterStructure } from '../../../../sdk-core/src/index.ts'
+import type { ClusterStructure } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { ClusterStructureIndex } from './types.ts'
 
 /**

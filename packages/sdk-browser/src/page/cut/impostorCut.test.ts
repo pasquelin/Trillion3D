@@ -5,8 +5,9 @@
 // on develop: the card bit and its reading are new.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts'
-import { collectClusterPages } from '../selection/selection.ts'
+import { planImpostors } from '../../../../sdk-core/src/impostor/plan.ts'
+import type { ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
+import { collectClusterPages } from '../selection/collect.ts'
 import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, frontCamera } from '../selection/dag.fixture.ts'
 import { createEngineCamera } from '../../camera/engineCamera.ts'

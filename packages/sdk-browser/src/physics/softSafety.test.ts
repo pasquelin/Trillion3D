@@ -3,15 +3,13 @@ import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
-import {
-  BODY_INDEX,
-  CommandWriter,
-  type SoftBodyOptions,
-  type SoftBodyRecord,
-} from '../../../sdk-core/src/physics/index.ts'
-import { SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { type SoftBodyOptions, SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
+import type { SoftBodyRecord } from '../../../sdk-core/src/physics/softCommands.ts'
+
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts'
-import { type Module } from './module.fixture.ts'
+import type { Module } from './module.fixture.ts'
 import { addSoft, CLOTH, softWorld, stepped } from './soft.fixture.ts'
 import { FLAT } from './records.fixture.ts'
 

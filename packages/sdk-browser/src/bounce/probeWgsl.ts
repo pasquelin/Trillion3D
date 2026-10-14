@@ -1,6 +1,6 @@
 import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { runtimeRadianceWgsl } from './runtimeTraceWgsl.ts'

@@ -7,8 +7,8 @@ import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { pendingWebgpuFrame } from './interactiveFrame.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
-import { wantsContractLighting } from '../pages/prepare/lightResources.ts'
-import { directLightResources } from '../pages/prepare/contractLight.ts'
+import { wantsContractLighting, directLightResources } from '../pages/prepare/contractLight.ts'
+
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts'
 

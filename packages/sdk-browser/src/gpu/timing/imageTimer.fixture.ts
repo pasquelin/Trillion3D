@@ -1,5 +1,6 @@
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { createGpuTiming, type GpuTimingSample } from './timing.ts'
+import { createGpuTiming } from './timing.ts'
+import type { GpuTimingSample } from './types.ts'
 
 /** A millisecond, in the nanoseconds the device's timestamps count. */
 export const MS = 1_000_000n

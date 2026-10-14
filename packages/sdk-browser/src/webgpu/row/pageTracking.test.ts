@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from './pageTracking.ts'
 import { pageAddress } from './pageSlots.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The pool addresses of a list: what a trace set over its records names. */

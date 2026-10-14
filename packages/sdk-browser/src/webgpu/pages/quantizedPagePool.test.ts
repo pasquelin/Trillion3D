@@ -9,7 +9,7 @@ import {
   FIRST,
   SECOND,
 } from './pagedQuad.fixture.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 
 /** The two clusters of the quad; the second without a page when `both` is false, so a cluster the
  *  cache left without one can be told apart. */

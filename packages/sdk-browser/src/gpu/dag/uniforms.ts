@@ -7,9 +7,8 @@ import {
   OUT_LOD_LEVEL,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
-  SELECTION_HEADER_WORDS,
-  evictionWord,
 } from './layout.ts'
+import { SELECTION_HEADER_WORDS, evictionWord } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../core/selection.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { WORK_DROPPED } from './shader/viewsWgsl.ts'

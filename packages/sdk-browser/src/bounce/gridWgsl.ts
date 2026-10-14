@@ -1,5 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
-import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { PROBE_AT_WGSL } from './atlas.ts'
 import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'

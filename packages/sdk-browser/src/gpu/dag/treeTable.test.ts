@@ -5,8 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { packDagSelection } from './selection.ts'
-import { appendDagRoots, dagRootCounts } from './pack.ts'
+import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
+
 import { treeNodeCount, TREE_SPAN } from './placementTree.ts'
 import { createTreeTable, TREE_TABLE } from './treeTable.ts'
 import { DAG_NODE_FLOATS } from './types.ts'

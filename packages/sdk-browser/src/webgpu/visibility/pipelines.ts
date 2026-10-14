@@ -1,4 +1,4 @@
-import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { validationScope } from '../../gpu/core/errorScope.ts'
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'

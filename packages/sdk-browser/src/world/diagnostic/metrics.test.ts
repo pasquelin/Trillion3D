@@ -4,8 +4,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createExplorerMetrics } from './metrics.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 const streamer = {

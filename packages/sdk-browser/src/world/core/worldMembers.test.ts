@@ -3,10 +3,11 @@
 // while out of the world and brought back in the same burst, and a node destroyed in the world.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { object, type Object3D } from '../../../../sdk-core/src/world/object/index.ts'
+import { object } from '../../../../sdk-core/src/world/object/index.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import type { SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { SceneLink } from '../../../../sdk-core/src/world/object/sceneLink.ts'
 import { createWorldMembers } from './worldMembers.ts'
 import { Scene } from './scene.ts'
 

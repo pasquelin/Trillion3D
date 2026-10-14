@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { createExplorerViewportApi } from './viewportApi.ts'
-import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 
 test('public resize sizes the page canvas the engine presents into', () => {

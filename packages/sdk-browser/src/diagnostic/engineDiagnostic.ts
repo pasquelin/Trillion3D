@@ -1,4 +1,4 @@
-import type { EngineDiagnostic } from '../engine/types.ts'
+import type { EngineDiagnostic } from './types.ts'
 
 /** One engine diagnostic to the host's observer, versioned: an error the observer throws is its
  *  own, never the frame's. */

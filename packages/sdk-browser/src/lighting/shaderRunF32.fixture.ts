@@ -3,12 +3,7 @@
 // reassociates would; a literal rounds where it is read. Transcendentals are correctly rounded,
 // tighter than WGSL's bounds (`atan2` 4096 ULP, `inverseSqrt` 2 ULP): the errors measured with this
 // scope are those of the arithmetic, a lower bound of a device's.
-import {
-  builtins,
-  each as broadcast,
-  vector,
-  type Vec,
-} from '../texture/shaderRunBuiltins.fixture.ts'
+import { builtins, each, vector, type Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { cross } from '../../../../tests/gpu/math/f32Vec3.ts'
 type Value = number | boolean | Vec
 const rounded = (v: Value): Value =>
@@ -20,8 +15,8 @@ const dot = (a: Value, b: Value) =>
     0,
   )
 /** `fn` component by component, scalars broadcast, every result rounded. */
-const each = (fn: (...x: number[]) => number) =>
-  broadcast((...x) => Math.fround(fn(...(x as number[]))))
+const eachRounded = (fn: (...x: number[]) => number) =>
+  each((...x) => Math.fround(fn(...(x as number[]))))
 
 export const F32_SCOPE = {
   $b: (op: string, a: Value, b: Value) => {
@@ -37,13 +32,13 @@ export const F32_SCOPE = {
     const r = Math.fround(1 / Math.sqrt(dot(v, v)))
     return num(v).map((x) => Math.fround(x * r))
   },
-  sqrt: each(Math.sqrt),
-  inverseSqrt: each((x) => 1 / Math.sqrt(x)),
-  atan2: each(Math.atan2),
-  abs: each(Math.abs),
-  sign: each(Math.sign),
-  max: each(Math.max),
-  clamp: each((x, lo, hi) => Math.min(Math.max(x, lo), hi)),
-  mix: each((a, b, t) => Math.fround(a + Math.fround(Math.fround(b - a) * t))),
-  pow: each((x, y) => x ** y),
+  sqrt: eachRounded(Math.sqrt),
+  inverseSqrt: eachRounded((x) => 1 / Math.sqrt(x)),
+  atan2: eachRounded(Math.atan2),
+  abs: eachRounded(Math.abs),
+  sign: eachRounded(Math.sign),
+  max: eachRounded(Math.max),
+  clamp: eachRounded((x, lo, hi) => Math.min(Math.max(x, lo), hi)),
+  mix: eachRounded((a, b, t) => Math.fround(a + Math.fround(Math.fround(b - a) * t))),
+  pow: eachRounded((x, y) => x ** y),
 }

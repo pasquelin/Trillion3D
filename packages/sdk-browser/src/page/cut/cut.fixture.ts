@@ -1,4 +1,5 @@
-import { frustumExcludesBox, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { drawsCard, selectFlat } from './select.fixture.ts'
 import { openMark } from './openRoot.fixture.ts'
 import { rootWorldBox, worldStretch } from '../selection/rootWorld.ts'

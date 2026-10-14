@@ -2,7 +2,9 @@
 // the model the GPU rectangle (`rectWgsl.ts`) is compared with word for word — by its JavaScript
 // run (`rectWgsl.test.ts`) and by the Dawn proofs' readback.
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { boxCornersInto, IDENTITY_MATRIX4, invertMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { boxCornersInto } from '../../../../math/src/geometry/box.ts'
+import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { projectCornersInto } from '../../hiz/projection.fixture.ts'
 import { readHostBox } from '../../host/world/bounds.ts'
 import type { HostBox } from '../../host/resources.ts'

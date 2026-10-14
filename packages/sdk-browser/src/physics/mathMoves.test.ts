@@ -17,11 +17,11 @@ import {
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
 import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { Joint } from '../../../sdk-core/src/physics/joint.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import { framesOf } from './jointFrames.ts'
 import { moversOf, nearness, type Placed } from './tilePlace.ts'
 import { createPhysicsView } from './view.ts'

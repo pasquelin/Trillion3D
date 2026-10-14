@@ -1,7 +1,7 @@
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { alignDown, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { heldBuffers } from '../../gpu/core/heldBuffers.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'

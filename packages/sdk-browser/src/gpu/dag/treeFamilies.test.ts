@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, placementField } from './placementTree.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { dagOracleDescent } from './oracle/descent.fixture.ts'

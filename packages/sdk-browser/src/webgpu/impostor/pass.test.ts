@@ -9,7 +9,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { prepareImpostorPipelines } from './pipelines.ts'
 import { createImpostorPass } from './pass.ts'
-import type { WebgpuTileAtlas } from '../tile/atlas.ts'
+import type { WebgpuTileAtlas } from '../tile/atlasTypes.ts'
 
 const atlas = (kind: string) =>
   ({

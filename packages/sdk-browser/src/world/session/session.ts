@@ -1,7 +1,9 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import { DEFAULT_SCOPE } from '../../../../sdk-core/src/index.ts'
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions } from '../../engine/types.ts'
+import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
+import type { AssetScope } from '../../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { RuntimeEvent } from '../../../../sdk-core/src/runtime/events.ts'
+import type { MeasuredWorldOptions } from './options.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import { watchOpening } from './openWatch.ts'
 

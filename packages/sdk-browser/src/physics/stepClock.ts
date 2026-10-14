@@ -1,4 +1,4 @@
-import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
+import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { addressParam, heldOnce } from '../host/addressFlag.ts'
 
 /** `trillion3dPhysicsHz=<n>`: a temporary switch for a measure, the fixed step `1/n` s rather than

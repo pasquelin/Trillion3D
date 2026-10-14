@@ -7,7 +7,7 @@ import { noticeEffectBudget } from '../diagnostic/worldNotices.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 import { DEFAULT_BUDGET_CANVAS } from '../../residency/memoryBudget.ts'
 import { effectChainBytesAt } from '../../effects/targets.ts'
-import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts'
 
 const budget = (pools = worldPools()) =>

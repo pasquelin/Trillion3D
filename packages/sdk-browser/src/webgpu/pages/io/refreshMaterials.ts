@@ -14,7 +14,7 @@ import {
   wearDeclaration,
   type PageSurface,
 } from '../../../page/surface.ts'
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and

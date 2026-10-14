@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { pageAddress } from './pageSlots.ts'
 

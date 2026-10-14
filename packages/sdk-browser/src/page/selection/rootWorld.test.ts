@@ -4,7 +4,8 @@
 // both with its own stamp.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { boxTransform, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { generated } from '../../placement/composeDoubles.fixture.ts'
 import {

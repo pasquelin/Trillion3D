@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { createFrameGateCore } from './gateCore.ts'
-import type { CameraMotion } from '../camera/world.ts'
+import type { CameraMotion } from '../camera/motion.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import {
   POSES_PARENT,

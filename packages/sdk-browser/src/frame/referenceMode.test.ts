@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { referenceCapture, referenceOptions } from './referenceMode.ts'
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { resolveSupersampled } from './referenceTilePlacement.ts'
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 

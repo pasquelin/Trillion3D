@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import { writeBlocksLevel, writeTileFromBlocks } from './writeBlocks.ts'
 import { writeTail } from './write.ts'
 import { tileRegion } from './write.ts'
-import { tailOffset, TILE_BORDER, TILE_PITCH } from '../../texture/tiles.ts'
+import { tailOffset, TILE_PITCH } from '../../texture/tiles.ts'
+import { TILE_BORDER } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** The device's queue (`fakeDevice`) and its texture writes. */

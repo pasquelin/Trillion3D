@@ -2,7 +2,8 @@
 // frame measured on its display frame; the A/B campaign of several engines it replaced is gone.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { CameraPose, FrameMetrics } from '../../../sdk-core/src/index.ts'
+import type { CameraPose } from '../../../sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { runCameraPath } from './path.ts'
 
 /** Display frames 16 ms apart, the third one late. */

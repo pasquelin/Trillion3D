@@ -1,4 +1,4 @@
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 
 /** A primitive's page addresses made absolute against `base`, the folder its manifest was read
  *  from: what a session merging several models, or mounting one's primitive later, reads. */

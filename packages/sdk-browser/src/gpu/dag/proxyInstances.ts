@@ -23,7 +23,7 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { SQRT3, NO_INDEX } from '../../../../math/src/constants.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
@@ -47,7 +47,7 @@ import {
 } from '../../bounce/runtimeLayout.ts'
 import { NO_TINT, writeSurface } from '../../bounce/runtimeSurface.ts'
 import type { RecordTexture } from '../core/recordTexture.ts'
-import { type DagRoot, type PackedDag } from './types.ts'
+import type { DagRoot, PackedDag } from './types.ts'
 
 /** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
  *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */

@@ -4,16 +4,11 @@
  * (`contacts.cpp`), not the module's callback order; a removed body's leaves
  * come before that merge and a cloth's after it.
  */
-import {
-  PHYSICS_STEP,
-  CommandWriter,
-  EVENT_WORDS,
-  FLAG,
-  POSE_WORDS,
-  SHAPE,
-  softBodyOf,
-  writeSoft,
-} from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { EVENT_WORDS, FLAG, POSE_WORDS, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
+import { softBodyOf } from '../../../sdk-core/src/physics/soft.ts'
+import { writeSoft } from '../../../sdk-core/src/physics/softCommands.ts'
 import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'

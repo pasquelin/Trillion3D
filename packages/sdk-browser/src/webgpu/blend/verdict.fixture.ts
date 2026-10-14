@@ -4,7 +4,7 @@
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
-import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { notDrawn } from '../../placement/hidden.ts'
 import { waterRankOf } from '../transparent/transmission.ts'
 import type { WebgpuBlendState } from './state.ts'

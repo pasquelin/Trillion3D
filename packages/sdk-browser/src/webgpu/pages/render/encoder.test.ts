@@ -5,7 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadBackend } from '../testScenes.fixture.ts'
 
 /** The quad backend on a mock GPU, tracing every diagnostic into `events`. */

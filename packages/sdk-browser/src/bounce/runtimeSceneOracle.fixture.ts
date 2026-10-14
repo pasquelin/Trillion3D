@@ -2,7 +2,7 @@
 // placement tree and of each placement's box, over the packing's own tables, the same budget. The tests
 // compare it with every triangle tested in turn.
 import { NO_INDEX } from '../../../math/src/constants.ts'
-import { PROXY_NODE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { PROXY_NODE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from '../gpu/dag/types.ts'
 import {
   NODE_CHILD_COUNT,

@@ -3,7 +3,7 @@
 // flicker measure's rates are counted in images (`shadingHistoryWgsl.ts`), never timed.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { beginTaaFrame } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'

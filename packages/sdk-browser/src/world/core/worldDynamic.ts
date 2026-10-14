@@ -6,7 +6,7 @@ import {
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
-import { packDrawn } from '../page/runtimeCut.ts'
+import { packDrawn } from '../page/runtimePack.ts'
 import { servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'

@@ -1,10 +1,10 @@
 import type {
   ClusterManifest,
-  GeometryPageDescriptor,
   Page,
   Primitive,
   StreamBundle,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/geometry.ts'
+import type { GeometryPageDescriptor } from '../../../sdk-core/src/page/contracts.ts'
 
 /**
  * Manifest pages deduplicated by URL in a single pass. Four `flatMap` built four complete

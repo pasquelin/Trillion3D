@@ -1,4 +1,4 @@
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { createTileScratch, type TileScratch } from './scratch.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { TileCounters } from './counters.ts'

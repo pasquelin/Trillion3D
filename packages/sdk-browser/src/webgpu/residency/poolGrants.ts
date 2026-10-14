@@ -1,4 +1,4 @@
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { deviceMade } from '../../gpu/core/errorScope.ts'
 import { budgetRefused, ledgerTentative } from '../../gpu/core/deviceLedger.ts'
 import { createPageBuffer } from '../../gpu/page/resize.ts'

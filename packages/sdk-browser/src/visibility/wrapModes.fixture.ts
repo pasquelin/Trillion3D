@@ -1,4 +1,4 @@
-import type { WrapMode } from '../../../sdk-core/src/index.ts'
+import type { WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import { clamp, saturate } from '../../../math/src/scalar/reals.ts'
 
 /**

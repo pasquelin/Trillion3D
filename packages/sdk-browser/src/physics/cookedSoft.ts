@@ -1,11 +1,9 @@
 import { cookedSoftSource, type SoftSource } from '../deformation/softSource.ts'
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  ObjectPhysics,
-  physicsMatterOf,
-  type CookedSoftBody,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import { ObjectPhysics } from '../../../sdk-core/src/physics/objectPhysics.ts'
+import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
+import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { flagsOf } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'

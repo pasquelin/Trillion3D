@@ -1,7 +1,7 @@
 // The compose passes' doubles as their tests run them (`shaderRun`, `gpuComposeWgsl.ts`): the
 // functions of `math/src/wgsl/double.ts` a run names before its own, a double as the shader holds it, and the
 // generated matrices the passes are held to the CPU on.
-import { composeMatrix4 } from '../../../sdk-core/src/index.ts'
+import { composeMatrix4 } from '../../../math/src/matrix/matrix4Compose.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 
 /** A double as the shader holds it: high word, low word. */

@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
-import { collectClusterPages } from '../../page/selection/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
 import { hostWorldPlacements } from './placements.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts'

@@ -1,4 +1,4 @@
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/index.ts'
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/contracts/base.ts'
 import { manifestCulling } from '../gpu/dag/culling.fixture.ts'
 
 export type Cluster = {

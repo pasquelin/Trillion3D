@@ -1,6 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { readGpuImage } from '../../../gpu/core/readback.ts'
-import { collectPendingUrls } from '../../../page/selection/selection.ts'
+import { collectPendingUrls } from '../../../page/selection/requests.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
 import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts'
 import { directLightingState } from './encodeLights.ts'

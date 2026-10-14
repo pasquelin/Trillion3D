@@ -9,7 +9,7 @@
  * read, then the node's run, a primitive of its mesh each.
  */
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 
 /** The objects of `table` as rows draw them, its primitives read from `primitives`. */
 export function createWorldObjects(table: WorldRoots, primitives: readonly Primitive[]) {

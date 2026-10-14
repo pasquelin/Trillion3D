@@ -5,13 +5,14 @@ import { createHash } from 'node:crypto'
 import { mock } from 'node:test'
 import { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice, writtenBytes } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { camera as mainCamera, quadScene } from '../webgpu/pages/testScenes.fixture.ts'
+import { BACKEND, writtenBytes } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { camera, quadScene } from '../webgpu/pages/testScenes.fixture.ts'
 import { DAG, dagLevel } from '../engine/pagesEngine.fixture.ts'
 import { fanScene, quadCluster } from '../engine/pagesEngineScenes.fixture.ts'
 import type { HostCamera } from './world.ts'
 import type { EngineContext, Engine } from '../engine/types.ts'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
@@ -118,7 +119,7 @@ export const engineSites: Site[] = [
     // The main view is fixed and parentless: only the second view comes from the rig.
     create: async () => {
       const engine = await webgpuEngine(quadScene())
-      await webgpuImage(engine, mainCamera())
+      await webgpuImage(engine, camera())
       return engine
     },
     measure: async (state, camera) => {

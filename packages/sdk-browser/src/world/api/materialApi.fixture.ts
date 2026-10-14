@@ -1,13 +1,16 @@
 // The scene the material API tests open: five table materials worn by six surfaces, and one
 // engine that lists its refreshes and the alpha change each one carried.
-import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
+import type {
+  TableMaterial,
+  TableTextureSlot,
+} from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import { createExplorerMaterialApi } from './materialApi.ts'
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 

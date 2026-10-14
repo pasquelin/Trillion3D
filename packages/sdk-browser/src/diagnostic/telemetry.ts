@@ -1,5 +1,6 @@
 import { cpuNow } from './stopwatch.ts'
-import type { ClusterManifest, FrameMetrics } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameProfile } from './frameProfile.ts'
 import { debugMode, setDebugMode } from '../host/debugMode.ts'

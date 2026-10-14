@@ -6,13 +6,7 @@
 // is not below 0 or NaN, as `vsmTileDepthsBuild` writes them (`projectionEarlyOut.test.ts`).
 import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import {
-  CODE,
-  PAGE_FUNCTIONS,
-  keyedRandom,
-  vsmWorld,
-  type Ptr as PtrOf,
-} from './pageWorld.fixture.ts'
+import { CODE, PAGE_FUNCTIONS, keyedRandom, vsmWorld, type Ptr } from './pageWorld.fixture.ts'
 import { VSM_PAGE_TEXELS, VSM_TILE_DEPTHS_PER_PAGE } from './constants.ts'
 
 /** The words no depth is, one texel in 200 each. */
@@ -90,9 +84,9 @@ export const RAY_FUNCTIONS = [
   ...PAGE_FUNCTIONS,
 ]
 export type RayState = Record<string, unknown>
-type Ptr = PtrOf<RayState>
+type RayPtr = Ptr<RayState>
 export interface RayRun {
-  vsmSunRayMisses: (p: Ptr, steps: number, offset: number) => boolean
-  vsmMarchSun: (p: Ptr, s: number, o: number, e: boolean) => { hitFound: boolean }
+  vsmSunRayMisses: (p: RayPtr, steps: number, offset: number) => boolean
+  vsmMarchSun: (p: RayPtr, s: number, o: number, e: boolean) => { hitFound: boolean }
 }
 export const rayRun = (scope: object) => shaderRun<RayRun>(CODE, RAY_FUNCTIONS, scope)

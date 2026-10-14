@@ -1,10 +1,10 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { blocksAcross } from '../../../sdk-core/src/texture/previewLevels.ts'
 import {
-  blocksAcross,
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
-} from '../../../sdk-core/src/index.ts'
-import { TILE_BORDER, TILE_SIZE } from './tiles.ts'
+} from '../../../sdk-core/src/texture/previewFormat.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /**
  * Where a tile's blocks lie in a block level file (the compiler's `tile_records`):

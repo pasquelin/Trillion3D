@@ -1,4 +1,4 @@
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 

@@ -1,4 +1,4 @@
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { Deformed, DeformedMesh } from './frame.ts'
 

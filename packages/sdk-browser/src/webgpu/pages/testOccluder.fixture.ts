@@ -2,10 +2,11 @@ import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
-import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { dagLevel, dagRoots } from '../../engine/pagesEngine.fixture.ts'
@@ -77,7 +78,6 @@ export function occluderScene() {
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return withDraws({ geometry, material, source, metadata, indices, associations })
 }
-
 /** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
 export function coarseQuadScene(error = 1) {
   const fixture = quadScene()
@@ -173,8 +173,8 @@ export function twoCoarseQuadsScene(
   })
 }
 
-/** The occluder scene on a pages backend over `device`, four resident pages, prepared with
- *  occlusion culling on, and the oracle's cut (`selectVisiblePages`) its Hi-Z result must stay inside. */
+/** The occluder scene on a pages backend over `device` (four resident pages, occlusion culling
+ *  on) and the oracle's cut (`selectVisiblePages`) its Hi-Z result must stay inside. */
 export async function preparedOccluderRun(
   scene: ReturnType<typeof occluderScene>,
   metadata: ClusterManifest,

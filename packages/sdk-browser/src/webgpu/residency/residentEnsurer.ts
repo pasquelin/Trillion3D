@@ -4,7 +4,7 @@ import { createSharePace } from '../../page/integration/frameBudget.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
 import { createLowerPass } from './lowerTier.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { admitWanted, type EnsureOptions, type EnsureRun, type EnsureState } from './ensureBurst.ts'
 
 /** Loads newly wanted pages without acting on a stale camera cut. */

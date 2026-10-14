@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**

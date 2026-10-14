@@ -1,4 +1,4 @@
-import { boxCornersInto } from '../../../sdk-core/src/index.ts'
+import { boxCornersInto } from '../../../math/src/geometry/box.ts'
 import { BOX_CORNER_VALUES, HIZ_BOUNDS_VALUES, rowBox } from './corners.ts'
 import { transformPointRow } from '../../../math/src/vector/vector.ts'
 import type { HizPage } from './types.ts'

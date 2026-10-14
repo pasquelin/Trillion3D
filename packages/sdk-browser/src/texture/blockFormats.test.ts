@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { chooseBlockFormat, poolEncoding, WHITE_TAIL } from './blockFormats.ts'
-import type { TextureBlockFormat, TextureLayout } from '../../../sdk-core/src/index.ts'
+import type {
+  TextureBlockFormat,
+  TextureLayout,
+} from '../../../sdk-core/src/texture/previewFormat.ts'
 
 const device = (...names: string[]) => ({ has: (name: string) => names.includes(name) })
 const FAMILIES = ['bc7', 'astc', 'etc2'] as const

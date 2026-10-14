@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts'
 import type { LitPrograms } from '../../../lighting/deferred/contractVariants.ts'
 import {

@@ -8,7 +8,7 @@ import {
 } from '../../../gpu/raster/contract.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera, disposeQuadRun, flushedGpuScene } from '../testScenes.fixture.ts'
-import { dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 
 // The compute raster is created only under `raster-compute` or `raster-hybrid`: the cut then goes
 // to compute — binning, occluder depth, the rest, identifiers — between the hardware passes that

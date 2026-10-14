@@ -8,8 +8,8 @@ import {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
-  type ClusterManifest,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 
 export const base = 'http://localhost/cache/'
 const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])

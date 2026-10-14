@@ -6,7 +6,8 @@
 // as a wire, a bar or a far thin part: its levels hold every phase too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'

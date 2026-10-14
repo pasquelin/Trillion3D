@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lazyDiagnostic } from './engineDiagnostic.ts'
-import type { EngineDiagnostic } from '../engine/types.ts'
+import type { EngineDiagnostic } from './types.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'

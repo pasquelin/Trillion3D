@@ -28,10 +28,7 @@ import {
 } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
-import {
-  createReadbackRing,
-  type ReadbackRing as VsmReadbackRing,
-} from '../gpu/core/readbackRing.ts'
+import { createReadbackRing, type ReadbackRing } from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 import type { VsmClipmap } from './clipmap.ts'
@@ -487,7 +484,7 @@ export const vsmFeedbackReadbackBytes = (maxInFlight = 3) => maxInFlight * 16
  * never stalls.
  */
 export class VsmFeedbackReadback {
-  private readonly ring: VsmReadbackRing
+  private readonly ring: ReadbackRing
 
   constructor(device: GPUDevice, cache: VsmCacheManager, maxInFlight = 3) {
     this.ring = createReadbackRing(

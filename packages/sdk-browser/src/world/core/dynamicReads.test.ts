@@ -14,7 +14,8 @@ import {
   InterleavedBuffer,
   InterleavedBufferAttribute,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { createVertexPool } from '../../webgpu/core/geometryPool.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 

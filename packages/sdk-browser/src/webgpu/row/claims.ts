@@ -1,4 +1,4 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 

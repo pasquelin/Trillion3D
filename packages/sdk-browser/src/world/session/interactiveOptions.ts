@@ -1,6 +1,6 @@
 import { isImageSize } from '../../../../math/src/scalar/integers.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 
 /** CSS owns layout; drawing-buffer attributes must never resize the observed layout. */

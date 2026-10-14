@@ -1,4 +1,5 @@
-import { BOX_VALUES, MATRIX_VALUES } from '../../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../../math/src/geometry/box.ts'
+import { MATRIX_VALUES } from '../../../../../math/src/batch/strides.ts'
 import { f64, size, batchBuffer, type MathLot } from './batchLot.ts'
 import type { SdkWasm } from '../../../wasm/sdkWasm.ts'
 import { mathBatchModule } from './batchState.ts'

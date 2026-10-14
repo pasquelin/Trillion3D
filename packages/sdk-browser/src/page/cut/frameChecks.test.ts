@@ -3,7 +3,7 @@
 // node bound that projects, and never by a root that projects none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from '../selection/selection.ts'
+import { collectClusterPages } from '../selection/collect.ts'
 import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'

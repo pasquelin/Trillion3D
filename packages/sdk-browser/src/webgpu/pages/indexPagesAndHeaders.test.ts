@@ -9,8 +9,8 @@ import {
   FIRST,
   SECOND,
 } from './pagedQuad.fixture.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { describePageSlots, pageAddress } from '../row/pageSlots.ts'
 
 /** The quad as two clusters whose two widths disagree: the first draws both triangles from

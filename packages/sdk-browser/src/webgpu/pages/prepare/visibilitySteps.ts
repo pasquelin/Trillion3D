@@ -7,7 +7,7 @@ import {
 } from '../../visibility/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
 import { createShadeCache } from '../../visibility/shadeCache.ts'
-import { depthLayerUnits } from '../../../../../sdk-core/src/index.ts'
+import { depthLayerUnits } from '../../../../../sdk-core/src/lod/depthLayer.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surfaceBuffer.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'

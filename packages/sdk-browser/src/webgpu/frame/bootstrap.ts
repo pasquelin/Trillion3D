@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { pageRequestUrl, type PageRec } from '../../page/selection/selection.ts'
+import { pageRequestUrl } from '../../page/selection/requests.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'

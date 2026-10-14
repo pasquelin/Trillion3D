@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { type CameraPose, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts'
 import { createHostFrameCostAudit } from '../../frame/costAudit.ts'
 import { debugMode } from '../../host/debugMode.ts'

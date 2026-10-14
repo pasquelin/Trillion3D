@@ -4,7 +4,7 @@
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
-import { packDagSelection } from '../gpu/dag/selection.ts'
+import { packDagSelection } from '../gpu/dag/pack.ts'
 import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
@@ -13,7 +13,7 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
 import { RUNTIME_WORLD_WORDS, SURFACE_WORDS } from './runtimeLayout.ts'

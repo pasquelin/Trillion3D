@@ -1,13 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { Worker as NodeWorker } from 'node:worker_threads'
+import { CAST, CAST_WORDS, EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import {
-  CAST,
-  CAST_WORDS,
   DEFAULT_PHYSICS_BUDGET,
-  EVENT_WORDS,
   PHYSICS_STEP,
   type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
 import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts'
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'

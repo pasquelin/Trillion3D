@@ -1,7 +1,7 @@
 import { pageAddress } from '../row/pageSlots.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createLowerPass, LowerList, LowerPassOptions } from './lowerTier.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { WebgpuDiagnosticChannel } from '../pages/io/diagnostics.ts'

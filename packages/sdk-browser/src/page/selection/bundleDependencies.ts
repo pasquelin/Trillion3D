@@ -1,4 +1,4 @@
-import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
 
 const NONE: readonly PageRec[] = []

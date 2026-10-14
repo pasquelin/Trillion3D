@@ -1,5 +1,5 @@
 import { clamp, floorMod, saturate } from '../../../math/src/scalar/reals.ts'
-import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
+import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */

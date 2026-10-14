@@ -1,15 +1,9 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  FLAG,
-  LAYER,
-  MOTION,
-  declaredMass,
-  declaredShape,
-  physicsMatterOf,
-  type CookedBody,
-  TRIANGLE_BYTES,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, FLAG, LAYER, MOTION } from '../../../sdk-core/src/physics/layout.ts'
+import { declaredMass, declaredShape } from '../../../sdk-core/src/physics/declared.ts'
+import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
+import type { CookedBody } from '../../../sdk-core/src/physics/cooked.ts'
+import { TRIANGLE_BYTES } from '../../../sdk-core/src/physics/options.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'

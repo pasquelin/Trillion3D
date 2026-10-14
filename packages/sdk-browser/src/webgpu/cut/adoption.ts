@@ -1,6 +1,6 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts'
 import { sameSelectionUniforms } from '../../gpu/core/selectionCopy.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { CutDelta } from './delta.ts'
 import { createHeadUnion } from './headUnion.ts'
 import { copyRanks } from './copyRanks.ts'

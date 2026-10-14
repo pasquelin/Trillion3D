@@ -1,16 +1,18 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import {
   createPageIntegrationPlan,
+  planPageIntegration,
+} from '../../../../sdk-core/src/page/integrationPlan.ts'
+import {
   PAGE_INTEGRATION_PROTOCOL,
   PAGE_SLICE_STRIDE,
   PAGE_SPEC_STRIDE,
-  planPageIntegration,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/page/integrationContracts.ts'
 import type {
   PageIntegrationAnswer,
-  PageIntegrationPlan,
   PageIntegrationRequest,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/page/integrationContracts.ts'
+import type { PageIntegrationPlan } from '../../../../sdk-core/src/page/integrationPlan.ts'
 
 /**
  * Integration-contract task, once for both transports: the worker runs it on its thread, the

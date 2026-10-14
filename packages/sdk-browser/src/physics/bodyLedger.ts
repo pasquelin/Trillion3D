@@ -2,7 +2,7 @@ import {
   checkPhysicsBudget,
   collisionBytesOf,
   type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
 import type { SlotOwner } from './bodySlots.ts'
 
 /** What the tiles give a body no tile holds when none is left a slot, or bytes, for it: the slots

@@ -1,5 +1,5 @@
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.ts'
 import { createRowMapJournal } from './rowMapGpu.ts'

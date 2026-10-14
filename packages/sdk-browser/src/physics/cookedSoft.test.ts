@@ -1,13 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import {
-  BODY_INDEX,
-  DEFAULT_PHYSICS_BUDGET,
-  FLAG,
-  OP,
-  type CookedSoftBody,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, FLAG, OP } from '../../../sdk-core/src/physics/layout.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
+import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'
 import { startModule } from './module.fixture.ts'

@@ -1,5 +1,5 @@
-import { boxEmpty } from '../../../../sdk-core/src/index.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import { boxEmpty } from '../../../../math/src/geometry/box.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts'
 import { WEBGPU_STAGES } from './passDeclaration.ts'
-import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
+import type { GpuPassTimings } from '../../../sdk-core/src/contracts/metrics.ts'
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts'
 import { DEFERRED_LIGHTING_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLabels.ts'
 

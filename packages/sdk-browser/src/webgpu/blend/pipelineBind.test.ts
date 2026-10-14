@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
-import type { Side } from '../../../../sdk-core/src/index.ts'
+import type { Side } from '../../../../sdk-core/src/contracts/material.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,

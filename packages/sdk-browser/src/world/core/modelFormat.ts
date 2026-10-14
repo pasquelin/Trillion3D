@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { checked } from '../../cluster/checked.ts'
 
 /** What a model resource is, read from its content: never from its extension. */

@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { packClusterSpheres } from '../webgpu/shadow/spheres.fixture.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 import type { Placements } from '../page/selection/placements.ts'
 import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'
 

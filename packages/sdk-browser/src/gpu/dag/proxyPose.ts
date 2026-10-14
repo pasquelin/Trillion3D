@@ -8,7 +8,10 @@
  */
 import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS } from '../../../../sdk-core/src/index.ts'
+import {
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'

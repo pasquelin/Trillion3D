@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { TileSchedule } from './tileSchedule.ts'
 import { placedOf, type Placed } from './tilePlace.ts'
 import { compiledModel, cooked, modelStreamer, place, sharedShapes, tile } from './tiles.fixture.ts'

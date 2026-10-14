@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { updateTransparentSpan } from '../transparent/spans.ts'
 import { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'

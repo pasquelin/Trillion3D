@@ -29,7 +29,7 @@ import { createReadFailures } from '../streaming/failures.ts'
 import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { tileRecord } from './tileRecords.ts'
-import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts'
+import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/texture/previewFormat.ts'
 
 /** Block bytes that are not the whole blocks their dimensions imply: a tile's record answered
  *  short or foreign, or a tail level (`webgpu/tile/writeBlocks.ts`). */

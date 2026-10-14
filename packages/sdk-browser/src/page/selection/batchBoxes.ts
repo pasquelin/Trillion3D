@@ -1,4 +1,6 @@
-import { BOX_VALUES, MATRIX_VALUES, boxUnionBatch } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
+import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
+import { boxUnionBatch } from '../../../../math/src/batch/batch.ts'
 import { boxTransformLot, madeLot, type BoxTransformLot } from '../decode/batch/batchRuntime.ts'
 
 /**

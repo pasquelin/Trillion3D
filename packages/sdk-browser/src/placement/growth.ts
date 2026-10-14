@@ -16,7 +16,7 @@
  *      number of times.
  * The rows then follow through `updatePlacements`, as any row does. Nothing is prepared again.
  */
-import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import { forgetRowRoots } from './update.ts'
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'

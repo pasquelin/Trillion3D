@@ -2,7 +2,7 @@
 // order carries the arrivals its cut was made before, and closes while its selection's cut is held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { GpuCut, GpuSelection } from '../../gpu/core/selection.ts'
 import { createEvictionFeed } from './evictionFeed.ts'
 import type { EvictionOrder } from '../../gpu/page/eviction.ts'

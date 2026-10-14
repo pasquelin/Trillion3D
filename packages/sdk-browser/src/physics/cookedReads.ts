@@ -1,5 +1,5 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { readCookedPhysics } from '../../../sdk-core/src/physics/index.ts'
+import { readCookedPhysics } from '../../../sdk-core/src/physics/cooked.ts'
 import type { SharedShape } from './sharedShapes.ts'
 import { cookedHref, type Model } from './tilePlace.ts'
 import { checked, optionalFile, retriableError } from '../cluster/checked.ts'

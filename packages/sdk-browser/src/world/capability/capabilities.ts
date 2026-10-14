@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 
 /** What this machine's WebGPU grants, read before any session opens. */

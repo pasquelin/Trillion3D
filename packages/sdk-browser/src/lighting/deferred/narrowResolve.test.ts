@@ -4,7 +4,7 @@
 // shadow code (#1249).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'

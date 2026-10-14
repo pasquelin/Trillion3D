@@ -1,7 +1,7 @@
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
-import { litProgramPending } from '../pages/prepare/lightResources.ts'
+import { litProgramPending } from '../pages/prepare/contractLight.ts'
 import { askFramePipelines } from './framePipelines.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { heldTargetGrant } from '../pages/state/gpu.ts'

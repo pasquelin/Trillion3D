@@ -1,5 +1,5 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../engine/common.ts'
 import {
   assertFullShadowPool,

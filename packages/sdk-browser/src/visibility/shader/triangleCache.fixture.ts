@@ -7,7 +7,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
+import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER, shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
 import {
   Mat3,

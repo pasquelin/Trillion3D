@@ -11,7 +11,7 @@ import { planItem, planPipeline } from './plan.ts'
 import { routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
-import { directLightResources } from '../pages/prepare/lightResources.ts'
+import { directLightResources } from '../pages/prepare/contractLight.ts'
 import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
 
 /**

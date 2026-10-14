@@ -7,7 +7,7 @@
 import { boxCenter, boxGrow } from '../../../math/src/geometry/box.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { rowBox, rowGrowth } from '../hiz/corners.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 import { LOD_INPUT, ROW_LOD_INPUT_DOUBLES, rowLodInputs } from '../webgpu/shadow/rowLodWords.ts'
 import type { Placements } from '../page/selection/placements.ts'
 import type { WorldMemo } from '../page/selection/rootWorld.ts'

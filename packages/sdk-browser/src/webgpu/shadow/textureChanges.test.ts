@@ -11,7 +11,7 @@ import type { PageSurface } from '../../page/surface.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { indexOfRanks } from '../../page/selection/placements.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 /** Three colour textures, at slots 3, 5 and 7 of the atlas; the surfaces that wear them. */
 const [T3, T5, T7] = [{}, {}, {}] as unknown as Texture[]

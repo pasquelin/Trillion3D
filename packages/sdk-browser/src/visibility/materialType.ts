@@ -1,4 +1,5 @@
-import type { Side, Texture } from '../../../sdk-core/src/index.ts'
+import type { Side } from '../../../sdk-core/src/contracts/material.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 
 /** The anisotropy and clear-coat maps, in the order their lobe extension names them
  *  (`../webgpu/material/lobeRecord.ts`). */

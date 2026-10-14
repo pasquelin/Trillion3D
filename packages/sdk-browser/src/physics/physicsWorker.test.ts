@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CommandWriter, POSE_WORDS } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { body } from './records.fixture.ts'
 import { startedWorker } from './worker.fixture.ts'
 

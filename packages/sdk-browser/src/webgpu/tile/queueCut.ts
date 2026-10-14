@@ -1,4 +1,4 @@
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { TILE_BURST } from './evictSortWgsl.ts'
 import type { WebgpuTilePool } from './pool.ts'
 

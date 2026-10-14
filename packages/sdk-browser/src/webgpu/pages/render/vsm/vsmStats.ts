@@ -1,5 +1,5 @@
 // The shadow maps' counters, stage times and memory, as the stats panel lists them.
-import type { GpuPassTimings } from '../../../../../../sdk-core/src/index.ts'
+import type { GpuPassTimings } from '../../../../../../sdk-core/src/contracts/metrics.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
 import { gpuTotalsBy } from '../../../../stage/mapping.ts'

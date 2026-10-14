@@ -2,9 +2,9 @@ import { cpuNow } from './stopwatch.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
-import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts'
-import { frameStatistics } from '../../../sdk-core/src/index.ts'
-import { STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
 
 /** The first limit the frame hits, in the order stutters, main thread, submit, streaming. */
 function diagnoseBottleneck(

@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { selectionRoot } from '../../core/transformShear.fixture.ts'
-import { hostScene as scene } from './hostWrite.fixture.ts'
+import { hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransforms } from './transform.ts'
 
 const CHAIN = 100
@@ -15,7 +15,7 @@ const CHAIN = 100
  *  chain roots' boxes counted — a few a root moved once, `CHAIN`² / 2 walked once a written
  *  ancestor. */
 function chained(count: number) {
-  const s = scene(count)
+  const s = hostScene(count)
   const links: G.Object3D[] = []
   let parent: G.Object3D = s.holder
   for (let k = 0; k < CHAIN; k++) {

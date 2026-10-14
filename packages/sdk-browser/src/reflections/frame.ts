@@ -7,7 +7,7 @@ import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import {
   directLightResources,
   wantsContractLighting,
-} from '../webgpu/pages/prepare/lightResources.ts'
+} from '../webgpu/pages/prepare/contractLight.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { encodeFrontDepth } from './frontDepth.ts'

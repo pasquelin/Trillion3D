@@ -1,16 +1,14 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
-import {
-  clusterErrorPixels,
-  maxStretch,
-  multiplyMatrix4,
-  transformAffinePoint,
-} from '../../../../sdk-core/src/index.ts'
+import { clusterErrorPixels } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import { REQUEST_PRIORITY_SCALE } from './request.ts'
 
 /**

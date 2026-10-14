@@ -5,7 +5,7 @@
 // run, lane by lane (`gridColumn.fixture.ts`), not a copy of them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { GRID_SLICES, TILE_NO_SLICE, TILE_SHADOWED, columnRoom } from './gridColumn.fixture.ts'
 
 /** One column's room on slice counts `counts`, against a pool at `head` of `capacity`. */

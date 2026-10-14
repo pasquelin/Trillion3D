@@ -2,7 +2,7 @@
 // load let go stops its download, and a page asked by a closed session's engine is let go with it.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'

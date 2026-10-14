@@ -1,6 +1,10 @@
 import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts'
+import {
+  LIGHT_KIND,
+  LIGHT_SETTINGS,
+  POINT_FACES,
+} from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'

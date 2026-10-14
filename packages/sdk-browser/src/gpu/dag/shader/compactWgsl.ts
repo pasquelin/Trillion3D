@@ -1,5 +1,5 @@
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
-import { SELECTION_HEADER_WORDS } from '../layout.ts'
+import { SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'

@@ -12,7 +12,7 @@ import {
   type ResolutionMode,
 } from '../../../../sdk-core/src/runtime/qualityLevels.ts'
 import type { RenderScale } from '../../frame/renderScaleOption.ts'
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { WorldSettings } from './worldSettings.ts'
 
 /** The resolution a world draws at: a mode, or a `scale` of the display per axis that replaces

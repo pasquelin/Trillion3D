@@ -3,7 +3,7 @@
 // the one memo of it, `maxStretch` of its double world —, its root and its record shift.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { FRAME_VEC4 } from './types.ts'
 import { primitiveFrameWords, primitiveWordAt, changedWorlds } from './worlds.ts'
 

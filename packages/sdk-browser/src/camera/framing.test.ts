@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { framingFromBounds } from '../index.ts'
+import { framingFromBounds } from './framing.ts'
 
 test('framingFromBounds scales near with the bounding radius and has no centimetre floor', () => {
   const millimetre = framingFromBounds(0.02, 16 / 9)

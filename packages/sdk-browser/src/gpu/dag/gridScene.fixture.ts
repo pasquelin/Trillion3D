@@ -1,5 +1,5 @@
 import * as G from '../../host/graph/graph.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 
 /** Nine placements of a four-level primitive on a grid, packed, and an eye over them: the scene

@@ -1,7 +1,8 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { flagsOf, hasBody, type createPhysicsBodies } from './bodies.ts'
+import { flagsOf, type createPhysicsBodies } from './bodies.ts'
+import { hasBody } from './bodied.ts'
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
 import { fits, rescaledSoft } from './softBodies.ts'
 

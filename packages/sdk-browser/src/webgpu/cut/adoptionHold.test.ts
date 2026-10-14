@@ -8,7 +8,7 @@ import {
   peekOnly,
 } from './adopter.fixture.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 /** A readback of `ids`, all drawable, whose header carries `totals`. */
 const readback = (ids: number[], uniforms = fixtureUniforms(), totals = fixtureTotals()) =>

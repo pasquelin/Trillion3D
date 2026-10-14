@@ -1,17 +1,14 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  SOFT_VERTEX_WORDS,
-  physicsMatterOf,
-  softBodyOf,
-  writeSoft,
-  type CommandWriter,
-  type ObjectPhysics,
-  type SoftBodyRecord,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import { SOFT_VERTEX_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
+import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
+import { softBodyOf } from '../../../sdk-core/src/physics/soft.ts'
+import { writeSoft, type SoftBodyRecord } from '../../../sdk-core/src/physics/softCommands.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import type { ObjectPhysics } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> }
 

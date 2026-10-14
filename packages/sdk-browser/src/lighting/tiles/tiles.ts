@@ -1,4 +1,5 @@
-import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { tileViewInverse } from './tileFrame.ts'
 import { lightTilesShader, type LightGridKind } from './shader.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'

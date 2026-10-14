@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { slotCount } from './draw.ts'
+import { slotCount } from './contract.ts'
 import {
   prefixScan,
   prefixSerial,

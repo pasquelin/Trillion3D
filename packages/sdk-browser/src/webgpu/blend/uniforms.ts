@@ -11,8 +11,8 @@ import {
 } from '../../visibility/types.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
 import { directTiles } from '../pages/render/encodeLights.ts'
-import { wantsContractLighting } from '../pages/prepare/lightResources.ts'
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import { wantsContractLighting } from '../pages/prepare/contractLight.ts'
+import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { BLEND_VIEW_SIZE, VIEW } from './viewLayout.ts'
 

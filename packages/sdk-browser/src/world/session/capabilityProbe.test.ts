@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { EngineError, type RuntimeEvent } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import type { RuntimeEvent } from '../../../../sdk-core/src/runtime/events.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 

@@ -1,6 +1,6 @@
 // Random residency jobs for the admission reads' tests: one world, one job over it,
 // reading ahead or not, every read and load logged in order.
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'

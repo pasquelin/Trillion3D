@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import { HIZ_SLOT_WORDS, hizTestSlot, hizUniformSlots } from './uniforms.ts'
 import { createGpuHiz } from './factory.ts'
 import { pyramidLayout } from './pyramid.ts'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 
 const SLOT_WORDS = HIZ_SLOT_WORDS
 /** Words between two slots on a 256-byte device. */

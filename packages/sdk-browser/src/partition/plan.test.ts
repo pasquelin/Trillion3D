@@ -10,7 +10,7 @@ import {
   holdPriority,
   inCellFrame,
   KEEP,
-  planCells as planIndexed,
+  planCells,
   type SuperRootPlan,
 } from './plan.ts'
 import { AHEAD } from './aheadShare.ts'
@@ -20,7 +20,7 @@ import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 }
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] })
 /** The plan of cells under the scene root, each one box, found through their index. */
-function planCells(
+function planBoxes(
   cells: { bounds: number[] }[],
   eye: number[],
   reach: number,
@@ -36,7 +36,7 @@ function planCells(
   const { partition, files } = paged(records, 1)
   const index = createCellIndex(partition.pages, 'https://cache.test/', boxes)
   openAll(index, files)
-  return planIndexed(index, eye, reach, held, superRoots)
+  return planCells(index, eye, reach, held, superRoots)
 }
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6)
@@ -86,11 +86,11 @@ test('the distance to a cell is the distance to its box', () => {
 test('cells are read nearest first within their reach, ahead past it, and leave further', () => {
   const cells = [cell(40), cell(3), cell(10), cell(200)]
   const reach = 20
-  const { visible, ahead, leave } = planCells(cells, [0, 0.5, 0.5], reach, new Set())
+  const { visible, ahead, leave } = planBoxes(cells, [0, 0.5, 0.5], reach, new Set())
   assert.deepEqual(visible, [1, 2], 'nearest first; the one past the prefetch margin waits')
   assert.deepEqual([ahead, leave], [[], []])
   // Held, a cell between the reach and its keep margin stays; past it, it leaves.
-  const near = planCells(
+  const near = planBoxes(
     [cell(reach * (1 + KEEP) - 1), cell(reach * (1 + KEEP) + 1)],
     [0, 0.5, 0.5],
     reach,
@@ -98,12 +98,12 @@ test('cells are read nearest first within their reach, ahead past it, and leave 
   )
   const none = { far: [], demoted: [], pages: { visible: [], ahead: [] } }
   assert.deepEqual(near, { visible: [], ahead: [], leave: [1], ...none })
-  const wanted = planCells([cell(reach * (1 + AHEAD) - 1)], [0, 0.5, 0.5], reach, new Set())
+  const wanted = planBoxes([cell(reach * (1 + AHEAD) - 1)], [0, 0.5, 0.5], reach, new Set())
   assert.deepEqual([wanted.visible, wanted.ahead], [[], [0]], 'read ahead of the reach')
   // A cell far wider than the reach is kept only while its box meets the keep sphere.
   const wide = { ...cell(0), bounds: [0, 0, 0, 1000, 1, 1] }
   const past = reach * (1 + KEEP) + 1
-  assert.deepEqual(planCells([wide], [1000 + past, 0.5, 0.5], reach, new Set([0])).leave, [0])
+  assert.deepEqual(planBoxes([wide], [1000 + past, 0.5, 0.5], reach, new Set([0])).leave, [0])
 })
 
 test('a cell is drawn by its super-roots until the cut needs its objects', () => {
@@ -114,7 +114,7 @@ test('a cell is drawn by its super-roots until the cut needs its objects', () =>
   const cells = [10, 30, 45, 70].map(cell)
   const projected = (at: number) => 40 / (cells[at].bounds[0] + 1)
   const plan = (held: number[], placed: number[]) =>
-    planCells(cells, eye, reach, new Set(held), {
+    planBoxes(cells, eye, reach, new Set(held), {
       placed: new Set(placed),
       target,
       projected,
@@ -133,7 +133,7 @@ test('a cell is drawn by its super-roots until the cut needs its objects', () =>
   assert.deepEqual(placed.demoted, [3], 'only the cell past the keep margin leaves its objects')
   assert.deepEqual([placed.visible, placed.ahead, placed.far, placed.leave], [[], [], [], []])
   // Without super-roots the plan reads every cell's objects.
-  const plain = planCells(cells, eye, reach, new Set())
+  const plain = planBoxes(cells, eye, reach, new Set())
   assert.deepEqual([plain.visible, plain.far, plain.demoted], [[0, 1, 2, 3], [], []])
 })
 

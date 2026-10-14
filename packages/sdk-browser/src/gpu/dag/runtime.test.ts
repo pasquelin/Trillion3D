@@ -4,7 +4,7 @@
 // in `../../../../../bench/oracles/browser/residency.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { updateResidencyBits } from './residencyUpload.ts'
 import { residentWords } from './layout.ts'
 import {

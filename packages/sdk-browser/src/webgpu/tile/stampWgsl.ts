@@ -1,5 +1,5 @@
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { MAX_LEVELS, TILES_PER_LAYER, TILES_PER_ROW } from '../../texture/tiles.ts'
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts'
 import { TILE_PLACE_WORD_WGSL } from './slotUse.ts'

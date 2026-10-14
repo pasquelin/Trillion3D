@@ -1,4 +1,4 @@
-import type { MeasuredWorldOptions } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 
 /** Counts the resources a preparation reads, and tells the host of each as it lands. */

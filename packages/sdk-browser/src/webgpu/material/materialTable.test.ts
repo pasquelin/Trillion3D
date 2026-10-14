@@ -13,7 +13,7 @@ import {
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** The collector, called on demand: what the open world's churn waits for. */

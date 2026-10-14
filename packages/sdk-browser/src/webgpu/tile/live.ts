@@ -1,5 +1,5 @@
-import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { sourceSize } from '../../texture/pictureSize.ts'
 import { tailSlotOf, tileKeyOf } from './ids.ts'

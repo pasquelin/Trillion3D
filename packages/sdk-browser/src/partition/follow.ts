@@ -11,7 +11,7 @@
  * A host mesh whose `castShadow` changed has its rows' flags written again.
  */
 import type { PlacementLink } from '../placement/gpuCompose.ts'
-import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'

@@ -16,7 +16,7 @@
  * whole copies: O(A' + F' + P') written, the tail drawn again over the records and whole copies
  * held (O(F + W) words, a doubling of the tail only when it is full, amortised O(1) a float).
  */
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { loadDeformationCode, prepareDeformationCompute } from './prepare.ts'
 import { placeFloatPages } from '../webgpu/core/geometryPrepare.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'

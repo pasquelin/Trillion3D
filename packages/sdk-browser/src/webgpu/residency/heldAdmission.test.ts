@@ -2,7 +2,7 @@
 // straddles, walking the requests in the order the GPU ranked them; a readback is walked once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { keysOf, queueOf, readbackOf, rec, world } from './sets.fixture.ts'
 import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'

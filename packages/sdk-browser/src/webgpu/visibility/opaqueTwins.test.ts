@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/draw.ts'
+import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import {
   createWebgpuCoplanarLayerPipelines,

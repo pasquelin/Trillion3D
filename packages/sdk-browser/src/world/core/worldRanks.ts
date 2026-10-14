@@ -1,6 +1,6 @@
 import type { Cut } from './worldCuts.ts'
 import type { LoadedModel } from './loadedModel.ts'
-import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 
 /**
  * THE MESH RANKS OF A WORLD, GIVEN ONCE. A geometry resource and a loaded model each take their

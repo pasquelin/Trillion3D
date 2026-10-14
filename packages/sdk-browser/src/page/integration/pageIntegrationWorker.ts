@@ -1,7 +1,7 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
+import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/page/integrationContracts.ts'
 import { createPageIntegrationRunner } from './task.ts'
-import type { PageIntegrationRequest } from '../../../../sdk-core/src/index.ts'
-import { type WorkerScope } from '../../host/workerScope.ts'
+import type { PageIntegrationRequest } from '../../../../sdk-core/src/page/integrationContracts.ts'
+import type { WorkerScope } from '../../host/workerScope.ts'
 
 /**
  * Entry point of the page-integration worker. Platform adapter: this file is loaded only in a

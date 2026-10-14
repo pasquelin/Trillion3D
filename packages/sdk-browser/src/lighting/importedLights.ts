@@ -1,8 +1,6 @@
-import {
-  validateSceneLight,
-  type SceneLight,
-  type SceneLightStore,
-} from '../../../sdk-core/src/index.ts'
+import { validateSceneLight } from '../../../sdk-core/src/scene/light/validate.ts'
+import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
+import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
 import { optionalFile } from '../cluster/checked.ts'
 

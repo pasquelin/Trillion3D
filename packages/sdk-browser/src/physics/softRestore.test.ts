@@ -4,16 +4,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { readPoints } from '../../../sdk-core/src/world/geometry/bounds.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
+import { BODY_INDEX, EVENT, FLAG } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import {
-  PHYSICS_STEP,
-  BODY_INDEX,
-  CommandWriter,
-  EVENT,
-  FLAG,
   softBodyOf,
   type SoftBodyOptions,
-} from '../../../sdk-core/src/physics/index.ts'
-import { SOFT_DAMPING } from '../../../sdk-core/src/physics/soft.ts'
+  SOFT_DAMPING,
+} from '../../../sdk-core/src/physics/soft.ts'
+
 import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts'
 import { events } from './module.fixture.ts'
 import { addSoft, at, BOX, CLOTH, softWorld, stepped, strayed } from './soft.fixture.ts'

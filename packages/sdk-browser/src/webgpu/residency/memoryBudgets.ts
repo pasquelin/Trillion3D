@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { EngineError, PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { poolLayerBytes, poolLayerLimit, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import {
   laneCounts,

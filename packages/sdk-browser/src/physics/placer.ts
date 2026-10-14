@@ -1,11 +1,9 @@
-import {
-  NODE_TRS_DIRTY,
-  markTransformNode,
-} from '../../../sdk-core/src/world/transform-tree/transformTree.ts'
+import { NODE_TRS_DIRTY } from '../../../sdk-core/src/world/transform-tree/nodeFlags.ts'
+import { markTransformNode } from '../../../sdk-core/src/world/transform-tree/transformTree.ts'
 import { composeMatrix4At } from '../../../math/src/matrix/matrix4Compose.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import { createNestedNodes } from './nodePose.ts'
 
 type Batch = NonNullable<ReturnType<NonNullable<SceneLink['seat']>>>['batch']

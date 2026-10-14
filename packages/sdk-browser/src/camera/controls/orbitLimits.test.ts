@@ -1,13 +1,13 @@
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { at, fixtureDrag, fixtureOrbit as orbit, round } from './controls.fixture.ts'
+import { at, fixtureDrag, fixtureOrbit, round } from './controls.fixture.ts'
 
 /** A leg of the right isosceles triangle a ten-unit orbit draws at a quarter of π. */
 const LEG = round(10 * Math.SQRT1_2)
 
 test('orbit starts with its angles unbounded: a full turn of azimuth, pole to pole', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   assert.deepEqual([controls.minPolarAngle, controls.maxPolarAngle], [0, Math.PI])
   assert.deepEqual([controls.minAzimuthAngle, controls.maxAzimuthAngle], [-Infinity, Infinity])
   controls.update()
@@ -17,7 +17,7 @@ test('orbit starts with its angles unbounded: a full turn of azimuth, pole to po
 })
 
 test('orbit holds the polar angle between its bounds, on a drag and on `update()`', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.maxPolarAngle = HALF_PI
   controls.update()
   // Dragging up would take the camera under the ground; the horizon stops it.
@@ -34,7 +34,7 @@ test('orbit holds the polar angle between its bounds, on a drag and on `update()
 })
 
 test('orbit holds the azimuth on its arc, the arc behind the target included', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.minAzimuthAngle = -Math.PI / 4
   controls.maxAzimuthAngle = Math.PI / 4
   controls.update()
@@ -63,12 +63,12 @@ function restingChanges(controls: { update(): boolean }, changes: () => number) 
 test('orbit resting on a bound stays still: `update()` emits nothing, polar or wrapped azimuth', () => {
   // Re-clamped from the pose, an angle on a bound reads back one ULP to either side of it:
   // these two drags are ones where it did, and the scene then emitted on every update.
-  const polar = orbit(10)
+  const polar = fixtureOrbit(10)
   polar.controls.maxPolarAngle = 1.3
   polar.controls.update()
   fixtureDrag(polar.surface, 13, -433)
   assert.equal(restingChanges(polar.controls, polar.changes), 0)
-  const azimuth = orbit(10)
+  const azimuth = fixtureOrbit(10)
   azimuth.camera.position.set(1.7, 2.3, -9)
   azimuth.controls.minAzimuthAngle = (3 * Math.PI) / 4
   azimuth.controls.maxAzimuthAngle = (-3 * Math.PI) / 4
@@ -81,7 +81,7 @@ test('orbit resting on a bound stays still: `update()` emits nothing, polar or w
 })
 
 test('orbit aims a camera the host only turned back at its target on `update()`', () => {
-  const { camera, controls } = orbit(10)
+  const { camera, controls } = fixtureOrbit(10)
   controls.update()
   camera.quaternion.set(0, 1, 0, 0) // Turned to look away, the position left alone.
   controls.update()
@@ -94,7 +94,7 @@ test('orbit aims a camera the host only turned back at its target on `update()`'
 })
 
 test('orbit turns by `autoRotate` over `update(delta)` until the first press, then rests', () => {
-  const { camera, controls, surface, changes } = orbit(10)
+  const { camera, controls, surface, changes } = fixtureOrbit(10)
   controls.update()
   controls.autoRotate = Math.PI / 4
   assert.equal(controls.update(1), true)

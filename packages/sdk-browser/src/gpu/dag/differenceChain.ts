@@ -1,5 +1,5 @@
-import { type CutClaims } from '../core/selection.ts'
-import { differenceWord } from './layout.ts'
+import type { CutClaims } from '../core/selection.ts'
+import { differenceWord } from './readoutWords.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 

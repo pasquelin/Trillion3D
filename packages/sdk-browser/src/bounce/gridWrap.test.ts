@@ -3,7 +3,7 @@
 // operation involved is component-wise — against the per-cell remainder it replaces.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { functionText } from './wgslBody.fixture.ts'

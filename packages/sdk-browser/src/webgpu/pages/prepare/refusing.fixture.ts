@@ -1,8 +1,5 @@
-import {
-  BACKEND,
-  fakeDevice,
-  type FakeDeviceOptions,
-} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, type FakeDeviceOptions } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 
 type Made = { label?: string; size?: { width: number; height: number } }
 

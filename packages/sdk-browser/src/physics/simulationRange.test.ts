@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { OP, VIEW_WORDS } from '../../../sdk-core/src/physics/index.ts'
+import { OP, VIEW_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { fakePhysicsWorld } from './worker.fixture.ts'

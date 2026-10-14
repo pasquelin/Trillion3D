@@ -7,8 +7,9 @@ import type { PageQueue, StreamPage } from '../../streaming/types.ts'
 import { openExplorerPageSources, openingKeeps, sceneThrough } from './pageSources.ts'
 import { streamFailed } from '../scene/streaming.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { Engine } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from './options.ts'
 import { modelOpened, served } from '../../scene/worldRoots.fixture.ts'
 
 /** A queue that records what it is told. */

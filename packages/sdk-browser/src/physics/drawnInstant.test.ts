@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
+import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import {
-  PHYSICS_STEP,
-  SOFT_STATE_WORDS,
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/vehicleLayout.ts'
 import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
 import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts'
 import { box, cylinder, plane } from '../../../sdk-core/src/world/geometry/basic.ts'

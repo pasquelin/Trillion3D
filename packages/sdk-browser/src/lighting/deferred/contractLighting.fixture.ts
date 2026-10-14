@@ -1,6 +1,7 @@
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 
 /** The kit's device and an encoder of its own, with a surface whose views stay stable, as a real
  *  surface keeps: a composition is keyed by the flags view it reads. */

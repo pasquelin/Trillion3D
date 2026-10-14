@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
+import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { createStepClock, physicsStep } from './stepClock.ts'
 
 /** The steps each frame of `deltas` (seconds) owes on a fresh clock of `step`. */

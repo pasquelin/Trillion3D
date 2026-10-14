@@ -9,15 +9,12 @@
  * (`around`). How far each parent stretches the root's frame (`stretch`) is what the rows are sized
  * by (`sizing.ts`).
  */
-import {
-  boxTransform,
-  determinantMatrix4,
-  invertMatrix4,
-  MATRIX_VALUES,
-  maxStretch,
-  multiplyMatrix4,
-} from '../../../sdk-core/src/index.ts'
-import { boxUnion } from '../../../math/src/geometry/box.ts'
+import { boxTransform, boxUnion } from '../../../math/src/geometry/box.ts'
+import { determinantMatrix4, multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
+
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import { sameMatrixBits } from '../../../math/src/matrix/matrixElements.ts'

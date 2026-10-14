@@ -1,6 +1,6 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts'
 
 /** The page channels open now (`diagnostic.createChannel`): every world notice reaches each,

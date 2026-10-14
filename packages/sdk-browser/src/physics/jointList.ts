@@ -1,4 +1,4 @@
-import type { Joint } from '../../../sdk-core/src/physics/index.ts'
+import type { Joint } from '../../../sdk-core/src/physics/joint.ts'
 import { Vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
 
 /**

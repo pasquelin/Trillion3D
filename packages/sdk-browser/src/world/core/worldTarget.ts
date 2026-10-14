@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { resolveExplorerTarget } from '../session/target.ts'
 
 /** A canvas, an element to draw inside, or the literal document ID of either (no selector prefix). */

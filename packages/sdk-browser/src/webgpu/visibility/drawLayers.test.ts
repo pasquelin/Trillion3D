@@ -2,16 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import {
   BASE_SLOTS,
   DRAW_ITEM_U32,
   HALF_SLOTS,
   MAX_DRAW_SLOTS,
   slotCount,
-} from '../../gpu/draw/draw.ts'
+} from '../../gpu/draw/contract.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

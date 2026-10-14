@@ -1,4 +1,4 @@
-import type { EngineDiagnostic, DiagnosticDetail } from '../engine/types.ts'
+import type { EngineDiagnostic, DiagnosticDetail } from './types.ts'
 
 /** A function that hears each thing a diagnostic channel reports. */
 export type DiagnosticObserver = (diagnostic: EngineDiagnostic) => void

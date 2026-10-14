@@ -3,7 +3,7 @@ import {
   CHARACTER_WORDS,
   GROUND,
   OP,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/layout.ts'
 import { arc } from '../../../sdk-core/src/collision/characterArc.ts'
 import {
   createDrive,

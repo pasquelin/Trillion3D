@@ -1,5 +1,5 @@
 import { arrayView } from '../gpu/core/textureViews.ts'
-import type { BounceCascades } from '../../../sdk-core/src/index.ts'
+import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { constructGpuResources } from '../gpu/core/errorScope.ts'
 import { createBounceUniform } from './uniform.ts'
 import { BOUNCE_ATLAS_FORMAT } from './atlas.ts'

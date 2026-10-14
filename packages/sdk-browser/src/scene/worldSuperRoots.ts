@@ -17,7 +17,7 @@
  */
 
 import type { DagRoot } from '../gpu/dag/types.ts'
-import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/index.ts'
+import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/contracts/geometry.ts'
 import {
   WORLD_ROOTS_BIN,
   type WorldRootsCluster,

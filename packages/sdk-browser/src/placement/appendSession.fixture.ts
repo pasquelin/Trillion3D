@@ -7,7 +7,8 @@ import { MANIFEST_IDENTITY, dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
 import { manifestCulling } from '../gpu/dag/culling.fixture.ts'
 import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
-import { BACKEND, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { createWebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../webgpu/pages/prepare/prepare.ts'
@@ -17,7 +18,7 @@ import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
 import { addWebgpuPlacements } from './webgpuAppend.ts'
 import { startGrownCut } from './webgpuGrowth.ts'
 import { adoptGrownCut } from './webgpuGrownCut.ts'
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 
 const structure = { version: 1, roots: [0], groups: [] }
 /** A primitive of one page, `layer` coplanar layers deep. */

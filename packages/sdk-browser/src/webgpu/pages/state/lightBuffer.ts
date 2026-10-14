@@ -1,10 +1,10 @@
 import {
   LIGHT_SETTINGS,
-  SCENE_ENVIRONMENT_FLOATS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
-  type SceneLightStore,
-} from '../../../../../sdk-core/src/index.ts'
+} from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import { SCENE_ENVIRONMENT_FLOATS } from '../../../../../sdk-core/src/scene/core/environment.ts'
+import type { SceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
 import { LTC_SIZE, ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts'
 import type { WebgpuLightState } from './lights.ts'
 

@@ -1,5 +1,5 @@
 // The kernel's verdict on a cut node and its floor, in JavaScript over the frames of `math.fixture.ts`.
-import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../../../math/src/geometry/frustum/box.ts'
 import { viewDepthOf } from '../../../page/selection/projection.ts'
 import { errorFloorAt } from '../../../page/selection/projection.fixture.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'

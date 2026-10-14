@@ -1,6 +1,6 @@
 import { createWebgpuRowWriters } from './writers.ts'
 import { createWebgpuRowClaims } from './claims.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { rowHasGeometry } from './pageRow.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'

@@ -1,12 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  CommandWriter,
-  EVENT_WORDS,
-  PHYSICS_MATERIALS,
-  PHYSICS_STEP,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { PHYSICS_MATERIALS, PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import {
   HUMAN_BODY,
   type CharacterInput,

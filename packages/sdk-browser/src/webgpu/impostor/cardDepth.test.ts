@@ -10,7 +10,7 @@
 // occludes by; the surface stage compares none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fieldCamera } from '../../gpu/dag/placementTree.fixture.ts'
 import { singleUlp } from '../../../../../bench/core/ulp.ts'

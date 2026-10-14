@@ -1,15 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { collectClusterPages } from '../../../page/selection/selection.ts'
-import { packDagSelection } from '../../../gpu/dag/selection.ts'
+import { collectClusterPages } from '../../../page/selection/collect.ts'
+import { packDagSelection } from '../../../gpu/dag/pack.ts'
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import {
-  BACKEND,
-  dispatchedEntries,
-  fakeDevice,
-} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { RasterView } from '../runtime.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'

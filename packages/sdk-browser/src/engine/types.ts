@@ -1,14 +1,12 @@
 import type { AdmitGpuMemory } from '../residency/activeMemory.ts'
 import type { HostScene } from '../host/resources.ts'
 import type { HostCamera } from '../camera/world.ts'
-import type {
-  EngineCapabilities,
-  ClusterManifest,
-  DiagnosticMode,
-  SceneLightStore,
-  StageProfile,
-  Texture,
-} from '../../../sdk-core/src/index.ts'
+import type { EngineCapabilities } from '../../../sdk-core/src/contracts/metrics.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
+import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
+import type { StageProfile } from '../../../sdk-core/src/runtime/stageProfile.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts'
 import type { CpuStepSummary } from '../stage/profiler.ts'

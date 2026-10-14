@@ -1,4 +1,5 @@
-import { CONE_LENGTH_RATIO, CONE_ORTHO_EPS, HALF_PI } from '../../../../../sdk-core/src/index.ts'
+import { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../../../../math/src/geometry/cone.ts'
+import { HALF_PI } from '../../../../../math/src/constants.ts'
 import {
   absoluteSum3,
   invTranspose3Apply,

@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts'
-import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY as XY } from './markingWgsl.ts'
+import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
 import { vsmDispatchPerPageBin, vsmWritePerPageBinArgs } from './markingPass.ts'
 
 type Walk = { valid: boolean; handle: { id: number }; walkStart: number[] }
@@ -42,7 +42,7 @@ function walks(b: number, count: number, xs: number) {
   const n = grid(b, count),
     out: { id: number[]; walk: Walk }[] = []
   for (let z = 0; z < n[2]; z++)
-    for (let y = 0; y < n[1] * XY; y++)
+    for (let y = 0; y < n[1] * VSM_PER_PAGE_GROUP_XY; y++)
       for (let x = 0; x < xs; x++) out.push({ id: [x, y, z], walk: vsmMapWalkOf([x, y, z], n) })
   return { out, gridWidth }
 }
@@ -61,7 +61,7 @@ test('a grouped bin past 65,535 maps runs them in rows along z, no dimension pas
 
 test('a single row walks map z from its thread, as before the rows', () => {
   for (const b of [0, 1, 2]) {
-    const { out } = walks(b, 3, grid(b, 3)[0] * XY)
+    const { out } = walks(b, 3, grid(b, 3)[0] * VSM_PER_PAGE_GROUP_XY)
     for (const { id, walk } of out) {
       assert.ok(walk.valid)
       assert.equal(walk.handle.id, id[2])
@@ -95,10 +95,10 @@ test('the thread-per-id bin ranks its threads by flatIndex', () => {
   const b = 3
   for (const count of [100, 64 * 3 + 1]) {
     const n = grid(b, count),
-      { out } = walks(b, count, n[0] * XY),
+      { out } = walks(b, count, n[0] * VSM_PER_PAGE_GROUP_XY),
       seen = new Uint8Array(count)
     for (const { id, walk } of out) {
-      const rank = id[0] + id[1] * n[0] * XY
+      const rank = id[0] + id[1] * n[0] * VSM_PER_PAGE_GROUP_XY
       assert.equal(walk.valid, rank < count)
       if (walk.valid) {
         assert.equal(walk.handle.id, rank)

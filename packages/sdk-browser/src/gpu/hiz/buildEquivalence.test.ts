@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
-import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
-import { buildAfter, buildBefore, layout, type Scene } from './buildTranscripts.fixture.ts'
+import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
+import { buildAfter, buildBefore } from './buildTranscripts.fixture.ts'
+import { layout, type Scene } from './buildScene.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -87,8 +88,14 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
 })
 
 test('the shipped build is one kernel over workgroup memory, with no copy kernel left', () => {
-  assert.match(HIZ_SHADER, new RegExp(`var<workgroup> hizTile:array<vec2f,${S * S}>;`))
-  assert.match(HIZ_SHADER, new RegExp(`@workgroup_size\\(${S}, ${S}\\)\\s*fn buildHiz\\(`))
+  assert.match(
+    HIZ_SHADER,
+    new RegExp(`var<workgroup> hizTile:array<vec2f,${HIZ_BUILD_SIDE * HIZ_BUILD_SIDE}>;`),
+  )
+  assert.match(
+    HIZ_SHADER,
+    new RegExp(`@workgroup_size\\(${HIZ_BUILD_SIDE}, ${HIZ_BUILD_SIDE}\\)\\s*fn buildHiz\\(`),
+  )
   assert.match(HIZ_SHADER, new RegExp(`dst:array<vec4u,${HIZ_PASS_LEVELS}>,`))
   assert.doesNotMatch(HIZ_SHADER, /fn copyDepth|fn reduceHiz/)
   // The lines the transcript follows, pinned: a slip in the WGSL alone shows here.
@@ -98,7 +105,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
     `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}`,
     'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
-    `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);`,
+    `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${HIZ_BUILD_SIDE}u],hizTile[i+dy*${HIZ_BUILD_SIDE}u+dx],dx,dy);`,
     'hizPutBound(dst.x+ty*dst.y+tx,bound);',
     `if(${HIZ_NEAREST_BUILD}){return vec2f(max(a.x,b.x),min(a.y,b.y));}`,
   ])

@@ -2,7 +2,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts'
 import type { PlacementRows } from './rows.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 

@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { copyRanks } from '../cut/copyRanks.ts'
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each

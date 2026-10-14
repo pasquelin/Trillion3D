@@ -4,7 +4,7 @@
 // nothing to read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createCutDelta } from './delta.ts'
 import { createCutPending } from './pending.ts'
 

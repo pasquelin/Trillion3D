@@ -1,9 +1,6 @@
-import {
-  BOUNCE_PROBES_PER_FRAME,
-  BOUNCE_SETTINGS,
-  type BounceCascades,
-  type BounceOccupancy,
-} from '../../../sdk-core/src/index.ts'
+import { BOUNCE_PROBES_PER_FRAME, BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
+import type { BounceOccupancy } from '../../../sdk-core/src/bounce/occupancy.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 
 /**

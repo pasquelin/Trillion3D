@@ -10,7 +10,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseDagOutput } from './uniforms.ts'
-import { OUT_AHEAD_PLACED, SELECTION_HEADER_WORDS } from './layout.ts'
+import { OUT_AHEAD_PLACED } from './layout.ts'
+import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts'
 import type { SelectionResult } from '../core/selection.ts'
 

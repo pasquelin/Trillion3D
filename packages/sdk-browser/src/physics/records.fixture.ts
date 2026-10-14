@@ -1,5 +1,5 @@
 /** Record builders the physics tests share, free of Node: a page or a worker imports them too. */
-import { GENERATION_SHIFT } from '../../../sdk-core/src/physics/index.ts'
+import { GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
 
 /** Generation 1 of an engine id. */
 const GENERATION = 1 << GENERATION_SHIFT

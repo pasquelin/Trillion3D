@@ -5,13 +5,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { createTexelTurn, prepareTexelTurn } from './texelTurn.ts'
 import { TEXEL_FLIP } from './texelTurnWgsl.ts'
 import { tileCatalogue } from './catalogue.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
-import { Texture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 
 test('static turns share the device’s ring and words, destroyed once idle', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

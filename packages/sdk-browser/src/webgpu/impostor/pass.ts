@@ -3,7 +3,7 @@ import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { cardPipelines } from './pipelines.ts'
 import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import type { WebgpuTileAtlas } from '../tile/atlas.ts'
+import type { WebgpuTileAtlas } from '../tile/atlasTypes.ts'
 
 /** What the tile group is made over: the atlases' lane views and tables, and the maps' sampler. */
 type TileSources = { color: WebgpuTileAtlas; data: WebgpuTileAtlas; sampler: GPUSampler }

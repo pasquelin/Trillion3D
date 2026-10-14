@@ -3,7 +3,7 @@
  * its winding turned, the tree groups and the impostor cards of its roots told, its move told to
  * the shadow mobility.
  */
-import { matrixWindingCw } from '../../../sdk-core/src/index.ts'
+import { matrixWindingCw } from '../../../math/src/matrix/orientation.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'

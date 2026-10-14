@@ -4,7 +4,7 @@
 // holds. Every adoption compares every list, record, order and byte the two publish, and counts the
 // catalogue lookups the engine took.
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { differenceRig, type RigCut } from '../../gpu/dag/differenceRig.fixture.ts'
 import { createCutDelta, type CutDelta } from './delta.ts'

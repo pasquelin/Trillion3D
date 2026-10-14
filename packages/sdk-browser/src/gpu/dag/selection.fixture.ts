@@ -1,9 +1,6 @@
-import type { PackedDag } from './selection.ts'
-import {
-  BACKEND,
-  fakeDevice,
-  type FakeDeviceOptions,
-} from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { PackedDag } from './types.ts'
+import { BACKEND, type FakeDeviceOptions } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { FRAME_TABLE } from './frameTable.ts'

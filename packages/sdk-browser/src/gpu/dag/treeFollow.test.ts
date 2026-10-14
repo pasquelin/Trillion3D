@@ -7,12 +7,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime, type RootsOnGpu } from './runtime.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 /** A field of `side`² placements cut on a mock device, its tree followed by the run itself

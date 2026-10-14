@@ -1,16 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import {
-  CommandWriter,
-  DEFAULT_PHYSICS_BUDGET,
-  SOFT_STATE_WORDS,
-  SOFT_VERTEX_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
+import { SOFT_STATE_WORDS, SOFT_VERTEX_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { startModule } from './module.fixture.ts'
 import { id } from './records.fixture.ts'
-import { softBodiesIn, WRITEBACK_BOUND as BOUND, writeSoftBody } from './soft.fixture.ts'
+import { softBodiesIn, WRITEBACK_BOUND, writeSoftBody } from './soft.fixture.ts'
 import { writebackScene } from './softWriteback.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
@@ -32,7 +29,10 @@ function assertWriteback(actual: Uint32Array, expected: Uint32Array, label: stri
     assert.equal(actual[from - SOFT_STATE_WORDS], engine, `${label}: body at ${from}`)
     assert.equal(actual[from - SOFT_STATE_WORDS + 1], count, `${label}: vertex count at ${from}`)
     for (let at = from; at < from + count * 3; at++)
-      assert.ok(Math.abs(a[at] - e[at]) <= BOUND, `${label}[${at}]: ${a[at]} against ${e[at]}`)
+      assert.ok(
+        Math.abs(a[at] - e[at]) <= WRITEBACK_BOUND,
+        `${label}[${at}]: ${a[at]} against ${e[at]}`,
+      )
   }
 }
 
@@ -109,7 +109,7 @@ test('a resting soft body writes back its own vertices, at random places, turns 
   })
   const cloths = await restingCloths(4, poses)
   assert.equal(cloths.length, poses.length)
-  cloths.forEach(({ worst }, n) => assert.ok(worst <= BOUND, `${n}: ${worst} m off`))
+  cloths.forEach(({ worst }, n) => assert.ok(worst <= WRITEBACK_BOUND, `${n}: ${worst} m off`))
 })
 
 test('a soft body of the whole default budget writes back every vertex', async () => {
@@ -122,5 +122,5 @@ test('a soft body of the whole default budget writes back every vertex', async (
     ],
   ])
   assert.equal(count, DEFAULT_PHYSICS_BUDGET.softVertices)
-  assert.ok(worst <= BOUND, `${worst} m off`)
+  assert.ok(worst <= WRITEBACK_BOUND, `${worst} m off`)
 })

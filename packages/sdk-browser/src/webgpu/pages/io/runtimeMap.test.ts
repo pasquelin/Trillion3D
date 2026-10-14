@@ -3,12 +3,13 @@ import assert from 'node:assert/strict'
 import { bitmapFixture } from '../../../world/api/bitmap.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { tileBytes } from '../../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
 function open(map?: ImageBitmap) {

@@ -1,7 +1,8 @@
 // The soft bodies' drawn vertices: each simulated state kept in two steps by slot, every frame
 // drawn at the bodies' time into the page's geometry or a compiled model's source.
 import { receiveSoftSource } from '../deformation/softSource.ts'
-import { BODY_INDEX, SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts'
 import type { createPhysicsBodies } from './bodies.ts'

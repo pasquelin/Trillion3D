@@ -1,7 +1,7 @@
 import { framingFromBounds } from '../../camera/framing.ts'
 import { runCameraPath } from '../../camera/path.ts'
 export type { PathRun } from '../../camera/path.ts'
-import type { CameraPose as EnginePose } from '../../../../sdk-core/src/index.ts'
+import type { CameraPose as EnginePose } from '../../../../sdk-core/src/contracts/base.ts'
 import type { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Vector3, readVec3, type Vec3Input } from '../../../../sdk-core/src/world/math/vector3.ts'
 import type { CameraPose } from '../../../../sdk-core/src/world/camera/camera.ts'

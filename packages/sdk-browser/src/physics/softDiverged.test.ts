@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BODY_INDEX, CommandWriter, EVENT, FLAG } from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, EVENT, FLAG } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { events, startModule, type Module } from './module.fixture.ts'
 import { addBox, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts'
 import { stateDump } from './stateDump.fixture.ts'

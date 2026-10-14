@@ -13,7 +13,7 @@ import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 import { retained } from '../streaming/retained.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
-import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 const BASE = 'https://host/cache/full/clusters.json'

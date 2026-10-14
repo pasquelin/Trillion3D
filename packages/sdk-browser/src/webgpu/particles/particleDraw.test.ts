@@ -11,7 +11,7 @@ import { askParticles, encodeParticles } from './webgpuParticleFrame.ts'
 import { pipelinesCompiling } from '../../lighting/deferred/compileLedger.ts'
 import { gatedDevice } from '../../lighting/deferred/gatedDevice.fixture.ts'
 import { families } from '../../host/families.ts'
-import { PARTICLE_DRAW_PASS as P } from '../../stage/passLabels.ts'
+import { PARTICLE_DRAW_PASS } from '../../stage/passLabels.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 /** The device the pools' step states are made on. */
@@ -90,7 +90,15 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   assert.equal(draw.draw([], frame(encoder)) + draw.draw([pools[2]], frame(encoder)), 0)
   assert.deepEqual(log(), [], 'no particle alive: no pass, no pixel')
   assert.equal(draw.draw(pools, frame(encoder)), 2)
-  assert.deepEqual(log(), [P, `${P} additive state 0`, `${P} premultiplied state 0`], 'far to near')
+  assert.deepEqual(
+    log(),
+    [
+      PARTICLE_DRAW_PASS,
+      `${PARTICLE_DRAW_PASS} additive state 0`,
+      `${PARTICLE_DRAW_PASS} premultiplied state 0`,
+    ],
+    'far to near',
+  )
   // The lit image, then the reactive value their coverage is written in (#833).
   assert.deepEqual(attached(), [[view, reactive]])
   const blends = gpu.renderPipelines.map(({ fragment }) => {

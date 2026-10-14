@@ -3,8 +3,9 @@
 // switched off bright — the blackout would show on no pixel.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts'
-import { directLightResources, readsAsIs, wantsContractLighting } from './lightResources.ts'
+import { createSceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
+import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import { directLightResources, readsAsIs, wantsContractLighting } from './contractLight.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const LAMP: SceneLight = {

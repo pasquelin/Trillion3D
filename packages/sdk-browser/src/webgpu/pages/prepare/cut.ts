@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
-import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts'
+import { createGpuDagSelection } from '../../../gpu/dag/selection.ts'
+import { packDagSelection } from '../../../gpu/dag/pack.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { linkWorldObjects } from './worldRoot.ts'

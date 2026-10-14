@@ -2,16 +2,17 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import { collectClusterPages } from '../../page/selection/selection.ts'
-import { packDagSelection } from '../../gpu/dag/selection.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
+import { packDagSelection } from '../../gpu/dag/pack.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import {
   QUAD_MANIFEST,
   frontCamera,
   quadIndices,
-  quadScene as quadMesh,
+  quadMesh,
   triangleGeometry,
 } from '../../engine/pagesEngineScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'

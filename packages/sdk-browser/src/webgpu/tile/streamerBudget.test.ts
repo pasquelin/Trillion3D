@@ -1,4 +1,4 @@
-import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 // The tile pass stops copying once its millisecond budget is spent and defers the rest to the
 // next pass, most looked-at first; a barrier lifts the budget; the worst budgeted pass is kept.
 import test from 'node:test'

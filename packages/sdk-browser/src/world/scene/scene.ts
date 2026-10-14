@@ -1,12 +1,13 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { meshes as objects } from '../../scene/meshes.ts'
+import { meshes } from '../../scene/meshes.ts'
 import { assertFiniteTransform } from '../../host/world/matrices.ts'
 import { replicateInstances } from '../../scene/replicateInstances.ts'
 import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts'
-import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { createMultiplyLot } from '../../page/decode/batch/batchRuntime.ts'
 import { mathBatchModule } from '../../page/decode/batch/batchState.ts'
-import type { MeasuredWorldOptions } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
 import { openWorldRoots } from '../../scene/worldRoots.ts'
@@ -138,7 +139,7 @@ function reportPrepared(
  *  the bottom of the lighting shader, far from its cause. */
 function assertFinitePoses(source: Object3D) {
   const worlds = hostWorldPlacements(source)
-  for (const mesh of objects(source)) assertFiniteTransform(worlds.of(mesh).elements, mesh.name)
+  for (const mesh of meshes(source)) assertFiniteTransform(worlds.of(mesh).elements, mesh.name)
 }
 
 /** `source` copied `replicas` times (`replicateInstances`). Load buffers, reserved before they are
@@ -151,7 +152,7 @@ async function replicated(
 ) {
   const boundsLot = replicas > 1 ? await hostBoundsLot(source) : null
   const preparedBounds = replicas > 1 ? hostWorldBounds(source, undefined, boundsLot) : undefined
-  const instances = replicas > 1 ? await createMultiplyLot(replicas * objects(source).length) : null
+  const instances = replicas > 1 ? await createMultiplyLot(replicas * meshes(source).length) : null
   const copied = replicateInstances(source, associations, replicas, preparedBounds, instances)
   instances?.release()
   boundsLot?.release()

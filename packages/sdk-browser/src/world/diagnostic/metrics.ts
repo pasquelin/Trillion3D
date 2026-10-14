@@ -1,8 +1,10 @@
 import { pageIntegrationStats } from '../../page/integration/host.ts'
 import { pageWorkStats } from '../../page/work/host.ts'
 import { EngineProfiler } from '../../diagnostic/telemetry.ts'
-import type { FrameMetrics, ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { Engine } from '../../engine/types.ts'
 import { ENGINE_METRIC_KEYS, type EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 

@@ -1,4 +1,5 @@
-import { Object3D, type SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { SceneLink } from '../../../../sdk-core/src/world/object/sceneLink.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { listen, unlisten } from '../../../../sdk-core/src/world/observed.ts'

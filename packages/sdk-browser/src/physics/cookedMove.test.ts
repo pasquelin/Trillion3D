@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MOTION, OP, type CookedBody } from '../../../sdk-core/src/physics/index.ts'
+import { MOTION, OP } from '../../../sdk-core/src/physics/layout.ts'
+import type { CookedBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createCookedBodies } from './cookedBodies.ts'
 import { followMove } from './nodePose.ts'

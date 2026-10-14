@@ -8,7 +8,7 @@ import { createWebgpuResidencyQueue } from './queue.ts'
 import { createLowerPass, createLowerTier } from './lowerTier.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, lowerPassOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 function banc(slots: number, visible: string[], ahead: string[]) {
   const camera = visible.map(pageOf),

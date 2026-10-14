@@ -1,5 +1,5 @@
-import type { PageRec } from './selection.ts'
-import type { ClusterRoot } from './types.ts'
+import type { PageRec, ClusterRoot } from './types.ts'
+
 import type { PlacementIndex } from './placements.ts'
 import { rootOfPacked } from './placements.ts'
 

@@ -9,7 +9,7 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { gridCompactWgsl } from './compactWgsl.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The view grid's compaction: a column's depth slices. */

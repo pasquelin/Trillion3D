@@ -2,8 +2,9 @@
 // triangle, and the row table mounted over it.
 import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
 import { createMaterialTable } from '../material/materialTable.ts'

@@ -1,4 +1,4 @@
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 
 /** `uni.mode` of the resolve, per diagnostic view (`./shadeWgsl.ts`); beauty is zero. */
 export const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {

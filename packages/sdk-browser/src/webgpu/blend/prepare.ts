@@ -1,6 +1,6 @@
 import { deformedOf } from '../../deformation/source.ts'
 import { placementDeformation } from '../../deformation/placementSource.ts'
-import { BOX_VALUES } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import type { BlendHostScene } from '../../cluster/blendSceneRecord.ts'
 import { refreshBlendBounds } from './worlds.ts'

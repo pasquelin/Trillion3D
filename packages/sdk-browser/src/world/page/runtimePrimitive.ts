@@ -1,6 +1,10 @@
 import { unpackDrawn } from './runtimePack.ts'
 import { runtimeDeformation } from './runtimeDeformation.ts'
-import type { CullingHierarchy, Page, Primitive } from '../../../../sdk-core/src/index.ts'
+import type {
+  CullingHierarchy,
+  Page,
+  Primitive,
+} from '../../../../sdk-core/src/contracts/geometry.ts'
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { cutPagesOffThread } from '../../page/work/host.ts'

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { joint } from '../../../sdk-core/src/physics/index.ts'
+import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import { WEAK, brokenPastForce, gap, jointRig, widestSwings } from './joints.fixture.ts'
 
 test('fixed: two bodies fall as one; the world holds a body still; past its force it breaks', async () => {

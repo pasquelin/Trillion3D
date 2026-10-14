@@ -1,6 +1,6 @@
 import { visUniformLayout } from '../core/bindLayout.ts'
 import { viewProj } from '../pages/helpers.ts'
-import { slotCount } from '../../gpu/draw/draw.ts'
+import { slotCount } from '../../gpu/draw/contract.ts'
 import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts'
 import { computeRasterReady } from '../pages/render/encodeVisSetup.ts'
 import type { WebgpuVisState } from '../pages/state/vis.ts'

@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import { deformOutputWord, followPooledBlocks } from './outputs.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** Four rows — a float-pool block, a page's own results, the block again, a row with none —, a placement each. */

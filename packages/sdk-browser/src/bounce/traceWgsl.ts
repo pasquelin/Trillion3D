@@ -1,9 +1,9 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import {
-  BOUNCE_SETTINGS,
   PROXY_CHILDREN,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { WIDE_NODE_WGSL } from './nodeWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {

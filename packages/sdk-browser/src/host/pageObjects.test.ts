@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { materialSurface } from './pageObjects.ts'
-import type { Material } from '../../../sdk-core/src/index.ts'
+import type { Material } from '../../../sdk-core/src/contracts/material.ts'
 import { alphaModeFields } from './prepared/materials.ts'
 
 const CONTRACT: Material = {

@@ -1,10 +1,11 @@
 import type { HostMesh } from '../host/resources.ts'
 import { hostMeshCopy } from '../host/scene/graphObjects.ts'
-import { MATRIX_VALUES, boxIsEmpty } from '../../../sdk-core/src/index.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { boxIsEmpty } from '../../../math/src/geometry/box.ts'
 import { madeLot, multiplyLot, type MultiplyLot } from '../page/decode/batch/batchRuntime.ts'
 import { ENGINE_OWNED } from '../host/scene/watch.ts'
 import { hostWorldBounds } from '../host/world/bounds.ts'
-import { meshes as objects } from './meshes.ts'
+import { meshes } from './meshes.ts'
 import { resolveHostSubtree } from '../host/world/matrices.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { Group, type Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -37,10 +38,10 @@ export function replicateInstances(
     sizeZ = empty ? 0 : bounds[5] - bounds[2]
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new Group(),
-    meshes = objects(source)
+    drawn = meshes(source)
   // Products run IN BATCHES by the module's kernel, the one path: in `lot` when it holds exactly one
   // copy per slot, else in one remade at the copies' count and released once read.
-  const n = rows * columns * meshes.length,
+  const n = rows * columns * drawn.length,
     own = n > 0 && !lot?.holds(n) ? madeLot(multiplyLot(n), n) : null,
     products = own ?? (n > 0 ? lot : null)
   const copies: HostMesh[] = []
@@ -48,7 +49,7 @@ export function replicateInstances(
   copyMatrix4(groupWorld, group.matrixWorld.elements)
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)
-      for (const mesh of meshes) {
+      for (const mesh of drawn) {
         const copy = hostMeshCopy(mesh)
         // This copy belongs to engine: host has never seen it and cannot write it.
         // What traverses graph looking for host write skips it entirely.

@@ -1,10 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  collisionBytesOf,
-  type CommandWriter,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import { collisionBytesOf, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import { createModelBodies } from './modelBodies.ts'

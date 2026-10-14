@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { untag } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 import {
   quadScene,
@@ -15,7 +16,7 @@ import {
 import { coarseQuadScene } from './testOccluder.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals()

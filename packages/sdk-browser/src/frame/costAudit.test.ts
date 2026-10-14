@@ -5,7 +5,7 @@ import { surfaceOf } from '../page/surface.ts'
 import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './costAudit.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
-import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 test('opt-in audit: bounded snapshot, deferred, without changing the selection or inventing the GPU mask', async (t) => {

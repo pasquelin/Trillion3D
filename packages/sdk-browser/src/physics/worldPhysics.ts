@@ -1,6 +1,7 @@
 import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
+import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
+import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/options.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { listen } from '../../../sdk-core/src/world/observed.ts'

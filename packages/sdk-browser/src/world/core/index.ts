@@ -1,12 +1,9 @@
 export { createWorld } from './world.ts'
-export type {
-  World,
-  WorldOptions,
-  FrameInfo,
-  BeforeFrameInfo,
-  WorldTarget,
-  LoadOptions,
-} from './world.ts'
+export type { World } from './world.ts'
+export type { WorldOptions } from './worldOptions.ts'
+export type { FrameInfo, BeforeFrameInfo, WorldFrameMetrics } from './worldFrames.ts'
+export type { WorldTarget } from './worldTarget.ts'
+export type { LoadOptions } from './scene.ts'
 export type { CanvasPoint, RaycastOptions } from './worldRaycast.ts'
 export type { Intersection } from '../query/types.ts'
 export type {
@@ -16,7 +13,7 @@ export type {
   SavedMaterial,
   SavedCamera,
 } from '../saved/format.ts'
-export type { WorldFrameMetrics } from './worldFrames.ts'
+
 export type { QualityResolution, WorldQualityOptions } from './worldQuality.ts'
 export { Scene } from './scene.ts'
 export type { Fog } from './sceneFog.ts'

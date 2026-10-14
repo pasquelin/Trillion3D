@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
-import { STANDARD_LIGHTING_WGSL as STANDARD_LIGHTING } from './standardLighting.ts'
+import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
@@ -15,14 +15,14 @@ import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import { linearToSrgb8 } from '../../../math/src/color/color.ts'
 
 /** The standard lobe as a program holds it, its library declarations included. */
-const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
+const STANDARD_LIGHTING = wgslModule(STANDARD_LIGHTING_WGSL)
 
 type V3 = number[]
 type T3 = [number, number, number]
 const { standardLighting } = shaderRun<{
   standardLighting: (rgb: V3, metal: number, rough: number, N: V3, V: V3, light: V3) => V3
 }>(
-  STANDARD_LIGHTING_WGSL,
+  STANDARD_LIGHTING,
   [
     'standardLighting',
     'lobeSurface',
@@ -86,12 +86,9 @@ const byte = (x: number) => linearToSrgb8(saturate(x))
 
 test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
   const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);'
-  assert.ok(STANDARD_LIGHTING_WGSL.includes(shipped))
+  assert.ok(STANDARD_LIGHTING.includes(shipped))
   const viaPow = shaderRun<{ standardLighting: typeof standardLighting }>(
-    STANDARD_LIGHTING_WGSL.replace(
-      shipped,
-      'return f0+(1.0-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);',
-    ),
+    STANDARD_LIGHTING.replace(shipped, 'return f0+(1.0-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);'),
     [
       'standardLighting',
       'lobeSurface',

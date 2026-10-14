@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createDeformationSkip } from './screen.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 test('orthographic deformation remains visible at any depth', () => {
   const camera = createEngineCamera()

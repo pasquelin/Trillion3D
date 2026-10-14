@@ -1,5 +1,5 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { BodyLedger } from './bodyLedger.ts'
 import { createSimulatedIds } from './simulatedIds.ts'
 import { readShared } from './cookedReads.ts'

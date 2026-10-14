@@ -1,5 +1,5 @@
 import { entryLevel } from '../../texture/tiles.ts'
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { createTileSlotUse } from './slotUse.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'

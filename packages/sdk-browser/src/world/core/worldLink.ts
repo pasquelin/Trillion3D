@@ -1,4 +1,5 @@
-import type { Object3D, SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { SceneLink } from '../../../../sdk-core/src/world/object/sceneLink.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { createWorldLights } from './worldLights.ts'

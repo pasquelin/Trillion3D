@@ -9,12 +9,12 @@ import * as G from '../../../host/graph/graph.fixture.ts'
 import { selectionRoot } from '../../core/transformShear.fixture.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../../../sdk-core/src/world/transform-tree/pass.ts'
-import { hostScene as scene } from './hostWrite.fixture.ts'
+import { hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransform } from './transform.ts'
 import { appendRootsUnder } from './movedNode.ts'
 
 test('a pose written, then a pass of the page’s tree another reader ran: the root is named', () => {
-  const { source, meshes, rt, sent, image } = scene(100)
+  const { source, meshes, rt, sent, image } = hostScene(100)
   meshes[7].position.x += 1
   updateTransformTree(Object3D._treeOf(source))
   sent.length = 0
@@ -23,7 +23,7 @@ test('a pose written, then a pass of the page’s tree another reader ran: the r
 })
 
 test('a hide reaches every root under the node, one a growth added in place included', () => {
-  const { holder, roots, worlds, parks, image } = scene(50)
+  const { holder, roots, worlds, parks, image } = hostScene(50)
   const grown = G.mesh(roots[0].pages[0].drawSource!.node!.geometry as never)
   holder.add(grown)
   roots.push(selectionRoot(grown, [-1, -1, -1, 1, 1, 1], worlds))
@@ -38,7 +38,7 @@ test('a hide reaches every root under the node, one a growth added in place incl
 })
 
 test('a slot freed and taken by another node names nothing of the old node’s root', () => {
-  const { holder, meshes, rt } = scene(20)
+  const { holder, meshes, rt } = hostScene(20)
   const gone = meshes[4]
   // The roots' index is built before the node goes, as a session holds it.
   const named: number[] = []
@@ -53,7 +53,7 @@ test('a slot freed and taken by another node names nothing of the old node’s r
 
 test('a hide reads the see-through draws under the node alone, at 10² as at 10⁴', () => {
   const reads = [1e2, 1e4].map((count) => {
-    const { meshes, blendGpu, image } = scene(count, true)
+    const { meshes, blendGpu, image } = hostScene(count, true)
     let read = 0
     for (const item of blendGpu) {
       const source = item.drawSource
@@ -71,7 +71,7 @@ test('a hide reads the see-through draws under the node alone, at 10² as at 10�
 })
 
 test('a reshape the engine owes is walked, an engine move after it in the same task or not', () => {
-  const { meshes, rt, run, sent, image } = scene(30)
+  const { meshes, rt, run, sent, image } = hostScene(30)
   sent.length = 0
   run.gate.sceneChanged()
   setWebgpuTransform(

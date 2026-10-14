@@ -1,4 +1,4 @@
-import type { Texture } from '../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { textureRgba } from '../visibility/types.ts'
 import { pictureSize } from './imageExtent.ts'
 

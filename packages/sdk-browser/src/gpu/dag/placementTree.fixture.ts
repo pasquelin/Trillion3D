@@ -2,10 +2,10 @@
 // four-leaf strip) laid `side`² times on a square grid `gap` metres apart, rows in rank order, so
 // consecutive ranks lie side by side as a partition's cell lays them. Cameras look over it.
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages } from '../../page/selection/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import type { DagRoot } from './types.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { dagOracleDescent } from './oracle/descent.fixture.ts'

@@ -1,4 +1,4 @@
-import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts'
+import { matrixWindingCw } from '../../../../../math/src/matrix/orientation.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
 import { rootOf } from '../../../page/selection/placements.ts'
 

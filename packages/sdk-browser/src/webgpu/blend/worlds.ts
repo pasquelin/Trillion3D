@@ -1,4 +1,4 @@
-import { boxIsEmpty, boxTransform } from '../../../../sdk-core/src/index.ts'
+import { boxIsEmpty, boxTransform } from '../../../../math/src/geometry/box.ts'
 import { readHostBox } from '../../host/world/bounds.ts'
 import type { BlendGpuItem } from './state.ts'
 

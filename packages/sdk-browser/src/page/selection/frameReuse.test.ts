@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, type PageRec } from './selection.ts'
+import { collectClusterPages } from './collect.ts'
+import type { PageRec } from './types.ts'
 import {
   createSelectionResult,
   selectVisiblePages,

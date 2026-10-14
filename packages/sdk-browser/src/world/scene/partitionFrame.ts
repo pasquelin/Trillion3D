@@ -7,7 +7,8 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../partition/plan.ts`).
  */
-import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { FrameBudget } from '../../page/integration/frameBudget.ts'

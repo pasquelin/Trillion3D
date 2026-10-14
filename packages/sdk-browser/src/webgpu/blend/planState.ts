@@ -1,4 +1,4 @@
-import { FRUSTUM_PLANE_VALUES } from '../../../../sdk-core/src/index.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendExpand } from './expand.ts'
 import type { BlendKernels } from './expandKernels.ts'

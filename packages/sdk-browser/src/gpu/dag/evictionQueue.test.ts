@@ -1,12 +1,13 @@
-// The EVICTION QUEUE a resident GPU cut publishes: run on the Node device, which replays the
-// stamps, their raise up the groups and the pool sort (`../pool/sortWgsl.ts`) through their CPU mirrors
-// (`tests/kit/gpu/fakeEvict.ts`); the mirrors themselves checked against the cut rule's own
-// closure (`../../page/cut/groupClosure.ts`) on generated frames.
+// The EVICTION QUEUE a resident GPU cut publishes, on the Node device: the stamps, their raise up
+// the groups and the pool sort (`../pool/sortWgsl.ts`) replayed by their CPU mirrors
+// (`tests/kit/gpu/fakeEvict.ts`), checked against the cut rule's closure on generated frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { requestScene } from './requestScene.fixture.ts'
 import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import { EVICT_IN_USE, OLD_STEP } from '../pool/rank.ts'
@@ -19,14 +20,13 @@ import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { placements, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import { postPackedBases } from '../../page/selection/placements.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 /** The first frame the tests cut at: past the two a use protects, so a page never used is old. */
 const START = 10
-
 /** `packed` cut on the Node device, every page resident for the rule; `cut()` cuts at the next
  *  frame and reads back. */
 async function residentCutOf(packed: ReturnType<typeof packDagSelection>, uniforms: object) {

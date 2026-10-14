@@ -7,7 +7,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import { stillViewFields, taaBuiltins } from './taaBuiltins.fixture.ts'
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 
 type Reads = {
   shadingConfidence: (error: number, range: number, flicker: number, count: number) => number

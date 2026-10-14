@@ -10,7 +10,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { packDagSelection } from './pack.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { CLUSTER_WORDS, COLD_WORDS as PAGE_CONE_FLOATS, coldBase } from './layout.ts'
+import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts'
 import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf, worldOf } from './records.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import type { DagRoot } from './types.ts'
@@ -48,7 +48,7 @@ test('twelve placements of one primitive store its records once', () => {
   assert.equal(alone.recordCount, PLACEMENTS * pages.length)
   // Hot records shrink by the placement count; the cold buffer keeps no word per page.
   assert.equal(alone.clusters.byteLength / packed.clusters.byteLength, PLACEMENTS)
-  const words = coldBase(packed) + pages.length * PAGE_CONE_FLOATS
+  const words = coldBase(packed) + pages.length * COLD_WORDS
   assert.equal(packed.pageCones.length, words)
 })
 

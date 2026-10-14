@@ -3,11 +3,7 @@ import assert from 'node:assert/strict'
 import { LINE_CLIP_WGSL } from './lineWgsl.ts'
 import { lineClip } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from './shaderText.fixture.ts'
-import {
-  lineProjection as project,
-  LINE_VIEWPORT as VIEWPORT,
-  toPixels as pixel,
-} from './lineProjection.fixture.ts'
+import { lineProjection, LINE_VIEWPORT, toPixels } from './lineProjection.fixture.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
@@ -21,9 +17,15 @@ const run = runShaderText(wgslSource(LINE_CLIP_WGSL))
 /** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width` CSS
  *  pixels at `pixelRatio` image pixels per CSS pixel. */
 function corners(p: number[], d: number[], width: number, pixelRatio = 1) {
-  const clip = project(p[0], p[1], p[2], 1)
+  const clip = lineProjection(p[0], p[1], p[2], 1)
   return [1, -1].map((side) =>
-    run(clip, project(d[0] * side, d[1] * side, d[2] * side, 0), width, VIEWPORT, pixelRatio),
+    run(
+      clip,
+      lineProjection(d[0] * side, d[1] * side, d[2] * side, 0),
+      width,
+      LINE_VIEWPORT,
+      pixelRatio,
+    ),
   )
 }
 
@@ -33,7 +35,7 @@ test("an endpoint's corners are the line's width apart on screen, near and far",
   const d = [0.8, 0.6, 0]
   for (const distance of [2, 20, 200])
     for (const width of [1, 3]) {
-      const [left, right] = corners([0.3, -0.2, -distance], d, width).map(pixel)
+      const [left, right] = corners([0.3, -0.2, -distance], d, width).map(toPixels)
       const gap = [left[0] - right[0], left[1] - right[1]]
       assert.ok(Math.abs(Math.hypot(...gap) - width) < 1e-6, `${distance} m, ${width} px`)
       // Perpendicular to the segment, which runs along (0.8, 0.6) on screen too.
@@ -47,7 +49,10 @@ test("an endpoint's corners are the line's width apart on screen, near and far",
 test('the drawn width is the CSS width times the pixel ratio', () => {
   for (const pixelRatio of [1, 1.5, 2]) {
     const [left, right] = corners([0.3, -0.2, -20], [0.8, 0.6, 0], 3, pixelRatio)
-    const gap = Math.hypot(pixel(left)[0] - pixel(right)[0], pixel(left)[1] - pixel(right)[1])
+    const gap = Math.hypot(
+      toPixels(left)[0] - toPixels(right)[0],
+      toPixels(left)[1] - toPixels(right)[1],
+    )
     assert.ok(Math.abs(gap - 3 * pixelRatio) < 1e-6, `ratio ${pixelRatio}: ${gap}`)
   }
 })
@@ -76,10 +81,10 @@ test('the CPU lineClip is the WGSL text, statement for statement', () => {
   for (const [p, d] of cases)
     for (const pixelRatio of [1, 2])
       for (const side of [1, -1]) {
-        const clip = project(p[0], p[1], p[2], 1),
-          along = project(d[0] * side, d[1] * side, d[2] * side, 0)
-        const cpu = lineClip(new Float64Array(4), clip, along, 2.5, VIEWPORT, pixelRatio)
-        const gpu = run(clip, along, 2.5, VIEWPORT, pixelRatio)
+        const clip = lineProjection(p[0], p[1], p[2], 1),
+          along = lineProjection(d[0] * side, d[1] * side, d[2] * side, 0)
+        const cpu = lineClip(new Float64Array(4), clip, along, 2.5, LINE_VIEWPORT, pixelRatio)
+        const gpu = run(clip, along, 2.5, LINE_VIEWPORT, pixelRatio)
         for (let i = 0; i < 4; i++) assert.ok(Math.abs(cpu[i] - gpu[i]) < 1e-12, `${p} ${d} ${i}`)
       }
 })
@@ -92,7 +97,7 @@ test('a corner behind the camera slides onto the near plane along its segment', 
 })
 
 test('a segment seen end-on keeps no width', () => {
-  const clip = project(0, 0, -5, 1)
+  const clip = lineProjection(0, 0, -5, 1)
   const [left, right] = corners([0, 0, -5], [0, 0, -1], 4)
   assert.deepEqual(left, clip)
   assert.deepEqual(right, clip)

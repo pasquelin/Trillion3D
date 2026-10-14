@@ -5,10 +5,9 @@ import {
   PLACE_LAYER_BITS,
   POOL_STEP,
   POOL_SUBTEXEL,
-  TILE_BORDER,
   TILE_PITCH,
-  TILE_SIZE,
 } from '../../texture/tiles.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
 const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,

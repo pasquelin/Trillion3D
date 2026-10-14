@@ -1,4 +1,4 @@
-import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
+import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { floorMod2 } from '../../../math/src/wgsl/reals.ts'
 

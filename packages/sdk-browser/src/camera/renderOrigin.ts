@@ -3,9 +3,9 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-  multiplyMatrix4,
-  viewToRenderOrigin,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../math/src/geometry/frustum/frustum.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { viewToRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 
 /**
  * THE CAMERA HALF OF THE RENDER FRAME (`../../../math/src/projection/renderOrigin.ts` carries the rule and

@@ -18,7 +18,7 @@ import { ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 
 const FAMILY = 400
 const SPLIT = ['dSub', 'toF32', 'fromF32', 'splitDouble', 'affineAxis']

@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { PAGE_GEOMETRY_WGSL as PAGE_GEOMETRY } from './pageGeometryWgsl.ts'
+import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
@@ -20,7 +20,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 /** The page geometry as a program holds it, its decode included. */
-const PAGE_GEOMETRY_WGSL = wgslModule(PAGE_GEOMETRY)
+const PAGE_GEOMETRY = wgslModule(PAGE_GEOMETRY_WGSL)
 
 const random = lcgFloatRandom(831)
 const floats = (n: number, at: (i: number) => number) =>
@@ -144,7 +144,7 @@ function firstDifference(code: string): string | null {
 }
 
 test('the part and the whole of a page header are the reference of the format', () => {
-  assert.equal(firstDifference(PAGE_GEOMETRY_WGSL), null)
+  assert.equal(firstDifference(PAGE_GEOMETRY), null)
 })
 
 // What the reference must catch: each edit moves one word the part or the whole reads.
@@ -160,6 +160,6 @@ const BREAKS: [string, string][] = [
 ]
 for (const [from, to] of BREAKS)
   test(`the reference catches ${from} read as ${to}`, () => {
-    assert.ok(PAGE_GEOMETRY_WGSL.includes(from), `${from} is in the shipped text`)
-    assert.notEqual(firstDifference(PAGE_GEOMETRY_WGSL.replace(from, to)), null)
+    assert.ok(PAGE_GEOMETRY.includes(from), `${from} is in the shipped text`)
+    assert.notEqual(firstDifference(PAGE_GEOMETRY.replace(from, to)), null)
   })

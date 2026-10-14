@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 

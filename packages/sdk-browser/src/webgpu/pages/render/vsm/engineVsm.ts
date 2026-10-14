@@ -57,10 +57,7 @@ import {
   vsmTransmissionContextBytes,
   type VsmTransmission,
 } from '../../../../vsm/transmissionPass.ts'
-import {
-  createReadbackRing,
-  type ReadbackRing as VsmReadbackRing,
-} from '../../../../gpu/core/readbackRing.ts'
+import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
 import {
   VSM_SUN_FINEST_LEVEL,
@@ -133,7 +130,7 @@ export interface EngineVsm {
   pendingCastMaps: Uint32Array | null
   prevSlots: number
   /** Page counters of the stats permutation, read back a few frames late. */
-  statsReadback: VsmReadbackRing
+  statsReadback: ReadbackRing
   /** Whether the page management compiles the counters (needs 9 storage buffers a stage). */
   countersOn: boolean
   /** Whether the maps have settled, and their contents' version (`../../state/vsmSettle.ts`). */

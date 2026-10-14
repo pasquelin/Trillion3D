@@ -1,5 +1,5 @@
 import type { HostBoundedNode } from '../scene/graphNodes.ts'
-import { BOX_VALUES, boxEmpty } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES, boxEmpty } from '../../../../math/src/geometry/box.ts'
 import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
 import {
   createBoxTransformLot,

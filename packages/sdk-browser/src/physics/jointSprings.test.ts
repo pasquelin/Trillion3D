@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { joint } from '../../../sdk-core/src/physics/index.ts'
+import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { jointRig, type Rig } from './joints.fixture.ts'
 

@@ -1,4 +1,4 @@
-import type { DiagnosticDetail } from '../engine/types.ts'
+import type { DiagnosticDetail } from './types.ts'
 import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 

@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import { collectClusterPages } from '../page/selection/selection.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import { collectClusterPages } from '../page/selection/collect.ts'
 import { dagRoots, DAG } from './pagesEngine.fixture.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 

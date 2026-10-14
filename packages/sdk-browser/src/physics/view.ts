@@ -1,4 +1,4 @@
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { normalizeVector3 } from '../../../math/src/vector/vector.ts'

@@ -1,7 +1,10 @@
 import type { EngineVsm } from '../render/vsm/engineVsm.ts'
 import type { VsmRefusal } from '../render/vsm/vsmGrant.ts'
 import { vsmUnsettled } from './vsmSettle.ts'
-import { createSceneLightStore, type SceneLightStore } from '../../../../../sdk-core/src/index.ts'
+import {
+  createSceneLightStore,
+  type SceneLightStore,
+} from '../../../../../sdk-core/src/scene/light/store.ts'
 import {
   SHADOW_CHANGE_BOXES,
   createShadowChanges,

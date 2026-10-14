@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createBounceCascades } from '../../../sdk-core/src/index.ts'
+import { createBounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createProbeStorage } from './probeStorage.ts'

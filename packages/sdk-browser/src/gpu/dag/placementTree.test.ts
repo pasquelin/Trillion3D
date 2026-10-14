@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { refitLevels } from './placementTree.ts'
 import { leafBoxes, refitTree } from './treeRefitRun.fixture.ts'
-import { packDagSelection } from './selection.ts'
-import { appendDagRoots, dagRootCounts } from './pack.ts'
+import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
+
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 

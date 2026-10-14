@@ -11,9 +11,11 @@ import { catalogueReport, pageTablesReport } from './textureCensus.ts'
 import {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
+} from '../../../../../sdk-core/src/texture/previewFormat.ts'
+import {
   PREVIEW_BASE,
   TEXTURE_PREVIEW_VERSION,
-} from '../../../../../sdk-core/src/index.ts'
+} from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 type Census = ReturnType<typeof takeMaterialTextures>

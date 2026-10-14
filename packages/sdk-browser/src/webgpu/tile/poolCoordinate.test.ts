@@ -1,12 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  POOL_LAYER_SIDE,
-  POOL_STEP,
-  POOL_SUBTEXEL,
-  TILE_BORDER,
-  TILE_PITCH,
-} from '../../texture/tiles.ts'
+import { POOL_LAYER_SIDE, POOL_STEP, POOL_SUBTEXEL, TILE_PITCH } from '../../texture/tiles.ts'
+import { TILE_BORDER } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
 import { POOL_PLACE_WGSL } from './poolPlaceWgsl.ts'
 

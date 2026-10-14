@@ -1,13 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages.ts'
-import { collectClusterPages } from '../../../page/selection/selection.ts'
+import { collectClusterPages } from '../../../page/selection/collect.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {

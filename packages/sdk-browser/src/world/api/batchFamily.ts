@@ -1,8 +1,6 @@
-import {
-  composeMatrix4Batch,
-  frustumKeepsBoxBatch,
-  transformPointsBatch,
-} from '../../../../sdk-core/src/index.ts'
+import { composeMatrix4Batch } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { frustumKeepsBoxBatch } from '../../../../math/src/batch/culling.ts'
+import { transformPointsBatch } from '../../../../math/src/batch/points.ts'
 
 /** The float arrays a batch reads and writes. */
 export type FloatBatch = Float32Array | Float64Array

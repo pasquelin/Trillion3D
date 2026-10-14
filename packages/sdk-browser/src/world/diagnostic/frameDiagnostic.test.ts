@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { createHostRankDelta } from '../../streaming/hostRanks.ts'
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {

@@ -1,5 +1,5 @@
 // Root clusters by hand: one over a box, and two primitives each carrying its own.
-import type { HostMesh } from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { drawSourceOf } from '../../page/selection/drawSource.ts'
 

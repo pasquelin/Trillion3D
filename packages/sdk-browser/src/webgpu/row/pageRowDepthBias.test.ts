@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
-import { depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 // Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias

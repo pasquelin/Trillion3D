@@ -1,4 +1,4 @@
-import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
+import type { PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import { besideModule, startModuleWorker } from '../host/besideModule.ts'
 import { stepThreads } from './joltThreads.ts'
 import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'

@@ -12,7 +12,8 @@ import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts'
-import { transformAffinePoint, type SceneLight } from '../../../sdk-core/src/index.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { SUN } from '../webgpu/pages/io/memoryGrowth.fixture.ts'
 
 type Session = Awaited<ReturnType<typeof placedSession>>

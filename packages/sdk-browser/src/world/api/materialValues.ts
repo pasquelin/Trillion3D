@@ -1,7 +1,12 @@
 /** The values of a scene material a page reads and sets, and how they cross its surface record
  *  (`materialApi.ts`). */
-import { EngineError, type Material } from '../../../../sdk-core/src/index.ts'
-import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import {
+  type Material,
+  alphaModeOf,
+  type AlphaMode,
+} from '../../../../sdk-core/src/contracts/material.ts'
+
 import type { PageSurface } from '../../page/surface.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { materialTextures } from '../../scene/meshes.ts'

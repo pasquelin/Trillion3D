@@ -1,4 +1,4 @@
-import { invertMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { FRAME_HEAD, VIEW_AFFINE, VIEW_MIRRORED } from '../blend/frameHead.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuBlendState } from '../blend/state.ts'

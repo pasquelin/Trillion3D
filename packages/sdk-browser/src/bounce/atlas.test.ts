@@ -5,11 +5,12 @@
 // that does not come back bit for bit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_SETTINGS, createBounceCascades } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { createBounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { GUARANTEED_SIDE as ATLAS_DIMENSION } from '../gpu/core/textureLimits.ts'
+import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
 import { PROBE_TEXELS, atlasBytes, probeAtlasExtent } from './atlas.ts'
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
@@ -65,17 +66,17 @@ test('the probe atlas holds a level per layer and weighs what the buffer did', (
   assert.equal(extent[0] * extent[1], cascades.probesPerLevel * PROBE_TEXELS, 'a level a layer')
   assert.equal(extent[2], BOUNCE_SETTINGS.cascadeLevels)
   assert.equal(atlasBytes(extent), bounceProbeBytes(cascades.reserveCount))
-  assert.ok(extent[0] <= ATLAS_DIMENSION && extent[1] <= ATLAS_DIMENSION)
+  assert.ok(extent[0] <= GUARANTEED_SIDE && extent[1] <= GUARANTEED_SIDE)
 })
 
 // Behaviour: the probes' atlas is as wide as the device grants; past its side it is refused.
 test('a probe atlas within the 2D limit is made, and a larger one is refused', () => {
   const device = (maxTextureDimension2D: number) =>
     fakeDevice({ limits: { maxTextureDimension2D, maxTextureArrayLayers: 256 } }).device
-  const wide = [ATLAS_DIMENSION + 1, 1, 1]
+  const wide = [GUARANTEED_SIDE + 1, 1, 1]
   assert.throws(
-    () => ensureBounceFits(device(ATLAS_DIMENSION), wide, 16),
+    () => ensureBounceFits(device(GUARANTEED_SIDE), wide, 16),
     /bounce atlas "probes" needs .* over this device's maxTextureDimension2D of 8192/,
   )
-  assert.doesNotThrow(() => ensureBounceFits(device(2 * ATLAS_DIMENSION), wide, 16))
+  assert.doesNotThrow(() => ensureBounceFits(device(2 * GUARANTEED_SIDE), wide, 16))
 })

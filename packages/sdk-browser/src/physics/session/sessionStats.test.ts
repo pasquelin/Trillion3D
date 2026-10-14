@@ -5,7 +5,7 @@ import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { BODY_INDEX, OP } from '../../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, OP } from '../../../../sdk-core/src/physics/layout.ts'
 import { createWorldPhysics } from '../worldPhysics.ts'
 import { fakeWorkers, idleTick, loaded } from '../worker.fixture.ts'
 

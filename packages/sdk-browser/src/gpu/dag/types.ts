@@ -1,5 +1,5 @@
 import type { PlacementOf } from '../../placement/rows.ts'
-import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../../page/cone/cone.ts'
 import type { PageSurface } from '../../page/surface.ts'

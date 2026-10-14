@@ -2,7 +2,7 @@
  * THE SURFACE OF THE ENGINE'S MATERIAL PARAMETERS: what a material a page creates, or a world's
  * physical kind, declares. Nothing is decided here: the parameters all arrive computed.
  */
-import type { Material } from '../../../sdk-core/src/index.ts'
+import type { Material } from '../../../sdk-core/src/contracts/material.ts'
 import { declareSurface } from '../page/surfaceRecord.ts'
 import type { SurfaceDeclaration } from '../page/surfaceDeclaration.ts'
 import { alphaModeFields } from './prepared/materials.ts'

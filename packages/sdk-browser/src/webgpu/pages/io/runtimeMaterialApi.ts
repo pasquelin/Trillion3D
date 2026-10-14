@@ -1,6 +1,6 @@
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { HostMaterials } from '../../../host/resources.ts'
-import type { Texture } from '../../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { appendWebgpuTexture, releaseWebgpuTexture } from './appendTexture.ts'
 

@@ -1,4 +1,5 @@
-import { BODY_INDEX, type CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { countNodes, type BodyNodes } from './bodyNodes.ts'
 import { driveCarried } from './carriedBodies.ts'

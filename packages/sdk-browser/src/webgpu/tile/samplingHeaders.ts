@@ -1,7 +1,7 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts'
 import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts'
 

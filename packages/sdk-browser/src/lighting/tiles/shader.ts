@@ -1,7 +1,8 @@
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { GRID_BOUNDS_WGSL, WORLD_GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { gridCompactWgsl } from './compactWgsl.ts'
-import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**

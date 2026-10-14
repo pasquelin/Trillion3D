@@ -1,4 +1,4 @@
-import type { EngineDiagnostic } from '../engine/types.ts'
+import type { EngineDiagnostic } from '../diagnostic/types.ts'
 import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
 import type { TransferQueue } from './queueRanges.ts'

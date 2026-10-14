@@ -1,6 +1,6 @@
 import test from 'node:test'
 import { assertGolden } from '../../../../math/src/golden.fixture.ts'
-import { sdkWasm as module } from '../../wasm/sdkWasm.fixture.ts'
+import { sdkWasm } from '../../wasm/sdkWasm.fixture.ts'
 import { buildCullingHierarchy } from './cullingHierarchy.ts'
 
 // The culling hierarchy as the SDK module builds it for the run-time cut, against the nodes and the
@@ -18,7 +18,7 @@ test('the module builds the hierarchy the compiler builds, bit for bit', () => {
         level: r[11],
       }
     })
-    const { order, culling } = buildCullingHierarchy(module, clusters)
+    const { order, culling } = buildCullingHierarchy(sdkWasm, clusters)
     return [culling.count, ...culling.nodes, ...order]
   })
 })

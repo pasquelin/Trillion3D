@@ -1,12 +1,14 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { createWebgpuPagesRuntime } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts'
 import { renderWebgpuPages } from './render/render.ts'
 import { flushWebgpuPages } from './render/flush.ts'
-import type { EngineContext, EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineContext } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 
 /** The red quad on a prepared runtime, its main view drawn twice from the front; `options` add
  *  to its context. */

@@ -12,7 +12,7 @@
  * switched root — each asking its maps once (`cardAsk.ts`) —, C cards whose root switched or
  * moved; zero records for a still view.
  */
-import type { ImpostorSection } from '../../../sdk-core/src/index.ts'
+import type { ImpostorSection } from '../../../sdk-core/src/contracts/impostor.ts'
 import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
 import { bakedLookup } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { core } from './borrowed.ts'

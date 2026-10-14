@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { CommandWriter, EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/layout.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
 import { ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts'

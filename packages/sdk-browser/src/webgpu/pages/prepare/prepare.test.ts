@@ -10,7 +10,7 @@ import {
   referenceIndexSourceBytes,
   referenceMaterialsAndTangentsCount,
 } from '../../../../../../bench/oracles/browser/normal-cones.ts'
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 
 test('indexSourceBytes yields the same table as the reference flatMap, last page of a winning address', () => {
   const a = { url: 'p/0', array: Uint32Array.of(1, 2, 3) } as unknown as PageRec

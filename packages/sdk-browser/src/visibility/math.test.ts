@@ -2,7 +2,7 @@
 // per-pixel power. An 8-bit sRGB component has only 256 possible antecedents,
 // so the table carries exactly the same floats as the power formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
-import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
+import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'

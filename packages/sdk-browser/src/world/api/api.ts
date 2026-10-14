@@ -1,4 +1,4 @@
-import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts'
+import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { ExplorerProbe } from '../session/capabilityProbe.ts'
 import type { ExplorerSource } from '../session/prepare.ts'
 import type { SessionRuntime } from '../render/sessionRuntime.ts'

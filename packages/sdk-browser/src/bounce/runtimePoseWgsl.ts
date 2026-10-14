@@ -1,11 +1,11 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
+import { CORNER_INFLUENCES } from '../../../sdk-core/src/contracts/proxy.ts'
 import {
-  CORNER_INFLUENCES,
   PROXY_CHILDREN,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import {
   DEFORM_AT_WGSL,
   deformRecordFns,

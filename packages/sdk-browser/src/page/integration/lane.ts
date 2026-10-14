@@ -1,11 +1,11 @@
 import { besideModule } from '../../host/besideModule.ts'
 import { workerRefusal } from '../../host/pendingAnswers.ts'
 import { createWorkerPool } from '../../host/workerPool.ts'
-import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
+import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/page/integrationContracts.ts'
 import type {
   PageIntegrationAnswer,
   PageIntegrationRequest,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/page/integrationContracts.ts'
 
 /**
  * The integration lane: the engine's worker host (`../../host/workerPool.ts`) as a pool of one

@@ -9,7 +9,7 @@
 import { createPlacementRows, growPlacementRows, type PlacementRows } from '../placement/rows.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { createChangedRuns, type ChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 

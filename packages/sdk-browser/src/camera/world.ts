@@ -1,6 +1,6 @@
-import { decomposeMatrix4 } from '../../../sdk-core/src/index.ts'
+import { decomposeMatrix4 } from '../../../math/src/matrix/matrix4Trs.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { type HostNodeMatrix, type MatrixElements } from '../host/matrixElements.ts'
+import type { HostNodeMatrix, MatrixElements } from '../host/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,

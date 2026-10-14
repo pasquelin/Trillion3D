@@ -1,11 +1,6 @@
-import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
-import {
-  tailOffset,
-  TILE_BORDER,
-  TILE_PITCH,
-  TILE_SIZE,
-  type TilePlace,
-} from '../../texture/tiles.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
+import { tailOffset, TILE_PITCH, type TilePlace } from '../../texture/tiles.ts'
+import { TILE_BORDER, TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /**
  * Gestures that post texels into a pool tile. Three sources, one draw: the tile receives its 128×128

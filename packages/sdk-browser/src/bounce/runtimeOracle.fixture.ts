@@ -5,7 +5,7 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
 

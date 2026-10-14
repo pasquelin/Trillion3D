@@ -1,6 +1,6 @@
 // The frame's shadow-map plan on the CPU: the lights it reads, and each shadowed light's mask
 // channel and first map, before the light buffer goes up.
-import type { SceneLight } from '../../../../../../sdk-core/src/index.ts'
+import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'

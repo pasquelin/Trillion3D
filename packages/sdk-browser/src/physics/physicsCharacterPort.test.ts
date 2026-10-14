@@ -4,7 +4,7 @@ import { createCharacterPort } from './physicsCharacter.ts'
 import { createSessionState, createWorkerLink } from './session/sessionLink.ts'
 import { createStepClock } from './stepClock.ts'
 import type { ToPhysics } from './protocol.ts'
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { startPhysicsWorker } from './sessionWorker.ts'
 
 const message = (key: string) => ({ type: 'character', key }) as unknown as ToPhysics

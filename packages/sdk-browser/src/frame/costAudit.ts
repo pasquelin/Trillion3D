@@ -1,5 +1,5 @@
 import { cpuNow } from '../diagnostic/stopwatch.ts'
-import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'

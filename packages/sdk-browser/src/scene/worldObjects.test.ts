@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { createWorldObjects } from './worldObjects.ts'
 
 /** Mesh 0 has two primitives, mesh 1 one, mesh 2 one the cook continued nothing of. */

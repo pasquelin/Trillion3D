@@ -1,8 +1,8 @@
 import {
   clipPlanesFromMatrix,
   frustumFarPlane,
-  multiplyMatrix4,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../math/src/geometry/frustum/frustum.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { ConeContext } from '../cone/cone.fixture.ts'
 import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'

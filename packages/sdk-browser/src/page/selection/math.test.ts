@@ -5,7 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { clipPlanesFromMatrix, frustumClipBox } from '../../../../sdk-core/src/index.ts'
+import { clipPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
+import { frustumClipBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { referenceBoxClip } from '../../../../../bench/oracles/browser/selection.ts'
 
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 100)

@@ -9,15 +9,15 @@ import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import {
-  VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL,
-  VSM_LIGHT_KIND_POINT as POINT,
-  VSM_LIGHT_KIND_RECT as RECT,
-  VSM_LIGHT_KIND_SPOT as SPOT,
+  VSM_LIGHT_KIND_DIRECTIONAL,
+  VSM_LIGHT_KIND_POINT,
+  VSM_LIGHT_KIND_RECT,
+  VSM_LIGHT_KIND_SPOT,
 } from './constants.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import {
-  VSM_PROJECTION_KINDS_DIRECTIONAL as SUN,
-  VSM_PROJECTION_KINDS_LOCAL as LAMP,
+  VSM_PROJECTION_KINDS_DIRECTIONAL,
+  VSM_PROJECTION_KINDS_LOCAL,
 } from './receiverTraceWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
@@ -27,16 +27,17 @@ const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false })
 test('each light of a pass takes its own kind branch, whatever kinds the pass is compiled with', () => {
   // [the pass's kinds, a light's kind among them, whether it is directional]: 0 is both compiled.
   const rows: [number, number, boolean][] = [
-    [SUN, DIRECTIONAL, true],
-    [LAMP, POINT, false],
-    [LAMP, SPOT, false],
-    [LAMP, RECT, false],
-    ...[0, SUN | LAMP].flatMap((both) =>
-      [DIRECTIONAL, POINT, SPOT, RECT].map((kind): [number, number, boolean] => [
-        both,
-        kind,
-        kind === DIRECTIONAL,
-      ]),
+    [VSM_PROJECTION_KINDS_DIRECTIONAL, VSM_LIGHT_KIND_DIRECTIONAL, true],
+    [VSM_PROJECTION_KINDS_LOCAL, VSM_LIGHT_KIND_POINT, false],
+    [VSM_PROJECTION_KINDS_LOCAL, VSM_LIGHT_KIND_SPOT, false],
+    [VSM_PROJECTION_KINDS_LOCAL, VSM_LIGHT_KIND_RECT, false],
+    ...[0, VSM_PROJECTION_KINDS_DIRECTIONAL | VSM_PROJECTION_KINDS_LOCAL].flatMap((both) =>
+      [
+        VSM_LIGHT_KIND_DIRECTIONAL,
+        VSM_LIGHT_KIND_POINT,
+        VSM_LIGHT_KIND_SPOT,
+        VSM_LIGHT_KIND_RECT,
+      ].map((kind): [number, number, boolean] => [both, kind, kind === VSM_LIGHT_KIND_DIRECTIONAL]),
     ),
   ]
   for (const [kinds, kind, directional] of rows) {

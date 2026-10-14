@@ -1,9 +1,9 @@
 import {
   createCameraFrame,
-  IDENTITY_MATRIX4,
   updateCameraFrame,
   type CameraFrame,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../math/src/projection/camera.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { opticsProjection } from '../../../sdk-core/src/world/camera/referenceProjection.ts'
 import {
   createRenderOriginFrame,

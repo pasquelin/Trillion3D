@@ -1,12 +1,7 @@
-import {
-  BOUNCE_PROBES_PER_FRAME,
-  BOUNCE_SETTINGS,
-  bounceBatchOf,
-  createBounceCascades,
-  createBounceOccupancy,
-  type BounceCascades,
-  type ProxyBudget,
-} from '../../../sdk-core/src/index.ts'
+import { BOUNCE_PROBES_PER_FRAME, BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { bounceBatchOf, type ProxyBudget } from '../../../sdk-core/src/proxy/budget.ts'
+import { createBounceCascades, type BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
+import { createBounceOccupancy } from '../../../sdk-core/src/bounce/occupancy.ts'
 import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
 import { atlasBytes, probeAtlasExtent } from './atlas.ts'
 import { ensureBounceFits } from './limits.ts'

@@ -1,5 +1,5 @@
-import { boxUnion } from '../../../../sdk-core/src/index.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import { boxUnion } from '../../../../math/src/geometry/box.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { createCastChanges, spheresMadeAnew } from './castChanges.ts'

@@ -1,5 +1,5 @@
 import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import { MAX_CATCH_UP_STEPS } from '../../../../sdk-core/src/physics/index.ts'
+import { MAX_CATCH_UP_STEPS } from '../../../../sdk-core/src/physics/options.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import type { SessionParts } from './sessionParts.ts'

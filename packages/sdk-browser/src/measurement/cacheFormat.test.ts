@@ -1,12 +1,12 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { openMeasuredWorld } from './measurement.ts'
+import { openMeasuredWorld } from '../world/session/explorer.ts'
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
-  EngineError,
   FORMAT_VERSION,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/base.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { pagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts'
 

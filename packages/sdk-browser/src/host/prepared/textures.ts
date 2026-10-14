@@ -12,7 +12,7 @@
  * - colour maps are sRGB, the rest linear; rows are not flipped;
  * - each is the engine's texture record itself (`Texture`), its transform composed as it is placed.
  */
-import type { TableTextureSlot } from '../../../../sdk-core/src/index.ts'
+import type { TableTextureSlot } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import { TABLE_FILTERS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'

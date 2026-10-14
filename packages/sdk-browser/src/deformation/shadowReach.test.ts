@@ -8,7 +8,7 @@ import { growClusterBox } from '../webgpu/shadow/spheres.ts'
 import { packClusterSpheres } from '../webgpu/shadow/spheres.fixture.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { PageRec } from '../page/selection/types.ts'
 
 test('deformation refreshes only its caster rows and grows CPU/GPU light and occlusion bounds', () => {
   const world = new Matrix4(),

@@ -2,7 +2,7 @@ import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { CORNER_VALUES } from '../partition/contract.ts'
-import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
+import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 

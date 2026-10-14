@@ -19,7 +19,7 @@ import {
   poseRig,
 } from '../../../../tests/gpu/kit/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
-import type { CameraMotion } from './world.ts'
+import type { CameraMotion } from './motion.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 const VIEWPORT: [number, number] = [1280, 720]

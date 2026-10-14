@@ -1,4 +1,4 @@
-import { previewLevelSize } from '../../../sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../sdk-core/src/texture/previewLevels.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'

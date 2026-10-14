@@ -4,7 +4,8 @@ import { EngineProfiler } from './telemetry.ts'
 import { FrameProfile } from './frameProfile.ts'
 import { families } from '../host/families.ts'
 import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.ts'
-import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {

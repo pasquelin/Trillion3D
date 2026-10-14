@@ -5,7 +5,7 @@
 // below zero and throw "Invalid array length" out of `applyCut`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { keysOf, rec, world } from './sets.fixture.ts'
 
 /** 2 754 primitives of 45 clusters of 128 triangles, levels 0 to 4. */

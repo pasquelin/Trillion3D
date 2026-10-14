@@ -1,5 +1,5 @@
 import type { AtlasLanes } from '../../texture/blockFormats.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { WebgpuTileFeedback } from './feedback.ts'
 import type { createTileSources } from './sources.ts'
 import type { TileTexture } from './tileTexture.ts'

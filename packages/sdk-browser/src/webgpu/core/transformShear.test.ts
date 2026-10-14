@@ -11,7 +11,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES, boxTransform } from '../../../../math/src/geometry/box.ts'
+import { determinantMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { setWebgpuTransform } from '../pages/render/transform.ts'
 import { rootWorldBox } from '../../page/selection/rootWorld.ts'
 import {

@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type * as G from '../../host/graph/graph.fixture.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
-import type { ClusterRoot } from '../../page/selection/types.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
+
 import type { BlendGpuItem } from '../blend/state.ts'
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts'
 

@@ -1,8 +1,8 @@
+import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import {
-  SOFT_STATE_WORDS,
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/vehicleLayout.ts'
 import type { TickRecords } from './protocol.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 

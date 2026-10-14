@@ -2,16 +2,18 @@ import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitche
 import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
-import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import { dagWarningsDiagnostic } from '../../../../sdk-core/src/contracts/dagWarnings.ts'
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts'
-import type { EngineContext, EngineFactory, Engine } from '../../engine/types.ts'
+import type { EngineContext, Engine } from '../../engine/types.ts'
+import type { EngineFactory } from '../../engine/factory.ts'
 import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 type Inputs = {
   source: Object3D

@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts'
 

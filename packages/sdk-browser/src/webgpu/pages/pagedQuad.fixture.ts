@@ -1,11 +1,12 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { QUAD_MANIFEST, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { QUAD_MANIFEST, quadMesh } from '../../engine/pagesEngineScenes.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
@@ -22,7 +23,7 @@ export type ClusterSpec = { corners: Uint32Array; attributes?: Attributes; paged
 /** The quad clustered as `specs` says, each cluster carrying the quantized page the compiler would
  *  have written for it. */
 export function pagedQuad(specs: readonly ClusterSpec[]) {
-  const { geometry, material, mesh, source } = quadScene(G.basicSurface({ color: 0xff0000 }))
+  const { geometry, material, mesh, source } = quadMesh(G.basicSurface({ color: 0xff0000 }))
   const bytes = new Map<string, Uint8Array>(),
     encoded: ReturnType<typeof encodePage>[] = []
   const pages = dagRoots(

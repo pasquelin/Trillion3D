@@ -2,7 +2,8 @@
  * WHAT AN OWNER DECLARES OF ITS SURFACE, in the engine's words: the argument the one surface record
  * is filled from (`surfaceRecord.ts`), never kept.
  */
-import type { Side, Texture } from '../../../sdk-core/src/index.ts'
+import type { Side } from '../../../sdk-core/src/contracts/material.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { SurfaceFamily } from './surface.ts'
 import type { HostColour } from '../host/resources.ts'

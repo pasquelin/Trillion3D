@@ -1,10 +1,5 @@
-import {
-  BODY_INDEX,
-  EVENT_WORDS,
-  MAX_CATCH_UP_STEPS,
-  POSE_WORDS,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { JoltModule } from './joltModule.ts'
 import type { CharacterReport } from './characterDriver.ts'
 import { beforesAt, eventsAt, resultWords, type FromPhysics } from './protocol.ts'

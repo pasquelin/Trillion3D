@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { CutDelta, IdDelta } from '../cut/delta.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'

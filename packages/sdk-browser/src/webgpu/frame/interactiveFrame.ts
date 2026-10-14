@@ -1,4 +1,4 @@
-import { wantsContractLighting } from '../pages/prepare/lightResources.ts'
+import { wantsContractLighting } from '../pages/prepare/contractLight.ts'
 import { deviceAnswer } from './deviceAnswer.ts'
 import { taaArrivals } from '../../taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

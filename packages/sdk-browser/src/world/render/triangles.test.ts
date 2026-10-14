@@ -8,7 +8,7 @@ import { createExplorerRender } from './render.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { setDebugMode } from '../../host/debugMode.ts'
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit

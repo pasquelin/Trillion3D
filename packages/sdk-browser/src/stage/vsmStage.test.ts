@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directLightTimings, gpuPassStageOf } from './mapping.ts'
-import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
+import type { GpuPassTimings } from '../../../sdk-core/src/contracts/metrics.ts'
 
 const sample = (passes: GpuPassTimings['passes']): GpuPassTimings => ({
   frame: 1,

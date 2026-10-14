@@ -10,8 +10,8 @@ import {
   TREE_SPAN,
   type PlacementTree,
 } from './placementTree.ts'
-import { boxTransform } from '../../../../sdk-core/src/index.ts'
-import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { boxTransform, boxGrow } from '../../../../math/src/geometry/box.ts'
+
 import { fromHalf } from '../../../../math/src/float/half.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'

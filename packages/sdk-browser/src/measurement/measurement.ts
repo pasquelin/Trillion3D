@@ -8,12 +8,14 @@
 export * from '../index.ts'
 import { openMeasuredWorld } from '../world/session/explorer.ts'
 import type { MeasuredWorldTarget } from '../world/session/target.ts'
-import type { MeasuredWorldOptions } from '../engine/types.ts'
+import type { MeasuredWorldOptions } from '../world/session/options.ts'
 
 export { openMeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorldTarget } from '../world/session/target.ts'
-export type { Engine, EngineFactory, MeasuredWorldOptions } from '../engine/types.ts'
+export type { Engine } from '../engine/types.ts'
+export type { EngineFactory } from '../engine/factory.ts'
+export type { MeasuredWorldOptions } from '../world/session/options.ts'
 export { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 export { attachParticles } from '../world/core/worldSession.ts'
 // The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).

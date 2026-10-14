@@ -1,7 +1,7 @@
-import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import type { HeldLevels, LevelFailed } from '../../texture/heldLevels.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { levelAddress, type ReadSource } from './serveTile.ts'
 import { writeTailFromBitmaps } from './write.ts'
 

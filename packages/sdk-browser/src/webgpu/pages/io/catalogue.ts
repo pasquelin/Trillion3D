@@ -1,4 +1,4 @@
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
 
 // Two walks of the page catalogue, done once at load: the page table by address and the texture

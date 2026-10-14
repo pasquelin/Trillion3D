@@ -3,12 +3,12 @@ import {
   BODY_INDEX,
   GENERATION_SHIFT,
   GENERATIONS,
-  PHYSICS_STEP,
   POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/layout.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { dotQuaternion, slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import type { NodeMove } from './cookedBodies.ts'
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts'
 import { createPosePlacer } from './placer.ts'

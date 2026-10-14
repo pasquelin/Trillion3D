@@ -1,4 +1,4 @@
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { FeedbackHits, WebgpuTileFeedback } from './feedback.ts'
 import type { TileKey } from './pageTable.ts'
 import type { TileCounters } from './counters.ts'

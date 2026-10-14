@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createLevelFiling, filePage, openFiling } from './levelFiling.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 test('a walk lifts a capture and levels its pages by the top level it finds, never the one it was made at', () => {
   const levels = { topLevel: 2 }

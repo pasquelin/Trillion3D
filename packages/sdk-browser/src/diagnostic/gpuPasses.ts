@@ -1,4 +1,4 @@
-import type { GpuPassTimings } from '../../../sdk-core/src/index.ts'
+import type { GpuPassTimings } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { GpuPassBlockTotals } from '../gpu/core/passBlocks.ts'
 import type { GpuPassBlock, WebgpuStage } from '../stage/passDeclaration.ts'
 import { families } from '../host/families.ts'

@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, dispatchedEntries, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import {

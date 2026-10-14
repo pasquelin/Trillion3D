@@ -6,7 +6,7 @@ import { tableRankOf } from '../../host/prepared/materials.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import { primitiveName } from '../../scene/primitiveLookup.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import {
@@ -20,7 +20,7 @@ import {
 import { assignment, PLAIN } from './createdMaterials.ts'
 
 export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts'
-export { type CreatedMaterial } from './createdMaterials.ts'
+export type { CreatedMaterial } from './createdMaterials.ts'
 
 type Inputs = {
   check: () => void

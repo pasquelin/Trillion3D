@@ -14,7 +14,8 @@ import {
 } from '../../gpu/shadow/mobilityBits.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
-import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 

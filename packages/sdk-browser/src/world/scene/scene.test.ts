@@ -11,7 +11,11 @@ import {
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
 } from '../../../../../bench/oracles/browser/manifest-index.ts'
-import type { ClusterManifest, Page, Primitive } from '../../../../sdk-core/src/index.ts'
+import type {
+  ClusterManifest,
+  Page,
+  Primitive,
+} from '../../../../sdk-core/src/contracts/geometry.ts'
 
 // Three manifest reads go from a `find` or `flatMap` per mesh/page to a single indexed walk.
 // `indexManifestPages`/`indexManifestBundles` (../../scene/manifestPageIndex.ts) and `pagesBounds`

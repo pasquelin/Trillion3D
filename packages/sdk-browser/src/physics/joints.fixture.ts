@@ -1,17 +1,14 @@
 import { TAU } from '../../../math/src/constants.ts'
 import {
   PHYSICS_STEP,
-  ASLEEP_BIT,
-  BODY_INDEX,
-  CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
-  joint,
-  POSE_WORDS,
-  type Joint,
-  type PhysicsHost,
-  type Vehicle,
   type PhysicsType,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { ASLEEP_BIT, BODY_INDEX, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { joint, type Joint } from '../../../sdk-core/src/physics/joint.ts'
+import type { PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
+import type { Vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'

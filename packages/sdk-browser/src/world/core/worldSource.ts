@@ -1,11 +1,10 @@
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   DAG_ERROR_MODEL,
-  GEOMETRY_PAGE_CODEC,
-  GEOMETRY_PAGE_FORMAT_VERSION,
-  type ClusterManifest,
-  type Primitive,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/base.ts'
+import { GEOMETRY_PAGE_CODEC } from '../../../../sdk-core/src/manifest/binaryFormat.ts'
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/page/format.ts'
+import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { Cut } from './worldCuts.ts'
 import type { Batch } from './worldBatches.ts'
 import type { WorldModels } from './worldModels.ts'

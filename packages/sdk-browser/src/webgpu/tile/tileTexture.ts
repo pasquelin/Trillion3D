@@ -1,4 +1,4 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
 import type { TileLayout } from '../../texture/tiles.ts'
 import type { PoolLane, TailBytes } from '../../texture/blockFormats.ts'

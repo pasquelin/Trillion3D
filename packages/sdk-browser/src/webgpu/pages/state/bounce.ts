@@ -1,8 +1,5 @@
-import {
-  createProxyBudget,
-  type ProxyBudget,
-  type SceneProxy,
-} from '../../../../../sdk-core/src/index.ts'
+import { createProxyBudget, type ProxyBudget } from '../../../../../sdk-core/src/proxy/budget.ts'
+import type { SceneProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import type { GpuBounceProbes } from '../../../bounce/probes.ts'
 
 /**

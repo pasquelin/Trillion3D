@@ -1,4 +1,4 @@
-import type { GravityPreset, PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
+import type { GravityPreset, PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 
 /** A gravity: a preset's name, or a vector in m/s². */
 export type GravityInput = GravityPreset | { x: number; y: number; z: number }

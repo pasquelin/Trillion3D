@@ -5,12 +5,13 @@
 // nodes that enclose them, so culling never cuts a surface the grid pushed outside.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from './selection.ts'
+import { collectClusterPages } from './collect.ts'
 import { cullingNodes, quantizationErrorOf } from './helpers.ts'
 import { structureIndex } from './structure.ts'
 import { dagLevel } from '../../engine/pagesEngine.fixture.ts'
-import { QUAD_MANIFEST, quadIndices, quadScene } from '../../engine/pagesEngineScenes.fixture.ts'
-import type { ClusterManifest, PrimitiveQuantization } from '../../../../sdk-core/src/index.ts'
+import { QUAD_MANIFEST, quadIndices, quadMesh } from '../../engine/pagesEngineScenes.fixture.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { PrimitiveQuantization } from '../../../../sdk-core/src/page/contracts.ts'
 import { graphDraws } from './drawSource.ts'
 
 const ERROR = 0.25
@@ -30,7 +31,7 @@ const box = (id: number) => ({
 })
 
 function scene(quantization: PrimitiveQuantization | null) {
-  const { geometry, material, mesh, source } = quadScene()
+  const { geometry, material, mesh, source } = quadMesh()
   const level = dagLevel([box(0), box(1)], [box(2)], 0.5)
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,

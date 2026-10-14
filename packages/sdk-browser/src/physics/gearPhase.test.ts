@@ -1,7 +1,7 @@
 import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { joint } from '../../../sdk-core/src/physics/index.ts'
+import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import { jointRig } from './joints.fixture.ts'
 
 /** A body's turn about y since the first call, unwrapped step by step. */

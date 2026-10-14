@@ -1,4 +1,4 @@
-import type { ImpostorSection } from '../../../../sdk-core/src/index.ts'
+import type { ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
 import { markReach } from '../../deformation/halfFloat.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

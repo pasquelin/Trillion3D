@@ -8,7 +8,7 @@ import {
   PAGE_TRANSFORM_WORD,
 } from './pageTable.ts'
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { slotSampled } from './samplingHeaders.ts'
 import {
   entryLevel,
@@ -17,7 +17,8 @@ import {
   POOL_MAX_LAYERS,
   tileLayout,
 } from '../../texture/tiles.ts'
-import { fakeDevice, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { FakeWrite } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { entryPlace } from '../../texture/tiles.fixture.ts'
 
 /** The writes of a device, in words: first word written, and the word count or -1 for all. */

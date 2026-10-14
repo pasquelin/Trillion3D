@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
 import { createExplorerMetrics } from '../diagnostic/metrics.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {

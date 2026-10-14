@@ -4,12 +4,12 @@
 // scene watch read that node alone. On generated scenes of 10³ and 10⁵ meshes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countScans, hostScene as scene, withLightStore } from './hostWrite.fixture.ts'
+import { countScans, hostScene, withLightStore } from './hostWrite.fixture.ts'
 import { refreshSceneLights } from '../io/hostApi.ts'
 
 test('one host pose write an image costs the same at 10³ and 10⁵ roots', () => {
   const costs = [1e3, 1e5].map((count) => {
-    const { meshes, rt, sent, image } = scene(count)
+    const { meshes, rt, sent, image } = hostScene(count)
     const uploaded: number[] = []
     sent.length = 0
     for (let frame = 0; frame < 8; frame++) {
@@ -26,7 +26,7 @@ test('one host pose write an image costs the same at 10³ and 10⁵ roots', () =
 
 test('a host hide flips the roots under the node hidden alone, at 10³ as at 10⁵ roots', () => {
   for (const count of [1e3, 1e5]) {
-    const { meshes, roots, parks, image } = scene(count)
+    const { meshes, roots, parks, image } = hostScene(count)
     parks.length = 0
     meshes[5].visible = false
     image()
@@ -37,7 +37,7 @@ test('a host hide flips the roots under the node hidden alone, at 10³ as at 10�
 
 test('a light set through the engine an image walks no root, at 10³ as at 10⁵ roots', () => {
   for (const count of [1e3, 1e5]) {
-    const { rt, sent, image } = scene(count)
+    const { rt, sent, image } = hostScene(count)
     withLightStore(rt)
     sent.length = 0
     for (let frame = 0; frame < 4; frame++) {
@@ -51,7 +51,7 @@ test('a light set through the engine an image walks no root, at 10³ as at 10⁵
 
 test('one hide and one announced matrix an image scan the same nodes at 10³ and 10⁵', () => {
   const scans = [1e3, 1e5].map((count) => {
-    const { meshes, image } = scene(count)
+    const { meshes, image } = hostScene(count)
     const reads = countScans(meshes)
     const before = reads()
     for (let frame = 0; frame < 4; frame++) {

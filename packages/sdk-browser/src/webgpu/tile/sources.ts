@@ -1,7 +1,7 @@
 import type { TilePlace } from '../../texture/tiles.ts'
 import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { heldLevelsOf, type HeldLevels, type LevelFailed } from '../../texture/heldLevels.ts'
 import type { TileScratch } from './scratch.ts'
 import { buildHostScratch, createScratchBuilds, type Build } from './scratchBuilds.ts'

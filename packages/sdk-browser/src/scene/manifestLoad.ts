@@ -5,11 +5,10 @@ import {
   assertCacheReady,
   assertCacheRoot,
   EngineError,
-  DEFAULT_SCOPE,
-  readPagedManifest,
-  type AssetScope,
-  type ClusterManifest,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/cache.ts'
+import { DEFAULT_SCOPE, type AssetScope } from '../../../sdk-core/src/contracts/base.ts'
+import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { fetchVerified } from '../cluster/pages.ts'
 import { checked } from '../cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'

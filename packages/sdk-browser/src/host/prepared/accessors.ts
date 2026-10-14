@@ -4,7 +4,7 @@
  * interleaved view is one host buffer per slice of vertices; a sparse accessor is a copy of its
  * base with the substituted elements written in; a run shared by two primitives is one attribute.
  */
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type {
   TableAccessor,
   TableDocument,
@@ -16,10 +16,13 @@ import {
   ownAttribute,
   pendingAttribute,
   pendingInterleaved,
-  type BufferTypedArray,
   type VertexAttribute,
 } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { normalisedUnit } from '../../../../sdk-core/src/world/buffer/elements.ts'
+import {
+  type BufferTypedArray,
+  normalisedUnit,
+} from '../../../../sdk-core/src/world/buffer/elements.ts'
+
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts'
 
 /** Storage of each glTF component type. */

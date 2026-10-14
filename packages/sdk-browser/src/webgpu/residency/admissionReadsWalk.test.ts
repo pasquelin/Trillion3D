@@ -2,7 +2,7 @@
 // how many, and at which address the host's reader is asked for them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createAdmissionReads } from './admission.ts'
 import { pageOf } from './residentEnsurer.fixture.ts'
 import { readGeometryAhead } from '../row/pageSlots.ts'

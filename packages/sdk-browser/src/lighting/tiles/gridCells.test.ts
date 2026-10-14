@@ -7,7 +7,7 @@
 // plane and the far distance, infinite and NaN ranges.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import {
   GRID,
   cellColumn,

@@ -1,4 +1,4 @@
-import { frustumClipBox } from '../../../../sdk-core/src/index.ts'
+import { frustumClipBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { cullingBoundsFor } from '../../gpu/dag/packNodes.ts'
 import { frameClusterError } from '../selection/frame.fixture.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'

@@ -1,5 +1,5 @@
 import type { MeasuredWorld } from '../session/explorer.ts'
-import type { SceneMaterialPatch } from '../api/materialApi.ts'
+import type { SceneMaterialPatch } from '../api/materialValues.ts'
 
 /** The public world's page-material methods delegate to its current drawing session. */
 export function worldMaterialMethods(session: () => MeasuredWorld | null, invalidate: () => void) {

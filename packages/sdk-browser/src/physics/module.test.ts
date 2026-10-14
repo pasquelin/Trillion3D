@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import {
   ASLEEP_BIT,
   BODY_INDEX,
-  CommandWriter,
   EVENT,
   FLAG,
   GENERATION_SHIFT,
   POSE_WORDS,
   SHAPE,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { events, startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
 

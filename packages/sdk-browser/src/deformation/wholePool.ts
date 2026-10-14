@@ -9,7 +9,7 @@ import { DEFORM_SOURCE_IN_POOL, FLAG_DYNAMIC } from '../visibility/types.ts'
 import type { GeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { DeformationOutput } from '../page/selection/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
-import { boxEmpty } from '../../../sdk-core/src/index.ts'
+import { boxEmpty } from '../../../math/src/geometry/box.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 

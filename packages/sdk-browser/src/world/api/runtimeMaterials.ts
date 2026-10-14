@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { read, type SceneMaterial } from './materialValues.ts'

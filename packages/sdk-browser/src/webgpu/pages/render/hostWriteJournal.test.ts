@@ -5,7 +5,7 @@
 // scenes of 10³ and 10⁵ meshes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countScans, hostScene as scene, withLightStore } from './hostWrite.fixture.ts'
+import { countScans, hostScene, withLightStore } from './hostWrite.fixture.ts'
 import { refreshSceneLights } from '../io/hostApi.ts'
 import {
   nodeWrites,
@@ -15,7 +15,7 @@ import {
 import * as G from '../../../host/graph/graph.fixture.ts'
 
 test('a hide and a light set in one task: the root hidden is parked', () => {
-  const { meshes, rt, parks, image } = scene(100)
+  const { meshes, rt, parks, image } = hostScene(100)
   withLightStore(rt)
   parks.length = 0
   meshes[3].visible = false
@@ -26,7 +26,7 @@ test('a hide and a light set in one task: the root hidden is parked', () => {
 
 test('a light set an image reads no source graph, at 10³ as at 10⁵ roots', () => {
   for (const count of [1e3, 1e5]) {
-    const { source, rt, image } = scene(count)
+    const { source, rt, image } = hostScene(count)
     withLightStore(rt)
     let walks = 0
     const traverse = source.traverse.bind(source)
@@ -40,7 +40,7 @@ test('a light set an image reads no source graph, at 10³ as at 10⁵ roots', ()
 })
 
 test('a frozen node shown again with a new matrix in one image is drawn at its new world', () => {
-  const { meshes, rt, image } = scene(50)
+  const { meshes, rt, image } = hostScene(50)
   const node = meshes[6]
   node.visible = false
   node.matrixAutoUpdate = false
@@ -55,7 +55,7 @@ test('a frozen node shown again with a new matrix in one image is drawn at its n
 
 test('a hundred hides an image over a hundred images scan the same nodes at 10³ and 10⁵', () => {
   const scans = [1e3, 1e5].map((count) => {
-    const { meshes, image } = scene(count)
+    const { meshes, image } = hostScene(count)
     const reads = countScans(meshes)
     const before = reads()
     for (let frame = 0; frame < 100; frame++) {
@@ -90,7 +90,7 @@ test('a write made while the journal is read is read next, nothing dropped', () 
 
 test('a light out of a world names itself: its colour written scans it alone', () => {
   const scans = [1e3, 1e5].map((count) => {
-    const { source, meshes, run, image } = scene(count)
+    const { source, meshes, run, image } = hostScene(count)
     const lamp = G.pointLight()
     source.add(lamp)
     // A light the host adds is a reshape the engine announces: the watch reads the list anew.

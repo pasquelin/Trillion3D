@@ -1,4 +1,4 @@
-import type { PageSource } from '../../../../sdk-core/src/index.ts'
+import type { PageSource } from '../../../../sdk-core/src/contracts/cache.ts'
 import { createGpuPageCache } from '../../gpu/page/pages.ts'
 import { families } from '../../host/families.ts'
 import { DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'

@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { samplingHeaders } from './samplingHeaders.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
 

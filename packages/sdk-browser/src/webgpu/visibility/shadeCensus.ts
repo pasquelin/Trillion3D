@@ -1,5 +1,5 @@
 import type { HostAttributes } from '../../host/resources.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import {

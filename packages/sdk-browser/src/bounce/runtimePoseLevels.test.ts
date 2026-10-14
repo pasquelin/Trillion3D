@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PROXY_CHILD_WORDS, PROXY_CHILDREN, PROXY_NODE_WORDS } from '../../../sdk-core/src/index.ts'
+import {
+  PROXY_CHILD_WORDS,
+  PROXY_CHILDREN,
+  PROXY_NODE_WORDS,
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { poseLevels, poseSchedule } from './runtimePoseLevels.ts'
 
 /** A tree of `links` as `[parent, child]` pairs: a child slot's words say node (`1 << 24`, no triangles). */

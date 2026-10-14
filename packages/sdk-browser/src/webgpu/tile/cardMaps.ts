@@ -1,8 +1,5 @@
-import {
-  impostorBakedByMesh,
-  type ImpostorMap,
-  type ImpostorSection,
-} from '../../../../sdk-core/src/index.ts'
+import { impostorBakedByMesh } from '../../../../sdk-core/src/impostor/switchTable.ts'
+import type { ImpostorMap, ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
 import type { CardTiles } from './cardTiles.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import type { TileTexture } from './tileTexture.ts'

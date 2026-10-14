@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { JobProgress } from '../../../../sdk-core/src/index.ts'
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'

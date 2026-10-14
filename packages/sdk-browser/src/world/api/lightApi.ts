@@ -1,14 +1,14 @@
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import {
-  BOUNCE_SETTINGS,
-  EngineError,
   LIGHT_SETTINGS,
-  type SceneEnvironment,
   type SceneLight,
-  type LightingCapabilities,
-  type SceneLightStore,
   type SceneLightingView,
-  cloneSceneLight,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/scene/light/contracts.ts'
+import type { SceneEnvironment } from '../../../../sdk-core/src/scene/core/environment.ts'
+import type { LightingCapabilities } from '../../../../sdk-core/src/scene/light/capabilities.ts'
+import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import { cloneSceneLight } from '../../../../sdk-core/src/scene/light/clone.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 

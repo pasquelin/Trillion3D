@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { type PageRec } from './selection.ts'
+import type { PageRec } from './types.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { wideCamera } from './dag.fixture.ts'
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts'

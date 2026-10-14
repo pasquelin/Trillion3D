@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DEFAULT_PHYSICS_BUDGET,
-  EVENT_WORDS,
   MAX_CATCH_UP_STEPS,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { resultWords } from './protocol.ts'
 import { createTickResults } from './tickResults.ts'
 import { tickModule } from './tickResults.fixture.ts'

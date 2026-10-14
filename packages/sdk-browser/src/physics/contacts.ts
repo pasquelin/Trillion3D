@@ -1,6 +1,7 @@
-import { EVENT, EVENT_WORDS, type ContactEventName } from '../../../sdk-core/src/physics/index.ts'
+import { EVENT, EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import type { ContactEventName } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 
 /** Hands the event to `self`'s handlers, built only when it has one. */
 const emit = (

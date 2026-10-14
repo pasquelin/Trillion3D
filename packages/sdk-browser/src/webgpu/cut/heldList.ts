@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 

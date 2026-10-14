@@ -1,4 +1,4 @@
-import type { GpuDraw } from '../../../gpu/draw/draw.ts'
+import type { GpuDraw } from '../../../gpu/draw/contract.ts'
 import type { GpuHiz } from '../../../gpu/hiz/types.ts'
 import type { GpuPartition } from '../../../gpu/partition/types.ts'
 

@@ -1,4 +1,5 @@
-import type { CookedBody, CookedTile, CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CookedBody, CookedTile } from '../../../sdk-core/src/physics/cooked.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { CookedKind, SharedShape, SharedShapes } from './sharedShapes.ts'

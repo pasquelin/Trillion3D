@@ -10,8 +10,8 @@ import {
   sliceLength,
   type Water,
   type WaterSpec,
-} from '../../../sdk-core/src/fluids/index.ts'
-import { WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/fluids/buoyancy.ts'
+import { WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import type { JoltModule } from './joltModule.ts'
 
 /** The worker's water: none until `set`. Its waves are clocked by the page's steps: a step taken

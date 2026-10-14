@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { compareImages } from '../../../sdk-core/src/index.ts'
+import { compareImages } from '../../../sdk-core/src/runtime/compareImages.ts'
 import { rasterPages } from '../page/raster.fixture.ts'
 import type { VisPage } from './types.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'

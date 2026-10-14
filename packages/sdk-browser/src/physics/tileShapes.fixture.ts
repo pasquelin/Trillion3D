@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
-import type {
-  CommandWriter,
-  CookedBody,
-  CookedSoftBody,
-} from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import type { CookedBody, CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'

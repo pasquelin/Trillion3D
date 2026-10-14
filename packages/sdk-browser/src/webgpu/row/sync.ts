@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import type { WebgpuRowState } from './state.ts'

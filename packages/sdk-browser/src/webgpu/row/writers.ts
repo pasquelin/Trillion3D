@@ -1,4 +1,4 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { packedRowBase, restampHizSlot } from './pageRow.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'

@@ -4,17 +4,15 @@
 // the words the real ones would. A command buffer never submitted runs nothing. What the readbacks
 // hold is then the GPU's difference of the lists given, in the order the real dispatch copied them,
 // for the host to adopt or not (`dispatch.ts`, `differenceChain.ts`).
-import {
-  dispatchedEntries,
-  fakeDevice,
-  type FakeBuffer,
-} from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { mirrorDifferenceStage } from './difference.fixture.ts'
-import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS as HEAD } from './layout.ts'
+import { OUT_COUNT, OUT_FLAGS } from './layout.ts'
+import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 
@@ -26,12 +24,12 @@ export type RigCut = { asked: number[]; drawn: number[] }
 function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   const asked = cut.asked.slice(0, cap),
     drawn = cut.drawn.slice(0, cap)
-  out.fill(0, 0, 2 * (HEAD + cap))
+  out.fill(0, 0, 2 * (SELECTION_HEADER_WORDS + cap))
   out[OUT_COUNT] = cut.asked.length
   out[OUT_FLAGS] = cut.asked.length > cap || cut.drawn.length > cap ? 1 : 0
-  out.set(asked, HEAD)
-  out[HEAD + cap] = cut.drawn.length
-  out.set(drawn, 2 * HEAD + cap)
+  out.set(asked, SELECTION_HEADER_WORDS)
+  out[SELECTION_HEADER_WORDS + cap] = cut.drawn.length
+  out.set(drawn, 2 * SELECTION_HEADER_WORDS + cap)
 }
 
 /** Kernels that run nothing (`FakeDeviceOptions.kernel`): the readbacks stand for what they write. */

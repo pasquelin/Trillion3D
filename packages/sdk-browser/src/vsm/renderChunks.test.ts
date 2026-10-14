@@ -6,7 +6,8 @@
 // device's usage scopes: no dispatch reads its arguments from a buffer it binds writable.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'

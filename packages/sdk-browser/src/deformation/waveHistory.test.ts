@@ -9,7 +9,7 @@ import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import { transformAffinePoint } from '../../../sdk-core/src/index.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 
 const surface = () =>
   new WaterSurface({

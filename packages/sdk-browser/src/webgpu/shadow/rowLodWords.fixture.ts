@@ -6,12 +6,12 @@
 // one whose finer group is not ready, an own error of 0, so every page that reaches it draws it. A
 // row with no record — a blended caster's is given none — or of a cache without errors is drawn by
 // every page. The word tests hold the shader to it.
-import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
+import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxRadius } from '../../../../math/src/geometry/box.ts'
 import { rootWorldBox, worldStretch, type WorldMemo } from '../../page/selection/rootWorld.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
   LOD_BIT,

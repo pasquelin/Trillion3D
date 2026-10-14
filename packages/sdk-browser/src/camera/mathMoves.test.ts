@@ -25,7 +25,7 @@ import {
   edgeValues,
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
-import { adaptivePixelError } from '../../../sdk-core/src/index.ts'
+import { adaptivePixelError } from '../../../sdk-core/src/lod/policy.ts'
 import { createEngineCamera, writeEngineCamera, type CameraOptics } from './engineCamera.ts'
 import { readCameraMotion, type CameraMotion } from './motion.ts'
 import { framingFromBounds } from './framing.ts'

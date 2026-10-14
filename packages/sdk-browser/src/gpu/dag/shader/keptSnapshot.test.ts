@@ -6,12 +6,8 @@ import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../texture/shaderRule.fixture.ts'
-import {
-  KEPT_HEADER_WORDS,
-  SELECTION_HEADER_WORDS,
-  savedJournalWord,
-  keptSnapshotWord,
-} from '../layout.ts'
+import { KEPT_HEADER_WORDS, savedJournalWord, keptSnapshotWord } from '../layout.ts'
+import { SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 
 /** The kernel's readout functions for a list of `listCap` ranks. */
 function kernel(listCap: number) {

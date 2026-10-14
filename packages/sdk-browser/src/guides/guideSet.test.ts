@@ -2,7 +2,7 @@
 // handles' lifecycle, the packing a pass uploads, and a helper read as guides.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { helper } from '../world/api/helperFamily.ts'
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'

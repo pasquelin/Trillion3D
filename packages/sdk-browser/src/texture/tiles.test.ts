@@ -9,13 +9,13 @@ import {
   POOL_LAYER_SIDE,
   POOL_MAX_LAYERS,
   tailOffset,
-  TILE_BORDER,
   TILE_PITCH,
   tileLayout,
   tilesAt,
   TILES_PER_LAYER,
   TILES_PER_ROW,
 } from './tiles.ts'
+import { TILE_BORDER } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { noTails } from './noTails.fixture.ts'

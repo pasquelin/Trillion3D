@@ -7,7 +7,7 @@ import { watchFirstFrame } from '../session/openWatch.ts'
 import { worldReopens } from './worldReopen.ts'
 import { createCanvasFit, followPageCamera } from './worldCamera.ts'
 import { namedMove } from './worldSceneMethods.ts'
-import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts'
+import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { askedFrame } from './worldAskedFrame.ts'
 import {
   worldApply,
@@ -21,7 +21,7 @@ import {
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
  *  (`placement/growth.ts`), models and their partitions joined (`worldModelJoin.ts`), poses,
  *  background —; and opened again for a lost device or an option alone (`worldReopen.ts`). */
-export function createWorldRuntime(inputs: Inputs) {
+export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   const { canvas, scene, camera } = inputs
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
     lights = createWorldLights(scene),

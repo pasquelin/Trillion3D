@@ -1,7 +1,7 @@
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'

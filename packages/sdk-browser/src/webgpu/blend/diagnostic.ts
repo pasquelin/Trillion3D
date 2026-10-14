@@ -1,16 +1,12 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
-import {
-  projectedPageError,
-  rootOf,
-  type ClusterRoot,
-  type PageRec,
-} from '../../page/selection/selection.ts'
+import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
+import { projectedPageError } from '../../page/selection/diagnostic.ts'
+import { rootOf, rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 import { screenErrorRatio } from '../../diagnostic/colors.ts'
 import { clusterHash } from '../../visibility/math.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { WebgpuBlendState } from './state.ts'
-import { rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
 
 /**
  * The cluster identity every transparent instance colours itself with, one word per catalogue entry.

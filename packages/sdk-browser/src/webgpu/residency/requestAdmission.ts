@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 import type { WebgpuPageTracking } from '../row/pageTracking.ts'

@@ -1,4 +1,4 @@
-import { worldToRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { worldToRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { rootWorlds } from './pack.ts'
 import type { PackedDag, DagRoot } from './types.ts'
 

@@ -1,4 +1,5 @@
-import { collectPendingUrls, type PageRec } from '../../../page/selection/selection.ts'
+import { collectPendingUrls } from '../../../page/selection/requests.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
 import { withClosure } from '../../../page/selection/bundleDependencies.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'

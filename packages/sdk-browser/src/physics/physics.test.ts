@@ -1,14 +1,10 @@
 import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  PHYSICS_STEP,
-  ASLEEP_BIT,
-  CommandWriter,
-  DEFAULT_PHYSICS_BUDGET,
-  POSE_WORDS,
-  type PhysicsHost,
-} from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP, DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
+import { ASLEEP_BIT, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import type { PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'

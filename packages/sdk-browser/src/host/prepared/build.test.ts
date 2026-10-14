@@ -14,13 +14,13 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import { buildPreparedScene } from './build.ts'
 import { SCENE_FILE } from '../../scene/tables.ts'
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts'
+import { loadHostVertices, meshes } from '../../scene/meshes.ts'
 import {
   caches,
   describe,
@@ -54,12 +54,12 @@ async function prepared(folder: URL, written?: unknown) {
     signal: undefined,
     track: (_resource, read) => read,
   })
-  const meshes = built.associations as Map<object, ReturnType<Ranks>>
+  const ranks = built.associations as Map<object, ReturnType<Ranks>>
   const textures = built.textureIndices as Map<object, number>
   const ranks: Ranks = (object) =>
-    textures.has(object) ? { textures: textures.get(object) } : meshes.get(object)
+    textures.has(object) ? { textures: textures.get(object) } : ranks.get(object)
   const source = built.source as unknown as Object3D
-  await loadHostVertices(drawnMeshes(source))
+  await loadHostVertices(meshes(source))
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),

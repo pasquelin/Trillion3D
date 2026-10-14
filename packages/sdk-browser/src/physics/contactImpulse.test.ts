@@ -1,13 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  BODY_INDEX,
-  CommandWriter,
-  EVENT,
-  FLAG,
-  POSE_WORDS,
-  SHAPE,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, EVENT, FLAG, POSE_WORDS, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { events, startModule } from './module.fixture.ts'
 import { body, id } from './records.fixture.ts'
 

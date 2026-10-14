@@ -4,7 +4,7 @@ import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { FEEDBACK_RULE_WGSL, tileRequestAtWgsl } from './requestWgsl.ts'
 import { SHADOW_TILE_POOL_WGSL, tileDeclarations } from './wgsl.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 
 /** The group the card pass binds the tile pool in: after the image's (view and records). */
 const CARD_TILE_GROUP = 1

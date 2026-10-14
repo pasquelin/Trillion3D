@@ -1,4 +1,4 @@
-import { DIAGNOSTICS, type DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import { DIAGNOSTICS, type DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { Engine } from '../../engine/types.ts'
 
 type Inputs = {

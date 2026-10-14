@@ -1,8 +1,9 @@
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
-import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
+import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import { sphereRadius } from '../../placement/rowSphere.ts'
 import { boxCenter } from '../../../../math/src/geometry/box.ts'
-import { rootOf, type PageRec } from '../../page/selection/selection.ts'
+import { rootOf } from '../../page/selection/placements.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import { rowBox, rowGrowth } from '../../hiz/corners.ts'
 

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PhysicsShape } from '../../../sdk-core/src/physics/index.ts'
+import type { PhysicsShape } from '../../../sdk-core/src/physics/options.ts'
 import { cylinder } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'

@@ -10,7 +10,7 @@ import {
   DEPTH_LAYER_BIAS_UNITS,
   TRANSPARENT_DEPTH_LAYER,
   depthLayerUnits,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts'
 import { stageDescriptors } from './stagePipelines.ts'

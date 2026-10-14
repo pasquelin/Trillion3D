@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts'
 import { VEHICLE_SPECS } from '../../../sdk-core/src/physics/vehicleSpec.ts'
-import { driveCar as drive, type VehicleRig as Rig, vehicleRig } from './vehicles.fixture.ts'
+import { driveCar, type VehicleRig, vehicleRig } from './vehicles.fixture.ts'
 
 // The chassis options of every vehicle — suspension, steering, brakes, driven wheels, tracks and
 // lean — set against its machine's own value on the committed module: each test fails if
@@ -14,12 +14,12 @@ const CAR = VEHICLE_SPECS.car
 /** The car's wheelbase in the rig (`vehicles.fixture.ts`), m. */
 const WHEELBASE = 2.66
 /** The body's pitch, radians: its nose's rise. */
-function pitch(rig: Rig) {
+function pitch(rig: VehicleRig) {
   const [x, y, z, w] = rig.turn(rig.body)
   return Math.asin(clamp(2 * (w * x - y * z), -1, 1))
 }
 /** A wheel's turn about y from straight ahead, radians: its axle, (0, 1, 0) on the cylinder. */
-function steerOf(rig: Rig, wheel: number) {
+function steerOf(rig: VehicleRig, wheel: number) {
   const [x, y, z, w] = rig.wheels[wheel].quaternion.toArray()
   return Math.abs(Math.atan2(2 * (y * z + w * x), -2 * (x * y - w * z)))
 }
@@ -32,7 +32,7 @@ function between(p: number[], q: number[]) {
 /** The car's greatest pitch and front wheel rise against its body in a second of full braking
  *  from three seconds of full throttle. */
 async function dive(options: Partial<VehicleOptions>) {
-  const rig = await drive(options, { throttle: 1 }, 3)
+  const rig = await driveCar(options, { throttle: 1 }, 3)
   let most = 0,
     rise = 0
   for (let s = 0; s < 60; s++) {
@@ -60,7 +60,7 @@ test('suspensionTravel: a shorter travel stops the wheel sooner against the body
 
 test('suspensionDamping: underdamped, the body rocks longer once the throttle lets go', async () => {
   const rocking = async (suspensionDamping: number) => {
-    const rig = await drive({ suspensionDamping }, { throttle: 1 }, 1)
+    const rig = await driveCar({ suspensionDamping }, { throttle: 1 }, 1)
     const pitches: number[] = []
     rig.hold({}, 0.3)
     for (let s = 0; s < 120; s++) {
@@ -76,7 +76,7 @@ test('suspensionDamping: underdamped, the body rocks longer once the throttle le
 test('steerTime: a slower hand takes the wheel to lock later', async () => {
   const lock = Math.asin(WHEELBASE / CAR.turnRadius)
   const after = async (steerTime: number) =>
-    steerOf(await drive({ steerTime }, { steer: 1 }, 0.1), 0)
+    steerOf(await driveCar({ steerTime }, { steer: 1 }, 0.1), 0)
   const [own, slow] = [await after(CAR.steerTime), await after(1)]
   assert.ok(Math.abs(own - (0.1 / CAR.steerTime) * lock) < 0.02, `own ${own}`)
   assert.ok(Math.abs(slow - 0.1 * lock) < 0.02, `slow ${slow}`)
@@ -84,7 +84,7 @@ test('steerTime: a slower hand takes the wheel to lock later', async () => {
 
 test('brakeGrip: brakes that lock the wheels at a third of the grip stop far longer', async () => {
   const stopping = async (brakeGrip: number) => {
-    const rig = await drive({ brakeGrip }, { throttle: 1 }, 4)
+    const rig = await driveCar({ brakeGrip }, { throttle: 1 }, 4)
     const from = rig.at(rig.body)[2]
     for (let s = 0; s < 1800 && rig.vehicle.speed > 0.2; s++) rig.hold({ brake: 1 }, 1 / 60)
     return from - rig.at(rig.body)[2]

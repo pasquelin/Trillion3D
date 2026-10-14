@@ -1,11 +1,11 @@
 import {
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_LAYOUT_NAMES,
-  textureLevelFormat,
   type TextureBlockFormat,
   type TextureLayout,
-  type TexturePreview,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/texture/previewFormat.ts'
+import { textureLevelFormat } from '../../../sdk-core/src/texture/levelUrl.ts'
+import type { TexturePreview } from '../../../sdk-core/src/texture/previewContracts.ts'
 
 /**
  * Which block family a session's pools take, and everything that follows from it.

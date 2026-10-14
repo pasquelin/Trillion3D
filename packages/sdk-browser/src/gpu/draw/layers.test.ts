@@ -8,7 +8,7 @@ import {
   CULL_BINS,
   HALF_SLOTS,
   slotCount,
-} from './draw.ts'
+} from './contract.ts'
 import { evaluateDrawCompact } from './cpu.fixture.ts'
 import type { DrawItem } from './cpu.fixture.ts'
 import { drawShader } from './shader.ts'

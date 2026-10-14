@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { OP, SHAPE } from '../../../sdk-core/src/physics/index.ts'
+import { OP, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsPoses } from './poses.ts'
 import {

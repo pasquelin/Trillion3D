@@ -1,6 +1,6 @@
 import type { HeldLevels, LevelFailed } from '../../texture/heldLevels.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { TileKey } from './pageTable.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { createFileTails } from './fileTails.ts'

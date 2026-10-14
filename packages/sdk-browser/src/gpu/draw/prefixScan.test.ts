@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { drawShader } from './shader.ts'
-import { slotCount } from './draw.ts'
+import { slotCount } from './contract.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 
 // The indirect-draw prefix walks the slots in order with the sixty-four threads of the workgroup,

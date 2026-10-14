@@ -11,7 +11,7 @@ import { createMaterialTable } from '../material/materialTable.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { FLAG_HAS_MAP, ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 const ROWS = 100
 

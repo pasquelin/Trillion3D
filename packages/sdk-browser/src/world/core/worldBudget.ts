@@ -1,7 +1,7 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
-import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
+import type { PhysicsBudget } from '../../../../sdk-core/src/physics/options.ts'
 import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,

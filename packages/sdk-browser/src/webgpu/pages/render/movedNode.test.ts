@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { followPlacementRows } from '../../../placement/update.ts'
-import type { ClusterRoot } from '../../../page/selection/types.ts'
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
+
 import { appendRootsUnder, type RootsOwner } from './movedNode.ts'
 
 test('a row re-seated on another mesh is named by the new one, never the old', () => {

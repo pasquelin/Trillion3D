@@ -1,7 +1,8 @@
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { packDrawIndirect } from './cpu.fixture.ts'
 import {
   BASE_SLOTS,
@@ -10,10 +11,11 @@ import {
   BIN_NONE,
   CULL_BINS,
   HALF_SLOTS,
-  createGpuDraw,
   DRAW_ITEM_U32,
-} from './draw.ts'
-import { DRAW_INDIRECT_STRIDE } from './contract.ts'
+  DRAW_INDIRECT_STRIDE,
+} from './contract.ts'
+import { createGpuDraw } from './factory.ts'
+
 import { evaluateDrawCompact } from './cpu.fixture.ts'
 import { indirectForDraw } from './cpu.fixture.ts'
 import type { DrawItem } from './cpu.fixture.ts'

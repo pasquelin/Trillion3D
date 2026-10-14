@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { createExplorerFrameScheduler } from '../render/frameScheduler.ts'
 import { interactiveSize } from './interactiveOptions.ts'
 import type { MeasuredWorldOptions } from './options.ts'

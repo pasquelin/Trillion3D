@@ -13,7 +13,8 @@ import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
 import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { worldFadeScale } from './worldFade.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { DagRoot } from './types.ts'
 
 /** The followed selection over `roots`, its view aside made and its regions asked by one main

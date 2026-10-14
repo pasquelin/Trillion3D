@@ -1,4 +1,5 @@
-import { BOUNCE_SETTINGS, type BounceCascades } from '../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 
 /** Four-byte words of a level in the uniform: two `vec4f`, origin and base cell. */

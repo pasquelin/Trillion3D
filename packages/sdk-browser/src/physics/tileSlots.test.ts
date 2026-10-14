@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
+import type { PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import { crate, owners, repeated, residentAt } from './tileShapes.fixture.ts'
 import { cooked, landed, place, settle, streamedModel, tile } from './tiles.fixture.ts'
 

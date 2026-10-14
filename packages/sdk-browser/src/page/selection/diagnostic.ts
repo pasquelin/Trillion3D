@@ -1,8 +1,9 @@
-import { maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import { multiplyMatrix4, copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { projectedClusterError } from './math.ts'
 import type { PageRec } from './types.ts'
-import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { type MatrixElements } from '../../host/matrixElements.ts'
+
+import type { MatrixElements } from '../../host/matrixElements.ts'
 import { focalPixels } from '../../../../math/src/projection/camera.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 

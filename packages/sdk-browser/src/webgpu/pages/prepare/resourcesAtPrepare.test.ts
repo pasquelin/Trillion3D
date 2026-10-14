@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
-import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import type { Engine } from '../../../engine/types.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {

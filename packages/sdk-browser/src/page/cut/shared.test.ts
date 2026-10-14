@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { clusterErrorPixels } from '../../../../sdk-core/src/index.ts'
+import { clusterErrorPixels } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
 import { projectedClusterError } from '../selection/math.ts'
 import { clusterPixels } from '../selection/frame.fixture.ts'
 

@@ -5,7 +5,8 @@ import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts
 import '../../wasm/sdkWasm.fixture.ts'
 import { coneHolds } from '../../../../../tests/kit/reference/cone.ts'
 import { cutRuntimePrimitive } from './runtimePrimitive.ts'
-import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
+import { cutDrawnTriangles } from './runtimeCut.ts'
+import { packDrawn } from './runtimePack.ts'
 
 // A page the world cuts at run time carries the cone of its triangles' normals, built by
 // the compiler's `triangle_cone` in the SDK module.

@@ -5,10 +5,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { refitTree } from './treeRefitRun.fixture.ts'
-import { packDagSelection } from './selection.ts'
-import { appendDagRoots, dagRootCounts } from './pack.ts'
+import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
+
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { boxTransform, frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 
 test('the descent reads through the tree every placement the frustum may hold, and no more as the world grows', () => {
   const camera = fieldCamera([30, 2, -30], [30, 0, -200], 120),

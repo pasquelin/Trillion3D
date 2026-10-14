@@ -1,4 +1,5 @@
-import { previewIsWhole, type ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { previewIsWhole } from '../../../sdk-core/src/texture/previewLevels.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 
 /**
  * A 1×1 opaque white PNG: what the prepared scene decodes in place of an image whose mip

@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'

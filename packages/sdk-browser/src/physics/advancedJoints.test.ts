@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { joint } from '../../../sdk-core/src/physics/index.ts'
+import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import { WEAK, brokenPastForce, circle, gap, jointRig, widestSwings } from './joints.fixture.ts'
 const strong = (mode: 'velocity' | 'position', target: number) => ({ mode, target, maxForce: 1e6 })
 

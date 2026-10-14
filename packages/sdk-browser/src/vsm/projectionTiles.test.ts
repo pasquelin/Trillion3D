@@ -12,7 +12,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CASES, lightsOf, pixelsOf } from './projectionTiles.fixture.ts'
 import { reference, shipped } from './projectionTileRun.fixture.ts'
-import { VSM_LIGHT_KIND_DIRECTIONAL as DIRECTIONAL } from './constants.ts'
+import { VSM_LIGHT_KIND_DIRECTIONAL } from './constants.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 test('a tile traces what every light tested at every pixel traces, and the resolve reads the same codes', () => {
@@ -76,7 +76,7 @@ test('a pass of suns alone, every light its candidate, traces what every light t
     const pixels = pixelsOf(rand, [round % 4, 0], kind)
     const lit = pixels.filter((p) => p.info.valid).map((p) => p.shifted)
     const lights = lightsOf(rand, [1, 3, 35, 64][round % 4], lit.length ? lit : [[0, 0, 0]]).map(
-      (light) => ({ ...light, kind: DIRECTIONAL }),
+      (light) => ({ ...light, kind: VSM_LIGHT_KIND_DIRECTIONAL }),
     )
     const suns = shipped(pixels, lights, false, 1),
       old = reference(pixels, lights, false)

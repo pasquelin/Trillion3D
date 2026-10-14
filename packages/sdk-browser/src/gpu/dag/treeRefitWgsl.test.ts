@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { treeNodeCount, TREE_SPAN } from './placementTree.ts'
 import { leafBoxes, refitTree, treeChange } from './treeRefitRun.fixture.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'

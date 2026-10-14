@@ -1,4 +1,5 @@
-import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
+import type { SceneProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import { bounceProbeBytes } from '../../../bounce/limits.ts'
 import { createGpuBounceProbes } from '../../../bounce/probes.ts'
 import { NO_PROXY_BOXES } from '../../../bounce/probeSync.ts'

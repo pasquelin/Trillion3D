@@ -1,5 +1,5 @@
 import { visSlotPipeline } from '../pages/prepare/pipelineFor.ts'
-import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/draw.ts'
+import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { opaqueTwin, VIS_DEPTH, VIS_TARGETS } from './pipelines.ts'
 import { visGroupFor } from './visGroup.ts'

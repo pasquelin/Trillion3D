@@ -13,7 +13,7 @@ import {
   VERDICT_REJECTED,
 } from '../partition/contract.ts'
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
-import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
+import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
@@ -131,7 +131,7 @@ struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fin
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 @group(1) @binding(0) var<storage, read> pages:array<PageInfo>;
 @group(1) @binding(1) var<storage, read_write> testArgs:array<u32>;
-var<workgroup> hizTile:array<vec2f,${S ** 2}>;
+var<workgroup> hizTile:array<vec2f,${HIZ_BUILD_SIDE ** 2}>;
 /** The index in \`layer\`'s bound of the cell at the index \`i\` the passes name (the culling layer's
  *  routing, \`hizRoute\`): a coarser level's cells lie after those of the layers before it. */
 fn hizIn(i:u32,layer:u32)->u32{return select(i,i+layer*uni.upper,(i&HIZ_UPPER)!=0u);}
@@ -206,21 +206,21 @@ fn hizBound4(v00:vec2f,v10:vec2f,v01:vec2f,v11:vec2f,dx:u32,dy:u32)->vec2f{
  }
  return bound;
 }
-@compute @workgroup_size(${S}, ${S})
+@compute @workgroup_size(${HIZ_BUILD_SIDE}, ${HIZ_BUILD_SIDE})
 fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
  // uni: a the source level's index, b × c its size, d the levels this pass writes (dst), upper the
  // texels of the coarser levels of one bound (\`hizIn\`).
  let at=uni.a;
- let x=wg.x*${S}u+lid.x;let y=wg.y*${S}u+lid.y;let x0=x*2u;let y0=y*2u;
+ let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=x*2u;let y0=y*2u;
  var bound=vec2f(0.0);
  if(x0<uni.b&&y0<uni.c){
   let dx=select(0u,1u,x0+1u<uni.b);let dy=select(0u,1u,y0+1u<uni.c);
   bound=hizBound4(hizSource(at,x0,y0),hizSource(at,x0+dx,y0),hizSource(at,x0,y0+dy),hizSource(at,x0+dx,y0+dy),dx,dy);
   if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}
  }
- hizTile[lid.y*${S}u+lid.x]=bound;
+ hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=bound;
  // Each further level halves the threads at work; the one the tile holds is read, then replaced.
- var side=${S}u;
+ var side=${HIZ_BUILD_SIDE}u;
  for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){
   side=side>>1u;
   workgroupBarrier();
@@ -228,13 +228,13 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
   let tx=wg.x*side+lid.x;let ty=wg.y*side+lid.y;
   let live=lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;
   if(live){
-   let i=lid.y*${2 * S}u+lid.x*2u;
+   let i=lid.y*${2 * HIZ_BUILD_SIDE}u+lid.x*2u;
    let dx=select(0u,1u,tx*2u+1u<src.y);let dy=select(0u,1u,ty*2u+1u<src.z);
-   bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${S}u],hizTile[i+dy*${S}u+dx],dx,dy);
+   bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${HIZ_BUILD_SIDE}u],hizTile[i+dy*${HIZ_BUILD_SIDE}u+dx],dx,dy);
   }
   workgroupBarrier();
   if(live){
-   hizTile[lid.y*${S}u+lid.x]=bound;
+   hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=bound;
    hizPutBound(dst.x+ty*dst.y+tx,bound);
   }
  }

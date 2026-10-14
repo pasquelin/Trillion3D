@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeEngineContext } from './engine.fixture.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 
 test("a world page and a cache page are read under the session's signal, at the asked priority", async () => {
   const metadata = { primitives: [] } as unknown as ClusterManifest

@@ -1,4 +1,4 @@
-import { frustumExcludesBox } from '../../../sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../math/src/geometry/frustum/box.ts'
 import { cardAsk } from './cardAsk.ts'
 import { giveCard, mark, takeCard } from './cardHolders.ts'
 import { refit } from './cardSegment.ts'

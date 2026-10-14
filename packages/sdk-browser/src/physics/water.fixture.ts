@@ -1,11 +1,6 @@
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
-import {
-  CommandWriter,
-  LAYER,
-  MOTION,
-  POSE_WORDS,
-  SHAPE,
-} from '../../../sdk-core/src/physics/index.ts'
+import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { LAYER, MOTION, POSE_WORDS, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import type { BodyRecord, CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts'
 import type { JoltModule } from './joltModule.ts'
 import { createWaterStep } from './water.ts'

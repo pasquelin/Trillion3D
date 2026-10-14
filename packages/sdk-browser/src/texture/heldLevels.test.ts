@@ -4,7 +4,7 @@
 // records fail apart: one good tile never clears another's wait.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { heldLevelsOf } from './heldLevels.ts'
 import type { TextureLevelAddress, TextureLevelReader, TextureLevelRequest } from './levelReader.ts'
 import { createPageCache } from '../streaming/pageCache.ts'

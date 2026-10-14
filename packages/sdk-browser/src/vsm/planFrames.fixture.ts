@@ -5,7 +5,8 @@
 import { createHash } from 'node:crypto'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
-import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createVsmResources } from './resources.ts'
 import {
   createVsmFrameState,

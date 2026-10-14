@@ -1,7 +1,8 @@
 import { MIB } from '../../../../math/src/constants.ts'
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { openMeasuredWorld, createMeasuredWorldJob } from '../../measurement/measurement.ts'
+import { openMeasuredWorld } from './explorer.ts'
+import { createMeasuredWorldJob } from '../../measurement/measurement.ts'
 import { resolveExplorerTarget } from './target.ts'
 import { interactiveOptions, interactiveSize } from './interactiveOptions.ts'
 

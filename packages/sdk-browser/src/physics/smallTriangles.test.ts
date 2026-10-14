@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { CommandWriter, SHAPE } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import { castDown, startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
 

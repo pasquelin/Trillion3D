@@ -1,5 +1,5 @@
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { Texture } from '../../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 
 /** Which pass reads a texture: the opaque resolve, its alpha-tested (mask) branch, or the blend. */

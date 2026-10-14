@@ -5,7 +5,7 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { buildCutProxy } from './runtimeProxy.ts'
 import { cubeGeometry } from './cube.fixture.ts'
 

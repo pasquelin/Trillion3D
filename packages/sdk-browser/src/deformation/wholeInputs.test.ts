@@ -13,7 +13,8 @@ import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { wholeDeformationPool } from './wholePool.ts'
 import { emptyGeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
-import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { written } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 function sample() {

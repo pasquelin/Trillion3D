@@ -1,4 +1,4 @@
-import { BODY_INDEX, GENERATION_SHIFT, GENERATIONS } from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, GENERATION_SHIFT, GENERATIONS } from '../../../sdk-core/src/physics/layout.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { hasBody } from './bodied.ts'
 import type { createPhysicsBodies } from './bodies.ts'

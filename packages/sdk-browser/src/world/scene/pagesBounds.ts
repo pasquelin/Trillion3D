@@ -1,9 +1,9 @@
-import { meshes as objects } from '../../scene/meshes.ts'
+import { meshes } from '../../scene/meshes.ts'
 import type { HostBoundedNode } from '../../host/scene/graphNodes.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { emptyWorldBox, readHostBox } from '../../host/world/bounds.ts'
-import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
 import type { DrawAssociations } from '../../page/selection/drawSource.ts'
@@ -48,7 +48,7 @@ function exactPagesCount(
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives)
   let n = 0
-  for (const mesh of objects(source)) {
+  for (const mesh of meshes(source)) {
     const primitive = primitiveOf(associations.get(mesh))
     if (placedBox(mesh, associations)) n++
     else if (primitive) for (const item of primitive.pages) if (exacte(item)) n++
@@ -71,7 +71,7 @@ export function pagesBounds(
   const primitiveOf = primitiveFinder(metadata.primitives)
   const union = boxUnionCollector(into, lot, exactPagesCount(source, associations, metadata))
   const worlds = hostWorldPlacements(source)
-  for (const mesh of objects(source)) {
+  for (const mesh of meshes(source)) {
     const primitive = primitiveOf(associations.get(mesh))
     const placed = placedBox(mesh, associations)
     if (!primitive && !placed) {

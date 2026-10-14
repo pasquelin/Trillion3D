@@ -1,4 +1,4 @@
-import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**

@@ -1,4 +1,6 @@
-import type { FrameMetrics, SceneFog, SceneToneMapping } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
+import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { openMeasuredWorld, MeasuredWorld } from '../session/explorer.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'

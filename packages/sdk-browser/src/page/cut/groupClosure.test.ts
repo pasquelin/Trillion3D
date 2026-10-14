@@ -4,8 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { createGroupClosure } from './groupClosure.ts'
-import type { PageRec } from '../selection/selection.ts'
-import type { ClusterRoot } from '../selection/types.ts'
+import type { PageRec, ClusterRoot } from '../selection/types.ts'
 
 const dag = ruleDag(64),
   s = dag.structure

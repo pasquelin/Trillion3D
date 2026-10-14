@@ -9,8 +9,7 @@ import { runtimeDeformation } from './runtimeDeformation.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
 import { createSessionDeformation } from '../../deformation/session.ts'
 import { recordLayout } from '../../deformation/layout.ts'
-import type { ClusterRoot } from '../../page/selection/types.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 
 function geometry() {
   const g = new Geometry()

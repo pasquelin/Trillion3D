@@ -21,7 +21,7 @@ import {
   invTranspose3Apply,
   invTranspose3Prep,
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
-import { NORMAL_TRANSFORM_WGSL as NORMAL_TRANSFORM } from '../../lighting/standardLighting.ts'
+import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import {
@@ -40,7 +40,7 @@ import {
 import { RAD2DEG } from '../../../../math/src/constants.ts'
 
 /** The lighting normal transformation, as a program holds it. */
-const NORMAL_TRANSFORM_WGSL = wgslModule(NORMAL_TRANSFORM)
+const NORMAL_TRANSFORM = wgslModule(NORMAL_TRANSFORM_WGSL)
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { truth: number[] }, rendered: number[]) =>
@@ -89,7 +89,7 @@ test('selection kernel and lighting read exact same text, character for characte
   for (const [nom, shader, calls] of [
     [
       'lighting',
-      NORMAL_TRANSFORM_WGSL,
+      NORMAL_TRANSFORM,
       ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'unitOrZero'],
     ],
     ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
@@ -106,8 +106,8 @@ test('selection kernel and lighting read exact same text, character for characte
 })
 
 test('lighting normal passes through shared inverse-transpose, without recomputing it', () => {
-  const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0]
-  assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal duplicated')
+  const corps = NORMAL_TRANSFORM.split('fn xformNormal')[1].split('\n}')[0]
+  assert.equal(occurrences(NORMAL_TRANSFORM, /fn xformNormal\(/g), 1, 'xformNormal duplicated')
   assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel')
   assert.ok(corps.includes('unitOrZero('), 'xformNormal must return unit or zero direction')
   assert.doesNotMatch(

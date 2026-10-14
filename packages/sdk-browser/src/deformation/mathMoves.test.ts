@@ -24,7 +24,7 @@ import {
   HALTON_SWEEP,
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 const VIEWPORT: [number, number] = [1920, 1080]
 

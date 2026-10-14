@@ -3,13 +3,8 @@
 // list — what the GPU double replays (`tests/kit/gpu/fakeCompute.ts`) and what the cut's tests take
 // differences with. A page repeated in the kept list is named at one of its ranks: the last, here,
 // as the last write of a keep kernel may be.
-import {
-  KEPT_HEADER_WORDS,
-  OUT_COUNT,
-  SELECTION_HEADER_WORDS as HEAD,
-  differenceWord,
-  keptSnapshotWord,
-} from './layout.ts'
+import { KEPT_HEADER_WORDS, OUT_COUNT, keptSnapshotWord } from './layout.ts'
+import { SELECTION_HEADER_WORDS, differenceWord } from './readoutWords.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -22,17 +17,17 @@ export function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
 /** The two lists a readout of `listCap` ranks carries, and the two it keeps behind their lengths
  *  (`keptSnapshotWord`). */
 function listsOf(out: Uint32Array, listCap: number) {
-  const drawnAt = HEAD + listCap,
+  const drawnAt = SELECTION_HEADER_WORDS + listCap,
     header = keptSnapshotWord(listCap),
     kept = header + KEPT_HEADER_WORDS
   const span = (from: number, count: number) => Array.from(out.subarray(from, from + count))
   return [
     {
-      now: span(HEAD, Math.min(out[OUT_COUNT], listCap)),
+      now: span(SELECTION_HEADER_WORDS, Math.min(out[OUT_COUNT], listCap)),
       kept: span(kept, out[header]),
     },
     {
-      now: span(drawnAt + HEAD, Math.min(out[drawnAt], listCap)),
+      now: span(drawnAt + SELECTION_HEADER_WORDS, Math.min(out[drawnAt], listCap)),
       kept: span(kept + listCap, out[header + 1]),
     },
   ]

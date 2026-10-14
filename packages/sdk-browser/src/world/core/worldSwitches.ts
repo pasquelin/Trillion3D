@@ -4,7 +4,7 @@ import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { RenderScale } from '../../frame/renderScaleOption.ts'
-import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { createWorldSettings } from './worldSettings.ts'
 import { createWorldQuality, renderScaleOf } from './worldQuality.ts'
 

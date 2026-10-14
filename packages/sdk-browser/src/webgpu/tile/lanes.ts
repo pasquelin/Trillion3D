@@ -1,8 +1,8 @@
 import { arrayView } from '../../gpu/core/textureViews.ts'
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'
-import { type LaneCounts, type PoolEncoding, type PoolLane } from '../../texture/blockFormats.ts'
+import type { LaneCounts, PoolEncoding, PoolLane } from '../../texture/blockFormats.ts'
 import { resizeTileAtlas } from './atlasResize.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 

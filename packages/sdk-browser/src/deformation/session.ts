@@ -1,6 +1,6 @@
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
-import type { ClusterRoot } from '../page/selection/types.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'

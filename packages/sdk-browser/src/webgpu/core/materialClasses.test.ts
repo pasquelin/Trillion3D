@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from '../../page/selection/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import {
   FLAG_MASK,

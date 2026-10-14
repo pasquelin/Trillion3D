@@ -4,7 +4,7 @@ import {
   collisionBytesOf,
   DEFAULT_PHYSICS_BUDGET,
   TRIANGLE_BYTES,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'

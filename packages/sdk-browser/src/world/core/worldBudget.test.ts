@@ -7,8 +7,9 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
 } from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
-import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
-import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
+import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { bounceProbeBytes } from '../../bounce/limits.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
 import { poolWindowSizes } from '../../vsm/layoutBytes.ts'

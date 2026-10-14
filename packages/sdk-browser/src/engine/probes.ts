@@ -1,4 +1,4 @@
-import type { Texture } from '../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { HostCamera } from '../camera/world.ts'
 import type { PresentRect } from '../gpu/core/presentAt.ts'
 import type { RasterView } from '../webgpu/pages/runtime.ts'

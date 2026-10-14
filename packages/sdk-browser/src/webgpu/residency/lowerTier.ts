@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'

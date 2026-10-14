@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  BODY_INDEX,
-  CommandWriter,
-  LAYER,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, LAYER, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'

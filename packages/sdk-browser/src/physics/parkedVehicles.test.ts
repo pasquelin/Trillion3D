@@ -1,6 +1,6 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import type { Vehicle } from '../../../sdk-core/src/physics/index.ts'
+import type { Vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'

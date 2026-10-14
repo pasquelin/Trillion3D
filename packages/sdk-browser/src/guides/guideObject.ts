@@ -1,4 +1,6 @@
-import { EngineError, invertMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4, copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { pointAt } from '../../../sdk-core/src/world/geometry/bounds.ts'
 import { lineCorners } from '../../../sdk-core/src/world/geometry/drawn.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -6,7 +8,7 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
-import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { GuideEntry } from './guidePack.ts'
 

@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'

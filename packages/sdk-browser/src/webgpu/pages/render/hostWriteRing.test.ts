@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { countScans, hostScene as scene } from './hostWrite.fixture.ts'
+import { countScans, hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransforms } from './transform.ts'
 import { noteNodeWrite } from '../../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import { copyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
@@ -24,7 +24,7 @@ function frozenOnOwn(meshes: readonly G.Object3D[], image: () => void) {
 }
 
 test('three thousand frozen nodes on storage of their own written in one image all follow', () => {
-  const { meshes, roots, image } = scene(3000)
+  const { meshes, roots, image } = hostScene(3000)
   const storages = frozenOnOwn(meshes, image)
   storages.forEach((own, k) => (own[12] = 100 + k))
   for (const mesh of meshes) mesh.matrixWorldNeedsUpdate = true
@@ -34,7 +34,7 @@ test('three thousand frozen nodes on storage of their own written in one image a
 })
 
 test('a hide behind a backlog of a ring less one, two frozen nodes read first, is kept', () => {
-  const { meshes, parks, image } = scene(100)
+  const { meshes, parks, image } = hostScene(100)
   const storages = frozenOnOwn([meshes[0], meshes[1]], image)
   const filler = new G.Object3D()
   storages.forEach((own, k) => (own[12] = 9 + k))
@@ -48,7 +48,7 @@ test('a hide behind a backlog of a ring less one, two frozen nodes read first, i
 })
 
 test('an engine move of a frozen and a free node: the next image reads no write back', () => {
-  const { meshes, rt, run, sent, image } = scene(20)
+  const { meshes, rt, run, sent, image } = hostScene(20)
   meshes[1].matrixAutoUpdate = false
   image()
   const moved = new Float32Array(32)
@@ -65,7 +65,7 @@ test('an engine move of a frozen and a free node: the next image reads no write 
 
 test('two thousand one hundred twins moved an image scan the nodes moved alone, at 4·10³ as at 10⁵', () => {
   const scans = [4e3, 1e5].map((count) => {
-    const { meshes, image } = scene(count)
+    const { meshes, image } = hostScene(count)
     const reads = countScans(meshes)
     const pose = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
     // The twins frozen once, as their first move freezes them; then four moves are counted.

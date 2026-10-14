@@ -3,7 +3,8 @@
 // when a fallback shortens `shown` then fills it again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, type PageRec } from './selection.ts'
+import { collectClusterPages } from './collect.ts'
+import type { PageRec } from './types.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'

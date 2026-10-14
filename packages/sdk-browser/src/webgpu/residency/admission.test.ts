@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { ensurerOptions, orderedPool, placement } from './residentEnsurer.fixture.ts'
 import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts'
-import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts'
+import { RequestStamps, collectPendingUrls } from '../../page/selection/requests.ts'
 import { createCutDelta } from '../cut/delta.ts'
 import { createCutPending } from '../cut/pending.ts'
 

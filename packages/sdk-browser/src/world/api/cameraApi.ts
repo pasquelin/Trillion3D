@@ -8,8 +8,8 @@ import {
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts'
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts'
 import type { PivotCameraControls } from '../../camera/controls/types.ts'
-import type { CameraPose } from '../../../../sdk-core/src/index.ts'
-import type { MeasuredWorldOptions, PointOfInterest } from '../../engine/types.ts'
+import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
+import type { MeasuredWorldOptions, PointOfInterest } from '../session/options.ts'
 import type { HostCamera } from '../../camera/world.ts'
 
 type Inputs = {

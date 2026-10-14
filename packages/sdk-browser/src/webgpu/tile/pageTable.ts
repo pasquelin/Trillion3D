@@ -11,7 +11,7 @@ import {
 import { createPageUploads } from './pageUploads.ts'
 import { descendTile } from './pageDescent.ts'
 import { TRANSFORM_WORDS, samplingWords } from '../../texture/sampling.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 /**
  * Page table of an atlas: for each tile of each streamed level of each texture, the pool place

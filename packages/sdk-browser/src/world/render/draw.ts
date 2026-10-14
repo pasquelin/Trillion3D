@@ -1,5 +1,5 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { PAGE_REQUEST_BATCH } from '../../engine/common.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'

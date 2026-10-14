@@ -10,7 +10,7 @@
  * the engine's world storage, and the source mesh it stands for.
  */
 
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttribute } from '../host/resources.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'

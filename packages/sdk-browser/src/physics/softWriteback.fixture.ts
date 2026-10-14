@@ -1,4 +1,5 @@
-import { CommandWriter, FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/physics/index.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
 import { axisAngleQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'

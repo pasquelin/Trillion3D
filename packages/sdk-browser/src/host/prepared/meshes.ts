@@ -4,7 +4,7 @@
  * (`graph.ts`) hangs under its nodes.
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'

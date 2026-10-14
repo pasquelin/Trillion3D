@@ -1,5 +1,5 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import {
   PAGE_TASK_PROTOCOL,
   type PageTaskAnswer,

@@ -1,4 +1,4 @@
-import { BODY_INDEX } from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
 import type { Model } from './tilePlace.ts'
 
 /**

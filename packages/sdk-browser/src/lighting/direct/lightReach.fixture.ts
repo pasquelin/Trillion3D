@@ -1,6 +1,6 @@
 // Generated lights of every kind and points on each side of each edge of their reach
 // (`lightReach.test.ts`): the range, a spot's cone, a rectangle's plane; a sun reaches every point.
-import type { SceneLight } from '../../../../sdk-core/src/index.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { SCENE_LIGHT_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { writeLightFields } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'

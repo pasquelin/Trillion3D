@@ -9,7 +9,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { surfaceVariant } from '../../page/surfaceVariant.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const ROWS = 10_000,

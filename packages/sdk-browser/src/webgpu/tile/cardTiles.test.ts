@@ -5,7 +5,7 @@
 // the maps were three textures of their own per mesh, outside the pool.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import { createWebgpuTileStreamer } from './streamer.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'

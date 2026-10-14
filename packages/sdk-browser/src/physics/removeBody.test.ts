@@ -1,14 +1,13 @@
 import { HALF_PI } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { FLAG, OP } from '../../../sdk-core/src/physics/layout.ts'
 import {
-  CommandWriter,
-  FLAG,
-  OP,
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-  writeVehicle,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/vehicleLayout.ts'
+import { writeVehicle } from '../../../sdk-core/src/physics/vehicleCommands.ts'
 import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts'
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'

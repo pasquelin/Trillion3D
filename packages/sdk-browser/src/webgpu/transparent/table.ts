@@ -1,6 +1,6 @@
 import { alignUp, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
-import type { ClusterRoot } from '../../page/selection/types.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
+
 import type { BlendGpuItem } from '../blend/state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'

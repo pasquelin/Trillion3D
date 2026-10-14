@@ -1,4 +1,5 @@
-import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
+import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { PreparedExplorer } from '../session/prepare.ts'
 
 /** The mutable state of one session; every service reads and writes this same object. */

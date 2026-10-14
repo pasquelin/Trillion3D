@@ -6,9 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   SCENE_LIGHT_HEADER_FLOATS,
-  createSceneLightStore,
   type SceneLight,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import { LIGHT_FIELD } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { createExplorerLightApi } from './lightApi.ts'
 import type { Engine } from '../../engine/types.ts'

@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import { shadowPageLayout } from '../../shadow/pageGroup.ts'
 import { grantCapability } from '../io/drops.ts'

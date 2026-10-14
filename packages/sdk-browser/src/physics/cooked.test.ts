@@ -1,14 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import {
-  CommandWriter,
   DEFAULT_MATTER,
   DEFAULT_PHYSICS_BUDGET,
-  HIT_WORDS,
   PHYSICS_MATERIALS,
-  SHAPE,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { HIT_WORDS, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import type { BodyRecord } from '../../../sdk-core/src/physics/bodyRecord.ts'
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'

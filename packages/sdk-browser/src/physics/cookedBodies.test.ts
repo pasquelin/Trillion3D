@@ -9,7 +9,8 @@ import {
   OP,
   POSE_WORDS,
   SHAPE,
-} from '../../../sdk-core/src/physics/index.ts'
+  RESTORE_WORDS,
+} from '../../../sdk-core/src/physics/layout.ts'
 import { createCookedBodies } from './cookedBodies.ts'
 import { castDown, startModule, type Module } from './module.fixture.ts'
 import { cookedParts } from './tileShapes.fixture.ts'
@@ -17,7 +18,7 @@ import {
   cooked,
   declared,
   fixture,
-  hull as hullEntry,
+  hull,
   landed,
   modelStreamer,
   place,
@@ -27,14 +28,13 @@ import {
   tile,
 } from './tiles.fixture.ts'
 import { body } from './records.fixture.ts'
-import { RESTORE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 
 /** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
-const hull = async () => new Uint8Array(await fixture('cube-hull.bin'))
+const hullBytes = async () => new Uint8Array(await fixture('cube-hull.bin'))
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d]
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */
 const cube = (centre = [0.5, 0.5, 0.5]) => ({
-  ...hullEntry(),
+  ...hull(),
   mass: { mass: 1000, centerOfMass: centre, inertia: diagonal(1000 / 6) },
 })
 /** The ADD records among `words` — ADDs, RESTOREs and RELEASEs —: each one's words and floats. */
@@ -98,7 +98,7 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
 })
 
 test('a shapeless node restores its cooked hull and mass, and turns about the cooked centre of mass', async () => {
-  const bytes = await hull()
+  const bytes = await hullBytes()
   const upright = declared(0, [0, 0, -2], {}, cube())
   const tipped = declared(1, [0, 0, 2], {}, cube([0.9, 0.5, 0.5]))
   // Its inertia provided a thousand times the cooked one's: the same fall barely turns it.
@@ -135,7 +135,7 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
   const motion = { mass: 5, centerOfMass: [0.2, 0.3, 0.4] }
   const own = await streamedModel(
     { ...cooked([], []), bodies: [declared(0, [0, 0, 0], motion, cube())] },
-    await hull(),
+    await hullBytes(),
   )
   const [won] = adds(own.writer.take())
   assert.deepEqual([won.w[2], won.f[16]], [MOTION.kinematic, 5], 'held, at its declared mass')
@@ -149,7 +149,7 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
     `moved to the declared centre: ${inertia}`,
   )
   const file = { ...cooked([], []), bodies: [declared(0, [0, 0, 0], {}, cube())] }
-  const [scaled] = adds((await streamedModel(file, await hull(), {}, 2)).writer.take())
+  const [scaled] = adds((await streamedModel(file, await hullBytes(), {}, 2)).writer.take())
   assert.deepEqual([...scaled.f.subarray(13, 17)], [2, 2, 2, 8000], 'the hull and its mass')
   assert.deepEqual([...scaled.f.subarray(FRAME, FRAME + 3)], [1, 1, 1])
   assert.ok(Math.abs(scaled.f[FRAME + 3] - 16000 / 3) < 1e-2, `inertia ${scaled.f[FRAME + 3]}`)

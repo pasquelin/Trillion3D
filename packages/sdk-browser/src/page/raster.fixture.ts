@@ -1,8 +1,9 @@
 // The CPU raster the visibility tests measure the engine's buffer against: every drawn page's
 // triangles filled in the order the engine submits them (`rasterFill.fixture.ts`).
-import { invertMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
-import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { type MatrixElements } from '../host/matrixElements.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4, copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageRec } from './selection/types.ts'
 import { locationOf, type PageLocations } from './selection/placements.ts'
 import type { PageSurface } from './surface.ts'

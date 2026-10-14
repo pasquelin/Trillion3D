@@ -1,7 +1,7 @@
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { PendingGrowth } from '../core/tableGrowth.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
-import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
+import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 

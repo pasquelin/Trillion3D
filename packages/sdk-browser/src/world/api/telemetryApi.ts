@@ -1,6 +1,7 @@
-import type { StageProfile } from '../../../../sdk-core/src/index.ts'
+import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { EngineProfiler, TelemetryReport } from '../../diagnostic/telemetry.ts'
+import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
+import type { TelemetryReport } from '../../diagnostic/telemetryTypes.ts'
 
 export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Engine) {
   return {

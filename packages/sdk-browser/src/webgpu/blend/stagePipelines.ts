@@ -1,6 +1,9 @@
 import { reflectionLayout } from '../../reflections/gpu.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
-import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/index.ts'
+import {
+  TRANSPARENT_DEPTH_LAYER,
+  depthLayerUnits,
+} from '../../../../sdk-core/src/lod/depthLayer.ts'
 import {
   buildRenderPipeline,
   preparedPipeline,

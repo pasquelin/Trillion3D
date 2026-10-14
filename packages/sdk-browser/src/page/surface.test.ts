@@ -5,8 +5,8 @@ import { surfaceFrontOnly, surfaceOf } from './surface.ts'
 import { declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts'
-import { BIN_BACK, BIN_NONE } from '../gpu/draw/draw.ts'
-import type { PageRec } from './selection/selection.ts'
+import { BIN_BACK, BIN_NONE } from '../gpu/draw/contract.ts'
+import type { PageRec } from './selection/types.ts'
 import { identityRoots } from './selection/placements.fixture.ts'
 
 test('a mesh wears its surface record itself: every reader holds the one record', () => {

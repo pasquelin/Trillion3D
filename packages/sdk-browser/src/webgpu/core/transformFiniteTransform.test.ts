@@ -3,7 +3,7 @@
 // `transformShear.test.ts`, in `transformShear.fixture.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { setWebgpuTransform } from '../pages/render/transform.ts'
 import { cisaillee, runtime, scene, versGpu } from './transformShear.fixture.ts'
 

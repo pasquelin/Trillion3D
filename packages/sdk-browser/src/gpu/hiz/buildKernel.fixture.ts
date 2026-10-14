@@ -1,4 +1,4 @@
-import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
+import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { texel, type Scene } from './buildScene.fixture.ts'
 import { hizRoute } from './pyramidTexture.ts'
 
@@ -57,11 +57,11 @@ export function workgroup(
       : scene.nearest
         ? [texel(scene, x, y), texel(scene, x, y)]
         : [(pyramid[at + y * b + x] = texel(scene, x, y)), texel(scene, x, y)]
-  const far = new Float32Array(S * S),
-    farWhole = new Float32Array(S * S)
-  for (let lane = 0; lane < S * S; lane++) {
-    const x = wg[0] * S + (lane % S),
-      y = wg[1] * S + Math.floor(lane / S),
+  const far = new Float32Array(HIZ_BUILD_SIDE * HIZ_BUILD_SIDE),
+    farWhole = new Float32Array(HIZ_BUILD_SIDE * HIZ_BUILD_SIDE)
+  for (let lane = 0; lane < HIZ_BUILD_SIDE * HIZ_BUILD_SIDE; lane++) {
+    const x = wg[0] * HIZ_BUILD_SIDE + (lane % HIZ_BUILD_SIDE),
+      y = wg[1] * HIZ_BUILD_SIDE + Math.floor(lane / HIZ_BUILD_SIDE),
       x0 = x * 2,
       y0 = y * 2
     far[lane] = farWhole[lane] = 0
@@ -79,26 +79,33 @@ export function workgroup(
     tile[lane] = far[lane]
     tileWhole[lane] = farWhole[lane]
   }
-  for (let k = 1, side = S >> 1; k < Math.min(d, HIZ_PASS_LEVELS); k++, side >>= 1) {
+  for (let k = 1, side = HIZ_BUILD_SIDE >> 1; k < Math.min(d, HIZ_PASS_LEVELS); k++, side >>= 1) {
     const [, w, h] = dst(k - 1),
       [offset, dstW, dstH] = dst(k)
     const live: number[] = []
-    for (let lane = 0; lane < S * S; lane++) {
-      const lx = lane % S,
-        ly = Math.floor(lane / S),
+    for (let lane = 0; lane < HIZ_BUILD_SIDE * HIZ_BUILD_SIDE; lane++) {
+      const lx = lane % HIZ_BUILD_SIDE,
+        ly = Math.floor(lane / HIZ_BUILD_SIDE),
         tx = wg[0] * side + lx,
         ty = wg[1] * side + ly
       if (!(lx < side && ly < side && tx < dstW && ty < dstH)) continue
-      const i = ly * 2 * S + lx * 2,
+      const i = ly * 2 * HIZ_BUILD_SIDE + lx * 2,
         dx = tx * 2 + 1 < w ? 1 : 0,
         dy = ty * 2 + 1 < h ? 1 : 0
-      far[lane] = far4(tile[i], tile[i + dx], tile[i + dy * S], tile[i + dy * S + dx], dx, dy)
+      far[lane] = far4(
+        tile[i],
+        tile[i + dx],
+        tile[i + dy * HIZ_BUILD_SIDE],
+        tile[i + dy * HIZ_BUILD_SIDE + dx],
+        dx,
+        dy,
+      )
       farWhole[lane] = bound4(
         Math.min,
         tileWhole[i],
         tileWhole[i + dx],
-        tileWhole[i + dy * S],
-        tileWhole[i + dy * S + dx],
+        tileWhole[i + dy * HIZ_BUILD_SIDE],
+        tileWhole[i + dy * HIZ_BUILD_SIDE + dx],
         dx,
         dy,
       )
@@ -106,8 +113,8 @@ export function workgroup(
     }
     // workgroupBarrier(): every read of the level is done before any lane overwrites the tile.
     for (const lane of live) {
-      const tx = wg[0] * side + (lane % S),
-        ty = wg[1] * side + Math.floor(lane / S)
+      const tx = wg[0] * side + (lane % HIZ_BUILD_SIDE),
+        ty = wg[1] * side + Math.floor(lane / HIZ_BUILD_SIDE)
       tile[lane] = far[lane]
       tileWhole[lane] = farWhole[lane]
       pyramid[offset + ty * dstW + tx] = far[lane]

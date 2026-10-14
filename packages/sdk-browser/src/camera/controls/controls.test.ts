@@ -6,14 +6,14 @@ import {
   at,
   fixtureCamera,
   fixtureDrag,
-  fixtureOrbit as orbit,
+  fixtureOrbit,
   fixturePinch,
   fixtureSurface,
   round,
 } from './controls.fixture.ts'
 
 test('orbit clamps the distance the host asked for, and emits once for it', () => {
-  const { camera, controls, changes } = orbit(10)
+  const { camera, controls, changes } = fixtureOrbit(10)
   controls.minDistance = 2
   controls.maxDistance = 8
   assert.equal(controls.update(), true)
@@ -28,7 +28,7 @@ test('orbit clamps the distance the host asked for, and emits once for it', () =
 })
 
 test('orbit reads back the pose the host wrote, target included', () => {
-  const { camera, controls } = orbit(10)
+  const { camera, controls } = fixtureOrbit(10)
   // The host moves the pivot: the eye stays where it was and now looks at the new pivot.
   controls.target.set(0, 3, 0)
   controls.update()
@@ -41,7 +41,7 @@ test('orbit reads back the pose the host wrote, target included', () => {
 })
 
 test('orbit turns with the drag and stops short of the poles', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.update()
   fixtureDrag(surface, 100, 0)
   // A hundred pixels of a four-hundred-pixel surface is a quarter turn of azimuth.
@@ -53,7 +53,7 @@ test('orbit turns with the drag and stops short of the poles', () => {
 })
 
 test('orbit zooms on the wheel, bounded, and only while `enableZoom`', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.minDistance = 4
   controls.maxDistance = 40
   controls.update()
@@ -67,7 +67,7 @@ test('orbit zooms on the wheel, bounded, and only while `enableZoom`', () => {
 })
 
 test('orbit pans the pivot on the secondary button, camera and target together', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.update()
   fixtureDrag(surface, 40, 0, { button: 2 })
   assert.ok(controls.target.x < 0 && round(controls.target.y) === 0)
@@ -77,7 +77,7 @@ test('orbit pans the pivot on the secondary button, camera and target together',
 
 test('orbit pans half as far per pixel at zoom 2: the pointer keeps the point it grabbed', () => {
   const pan = (zoom: number) => {
-    const { camera, controls, surface } = orbit(10)
+    const { camera, controls, surface } = fixtureOrbit(10)
     Object.assign(camera, { zoom })
     controls.update()
     fixtureDrag(surface, 40, 0, { button: 2 })
@@ -94,7 +94,7 @@ const fingers = (a: number, b: number) =>
   ] as const
 
 test('orbit pinches: fingers apart dolly in, their midpoint pans, and the bounds hold', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.minDistance = 4
   controls.maxDistance = 40
   controls.update()
@@ -115,7 +115,7 @@ test('orbit pinches: fingers apart dolly in, their midpoint pans, and the bounds
 })
 
 test('orbit leaves the surface as it found it: touch action, captures, listeners', () => {
-  const { controls, surface } = orbit(10)
+  const { controls, surface } = fixtureOrbit(10)
   // Without this the browser takes a touch drag as a page scroll and cancels the gesture.
   assert.equal(surface.touchAction(), 'none')
   surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 100, clientY: 100 })
@@ -129,7 +129,7 @@ test('orbit leaves the surface as it found it: touch action, captures, listeners
 })
 
 test('orbit removes every listener on dispose, and moves no more', () => {
-  const { camera, controls, surface } = orbit(10)
+  const { camera, controls, surface } = fixtureOrbit(10)
   controls.update()
   assert.ok(surface.listeners() > 0)
   controls.dispose()

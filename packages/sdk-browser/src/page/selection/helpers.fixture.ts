@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { dagFixture } from './dag.fixture.ts'
-import { collectClusterPages } from './selection.ts'
+import { collectClusterPages } from './collect.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
 import { graphDraws } from './drawSource.ts'
 

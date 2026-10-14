@@ -5,11 +5,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { dagRootCounts } from './pack.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection, dagRootCounts } from './pack.ts'
+
 import { WORLD_TABLE } from './worldTable.ts'
 import { FRAME_TABLE } from './frameTable.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('a host walk that turned one placement sends its world alone, no stretch', async () => {

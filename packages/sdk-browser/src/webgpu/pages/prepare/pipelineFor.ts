@@ -1,4 +1,4 @@
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 import {
   BASE_SLOTS,
   BIN_BACK,
@@ -6,7 +6,7 @@ import {
   BIN_NONE,
   CULL_BINS,
   HALF_SLOTS,
-} from '../../../gpu/draw/draw.ts'
+} from '../../../gpu/draw/contract.ts'
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts'
 import { windingCw } from '../render/winding.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'

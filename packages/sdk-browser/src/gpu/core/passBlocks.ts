@@ -1,4 +1,4 @@
-import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
+import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { gpuPassBlockOf, gpuTotalsBy } from '../../stage/mapping.ts'
 
 /** GPU time of a frame in three blocks: visibility, materials, the rest. */

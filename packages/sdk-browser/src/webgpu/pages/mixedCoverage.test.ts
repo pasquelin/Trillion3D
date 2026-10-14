@@ -2,10 +2,11 @@ import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import { collectClusterPages } from '../../page/selection/selection.ts'
-import { packDagSelection } from '../../gpu/dag/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
+import { packDagSelection } from '../../gpu/dag/pack.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
@@ -134,8 +135,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   try {
     await backend.prepare()
     await image()
-    // Two paged meshes of two triangles, counted once each, and one whole mesh outside the DAG
-    // drawn by both face passes.
+    // Two paged meshes of two triangles, once each; a whole mesh outside the DAG by both faces.
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8)
     assert.equal(dessines(), 12, 'three meshes, two faces each')
     const uploads = writes.length

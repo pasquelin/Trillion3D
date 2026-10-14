@@ -1,6 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { slotSampled } from '../tile/samplingHeaders.ts'
 import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
 import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'

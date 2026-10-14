@@ -10,8 +10,8 @@ import {
   PROXY_TRIANGLE_FLOATS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
-  type SceneProxyDescriptor,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
+import type { SceneProxyDescriptor } from '../../../sdk-core/src/contracts/proxy.ts'
 
 test('shared expansion is decoded once across concurrent readers and sessions, and charged to CPU memory', async (t) => {
   // One mesh of one triangle under one leaf node (`SceneProxy::encode`).

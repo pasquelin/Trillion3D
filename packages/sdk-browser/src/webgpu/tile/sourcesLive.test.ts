@@ -6,12 +6,13 @@ import assert from 'node:assert/strict'
 import { createTileSources } from './sources.ts'
 import { createTileCounters } from './counters.ts'
 import { tileCatalogue } from './catalogue.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
-import { Texture } from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('a live texture keeps its turn ring between pictures, given back once idle', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

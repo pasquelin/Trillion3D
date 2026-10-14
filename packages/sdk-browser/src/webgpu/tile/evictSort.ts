@@ -1,4 +1,4 @@
-import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { encodePoolSort, POOL_SORT_STAGES, type PoolSortStage } from '../../gpu/pool/sort.ts'
 import { POOL_SORT_WORDS, poolScratchWords } from '../../gpu/pool/sortWords.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'

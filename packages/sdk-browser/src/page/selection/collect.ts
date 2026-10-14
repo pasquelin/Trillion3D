@@ -1,4 +1,5 @@
-import { BOX_VALUES, type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
+import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { sourceSurface, wearsOneOf, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'

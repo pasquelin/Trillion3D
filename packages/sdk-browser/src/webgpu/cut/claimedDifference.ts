@@ -1,5 +1,5 @@
 import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
 import { copyRanks } from './copyRanks.ts'

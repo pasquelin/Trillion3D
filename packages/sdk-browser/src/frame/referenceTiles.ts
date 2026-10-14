@@ -1,5 +1,5 @@
 import { workgroupCount } from '../../../math/src/scalar/integers.ts'
-import { EngineError } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
 import { devicePixels } from '../engine/common.ts'
 import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'

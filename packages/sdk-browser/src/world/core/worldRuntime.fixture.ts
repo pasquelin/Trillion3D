@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after } from 'node:test'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import type { SceneLight } from '../../../../sdk-core/src/index.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import type { Scene } from './scene.ts'
 import { createWorldRuntime } from './worldRuntime.ts'

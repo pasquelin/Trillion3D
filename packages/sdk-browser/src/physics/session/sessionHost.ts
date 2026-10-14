@@ -1,9 +1,8 @@
-import {
-  type CommandWriter,
-  type PhysicsHost,
-  physicsMatterOf,
-} from '../../../../sdk-core/src/physics/index.ts'
-import { flagsOf, type Bodied } from '../bodies.ts'
+import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
+import type { PhysicsHost } from '../../../../sdk-core/src/physics/objectPhysics.ts'
+import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
+import { flagsOf } from '../bodies.ts'
+import type { Bodied } from '../bodied.ts'
 
 /**
  * What a session's bodies call when the page changes one (`mesh.physics`): each change becomes a

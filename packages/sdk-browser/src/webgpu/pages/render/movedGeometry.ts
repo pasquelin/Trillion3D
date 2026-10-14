@@ -4,9 +4,10 @@ import {
   boxEmpty,
   boxIsEmpty,
   boxTransform,
-  boxUnionBatch,
-} from '../../../../../sdk-core/src/index.ts'
-import { boxGrow } from '../../../../../math/src/geometry/box.ts'
+  boxGrow,
+} from '../../../../../math/src/geometry/box.ts'
+import { boxUnionBatch } from '../../../../../math/src/batch/batch.ts'
+
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 import { markReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'

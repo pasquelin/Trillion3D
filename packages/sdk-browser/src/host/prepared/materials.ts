@@ -9,7 +9,11 @@
  *   it — are the variants of its one record (`../../page/surfaceVariant.ts`);
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
-import type { TableMaterial, TableTextureSlot, Texture } from '../../../../sdk-core/src/index.ts'
+import type {
+  TableMaterial,
+  TableTextureSlot,
+} from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
 import { COLOUR_MAPS, MATERIAL_COLOURS } from '../../../../sdk-core/src/world/material/material.ts'

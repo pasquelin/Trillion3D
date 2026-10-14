@@ -1,4 +1,4 @@
-import type { CookedBody } from '../../../sdk-core/src/physics/index.ts'
+import type { CookedBody } from '../../../sdk-core/src/physics/cooked.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Model, ModelNode } from './tilePlace.ts'
 

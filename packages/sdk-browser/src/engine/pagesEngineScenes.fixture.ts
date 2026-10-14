@@ -1,5 +1,5 @@
 import * as G from '../host/graph/graph.fixture.ts'
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { DAG, type Cluster } from './pagesEngine.fixture.ts'
 import type { PageSurface } from '../page/surface.ts'
 
@@ -25,7 +25,7 @@ export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
 }
 
 /** A unit quad as two triangles: the source most page tests cluster. */
-export function quadScene(material: PageSurface = G.basicSurface()) {
+export function quadMesh(material: PageSurface = G.basicSurface()) {
   const geometry = new G.Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3))
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]))

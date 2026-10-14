@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
-import { fakeDevice, written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createPlacementMotion } from './motion.ts'
 
 /** The writes of a device: byte offset → floats written. */

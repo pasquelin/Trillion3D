@@ -1,18 +1,11 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  type ObjectPhysics,
-  FLAG,
-  LAYER,
-  MOTION,
-  physicsMatterOf,
-  isSoftType,
-  resolveShape,
-  TRIANGLE_BYTES,
-  type CommandWriter,
-  type PhysicsBudget,
-  type PhysicsHost,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, FLAG, LAYER, MOTION } from '../../../sdk-core/src/physics/layout.ts'
+import type { ObjectPhysics, PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
+import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
+import { isSoftType } from '../../../sdk-core/src/physics/soft.ts'
+import { resolveShape } from '../../../sdk-core/src/physics/shape.ts'
+import { TRIANGLE_BYTES, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
 export { hasBody, type Bodied } from './bodied.ts'

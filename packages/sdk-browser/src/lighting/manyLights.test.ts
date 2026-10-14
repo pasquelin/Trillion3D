@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSceneLightStore, type SceneLight } from '../../../sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
+import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { declareImportedLights } from './importedLights.ts'
 
 // #822: a scene declares as many lamps as it holds. The store takes every one of them and a

@@ -1,6 +1,7 @@
 import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
-import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { AssetScope } from '../../../../sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { retainHeldUrls } from '../../streaming/hostRanks.ts'

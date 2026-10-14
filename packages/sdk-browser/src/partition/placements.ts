@@ -6,7 +6,7 @@
  * rows under it (`follow.ts`). What was written since the last `touched.flush` is what the engine
  * is told.
  */
-import { MATRIX_VALUES } from '../../../sdk-core/src/index.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'

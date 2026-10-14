@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 
 /**

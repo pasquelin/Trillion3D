@@ -8,7 +8,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import { refreshBlendBounds, refreshBlendWorlds } from './worlds.ts'
-import { BOX_VALUES } from '../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { BlendGpuItem } from './state.ts'
 import { drawSourceOf } from '../../page/selection/drawSource.ts'
 

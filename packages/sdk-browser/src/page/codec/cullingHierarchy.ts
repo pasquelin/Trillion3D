@@ -1,4 +1,4 @@
-import type { CullingHierarchy } from '../../../../sdk-core/src/index.ts'
+import type { CullingHierarchy } from '../../../../sdk-core/src/contracts/geometry.ts'
 import {
   CULLING_RECORD_FLOATS,
   CULLING_STRIDE,

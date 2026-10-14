@@ -5,7 +5,7 @@ import { interactiveOptions } from './interactiveOptions.ts'
 import { startInteractiveExplorer } from './interactive.ts'
 import { releaseOwned } from './lifecycle.ts'
 import { loadExplorerManifest } from './manifest.ts'
-import type { MeasuredWorldOptions } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from './options.ts'
 import { createExplorerSession, type ExplorerSession } from './session.ts'
 import {
   prepareExplorer,

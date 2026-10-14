@@ -10,7 +10,7 @@
  * (the witness library's objects).
  */
 
-import { srgbToLinear } from '../../../sdk-core/src/index.ts'
+import { srgbToLinear } from '../../../math/src/color/color.ts'
 import { clearValueOf } from '../../../sdk-core/src/world/math/packedColour.ts'
 import type { HostScene } from '../host/resources.ts'
 import type { BlendCopy } from './blendCopyContract.ts'

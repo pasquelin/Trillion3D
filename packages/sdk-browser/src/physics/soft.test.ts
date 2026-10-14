@@ -1,11 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
-import {
-  PHYSICS_STEP,
-  softBodyOf,
-  type SoftBodyOptions,
-} from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
+import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/soft.ts'
 import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { addSoft, at, ropeLine, settle, softWorld, WRITEBACK_BOUND } from './soft.fixture.ts'

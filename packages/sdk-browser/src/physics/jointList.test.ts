@@ -5,8 +5,8 @@ import {
   GENERATION_SHIFT,
   JOINT_WORDS,
   OP,
-  joint,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/layout.ts'
+import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'

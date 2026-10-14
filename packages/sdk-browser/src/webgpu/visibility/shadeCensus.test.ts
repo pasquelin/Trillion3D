@@ -3,7 +3,7 @@
 // entry asks it before the image that draws it (`../frame/framePipelines.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages } from '../../page/selection/selection.ts'
+import { collectClusterPages } from '../../page/selection/collect.ts'
 import { createShadeCensus } from './shadeCensus.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import { createMaterialTable } from '../material/materialTable.ts'

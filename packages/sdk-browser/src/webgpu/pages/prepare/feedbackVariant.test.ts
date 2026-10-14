@@ -7,11 +7,8 @@ import test from 'node:test'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import {
-  BACKEND,
-  dispatchedEntries,
-  fakeDevice,
-} from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'

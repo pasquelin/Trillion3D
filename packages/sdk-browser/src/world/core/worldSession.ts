@@ -1,5 +1,6 @@
 import type { MeasuredWorld } from '../session/explorer.ts'
-import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
+import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { World } from './world.ts'
 import { families } from '../../host/families.ts'

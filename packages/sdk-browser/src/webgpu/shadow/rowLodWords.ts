@@ -1,5 +1,5 @@
-import type { PageRec } from '../../page/selection/selection.ts'
-import type { MovedBox } from '../../page/selection/types.ts'
+import type { PageRec, MovedBox } from '../../page/selection/types.ts'
+
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { rowGrowth } from '../../hiz/corners.ts'
 import type { Placements } from '../../page/selection/placements.ts'

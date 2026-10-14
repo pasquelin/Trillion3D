@@ -1,8 +1,10 @@
 // What the proofs of the run-time proxy's instances share: a device double, a packing whose placements wear
 // cuts and surfaces, and the words the proxy's buffer holds as the last writes left them.
 import { placementField } from './placementTree.fixture.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { BACKEND, fakeDevice, writtenBytes } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
+import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { PageSurface } from '../../page/surface.ts'

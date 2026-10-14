@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { prepareWebgpuGeometry } from './geometryPrepare.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 test('a growth frees the whole-copy table it replaces and hands the new one', () => {
   const { device } = fakeDevice()

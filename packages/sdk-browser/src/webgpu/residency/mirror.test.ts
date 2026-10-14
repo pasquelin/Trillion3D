@@ -10,7 +10,7 @@ import { createWebgpuRowState } from '../row/state.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 

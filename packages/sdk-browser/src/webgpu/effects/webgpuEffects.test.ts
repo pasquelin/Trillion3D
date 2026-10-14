@@ -3,7 +3,7 @@
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts'
 import {

@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import '../../../wasm/sdkWasm.fixture.ts'
 import { createBoxTransformLot, createMultiplyLot } from './batchRuntime.ts'
-import { BOX_VALUES } from '../../../../../sdk-core/src/index.ts'
+import { BOX_VALUES } from '../../../../../math/src/geometry/box.ts'
 import { boxesByLoop, productsByLoop } from './batchOracles.fixture.ts'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
 import {

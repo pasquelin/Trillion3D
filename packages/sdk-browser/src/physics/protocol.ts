@@ -1,6 +1,6 @@
 import { ASLEEP_BIT, EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
+import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import type { JoltThreadStart } from './joltThreads.ts'
 import type { CharacterReport } from './characterDriver.ts'
 import type {

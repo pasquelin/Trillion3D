@@ -1,10 +1,7 @@
-import {
-  assertSceneProxy,
-  decodeSceneProxy,
-  EngineError,
-  type ClusterManifest,
-  type SceneProxy,
-} from '../../../sdk-core/src/index.ts'
+import { assertSceneProxy, decodeSceneProxy } from '../../../sdk-core/src/scene/core/proxy.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import type { SceneProxy } from '../../../sdk-core/src/contracts/proxy.ts'
 import { fetchVerified } from '../cluster/pages.ts'
 import type { PageCache } from '../streaming/pageCache.ts'
 

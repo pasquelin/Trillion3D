@@ -1,10 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  DEFAULT_PHYSICS_BUDGET,
-  GENERATION_SHIFT,
-  type CookedSoftBody,
-} from '../../../sdk-core/src/physics/index.ts'
+import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
+import { GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
+import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsSession } from './session/session.ts'

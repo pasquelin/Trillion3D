@@ -4,7 +4,7 @@
  * What the GPU itself does is proved on the bench (`tests/gpu/particles/`).
  */
 import { PARTICLE_FLOATS } from '../../../sdk-core/src/fluids/particles.ts'
-import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeRecords.ts'
 
 /** The shader's body for slot `i`, `ring` its uniforms (first slot, count, capacity, then
  *  acceleration and `dt`): the record `k < count` from `staged`, or its particle in `state`,

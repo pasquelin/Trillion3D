@@ -3,7 +3,7 @@ import {
   PROXY_CHILD_WORDS,
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
-} from '../../../sdk-core/src/index.ts'
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { byteOf, isFiniteWord } from '../../../math/src/wgsl/integer.ts'
 import { dDiv, dLess, dMul, dSub } from '../../../math/src/wgsl/double.ts'

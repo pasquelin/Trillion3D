@@ -1,15 +1,15 @@
 import {
   FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
-  axisAngleQuaternion,
-  composeMatrix4,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-  matrixAtRenderOrigin,
-  multiplyMatrix4,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../math/src/geometry/frustum/frustum.ts'
+import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
-import type { CameraMotion } from '../../camera/world.ts'
+import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'

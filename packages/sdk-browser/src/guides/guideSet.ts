@@ -1,4 +1,5 @@
-import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { poseSourceOf } from '../world/core/helperMark.ts'

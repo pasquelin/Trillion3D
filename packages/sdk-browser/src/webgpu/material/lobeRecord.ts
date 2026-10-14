@@ -1,7 +1,7 @@
 import { saturate, clamp } from '../../../../math/src/scalar/reals.ts'
 import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
-import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { layerSlot } from '../row/pageRowMaterial.ts'
 import { copyChanged } from './materialRecord.ts'
 

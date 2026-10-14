@@ -1,11 +1,6 @@
-import {
-  BODY_INDEX,
-  LAYER,
-  MOTION,
-  SHAPE,
-  physicsMatterOf,
-  type CommandWriter,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, LAYER, MOTION, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
+import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { tilePose, type Placed } from './tilePlace.ts'

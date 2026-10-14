@@ -2,9 +2,10 @@ import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../../sdk-core/src/index.ts'
+  PROXY_META_WORDS,
+} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import { PROXY_META_WORDS } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+
 import type { DrawnDeformation } from '../../../../sdk-core/src/world/geometry/drawnDeformation.ts'
 import { cornerDeformation } from './runtimeDeform.ts'
 import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'

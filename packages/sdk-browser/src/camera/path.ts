@@ -1,5 +1,6 @@
-import { frameStatistics, summarize } from '../../../sdk-core/src/index.ts'
-import type { CameraPose, FrameMetrics } from '../../../sdk-core/src/index.ts'
+import { frameStatistics, summarize } from '../../../sdk-core/src/runtime/stats.ts'
+import type { CameraPose } from '../../../sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { nextFrame } from '../frame/scheduling.ts'
 
 /** What a path run reads of the session: its frame and the view it draws. */

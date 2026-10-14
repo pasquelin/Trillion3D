@@ -3,7 +3,7 @@
 // therefore carries its own nibble, and each shader read folds by the nibble of the texture it
 // samples — not the material flags, which carry only one for all of them.
 // Proof on a real GPU is `tests/gpu/texture/texture-addressing.gpu.ts`.
-import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
+import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {

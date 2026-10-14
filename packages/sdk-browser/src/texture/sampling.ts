@@ -1,4 +1,4 @@
-import type { Texture, TextureFilter } from '../../../sdk-core/src/index.ts'
+import type { Texture, TextureFilter } from '../../../sdk-core/src/texture/contract.ts'
 import { AFFINE, grantedAnisotropy, uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 import { wrapNibble } from '../visibility/wrapModes.ts'
 import { MAX_ANISOTROPY } from './maxAnisotropy.ts'

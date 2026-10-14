@@ -1,5 +1,5 @@
 import type { HostAttributes } from '../../host/resources.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { loadHostVertices } from '../../scene/meshes.ts'
 

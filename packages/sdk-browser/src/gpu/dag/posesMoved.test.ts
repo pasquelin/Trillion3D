@@ -4,9 +4,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 test('the poses a send moved come back each once, increasing, nothing sorted', async () => {

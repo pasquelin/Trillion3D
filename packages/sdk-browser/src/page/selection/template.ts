@@ -1,12 +1,10 @@
+import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { DAG_ERROR_MODEL } from '../../../../sdk-core/src/contracts/base.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import {
-  BOX_VALUES,
-  DAG_ERROR_MODEL,
-  EngineError,
-  boxEmpty,
-  boxUnion,
   primitiveUsesClusterErrors,
   type Primitive,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/geometry.ts'
 import {
   clusterErrorFields,
   cullingNodes,

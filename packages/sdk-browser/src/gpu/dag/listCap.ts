@@ -4,13 +4,13 @@ import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
   OUT_COUNT,
-  SELECTION_HEADER_WORDS,
   savedJournalWord,
   keptSnapshotWord,
   residentReadbackBytes,
   selectionListCap,
   stagedOutputBytes,
 } from './layout.ts'
+import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import { cutBytes, madeAsked } from './cutBuffers.ts'

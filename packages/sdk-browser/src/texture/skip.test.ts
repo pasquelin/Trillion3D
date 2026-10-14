@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { ClusterManifest, TexturePreview } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import type { TexturePreview } from '../../../sdk-core/src/texture/previewContracts.ts'
 import { bakedImages } from './skip.ts'
 
 const entry = (image: number, firstLevel: number, bakedLevels: number): TexturePreview => ({

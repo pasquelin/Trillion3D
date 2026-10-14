@@ -1,4 +1,4 @@
-import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import { drawParticles } from '../../particles/webgpuParticleFrame.ts'
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts'
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
@@ -8,11 +8,7 @@ import { encodeTaaPass } from '../../../taa/frame.ts'
 import { stochasticPhase } from '../../../taa/frameState.ts'
 import { composedImage, encodeEffects } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
-import {
-  directLightResources,
-  readsAsIs,
-  wantsContractLighting,
-} from '../prepare/lightResources.ts'
+import { directLightResources, readsAsIs, wantsContractLighting } from '../prepare/contractLight.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { encodeBlend, prepareBlend } from './encodeBlend.ts'

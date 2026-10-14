@@ -4,7 +4,8 @@
 // it — the frame whose index group, set with an offset its layout has no room for, lost the device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dispatchedEntries, fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts'

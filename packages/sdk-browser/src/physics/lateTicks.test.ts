@@ -1,13 +1,9 @@
 import { lerp } from '../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  BODY_INDEX,
-  CommandWriter,
-  FLAG,
-  PHYSICS_STEP,
-  POSE_WORDS,
-} from '../../../sdk-core/src/physics/index.ts'
+import { BODY_INDEX, FLAG, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { startModule } from './module.fixture.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { along, createStepClock } from './stepClock.ts'

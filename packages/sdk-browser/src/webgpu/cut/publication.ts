@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createCutDelta } from './delta.ts'
 import { createCutPending } from './pending.ts'
 import { createWebgpuCutAdopter } from './adoption.ts'

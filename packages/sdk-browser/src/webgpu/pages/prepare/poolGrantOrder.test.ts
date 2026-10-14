@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import type { MemoryBudgetsReport } from '../../../residency/pools.ts'
 import { refusing } from './refusing.fixture.ts'
 

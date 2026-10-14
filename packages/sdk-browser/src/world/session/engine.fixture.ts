@@ -1,6 +1,6 @@
 import { prepareExplorerEngine } from './engine.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { ExplorerSession } from './session.ts'
 
 type PageSources = Parameters<typeof prepareExplorerEngine>[1]['pageSources']

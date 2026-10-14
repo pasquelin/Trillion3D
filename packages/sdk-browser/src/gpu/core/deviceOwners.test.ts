@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { claimGpuDevice } from './deviceOwners.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { deviceOwner as owner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { deviceOwner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 
 // As the implementation writes it: the object at fault by its type and its label, in quotes.
 const destroyed = (label: string) =>
@@ -12,8 +13,8 @@ test("an error of a closed session's object is a warning, never the next one's l
   const warned = t.mock.method(console, 'warn', () => {})
   const gpu = fakeDevice(BACKEND),
     { device } = gpu
-  const first = owner(),
-    second = owner()
+  const first = deviceOwner(),
+    second = deviceOwner()
   const closing = claimGpuDevice(device, first)
   closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'DAG readback' })
   const old = gpu.labels.at(-1)!
@@ -42,14 +43,14 @@ test('with no session live, the last error of a closed one waits for the next cl
   t.mock.method(console, 'warn', () => {})
   const gpu = fakeDevice(BACKEND),
     { device } = gpu
-  const closing = claimGpuDevice(device, owner())
+  const closing = claimGpuDevice(device, deviceOwner())
   closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'readback' })
   const old = gpu.labels.at(-1)!
   closing.release()
   gpu.raise(`${destroyed(old)} first`)
   gpu.raise(`${destroyed(old)} last`)
-  const next = owner(),
-    later = owner()
+  const next = deviceOwner(),
+    later = deviceOwner()
   claimGpuDevice(device, next)
   claimGpuDevice(device, later)
   assert.equal(next.closed.length, 1)
@@ -68,8 +69,8 @@ test("running out of memory is the live sessions' loss, unless it names a closed
       this.message = message
     }
   }
-  const first = owner(),
-    second = owner()
+  const first = deviceOwner(),
+    second = deviceOwner()
   const closing = claimGpuDevice(device, first)
   claimGpuDevice(device, second)
   closing.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'pages' })
@@ -84,14 +85,14 @@ test("running out of memory is the live sessions' loss, unless it names a closed
 test('a claim on a device already lost is lost at once; a released one hears no loss', async () => {
   const gpu = fakeDevice(BACKEND),
     { device } = gpu
-  const closed = owner(),
-    live = owner()
+  const closed = deviceOwner(),
+    live = deviceOwner()
   claimGpuDevice(device, closed).release()
   claimGpuDevice(device, live)
   gpu.lose({ reason: 'destroyed', message: 'destroyed' })
   await Promise.resolve()
   assert.deepEqual([closed.losses, live.losses], [[], ['destroyed']])
-  const late = owner()
+  const late = deviceOwner()
   claimGpuDevice(device, late)
   assert.deepEqual(late.losses, ['destroyed'], 'before the claim returns')
 })

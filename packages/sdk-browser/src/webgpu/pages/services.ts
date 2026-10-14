@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuResidencySets } from '../residency/sets.ts'
 import { createLowerTier } from '../residency/lowerTier.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'

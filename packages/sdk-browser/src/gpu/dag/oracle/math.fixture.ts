@@ -1,4 +1,4 @@
-import { copyMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.ts'
+import { copyMatrix4, multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts'
 import { viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts'
 import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.fixture.ts'

@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import v8 from 'node:v8'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { createCutDelta } from './delta.ts'
 import { differenceOf } from '../../gpu/dag/difference.fixture.ts'
 import { countedCatalogue, published } from './readbackChain.fixture.ts'

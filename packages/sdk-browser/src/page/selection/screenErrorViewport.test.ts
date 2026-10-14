@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { maxStretch } from '../../../../sdk-core/src/index.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts'
 import { projectedClusterError } from './math.ts'
 import { clusterPixels } from './frame.fixture.ts'

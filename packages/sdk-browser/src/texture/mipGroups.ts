@@ -1,4 +1,4 @@
-import { previewLevelSize } from '../../../sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../sdk-core/src/texture/previewLevels.ts'
 import { coverageGroups, LEVEL_BIN_BYTES } from './coverageMips.ts'
 import { levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'

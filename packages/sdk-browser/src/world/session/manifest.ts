@@ -1,5 +1,6 @@
 import { loadClusterManifest } from '../../scene/manifestLoad.ts'
-import type { ClusterManifest, AssetScope } from '../../../../sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { AssetScope } from '../../../../sdk-core/src/contracts/base.ts'
 import type { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 
 type Diagnose = (phase: string, message: string, context?: Record<string, unknown>) => void

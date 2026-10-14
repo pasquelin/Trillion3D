@@ -8,7 +8,7 @@ import {
   UNI_VIEW_PROJ,
 } from './contract.ts'
 import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
-import { matrixAtRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 
 /** What a frame tells the partition, and nothing more: two matrices, an anchor, eight integers. */

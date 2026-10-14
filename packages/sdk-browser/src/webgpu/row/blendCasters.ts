@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'

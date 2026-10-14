@@ -1,6 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
-import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts'
+import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import {
   SURFACE_BYTES_PER_PIXEL,
   checkSurfaceSize,
@@ -9,7 +9,7 @@ import {
 } from '../../../scene/surfaceBuffer.ts'
 import { DEPTH_FORMAT } from '../../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
-import { collectPendingUrls } from '../../../page/selection/selection.ts'
+import { collectPendingUrls } from '../../../page/selection/requests.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
 import { viewProj } from '../helpers.ts'
 import type { HostCamera } from '../../../camera/world.ts'

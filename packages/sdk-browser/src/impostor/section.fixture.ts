@@ -3,8 +3,8 @@
  * (`webgpu/impostor/frame.test.ts`): its section, its roots, and the cameras and cut they are seen
  * with.
  */
-import type { ImpostorSection } from '../../../sdk-core/src/index.ts'
-import { collectClusterPages } from '../page/selection/selection.ts'
+import type { ImpostorSection } from '../../../sdk-core/src/contracts/impostor.ts'
+import { collectClusterPages } from '../page/selection/collect.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
 import { dagFixture, frontCamera } from '../page/selection/dag.fixture.ts'

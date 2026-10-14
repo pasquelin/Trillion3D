@@ -2,7 +2,7 @@ import type {
   CookedInstance,
   CookedPhysics,
   CookedTile,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/cooked.ts'
 import { boxTransform } from '../../../math/src/geometry/box.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
@@ -10,7 +10,7 @@ import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodies.ts'
+import type { Bodied } from './bodied.ts'
 import type { NodeMove } from './cookedBodies.ts'
 import type { SharedShape, SharedShapes } from './sharedShapes.ts'
 import { resolveCameraWorld } from '../camera/world.ts'

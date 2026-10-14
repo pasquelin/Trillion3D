@@ -5,9 +5,10 @@
  * screen-error band. This module holds what is common to a kernel and its callers — the uniform
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
-import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index.ts'
-import { pixelScale as writePixelScale } from '../../../../math/src/projection/camera.ts'
-import type { CameraMotion } from '../../camera/world.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import { pixelScale } from '../../../../math/src/projection/camera.ts'
+import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
@@ -251,7 +252,7 @@ export function cameraSelectionUniforms(
   // view would mix two frames. Single precision only rounds here: everything above is in double.
   planes.set(cam.planesRelative)
   view.set(cam.viewRelative)
-  const pixelScale = writePixelScale(
+  const scale = pixelScale(
     into?.pixelScale ?? ([1, 1] as [number, number]),
     cam.projection,
     viewport?.[0],
@@ -273,7 +274,7 @@ export function cameraSelectionUniforms(
   return {
     planes: planes.slice(),
     view: view.slice(),
-    pixelScale: [pixelScale[0], pixelScale[1]],
+    pixelScale: [scale[0], scale[1]],
     pixelError,
     near: cam.near,
     cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],

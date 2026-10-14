@@ -1,5 +1,5 @@
 import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts'
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 

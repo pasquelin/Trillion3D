@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PHYSICS_STEP, POSE_WORDS } from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
+import { POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { createPhysicsPoses } from './poses.ts'
 import { along, createStepClock } from './stepClock.ts'
 import { records, seated } from './seatedPoses.fixture.ts'

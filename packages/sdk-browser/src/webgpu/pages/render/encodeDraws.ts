@@ -1,6 +1,7 @@
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
 import { ROW_WORDS } from '../../../visibility/types.ts'
-import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
+import { projectedPageError } from '../../../page/selection/diagnostic.ts'
+import { rootOf, rootOfPacked } from '../../../page/selection/placements.ts'
 import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'
 import { taaRenderMatrix } from '../../../taa/frame.ts'
@@ -19,7 +20,6 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
-import { rootOfPacked } from '../../../page/selection/placements.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the

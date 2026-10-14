@@ -16,7 +16,7 @@ import {
   type Run,
 } from './gridColumn.fixture.ts'
 import { gridCompactWgsl } from './compactWgsl.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { lightTilesShader } from './shader.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'

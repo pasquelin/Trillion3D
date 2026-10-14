@@ -4,7 +4,7 @@ import { countBlendDraws } from '../blend/draw.ts'
 import { writeWaterFrame } from './frameWords.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
-import { directLightResources } from '../pages/prepare/lightResources.ts'
+import { directLightResources } from '../pages/prepare/contractLight.ts'
 import { lobesHeld } from '../pages/prepare/lobesTarget.ts'
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */

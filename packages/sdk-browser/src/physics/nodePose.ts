@@ -3,7 +3,7 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
+import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import type { NodeMove } from './cookedBodies.ts'
 

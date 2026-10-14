@@ -31,7 +31,7 @@ import {
   readWorldRoots,
   readWorldRootsDag,
 } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { families } from '../host/families.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'

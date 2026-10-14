@@ -4,7 +4,7 @@
 // texel. Fails on the old code: the maps were textures of their own, outside the catalogue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { ImpostorSection } from '../../../../sdk-core/src/index.ts'
+import type { ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
 import { appendCardMaps } from './cardMaps.ts'
 import type { TileTexture } from './tileTexture.ts'
 

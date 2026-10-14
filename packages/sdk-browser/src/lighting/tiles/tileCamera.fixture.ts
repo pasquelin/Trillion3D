@@ -1,10 +1,8 @@
-import {
-  composeMatrix4,
-  invertMatrix4,
-  multiplyMatrix4,
-  perspectiveProjection,
-  transformHomogeneousPoint,
-} from '../../../../sdk-core/src/index.ts'
+import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
+import { transformHomogeneousPoint } from '../../../../math/src/vector/vector.ts'
 import { localTurnQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import { tileViewInverse } from './tileFrame.ts'

@@ -19,6 +19,11 @@ export * from './world/page/index.ts'
 export * from './world/api/budgetFamily.ts'
 export {
   ObjectPhysics,
+  type ContactEvent,
+  type ContactEventName,
+  type PhysicsHost,
+} from '../../sdk-core/src/physics/objectPhysics.ts'
+export {
   GRAVITY_PRESETS,
   PHYSICS_MATERIALS,
   DEFAULT_PHYSICS_BUDGET,
@@ -32,6 +37,8 @@ export {
   type PhysicsMaterialPreset,
   type PhysicsMatter,
   type PhysicsBudget,
+} from '../../sdk-core/src/physics/options.ts'
+export {
   SOFT_AREAL_DENSITY,
   SOFT_LINEAR_DENSITY,
   SOFT_FOOTPRINT,
@@ -40,20 +47,20 @@ export {
   type SoftBodyType,
   type SoftSettings,
   type SoftVolumeOptions,
-  type ContactEvent,
-  type ContactEventName,
-  type PhysicsHost,
-  Joint,
-  joint,
-  type JointKind,
-  type JointLimits,
-  type JointMotor,
-  type JointOptions,
-  type SixDofAxis,
-} from '../../sdk-core/src/physics/index.ts'
+} from '../../sdk-core/src/physics/soft.ts'
+export { Joint, joint } from '../../sdk-core/src/physics/joint.ts'
+export type {
+  JointKind,
+  JointLimits,
+  JointMotor,
+  JointOptions,
+  SixDofAxis,
+} from '../../sdk-core/src/physics/jointOptions.ts'
 export type { WorldPhysics } from './physics/worldPhysics.ts'
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts'
-export type { WaterSpec, WaveSpec, WaterSurface, Waves } from '../../sdk-core/src/fluids/index.ts'
+export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts'
+export type { WaveSpec, Waves } from '../../sdk-core/src/fluids/waves.ts'
+export type { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts'
 export type { PhysicsStats } from './physics/protocol.ts'
 export * from './world/api/metricFamily.ts'
 export * from './world/diagnostic/index.ts'
@@ -61,15 +68,15 @@ export * from './world/capability/index.ts'
 export * from './world/capture/index.ts'
 export * from './world/api/poseFamily.ts'
 export * from './world/api/batchFamily.ts'
-export type { CreatedMaterial, SceneMaterial, SceneMaterialPatch } from './world/api/materialApi.ts'
-export { EngineProfiler, type TelemetryReport } from './diagnostic/telemetry.ts'
-export type {
-  AssetScope,
-  StablePreview,
-  FrameMetrics,
-  ClusterManifest,
-} from '../../sdk-core/src/index.ts'
-export type { EngineDiagnostic, PointOfInterest, DiagnosticDetail } from './engine/types.ts'
+export type { CreatedMaterial } from './world/api/createdMaterials.ts'
+export type { SceneMaterial, SceneMaterialPatch } from './world/api/materialValues.ts'
+export { EngineProfiler } from './diagnostic/telemetry.ts'
+export type { TelemetryReport } from './diagnostic/telemetryTypes.ts'
+export type { AssetScope, StablePreview } from '../../sdk-core/src/contracts/base.ts'
+export type { FrameMetrics } from '../../sdk-core/src/contracts/metrics.ts'
+export type { ClusterManifest } from '../../sdk-core/src/contracts/geometry.ts'
+export type { EngineDiagnostic, DiagnosticDetail } from './diagnostic/types.ts'
+export type { PointOfInterest } from './world/session/options.ts'
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts'
 /** A row of a scene's instance buffer that follows its parent, composed on the GPU. */
@@ -139,11 +146,8 @@ export type { BatchRead } from './streaming/types.ts'
 export type { BoxTransformLot, MultiplyLot } from './page/decode/batch/batchRuntime.ts'
 export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
-export {
-  createGpuPageCache,
-  type GpuPageCacheOptions,
-  type ResidentPage,
-} from './gpu/page/pages.ts'
+export { createGpuPageCache, type GpuPageCacheOptions } from './gpu/page/pages.ts'
+export type { ResidentPage } from './gpu/page/types.ts'
 export type { EvictionOrder } from './gpu/page/eviction.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'
@@ -151,10 +155,11 @@ export { createPageStreamer } from './streaming/pageStreamer.ts'
 export { createPageCache, type CacheSession, type PageCache } from './streaming/pageCache.ts'
 export type { RangeAsk, ReadRange } from './cluster/ranged.ts'
 export type { ByteMeter } from './cluster/byteMeter.ts'
-export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts'
+export { LOD_QUALITY } from '../../sdk-core/src/lod/policy.ts'
+export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
-export { createJob } from '../../sdk-core/src/index.ts'
-export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts'
+export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
+export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
 export {
   MATRIX_VALUES,
@@ -162,19 +167,21 @@ export {
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxUnionBatch,
-  composeMatrix4Batch,
+} from '../../math/src/batch/strides.ts'
+export { boxUnionBatch } from '../../math/src/batch/batch.ts'
+export { composeMatrix4Batch } from '../../math/src/matrix/matrix4Compose.ts'
+export {
   decomposeMatrix4Batch,
-  frustumKeepsBoxBatch,
   invertMatrix4Batch,
-  linearToSrgbBatch,
   normalMatrix3Batch,
-  sphereFromBoundsBatch,
-  srgbToLinearBatch,
+} from '../../math/src/batch/transforms.ts'
+export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
+export { linearToSrgbBatch, srgbToLinearBatch } from '../../math/src/batch/color.ts'
+export {
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from '../../sdk-core/src/index.ts'
+} from '../../math/src/batch/points.ts'
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
 export type { ChangeListener, ControlVector, PivotCameraControls } from './camera/controls/types.ts'

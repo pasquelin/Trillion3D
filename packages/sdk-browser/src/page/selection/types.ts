@@ -1,4 +1,4 @@
-import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import type { DrawSource } from './drawSource.ts'
 import type { PageSurface } from '../surface.ts'

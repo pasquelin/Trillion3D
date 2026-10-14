@@ -1,4 +1,4 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../cut/denseKeys.ts'
 
 /**

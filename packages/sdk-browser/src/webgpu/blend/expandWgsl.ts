@@ -3,7 +3,7 @@ import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntr
 import { INSTANCE_CULL_SHIFT } from './runs.ts'
 import { RUN_WORDS } from './planLayout.ts'
 import { expandUniformWgsl } from './expandUniform.ts'
-import { EXPAND_BINDING as B } from './expandBindings.ts'
+import { EXPAND_BINDING } from './expandBindings.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../../gpu/core/laneScanWgsl.ts'
 import {
   FLAT_INDEX_WGSL,
@@ -57,15 +57,15 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * names.
  */
 export const BLEND_EXPAND_SHADER = wgslProgram(
-  `@group(0) @binding(${B.uni}) var<uniform> uni:Uni;
-@group(0) @binding(${B.plan}) var<storage,read> plan:array<u32>;
-@group(0) @binding(${B.keep}) var<storage,read> keep:array<u32>;
-@group(0) @binding(${B.draws}) var<storage,read> draws:array<vec4u>;
-@group(0) @binding(${B.counts}) var<storage,read> counts:array<u32>;
-@group(0) @binding(${B.clusters}) var<storage,read> clusters:array<u32>;
-@group(0) @binding(${B.scratch}) var<storage,read_write> scratch:array<u32>;
-@group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
-@group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
+  `@group(0) @binding(${EXPAND_BINDING.uni}) var<uniform> uni:Uni;
+@group(0) @binding(${EXPAND_BINDING.plan}) var<storage,read> plan:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.keep}) var<storage,read> keep:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.draws}) var<storage,read> draws:array<vec4u>;
+@group(0) @binding(${EXPAND_BINDING.counts}) var<storage,read> counts:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.clusters}) var<storage,read> clusters:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.scratch}) var<storage,read_write> scratch:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.expanded}) var<storage,read_write> expanded:array<vec2u>;
+@group(0) @binding(${EXPAND_BINDING.args}) var<storage,read_write> args:array<u32>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged

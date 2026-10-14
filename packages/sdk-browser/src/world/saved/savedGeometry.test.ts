@@ -2,12 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Scene } from '../core/scene.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
-import { Geometry, geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import {
   BufferAttribute,
   InterleavedBuffer,
   InterleavedBufferAttribute,
-} from '../../../../sdk-core/src/world/buffer/index.ts'
+} from '../../../../sdk-core/src/world/buffer/attribute.ts'
 
 /** A scene that loads no model: these shapes are the page's own. */
 const sceneOfShapes = () =>

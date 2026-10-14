@@ -6,10 +6,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { camera, disposeQuadRun, quadBackend, quadScene } from '../testScenes.fixture.ts'
-import { collectClusterPages } from '../../../page/selection/selection.ts'
-import { packDagSelection } from '../../../gpu/dag/selection.ts'
+import { collectClusterPages } from '../../../page/selection/collect.ts'
+import { packDagSelection } from '../../../gpu/dag/pack.ts'
 import { refusing } from './refusing.fixture.ts'
-import type { EngineDiagnostic } from '../../../engine/types.ts'
+import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
 
 /** The label of the Hi-Z pyramid's level 0 (`gpu/hiz/pyramid.ts`). */

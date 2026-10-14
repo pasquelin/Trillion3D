@@ -3,7 +3,7 @@
 // within a bound per column of cells.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'

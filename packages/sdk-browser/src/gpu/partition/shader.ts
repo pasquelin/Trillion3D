@@ -3,7 +3,7 @@ import { PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts'
 import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts'
 import { PARTITION_CLEAR_WGSL } from './clearWgsl.ts'
 import { PARTITION_PROJECT_WGSL } from './projectWgsl.ts'
-import { PARTITION_BINDING as B } from './contract.ts'
+import { PARTITION_BINDING } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
@@ -25,16 +25,16 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * which `projectRows` reads the farthest layer.
  */
 export const PARTITION_SHADER = wgslProgram(
-  `@group(0) @binding(${B.corners}) var<storage, read> corners:array<f32>;
-@group(0) @binding(${B.items}) var<storage, read> items:array<DrawItem>;
-@group(0) @binding(${B.flags}) var<storage, read_write> flags:array<u32>;
-@group(0) @binding(${B.rowData}) var<storage, read_write> rowData:array<u32>;
-@group(0) @binding(${B.tested}) var<storage, read_write> tested:array<u32>;
-@group(0) @binding(${B.restBits}) var<storage, read_write> restBits:array<atomic<u32>>;
-@group(0) @binding(${B.slotUsed}) var<storage, read_write> slotUsed:array<atomic<u32>>;
-@group(0) @binding(${B.state}) var<storage, read_write> state:array<atomic<u32>>;
-@group(0) @binding(${B.uniforms}) var<uniform> uni:Uni;
-@group(0) @binding(${B.pyramid}) var hizPyramid:texture_2d_array<u32>;
+  `@group(0) @binding(${PARTITION_BINDING.corners}) var<storage, read> corners:array<f32>;
+@group(0) @binding(${PARTITION_BINDING.items}) var<storage, read> items:array<DrawItem>;
+@group(0) @binding(${PARTITION_BINDING.flags}) var<storage, read_write> flags:array<u32>;
+@group(0) @binding(${PARTITION_BINDING.rowData}) var<storage, read_write> rowData:array<u32>;
+@group(0) @binding(${PARTITION_BINDING.tested}) var<storage, read_write> tested:array<u32>;
+@group(0) @binding(${PARTITION_BINDING.restBits}) var<storage, read_write> restBits:array<atomic<u32>>;
+@group(0) @binding(${PARTITION_BINDING.slotUsed}) var<storage, read_write> slotUsed:array<atomic<u32>>;
+@group(0) @binding(${PARTITION_BINDING.state}) var<storage, read_write> state:array<atomic<u32>>;
+@group(0) @binding(${PARTITION_BINDING.uniforms}) var<uniform> uni:Uni;
+@group(0) @binding(${PARTITION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
 `,
   [
     DRAW_ITEM_WGSL,

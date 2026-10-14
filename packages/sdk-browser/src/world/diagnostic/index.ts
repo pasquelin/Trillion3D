@@ -1,5 +1,5 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
-import type { EngineDiagnostic } from '../../engine/types.ts'
+import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import { presentationColorDiagnostic } from '../../diagnostic/presentationDiagnostic.ts'
 import { sessionOf } from '../core/worldSession.ts'
 import { RASTER_BACKGROUND } from '../../page/raster.ts'

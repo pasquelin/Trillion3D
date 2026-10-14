@@ -15,8 +15,8 @@
  * are granted the slots of their own (`webgpu/pages/prepare/layerGrowth.ts`). Refused, by name, where the catalogue,
  * the pool or the pass cannot hold it (`catalogueRefusal`, `blendRefusal`).
  */
-import type { Texture } from '../../../sdk-core/src/index.ts'
-import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
+import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { collectedSink, drawsBlended, type Collected } from '../page/selection/collect.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'

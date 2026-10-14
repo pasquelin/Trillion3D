@@ -11,9 +11,9 @@ import {
   PLANE_WORDS,
   WATER_PIECE_WORDS,
   POSE_WORDS,
-  type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
-import { WAVE_DOUBLES, WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/index.ts'
+} from '../../../sdk-core/src/physics/layout.ts'
+import type { PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
+import { WAVE_DOUBLES, WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { joltImports, type SpawnJoltThread } from './joltThreads.ts'
 
 /** The flat C API of `joltPhysics.wasm` (`packages/physics-jolt-wasm/src/world.cpp`). */

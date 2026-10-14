@@ -1,7 +1,8 @@
 import { isImageSize } from '../../../../math/src/scalar/integers.ts'
-import type { CameraPose } from '../../../../sdk-core/src/index.ts'
+import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
 import { devicePixels } from '../../engine/common.ts'
-import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import { hostPoint } from '../../host/scene/graphObjects.ts'
 

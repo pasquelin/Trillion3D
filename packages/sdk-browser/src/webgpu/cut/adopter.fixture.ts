@@ -6,7 +6,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from '../../gpu/core/selection.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 
 /** Uniform block of a bench: the engine's, so a field added to the contract arrives here

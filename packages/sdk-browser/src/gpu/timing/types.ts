@@ -1,4 +1,4 @@
-import type { GpuFrameMs, GpuPassTimings } from '../../../../sdk-core/src/index.ts'
+import type { GpuFrameMs, GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
 
 /** Why an image has no `frameMs` (`GpuTimingSample`). */
 export type FrameMsReason = 'truncated' | 'no-valid-pair' | 'failed'

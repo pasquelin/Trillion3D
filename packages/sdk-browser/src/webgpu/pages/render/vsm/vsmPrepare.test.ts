@@ -6,10 +6,11 @@
 // off the thread too, the twin drawing meanwhile.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createSceneLightStore } from '../../../../../../sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { SHADOW_LIMITS, camera, disposeQuadRun, quadBackend } from '../../testScenes.fixture.ts'
 
 /** A pipeline's name, before the tag the session gives its label (`vsm.projection @t3d:1`). */

@@ -1,6 +1,7 @@
 import type { GpuCut, SelectionUniforms } from '../core/selection.ts'
 import { createDagOutputScratch, type DagOutputScratch } from './uniforms.ts'
-import { DAG_READBACK_SLOTS, SELECTION_HEADER_WORDS } from './layout.ts'
+import { DAG_READBACK_SLOTS } from './layout.ts'
+import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { DagResources } from './resources.ts'
 import { noteWhole } from './swap.ts'

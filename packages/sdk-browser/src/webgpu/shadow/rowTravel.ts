@@ -13,8 +13,8 @@
  * A parent slot moves its roots by `ΔP·C`: their points at `|t_C| + |L_C|·ρ` of its origin.
  */
 import { commitMotion } from '../../gpu/shadow/rowMotion.ts'
-import type { ClusterRoot } from '../../page/selection/types.ts'
-import type { PageRec } from '../../page/selection/selection.ts'
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
+
 import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import { takeFarthest } from './mobilityTravel.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'

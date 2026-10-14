@@ -10,7 +10,8 @@ import { encodeBlendExpansion } from './expansionFrame.ts'
 import { FRAME_HEAD } from './frameHead.ts'
 import { ORDER_UNI_WORDS } from './orderWgsl.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice, replayWrites, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites, written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 
 test('a frame keys and sorts no item of the main class on the CPU', () => {
   const { items, reads } = counted()

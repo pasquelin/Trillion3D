@@ -1,4 +1,4 @@
-import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 
 /** Measures a count is kept after a probe away from it was slower, before the next probe.
  *  Declared, not derived: half a minute of simulation, it only spaces the probes out. */

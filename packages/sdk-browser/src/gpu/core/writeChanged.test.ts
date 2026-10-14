@@ -3,7 +3,8 @@
 // table's single-page and full maps' records.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { replayWrites } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import {
   writeChanged,
   writeChangedCopy,

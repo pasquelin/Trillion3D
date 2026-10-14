@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts'
+import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { addSoft, at, ropeLine, settle, softWorld } from './soft.fixture.ts'
 import { FLAT } from './records.fixture.ts'

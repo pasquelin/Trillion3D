@@ -7,9 +7,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, placementField } from './placementTree.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
-import { dagRootCounts } from './pack.ts'
-import { BACKEND, fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection, dagRootCounts } from './pack.ts'
+
+import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import {
   LIMITS,

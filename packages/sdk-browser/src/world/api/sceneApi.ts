@@ -1,16 +1,16 @@
 import type {
   AssetScope,
   CameraPose,
-  FrameMetrics,
   StablePreview,
-} from '../../../../sdk-core/src/index.ts'
+} from '../../../../sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
-import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { SessionRuntime } from '../render/sessionRuntime.ts'
 
 type Inputs = {

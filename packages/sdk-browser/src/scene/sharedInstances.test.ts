@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
-import { collectClusterPages } from '../page/selection/selection.ts'
+import { collectClusterPages } from '../page/selection/collect.ts'
 import { createPrimitiveTemplates } from '../page/selection/template.ts'
 import {
   dropBlendBuffers,
@@ -11,7 +11,7 @@ import {
   ensureBlendUvBuffer,
 } from '../webgpu/blend/buffers.ts'
 import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts'
-import type { ClusterManifest, Primitive } from '../../../sdk-core/src/index.ts'
+import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 

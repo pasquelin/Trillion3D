@@ -2,12 +2,12 @@ import { readFile } from 'node:fs/promises'
 import {
   DEFAULT_PHYSICS_BUDGET,
   PHYSICS_STEP,
-  POSE_WORDS,
   type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts'
+} from '../../../sdk-core/src/physics/options.ts'
+import { POSE_WORDS, PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
+
 import { resultWords, type FromPhysics, type PhysicsResults, type ToPhysics } from './protocol.ts'
 import { createWorldPhysics } from './worldPhysics.ts'
 

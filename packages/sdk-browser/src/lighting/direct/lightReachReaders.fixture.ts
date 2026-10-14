@@ -2,7 +2,7 @@
 // predicate wherever a program holds it, the lighting's incidence, the projection's region test on
 // the records its host writes, and the bounce's world light lists, from the reader's cell to the
 // run the list pass gives the light in its column.
-import type { SceneLight } from '../../../../sdk-core/src/index.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'

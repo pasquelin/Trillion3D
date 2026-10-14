@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { packDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { WORLD_TABLE } from './worldTable.ts'

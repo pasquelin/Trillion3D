@@ -6,7 +6,8 @@ import type { CutDelta } from '../../cut/delta.ts'
 import type { GpuCut } from '../../../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createWebgpuGpuState, type WebgpuGpuState } from './gpu.ts'
-import { createWebgpuRunState, type WebgpuRunState } from './run.ts'
+import { createWebgpuRunState } from './runState.ts'
+import type { WebgpuRunState } from './run.ts'
 import { createWebgpuVisState, type WebgpuVisState } from './vis.ts'
 
 /**

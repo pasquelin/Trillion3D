@@ -1,5 +1,5 @@
-import type { TextureFrameMetrics } from '../../../../sdk-core/src/index.ts'
-import type { WebgpuTileAtlas } from './atlas.ts'
+import type { TextureFrameMetrics } from '../../../../sdk-core/src/texture/metricsContracts.ts'
+import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { HeldLevels } from '../../texture/heldLevels.ts'
 import type { WebgpuTilePool } from './pool.ts'
 

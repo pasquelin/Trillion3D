@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assignDeformationOutputs, writeRowDeformation, writeSpanDeformation } from './outputs.ts'
 import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER } from '../visibility/types.ts'
-import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
-import type { PageRec } from '../page/selection/selection.ts'
+import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
+
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 const page = (url: string, count: number, deformed = true) =>

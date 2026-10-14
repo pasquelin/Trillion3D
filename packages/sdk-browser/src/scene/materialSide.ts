@@ -1,4 +1,4 @@
-import type { Side } from '../../../sdk-core/src/index.ts'
+import type { Side } from '../../../sdk-core/src/contracts/material.ts'
 import type { HostMaterials } from '../host/resources.ts'
 import { surfaceOf } from '../page/surface.ts'
 

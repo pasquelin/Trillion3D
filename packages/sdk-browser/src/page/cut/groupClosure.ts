@@ -1,6 +1,6 @@
-import type { PageRec } from '../selection/selection.ts'
+import type { PageRec, ClusterRoot } from '../selection/types.ts'
 import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
-import type { ClusterRoot } from '../selection/types.ts'
+
 import type { PlacementIndex } from '../selection/placements.ts'
 import type { IdDelta } from '../../webgpu/cut/delta.ts'
 import { createSparseInts } from './sparseInts.ts'

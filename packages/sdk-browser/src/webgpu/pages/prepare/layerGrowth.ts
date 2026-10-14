@@ -14,7 +14,7 @@
  * words and (L'-L)·slots commands), L'-L layers of pipelines, the draw records sent once; every
  * other table is the session's.
  */
-import { createGpuDraw } from '../../../gpu/draw/draw.ts'
+import { createGpuDraw } from '../../../gpu/draw/factory.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
 import { pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
 import { visUniformLayout } from '../../core/bindLayout.ts'

@@ -5,7 +5,8 @@
 // says which one (`cutSteps.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createGpuDagSelection, packDagSelection } from './selection.ts'
+import { createGpuDagSelection } from './selection.ts'
+import { packDagSelection } from './pack.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'

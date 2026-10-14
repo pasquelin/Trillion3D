@@ -1,9 +1,9 @@
-import { acceptPageArray } from '../../../page/selection/selection.ts'
+import { acceptPageArray } from '../../../page/selection/requests.ts'
 import { applyArrivalPlan } from '../../../page/integration/arrivalSpecs.ts'
 import { pageSourceBytes } from './catalogue.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
 import type { ArrivalPlan } from '../../../page/integration/host.ts'
-import type { PageRec } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/types.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
 
 /** Names to the rank journal every packed instance of `rec`: they all share its pool address. */
