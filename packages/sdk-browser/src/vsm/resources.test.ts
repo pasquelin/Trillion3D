@@ -27,7 +27,8 @@ import {
 } from './renderRasterWgsl.ts'
 import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionWgsl.ts'
 import { SHADOW_POOL_BYTES } from '../residency/shadowBudgetBytes.ts'
-import { vsmLayout, vsmResourceBytes, type VsmResourceOptions } from './layout.ts'
+import { vsmLayout, type VsmResourceOptions } from './layout.ts'
+import { vsmResourceBytes } from './layoutBytes.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */

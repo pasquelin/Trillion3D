@@ -46,3 +46,39 @@ test('the device refuses the full shadow set: a halved pool is granted, and the 
     disposeQuadRun(backend, fixture)
   }
 })
+
+test('a set the device refuses in its verdict alone is held until it comes, then drawn at half', async () => {
+  installGpuGlobals()
+  const pools: number[] = []
+  const gpu = fakeDevice({
+    ...BACKEND,
+    limits: SHADOW_LIMITS,
+    // The first set's pool is made, and an out-of-memory error left in the scope it is made in.
+    refuse: (descriptor) =>
+      descriptor.label?.startsWith(POOL) &&
+      pools.push((descriptor as GPUBufferDescriptor).size) === 1
+        ? 'oom'
+        : undefined,
+  })
+  const sceneLights = createSceneLightStore()
+  sceneLights.add(SUN)
+  const said: string[] = []
+  const { fixture, backend } = quadBackend(gpu.device, {
+    sceneLights,
+    onDiagnostic: (event) => void said.push(event.phase),
+  })
+  try {
+    await backend.prepare()
+    backend.render(camera())
+    assert.equal(pools.length, 1, "the frame holds the set at once: the device's verdict is later")
+    await backend.flush()
+    backend.render(camera())
+    await backend.flush()
+    assert.ok(pools.length >= 2, 'the refused set is asked again')
+    assert.ok(pools[1] < pools[0], 'at half its bytes or less')
+    assert.ok(backend.metrics().shadowVsmLights, 'the sun casts')
+    assert.ok(said.includes('gpu-out-of-memory'), 'the shrink is said')
+  } finally {
+    disposeQuadRun(backend, fixture)
+  }
+})

@@ -41,6 +41,10 @@ export const deviceRefusal = (frame: number, last?: Refusal): Refusal => ({
 /** The frame a refusal's wait ends at: `Infinity` for a budget refusal. */
 export const retryFrame = (refusal: Refusal) => refusal.frame + refusal.wait
 
+/** Whether `refusal` is the device's, still waiting at `frame`: nothing asks the grant meanwhile. */
+export const deviceWaiting = (refusal: Refusal, frame: number) =>
+  refusal.roomBytes === Infinity && frame < retryFrame(refusal)
+
 /** Whether `refusal` may be asked again at `frame`, the ledger's room at `roomBytes`. */
 export const retryDue = (refusal: Refusal, roomBytes: number, frame: number) =>
   roomBytes >= refusal.roomBytes || frame >= retryFrame(refusal)

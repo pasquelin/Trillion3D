@@ -1,6 +1,6 @@
 import { deviceMade, validated } from '../../../gpu/core/errorScope.ts'
 import { ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
-import { makeVsmMask } from '../render/vsm/vsmPlan.ts'
+import { makeVsmMask } from '../render/vsm/vsmFunding.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawnViewChanged, type WebgpuView } from '../state/view.ts'
 import { onView } from '../state/viewSwitch.ts'

@@ -1,11 +1,9 @@
 /**
- * The sizes of the virtual shadow map set, without a device: the layout drawn from the options,
- * and the bytes of every buffer `createVsmResources` makes for it (`resources.ts`). Only constants
- * and arithmetic: the memory budget reads the shadows' share here without the passes
- * (`residency/shadowBudgetBytes.ts`).
+ * The sizes of the virtual shadow map set, without a device: the layout drawn from the options;
+ * the bytes of every buffer `createVsmResources` makes for it are `layoutBytes.ts`'s, the pool a
+ * budget holds `poolDraw.ts`'s. Only constants and arithmetic.
  */
 import {
-  VSM_DIRTY_SLICES,
   VSM_LOG2_PAGE,
   VSM_MIPS,
   VSM_POOL_PAGES,
@@ -13,24 +11,9 @@ import {
   VSM_PAGE_TEXELS,
   VSM_LEVEL0_PAGES,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
-  VSM_POOL_SLICES,
-  VSM_PROJECTION_RECORD_BYTES,
   VSM_TABLE_ROW_WIDTH,
-  VSM_COUNTERS,
-  VSM_TILE_DEPTHS_PER_PAGE,
-  VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
-import {
-  alignUp,
-  ceilDiv,
-  floorLog2,
-  isPow2,
-  mipSize,
-  nextPow2,
-} from '../../../math/src/scalar/integers.ts'
-import type { VsmFrameBuffers } from './resources.ts'
-import type { ShrunkPool } from '../residency/outOfMemory.ts'
+import { ceilDiv, floorLog2, isPow2, mipSize, nextPow2 } from '../../../math/src/scalar/integers.ts'
 
 type VsmCoverMode = 'directional' | 'none'
 
@@ -75,18 +58,6 @@ export interface VsmLayout {
   /** The slot count · 8 (one rect per mip), rounded up to a power of two. */
   pageRectCount: number
 }
-
-/**
- * The frame members no pass binds as the previous frame's: one buffer serves both frames. Each
- * frame clears what it reads of them before reading it (the page table and receiver covers of its
- * maps, the rects of its map count), so last frame's content is never seen. A depth pyramid of the
- * maps (P10) reads last frame's page table: it splits them again.
- */
-export const SHARED_FRAME_MEMBERS: ReadonlySet<string> = new Set<keyof VsmFrameBuffers>([
-  'pageTable',
-  'receiverCover',
-  'staleRects',
-])
 
 function mipChain(width: number, height: number, mips: number) {
   const offsets: number[] = []
@@ -169,139 +140,3 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     pageRectCount: nextPow2(mapSlots * VSM_MIPS),
   }
 }
-
-/** What a buffer asked for `size` bytes is made at: whole words, never under 16 bytes. */
-export const bufferBytes = (size: number) => Math.max(16, alignUp(size, 4))
-
-/** The bytes asked for each buffer of one frame (`VsmFrameBuffers`), in creation order. */
-export function frameBufferSizes(layout: VsmLayout): Record<keyof VsmFrameBuffers, number> {
-  return {
-    uniforms: VSM_UNIFORMS_BYTES,
-    pageTable: layout.pageTableWords * 4,
-    pageMarks: layout.markWordCount * 4,
-    receiverCover: layout.coverWords * 4,
-    pageRequests: layout.pageTableWords * 4,
-    staleRects: layout.pageRectCount * 16,
-    mappedRects: layout.pageRectCount * 16,
-    projectionData: layout.mapSlots * VSM_PROJECTION_RECORD_BYTES,
-  }
-}
-
-/** The buffers made once for both frames and sized by the pool: their names and the bytes asked
- *  for each. */
-type VsmSetBuffer =
-  | 'poolPageInfo'
-  | 'rasterMarks'
-  | 'stats'
-  | 'feedback'
-  | 'pagesToClear'
-  | 'pagesToMerge'
-  | 'pagesForTiles'
-  | 'tileDepths'
-  | 'clearArgs'
-  | 'mergeArgs'
-  | 'tileArgs'
-  | 'freePages'
-
-export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> {
-  const maxPages = layout.poolPages
-  return {
-    poolPageInfo: maxPages * 24,
-    rasterMarks: maxPages * VSM_DIRTY_SLICES * 4,
-    stats: VSM_COUNTERS * 4,
-    feedback: 16,
-    pagesToClear: (2 * maxPages + 1) * 4,
-    pagesToMerge: (2 * maxPages + 1) * 4,
-    pagesForTiles: (2 * maxPages + 1) * 4,
-    tileDepths: maxPages * VSM_TILE_DEPTHS_PER_PAGE * 4,
-    clearArgs: 16,
-    mergeArgs: 2 * 16,
-    tileArgs: 2 * 16,
-    // The pool sort's counts and places, then the free pages' count and the pages (`freePages`).
-    freePages: (POOL_SORT_WORDS + 1 + maxPages) * 4,
-  }
-}
-
-/** The buffers made once for both frames and sized by the maps (`growVsmTables`). */
-export const tableBufferSizes = (layout: VsmLayout) => ({
-  nextMaps: layout.mapSlots * 16,
-  perPageIds: layout.mapSlots * 4,
-})
-
-/**
- * A window of the pool: WebGPU's guaranteed `maxStorageBufferBindingSize`, the largest binding every
- * device holds. A slice is made of buffers a window each, the last the rest, every one bound whole:
- * the same buffers, bindings and addressing on every device, every pass reading a texel's window
- * from its word (`VSM_POOL_WINDOW_SHIFT`). A window holds whole page rows (8 MiB a row).
- */
-const VSM_POOL_WINDOW_BYTES = 2 ** 27
-/** log2 of a window's words: a texel's word (`vsmPoolTexelIndexWgsl`) shifted by it is its window. */
-export const VSM_POOL_WINDOW_SHIFT = floorLog2(VSM_POOL_WINDOW_BYTES / 4)
-
-/** The bytes of each window of one pool slice: a window each, the last the rest. */
-export function poolWindowSizes(layout: VsmLayout) {
-  const slice = layout.poolTexelsXY[0] * layout.poolTexelsXY[1] * 4
-  return Array.from({ length: ceilDiv(slice, VSM_POOL_WINDOW_BYTES) }, (_, k) =>
-    Math.min(VSM_POOL_WINDOW_BYTES, slice - k * VSM_POOL_WINDOW_BYTES),
-  )
-}
-
-/**
- * The GPU bytes `createVsmResources` makes for `layout`, without a device: every buffer once, the
- * double-buffered frame members twice, the shared ones once (`res.bytes` of the same layout).
- */
-export function vsmResourceBytes(layout: VsmLayout) {
-  let bytes = vsmTableBytes(layout)
-  for (const size of poolWindowSizes(layout)) bytes += VSM_POOL_SLICES * bufferBytes(size)
-  for (const size of Object.values(setBufferSizes(layout))) bytes += bufferBytes(size)
-  return bytes
-}
-
-/** The GPU bytes of the tables of `layout` (`growVsmTables`): both frames' buffers and the
- *  buffers sized by the maps. */
-export function vsmTableBytes(layout: VsmLayout) {
-  let bytes = 0
-  for (const [member, size] of Object.entries(frameBufferSizes(layout)))
-    bytes += bufferBytes(size) * (SHARED_FRAME_MEMBERS.has(member) ? 1 : 2)
-  for (const size of Object.values(tableBufferSizes(layout))) bytes += bufferBytes(size)
-  return bytes
-}
-
-/** A set drawn within a byte budget (`vsmPoolWithin`): its layout, and the bytes it holds. */
-type VsmPool = ShrunkPool & { layout: VsmLayout }
-
-/**
- * The set of `options` that `budgetBytes` holds, as a page pool under pressure is
- * held whole and its pages made coarser: the
- * most physical pages among `options.poolPages` (2048 by default) and its halves down to an
- * eighth whose every buffer fits (`vsmResourceBytes`); `undefined` when not even the eighth does.
- * A pool short of the pages asked is `ceiling`, `minimum` at the eighth.
- */
-export function vsmPoolWithin(
-  budgetBytes: number,
-  options: VsmResourceOptions,
-): VsmPool | undefined {
-  const asked = options.poolPages ?? VSM_POOL_PAGES
-  for (let pages = asked; pages >= asked / 8; pages /= 2) {
-    const pool = vsmPoolAt(budgetBytes, options, pages)
-    if (pool.allocatedBytes <= budgetBytes) return pool
-  }
-  return undefined
-}
-
-/** The set of `options` at `pages` physical pages, drawn for `budgetBytes`. */
-function vsmPoolAt(budgetBytes: number, options: VsmResourceOptions, pages: number): VsmPool {
-  const asked = options.poolPages ?? VSM_POOL_PAGES
-  const layout = vsmLayout({ ...options, poolPages: pages })
-  const clamp = pages === asked ? null : pages <= asked / 8 ? 'minimum' : 'ceiling'
-  return { layout, budgetBytes, allocatedBytes: vsmResourceBytes(layout), clamp }
-}
-
-/** The shadow pool's draw rule, as the one halving rule reads it (`halvedPool`,
- *  `../residency/outOfMemory.ts`): the set `vsmPoolWithin` draws for a budget, and below the eighth,
- *  the eighth — the floor, which no halving goes under. */
-export const vsmPoolDraw =
-  (options: VsmResourceOptions) =>
-  (budgetBytes: number): VsmPool =>
-    vsmPoolWithin(budgetBytes, options) ??
-    vsmPoolAt(budgetBytes, options, (options.poolPages ?? VSM_POOL_PAGES) / 8)

@@ -75,7 +75,8 @@ import {
   vsmFrameSetHeld,
   type VsmResources,
 } from './resources.ts'
-import { poolWindowSizes, type VsmLayout } from './layout.ts'
+import type { VsmLayout } from './layout.ts'
+import { poolWindowSizes } from './layoutBytes.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The camera the pixels are reconstructed with. */

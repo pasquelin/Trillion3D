@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { bounceProbeBytes } from '../bounce/limits.ts'
-import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts'
+import { vsmLayout } from '../vsm/layout.ts'
+import { vsmResourceBytes } from '../vsm/layoutBytes.ts'
 import {
   VSM_RENDER_PAIR_CAPACITY,
   VSM_RENDER_CMD_BYTES,

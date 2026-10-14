@@ -4,14 +4,8 @@
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { VSM_PRESSURE_CALM_FRAMES, VSM_POOL_PAGES } from '../../../../vsm/constants.ts'
-import {
-  vsmTransmissionContextBytes,
-  vsmTransmissionFloorBytes,
-} from '../../../../vsm/transmissionPass.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
-import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
-import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
-import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
+import { deviceMadeNow } from '../../../../gpu/core/errorScope.ts'
 import { halvings, outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
 import {
   budgetRefusal,
@@ -21,32 +15,20 @@ import {
 } from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../../shadow/memoryGrant.ts'
 import {
-  castingCount,
   createEngineVsm,
   destroyEngineVsm,
   directionalCount,
-  engineVsmSideBytes,
-  engineVsmBytes,
   engineVsmOptions,
-  ensureMask,
   fullMapsFor,
-  growEngineVsmTables,
-  maskBytes,
-  maskGrowth,
-  maskLayersFor,
-  renderViewBound,
   type EngineVsm,
 } from './engineVsm.ts'
-import { vsmRenderContextBytes, vsmRenderFloorBytes } from '../../../../vsm/renderPass.ts'
-import {
-  vsmLayout,
-  vsmPoolDraw,
-  vsmPoolWithin,
-  vsmResourceBytes,
-  vsmTableBytes,
-  type VsmLayout,
-} from '../../../../vsm/layout.ts'
-import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts'
+import { vsmLayout, type VsmResourceOptions } from '../../../../vsm/layout.ts'
+import { vsmResourceBytes } from '../../../../vsm/layoutBytes.ts'
+import { vsmPoolDraw, vsmPoolFloor, vsmPoolWithin } from '../../../../vsm/poolDraw.ts'
+import { bytesBeside, heldBeside } from './vsmBeside.ts'
+
+/** What every reason this module gives the lights for reading no shadow starts with. */
+const UNAVAILABLE = 'virtual shadow maps'
 
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
@@ -61,91 +43,13 @@ export type VsmRefusal = Refusal & {
   poolPages: number
 }
 
-/** What the replaced set held of what a frame grows: its raster lists, and its coloured atlas with
- *  its draw context — measured before it is freed (`heldBeside`). */
-type HeldBeside = { lists: number; transmission: number }
-
-const heldBeside = (vsm: EngineVsm | undefined): HeldBeside => ({
-  lists: vsm ? vsmRenderContextBytes(vsm.res) : 0,
-  transmission: vsm?.transmission
-    ? vsm.transmission.bytes + vsmTransmissionContextBytes(vsm.transmission)
-    : 0,
-})
-
-/**
- * Bytes the frame makes beside a set of `layout`: the maps' own buffers beside the set
- * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a layer per four casting
- * lights; the raster's draw context as large as the replaced set's, and never under the least
- * that draws every caster row (`vsmRenderFloorBytes`); and, while a blended caster casts, the
- * coloured atlas as large as the replaced set's, never under the first one and its least draw
- * context. The lists grow past these only within the room (`vsmChunkRowsWithin`). Without `mask`,
- * all but the mask, which a frame's own size sets (`vsmAskedBytes`).
- */
-function bytesBeside(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  lights: readonly VsmFrameLight[],
-  layout: VsmLayout,
-  held: HeldBeside,
-  mask = true,
-) {
-  const [width, height] = rt.gpu.allocatedSize
-  const { viewWords, viewMips } = renderViewBound(lights)
-  const pages = layout.poolPages
-  const casters = rt.layout.rows,
-    used = rt.services.blendCasters.used
-  const raster = vsmRenderFloorBytes(device.limits, casters.packedCount, viewWords, viewMips, pages)
-  const blended = Math.max(0, casters.casterSlots - casters.blendFirst)
-  const transmission =
-    used > 0
-      ? Math.max(
-          held.transmission,
-          vsmTransmissionBytes(layout) +
-            vsmTransmissionFloorBytes(device.limits, used, blended, viewWords, viewMips, pages),
-        )
-      : 0
-  const casting = castingCount(lights)
-  // The passes' own state a new set makes: its page management, its projection's views and blue
-  // noise, the invalidation's first parameters.
-  const passes =
-    vsmPmContextBytes(device.limits) +
-    vsmProjectionBytesToMake(undefined) +
-    VSM_INVALIDATION_PARAMS_BYTES
-  return (
-    engineVsmSideBytes(device.limits) +
-    passes +
-    (mask ? maskBytes(width, height, casting) : 0) +
-    Math.max(held.lists, raster) +
-    transmission
-  )
-}
-
-/** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
- *  want at every physical page. */
-export const vsmFirstSetLayout = (device: GPUDevice, lights: readonly VsmFrameLight[]) =>
-  vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights)))
-
-/** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
- *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside
- *  it but the mask (`bytesBeside`): what the budget reserves for it before the pools. */
-export function vsmSetBytes(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  lights: readonly VsmFrameLight[],
-) {
-  const layout = vsmFirstSetLayout(device, lights)
-  return (
-    vsmResourceBytes(layout) + bytesBeside(rt, device, lights, layout, heldBeside(undefined), false)
-  )
-}
-
 /**
  * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages
  * up to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set
  * aside (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as
- * room. A set the device refuses — undone whole (`constructGpuResources`) — is drawn again at half
- * its bytes, the one rule of every pool (`halvings`), down to the eighth: the lights keep casting,
- * coarser. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
+ * room. A set the device refuses — undone whole (`constructGpuResources`), or freed when its
+ * verdict comes (`madeSet`) — is drawn again at half its bytes, the one rule of every pool
+ * (`halvings`), down to the eighth: the lights keep casting, coarser. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
  * replaces a smaller one (`grownFrom`), its growth (`shadow-pool-regrown`) —, and the shadows'
  * resolution bias is its halvings from the full pool; its fill then raises the resolution bias as
  * the full pool's does (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no
@@ -173,14 +77,13 @@ export function grantEngineVsm(
   const poolPages = same ? Math.min(pagesAsked, refused.poolPages) : pagesAsked
   const options = engineVsmOptions(fullMapCapacity, directional, poolPages)
   const { frame } = rt.run
-  const refusal = (record: Refusal) =>
-    (lights.vsmRefusal = { ...record, wanted, directional, fullMapCapacity, poolPages })
+  const refusal = (record: Refusal) => refuseSet(rt, list, fullMapCapacity, poolPages, record)
   const asked = vsmLayout(options)
   const room = ledgerRoom(device) - bytesBeside(rt, device, list, asked, held)
   if (same && !retryDue(refused, room, frame)) return undefined
   const first = vsmPoolWithin(room, options)
   if (!first) {
-    const smallest = { ...options, poolPages: poolPages / 8 }
+    const smallest = { ...options, poolPages: vsmPoolFloor(options) }
     refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), frame))
     lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
     noteShadowPressure(lights.memory, 'pool-refused')
@@ -196,7 +99,7 @@ export function grantEngineVsm(
     const pages = pool.layout.poolPages
     let vsm: EngineVsm
     try {
-      vsm = createEngineVsm(device, { ...options, poolPages: pages })
+      vsm = madeSet(rt, device, list, { ...options, poolPages: pages })
     } catch (thrown) {
       error = thrown
       continue
@@ -214,37 +117,57 @@ export function grantEngineVsm(
   return undefined
 }
 
+/** Records `record` as the refusal of the set of `fullMapCapacity` full maps at `poolPages` for
+ *  `list`: what the same lights are asked again, and when. */
+function refuseSet(
+  rt: WebgpuPagesRuntime,
+  list: readonly VsmFrameLight[],
+  fullMapCapacity: number,
+  poolPages: number,
+  record: Refusal,
+) {
+  const wanted = fullMapsFor(list),
+    directional = directionalCount(list)
+  rt.lights.vsmRefusal = { ...record, wanted, directional, fullMapCapacity, poolPages }
+}
+
 /**
- * The held set's tables grown for `list` — `fullMapCapacity` full maps at least, the receiver
- * mask of its suns — when the budget's room holds the new tables beside the old ones
- * (`vsmTableBytes`): the pool, its pages and their cache kept, in the same frame. Past the room,
- * or refused by the device, false: the caller makes the set again (`grantEngineVsm`), its cache
- * restarting.
+ * The set of `options` for `list`, asked of the device as every pool is: under the out-of-memory
+ * scope `grantedWithin` reads (`deviceMadeNow`), the set in hand at once — a throw refuses it at
+ * once. A refusal the device's verdict says later frees the set while it is still the lights' and
+ * asks the same lights half its pages at the next lit frame, the one rule (`halvings`); under the
+ * eighth of the full pool, they wait as for a refused floor.
  */
-export function growEngineVsm(
+export function madeSet(
+  rt: WebgpuPagesRuntime,
   device: GPUDevice,
   list: readonly VsmFrameLight[],
-  vsm: EngineVsm,
-  fullMapCapacity: number,
+  options: VsmResourceOptions,
 ) {
-  const { layout } = vsm.res
-  const options = engineVsmOptions(
-    Math.max(fullMapCapacity, layout.fullMapCapacity),
-    Math.max(vsm.suns, directionalCount(list)),
-    layout.poolPages,
+  const pages = options.poolPages ?? VSM_POOL_PAGES
+  return deviceMadeNow(
+    device,
+    () => createEngineVsm(device, options),
+    (vsm) => {
+      const { lights } = rt,
+        { frame } = rt.run
+      if (lights.vsm !== vsm) return
+      destroyEngineVsm(vsm)
+      lights.vsm = undefined
+      // Origin of the resource change: the shadows' set left; the next frame asks another.
+      rt.run.gate.resourcesChanged()
+      const { fullMapCapacity } = options
+      if (pages / 2 >= vsmPoolFloor({ ...options, poolPages: VSM_POOL_PAGES }))
+        return refuseSet(rt, list, fullMapCapacity, pages / 2, budgetRefusal(0, frame))
+      refuseSet(rt, list, fullMapCapacity, pages, deviceRefusal(frame))
+      lights.shadowReason = `${UNAVAILABLE} unavailable: the device refused the smallest page pool`
+    },
   )
-  const grown = vsmLayout(options)
-  if (vsmTableBytes(grown) > ledgerRoom(device)) return false
-  try {
-    return growEngineVsmTables(device, vsm, options)
-  } catch {
-    return false
-  }
 }
 
 /** The pool made at `pages`: a growth from `grownFrom` pages said as one, a pool short of the
  *  full one said as a shrink; the shadows' resolution bias, its halvings from the full pool. */
-function sayPool(
+export function sayPool(
   rt: WebgpuPagesRuntime,
   pages: number,
   grownFrom: number,
@@ -267,85 +190,4 @@ function sayPool(
       shrunk(),
     )
   }
-}
-
-/**
- * A pool drawn short of the full one grows back once the budget's room holds a larger one, at
- * most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait before it raises a
- * resolution the budget lowered —, and only by the pages the room holds beside what the frame
- * keeps (`bytesBeside`, the held atlas and lists as large as they are): no frame flips between
- * two pools, as a live set never shrinks. The new set is made while the held one lives when both
- * fit, and replaces it; otherwise the held one is freed first (`grantEngineVsm`), and if the device
- * refuses the larger set, the held size is made again. The cache restarts — every page drawn
- * again —, in the same frame: no frame goes without shadows.
- */
-export function regrowEngineVsm(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  list: readonly VsmFrameLight[],
-  vsm: EngineVsm,
-): EngineVsm | undefined {
-  const { layout } = vsm.res
-  const pages = layout.poolPages
-  if (pages >= VSM_POOL_PAGES || rt.run.frame < vsm.regrowFrame) return vsm
-  vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
-  const { fullMapCapacity } = layout
-  const options = engineVsmOptions(fullMapCapacity, directionalCount(list))
-  const room = ledgerRoom(device)
-  const beside = bytesBeside(rt, device, list, layout, heldBeside(vsm))
-  const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options)
-  const grown = pool?.layout.poolPages ?? 0
-  if (grown <= pages) return vsm
-  const { lights } = rt
-  if (pool!.allocatedBytes + engineVsmSideBytes(device.limits) <= room)
-    try {
-      const made = createEngineVsm(device, { ...options, poolPages: grown })
-      made.regrowFrame = vsm.regrowFrame
-      destroyEngineVsm(vsm)
-      sayPool(rt, grown, pages, () => ({}))
-      return (lights.vsm = made)
-    } catch {
-      return vsm
-    }
-  // Freed first: the larger set, else the held size again, neither held back by a refusal.
-  lights.vsmRefusal = undefined
-  let made = grantEngineVsm(rt, device, list, fullMapCapacity, VSM_POOL_PAGES, pages)
-  if (!made) {
-    lights.vsmRefusal = undefined
-    made = grantEngineVsm(rt, device, list, fullMapCapacity, pages, pages)
-  }
-  return made
-}
-
-/**
- * Makes what the frame projects with before any other shadow allocation of the frame — the mask
- * array, a layer per four casting lights, the projection's view uniforms and blue noise
- * — when the budget's room holds what they grow by: a larger canvas, more casting lights
- * (`maskGrowth`). The lists the raster then grows within the room cannot take theirs. Past it the
- * lights read no shadow this frame, said once a set, and the next frames ask again.
- */
-export function reserveProjection(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  vsm: EngineVsm,
-  list: readonly VsmFrameLight[],
-) {
-  const [width, height] = rt.gpu.allocatedSize
-  const lights = castingCount(list),
-    layers = maskLayersFor(lights)
-  const growth = maskGrowth(vsm, width, height, lights) + vsmProjectionBytesToMake(vsm.res)
-  if (growth <= 0 || growth <= ledgerRoom(device)) {
-    ensureMask(device, vsm, width, height, layers, true)
-    vsmProjectionReserve(device, vsm.res)
-    return true
-  }
-  if (!vsm.said.has('mask')) {
-    vsm.said.add('mask')
-    rt.diag.engineDiagnostic(
-      'gpu-out-of-memory',
-      'The GPU budget holds no shadow mask at this size: the lights cast no shadow',
-      outOfMemoryContext('shadow', growth),
-    )
-  }
-  return false
 }
