@@ -58,7 +58,7 @@ export function settledRt() {
     run,
     views: { main, active: main, persistent: [] },
     // No root and no caster row: the frame entry asks no roots' or rows' pass (`askFramePipelines`).
-    layout: { rows, selectionRoots: [] as unknown[] },
+    layout: { rows, selectionRoots: [] as unknown[], rootIndex: { revision: 0 } },
     vis: { gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
       changes: { deferred: () => false },
@@ -104,7 +104,7 @@ export function settledRt() {
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).
     context: {} as { effects?: EffectChain; guides?: GuideSet },
     // No transparent: the frame entry asks no share seed (`askFramePipelines`).
-    blendState: { blendGpu: [] as unknown[] },
+    blendState: { blendGpu: [] as unknown[], blendIndex: { revision: 0 } },
     // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
     diag: { traceEnabled: false },
   }

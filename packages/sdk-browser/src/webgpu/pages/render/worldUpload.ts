@@ -106,7 +106,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
 function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
   const { blendState } = rt,
     blend = blendState.blendGpu,
-    blendIndex = (blendState.blendIndex ??= { revision: 0 })
+    { blendIndex } = blendState
   let rootCount = 0,
     blendCount = 0
   for (const node of flipped) {

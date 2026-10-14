@@ -21,9 +21,10 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]
       worldUpdates: new Float32Array(16),
       worldsScanned: new Int32Array(1),
       rows: { tableEpoch: 1 },
+      rootIndex: { revision: 0 },
     },
     timing: { worldCounts: { rootsUploaded: 0 } },
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], blendIndex: { revision: 0 } },
     lights: { mobility: { moves: () => false } },
     run: {
       gate: {

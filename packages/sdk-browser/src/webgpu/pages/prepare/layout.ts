@@ -122,8 +122,8 @@ export function createWebgpuPagesLayout(
   return {
     transparentRoots,
     selectionRoots,
-    /** The roots' index by node, made at its first read (`../render/movedNode.ts`). */
-    rootIndex: undefined as NodeIndex | undefined,
+    /** The roots' index by node, its slots made at its first read (`../render/movedNode.ts`). */
+    rootIndex: { revision: 0 } as NodeIndex,
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,

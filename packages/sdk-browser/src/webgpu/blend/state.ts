@@ -84,8 +84,8 @@ export function createWebgpuBlendState() {
   const visibleBlend: BlendGpuItem[] = []
   const state = {
     blendGpu,
-    /** The draws' index by node, made at its first read (`../pages/render/movedNode.ts`). */
-    blendIndex: undefined as NodeIndex | undefined,
+    /** The draws' index by node, its slots made at its first read (`../pages/render/movedNode.ts`). */
+    blendIndex: { revision: 0 } as NodeIndex,
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),

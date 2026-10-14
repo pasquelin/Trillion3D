@@ -69,7 +69,7 @@ export function followPlacementRows<T>(
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   posed?: (rank: number, world: ArrayLike<number>) => number,
   follow?: (rank: number) => void,
-  owner?: { rootIndex?: NodeIndex },
+  owner?: { rootIndex: NodeIndex },
 ) {
   const list = rowRoots(roots, rows)
   let any = false
@@ -83,7 +83,7 @@ export function followPlacementRows<T>(
     const seated = rows.sources?.[index] ?? null
     if (entry.owner !== seated) {
       entry.owner = seated
-      if (owner?.rootIndex) owner.rootIndex.revision++
+      if (owner) owner.rootIndex.revision++
     }
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked,

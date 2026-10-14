@@ -10,9 +10,9 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 /** A runtime of `roots`, `run` merged over the run state every composition reads. */
 export function composeRuntime(roots: readonly object[], run: object = {}) {
   return {
-    layout: { selectionRoots: roots },
+    layout: { selectionRoots: roots, rootIndex: { revision: 0 } },
     lights: { mobility: createShadowMobility(), changes: createShadowChanges(SHADOW_CHANGE_BOXES) },
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], blendIndex: { revision: 0 } },
     gpu: {},
     run: { gate: { engineMovedInPlace() {} }, ...run },
   } as unknown as WebgpuPagesRuntime

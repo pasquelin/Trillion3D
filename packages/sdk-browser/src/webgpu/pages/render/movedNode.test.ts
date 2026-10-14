@@ -20,7 +20,7 @@ test('a row re-seated on another mesh is named by the new one, never the old', (
     { pages: [], placement: { rows, index: 0 }, world: { elements: new Float64Array(16) } },
   ] as unknown as ClusterRoot<PageRec>[]
   // The layout that holds the roots, and their index by node.
-  const layout: RootsOwner = { selectionRoots: roots }
+  const layout: RootsOwner = { selectionRoots: roots, rootIndex: { revision: 0 } }
   const under = (node: Object3D) => appendRootsUnder(layout, node, [], 0)
   const follow = () =>
     followPlacementRows(roots, rows, 0, 0, undefined, undefined, undefined, layout)

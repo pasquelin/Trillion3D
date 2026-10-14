@@ -80,7 +80,12 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     },
     setup: { worlds: {} },
     vis: {},
-    layout: { selectionRoots: [root], worldUpdates: [], rows: { tableEpoch: 0 } },
+    layout: {
+      selectionRoots: [root],
+      rootIndex: { revision: 0 },
+      worldUpdates: [],
+      rows: { tableEpoch: 0 },
+    },
     timing: { worldCounts: {} },
     blendState,
     lights: {

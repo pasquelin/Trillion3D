@@ -34,10 +34,10 @@ export function deformationRuntime(
     },
     gpu: { device: { queue: { writeBuffer() {} } } },
     lights,
-    layout: { selectionRoots, rows },
+    layout: { selectionRoots, rows, rootIndex: { revision: 0 } },
     run: { gate: { pixelError: 0 }, movedWorlds: createChangedRuns() },
     setup: {},
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], blendIndex: { revision: 0 } },
   } as unknown as WebgpuPagesRuntime
   return { rt, changed }
 }

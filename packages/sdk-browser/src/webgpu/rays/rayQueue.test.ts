@@ -61,7 +61,13 @@ function rig(
     run: { lost: false, gpuSelection: { cutTables: () => tables } },
     gpu: { cache: { buffer: buffer('pool') } },
     vis: { pageTable: buffer('pages'), concatPos: buffer('positions'), zeroFlags: buffer('zero') },
-    layout: { rows, selectionRoots, packedPages: [], recordOf: () => undefined },
+    layout: {
+      rows,
+      selectionRoots,
+      rootIndex: { revision: 0 },
+      packedPages: [],
+      recordOf: () => undefined,
+    },
     blendState: {},
   } as unknown as WebgpuPagesRuntime
   return { gpu, queue: createRayQueue(rt, gpu.device) }
@@ -163,7 +169,9 @@ test('a cast answers the mesh whose instance row places the placement the trace 
   assert.deepEqual(hit.point.toArray(), [0, 0, -3])
   assert.deepEqual(hit.normal.toArray(), [0, 0, 1])
   assert.equal(hit.face, 1, `page 0, triangle 1 (${VIS_TRIANGLE_BITS} bits a page)`)
-  const layout = { selectionRoots: [root] } as unknown as Parameters<typeof rayFilterRanks>[0]
+  const layout = { selectionRoots: [root], rootIndex: { revision: 0 } } as unknown as Parameters<
+    typeof rayFilterRanks
+  >[0]
   assert.deepEqual(rayFilterRanks(layout, { objects: [mesh] }), { ranks: [0], include: true })
   queue.dispose()
 })

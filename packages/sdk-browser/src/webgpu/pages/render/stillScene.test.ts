@@ -29,9 +29,14 @@ function image(count: number, next: () => number) {
     setup: { worlds: {} },
     // A host walk with no deformation and nothing hidden or shown (`worldUpload.test.ts`).
     vis: {},
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], blendIndex: { revision: 0 } },
     lights: { mobility: { moves: () => false } },
-    layout: { selectionRoots, worldUpdates: new Float32Array(count * 16), rows: { tableEpoch: 1 } },
+    layout: {
+      selectionRoots,
+      rootIndex: { revision: 0 },
+      worldUpdates: new Float32Array(count * 16),
+      rows: { tableEpoch: 1 },
+    },
     timing: { worldCounts: { rootsUploaded: 0 } },
     run: {
       gate: {

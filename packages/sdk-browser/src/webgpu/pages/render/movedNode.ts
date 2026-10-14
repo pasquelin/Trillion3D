@@ -70,16 +70,9 @@ export function appendUnder<E>(
   return count
 }
 
-/** The roots a layout holds, and their index by node, made at its first read. */
-export type RootsOwner = { readonly selectionRoots: Roots; rootIndex?: NodeIndex }
+/** The roots a layout holds, and their index by node, its slots made at its first read. */
+export type RootsOwner = { readonly selectionRoots: Roots; rootIndex: NodeIndex }
 
 /** `appendUnder` over the selection roots of `layout`, by the node each draws (`rootSource`). */
 export const appendRootsUnder = (layout: RootsOwner, node: Object3D, out: number[], at: number) =>
-  appendUnder(
-    layout.selectionRoots,
-    rootSource,
-    node,
-    out,
-    at,
-    (layout.rootIndex ??= { revision: 0 }),
-  )
+  appendUnder(layout.selectionRoots, rootSource, node, out, at, layout.rootIndex)

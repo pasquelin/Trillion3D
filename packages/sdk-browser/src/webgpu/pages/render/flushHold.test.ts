@@ -48,7 +48,7 @@ function flushState(adopts?: () => boolean, armed = true) {
     },
     vis: { textureJobs: [] },
     // No root and no caster row: the frame entry asks no roots' or rows' pass.
-    layout: { rows: {}, selectionRoots: [] },
+    layout: { rows: {}, selectionRoots: [], rootIndex: { revision: 0 } },
     capture: { capturing: false, capturePending: undefined },
     timing: { gpuTiming: undefined },
     diag: { engineDiagnostic: () => {}, diagnosticFailure: () => {} },
@@ -59,7 +59,7 @@ function flushState(adopts?: () => boolean, armed = true) {
     },
     setup: { bootstrap: [] },
     context: { gpuCanvas: undefined },
-    blendState: { blendGpu: [], visibleBlend: [] },
+    blendState: { blendGpu: [], visibleBlend: [], blendIndex: { revision: 0 } },
     // An unlit scene: the frame entry asks no lit program of the device (`askLobedPrograms`).
     lights: { changes: { deferred: () => false }, store: { unlit: true, count: 0 } },
   } as unknown as WebgpuPagesRuntime
