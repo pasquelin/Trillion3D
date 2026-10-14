@@ -5,6 +5,7 @@ import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl
 import {
   CONTRACT_SHADOW_BINDINGS,
   CONTRACT_TRACE_BINDINGS,
+  CONTRACT_VSM_BINDINGS,
 } from '../../lighting/direct/shadowBindings.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
@@ -55,7 +56,7 @@ export const WATER_BINDINGS = {
   rect: 36,
   /** The shadow pool's transmittance layer, on the deferred resolve's numbers. */
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
-  shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
+  shadowPool: CONTRACT_VSM_BINDINGS.pool,
   /** What a water pixel traces its shadow with past the maps (`vsmTraceFactor`). */
   shadowView: CONTRACT_TRACE_BINDINGS.view,
   shadowNoise: CONTRACT_TRACE_BINDINGS.noise,

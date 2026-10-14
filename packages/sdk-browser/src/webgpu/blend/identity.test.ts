@@ -8,16 +8,16 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 /** The paged group of the identity the last `voidStaleBlendGroups` named. */
 const pagedGroup = ({ identity, pagedGroups }: WebgpuBlendState) => pagedGroups[identity.slot]
 
-test('blend identity follows translucent depth independently of transmittance', () => {
+test('blend identity follows the shadow pool independently of transmittance', () => {
   const blendState = createWebgpuBlendState()
   const rt = { gpu: {}, vis: { materialTable: {} }, blendState } as unknown as WebgpuPagesRuntime
-  const lighting = { shadowTransmittance: {}, shadowTranslucentDepth: {} } as BlendLighting
+  const lighting = { shadowTransmittance: {}, shadowPool: {} } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
   blendState.pagedGroups[blendState.identity.slot] = group
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), group)
-  lighting.shadowTranslucentDepth = {} as typeof lighting.shadowTranslucentDepth
+  lighting.shadowPool = {} as typeof lighting.shadowPool
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), undefined)
 })

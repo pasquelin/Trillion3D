@@ -114,7 +114,7 @@ export const BLEND_BINDINGS = {
   /** The translucent casters' transmission atlas, then the virtual shadow maps' pool
    *  (`BLEND_VSM_BINDINGS`). */
   shadowTransmittance: 26,
-  shadowTranslucentDepth: 27,
+  shadowPool: 27,
   /** The surfaces' records, the opaque resolve's own table (`../material/materialTable.ts`). */
   material: 28,
   /** What a fragment traces its shadow with past the maps (`BLEND_TRACE_BINDINGS`): the shadow
@@ -146,12 +146,12 @@ export const SMALL_BINDINGS = {
 }
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,
- *  sampler and translucent depth numbers. */
+ *  sampler and pool numbers. */
 export const BLEND_VSM_BINDINGS = {
   pageTable: BLEND_BINDINGS.shadowData,
   projectionData: BLEND_BINDINGS.shadowAtlas,
   uniforms: BLEND_BINDINGS.shadowSampler,
-  pool: BLEND_BINDINGS.shadowTranslucentDepth,
+  pool: BLEND_BINDINGS.shadowPool,
 }
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`). */
 export const BLEND_TRACE_BINDINGS = {

@@ -43,8 +43,7 @@ export const forwardPool = (binding: number) =>
 
 /** Shadow bindings past the virtual shadow maps' own (`CONTRACT_VSM_BINDINGS`), on the numbers the
  *  water composite reads them at too: the opaque resolve's mask — a forward pass's transmission
- *  (`directShadowWgsl`) —, and the pool the water reads. */
+ *  (`directShadowWgsl`). */
 export const CONTRACT_SHADOW_BINDINGS = {
   transmittance: DEFERRED_BINDINGS.transmittance,
-  translucentDepth: DEFERRED_BINDINGS.pool,
 }

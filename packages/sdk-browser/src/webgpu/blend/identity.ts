@@ -33,7 +33,7 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       shadowAtlas: () => rt.blendState.lighting?.shadowAtlas,
       shadowSampler: () => rt.blendState.lighting?.shadowSampler,
       shadowTransmittance: () => rt.blendState.lighting?.shadowTransmittance,
-      shadowTranslucentDepth: () => rt.blendState.lighting?.shadowTranslucentDepth,
+      shadowPool: () => rt.blendState.lighting?.shadowPool,
       shadowView: () => rt.blendState.lighting?.shadowView,
       shadowNoise: () => rt.blendState.lighting?.shadowNoise,
       bounceGrid: () => rt.blendState.lighting?.bounceGrid,

@@ -13,7 +13,7 @@ export type BlendLighting = {
   /** The translucent casters' transmission atlas (`vsmTransmissionReadWgsl`), or its one-texel
    *  stand-in. */
   shadowTransmittance: GPUTextureView
-  shadowTranslucentDepth: GPUBuffer
+  shadowPool: GPUBuffer
   /** What a fragment traces with past the maps (`BLEND_TRACE_BINDINGS`): the shadow projection's
    *  view uniform and blue noise. */
   shadowView: GPUBuffer
@@ -91,7 +91,7 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowAtlas: ['fragment', STORAGE],
   shadowSampler: ['fragment', UNIFORM],
   shadowTransmittance: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
-  shadowTranslucentDepth: ['fragment', STORAGE],
+  shadowPool: ['fragment', STORAGE],
   shadowView: ['fragment', UNIFORM],
   shadowNoise: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
   bounceGrid: ['fragment', UNIFORM],

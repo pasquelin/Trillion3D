@@ -29,7 +29,7 @@ const b = WATER_BINDINGS
  *  (`waterCompositeLayoutEntries`), the group's entries (`waterCompositeEntries`) and the frame's
  *  identity (`nameWaterResources`) are all made of it. The water word — a colour, in the surface
  *  flags' place —, the water depth, the lights and their shadows — the virtual shadow maps on the
- *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
+ *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the pool made and dropped with the
  *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the
  *  probes, the proxy and the culling's records — its worlds and instances — and its tree, the frozen
  *  backdrop and its depth, the blend view, the volumes, the item records whose poses they name
@@ -44,7 +44,7 @@ const HELD: readonly Held[] = [
   [b.shadowAtlas, ({ lighting }) => lighting.shadowAtlas],
   [b.shadowSampler, ({ lighting }) => lighting.shadowSampler],
   [b.shadowTransmittance, ({ lighting }) => lighting.shadowTransmittance],
-  [b.shadowTranslucentDepth, ({ lighting }) => lighting.shadowTranslucentDepth],
+  [b.shadowPool, ({ lighting }) => lighting.shadowPool],
   [b.shadowView, ({ lighting }) => lighting.shadowView],
   [b.shadowNoise, ({ lighting }) => lighting.shadowNoise],
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
