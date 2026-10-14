@@ -22,6 +22,7 @@ import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
 import { ROW_EMITS, ROW_STALES } from './rowWordsWgsl.ts'
 import { deriveEveryRow, target } from './rowTargets.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
 function createRowWords() {
   return {
@@ -46,8 +47,10 @@ function createRowWords() {
      *  buffer be dropped (`rowWordsDropped`). */
     staled: new Uint32Array(0),
     staledCount: 0,
-    /** The roots whose rows the next follow names, their shadow changes asked (`deriveRootRows`). */
+    /** The roots whose rows the next follow names, their shadow changes asked (`deriveRootRows`),
+     *  each once: 1 at the rank of a root listed. */
     roots: [] as number[],
+    rootListed: new Uint8Array(0),
     /** The pass's GPU side (`rowWordsPass.ts`), made at its first run. */
     gpu: undefined as RowWordsGpu | undefined,
     /** Rows named this frame for another reason than a root's move: written, made ready, every
@@ -70,7 +73,11 @@ export const nameCastRow = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, row: numbe
  *  move, a row posed past what its shadows hold, a parent let go —, or its casting or its mobility
  *  changed where it stands (`flipWorld`, `../webgpu/shadow/mobility.ts`'s settle). */
 export function deriveRootRows(rt: Pick<WebgpuPagesRuntime, 'rowWords'>, rank: number) {
-  rowWordsOf(rt).roots.push(rank)
+  const state = rowWordsOf(rt)
+  state.rootListed = resized(state.rootListed, rank + 1)
+  if (state.rootListed[rank]) return
+  state.rootListed[rank] = 1
+  state.roots.push(rank)
 }
 
 /** A run of rows the table declared dirty: their inputs sent and their words derived again, the
@@ -134,8 +141,14 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     target(state, ready[k])
     state.derived++
   }
-  if (moved) for (let k = 0; k < moved.length; k++) targetRootRows(rt, state, moved[k], false)
-  for (const rank of state.roots) targetRootRows(rt, state, rank, true)
+  // A root listed for its shadow change too is walked once, by that list: its rows' asks are joined.
+  if (moved)
+    for (let k = 0; k < moved.length; k++)
+      if (!state.rootListed[moved[k]]) targetRootRows(rt, state, moved[k], false)
+  for (const rank of state.roots) {
+    state.rootListed[rank] = 0
+    targetRootRows(rt, state, rank, true)
+  }
   state.roots.length = 0
   // The rows a moving root's travel carries are counted by how far it went, the others whole.
   commitRowMotion(rt, state.derived)

@@ -40,7 +40,8 @@ export const ROW_NAMED = 0x3fffffff,
 
 /**
  * The world sphere of a row, what the shadow cull drops it by, from its root's world and its local
- * box (`inputs`: centre then half extent, the reach in, six doubles). The centre is the double sum,
+ * box (`inputs`: centre then half extent, the reach in, six doubles); its caller (`deriveRow`) has
+ * checked the row's sphere and inputs are in their buffers. The centre is the double sum,
  * split into a high and a low single; the radius is the farthest corner of the box, in single
  * precision and grown past every rounding: the one formula of `rowSphere.ts`, step for step.
  */
@@ -54,7 +55,6 @@ const CENTRE_ERROR:f32=${wgslF32(CENTRE_ERROR)};
 fn composeSphere(row:u32,world:array<vec2u,16>){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let s=row*8u;
- if(s+8u>arrayLength(&spheres)||at+6u>arrayLength(&inputs)){return;}
  var m:array<f32,9>;
  var size=0.0;
  var sums=0.0;

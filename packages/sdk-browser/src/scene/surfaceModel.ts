@@ -77,21 +77,18 @@ export const metalRoughFamily = (family: SurfaceFamily) =>
 export const litFamily = (family: SurfaceFamily) =>
   family === 'lambert' || family === 'toon' || metalRoughFamily(family) || family === 'phong'
 
-/** The unlit families that still carry relief maps, and so may declare a normal map. */
-const RELIEF_UNLIT = new Set<SurfaceFamily>(['normal', 'matcap'])
-
 /**
- * Why a declaration names a map that its model never reads, or `undefined`: a toon's tone ramp,
- * a matcap's colour map, the normal map of a surface drawn unlit. The one refusal the surface
+ * Why a declaration names a map that its model never reads, or `undefined`: a tone ramp, which no
+ * model reads, a matcap's colour map, the normal map of a surface drawn unlit (`litFamily`). The one refusal the surface
  * record holds (`../page/surfaceRecord.ts`), so no surface drops one from the image.
  */
 export function unreadMapRefusal(declared: SurfaceDeclaration) {
   const { family } = declared
   const named = (map: string) =>
     `material ${family} declares a ${map} its surface model never reads`
-  if (family === 'toon' && declared.gradientMap) return named('gradientMap')
+  if (declared.gradientMap) return named('gradientMap')
   if (family === 'matcap' && declared.map) return named('map')
-  if (declared.normalMap && RELIEF_UNLIT.has(family)) return named('normalMap')
+  if (declared.normalMap && !litFamily(family)) return named('normalMap')
 }
 
 /**

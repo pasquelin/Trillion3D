@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { COMPOSE_ROOTS_WGSL } from './gpuComposeWgsl.ts'
+import { COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
@@ -23,7 +23,7 @@ const motionRun = shaderRun<{
   sameWord(a: number, b: number): boolean
   motionWords(previous: number[], current: number[], eye: Pair[]): number[]
 }>(
-  COMPOSE_ROOTS_WGSL,
+  COMPOSE_MOTION_WGSL,
   [
     ...DOUBLE_HELPERS,
     'dDiv',

@@ -4,20 +4,20 @@
  * A row of an instance buffer whose mesh only follows its parent is linked once: the mesh's own
  * local matrix and the parent's slot. From then on a parent that moves sends one matrix; the worlds
  * pass writes, for every linked root, `parent · local` in exact double arithmetic
- * (`gpuComposeWgsl.ts`) into the roots' double worlds (`rootWorlds.ts`) and its world box; the
- * roots pass carries it into the cut's worlds — the exact translation behind them, which each cut
- * reads at its own eye (`gpu/dag/shader/worldPoseWgsl.ts`) — and the temporal motion; the rows
+ * (`gpuComposeWgsl.ts`) into the roots' double worlds (`rootWorlds.ts`); the roots pass carries it
+ * into the cut's worlds — the exact translation behind them, which each cut reads at its own eye
+ * (`gpu/dag/shader/worldPoseWgsl.ts`) —, and the motion pass into the temporal motion; the rows
  * pass derives every word of the root's page-table rows from it (`rowWordsPass.ts`): the very
  * single-precision words the CPU formulas give. The frame hears a pose move as from any engine
  * write (`engineMovedInPlace`): every reader of the scene revision follows; the GPU cut, which
  * compares the CPU worlds it is sent, hears it from the roots pass (`worldsMovedOnGpu`) and cuts
  * again under the composed worlds.
  *
- * The temporal motion of a linked root is the CPU's to the word (`../taa/motion.ts`): the roots pass
- * computes it from the root's composed single-precision world and the one the GPU holds for it at the
- * last accumulated image, as the temporal pass decides this image (`composedMotion.ts`). That
- * decision is a uniform written after the pass is encoded and before the image is submitted, as the
- * CPU motion's own write is: every reader of the motion sees it.
+ * The temporal motion of a linked root is the CPU's to the word (`../taa/motion.ts`): the motion
+ * pass computes it from the root's composed single-precision world and the one the GPU holds for it
+ * at the last accumulated image, as the temporal pass decides this image (`composedMotion.ts`). That
+ * decision is a uniform written before the motion pass is encoded into the image's command buffer
+ * (`composedMotionPass.ts`), as the CPU motion's own write is: every reader of the motion sees it.
  *
  * The shadows follow a parent's move as they follow a moved node's: the rows pass, deriving the
  * linked roots' rows from the worlds the parent's move composed, stales the pages each row left and
@@ -92,9 +92,11 @@ export function composeWebgpuPlacements(
   const slot = takeSlot(state, parent, p, world)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt))
-  if (whole) unlinkHeld(rt, state, slot, ranks)
-  if (whole && state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
-  if (whole) state.readers.delete(slot)
+  if (whole) {
+    unlinkHeld(rt, state, slot, ranks)
+    if (state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
+    state.readers.delete(slot)
+  }
   if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)

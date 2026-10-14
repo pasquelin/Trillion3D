@@ -103,6 +103,10 @@ function ensureTables(device: GPUDevice, held: RootWorlds, roots: number) {
   grownByCopy(device, old, kept ? copy : undefined, 'Trillion3D root worlds growth')
 }
 
+/** The ranks `[from, to)`. */
+const ranksFrom = (from: number, to: number) =>
+  Int32Array.from({ length: to - from }, (_, k) => from + k)
+
 /** Roots `[from, to)`, past the session's, that the running cut took in place: their worlds and
  *  local boxes sent at their ranks, and named to the root boxes pass, which writes their stretch
  *  into the cut's frame words before it reads them. The rows pass names them once they join. */
@@ -111,20 +115,20 @@ function sendTaken(rt: WebgpuPagesRuntime, device: GPUDevice, from: number, to: 
   sendSpan(rt, device, from, to - 1)
   sendLocals(rt, device, from, to)
   const held = rt.rootWorlds!
-  noteMoved(
-    held.roots,
-    Int32Array.from({ length: to - from }, (_, k) => from + k),
-  )
+  noteMoved(held.roots, ranksFrom(from, to))
 }
 
-/** Roots `[from, roots)` new since the last send: their worlds and local boxes sent and named. */
+/** Roots `[from, roots)` new since the last send, named to the rows pass; those the running cut
+ *  took in place before they joined (`[from, held.held)`, `sendTaken`) were sent and named to the
+ *  root boxes pass then: the others alone are sent and named to it. */
 function sendNew(rt: WebgpuPagesRuntime, device: GPUDevice, held: RootWorlds, from: number) {
-  const roots = rt.layout.selectionRoots.length
-  sendSpan(rt, device, from, roots - 1)
-  sendLocals(rt, device, from, roots)
-  const fresh = Int32Array.from({ length: roots - from }, (_, k) => from + k)
-  noteMoved(held.rows, fresh)
-  noteMoved(held.roots, fresh)
+  const roots = rt.layout.selectionRoots.length,
+    taken = clamp(held.held, from, roots)
+  noteMoved(held.rows, ranksFrom(from, roots))
+  if (taken === roots) return
+  sendSpan(rt, device, taken, roots - 1)
+  sendLocals(rt, device, taken, roots)
+  noteMoved(held.roots, ranksFrom(taken, roots))
 }
 
 /**

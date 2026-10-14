@@ -3,16 +3,14 @@
  * one compute pass, whose command buffer goes before every cut (`rootPasses.ts`): what they write
  * is on the GPU before the root boxes, the tree's leaves, the cut and the rows read it.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { MOTION_SKIP } from './composedMotion.ts'
 import { composeGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
 import { composeKernels, frameParents } from './gpuComposeFrame.ts'
 import { writePassParams } from '../gpu/core/passParams.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
 import type { OpenPass } from '../gpu/core/lazyComputePass.ts'
 import { rootEntries, worldEntries } from './gpuComposeEntries.ts'
+import { dispatchGroup } from './rootListPass.ts'
 
 /** `pipeline` over `held`'s group, a thread each of the `listed` roots, into the roots' pass. */
 function dispatchListed(
@@ -22,16 +20,13 @@ function dispatchListed(
   held: HeldGroup,
   listed: number,
 ) {
-  const pass = open.pass
-  pass.setPipeline(pipeline)
-  pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
-  rt.run.gpuComputeDispatches++
+  open.pass.setPipeline(pipeline)
+  dispatchGroup(rt, open.pass, held, listed)
 }
 
 /**
- * The linked roots' composed worlds, once a root, into the roots' double worlds and their world
- * boxes (`COMPOSE_WORLDS_WGSL`), on the frames what they compose moved — a parent, a link — or a
+ * The linked roots' composed worlds, once a root, into the roots' double worlds
+ * (`COMPOSE_WORLDS_WGSL`), on the frames what they compose moved — a parent, a link — or a
  * table they write was made anew: what the roots pass and the rows pass read next. Whether it was
  * encoded.
  */
@@ -56,8 +51,8 @@ function encodeComposedWorlds(
   return true
 }
 
-/** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds and motion, before the
- *  cut kernel reads them: a thread each of the composed roots, and nothing on a frame where nothing
+/** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds, before the cut kernel
+ *  reads them, and the motion buffer the frame's motion pass writes (`composedMotionPass.ts`): a thread each of the composed roots, and nothing on a frame where nothing
  *  they read or write moved — no parent, no link, no host write of the cut's words, and their
  *  motion settled (`decideComposedMotion`). Into the roots' one compute pass `open`, opened by the
  *  first that runs (`../gpu/core/lazyComputePass.ts`). Whether the worlds were composed anew: the
@@ -94,7 +89,6 @@ function encodeRootsPass(
     held = gpu.rootGroup
   writePassParams(device, gpu.rootParams, state.roots, listed)
   gpu.frame.worlds = selection.worlds
-  gpu.frame.motion = motionBuffer
   held.identity.entries[0] ??= rootEntries(rt, gpu)
   const bound = composeGroup(device, held, pipeline)
   // The group is made: the cut's worlds are not held past it, so a cut swapped out goes.
@@ -119,9 +113,8 @@ function encodeRootsPass(
   if (motionBuffer !== state.ranAt.motion) state.motionIdentity = false
   state.ranAt.motion = motionBuffer
   state.ranAt.frameWrites = selection.frameWrites
-  // No motion until the temporal pass decides one, later in this frame's encoding.
+  // The motion this frame's motion pass writes once the temporal pass decided it, in the image's
+  // own command buffer (`composedMotionPass.ts`): this one is submitted before the decision.
   state.motionBound = motionBuffer
-  state.motionMode[0] = MOTION_SKIP
-  device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
   dispatchListed(rt, open, pipeline, held, listed)
 }

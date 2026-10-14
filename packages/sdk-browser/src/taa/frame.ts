@@ -8,12 +8,7 @@ import { writtenFilter } from '../webgpu/blend/displayFilter.ts'
 import { drawFrameAt } from '../webgpu/pages/state/renderScale.ts'
 import { renderExtent } from '../frame/renderScaleOption.ts'
 import { restartTaaAverage, restartTaaOnShadowLanding } from './landing.ts'
-import {
-  decideComposedMotion,
-  MOTION_KEEP,
-  MOTION_RESET,
-  MOTION_SCAN,
-} from '../placement/composedMotion.ts'
+import { encodeComposedMotion } from '../placement/composedMotionPass.ts'
 
 /**
  * Image entry of the pass, called once per image, where the quiet of the image is known. A
@@ -136,8 +131,7 @@ export function encodeTaaPass(
   if (!state.hasHistory) temporal.motion.reset()
   else temporal.motion.update(cam.eye, scan)
   // The linked placements' motion, which the GPU composes, follows the same decision.
-  const linked = !state.hasHistory ? MOTION_RESET : scan ? MOTION_SCAN : MOTION_KEEP
-  decideComposedMotion(rt, device, cam.eye, linked)
+  encodeComposedMotion(rt, device, encoder, cam.eye, state.hasHistory, scan)
   const { targetSize, displaySize } = gpu
   const { inputs, filterHistory } = temporal
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`

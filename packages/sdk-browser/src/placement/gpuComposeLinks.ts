@@ -96,13 +96,13 @@ export function unlinkHeld(
     noteRootWorld(rt, rank)
     deriveRootRows(rt, rank)
     mirrorKey(state.rankList, rank, false)
+    state.linksMoved.mark(rank)
     state.relinked.push(rank)
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
   }
   held.length = 0
   slotMoved(state, slot)
-  state.linksDirty = true
 }
 
 /** `ranks` follow `slot`, each at its link's local matrix. */
@@ -133,7 +133,7 @@ export function linkRanks(
     rt.run.gpuSelection?.composedPlacement(rank, true)
     packDoubles(state.locals, rank * PACKED_MATRIX_WORDS, links[k].local)
     state.localMats.set(links[k].local as ArrayLike<number>, rank * MATRIX_VALUES)
+    state.linksMoved.mark(rank)
     installComposedWorld(rt, rank)
   }
-  if (ranks.length) state.linksDirty = true
 }

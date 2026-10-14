@@ -7,10 +7,12 @@ import { definePass, definePassFamily } from './passDeclaration.ts'
 /** What every pass of the virtual shadow maps' label opens with (`../vsm/`): all of them are timed
  *  with the Shadows stage, whatever their chunk or light. */
 export const VSM_PASS_PREFIX = 'vsm.'
-/** The placement's compute passes: the roots' world matrices (`../placement/gpuCompose.ts`), their
+/** The placement's compute passes: the roots' world matrices (`../placement/gpuCompose.ts`) and,
+ *  in the image's command buffer, their motion (`../placement/composedMotionPass.ts`); their
  *  world boxes and stretches (`../placement/rootBoxes.ts`), then the rows'; the leaf boxes of the
  *  placement tree (`../placement/treeLeaves.ts`) and its refit (`../gpu/dag/treeRefit.ts`). */
 export const COMPOSE_ROOTS_PASS = 'Trillion3D compose roots'
+export const COMPOSE_MOTION_PASS = 'Trillion3D compose motion'
 export const ROOT_BOXES_PASS = 'Trillion3D root boxes'
 export const COMPOSE_ROWS_PASS = 'Trillion3D compose rows'
 export const TREE_LEAVES_PASS = 'Trillion3D placement tree leaves'
@@ -121,6 +123,7 @@ export const VSM_PASSES = definePassFamily({
 /** The stage and block of each pass labelled above. */
 export const ENGINE_PASSES = [
   definePass({ label: COMPOSE_ROOTS_PASS, stage: 'animations', block: 'other' }),
+  definePass({ label: COMPOSE_MOTION_PASS, stage: 'animations', block: 'other' }),
   definePass({ label: COMPOSE_ROWS_PASS, stage: 'animations', block: 'other' }),
   definePass({ label: ROOT_BOXES_PASS, stage: 'animations', block: 'other' }),
   definePass({ label: TREE_LEAVES_PASS, stage: 'selection', block: 'visibility' }),

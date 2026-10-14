@@ -5,7 +5,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { nameCastRow, deriveRootRows } from './rowWords.ts'
-import { deriveEveryRow, rowWordsDropped, target, targetsTaken } from './rowTargets.ts'
+import {
+  deriveEveryRow,
+  partsMadeAnew,
+  rowWordsDropped,
+  target,
+  targetsTaken,
+} from './rowTargets.ts'
 import { ROW_EMITS, ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
 
 /** A runtime whose rows pass derives the rows named alone. */
@@ -14,6 +20,7 @@ function session() {
   deriveRootRows(rt, 0)
   rt.rowWords!.all = false
   rt.rowWords!.roots.length = 0
+  rt.rowWords!.rootListed.fill(0)
   return rt.rowWords!
 }
 
@@ -67,4 +74,27 @@ test('a dropped command buffer that held the pass names its staled rows again, e
   assert.deepEqual(listed(state), [[6, false, true]], 'staled again from the spheres it held')
   rowWordsDropped(state, held)
   assert.equal(state.count, 1, 'once')
+})
+
+test('a buffer the pass binds made anew keeps the staled rows alone; new spheres keep none', () => {
+  const state = session()
+  target(state, 1, ROW_EMITS)
+  nameCastRow({ rowWords: state }, 2)
+  partsMadeAnew(state, false)
+  assert.equal(state.all, true)
+  assert.deepEqual(listed(state), [[2, false, true]], 'the emitting row derived once, with all')
+  assert.deepEqual([state.emits, state.stales], [0, 1], 'no change reserved for it twice')
+  target(state, 3, ROW_EMITS)
+  nameCastRow({ rowWords: state }, 4)
+  partsMadeAnew(state, true)
+  assert.deepEqual([state.all, state.count, state.emits, state.stales], [true, 0, 0, 0])
+})
+
+test('a root named twice before a follow is listed once: its pages are walked once', () => {
+  const state = session(),
+    rt = { rowWords: state }
+  deriveRootRows(rt, 3)
+  deriveRootRows(rt, 1)
+  deriveRootRows(rt, 3)
+  assert.deepEqual(state.roots, [3, 1])
 })

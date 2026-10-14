@@ -6,83 +6,53 @@
  * goes first (`rootPasses.ts`): a world the host moved is sent, a composed one written, before the
  * leaves read it. No leaf is taken on the CPU, and none is kept there.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
-import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
-import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { TreeLeaves } from '../gpu/dag/treeFollow.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { TREE_LEAVES_PASS } from '../stage/passLabels.ts'
-import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
-import { PASS_PARAM_BYTES, passParams, writePassParams } from '../gpu/core/passParams.ts'
 import {
   TREE_LEAVES_FRAMES_BINDING,
   TREE_LEAVES_NODES_BINDING,
   TREE_LEAVES_WGSL,
 } from './treeLeavesWgsl.ts'
+import {
+  createRootList,
+  dispatchRootList,
+  disposeRootList,
+  rootListEntries,
+  sendRootList,
+} from './rootListPass.ts'
 
 /** The leaves kernel, made once a device. */
 export const leafKernel = autoKernel(TREE_LEAVES_PASS, TREE_LEAVES_WGSL, 'main')
 
-function createTreeLeavesGpu(device: GPUDevice) {
-  return {
-    /** The parameters of the named placements' dispatches, then of the composed roots'. */
-    params: [passParams('Trillion3D tree leaves params'), passParams('Trillion3D tree leaves')],
-    list: undefined as GPUBuffer | undefined,
-    absent: device.createBuffer({
-      label: 'Trillion3D no leaf list',
-      size: 16,
-      usage: GPUBufferUsage.STORAGE,
-    }),
-    /** Each dispatch's group. */
-    groups: [heldGroup(), heldGroup()] as HeldGroup[],
-    /** What the groups read live while the pass binds them: the frame words and the nodes of the
-     *  cut whose tree it writes the leaves of, and its leaves. */
-    frame: {
-      frames: undefined as GPUTextureView | undefined,
-      nodes: undefined as GPUTextureView | undefined,
-      members: undefined as GPUBuffer | undefined,
-    },
+/** The pass over the named placements, then the composed roots (`rootListPass.ts`), and what its
+ *  groups read live while it binds them: the frame words and the nodes of the cut whose tree it
+ *  writes the leaves of, and its leaves. */
+function createTreeLeavesGpu(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const frame = {
+    frames: undefined as GPUTextureView | undefined,
+    nodes: undefined as GPUTextureView | undefined,
+    members: undefined as GPUBuffer | undefined,
   }
+  // Each dispatch's entries (`treeLeavesWgsl.ts`), read live.
+  const pass = createRootList(device, TREE_LEAVES_PASS, (list, g) => [
+    ...rootListEntries(rt, list, g, [
+      liveBuffer(() => rt.rootWorlds?.worlds),
+      liveBuffer(() => frame.members),
+    ]),
+    resourceEntry(TREE_LEAVES_FRAMES_BINDING, () => frame.frames),
+    resourceEntry(TREE_LEAVES_NODES_BINDING, () => frame.nodes),
+  ])
+  return { pass, frame }
 }
 export type TreeLeavesGpu = ReturnType<typeof createTreeLeavesGpu>
 
 /** The pass's buffers, destroyed with the session. */
 export function disposeTreeLeaves(rt: Pick<WebgpuPagesRuntime, 'treeLeaves'>) {
-  const gpu = rt.treeLeaves
-  if (!gpu) return
-  for (const buffer of [gpu.list, gpu.absent, ...gpu.params.map((p) => p.buffer)]) buffer?.destroy()
+  if (rt.treeLeaves) disposeRootList(rt.treeLeaves.pass)
   rt.treeLeaves = undefined
-}
-
-/** The entries of dispatch `g` (`treeLeavesWgsl`), read live. */
-const entries = (rt: WebgpuPagesRuntime, gpu: TreeLeavesGpu, g: number) => [
-  ...sequentialEntries([
-    liveBuffer(
-      () => gpu.params[g].buffer,
-      undefined,
-      () => PASS_PARAM_BYTES,
-    ),
-    liveBuffer(() => rt.rootWorlds?.worlds),
-    liveBuffer(() => gpu.frame.members),
-    liveBuffer(() => (g ? rt.compose?.gpu?.rankList : gpu.list) ?? gpu.absent),
-  ]),
-  resourceEntry(TREE_LEAVES_FRAMES_BINDING, () => gpu.frame.frames),
-  resourceEntry(TREE_LEAVES_NODES_BINDING, () => gpu.frame.nodes),
-]
-
-/** The named placements, sent; a list made again when they outgrow it. */
-function sendList(
-  device: GPUDevice,
-  gpu: TreeLeavesGpu,
-  ranks: Int32Array<ArrayBuffer>,
-  count: number,
-) {
-  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  gpu.list = sizedBuffer(device, gpu.list, count * 4, usage, 'Trillion3D tree leaves list')
-  device.queue.writeBuffer(gpu.list, 0, ranks, 0, count)
 }
 
 /** The tree's leaves of runtime `rt`: what the follower of its cut's tree writes them by. */
@@ -93,28 +63,20 @@ export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
       const device = rt.gpu.device,
         roots = rt.rootWorlds?.sent ?? 0
       if (!device || !roots) return
-      const gpu = (rt.treeLeaves ??= createTreeLeavesGpu(device))
       const composed = whole ? 0 : (rt.compose?.rankList.set.count ?? 0),
         listed = whole ? roots : count
       if (!listed && !composed) return
-      if (count && !whole) sendList(device, gpu, ranks, count)
+      const gpu = (rt.treeLeaves ??= createTreeLeavesGpu(rt, device))
+      if (count && !whole) sendRootList(device, gpu.pass, ranks, count)
       const pipeline = leafKernel(device).ask().get()
       const pass = encoder.beginComputePass({ label: TREE_LEAVES_PASS })
       pass.setPipeline(pipeline)
       gpu.frame.frames = frames
       gpu.frame.nodes = nodes
       gpu.frame.members = members
-      for (let g = 0; g < 2; g++) {
-        const n = g ? composed : listed,
-          held = gpu.groups[g]
-        if (!n) continue
-        writePassParams(device, gpu.params[g], roots, n, g === 0 && whole ? 1 : 0)
-        held.identity.entries[0] ??= entries(rt, gpu, g)
-        composeGroup(device, held, pipeline)
-        pass.setBindGroup(0, held.group!)
-        dispatchRows(pass, ceilDiv(n, WORKGROUP_THREADS))
-        rt.run.gpuComputeDispatches++
-      }
+      if (listed) dispatchRootList(rt, device, pass, pipeline, gpu.pass, 0, roots, listed, whole)
+      if (composed)
+        dispatchRootList(rt, device, pass, pipeline, gpu.pass, 1, roots, composed, false)
       gpu.frame.frames = undefined
       gpu.frame.nodes = undefined
       gpu.frame.members = undefined

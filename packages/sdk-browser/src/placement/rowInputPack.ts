@@ -36,11 +36,22 @@ const flat = new Float64Array(6)
  *  a row's (`rowInputs`) and a transparent entry's (`../webgpu/transparent/entryCorners.ts`). */
 export function grownRowBox(into: Float64Array, o: number, rec: PageRec, rootReach?: number) {
   const { min, max } = rowBox(rec)
+  growInto(into, o, min, max, rowGrowth(rec, rootReach))
+}
+
+/** The box `min`–`max` grown by `reach`, flat, into `into` from `o`. */
+function growInto(
+  into: Float64Array,
+  o: number,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  reach: number,
+) {
   for (let axis = 0; axis < 3; axis++) {
     flat[axis] = min[axis]
     flat[3 + axis] = max[axis]
   }
-  boxGrow(into, o, flat, 0, rowGrowth(rec, rootReach))
+  boxGrow(into, o, flat, 0, reach)
 }
 
 /**
@@ -63,7 +74,7 @@ export function rowInputs(
   boxCenter(into, o + INPUT_CENTRE, min[0], min[1], min[2], max[0], max[1], max[2])
   for (let axis = 0; axis < 3; axis++)
     into[o + INPUT_HALF + axis] = (max[axis] - min[axis]) / 2 + reach
-  grownRowBox(into, o + INPUT_BOX, rec, root.reach)
+  growInto(into, o + INPUT_BOX, min, max, reach)
   if (lod) rowLodInputs(into, o + INPUT_LOD, rec, root, ready, childReady)
   into[o + INPUT_FLAGS] += ROW_HAS_RECORD
 }
