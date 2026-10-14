@@ -7,7 +7,7 @@ import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant
 import { deviceAnswering } from '../../frame/deviceAnswer.ts'
 import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { refreshBlendWorlds } from '../../blend/worlds.ts'
-import { refreshBlendScene } from '../../blend/resources.ts'
+import { refreshBlendScene } from '../../blend/sceneRefresh.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
 import { followFeedback } from '../prepare/feedbackVariant.ts'

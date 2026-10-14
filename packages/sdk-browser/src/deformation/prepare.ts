@@ -3,7 +3,7 @@ import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geo
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { families } from '../host/families.ts'
 import { assignDeformationOutputs, followPooledBlocks } from './outputs.ts'
-import { refreshBlendScene } from '../webgpu/blend/resources.ts'
+import { refreshBlendScene } from '../webgpu/blend/sceneRefresh.ts'
 
 /**
  * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`): its wider buffers and the
