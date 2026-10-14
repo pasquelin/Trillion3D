@@ -8,7 +8,7 @@ import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe } from './passKit.ts'
 import { vsmBindGroupLayoutEntries } from './resources.ts'
-import { vsmRenderParamsEntry } from './chunkParams.ts'
+import { vsmCandidatesEntries, vsmRenderParamsEntry } from './chunkParams.ts'
 import {
   VSM_TRANSMISSION_CLEAR_SPECS,
   VSM_TRANSMISSION_PAGES_SPECS,
@@ -28,33 +28,12 @@ import { TRANSMISSION_LABEL } from './transmissionMade.ts'
 function transmissionGroupTables(layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
   const buf = (binding: number, type: GPUBufferBindingType) => computeBufferEntry(binding, type, C)
-  const resolve = [
-    [
-      buf(0, 'uniform'),
-      ...[1, 2, 3, 4].map((b) => buf(b, 'storage')),
-      computeStorageTextureEntry(5, VSM_TRANSMISSION_FORMAT),
-    ],
-  ]
+  // The transmission's buffers (uniform, build, table, pool, links), which the clear binds too.
+  const buffers = [buf(0, 'uniform'), ...[1, 2, 3, 4].map((b) => buf(b, 'storage'))]
+  const resolve = [[...buffers, computeStorageTextureEntry(5, VSM_TRANSMISSION_FORMAT)]]
   return {
-    clear: [
-      vsmBindGroupLayoutEntries(VSM_TRANSMISSION_CLEAR_SPECS, layout, C),
-      [
-        buf(0, 'uniform'),
-        buf(1, 'storage'),
-        buf(2, 'storage'),
-        buf(3, 'storage'),
-        buf(4, 'storage'),
-      ],
-    ],
-    candidates: [
-      [
-        vsmRenderParamsEntry(0),
-        ...[1, 2, 3, 4].map((b) => buf(b, 'read-only-storage')),
-        buf(5, 'storage'),
-        buf(6, 'storage'),
-        buf(7, 'uniform'),
-      ],
-    ],
+    clear: [vsmBindGroupLayoutEntries(VSM_TRANSMISSION_CLEAR_SPECS, layout, C), buffers],
+    candidates: [[...vsmCandidatesEntries(), buf(7, 'uniform')]],
     pages: [
       vsmBindGroupLayoutEntries(VSM_TRANSMISSION_PAGES_SPECS, layout, C),
       [

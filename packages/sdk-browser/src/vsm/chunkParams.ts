@@ -5,7 +5,7 @@
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
-import { computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { VSM_MIPS } from './constants.ts'
@@ -42,6 +42,16 @@ export const vsmChunkParamSlots = (limits: Parameters<typeof uniformSlots>[0]) =
 /** The parameters' binding: the chunk's slot, by dynamic offset. */
 export const vsmRenderParamsEntry = (binding: number) =>
   computeUniformEntry(binding, { hasDynamicOffset: true, minBindingSize: VSM_RENDER_PARAMS_BYTES })
+
+/** Group 0 of a candidates kernel (`VSM_RENDER_ROWS_WGSL`): the parameters, the four row tables
+ *  it reads, the candidates and the counters it writes — the raster's, and the transmission's
+ *  with a binding of its own after them. */
+export const vsmCandidatesEntries = () => [
+  vsmRenderParamsEntry(0),
+  ...[1, 2, 3, 4].map((b) => computeBufferEntry(b, 'read-only-storage', COMPUTE)),
+  computeBufferEntry(5, 'storage', COMPUTE),
+  computeBufferEntry(6, 'storage', COMPUTE),
+]
 
 /**
  * Map views, as `vec4u` (VSM id, mips, flags, 0): one per clipmap level (1

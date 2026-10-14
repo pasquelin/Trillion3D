@@ -19,7 +19,7 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import { vsmChunkContext, vsmChunkKernels } from './chunkKernels.ts'
-import { vsmRenderParamsEntry } from './chunkParams.ts'
+import { vsmCandidatesEntries } from './chunkParams.ts'
 import type { RasterTables } from './renderChunks.ts'
 import type { VsmRenderContext } from './renderPass.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
@@ -29,20 +29,12 @@ export const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
 /** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates and chunk kernels. */
 export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
-  const C = GPUShaderStage.COMPUTE
   const candidates = vsmComputePipe(
     device,
     `${RENDER_LABEL}.candidates`,
     vsmRenderCandidatesWgsl(),
     'vsmRenderCandidates',
-    [
-      [
-        vsmRenderParamsEntry(0),
-        ...[1, 2, 3, 4].map((b) => computeBufferEntry(b, 'read-only-storage', C)),
-        computeBufferEntry(5, 'storage', C),
-        computeBufferEntry(6, 'storage', C),
-      ],
-    ],
+    [vsmCandidatesEntries()],
   )
   return {
     candidates,
