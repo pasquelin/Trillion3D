@@ -12,7 +12,7 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import { VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
-import { encloseTransform, ROUND, widenBox } from './precision.ts'
+import { encloseTransform, ROUND, widenBox } from '../../../../math/src/geometry/boxEnclosure.ts'
 
 function createWaterBounds() {
   return {

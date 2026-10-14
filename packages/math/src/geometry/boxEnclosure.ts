@@ -1,6 +1,10 @@
-import { FLOAT32_MAX, FLOAT32_STEP } from '../../../../math/src/constants.ts'
-import { boxTransform } from '../../../../math/src/geometry/box.ts'
-import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
+// THE FLOAT32 ENCLOSURE OF A BOX: the interval a coordinate computed in single precision may take,
+// conversion, products, sums, division and a flushed subnormal included (`guards.ts`), and the box a
+// homogeneous transform of a box lands in once each of those errors is bounded — the CPU form of the
+// law a shader's emulated-double enclosure applies on the GPU.
+import { FLOAT32_MAX, FLOAT32_STEP } from '../constants.ts'
+import { boxTransform } from './box.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../float/guards.ts'
 
 /** Four float32 steps at 1: WGSL division's allowed error on a divided coordinate. Products and
  *  sums accumulate by `ROUNDING_GAMMA`, not a fixed world-space epsilon. */
