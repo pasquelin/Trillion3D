@@ -34,7 +34,12 @@ const SPACING = 1e4
 /** `copies` placements of the DAG, the one the strip camera sees packed last; the row cache of
  *  `table` rows over their instances, every one's bytes resident, each row's record naming its
  *  page (`page + 1` in its first word) and marking the row dirty, as the shipped writer does. */
-export function rowCacheScene(copies: number, table: number) {
+export function rowCacheScene(
+  copies: number,
+  table: number,
+  /** What a request no free row serves asks the cut for: a queue of the rows' victims. */
+  askOrder?: () => void,
+) {
   const dag = ruleDag(64)
   const roots = placements(dag, copies, SPACING).reverse()
   for (const root of roots)
@@ -72,6 +77,7 @@ export function rowCacheScene(copies: number, table: number) {
     undefined,
     undefined,
     () => clock.frame,
+    askOrder,
   )
   // The rows' closure and queue each cut ranks (`rowEviction.ts`), by their CPU twins on the
   // kernel's lists: each placement's own rows, through its groups.
@@ -94,8 +100,10 @@ export function rowCacheScene(copies: number, table: number) {
   /** The first packed instance of the placement `back` behind the one packed last. */
   const base = (back = 0) => placement.baseOfRoot[roots.length - 1 - back]
   return {
-    ...{ rows, sync, packed, view, base, clock, gpu },
+    ...{ rows, sync, packed, view, base, clock, gpu, roots, placement, pages },
     ...{ pagesPer: dag.pages.length, instances: pages.length },
+    /** Each page of the DAG's leaf units: what a cut covers. */
+    units: dag.pages.map((page) => page.units),
   }
 }
 
