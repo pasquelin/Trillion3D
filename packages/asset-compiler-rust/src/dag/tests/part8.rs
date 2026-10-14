@@ -2,8 +2,7 @@
 //! faces, a thin part keeps its silhouette or leaves under its error, and the cook refuses a DAG
 //! whose error drops or whose normals turn their back on their faces.
 use super::*;
-use crate::tests::vectors::cross_f32;
-use trillion3d_math::vec3::{divide_f32, length_f32};
+use trillion3d_math::vec3::{cross_f32, divide_f32, length_f32};
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::FLAG_NORMAL;
 
