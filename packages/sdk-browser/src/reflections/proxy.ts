@@ -28,10 +28,9 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
       runtimeRadianceWgsl(scene),
     ],
     `struct ReflectionProxied{color:vec3f,confidence:f32,distance:f32,}
-fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
+fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->ReflectionProxied{
  if(rtProxy.instances==0u){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
  let narrow=min(lobe.widths.x,lobe.widths.y);
- let pixel=(reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;
  let reach=reflectionProxyReach(P,narrow,min(lobe.tangents.x,lobe.tangents.y),pixel);
  let lift=max(reflectionView.proxy.x,rtProxy.error);
  if(reach<=lift){return ReflectionProxied(vec3f(0.0),0.0,0.0);}

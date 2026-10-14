@@ -74,7 +74,8 @@ export const REFLECTION_FRONT_BINDING = 10
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
  * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
  * `k` — and its trilinear sampler, the depth it
- * marches, the engine's pyramid (`hizDepthWgsl`). The program names the deferred lighting's view (`view`, the pixel's world point
+ * marches, the engine's pyramid (`hizDepthWgsl`); and `reflectionPixelAt`, the world size of a
+ * pixel at the point `P` — its clip `w` times the pixel at a unit `w` (`slab.x`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
  */
@@ -84,7 +85,8 @@ export const reflectionBindingsWgsl = (group: number) =>
     [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
     `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
-@group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;`,
+@group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;
+fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}`,
   )
 
 /** The deferred lighting's view in the reflection group, for a program that has none of its own. */

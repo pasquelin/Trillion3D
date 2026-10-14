@@ -90,7 +90,8 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
       if (cosine <= 0) continue
       const R = [0, 1, 2].map((a) => 2 * cosine * N[a] - V[a]) as V3
       const alpha = 0.0028
-      const ray = run.reflectionRay(P, N, run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha]))
+      const lobe = run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha])
+      const ray = run.reflectionRay(P, N, lobe, run.reflectionPixelAt(P))
       run.counter.loads = 0
       const hit = run.screenMarch(ray.o, ray.d, ray.end, run.thickness, run.slab)
       const bound = run.screenMarchBudget(ray.d, ray.end, run.levels)

@@ -67,8 +67,14 @@ export function reflectionRunner(
   const token = { depth: { layers: HIZ_DEPTH_LAYERS }, pyramid: {}, image: {} }
   const run = shaderRun<{
     reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
-    reflectionSeen: (P: V3, N: V3, lobe: Lobe) => Seen
-    reflectionRay: (P: V3, N: V3, lobe: Lobe) => { o: number[]; d: number[]; end: number }
+    reflectionPixelAt: (P: V3) => number
+    reflectionSeen: (P: V3, N: V3, lobe: Lobe, pixel: number) => Seen
+    reflectionRay: (
+      P: V3,
+      N: V3,
+      lobe: Lobe,
+      pixel: number,
+    ) => { o: number[]; d: number[]; end: number }
     screenMarch: (
       o: number[],
       d: number[],
@@ -102,6 +108,7 @@ export function reflectionRunner(
       'reflectionLevelColor',
       'reflectionDepthWeight',
       'reflectionRay',
+      'reflectionPixelAt',
       'screenMarch',
       ...HIZ_DEPTH_READERS,
       'screenMarchEnd',

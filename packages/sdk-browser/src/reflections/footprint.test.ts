@@ -60,6 +60,7 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
           P,
           [0, 0, 1],
           scene.reflectionLobeOf(R, 0.01, [0, 0, 0, 0.01]),
+          scene.reflectionPixelAt(P),
         )
         if (!(seen.confidence > 0)) continue
         hits++

@@ -65,11 +65,10 @@ const reflectionSeenWgsl = (group: number) =>
       clipToFramebuffer,
     ],
     `struct ReflectionSeen{color:vec3f,confidence:f32,distance:f32,}
-fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
+fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32)->ReflectionSeen{
  var seen=ReflectionSeen(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
- let scale=reflectionView.slab.x;
- let ray=reflectionRay(P,N,lobe);
+ let ray=reflectionRay(P,N,lobe,surfacePixel);
  let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
@@ -79,7 +78,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  if(previous.w<=0.0){return seen;}
  let Q=clipToFramebuffer(previous,reflectionView.radiance.xy).xy;
  let edge=reflectionEdgeFade(H.xy,size)*reflectionEdgeFade(Q,reflectionView.radiance.xy);
- let pixel=(reflectionView.viewProj*vec4f(hit,1.0)).w*scale;
+ let pixel=reflectionPixelAt(hit);
  let cone=reflectionConeAt(distance(hit,P),pixel,lobe);
  let travel=abs(H.x-ray.o.x)+abs(H.y-ray.o.y);
  let confidence=edge
@@ -130,8 +129,9 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)-
  var radiance=vec3f(0.0);
  var rest=1.0;
  reflectionHit=REFLECTION_FAR;
+ let pixel=reflectionPixelAt(P);
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
-  let seen=reflectionSeen(P,N,ellipse);
+  let seen=reflectionSeen(P,N,ellipse,pixel);
   radiance+=rest*seen.confidence*seen.color;
   if(rest>0.5&&rest*(1.0-seen.confidence)<=0.5){reflectionHit=seen.distance;}
   rest*=1.0-seen.confidence;
@@ -139,7 +139,7 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)-
 ${
   scene
     ? ` if(rest>REFLECTION_EPSILON){
-  let proxied=reflectionProxied(P,N,ellipse);
+  let proxied=reflectionProxied(P,N,ellipse,pixel);
   radiance+=rest*proxied.confidence*proxied.color;
   if(rest>0.5&&rest*(1.0-proxied.confidence)<=0.5){reflectionHit=proxied.distance;}
   rest*=1.0-proxied.confidence;

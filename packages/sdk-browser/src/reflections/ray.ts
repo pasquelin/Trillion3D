@@ -9,7 +9,8 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
  * The screen ray of a reflection (`reflectionRay`): its origin, its direction to the far end of its
  * reach, and how far along it the march goes (`end`: the image's edge, `screenMarchEnd`, or
  * `REFLECTION_STEP_CAP` pixels of L1 length at most). It leaves the surface one pixel off along its
- * normal: a ray never starts inside the depth it leaves.
+ * normal — `pixel`, the world size of a pixel at `P` (`reflectionPixelAt`) —: a ray never starts
+ * inside the depth it leaves.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
  * `toward` (clip), to which the screen can answer: where it meets the near plane, or where the
  * lobe's footprint grows to the radiance pyramid's top level — the widest short axis, or the long
@@ -36,10 +37,10 @@ export const reflectionRayWgsl = (group: number) =>
  return min(near,select(REFLECTION_FAR,top*A.w/room,room>0.0));
 }
 struct ReflectionRay{o:vec3f,d:vec3f,end:f32,}
-fn reflectionRay(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionRay{
+fn reflectionRay(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->ReflectionRay{
  let size=view.viewport.xy;
  // One pixel off the surface along its normal: a ray never starts inside the depth it leaves.
- let origin=P+N*((reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x);
+ let origin=P+N*pixel;
  let A=reflectionView.viewProj*vec4f(origin,1.0);
  let toward=reflectionView.viewProj*vec4f(lobe.R,0.0);
  let S0=clipToFramebuffer(A,size);
