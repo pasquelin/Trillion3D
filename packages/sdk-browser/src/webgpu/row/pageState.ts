@@ -28,7 +28,7 @@ export function createRowPageState(
     /** The visibility row `page` draws from, -1 none. */
     rowOf: (at: number) => rows.get(at) - 1,
     setRowOf: (at: number, row: number) => void rows.set(at, row + 1),
-    /** No page holds a visibility row any more: the table is rebuilt (`slotOps.ts`). */
+    /** No page holds a visibility row any more: the table is rebuilt (`rowPasses.ts`). */
     clearRows() {
       rows.clear()
     },

@@ -55,7 +55,7 @@ export function createWebgpuRowSync(
     const passed = passRows(bounded)
     // The frame's cut ranks the rows as they stand now: a page that takes a row later is no victim
     // of its queue (`rowOrder.ts`).
-    slots.order.noteFrame(frame())
+    slots.noteFrame(frame())
     return passed
   }
   const passRows = (bounded: boolean) => {
@@ -97,7 +97,7 @@ export function createWebgpuRowSync(
     /** The rows' use words the GPU stamps (`rowWords.ts`). */
     rowWords: slots.words,
     /** A queue of the rows' victims a readback brought (`rowOrder.ts`). */
-    followRowOrder: slots.order.follow,
+    followRowOrder: slots.followOrder,
     /** Bytes of the row cache's own tables (`slots.ts`). */
     get cacheBytes() {
       return slots.bytes

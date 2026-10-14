@@ -1,11 +1,9 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts'
-import { closeHoles, type createWebgpuRowWriters } from './writers.ts'
-import { serveClaims, type createWebgpuRowClaims } from './claims.ts'
+import type { createWebgpuRowWriters } from './writers.ts'
+import type { createWebgpuRowClaims } from './claims.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import type { WebgpuRowState } from './state.ts'
-import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createRowUse } from './rowUse.ts'
 import type { createRowDemand } from './rowDemand.ts'
 import type { RowWords } from './rowWords.ts'
@@ -96,11 +94,12 @@ export function releaseRow(s: RowSlots, page: number) {
   return false
 }
 
-/** The row the clock hand finds unused, its instance out of the cut's residency, or -1. */
+/** The row of the next page the GPU's queue gives up (`rowOrder.ts`), wherever it moved, its
+ *  instance out of the cut's residency, or -1. */
 function evictRow(s: RowSlots) {
-  const row = s.use.victim(s.count)
-  if (row < 0) return -1
-  const page = s.rows.packedPageIndex[row]
+  const page = s.order.victim()
+  if (page === undefined) return -1
+  const row = s.rows.rowOf(page)
   s.rows.setRowOf(page, -1)
   setResident(s, page, false)
   return row
@@ -127,74 +126,4 @@ export function placeRow(s: RowSlots, page: number) {
   else if (own < 0) s.use.idle(row)
   setResident(s, page, true)
   return true
-}
-
-/** The end of the table fills ranks no page took back, each row's use moving with it: used now
- *  on the GPU's words, a move never shortening its protection. */
-export function closeFreeRows(s: RowSlots) {
-  const move = (from: number, to: number) => (
-    s.use.moved(from, to),
-    s.words.moved(from, to, s.frame()),
-    s.writers.moveRow(from, to)
-  )
-  s.count = closeHoles(s.free, s.count, move)
-}
-
-/** The table rebuilt from the catalogue, once: a new table (prepare, a lost visibility path). A
- *  page that held a row and holds none after is named to the demand: asked for, it asks again. */
-export function rebuildRows(s: RowSlots) {
-  const { rows } = s
-  const held = heldPages(s)
-  rows.clearRows()
-  s.count = 0
-  s.free.count = 0
-  s.use.reset()
-  s.writers.state.changed = true
-  s.claims.clear()
-  // Every resident instance while the table has room, in catalogue order: `place` cannot refuse
-  // below its end. An instance neither in the pool nor flagged has nothing to release: two
-  // words read, not its record.
-  for (let page = 0; page < s.packedPages.length && s.count < rows.blendFirst; page++)
-    if ((rows.offsetOf(page) >= 0 || rows.residentFlag(page)) && s.release(page)) s.place(page)
-  let dropped = 0
-  for (const page of held) if (rows.rowOf(page) < 0) held[dropped++] = page
-  s.demand.touched(held, dropped)
-  s.demand.restart()
-}
-
-/** The pages holding a row of the table, each once: what a rebuild may drop. */
-function heldPages({ rows, count }: RowSlots) {
-  const pages = new Int32Array(count)
-  let n = 0
-  for (let row = 0; row < count; row++) {
-    const page = rows.packedPageIndex[row]
-    if (rows.rowOf(page) === row) pages[n++] = page
-  }
-  return pages.subarray(0, n)
-}
-
-/** Every live row written again at its rank: the table's age moved (a pose, a surface). */
-export function rewriteRows(s: RowSlots) {
-  const { rows } = s
-  for (let row = 0; row < s.count; row++) {
-    const page = rows.packedPageIndex[row]
-    // Its own row: `place` cannot refuse it.
-    if (rows.rowOf(page) === row && s.release(page)) s.place(page)
-  }
-}
-
-/** Arrivals, in catalogue order: while the table has room, or the cut asked for them. A page that
- *  holds its row takes no other: its record is owed at its own rank, whatever room is left. */
-export function followArrivals(s: RowSlots, budget?: FrameClock) {
-  const { rows, claims, demand, free } = s
-  sortPages(rows.touched.pages, rows.touched.count)
-  for (let i = 0; i < rows.touched.count; i++) {
-    const page = rows.touched.pages[i]
-    if (!s.release(page)) continue
-    const room = s.count - free.count + claims.count < rows.blendFirst
-    if (rows.rowOf(page) >= 0 || demand.wanted(page) || room) claims.add(page)
-  }
-  // No rank left: an arrival no cut asked for waits for none; one asked for counts as denied.
-  const refused = (page: number) => void (demand.wanted(page) && s.denied++)
-  serveClaims(claims, s.release, s.place, budget, refused)
 }

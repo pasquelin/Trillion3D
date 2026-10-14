@@ -41,7 +41,7 @@ const STOP = () => true
  * drawn page ready), the closure of the requests the instances wanted. What a difference brings is
  * listed in the readback's order, each group-mate behind the request it came in with. A page whose
  * bytes land or leave while wanted is read again as the row journal names it (`touched`), and one
- * whose row a rebuild dropped as the rebuild names it (`../row/slotOps.ts`, `rebuildRows`).
+ * whose row a rebuild dropped as the rebuild names it (`rowPasses.ts`, `rebuildRows`).
  *
  * One live entry per page: the serve unlists every entry it passes — let go, served, or waiting
  * for its bytes, a page is listed again as it comes back, lands or loses its row, a group-mate with

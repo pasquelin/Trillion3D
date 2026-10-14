@@ -10,15 +10,8 @@ import { createRowUse } from './rowUse.ts'
 import { createRowWords } from './rowWords.ts'
 import { createRowOrder } from './rowOrder.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
-import {
-  closeFreeRows,
-  followArrivals,
-  placeRow,
-  rebuildRows,
-  releaseRow,
-  rewriteRows,
-  type RowSlots,
-} from './slotOps.ts'
+import { placeRow, releaseRow, type RowSlots } from './slotOps.ts'
+import { closeFreeRows, followArrivals, rebuildRows, rewriteRows } from './rowPasses.ts'
 /**
  * Ranks of the row table: a CACHE of what the GPU cut draws (#1483), sized by the view, never by
  * the placements (#1232). An instance is resident for the cut once its bytes are AND it holds a row
@@ -92,8 +85,14 @@ export function createWebgpuRowSlots(
     },
     /** The rows' use words the GPU stamps (`rowWords.ts`). */
     words: s.words,
-    /** The rows' victim order, the queues the GPU ranks (`rowOrder.ts`). */
-    order: s.order,
+    /** A queue of the rows' victims a readback brought (`rowOrder.ts`): the requests waiting for
+     *  it are served again. */
+    followOrder(queue: Uint32Array | undefined, ranked: number, frame: number) {
+      s.order.follow(queue, ranked, frame)
+      s.demand.restart()
+    },
+    /** Frame `frame` cuts on the rows as they stand (`rowOrder.ts`). */
+    noteFrame: (frame: number) => s.order.noteFrame(frame),
   }
 }
 
@@ -119,7 +118,9 @@ function applyRows(
   // Requests first, in the GPU's order: a rank they take back is not given to an arrival. A wanted
   // page whose bytes or slot moved since asks again.
   demand.touched(rows.touched.pages, rows.touched.count)
-  s.denied = demand.serve(s.release, s.place, budget)
+  // A request no row served waits for the GPU's next queue, unless it has nothing more to give.
+  const refused = demand.serve(s.release, s.place, budget)
+  s.denied = refused && s.order.denies(s.frame()) ? refused : 0
   followArrivals(s, budget)
   closeFreeRows(s)
   rows.clearTouched()

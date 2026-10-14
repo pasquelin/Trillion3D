@@ -3,10 +3,11 @@
 // for again, the list keeps the GPU's order, and the host budget counts every table it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MIRROR, closeAlone, closePairs, rowCache, rowIdleSpan } from './rowCache.fixture.ts'
+import { MIRROR, closeAlone, closePairs, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { pageStateOf } from './pageState.fixture.ts'
+import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
 
 test('a page that left the requests and came back after the serve passed it takes its row', () => {
   const cache = rowCache(4, 2)
@@ -25,9 +26,11 @@ test('a page that left the requests and came back after the serve passed it take
   cache.frame()
   cache.land([2])
   cache.frame()
-  // The drawn rows go unused: both requests take one back, 2 as 3 does.
-  for (let k = 0, span = rowIdleSpan(); k <= span; k++) cache.readback([], [2, 3])
-  cache.frame()
+  // The drawn rows go unused for the frames a use protects: both requests take one back, 2 as 3.
+  for (let k = 0; k <= ROW_IN_USE; k++) {
+    cache.readback([], [2, 3])
+    cache.frame()
+  }
   cache.frame()
   assert.deepEqual(cache.held(), [2, 3])
 })
