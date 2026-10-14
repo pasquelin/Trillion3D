@@ -140,6 +140,8 @@ export function computeRasterStages(
   input.uvs = ready.concatUv
   input.textures = ready.textures
   input.sampler = ready.mapsSampler
+  // Sent up with the visibility groups (`ensureWebgpuVisibilityBindings`), before any pass.
+  input.material = vis.materialTable.view!
   input.pageRows = tableRows
   input.maxTriangles = ceilDiv(maxVertexCount, 3)
   input.idsView = idsView

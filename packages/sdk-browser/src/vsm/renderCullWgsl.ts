@@ -42,7 +42,7 @@ import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
-import { FLAG_BLEND_CASTER } from '../visibility/types.ts'
+import { FLAG_BLEND_CASTER, FLAG_SPRITE } from '../visibility/types.ts'
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import {
@@ -164,7 +164,7 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
 /** Whether a row casts nothing into the pass: no corners, a sprite, a placement that casts no shadow,
  *  or a row of the other kind — \`blend\` the blended casters the transmission takes, else the opaque ones. */
 fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
- return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||page.sprite.y!=0.0||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
+ return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||(page.flags&${FLAG_SPRITE}u)!=0u||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
 }
 /** Appends the row's candidate when the main view's level of detail, residency folded, selects it;
  *  \`objectKnown\` carries the radius of its whole object (0, the row's sphere standing in, else). */

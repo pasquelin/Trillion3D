@@ -6,6 +6,9 @@ import {
   unitOrZero,
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
+import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
+import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
 /**
  * How the surface resolve places a pixel on its triangle, shared by the resolve (`shadeWgsl.ts`)
  * and the shadow receiver offset its readers recompute (`receiverOffsetWgsl.ts`): one text,
@@ -44,9 +47,9 @@ const VERTEX_NORMALS_WGSL = wgslBlock(
  * its pixel in x and y (`framebuffer`), its clip depth and w — (`p0..p2`), in the world (`w0..w2`,
  * a sprite's quad turned to the camera), its normal in the world turned to the row's side
  * (`n0..n2`), its texture coordinate (`uva..uvc`) and its clip `1/w` (`iw`, the perspective of
- * the barycentrics and of the texture derivatives). `decodeCorners` decodes all of it but the texture
- * coordinates (zero), which the shadow receiver (`receiverOffsetWgsl.ts`) binds none of; `decodeTriangle`
- * adds them, as every pixel decoded it; the frame cache stores what it returns for a triangle two
+ * the barycentrics and of the texture derivatives), a sprite's or a line's at its row's `shape`.
+ * `decodeCorners` decodes all of it but the texture coordinates (zero), which the shadow receiver
+ * (`receiverOffsetWgsl.ts`) binds none of; `decodeTriangle` adds them, as every pixel decoded it; the frame cache stores what it returns for a triangle two
  * pixels or more read (`shadeCacheWgsl.ts`), and those pixels read the words instead. Requires the
  * page geometry, its screen and normals; it lists the rest.
  */
@@ -54,29 +57,31 @@ export const PIXEL_CORNERS_WGSL = wgslBlock(
   'PIXEL_CORNERS_WGSL',
   [InvT3, FRAMEBUFFER_WGSL, VERTEX_NORMALS_WGSL],
   `struct PixelTriangle{p0:vec4f,p1:vec4f,p2:vec4f,w0:vec4f,w1:vec4f,w2:vec4f,n0:vec3f,n1:vec3f,n2:vec3f,uva:vec2f,uvb:vec2f,uvc:vec2f,iw:vec3f,}
-fn decodeCorners(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3)->PixelTriangle{
+fn decodeCorners(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,shape:PageShape)->PixelTriangle{
  let i0=corners.x;let i1=corners.y;let i2=corners.z;
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
  // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
- if(page.sprite.y!=0.0){w0=pageSprite(page,p0);w1=pageSprite(page,p1);w2=pageSprite(page,p2);}
+ if(shape.sprite.y!=0.0){w0=pageSprite(page,p0,shape.sprite);w1=pageSprite(page,p1,shape.sprite);w2=pageSprite(page,p2,shape.sprite);}
  var c0=uni.viewProj*w0;var c1=uni.viewProj*w1;var c2=uni.viewProj*w2;
  // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
- if(page.lineWidth>0.0){let vp=uni.viewProj*page.world;c0=pageLine(page,h,i0,vp,c0);c1=pageLine(page,h,i1,vp,c1);c2=pageLine(page,h,i2,vp,c2);}
+ if(shape.lineWidth>0.0){let vp=uni.viewProj*page.world;let width=shape.lineWidth;c0=pageLine(page,h,i0,vp,c0,width);c1=pageLine(page,h,i1,vp,c1,width);c2=pageLine(page,h,i2,vp,c2,width);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let n=transformedNormals(page,h,corners,invT,select(1.0,-1.0,(page.flags&256u)!=0u));
  return PixelTriangle(vec4f(s0.xy,c0.zw),vec4f(s1.xy,c1.zw),vec4f(s2.xy,c2.zw),w0,w1,w2,n[0],n[1],n[2],vec2f(0.0),vec2f(0.0),vec2f(0.0),vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w));
 }`,
 )
 
-/** `PIXEL_CORNERS_WGSL` with the page's texture coordinates: the triangle the resolve shades. */
+/** `PIXEL_CORNERS_WGSL` with the page's texture coordinates and its row's shape, read off the
+ *  material table at the resolve's binding — the triangles pass binds it there too: the triangle
+ *  the resolve shades. */
 export const PIXEL_TRIANGLE_WGSL = wgslBlock(
   'PIXEL_TRIANGLE_WGSL',
-  [PIXEL_CORNERS_WGSL],
+  [PIXEL_CORNERS_WGSL, PAGE_SHAPE_WGSL, materialTableWgsl(SHADE_BINDINGS.material)],
   `fn decodeTriangle(page:PageInfo,tri:u32,invT:InvT3)->PixelTriangle{
  let h=pageHeader(page);
  let corners=pageTriangle(page,h,tri);
- var t=decodeCorners(page,h,corners,invT);
+ var t=decodeCorners(page,h,corners,invT,pageShape(page));
  t.uva=pageUv(page,h,corners.x);t.uvb=pageUv(page,h,corners.y);t.uvc=pageUv(page,h,corners.z);
  return t;
 }`,

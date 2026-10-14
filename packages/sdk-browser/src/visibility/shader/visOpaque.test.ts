@@ -41,13 +41,20 @@ const table: Row[] = (pages as Row[])
   .filter((page) => page.indexCount <= 36)
   .flatMap((page) =>
     page.flags & F.FLAG_MASK
-      ? [page, { ...page, flags: (page.flags & ~F.FLAG_MASK) | F.FLAG_DOUBLE, lineWidth: 0 }]
+      ? [
+          page,
+          {
+            ...page,
+            flags: (page.flags & ~(F.FLAG_MASK | F.FLAG_LINE)) | F.FLAG_DOUBLE,
+            material: { sprite: [0, 0], lineWidth: 0 },
+          },
+        ]
       : [page],
   )
   .map((page, row) => ({
     ...page,
-    ...{ packedBase: row << 8, baseColor: [1, 1, 1, 0.5], blendCoverage: 1, dash: [0, 0] },
-    mapIndex: 0,
+    packedBase: row << 8,
+    material: { ...(page.material as object), cut: 0.5, opacity: 1, dash: [0, 0], mapIndex: 0 },
   }))
 /** The row's slot of layer 0: back, none or front culled, as `visBin` ranks them. */
 const binOf = (row: Row) =>

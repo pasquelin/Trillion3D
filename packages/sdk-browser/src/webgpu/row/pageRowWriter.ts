@@ -17,10 +17,8 @@ import {
   FLAG_BLEND_CASTER,
   ROW_WORDS,
 } from '../../visibility/types.ts'
-import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
-import { surfaceOpacity, type PageSurface } from '../../page/surface.ts'
 import { shownAsIs } from '../../scene/surfaceModel.ts'
-import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
+import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import { writeRowDeformation } from '../../deformation/outputs.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
@@ -108,11 +106,10 @@ function writeRow(
   // throws.
   const rank = rootRank(pageIndex)
   rootOf(roots, rank)
-  writeMaterialWords(floats, ints, base, mat, maps, geo)
   // A page holding more triangles than the identifier's eight low bits would alias the next page.
   assertVisibilityPageTriangles(indexCount / 3, rec.url)
   // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
-  // coverage are what the shadow raster reads of it.
+  // surface's record are what the shadow raster reads of it.
   ints[base + PAGE_INFO.at.flags] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags
   ints[base + PAGE_INFO.at.pageOffset] = offsetWords
   ints[base + PAGE_INFO.at.indexCount] = indexCount
@@ -136,53 +133,7 @@ function writeRow(
   // layer 0, one calculation source for the hardware path and the software raster alike.
   ints[base + PAGE_INFO.at.depthBias] = depthLayerUnits(rec.depthLayer)
   ints[base + PAGE_INFO.at.placement] = rank
-  markRowDirty(row)
-}
-
-/** The row words its surface alone decides: factors, map slots, line and sprite rules, class. */
-function writeMaterialWords(
-  floats: Float32Array,
-  ints: Uint32Array,
-  base: number,
-  mat: PageSurface,
-  maps: ReturnType<typeof rowMaterial>,
-  geo: GeometryBlock | undefined,
-) {
-  floats[base + PAGE_INFO.at.baseColor] = mat.baseColor[0]
-  floats[base + PAGE_INFO.at.baseColor + 1] = mat.baseColor[1]
-  floats[base + PAGE_INFO.at.baseColor + 2] = mat.baseColor[2]
-  // The cutout's threshold (`maskKeep`): a dashed line without an alpha test cuts its gaps alone.
-  floats[base + PAGE_INFO.at.baseColor + 3] =
-    mat.alphaTest > 0 ? mat.alphaTest : mat.dashSize !== undefined ? 0 : 1
-  floats[base + PAGE_INFO.at.metalness] = mat.metalness
-  floats[base + PAGE_INFO.at.roughness] = mat.roughness
-  ints[base + PAGE_INFO.at.mapIndex] = maps.map
-  floats[base + PAGE_INFO.at.blendCoverage] = surfaceOpacity(mat)
-  // A dashed line's dash and gap (`PageInfo.dash`), zero on every other row.
-  floats[base + PAGE_INFO.at.dash] = mat.dashSize ?? 0
-  floats[base + PAGE_INFO.at.dash + 1] = mat.gapSize ?? 0
-  ints[base + PAGE_INFO.at.roughnessIndex] = maps.rough
-  ints[base + PAGE_INFO.at.metalnessIndex] = maps.metal
-  ints[base + PAGE_INFO.at.normalIndex] = maps.normal
-  floats[base + PAGE_INFO.at.normalScale] = mat.normalScale
-  writeSpriteWords(floats, base + PAGE_INFO.at.sprite, mat.sprite)
-  floats[base + PAGE_INFO.at.transmission] = mat.transmission
-  floats[base + PAGE_INFO.at.thickness] = mat.thickness
-  floats[base + PAGE_INFO.at.attenuationRG] = mat.attenuationColor[0]
-  floats[base + PAGE_INFO.at.attenuationRG + 1] = mat.attenuationColor[1]
-  floats[base + PAGE_INFO.at.attenuationB] = mat.attenuationColor[2]
-  floats[base + PAGE_INFO.at.attenuationDistance] = mat.attenuationDistance
-  ints[base + PAGE_INFO.at.aoIndex] = maps.ao
-  floats[base + PAGE_INFO.at.aoIntensity] = mat.aoIntensity
-  ints[base + PAGE_INFO.at.emissiveIndex] = maps.emissive
-  floats.set(mat.emissive, base + PAGE_INFO.at.emissive)
-  floats[base + PAGE_INFO.at.subsurfaceRG] = mat.subsurfaceColor?.[0] ?? 0
-  floats[base + PAGE_INFO.at.subsurfaceRG + 1] = mat.subsurfaceColor?.[1] ?? 0
-  floats[base + PAGE_INFO.at.subsurfaceB] = mat.subsurfaceColor?.[2] ?? 0
-  ints[base + PAGE_INFO.at.subsurfaceMap] = maps.subsurface
-  floats[base + PAGE_INFO.at.normalScaleY] = frameNormalScaleY(mat, !!geo?.hasTangent)
-  floats[base + PAGE_INFO.at.screenError] = 0
-  floats[base + PAGE_INFO.at.lineWidth] = mat.lineWidth ?? 0
   // The class the resolve draws this page under: its flags and map slots, as one word.
   ints[base + PAGE_INFO.at.materialClass] = maps.classKey
+  markRowDirty(row)
 }

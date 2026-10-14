@@ -36,7 +36,9 @@ function mount() {
     shadeIdentity: createWebgpuBindIdentity(),
     materialTable: createMaterialTable(),
   }
+  // The device the visibility groups send the material records up with, before they name them.
   const gpu = {
+    device,
     cache: { buffer: {} },
     surfaces: { subsurfaceView: {}, receiverView: {}, lobesView: {} },
   }

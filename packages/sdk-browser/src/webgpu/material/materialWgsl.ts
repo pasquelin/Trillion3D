@@ -1,7 +1,11 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { MATERIAL_RANK_MASK } from '../../visibility/types.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS } from './materialRecord.ts'
-import { MATERIAL_ROW_RECORDS, MATERIAL_ROW_TEXELS } from './materialUpload.ts'
+import {
+  MATERIAL_RECORD,
+  MATERIAL_RECORD_TEXELS,
+  MATERIAL_ROW_RECORDS,
+  MATERIAL_ROW_TEXELS,
+} from './materialLayout.ts'
 
 const LANES = 'xyzw'
 /** The lanes of `count` words from word `at` of texel `t<at / 4>`. */

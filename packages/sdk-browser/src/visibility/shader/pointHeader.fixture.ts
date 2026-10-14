@@ -61,8 +61,9 @@ function scene() {
         words.push(...encoded(triangles, SIZES[size + 1], full, shared), 0, 0)
         for (const [flags, lineWidth] of ROWS)
           pages.push({
-            ...{ world: pages.length % 3 ? FAR : MIRROR, sprite: [0, 0], lineWidth },
-            ...{ flags: flags | F.FLAG_CLUSTER_PAGE, pageOffset: at, indexCount: triangles * 3 },
+            ...{ world: pages.length % 3 ? FAR : MIRROR, material: { sprite: [0, 0], lineWidth } },
+            flags: flags | F.FLAG_CLUSTER_PAGE | (lineWidth ? F.FLAG_LINE : 0),
+            ...{ pageOffset: at, indexCount: triangles * 3 },
             ...{ vertexBase: 0, packedBase: pages.length << 8, deformOutput: 0 },
             hizSlot: NO_INDEX,
           })
@@ -71,7 +72,8 @@ function scene() {
   words.push(...Array.from({ length: 36 }, () => Math.floor(random() * 8)))
   const pool = Array.from(floats(24, () => random() * 4 - 2))
   pages.push({
-    ...{ world: FAR, sprite: [0, 0], lineWidth: 0, flags: F.FLAG_HAS_UV | F.FLAG_MASK },
+    ...{ world: FAR, material: { sprite: [0, 0], lineWidth: 0 } },
+    flags: F.FLAG_HAS_UV | F.FLAG_MASK,
     ...{ pageOffset: offset, indexCount: 36, vertexBase: 0, packedBase: 0, deformOutput: 0 },
     hizSlot: NO_INDEX,
   })
@@ -110,7 +112,7 @@ export const cameraViewProj = (zoom: number) =>
 export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow'].concat(
   ['instanceCorner', 'hardwareIdle', 'hardwareCorner', 'pageClip', 'computeTakes', 'screen'],
   ['clipToPixel'],
-  ['screenBox', 'boxOf', 'pageLine', 'lineClip'],
+  ['screenBox', 'boxOf', 'pageLine', 'lineClip', 'pageShape'],
 )
 export const VIS_VS_SCOPE = {
   ...{ NO_INDEX, pageSprite: () => [0, 0, 0, 1] },

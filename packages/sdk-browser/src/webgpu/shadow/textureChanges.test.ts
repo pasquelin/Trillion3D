@@ -11,9 +11,18 @@ import type { PageSurface } from '../../page/surface.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { indexOfRanks } from '../../page/selection/placements.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import type { Texture } from '../../../../sdk-core/src/index.ts'
 
-const leaves = {} as PageSurface,
-  bark = {} as PageSurface
+/** Three colour textures, at slots 3, 5 and 7 of the atlas; the surfaces that wear them. */
+const [T3, T5, T7] = [{}, {}, {}] as unknown as Texture[]
+const MAP_LAYER = new Map([
+  [T3, 3],
+  [T5, 5],
+  [T7, 7],
+])
+const leaves = { map: T7 } as unknown as PageSurface,
+  bark = { map: T3 } as unknown as PageSurface,
+  knots = { map: T5 } as unknown as PageSurface
 
 /** The roots the records rank, one each, at `x` on the axis; those in `movingRoots` already move. */
 const roots: { world: G.Matrix4 }[] = [],
@@ -30,21 +39,17 @@ function record(x: number, material = bark, moving = false) {
   } as unknown as PageRec
 }
 
-/** Three visibility rows — a masked cutout on texture 3, an opaque surface on texture 3, a cutout
- *  on texture 5 —, then a blended caster's row on texture 7. Each row draws packed rank
- *  `row`, and `placement` names the root that rank belongs to. */
+/** Three visibility rows — a masked cutout on texture 3, an opaque surface on texture 7, a cutout
+ *  on texture 5 —, then a blended caster's row on texture 7, each its surface's colour map. Each
+ *  row draws packed rank `row`, and `placement` names the root that rank belongs to. */
 function table() {
   const ints = new Uint32Array(4 * ROW_WORDS),
     base = roots.length
   ints[0 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
-  ints[0 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 3
   ints[1 * ROW_WORDS + PAGE_INFO.at.flags] = 0
-  ints[1 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 3
   ints[2 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_MASK
-  ints[2 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 5
   ints[3 * ROW_WORDS + PAGE_INFO.at.flags] = FLAG_BLEND_CASTER
-  ints[3 * ROW_WORDS + PAGE_INFO.at.mapIndex] = 7
-  const packedRecs = [record(0), record(100, leaves), record(10), record(-20, leaves)]
+  const packedRecs = [record(0), record(100, leaves), record(10, knots), record(-20, leaves)]
   return {
     rowCount: 3,
     blendFirst: 3,
@@ -83,7 +88,7 @@ const r = sphereRadius([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], [0, 0, 
 test('a tile of a texture read by a cutout stales the box of that cutout, not the opaque surface beside it', () => {
   const { lights, boxes } = lightsSpy(),
     rows = table()
-  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3]))
+  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3]), MAP_LAYER)
   assert.equal(boxes.length, 1)
   // Row 0 alone: its sphere has radius √3 around the origin, in single precision as the GPU
   // reads it. Row 1, opaque at x = 100, is left out.
@@ -93,7 +98,7 @@ test('a tile of a texture read by a cutout stales the box of that cutout, not th
 test('tiles of two textures served by one pump declare one box, the union of their cutouts', () => {
   const { lights, boxes } = lightsSpy(),
     rows = table()
-  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3, 5]))
+  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3, 5]), MAP_LAYER)
   assert.equal(boxes.length, 1, 'one scan, one change')
   assert.deepEqual(boxes[0], [-r, -r, -r, 10 + r, r, r])
 })
@@ -101,14 +106,14 @@ test('tiles of two textures served by one pump declare one box, the union of the
 test('a tile of a texture no cutout reads stales nothing', () => {
   const { lights, boxes } = lightsSpy(),
     rows = table()
-  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([9]))
+  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([9]), MAP_LAYER)
   assert.equal(boxes.length, 0)
 })
 
 test('a tile of a texture a blended caster reads stales that caster, whose coverage it carries', () => {
   const { lights, boxes, moving } = lightsSpy(),
     rows = table()
-  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([7]))
+  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([7]), MAP_LAYER)
   assert.deepEqual(boxes, [[-20 - r, -r, -r, -20 + r, r, r]])
   assert.deepEqual(moving, [true], 'the static layer never holds a blended caster')
 })
@@ -117,7 +122,7 @@ test('a tile of a texture a blended caster reads stales that caster, whose cover
 test("a tile read by a moving cutout and a still one declares two boxes: the moving one's apart", () => {
   const { lights, boxes, moving } = lightsSpy(),
     rows = table()
-  rows.packedRecs[2] = record(10, bark, true)
+  rows.packedRecs[2] = record(10, knots, true)
   // Row 2 draws a page of that moving root, packed behind the others.
   rows.placement = indexOfRanks([
     rows.base,
@@ -127,7 +132,7 @@ test("a tile read by a moving cutout and a still one declares two boxes: the mov
     roots.length - 1,
   ])
   rows.packedPageIndex[2] = 4
-  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3, 5]))
+  shadowsFollowTextures(lights, rows, roots, rows.placement, new Set([3, 5]), MAP_LAYER)
   assert.deepEqual(boxes, [
     [-r, -r, -r, r, r, r],
     [10 - r, -r, -r, 10 + r, r, r],
@@ -138,7 +143,7 @@ test("a tile read by a moving cutout and a still one declares two boxes: the mov
 test('a resize, which names no texture, still restarts everything', () => {
   const { lights, boxes } = lightsSpy(),
     rows = table()
-  shadowsFollowTextures(lights, rows, roots, rows.placement, -1)
+  shadowsFollowTextures(lights, rows, roots, rows.placement, -1, MAP_LAYER)
   assert.equal(boxes.length, 1)
   assert.ok(boxes[0][0] < -1e29 && boxes[0][3] > 1e29)
 })
@@ -147,7 +152,7 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
   const { lights, boxes } = lightsSpy()
   const rows = table()
   ;(lights.store as { count: number }).count = 0
-  shadowsFollowTextures(lights, rows, roots, rows.placement, -1)
+  shadowsFollowTextures(lights, rows, roots, rows.placement, -1, MAP_LAYER)
   assert.equal(boxes.length, 0)
 })
 

@@ -4,6 +4,7 @@ import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 
 /** The pipeline constant that turns the cache on in the shade and the triangles passes. */
 export const CACHED = { SHADE_CACHE: 1 }
@@ -33,6 +34,8 @@ export async function cachePasses(device: GPUDevice) {
         ...[2, 3, 4].map((binding) => computeBufferEntry(binding, 'read-only-storage', compute)),
         computeBufferEntry(5, 'uniform', compute),
         computeTextureEntry(6, 'unfilterable-float', '2d-array', compute),
+        // The surfaces' records, at the resolve's number (`PIXEL_TRIANGLE_WGSL`).
+        computeTextureEntry(SHADE_BINDINGS.material, 'uint', '2d', compute),
       ] as GPUBindGroupLayoutEntry[],
     })
     const [rows, triangles] = await Promise.all([

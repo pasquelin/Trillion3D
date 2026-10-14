@@ -9,6 +9,7 @@ import { invTranspose3Prep, unitOrZero } from '../../../../math/src/wgsl/inverse
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { FLAG_LINE, FLAG_SPRITE } from '../types.ts'
 
 /**
  * THE SHADOW RECEIVER OF A PIXEL: its shading-point offset and its triangle's plane, the
@@ -59,10 +60,11 @@ const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
  if(pageIndex>=uni.pageCount){return none;}
  let tri=id&0xffu;
  let page=pages[pageIndex];
- if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||page.sprite.y!=0.0||page.lineWidth!=0.0){return none;}
+ if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||(page.flags&${FLAG_SPRITE | FLAG_LINE}u)!=0u){return none;}
  let h=pageHeader(page);
  let world3=worldMatrix3(page.world);
- let t=decodeCorners(page,h,pageTriangle(page,h,tri),invTranspose3Prep(world3));
+ // Neither a sprite nor a line (above): the row's shape is zeros, read off no record.
+ let t=decodeCorners(page,h,pageTriangle(page,h,tri),invTranspose3Prep(world3),PageShape(vec2f(0.0),0.0));
  let w0=t.w0;let w1=t.w1;let w2=t.w2;
  let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);

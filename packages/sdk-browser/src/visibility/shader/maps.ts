@@ -2,9 +2,9 @@ import { WRAP_MAP } from '../wrapModes.ts'
 import type { MaterialClassFeature } from './materialClass.ts'
 
 /**
- * What each `WRAP_MAP` map gives its read: its slot in the page record. A rank added to
- * `WRAP_MAP` without its entry here does not compile; without this table, a seventh map would
- * be read in clamp without anything signalling it.
+ * What each `WRAP_MAP` map gives its read: its slot in the surface's record (`m`, `materialAt`). A
+ * rank added to `WRAP_MAP` without its entry here does not compile; without this table, a seventh
+ * map would be read in clamp without anything signalling it.
  */
 const CARTE = {
   base: 'mapIndex',
@@ -18,7 +18,7 @@ const CARTE = {
 /** Atlas read of a map: its slot — whose header carries its addressing —, the pixel's
  *  derivatives, and the class's filter rule (`HAS_SAMPLING`), folded at compile time. */
 export const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
-  `${fn}(page.${CARTE[nom]},uv,ddx,ddy,HAS_SAMPLING)`
+  `${fn}(m.${CARTE[nom]},uv,ddx,ddy,HAS_SAMPLING)`
 
 /** Class override that says the map exists (`materialClass.ts`): slot 0 is the absence
  *  of a texture, and every page of a class has the same maps, so the test folds at compile time. */
@@ -48,7 +48,7 @@ export const lectureDonnee = (
   dejaLues: readonly [variable: string, nom: keyof typeof WRAP_MAP][],
 ) => {
   const reprises = dejaLues
-    .map(([lue, other]) => `if(page.${CARTE[nom]}==page.${CARTE[other]}){${variable}=${lue};}else `)
+    .map(([lue, other]) => `if(m.${CARTE[nom]}==m.${CARTE[other]}){${variable}=${lue};}else `)
     .join('')
   return siCarte(nom, `${reprises}{${variable}=${lecture('dataSample', nom)};}`)
 }

@@ -9,7 +9,7 @@ import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
-import { FLAG_CLUSTER_PAGE } from '../types.ts'
+import { FLAG_CLUSTER_PAGE, FLAG_SPRITE } from '../types.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 export type V = number[]
@@ -38,6 +38,9 @@ export const STRUCTS = {
   determinant: (m: Mat3) => F32_SCOPE.dot(m[0], F32_SCOPE.cross(m[1], m[2])),
   InvT3: (adj: Mat3, scale: number, regular: boolean) => ({ adj, scale, regular }),
   RowFrame: (invT: unknown, positive: boolean) => ({ invT, positive }),
+  PageShape: (sprite: V, lineWidth: number) => ({ sprite, lineWidth }),
+  // A scene's row holds its surface's record itself in its material word.
+  materialAt: (record: unknown) => record,
   PixelTriangle: (...v: V[]) =>
     Object.fromEntries(
       'p0 p1 p2 w0 w1 w2 n0 n1 n2 uva uvb uvc iw'.split(' ').map((k, i) => [k, v[i]]),
@@ -104,8 +107,7 @@ export function scene() {
   const MIRROR = world([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5, 0, -7, 1])
   const row = <Page extends object>(page: Page, over: object = {}) => ({
     world: SHEAR,
-    sprite: [0, 0],
-    lineWidth: 0,
+    material: { sprite: [0, 0], lineWidth: 0 },
     vertexBase: 0,
     packedBase: 0,
     deformOutput: 0,
@@ -120,7 +122,10 @@ export function scene() {
   pool.push(0, 0, 0, 0)
   deformed.packedBase = pool.length - 3
   deformed.deformOutput = (tail(pool, 10, false) | 0x80000000) >>> 0
-  pages.push(deformed, row(quantized(20), { sprite: [0.3, 1], world: MIRROR }))
+  // The sprite: its row's flag says so, its record holds its turn and mode.
+  const sprite = row(quantized(20), { material: { sprite: [0.3, 1], lineWidth: 0 }, world: MIRROR })
+  sprite.flags |= FLAG_SPRITE
+  pages.push(deformed, sprite)
   const uvs = floats((pool.length / 3) * 2 + 64, random)
   return { pages, words, pool, normals, uvs }
 }

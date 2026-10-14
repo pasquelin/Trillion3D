@@ -3,12 +3,8 @@ import { MATERIAL_SECOND_UV } from '../../visibility/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { extendSpan } from '../../../../math/src/sequence/span.ts'
 import type { MaterialLayers } from '../row/pageRowMaterial.ts'
-import {
-  MATERIAL_RECORD_TEXELS,
-  MATERIAL_RECORD_WORDS,
-  writeMaterialRecord,
-  type MaterialSurface,
-} from './materialRecord.ts'
+import { writeMaterialRecord, type MaterialSurface } from './materialRecord.ts'
+import { MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { LOBE_RECORD_TEXELS, writeLobeRecord } from './lobeRecord.ts'
 import { uploadMaterials, type MaterialEntry, type MaterialRecords } from './materialUpload.ts'
 

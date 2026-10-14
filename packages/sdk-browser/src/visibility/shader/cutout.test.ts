@@ -9,20 +9,22 @@ import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
 
 test('the cutout is the hard threshold: the mask test, with the dash, vertex alpha and opacity', () => {
-  // The mask test reads `maskAlpha(...)>=page.baseColor.w` after the flag test. A dashed line's
-  // gaps cut it, the vertex alpha multiplies it and the colour factor's opacity does too;
-  // nothing else may stand between the read and the threshold.
+  // The mask test reads `maskAlpha(...)>=m.cut` after the flag test, its surface's record read
+  // once. A dashed line's gaps cut it, the vertex alpha multiplies it and the colour factor's
+  // opacity, saturated, does too; nothing else may stand between the read and the threshold.
   assert.equal(
     maskKeepWgsl(maskAlphaWgsl(false)).text.replace(/\n *\/\/[^\n]*/g, ''),
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
- if(!lineDash(uv.x,page.dash)){return false;}
- if(page.baseColor.w<=0.0){return true;}
+ let m=materialAt(page.material);
+ if(!lineDash(uv.x,m.dash)){return false;}
+ if(m.cut<=0.0){return true;}
+ let coverage=saturate(m.opacity);
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}
- var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
+ if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}
+ var alpha=maskAlpha(m.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*coverage;
  if(coloured){alpha*=vertexAlpha;}
- return alpha>=page.baseColor.w;
+ return alpha>=m.cut;
 }`,
   )
 })

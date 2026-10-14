@@ -46,6 +46,8 @@ const rowGroups = new WeakMap<
 export function shadowPageGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const layout = rt.lights.pageLayout
   if (!layout) return
+  // The records the rows wrote go up before the group names their texture.
+  if (rt.vis.materialTable.pending) rt.vis.materialTable.upload(device)
   let held = rowGroups.get(rt)
   if (!held) rowGroups.set(rt, (held = { identity: createWebgpuBindIdentity() }))
   const entries = (held.identity.entries[0] ??= pageRowEntries(rt))

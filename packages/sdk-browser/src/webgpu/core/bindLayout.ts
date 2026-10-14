@@ -51,6 +51,8 @@ export const VIS_BINDINGS = {
   sampler: 10,
   instances: 11,
   slotOffsets: 12,
+  /** The surfaces' records (`../material/materialTable.ts`): a row's cutout and shape. */
+  material: 13,
 }
 
 export const SHADE_BINDINGS = {
@@ -139,6 +141,8 @@ export const SMALL_BINDINGS = {
   sampler: 10,
   work: 11,
   selectionMask: 12,
+  /** The visibility raster's number: the one cutout (`maskKeepWgsl`) reads it there in both. */
+  material: VIS_BINDINGS.material,
 }
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,

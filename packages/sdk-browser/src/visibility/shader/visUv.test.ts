@@ -26,19 +26,15 @@ const BITS = [FLAG_HAS_UV, FLAG_MASK, FLAG_HAS_MAP, FLAG_HAS_COLOR, FLAG_SAMPLED
 const READ = FLAG_HAS_UV | FLAG_MASK
 const IDENTITY = new Mat([...IDENTITY_MATRIX4])
 
-/** The page of flags `flags`, its threshold `cut`, dashed or not. */
+/** The page of flags `flags`, its surface's record its threshold `cut`, dashed or not: the record
+ *  itself in its material word, which `materialAt` hands back. */
 const pageOf = (flags: number, cut: number, dashed: boolean) => ({
   flags,
   indexCount: 3,
   world: IDENTITY,
-  lineWidth: 0,
-  sprite: [0, 0],
   packedBase: 0,
   hizSlot: 0xffffffff,
-  baseColor: [1, 1, 1, cut],
-  blendCoverage: 1,
-  dash: dashed ? [0.5, 0.5] : [0, 0],
-  mapIndex: 0,
+  material: { cut, opacity: 1, dash: dashed ? [0.5, 0.5] : [0, 0], mapIndex: 0 },
 })
 
 /** The shipped stages, translated once, over `pages[0]`; each UV read counted. */
@@ -54,6 +50,8 @@ const run = shaderRun<Run>(
     drawBatch: () => [0, 0],
     pageHeaderFor: () => ({}),
     pageSurfaceRead: () => true,
+    pageShape: () => ({ sprite: [0, 0], lineWidth: 0 }),
+    materialAt: (record: object) => record,
     hardwareCorner: (_page: unknown, _h: unknown, vertex: number) => vertex,
     NO_INDEX,
     hizRejected: () => false,

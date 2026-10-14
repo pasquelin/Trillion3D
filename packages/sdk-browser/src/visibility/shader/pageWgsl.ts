@@ -6,6 +6,7 @@ import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
 import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LINE_DASH_WGSL } from './lineWgsl.ts'
+import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -94,8 +95,9 @@ export const normalAtlasWgsl = (binding: number) =>
  * visibility-buffer raster and the shadow depth pass apply them. A single write: a cutout that
  * was not the same on both sides would make a shadow that does not match the silhouette one
  * sees. `flags`: 4 = UVs present, 8 = base map, 128 = masked material or dashed line; the
- * threshold is `baseColor.w`, and the base map's addressing mode comes from the per-map word, never from the
- * material flags.
+ * threshold, the dash, the opacity and the base map's slot are its surface's record's (`materialAt`,
+ * every host binding the material table at `VIS_BINDINGS.material`), and the base map's addressing
+ * mode comes from the per-map word, never from the material flags.
  *
  * `ddx`, `ddy` are the per-texel derivatives of the coordinate of the pass that reads — camera
  * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
@@ -110,7 +112,7 @@ export const normalAtlasWgsl = (binding: number) =>
  *
  * `vertexAlpha` is the interpolated alpha of the vertex colours (`pageMaskAlpha`), one on a row
  * that reads none: the diffuse alpha is multiplied by it before the alpha test, and by
- * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
+ * the colour factor's, the opacity, saturated (`surfaceOpacity`), as glTF 2.0 does (#748).
  * Shadows pass one: a depth pass reads no vertex colour.
  *
  * `maskAlpha` provides the base map's alpha at the pass's footprint (`maskAlphaWgsl(...)`, on the
@@ -121,23 +123,25 @@ export const normalAtlasWgsl = (binding: number) =>
 export const maskKeepWgsl = (maskAlpha: WgslDecl) =>
   wgslBlock(
     `maskKeepWgsl(${maskAlpha.name})`,
-    [maskAlpha, LINE_DASH_WGSL],
+    [maskAlpha, LINE_DASH_WGSL, materialTableWgsl(VIS_BINDINGS.material)],
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
+ let m=materialAt(page.material);
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
- if(!lineDash(uv.x,page.dash)){return false;}
- if(page.baseColor.w<=0.0){return true;}
+ if(!lineDash(uv.x,m.dash)){return false;}
+ if(m.cut<=0.0){return true;}
+ let coverage=saturate(m.opacity);
  // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
  // need not round back to one exactly. Without a map, its opacity still cuts it.
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}
+ if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after
  // level and made the quad opaque during loading.
- var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
+ var alpha=maskAlpha(m.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*coverage;
  if(coloured){alpha*=vertexAlpha;}
- return alpha>=page.baseColor.w;
+ return alpha>=m.cut;
 }`,
   )

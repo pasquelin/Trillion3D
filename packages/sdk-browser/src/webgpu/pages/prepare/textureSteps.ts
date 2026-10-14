@@ -98,6 +98,7 @@ export function tileStreamerFor(
           rt.layout.selectionRoots,
           rt.layout.placement,
           slots,
+          rt.vis.mapLayer,
         )
       },
     })

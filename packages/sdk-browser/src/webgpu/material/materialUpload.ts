@@ -1,13 +1,13 @@
 import { nextPow2, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import type { Span } from '../../../../math/src/sequence/span.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
-import { MATERIAL_RECORD_TEXELS } from './materialRecord.ts'
+import {
+  MATERIAL_RECORD_TEXELS,
+  MATERIAL_ROW_RECORDS,
+  MATERIAL_ROW_TEXELS,
+} from './materialLayout.ts'
 
-/** Records a row of the table texture holds: a row is 2560 texels, within every device's side,
- *  and a record's index splits into its row and column by a shift. */
-export const MATERIAL_ROW_RECORDS = 256
-/** Texels and bytes of a row of the table texture. */
-export const MATERIAL_ROW_TEXELS = MATERIAL_ROW_RECORDS * MATERIAL_RECORD_TEXELS
+/** Bytes of a row of the table texture. */
 const ROW_BYTES = MATERIAL_ROW_TEXELS * 16
 
 /** A surface's place in the table: its record's rank, its lobe extension's index (−1: none), and

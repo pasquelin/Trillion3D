@@ -60,7 +60,7 @@ export const FLAG_LIT = 1,
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
   /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
-   *  transmittance of its coverage (`PageInfo.blendCoverage`, `../gpu/shadow/transmittance.ts`). */
+   *  transmittance of its surface's coverage (`../gpu/shadow/transmittanceWgsl.ts`). */
   FLAG_BLEND_CASTER = 65536,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
@@ -72,9 +72,13 @@ export const FLAG_LIT = 1,
   FLAG_DIAGNOSTIC_LOD = 0x08000000,
   FLAG_DIAGNOSTIC_SCREEN_ERROR = 0x04000000,
   FLAG_DIAGNOSTIC_CLUSTER_VIEWS = 0x1c000000
-/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
+/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573);
+ *  a row whose surface draws a sprite, or a line of a width other than zero: what every raster
+ *  reads its surface's record for (`pageShape`), a row of neither reading none. */
 export const FLAG_FOG_FREE = 1 << 20,
-  FLAG_DYNAMIC = 1 << 21
+  FLAG_DYNAMIC = 1 << 21,
+  FLAG_SPRITE = 1 << 22,
+  FLAG_LINE = 1 << 23
 export type VisPage = {
   array: Uint32Array
   attributes: HostAttributes

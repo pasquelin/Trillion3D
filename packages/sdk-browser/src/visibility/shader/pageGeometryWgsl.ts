@@ -7,16 +7,16 @@ import {
   FLAG_CLUSTER_PAGE,
   FLAG_HAS_COLOR,
   FLAG_HAS_UV,
+  FLAG_LINE,
   FLAG_MASK,
-  MATERIAL_SECOND_UV,
 } from '../types.ts'
-import { FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
 import { SPRITE_WGSL } from './spriteWgsl.ts'
 import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts'
 
-const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
+/** Whether a row reads a quantized cluster page (`FLAG_CLUSTER_PAGE`): every page read's branch. */
+export const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
 /** The flags under which a vertex hands its UV on: a row that has one AND is masked, the only one
  *  whose `maskKeep` reads it (an unmasked row keeps every fragment before its first read). */
 export const UV_READ = FLAG_HAS_UV | FLAG_MASK
@@ -58,7 +58,7 @@ fn deformWholeCopy(page:PageInfo)->bool{
 fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
 /** Whether a raster's corner reads a surface attribute of its page: a line's direction
  *  (\`pageLine\`), a masked row's UV and vertex alpha (\`pageUv\`, \`pageMaskAlpha\`). */
-fn pageSurfaceRead(page:PageInfo)->bool{return page.lineWidth>0.0||(page.flags&${FLAG_MASK}u)!=0u;}
+fn pageSurfaceRead(page:PageInfo)->bool{return (page.flags&${FLAG_LINE | FLAG_MASK}u)!=0u;}
 /** The header a pass reads: on a quantized row, its corners and positions alone unless \`withSurface\`
  *  asks for its normals, UVs and colours too (\`clusterPointHeader\`); a vertex stage reads it per
  *  corner, so a row that draws none of them pays none of their words. */
@@ -159,29 +159,6 @@ export const PAGE_NORMAL_WGSL = wgslBlock(
 )
 
 /**
- * A page vertex's second UV set, which the physical maps that ask for it read (`physicalWgsl.ts`):
- * from a quantized page that stores one (its header's flag), else from the tail of the normal atlas
- * where the row's material word says its float geometry has one (`MATERIAL_SECOND_UV`,
- * `vertUv1`). Declared after `vertUv1`, as `PAGE_NORMAL_WGSL`; a caller reads `pageUv1` only where
- * `pageHasUv1` says so.
- */
-export const PAGE_UV1_WGSL = wgslBlock(
-  'PAGE_UV1_WGSL',
-  [],
-  `fn pageHasUv1(page:PageInfo,h:ClusterHeader)->bool{
- if(${QUANTIZED}){return (h.flags&${FLAG_UV1}u)!=0u;}
- return (page.material&${MATERIAL_SECOND_UV}u)!=0u;
-}
-fn pageUv1(page:PageInfo,h:ClusterHeader,vertex:u32,end:u32)->vec2f{
- if(${QUANTIZED}){
-  let base=page.pageOffset;
-  return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
- }
- return vertUv1(end,page.vertexBase,vertex);
-}`,
-)
-
-/**
  * A page vertex on the camera's screen, which the camera rasters and the surface resolve add after
  * `PAGE_GEOMETRY_WGSL`: a line page's corners widened by the one formula of every raster
  * (`lineClip`), a sprite page's quad turned to face the camera (`spriteAt`). It reads the camera
@@ -190,24 +167,26 @@ fn pageUv1(page:PageInfo,h:ClusterHeader,vertex:u32,end:u32)->vec2f{
 export const PAGE_SCREEN_WGSL = wgslBlock(
   'PAGE_SCREEN_WGSL',
   [LINE_CLIP_WGSL, SPRITE_WGSL],
-  `/** Clip position \`clip\` of a corner of a line page (\`page.lineWidth\` above zero), widened on
- *  screen (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is a
- *  quantized page the world cut at run time: a row without one keeps no direction, and no width. */
-fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f)->vec4f{
+  `/** A row's sprite rule and line width, its surface's (\`pageShape\`): zeros on a row of neither. */
+struct PageShape{sprite:vec2f,lineWidth:f32,}
+/** Clip position \`clip\` of a corner of a line page (\`width\` above zero), widened on screen
+ *  (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is a quantized
+ *  page the world cut at run time: a row without one keeps no direction, and no width. */
+fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f,width:f32)->vec4f{
  var along=vec3f(0.0);
  if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
- return lineClip(clip,vp*vec4f(along,0.0),page.lineWidth,uni.viewport.xy,uni.pixelRatio);
+ return lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio);
 }
-/** World position of a corner \`p\` of a sprite page (\`page.sprite.y\` not zero): its quad turned
- *  to face the camera (\`spriteAt\`). The camera raster draws it, the resolve rebuilds it, the
+/** World position of a corner \`p\` of a sprite page (\`sprite.y\` not zero): its quad turned to
+ *  face the camera (\`spriteAt\`). The camera raster draws it, the resolve rebuilds it, the
  *  shadow passes never draw it: a sprite casts no shadow. */
-fn pageSprite(page:PageInfo,p:vec3f)->vec4f{return spriteAt(uni.viewProj,page.world,p.xy,page.sprite);}
+fn pageSprite(page:PageInfo,p:vec3f,sprite:vec2f)->vec4f{return spriteAt(uni.viewProj,page.world,p.xy,sprite);}
 /** Clip position of a page vertex under \`vp\`: every raster's, a line page's widened on screen,
  *  a sprite page's turned to the camera. */
-fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
- if(page.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex));}
+fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32,shape:PageShape)->vec4f{
+ if(shape.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex),shape.sprite);}
  let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);
- if(page.lineWidth>0.0){return pageLine(page,h,vertex,vp,clip);}
+ if(shape.lineWidth>0.0){return pageLine(page,h,vertex,vp,clip,shape.lineWidth);}
  return clip;
 }`,
 )

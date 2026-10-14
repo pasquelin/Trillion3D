@@ -3,8 +3,13 @@ import assert from 'node:assert/strict'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 import { createMaterialTable } from './materialTable.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialRecord.ts'
-import { MATERIAL_ROW_RECORDS, MATERIAL_ROW_TEXELS } from './materialUpload.ts'
+import {
+  MATERIAL_RECORD,
+  MATERIAL_RECORD_TEXELS,
+  MATERIAL_RECORD_WORDS,
+  MATERIAL_ROW_RECORDS,
+  MATERIAL_ROW_TEXELS,
+} from './materialLayout.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../page/surface.ts'

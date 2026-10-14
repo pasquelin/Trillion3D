@@ -5,12 +5,8 @@ import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
-import {
-  PAGE_GEOMETRY_WGSL,
-  PAGE_NORMAL_WGSL,
-  PAGE_SCREEN_WGSL,
-  PAGE_UV1_WGSL,
-} from './pageGeometryWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
+import { PAGE_UV1_WGSL } from './pageUv1Wgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,

@@ -11,6 +11,7 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
 import { STRUCTS } from './triangleScene.fixture.ts'
 import { CLASS_FEATURE } from './classWords.ts'
+import { FLAG_LINE, FLAG_SPRITE } from '../types.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -109,8 +110,10 @@ const pages = [
     materialClass: TWO_SIDED,
   }),
   row({ materialClass: TWO_SIDED, flags: 256 }),
-  row({ sprite: [0, 1] }),
-  row({ lineWidth: 2 }),
+  // A sprite and a line: their flags say so to the shipped text, their record's words to the
+  // statements above.
+  row({ sprite: [0, 1], flags: FLAG_SPRITE }),
+  row({ lineWidth: 2, flags: FLAG_LINE }),
   row({ materialClass: 0 }),
   row({ indexCount: 3 }),
 ]
@@ -162,6 +165,7 @@ const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V
   {
     ...scope,
     PixelTriangle: STRUCTS.PixelTriangle,
+    PageShape: STRUCTS.PageShape,
     ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }),
   },
 )

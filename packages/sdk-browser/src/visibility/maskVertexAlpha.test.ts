@@ -59,7 +59,8 @@ test('a masked surface is cut at its opacity times its map alpha, in both raster
   assert.equal(covered({ vertexColors: true, map: false, alpha: 1, opacity: 0.4 }), false)
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.6 }), true)
   assert.equal(covered({ vertexColors: false, map: false, alpha: 1, opacity: 0.4 }), false)
-  assert.ok(MASK_KEEP.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;`))
+  assert.ok(MASK_KEEP.includes(`(page.flags&${FLAG_SAMPLED}u)!=0u)*coverage;`))
+  assert.ok(MASK_KEEP.includes('let coverage=saturate(m.opacity);'))
 })
 
 test('the cutout multiplies by the vertex alpha only on a row that reads its colours', () => {
@@ -68,14 +69,12 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
   assert.ok(keep.includes(`let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;`))
   assert.ok(
     keep.includes(
-      'if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*page.blendCoverage>=page.baseColor.w;}',
+      'if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}',
     ),
   )
   const read = keep.indexOf('var alpha=maskAlpha(')
   const multiply = keep.indexOf('if(coloured){alpha*=vertexAlpha;}')
-  assert.ok(
-    read > 0 && multiply > read && multiply < keep.indexOf('return alpha>=page.baseColor.w;'),
-  )
+  assert.ok(read > 0 && multiply > read && multiply < keep.indexOf('return alpha>=m.cut;'))
   assert.ok(
     wgslModule(PAGE_GEOMETRY_WGSL).includes(
       `if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}`,

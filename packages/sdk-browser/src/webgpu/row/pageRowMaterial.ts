@@ -23,6 +23,8 @@ import {
   FLAG_SAMPLED,
   FLAG_FOG_FREE,
   FLAG_DYNAMIC,
+  FLAG_SPRITE,
+  FLAG_LINE,
 } from '../../visibility/types.ts'
 
 export type GeometryBlock = {
@@ -169,6 +171,9 @@ export function rowMaterial(
   if (normal) flags |= FLAG_HAS_NORMAL_MAP
   // The material asks for its vertex colours, and the geometry has some: the forward rule.
   if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR
+  // What every raster reads its record for (`pageShape`): a sprite, a line of a width.
+  if (mat.sprite) flags |= FLAG_SPRITE
+  if ((mat.lineWidth ?? 0) !== 0) flags |= FLAG_LINE
   flags |= (mat.model ?? 0) << MODEL_SHIFT
   flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface)
   // The anisotropy and coat maps read through the data atlas as the others do (`physicalWgsl.ts`).

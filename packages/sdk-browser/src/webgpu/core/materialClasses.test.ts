@@ -2,7 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
+import {
+  FLAG_MASK,
+  MATERIAL_RANK_MASK,
+  PAGE_INFO_STRIDE,
+  ROW_WORDS,
+} from '../../visibility/types.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
+import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createShadeCensus } from '../visibility/shadeCensus.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'
@@ -30,16 +38,26 @@ test('the three material classes take the three paths the engine has for them', 
   assert.equal(surfaceOf(meshes[1].material).transmission, 0, 'a plain blend does not transmit')
 })
 
-test('a cut-out cluster carries its alpha test into the visibility row', () => {
+test('a cut-out cluster names its surface, whose record carries its alpha test', () => {
   const { source, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)
+  const materialTable = createMaterialTable(),
+    { device, textureWrites } = fakeDevice()
+  /** The threshold the record of the row's surface holds, as the table sends it up. */
+  const cut = () => {
+    materialTable.upload(device)
+    const sent = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer),
+      rank = ints[PAGE_INFO.at.material] & MATERIAL_RANK_MASK
+    return sent[rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.cut]
+  }
   const writeRow = createPageRowWriter(
     {
       geometryBlocks: new Map(),
       mapLayer: new Map(),
       dataLayer: new Map(),
+      materialTable,
       asIsShown: false,
       emissiveAoShown: false,
     },
@@ -51,16 +69,12 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const mask = collected.roots[0].pages[0]
   writeRow(mask, 0, 0, 0, floats, ints)
   assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, true, 'the cut-out flag is set')
-  assert.equal(
-    floats[PAGE_INFO.at.baseColor + 3],
-    0.5,
-    'the material alpha threshold travels with the row',
-  )
+  assert.equal(cut(), 0.5, 'the material alpha threshold travels with its record')
   // A blend never becomes a cut-out: its row would otherwise discard instead of blending.
   const blend = collected.roots[1].pages[0]
   writeRow(blend, 0, 0, 0, floats, ints)
   assert.equal((ints[PAGE_INFO.at.flags] & FLAG_MASK) !== 0, false)
-  assert.equal(floats[PAGE_INFO.at.baseColor + 3], 1)
+  assert.equal(cut(), 1)
 })
 
 test('a row carries its resolve class, the census of the scene knows it before any image', () => {
