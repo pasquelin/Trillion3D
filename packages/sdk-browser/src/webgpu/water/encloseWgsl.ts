@@ -67,7 +67,10 @@ fn waterWiden(box:array<vec2u,6>,distance:vec2u)->array<vec2u,6>{
 /** How far the pose \`m\` stretches a length, bounded: the larger of its linear part's column and
  *  row sums of magnitudes, \`max(‖M‖₁, ‖M‖∞)\`, above its largest singular value — the most a
  *  volume's declared thickness grows to the world (\`volumeWorldPath\`); 1 for a rigid pose along
- *  the axes. \`waterStretch\` of the CPU (\`waterRect.fixture.ts\`), sum for sum. */
+ *  the axes. It is that law's cap, not the cut's \`maxStretchBits\` (the largest singular value of
+ *  a root's world): the composite's single-precision path, its cofactors rounded, may exceed the
+ *  singular value but never this bound, and the item's pose is not its root's. \`waterStretch\` of
+ *  the CPU (\`waterRect.fixture.ts\`), sum for sum. */
 fn waterStretch(m:array<vec2u,16>)->vec2u{
  var stretch=D_ZERO;
  for(var k=0u;k<3u;k++){
