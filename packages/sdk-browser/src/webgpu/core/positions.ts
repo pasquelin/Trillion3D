@@ -15,6 +15,28 @@ export async function loadUnpaged(pages: readonly PageRec[], copies: readonly Bl
   return unpaged
 }
 
+/**
+ * A vertex buffer of a host geometry no page carries, held by the geometry and not by the mesh that
+ * carries it: two instances of an object share their geometry, so they share its buffers. `data`
+ * is written once, in a buffer of at least `floor` bytes, and counted once in `vertexBytes`.
+ */
+export function uploadVertices(
+  device: GPUDevice,
+  data: ArrayBufferView,
+  floor: number,
+  tally: { vertexBytes: number },
+  label?: string,
+) {
+  const buffer = device.createBuffer({
+    label,
+    size: Math.max(floor, data.byteLength),
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(buffer, 0, data.buffer as ArrayBuffer, data.byteOffset, data.byteLength)
+  tally.vertexBytes += buffer.size
+  return buffer
+}
+
 /** Uploads the source positions a transparent item draws from, once per geometry. */
 export function ensureWebgpuPositionBuffer(
   device: GPUDevice,
@@ -32,13 +54,7 @@ export function ensureWebgpuPositionBuffer(
     xyz[i * 3 + 1] = position.getY(i)
     xyz[i * 3 + 2] = position.getZ(i)
   }
-  const buffer = device.createBuffer({
-    label: 'Trillion3D positions',
-    size: xyz.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(buffer, 0, xyz.buffer)
+  const buffer = uploadVertices(device, xyz, 0, tally, 'Trillion3D positions')
   buffers.set(attributes, buffer)
-  tally.vertexBytes += buffer.size
   return buffer
 }
