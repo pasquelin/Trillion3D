@@ -36,8 +36,11 @@ export async function runPageTask(
   try {
     if (request.op === 'cut') {
       // Loaded on the first cut alone: a worker that only reads cells never loads the cutter.
-      const cutter = await import('../../world/page/runtimeCut.ts')
-      const { drawn, cones, blended, recut, held } = cutter.unpackDrawn(request.source)
+      const [cutter, { unpackDrawn }] = await Promise.all([
+        import('../../world/page/runtimeCut.ts'),
+        import('../../world/page/runtimePack.ts'),
+      ])
+      const { drawn, cones, blended, recut, held } = unpackDrawn(request.source)
       const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, { recut, held })
       const transfer = cut.pages.flatMap((page) => [page.index, page.geometry])
       const { proxy } = cut

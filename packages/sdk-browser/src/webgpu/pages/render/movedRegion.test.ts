@@ -3,11 +3,11 @@
 // declares no box on the CPU.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { setWebgpuTransform } from './transform.ts'
 import { selectionRoot, runtime, scene } from '../../core/transformShear.fixture.ts'
 
-const moved = new Float32Array(new G.Matrix4().makeTranslation(4, -2, 1).elements)
+const moved = new Float32Array(new Matrix4().makeTranslation(4, -2, 1).elements)
 
 test("a moved root asks its rows' shadow change, and declares no box", () => {
   const { source, mesh, worlds } = scene()

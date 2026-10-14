@@ -1,4 +1,4 @@
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { PageLocations, PlacementIndex, Placements } from './placements.ts'
 
@@ -29,7 +29,7 @@ type Identity = Placements & PageLocations
  * it to either reader.
  */
 export const identityRoots = (): Identity => {
-  const roots = [{ world: new G.Matrix4() as MatrixElements }] as unknown as Identity
+  const roots = [{ world: new Matrix4() as MatrixElements }] as unknown as Identity
   Object.assign(roots, {
     packed: zeros(),
     placement: { baseOfRoot: Int32Array.of(0), packedCount: Infinity },

@@ -7,7 +7,7 @@ import { throwIfStopped } from '../io/lost.ts'
 import { litPrograms } from './contractLight.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
 import { loadImpostorCode } from '../../../impostor/code.ts'
-import * as impostorLent from '../../impostor/lent.ts'
+import { impostorLent } from '../../impostor/lent.ts'
 import {
   finishPreparation,
   prepareGeometryAndBlend,

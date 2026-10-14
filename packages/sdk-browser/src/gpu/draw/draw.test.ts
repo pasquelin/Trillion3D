@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { packDrawIndirect } from './cpu.fixture.ts'
+import { packDrawIndirect, evaluateDrawCompact, indirectForDraw } from './cpu.fixture.ts'
 import {
   BASE_SLOTS,
   BIN_BACK,
@@ -16,8 +16,6 @@ import {
 } from './contract.ts'
 import { createGpuDraw } from './factory.ts'
 
-import { evaluateDrawCompact } from './cpu.fixture.ts'
-import { indirectForDraw } from './cpu.fixture.ts'
 import type { DrawItem } from './cpu.fixture.ts'
 import { drawShader } from './shader.ts'
 

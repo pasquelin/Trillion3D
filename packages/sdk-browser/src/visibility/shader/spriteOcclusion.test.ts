@@ -3,6 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Scene } from '../../world/core/scene.ts'
 import type { HizPage } from '../../hiz/types.ts'
 import { countUnoccluded, createHizCounts } from '../../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
@@ -161,13 +163,13 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   const blendState = createWebgpuBlendState()
   const copy = (sizeAttenuation: boolean) => {
     const material = spriteSurface(sizeAttenuation, { transparent: true })
-    const geometry = new G.Geometry()
+    const geometry = new Geometry()
     geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
     geometry.setIndex(G.indices([0, 1, 2]))
     return Object.assign(G.mesh(geometry, material), { surface: surfaceOf(material) })
   }
   const copies = [copy(false), copy(true)]
-  prepareWebgpuBlend(device, copies, createWebgpuGpuState([1, 1]), blendState, new G.Scene())
+  prepareWebgpuBlend(device, copies, createWebgpuGpuState([1, 1]), blendState, new Scene())
   assert.deepEqual(
     blendState.blendGpu.map((item) => item.bounds === undefined),
     [true, false],

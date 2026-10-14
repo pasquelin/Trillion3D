@@ -5,6 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createExplorerLightApi } from '../api/lightApi.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts'
@@ -43,7 +45,7 @@ function api(backend: Engine) {
 }
 
 const pose = (x: number, y: number) =>
-  new Float32Array(new G.Matrix4().makeTranslation(x, y, 0).elements)
+  new Float32Array(new Matrix4().makeTranslation(x, y, 0).elements)
 
 test('ten transforms then one frame: one render submit, not eleven', () => {
   const m = engine()
@@ -56,8 +58,8 @@ test('ten transforms then one frame: one render submit, not eleven', () => {
 
 /** The strict minimum `setWebgpuTransform` reads: a scene, a frame gate, a scheduler. */
 function banc() {
-  const source = new G.Object3D()
-  const node = new G.Object3D()
+  const source = new Object3D()
+  const node = new Object3D()
   node.name = 'volet'
   source.add(node)
   const worlds = hostWorldPlacements(source)
@@ -81,7 +83,7 @@ function banc() {
 }
 
 /** What the frame would draw of this node: the world matrix THE ENGINE holds for it. */
-const image = (b: { node: G.Object3D; worlds: HostWorldPlacements }) =>
+const image = (b: { node: Object3D; worlds: HostWorldPlacements }) =>
   Array.from(b.worlds.of(b.node).elements).join(',')
 
 test('a pose changes the held frame: the gate refuses to serve the previous one again', () => {

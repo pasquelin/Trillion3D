@@ -16,7 +16,6 @@ import {
   HDR_COMPOSITION_PASS,
   HDR_PRESENT_PASS,
 } from '../../stage/passLabels.ts'
-export { FULLSCREEN_VERTEX } from './shaders.ts'
 
 /** Whether these resources light with the bounce program. */
 const bounceOf = ({ bounceGrid, probes }: DirectLightResources) => !!bounceGrid && !!probes

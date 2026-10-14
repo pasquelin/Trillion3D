@@ -44,7 +44,7 @@ export type ExplorerSource = {
   manifestUrl: string
   metadataUrl: string
   base: string
-  metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest
+  metadata: import('../../../../sdk-core/src/contracts/geometry.ts').ClusterManifest
   scene: Omit<ExplorerScene, 'associations'>
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */

@@ -3,6 +3,8 @@ import { MANIFEST_IDENTITY } from '../../engine/pagesEngine.fixture.ts'
 import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { webgpuPagesEngine } from './pages.ts'
@@ -30,7 +32,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const material = G.basicSurface(),
     meshA = G.mesh(geoA, material),
     meshB = G.mesh(geoB, material),
-    source = new G.Group()
+    source = new Group()
   source.add(meshA, meshB)
   const {
     metadata: metadataPartial,
@@ -115,7 +117,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   backend.render(cam)
   await backend.flush()
   backend.render(cam)
-  const mesh = source.children[0] as G.HostMesh
+  const mesh = source.children[0] as HostMesh
   const pages = [
     {
       array: indices.get('0')!,

@@ -3,7 +3,7 @@
 // alone, no row; a move between opaque and masked writes its rows again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
 import {
@@ -171,7 +171,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
         packedRecs: [cutout],
         packedPageIndex: new Int32Array([0]),
       },
-      selectionRoots: [{ world: new G.Matrix4() }],
+      selectionRoots: [{ world: new Matrix4() }],
       placement: {
         baseOfRoot: Int32Array.from([0]),
         packedCount: 1,

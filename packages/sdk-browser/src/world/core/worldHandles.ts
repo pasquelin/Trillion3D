@@ -6,8 +6,6 @@ import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts'
 import { familyRefusals } from '../../host/families.ts'
 import { debugMode, setDebugMode } from '../../host/debugMode.ts'
 
-export { worldControlsHandle } from './worldControlsHandle.ts'
-
 /** The modes a page may name: every diagnostic the engine offers, and `triangles`. */
 const WORLD_MODES = [
   ...Object.entries(DIAGNOSTICS).flatMap(([name, { available }]) => (available ? [name] : [])),

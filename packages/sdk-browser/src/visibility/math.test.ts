@@ -2,10 +2,10 @@
 // per-pixel power. An 8-bit sRGB component has only 256 possible antecedents,
 // so the table carries exactly the same floats as the power formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
-import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
+import type { WrapMode } from '../../../sdk-core/src/texture/contract.ts'
+import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
 import { mapTexel } from './math.ts'
 import { sampleLinear, sampleMap } from '../../../../bench/oracles/browser/cpu-image/math.ts'
 import { textureRgba } from './types.ts'
@@ -28,7 +28,7 @@ function referenceSampleMap(map: Texture, u: number, v: number): [number, number
 function texture(width: number, height: number, fill: (i: number) => number, wrap: WrapMode) {
   const data = new Uint8Array(width * height * 4)
   for (let i = 0; i < data.length; i++) data[i] = fill(i)
-  const map = new G.Texture()
+  const map = new Texture()
   map.image = { data, width, height }
   // Raw texels, first row first, as the oracle reads them.
   map.flipY = false
@@ -59,7 +59,7 @@ test('the 0 and 255 bounds land exactly on the table bounds', () => {
 })
 
 test('a texture without an image yields white on both sides, even with non-finite uvs', () => {
-  const sansImage = new G.Texture()
+  const sansImage = new Texture()
   for (const [u, v] of [
     [NaN, 0.5],
     [Infinity, -Infinity],
@@ -109,9 +109,9 @@ test('a non-finite uv that yields a NaN texel index yields NaN on both sides, ne
 // object at every sampled texel. The oracle is the unconditional allocation,
 // copied as-is into `bench/oracles/browser/cpu-image/math.ts`.
 test('a texture without an image or without data yields null on both sides', () => {
-  const sansImage = new G.Texture()
+  const sansImage = new Texture()
   assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage))
-  const zeroWidth = new G.Texture()
+  const zeroWidth = new Texture()
   zeroWidth.image = { data: new Uint8Array(4), width: 0, height: 1 }
   const empty = zeroWidth
   assert.equal(textureRgba(empty), referenceTextureRgba(empty))
@@ -129,7 +129,7 @@ test('two calls on the same image yield the same bytes as the reference, and the
 })
 
 test('an image replaced by a new buffer yields new bytes, identical to the reference', () => {
-  const host = new G.Texture()
+  const host = new Texture()
   host.image = { data: new Uint8Array(16).map((_, i) => i & 255), width: 2, height: 2 }
   const premier = textureRgba(host)
   host.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 }
@@ -141,7 +141,7 @@ test('an image replaced by a new buffer yields new bytes, identical to the refer
 
 test('a subview of the same buffer (different offset or length) is never confused with the original view', () => {
   const buffer = new Uint8Array(32).map((_, i) => i)
-  const map = new G.Texture()
+  const map = new Texture()
   map.image = { data: buffer.subarray(0, 16), width: 2, height: 2 }
   const premier = textureRgba(map)
   map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 } // same buffer, other offset
@@ -153,7 +153,7 @@ test('a subview of the same buffer (different offset or length) is never confuse
 
 test('the same width/height but an image resized without changing buffer also invalidates the cache', () => {
   const buffer = new Uint8Array(64).fill(9)
-  const map = new G.Texture()
+  const map = new Texture()
   map.image = { data: buffer, width: 4, height: 4 }
   const premier = textureRgba(map)
   map.image = { data: buffer, width: 8, height: 2 } // same buffer, different dimensions
@@ -166,7 +166,7 @@ test('the same width/height but an image resized without changing buffer also in
 // The CPU twins read a map through its UV transform, as the GPU reads it: a map repeated
 // twice across reads, at u = 0.3, the texel the raw coordinate 0.6 names.
 test('a map is read through its UV transform, the raw coordinate when it is the identity', () => {
-  const host = new G.Texture()
+  const host = new Texture()
   host.image = { data: Uint8Array.from({ length: 16 }, (_, i) => i * 16), width: 4, height: 1 }
   host.wrapS = host.wrapT = 'repeat'
   const plain = host

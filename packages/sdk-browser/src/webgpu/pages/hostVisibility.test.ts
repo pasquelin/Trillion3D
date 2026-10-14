@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts'
 import { prepared } from '../water/pass.fixture.ts'
 import { uploadWorlds } from './render/worldUpload.ts'
@@ -51,9 +51,9 @@ test('the WebGPU path hides a compiled node the host hid, and draws it again onc
 // The same node's see-through parts and shadow: a hidden node vanishes entirely (#407).
 test('a host hide parks the root, hides its blend items and stales the shadow pages it covered', () => {
   const { blendState } = prepared()
-  const group = new G.Group(),
-    node = new G.Group(),
-    other = new G.Group()
+  const group = new Group(),
+    node = new Group(),
+    other = new Group()
   group.add(node)
   // The root's node stands for a mesh, which casts unless set otherwise.
   node.castShadow = true

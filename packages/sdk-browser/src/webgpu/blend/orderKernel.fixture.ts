@@ -3,6 +3,7 @@
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, ORDER_UNI, SORT_BLOCK } from './orderWgsl.ts'
@@ -112,7 +113,7 @@ export function transparentScene(count: number, seed: number) {
       z = pick(9) - 4
     const bounds = new Float64Array([x - 1, y - 1, z - 1, x + 1, y + 1, z + 1])
     if (next() < 0.03) bounds[pick(6)] = [NaN, Infinity, -Infinity][pick(3)]
-    const matrix = new G.Matrix4().makeTranslation(x, y, z)
+    const matrix = new Matrix4().makeTranslation(x, y, z)
     // A mirrored placement flips which face each pipeline culls (`matrixWindingCw`).
     if (next() < 0.2) matrix.elements[0] = -1
     const paged = next() < 0.75

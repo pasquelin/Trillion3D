@@ -23,7 +23,6 @@ import {
   writeBlock,
   type Pool,
 } from './geometryPoolOps.ts'
-export type { PoolList } from './geometryPoolLayout.ts'
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no

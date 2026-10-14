@@ -1,4 +1,4 @@
-import { coarseQuadScene } from './testOccluder.fixture.ts'
+import { coarseQuadScene } from './coarseQuads.fixture.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 /**

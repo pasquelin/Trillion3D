@@ -3,15 +3,19 @@ import test from 'node:test'
 import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Matrix3 } from '../../../../sdk-core/src/world/math/matrix3.ts'
 import { surfaceOf } from '../surface.ts'
-import { OPEN_CONE } from './cone.ts'
-import { coneCullsPageWith } from './cone.fixture.ts'
-import { coneContextFor } from './cone.fixture.ts'
-import { createConeContext } from './cone.fixture.ts'
-import { coneCullsPage } from './cone.fixture.ts'
+import { OPEN_CONE, leafCone } from './cone.ts'
+import {
+  coneCullsPageWith,
+  coneContextFor,
+  createConeContext,
+  coneCullsPage,
+  coneSkipsPage,
+} from './cone.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { leafCone } from './cone.ts'
-import { coneSkipsPage } from './cone.fixture.ts'
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
   const cone = triangleCone([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2])
@@ -28,7 +32,7 @@ test('opposite triangles produce an open cone', () => {
 })
 
 test('OPEN_CONE never rejects', () => {
-  const world = new G.Matrix4()
+  const world = new Matrix4()
   const cam = G.perspectiveCamera(55, 1, 0.1, 100)
   cam.position.set(0, 0, 5)
   cam.lookAt(0, 0, 0)
@@ -41,7 +45,7 @@ test('OPEN_CONE never rejects', () => {
 
 test('a +z cone seen from behind the plane is rejected, and perspective spread keeps a grazing bound', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
-  const world = new G.Matrix4()
+  const world = new Matrix4()
   const behind = G.perspectiveCamera(55, 1, 0.1, 100)
   behind.position.set(0, 0, -5)
   behind.lookAt(0, 0, 0)
@@ -59,16 +63,16 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
 
 test('an anisotropic scale does not reject a still-visible cone member', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 4 }
-  const world = new G.Matrix4().makeScale(0.1, 1, 1)
+  const world = new Matrix4().makeScale(0.1, 1, 1)
   const cam = G.perspectiveCamera(55, 1, 0.1, 200)
   cam.position.set(60, 0, -80)
   cam.lookAt(0, 0, 0)
   cam.updateMatrixWorld()
-  const visible = new G.Vector3(1, 0, 1)
+  const visible = new Vector3(1, 0, 1)
     .normalize()
-    .applyMatrix3(new G.Matrix3().getNormalMatrix(world))
+    .applyMatrix3(new Matrix3().getNormalMatrix(world))
     .normalize()
-  assert.ok(visible.dot(new G.Vector3().copy(cam.position).normalize()) > 0)
+  assert.ok(visible.dot(new Vector3().copy(cam.position).normalize()) > 0)
   assert.equal(
     coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], engineCamera(cam).eye),
     false,
@@ -77,7 +81,7 @@ test('an anisotropic scale does not reject a still-visible cone member', () => {
 
 test('BackSide materials are not cone-culled from behind', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
-  const world = new G.Matrix4()
+  const world = new Matrix4()
   const behind = G.perspectiveCamera(55, 1, 0.1, 100)
   behind.position.set(0, 0, -5)
   behind.lookAt(0, 0, 0)
@@ -99,7 +103,7 @@ test('BackSide materials are not cone-culled from behind', () => {
 
 test('the root context yields the same reject as the per-cluster compute, and is set only on demand', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
-  const world = new G.Matrix4().makeRotationY(0.4).setPosition(2, 0, -1)
+  const world = new Matrix4().makeRotationY(0.4).setPosition(2, 0, -1)
   const cam = G.perspectiveCamera(55, 1, 0.1, 100)
   cam.position.set(0, 0, -5)
   cam.lookAt(0, 0, 0)
@@ -131,7 +135,7 @@ test('the root context yields the same reject as the per-cluster compute, and is
 
 test('a surface switched to double-sided in place gets its page back at the cut', () => {
   const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
-  const world = new G.Matrix4()
+  const world = new Matrix4()
   const behind = G.perspectiveCamera(55, 1, 0.1, 100)
   behind.position.set(0, 0, -5)
   behind.lookAt(0, 0, 0)

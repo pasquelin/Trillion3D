@@ -13,7 +13,7 @@ import {
   flushedImage,
   streamingQuadBackend,
 } from './testScenes.fixture.ts'
-import { coarseQuadScene } from './testOccluder.fixture.ts'
+import { coarseQuadScene } from './coarseQuads.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'

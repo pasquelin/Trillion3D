@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -88,7 +89,7 @@ async function drawn(rest: boolean, compacted = false) {
         packedPageIndex: [0, 1, 2, 3],
       },
       placement: { baseOfRoot: Int32Array.of(0), packedCount: 4 },
-      selectionRoots: [{ world: new G.Matrix4() }],
+      selectionRoots: [{ world: new Matrix4() }],
     },
   } as unknown as WebgpuPagesRuntime
   drawVis(rt, device, pass, rest, compacted)

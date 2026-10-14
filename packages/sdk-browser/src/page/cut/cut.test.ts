@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { collectClusterPages } from '../selection/collect.ts'
 import type { PageRec } from '../selection/types.ts'
 import { createSelectionResult, selectVisiblePages } from './cut.fixture.ts'
@@ -33,7 +34,7 @@ function rootsOf(fixture: ReturnType<typeof dagFixture>) {
 }
 
 /** Clusters requested and shown by a cut, flat then hierarchical, under the same camera. */
-function bothCuts(cam: G.Camera) {
+function bothCuts(cam: Camera) {
   const cut = (fixture: ReturnType<typeof dagFixture>) => {
     const result = selectVisiblePages(rootsOf(fixture), engineCamera(cam), ASK)
     fixture.geometry.dispose()

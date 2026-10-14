@@ -6,7 +6,6 @@ import type { FrameProfile } from './frameProfile.ts'
 import { debugMode, setDebugMode } from '../host/debugMode.ts'
 import { families } from '../host/families.ts'
 import { log } from './log.ts'
-export type { TelemetryReport } from './telemetryTypes.ts'
 
 /** What the report says before the debug code has arrived. */
 const WAITING = 'Waiting for the debug code'

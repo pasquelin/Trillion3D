@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { packDagSelection } from '../../gpu/dag/pack.ts'
@@ -12,12 +13,11 @@ import { graphDraws } from '../../page/selection/drawSource.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals()
-  // The clock stands still: on a loaded machine the page uploads would otherwise spend their share
-  // (`MAIN_THREAD_FRAME_MS`) and land a task later, and what the test counts would follow it.
+  // A still clock, or a loaded machine lands the uploads a task later (`MAIN_THREAD_FRAME_MS`).
   mock.method(performance, 'now', () => 0)
   const fixture = quadScene(),
     blend = quadScene()
-  const mesh = blend.source.children[0] as G.HostMesh
+  const mesh = blend.source.children[0] as HostMesh
   fixture.source.add(mesh)
   blend.material.transparent = true
   G.sided(blend.material, G.DOUBLE_SIDE)
@@ -86,8 +86,8 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.material.transparent = true
   G.sided(fixture.material, G.DOUBLE_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
-  const mesh = fixture.source.children[0] as G.HostMesh,
-    legacyMesh = legacy.source.children[0] as G.HostMesh
+  const mesh = fixture.source.children[0] as HostMesh,
+    legacyMesh = legacy.source.children[0] as HostMesh
   legacy.material.transparent = true
   G.sided(legacy.material, G.DOUBLE_SIDE)
   legacy.metadata.primitives[0].mesh = 1
@@ -95,7 +95,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.source.add(legacyMesh)
   fixture.metadata.primitives.push(legacy.metadata.primitives[0])
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 })
-  const otherMesh = other.source.children[0] as G.HostMesh
+  const otherMesh = other.source.children[0] as HostMesh
   other.material.transparent = true
   G.sided(other.material, G.DOUBLE_SIDE)
   const otherPrimitive = other.metadata.primitives[0]

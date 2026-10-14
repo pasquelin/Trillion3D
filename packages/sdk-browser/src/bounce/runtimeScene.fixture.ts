@@ -2,7 +2,7 @@
 // tree, the proxy's buffer and instances as the shader reads them, and the culling's record tables it
 // reads beside them: the worlds and the placement tree.
 import { NO_INDEX } from '../../../math/src/constants.ts'
-import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
 import { packDagSelection } from '../gpu/dag/pack.ts'
 import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
@@ -38,11 +38,11 @@ export function world(
   count: number,
   seed: number,
   options: {
-    places?: G.Matrix4[]
+    places?: Matrix4[]
     surfaces?: number[][]
     surfaceOf?: (w: number) => number
     /** Blended copies, members after the placements, each a cube at the pose given. */
-    copies?: G.Matrix4[]
+    copies?: Matrix4[]
   } = {},
 ) {
   const random = lcgRandom(seed),
@@ -53,7 +53,7 @@ export function world(
       const turn = random() * 6.28,
         [sx, sy, sz] = [0.5 + random(), 0.5 + random(), 0.5 + random()],
         [c, s] = [Math.cos(turn), Math.sin(turn)]
-      const m = new G.Matrix4()
+      const m = new Matrix4()
       m.elements.set([
         c * sx,
         0,

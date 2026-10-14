@@ -19,9 +19,6 @@ import {
 } from './materialValues.ts'
 import { assignment, PLAIN } from './createdMaterials.ts'
 
-export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts'
-export type { CreatedMaterial } from './createdMaterials.ts'
-
 type Inputs = {
   check: () => void
   /** What the session draws: the prepared surfaces of its sources are the scene's materials, and

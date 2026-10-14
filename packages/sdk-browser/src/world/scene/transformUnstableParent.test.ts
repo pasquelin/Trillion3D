@@ -8,6 +8,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { createExplorerLightApi } from '../api/lightApi.ts'
 import { setWebgpuTransform } from '../../webgpu/pages/render/transform.ts'
@@ -26,8 +31,8 @@ function near(actual: ArrayLike<number>, expected: ArrayLike<number>, tolerance:
 
 /** A parent/child scene, and the public explorer wired to the real `setWebgpuTransform`. */
 function banc() {
-  const source = new G.Object3D()
-  const parent = new G.Object3D()
+  const source = new Object3D()
+  const parent = new Object3D()
   const mesh = G.mesh()
   mesh.name = 'target'
   parent.name = 'porteur'
@@ -61,10 +66,10 @@ function banc() {
 
 const requested = () =>
   new Float32Array(
-    new G.Matrix4().compose(
-      new G.Vector3(3, -2, 5),
-      new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)),
-      new G.Vector3(1.2, 0.7, 2),
+    new Matrix4().compose(
+      new Vector3(3, -2, 5),
+      new Quaternion().setFromEuler(new Euler(0.4, 0.1, -0.2)),
+      new Vector3(1.2, 0.7, 2),
     ).elements,
   )
 
@@ -76,7 +81,7 @@ test(
     // The host writes the fields directly, never calling updateMatrixWorld — exactly the gesture
     // resolution must cover: parent.matrixWorld stays the one from before the move.
     parent.position.set(10, 4, -3)
-    parent.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.5, -0.3, 0.2)))
+    parent.quaternion.copy(new Quaternion().setFromEuler(new Euler(0.5, -0.3, 0.2)))
     parent.scale.set(2, 3, 0.5)
     const requestedHere = requested()
     explorer.setTransform('target', requestedHere)

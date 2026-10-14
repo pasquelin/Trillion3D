@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { VIS_SHADER } from './shader/visWgsl.ts'
 import type { VisPage } from './types.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
@@ -58,7 +59,7 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
   map.needsUpdate = true
   const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 })
   const solid = G.basicSurface({ color: 0x00ff00 })
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(

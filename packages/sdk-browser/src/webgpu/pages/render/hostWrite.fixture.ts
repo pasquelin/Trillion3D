@@ -2,6 +2,7 @@
 // mesh a selection root under one holder group, a GPU cut that records what each send compares
 // and copies, and `image`: the scene read, then its worlds uploaded.
 import * as G from '../../../host/graph/graph.fixture.ts'
+import { Group } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { runtime, selectionRoot } from '../../core/transformShear.fixture.ts'
 import { hostWorldPlacements } from '../../../host/world/placements.ts'
 import { uploadWorlds } from './worldUpload.ts'
@@ -10,8 +11,8 @@ import { uploadWorlds } from './worldUpload.ts'
  *  source of a see-through draw, all wearing the one surface record of their one material; its first
  *  image taken. */
 export function hostScene(count: number, blend = false) {
-  const source = new G.Group(),
-    holder = new G.Group(),
+  const source = new Group(),
+    holder = new Group(),
     first = G.mesh()
   const meshes = [
     first,

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import {
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_DATA,
@@ -27,7 +27,7 @@ const preview = (width: number, height: number, bakedLevels: number): TexturePre
   ...previewLevels(width, height, 3),
 })
 const map = () => {
-  const texture = new G.Texture()
+  const texture = new Texture()
   texture.image = { data: new Uint8Array(4 * 4 * 4), width: 4, height: 4 }
   return texture
 }

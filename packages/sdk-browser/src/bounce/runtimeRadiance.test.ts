@@ -3,7 +3,7 @@
 // placement against the footprint, and a ray that spends its budget.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { SURFACE_BLENDED } from './runtimeLayout.ts'
 import { along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
@@ -69,7 +69,7 @@ test('a ray that spends its budget answers nothing, never a miss that darkens', 
   // Four hundred cubes in a row the ray crosses: the budget runs out before the tree does.
   const count = 400
   const places = Array.from({ length: count }, (_, k) => {
-    const m = new G.Matrix4()
+    const m = new Matrix4()
     m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * 0.02 + 1, 0, 0, 1])
     return m
   })

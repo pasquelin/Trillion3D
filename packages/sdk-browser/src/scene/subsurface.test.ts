@@ -2,6 +2,7 @@ import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
@@ -20,9 +21,9 @@ const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 test('thin transmission stays independent of albedo, disabled by default and on single sides', () => {
   assert.deepEqual(G.standardSurface().subsurfaceColor, [0, 0, 0])
-  const sheet = { side: 'double', subsurfaceColor: new G.Color().setRGB(0.2, 0.7, 0.1) }
+  const sheet = { side: 'double', subsurfaceColor: new Color().setRGB(0.2, 0.7, 0.1) }
   assert.deepEqual(G.standardSurface(sheet).subsurfaceColor, [0.2, 0.7, 0.1])
-  const red = G.standardSurface({ ...sheet, color: new G.Color().setRGB(1, 0, 0) })
+  const red = G.standardSurface({ ...sheet, color: new Color().setRGB(1, 0, 0) })
   assert.deepEqual(red.subsurfaceColor, [0.2, 0.7, 0.1])
   const front = G.standardSurface({ ...sheet, side: 'front' })
   assert.deepEqual(front.subsurfaceColor, [0, 0, 0])

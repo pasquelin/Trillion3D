@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
@@ -19,7 +20,7 @@ test('paged transparent commands disappear outside the view and return with both
     fixture.material.transparent = true
     G.sided(fixture.material, G.DOUBLE_SIDE)
     fixture.metadata.primitives[0].pass = 'clustered-blend'
-    const twin = fixture.source.children[0].clone() as G.HostMesh
+    const twin = fixture.source.children[0].clone() as HostMesh
     fixture.source.add(twin)
     fixture.associations.set(twin, { meshes: 0, primitives: 0 })
     const roots = collectClusterPages(

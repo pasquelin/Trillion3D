@@ -1,6 +1,7 @@
 // What the frame-work tests share: paged items counting their matrix reads, and the expansion's
 // kernels made on a fake device over the plan of a blend scene.
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { mountBlendExpand } from './expand.ts'
 import { compileBlendExpand } from './expandKernels.ts'
@@ -14,7 +15,7 @@ const ITEMS = 2000
 export function counted() {
   const reads = { matrix: 0 }
   const items = Array.from({ length: ITEMS }, (_, i) => {
-    const matrix = new G.Matrix4().makeTranslation(i % 50, 0, Math.floor(i / 50))
+    const matrix = new Matrix4().makeTranslation(i % 50, 0, Math.floor(i / 50))
     const item = {
       surface: surfaceOf(G.basicSurface({ transparent: true })),
       count: 0,

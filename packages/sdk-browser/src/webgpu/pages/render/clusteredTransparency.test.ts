@@ -1,12 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import { BufferAttribute } from '../../../../../sdk-core/src/world/buffer/attribute.ts'
+import type { HostMesh } from '../../../host/resources.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
-import { coarseQuadScene } from '../testOccluder.fixture.ts'
+import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { settledImage } from '../settledImage.fixture.ts'
 
@@ -74,7 +76,7 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     fixture.metadata.primitives[0].pass = pass
     const positions = new Float32Array(3000)
     positions.set(fixture.geometry.getAttribute('position')!.array)
-    fixture.geometry.setAttribute('position', new G.BufferAttribute(positions, 3))
+    fixture.geometry.setAttribute('position', new BufferAttribute(positions, 3))
     const backend = webgpuPagesEngine({
       ...fixture,
       gpuDevice: device,
@@ -162,7 +164,7 @@ test('a transparent switched to double-sided still expands all its instances', a
   // Single-sided at prepare: one plan entry, and half the room.
   G.sided(fixture.material, G.FRONT_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
-  const mesh = fixture.source.children[0] as G.HostMesh
+  const mesh = fixture.source.children[0] as HostMesh
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,

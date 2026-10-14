@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
 import { setRowCell, takeCellsMoved } from '../partition/rowCells.ts'
-import * as G from '../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { runtime, selectionRoot } from '../webgpu/core/transformShear.fixture.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 
@@ -32,7 +32,7 @@ test('the rows whose cell moved are taken once; a row no root reads stays noted'
 
 test('a buffer the blend pass draws keeps no note: no root ever reads its rows', () => {
   const rows = createPlacementRows(300)
-  const { rt } = runtime(new G.Object3D(), [])
+  const { rt } = runtime(new Object3D(), [])
   Object.assign(rt.blendState, { blendGpu: [{ placement: { rows, index: 0 } }] })
   for (let index = 0; index < 300; index += 3) setRowCell(rows, index, { cell: 0, node: index })
   updateWebgpuPlacements(rt, rows, 0, 0)
@@ -43,12 +43,12 @@ test('a row both a root and the blend pass read is linked: a mesh opaque and tra
   const rows = createPlacementRows(4)
   const roots = [0, 1].map((index) => {
     rows.live[index] = 1
-    const root = selectionRoot(new G.Object3D(), [-1, -1, -1, 1, 1, 1], {
+    const root = selectionRoot(new Object3D(), [-1, -1, -1, 1, 1, 1], {
       of: () => placementWorld(rows, index),
     } as never)
     return Object.assign(root, { placement: { rows, index } })
   })
-  const { rt } = runtime(new G.Object3D(), roots)
+  const { rt } = runtime(new Object3D(), roots)
   rt.lights.mobility.ensure(2, 2, (rank) => roots[rank].world.elements)
   Object.assign(rt.blendState, { blendGpu: [{ placement: { rows, index: 1 } }] })
   const linked: number[] = []

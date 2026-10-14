@@ -2,7 +2,7 @@
 // CPU oracle walks (`runtimeSceneOracle.fixture.ts`): the two give the same hit and spend the same budget.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { world } from './runtimeScene.fixture.ts'
 import type { Vec } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -40,7 +40,7 @@ for (const count of [5, 400]) {
 test('blended copies, members after the placements, are met as the oracle meets them', () => {
   // The tree's placements, and eight copies of the cube amongst them, each at a pose of its own.
   const copies = Array.from({ length: 8 }, (_, k) => {
-    const m = new G.Matrix4()
+    const m = new Matrix4()
     m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * 2 - 1, 0.5, 4 + k, 1])
     return m
   })

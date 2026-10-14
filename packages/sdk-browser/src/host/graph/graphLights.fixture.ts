@@ -1,7 +1,6 @@
 /**
  * The lights of a test scene, the core's `Light` built as the engine builds its own, from
- * positional arguments with fixed defaults: re-exported by `./graph.fixture.ts`, where tests take
- * them.
+ * positional arguments with fixed defaults, beside the other builders of `./graph.fixture.ts`.
  */
 import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts'
 import { Light } from '../../../../sdk-core/src/world/light/light.ts'

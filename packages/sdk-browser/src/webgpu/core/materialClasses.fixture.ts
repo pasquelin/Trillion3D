@@ -1,4 +1,7 @@
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../host/resources.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
@@ -24,9 +27,9 @@ const page = (id: number, url: string, start: number) => ({
 
 /** Three primitives, one per material class, the way the compiler classifies them. */
 export function scene() {
-  const source = new G.Group(),
-    meshes: G.HostMesh[] = [],
-    associations = new Map<G.Object3D, { meshes: number; primitives: number }>()
+  const source = new Group(),
+    meshes: HostMesh[] = [],
+    associations = new Map<Object3D, { meshes: number; primitives: number }>()
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.
     G.standardSurface({ alphaTest: 0.5, side: G.DOUBLE_SIDE }),
@@ -37,7 +40,7 @@ export function scene() {
   ]
   const passes = ['exact-clusters', 'clustered-blend', 'shared-blend']
   const primitives = materials.map((material, index) => {
-    const geometry = new G.Geometry()
+    const geometry = new Geometry()
     geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))
     geometry.setIndex(G.indices([0, 1, 2]))
     const mesh = G.mesh(geometry, material)

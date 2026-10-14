@@ -9,8 +9,6 @@ import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 import { TEXTURE_MIPS_PASS } from './mipsPass.ts'
 import { chainGroups, type ChainGroups, type ChainPlace, type MipChain } from './mipGroups.ts'
 
-export type { MipChain }
-
 type Place = ChainPlace & { cutoff: number }
 
 /** A batch's picks (`COVERAGE_CHOOSE_WGSL`): their group, the uniform slots, the first pick

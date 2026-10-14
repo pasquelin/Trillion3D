@@ -1,14 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
 
 import type { BlendGpuItem } from '../blend/state.ts'
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts'
 
-const mesh = (name: string) => ({ name }) as unknown as G.HostMesh
+const mesh = (name: string) => ({ name }) as unknown as HostMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
-const rec = (node: G.HostMesh, id: number, sourceOrder: number) =>
+const rec = (node: HostMesh, id: number, sourceOrder: number) =>
   ({
     id,
     sourceOrder,
@@ -18,7 +18,7 @@ const rec = (node: G.HostMesh, id: number, sourceOrder: number) =>
   }) as unknown as PageRec
 const root = (pages: PageRec[]) =>
   ({ pages, world: pages[0]?.drawSource?.node }) as unknown as ClusterRoot<PageRec>
-const item = (node: G.HostMesh) =>
+const item = (node: HostMesh) =>
   ({ drawSource: { node }, matrix: node, paged: true }) as unknown as BlendGpuItem
 
 test('a table appended to is the table an open of all its items makes, by exactly the rows added', () => {

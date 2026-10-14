@@ -33,12 +33,6 @@ import { stagedRequestsWord } from './readoutWords.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { lastTrue } from '../../../../math/src/scalar/search.ts'
-export {
-  SELECTION_HEADER_WORDS,
-  evictionWord,
-  differenceWord,
-  levelCountsWord,
-} from './readoutWords.ts'
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */

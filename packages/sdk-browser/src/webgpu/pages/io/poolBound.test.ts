@@ -4,7 +4,7 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { coarseQuadScene } from '../testOccluder.fixture.ts'
+import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 import { settledImage } from '../settledImage.fixture.ts'
 

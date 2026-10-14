@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import type { HizPage } from './types.ts'
 import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
@@ -42,7 +43,7 @@ test('visibility depth after the visbuffer uses the far value as background and 
 
 test('a box that crosses the near plane is never Hi-Z rejected', () => {
   const cam = cameraAt(0.5, 0.1)
-  const bounds = projectBoxToScreen([-2, -2, -2], [2, 2, 2], new G.Matrix4(), cam, [32, 32])
+  const bounds = projectBoxToScreen([-2, -2, -2], [2, 2, 2], new Matrix4(), cam, [32, 32])
   assert.equal(bounds.clipsNear, true)
   const depth = new Float32Array(32 * 32)
   depth.fill(0.8)
@@ -55,7 +56,7 @@ test('the screen rectangle is rounded outward and a single background hole canno
   // Reverse-Z: the background hole is the FAR value, zero.
   depth.set([0.8, 0.7, 0.6, DEPTH_CLEAR])
   const pyramid = buildHizPyramid(depth, 2, 2)
-  const bounds = projectBoxToScreen([-1, -1, 0], [1, 1, 0], new G.Matrix4(), cameraAt(), [2, 2])
+  const bounds = projectBoxToScreen([-1, -1, 0], [1, 1, 0], new Matrix4(), cameraAt(), [2, 2])
   assert.equal(bounds.clipsNear, false)
   assert.ok(bounds.minX <= 0 && bounds.minY <= 0)
   assert.ok(bounds.maxX >= 2 && bounds.maxY >= 2)

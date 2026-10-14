@@ -1,4 +1,4 @@
-import type { ResidencyChanges } from '../core/selection.ts'
+import type { ResidencyChanges, PageResidency } from '../core/selection.ts'
 import { childBase, residentBase, residentWords } from './layout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { PackedDag } from './types.ts'
@@ -9,7 +9,6 @@ import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { HELD_BY_WORD } from './worlds.ts'
 import { createDagReadiness } from './readiness.ts'
 import { writeRanges, type RangeTarget } from './runWrites.ts'
-import type { PageResidency } from '../core/selection.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself

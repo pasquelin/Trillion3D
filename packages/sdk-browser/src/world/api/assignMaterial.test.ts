@@ -3,7 +3,7 @@
 // name before any write.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { drawSourceOf } from '../../page/selection/drawSource.ts'
 import { refusal, scene } from './materialApi.fixture.ts'
@@ -29,7 +29,7 @@ test('a created material is worn by the drawable it is assigned to, every engine
 test('a vertex-coloured drawable wears the coloured variant of a created material, written with it', async () => {
   const { api, source } = await scene()
   const drawable = meshes(source)[2]
-  drawable.geometry.setAttribute('color', new G.BufferAttribute(new Float32Array(3), 3))
+  drawable.geometry.setAttribute('color', new BufferAttribute(new Float32Array(3), 3))
   const made = api.createMaterial({ baseColor: [0, 0, 1] })
   assert.equal(api.assignMaterial('2/0', made.id), true)
   const worn = drawable.material as PageSurface

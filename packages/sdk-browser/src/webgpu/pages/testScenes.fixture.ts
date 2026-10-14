@@ -1,4 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import assert from 'node:assert/strict'
 import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
@@ -22,7 +24,7 @@ import type { PageSurface } from '../../page/surface.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 /** `scene` with the sources of its graph's drawn nodes, as a session is handed them. */
-export const withDraws = <S extends { source: G.Object3D; associations: DrawAssociations }>(
+export const withDraws = <S extends { source: Object3D; associations: DrawAssociations }>(
   scene: S,
 ) => ({ ...scene, draws: graphDraws(scene.source, scene.associations) })
 
@@ -157,7 +159,7 @@ export function assertBothQuadPagesDrawn(
 /** Releases a backend and the quad it was mounted on. */
 export function disposeQuadRun(
   backend: { dispose(): void },
-  fixture: { geometry: G.Geometry; material: PageSurface },
+  fixture: { geometry: Geometry; material: PageSurface },
 ) {
   backend.dispose()
   fixture.geometry.dispose()
@@ -171,7 +173,7 @@ export function mixedBinScene() {
     both = G.basicSurface({ color: 0x00ff00, side: G.DOUBLE_SIDE })
   const meshA = G.mesh(geoA, front),
     meshB = G.mesh(geoB, both),
-    source = new G.Group()
+    source = new Group()
   source.add(meshA, meshB)
   const box = rootPage('0', [-1, -1, 0], [1, 1, 0])
   return {

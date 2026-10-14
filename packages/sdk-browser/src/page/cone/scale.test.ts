@@ -7,10 +7,14 @@ import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Matrix3 } from '../../../../sdk-core/src/world/math/matrix3.ts'
 import { type NormalCone } from './cone.ts'
-import { coneCullsPageWith } from './cone.fixture.ts'
-import { coneContextFor } from './cone.fixture.ts'
-import { createConeContext } from './cone.fixture.ts'
+import { coneCullsPageWith, coneContextFor, createConeContext } from './cone.fixture.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import type { ClusterRoot } from '../selection/types.ts'
 import type { PageRecord } from '../cut/state.fixture.ts'
@@ -33,7 +37,7 @@ function camera() {
 }
 
 /** A single cluster, the full CPU cut — only the fields `selectFlat` actually reads. */
-function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.Camera) {
+function trianglesGardes(world: Matrix4, cone: NormalCone, cam: Camera) {
   const page = {
     min: MIN,
     max: MAX,
@@ -48,7 +52,7 @@ function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.Camera) {
 
 test('non-uniform scale at small scale (1e-8, 1e-6, 1e-6), trigger case: both triangles stay', () => {
   const cone = triangleCone(POSITIONS, INDICES)
-  const world = new G.Matrix4().makeScale(1e-8, 1e-6, 1e-6)
+  const world = new Matrix4().makeScale(1e-8, 1e-6, 1e-6)
   const cam = camera()
   const ctx = coneContextFor(createConeContext(), world, engineCamera(cam).eye)
   assert.equal(
@@ -67,7 +71,7 @@ test('a degenerate 3×3 (null scale on one axis, hence a null column) is not con
     [1, 0, 1],
     [1, 1, 0],
   ] as const) {
-    const world = new G.Matrix4().makeScale(scale[0], scale[1], scale[2])
+    const world = new Matrix4().makeScale(scale[0], scale[1], scale[2])
     const ctx = coneContextFor(createConeContext(), world, engineCamera(cam).eye)
     assert.equal(ctx.conformal, false, `scale ${scale}`)
     assert.equal(
@@ -86,7 +90,7 @@ test('a 3×3 with a NaN or infinite term is not conformal: the cluster stays', (
     [5, Infinity],
     [10, -Infinity],
   ] as const) {
-    const world = new G.Matrix4()
+    const world = new Matrix4()
     world.elements[index] = valeur
     const ctx = coneContextFor(createConeContext(), world, engineCamera(cam).eye)
     assert.equal(ctx.conformal, false, `term ${index} = ${valeur}`)
@@ -105,14 +109,14 @@ test('uniform scale from 1e-8 to 1e3, with rotation: a face with its back to the
       [0, 0, 0],
       [0.3, -0.5, 0.2],
     ] as const) {
-      const q = new G.Quaternion().setFromEuler(new G.Euler(...euler))
-      const world = new G.Matrix4().compose(new G.Vector3(), q, new G.Vector3(scale, scale, scale))
+      const q = new Quaternion().setFromEuler(new Euler(...euler))
+      const world = new Matrix4().compose(new Vector3(), q, new Vector3(scale, scale, scale))
       const conforme = coneContextFor(createConeContext(), world, engineCamera(camera()).eye)
       assert.equal(conforme.conformal, true, `scale ${scale} rotation ${euler}`)
       // The context's normal matrix is flat: the test puts it back in an object to apply it.
-      const normal = new G.Matrix3()
+      const normal = new Matrix3()
       normal.elements.set(conforme.normal)
-      const worldAxis = new G.Vector3(...cone.axis).applyMatrix3(normal).normalize()
+      const worldAxis = new Vector3(...cone.axis).applyMatrix3(normal).normalize()
       const distance = Math.max(5, scale * 2000)
       const cam = G.perspectiveCamera(55, 1, 0.1, distance * 100)
       cam.position.copy(worldAxis).multiplyScalar(-distance)

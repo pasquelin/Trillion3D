@@ -17,7 +17,6 @@ import { regrownPageTable } from './regrow.ts'
  * contains and where that comes from is the streamer's business. A texture's tiles and tail live
  * in the pool of its lane, and the shader reads the lane in the texture's header.
  */
-export type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 
 export function createWebgpuTileAtlas(

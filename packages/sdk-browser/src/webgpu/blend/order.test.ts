@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
 import { refreshBlendPlan } from './plan.ts'
@@ -13,7 +14,7 @@ import { type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 function item(z: number, extra: Partial<BlendGpuItem> = {}) {
   return {
     surface: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE })),
-    matrix: new G.Matrix4(),
+    matrix: new Matrix4(),
     count: 3,
     paged: true,
     bounds: new Float64Array([-1, -1, z - 1, 1, 1, z + 1]),

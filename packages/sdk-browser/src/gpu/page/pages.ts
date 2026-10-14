@@ -10,7 +10,6 @@ import { createEviction, type EvictionOrder } from './eviction.ts'
 import { homePlacement, slotPlacement, wholeSlots } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
-export type { ResidentPage } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
 export type GpuPageCacheOptions = {
   /** The bytes of one slot: a multiple of four. */

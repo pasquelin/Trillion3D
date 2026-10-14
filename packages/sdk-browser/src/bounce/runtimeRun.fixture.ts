@@ -1,6 +1,6 @@
 // The shipped WGSL of the run-time proxy's rays run as JavaScript (`shaderRun`) over a scene
 // (`runtimeScene.fixture.ts`), and the helpers the tests along a line of sight and over a history share.
-import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from './runtimeLayout.ts'
@@ -108,7 +108,7 @@ export function runOver(w: ReturnType<typeof world>, list: number[] = counters(0
 /** Cubes along a line of sight from the origin, `gap` apart, the first at `gap`. */
 export const along = (count: number, gap: number) =>
   Array.from({ length: count }, (_, k) => {
-    const m = new G.Matrix4()
+    const m = new Matrix4()
     m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * gap + gap, 0, 0, 1])
     return m
   })

@@ -136,10 +136,4 @@ export function pumpResidentTiles(
   return (!converging && textures?.pump(frame).served) || 0
 }
 
-export {
-  directLightResources,
-  litProgramPending,
-  readsAsIs,
-  wantsContractLighting,
-} from './contractLight.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'

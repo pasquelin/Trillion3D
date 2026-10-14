@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 import { projectCornersInto } from './projection.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -74,13 +76,13 @@ function randomBoxes(count: number) {
 }
 
 function compare(
-  camera: G.Camera,
-  view: G.Matrix4,
+  camera: Camera,
+  view: Matrix4,
   near: number,
   label: string,
   boxes: Float64Array[],
 ) {
-  const viewProj = new G.Matrix4().multiplyMatrices(camera.projectionMatrix, view)
+  const viewProj = new Matrix4().multiplyMatrices(camera.projectionMatrix, view)
   const into = new Float64Array(HIZ_BOUNDS_VALUES)
   let projected = 0
   for (const corners of boxes) {

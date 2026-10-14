@@ -12,7 +12,7 @@ import {
   flushedImage,
 } from './testScenes.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
-import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
+import { twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import type { Engine } from '../../engine/types.ts'
 import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'

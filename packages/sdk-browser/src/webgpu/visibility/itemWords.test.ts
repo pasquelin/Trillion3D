@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { BIN_BACK, CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/contract.ts'
 import type { GpuDraw } from '../../gpu/draw/contract.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords, sendDrawItemWords } from './itemWords.ts'
@@ -31,7 +32,7 @@ function runtime(n: number, drawLayerSlots: number) {
       pageTableInts: new Uint32Array(Math.max(1, n) * ROW_WORDS),
       forEachDirtyRun: dirty.forEachRun,
     },
-    selectionRoots: [{ world: new G.Matrix4() }],
+    selectionRoots: [{ world: new Matrix4() }],
     // Every row draws a page of the one placement: its packed ranks all name root 0.
     placement: {
       baseOfRoot: Int32Array.of(0),

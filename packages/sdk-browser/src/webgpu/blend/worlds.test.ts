@@ -4,6 +4,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
@@ -14,10 +19,10 @@ import { drawSourceOf } from '../../page/selection/drawSource.ts'
 
 /** A transparent item reduced to what the refresh reads: its matrix, box, geometry. The scene
  *  carries the parent from the start: that is the shape the engine indexes at prepare. */
-function item(position: G.Vector3, cullable = true) {
-  const geometry = new G.Geometry()
-  geometry.boundingBox = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1))
-  const parent = new G.Group()
+function item(position: Vector3, cullable = true) {
+  const geometry = new Geometry()
+  geometry.boundingBox = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1))
+  const parent = new Group()
   const mesh = G.mesh(geometry)
   mesh.position.copy(position)
   parent.add(mesh)
@@ -29,13 +34,13 @@ function item(position: G.Vector3, cullable = true) {
     bounds: undefined,
     drawSource: { node: mesh },
     sourceGeometry: geometry,
-  } as unknown as BlendGpuItem & { drawSource: { node: G.HostMesh } }
+  } as unknown as BlendGpuItem & { drawSource: { node: HostMesh } }
   refreshBlendBounds(shaped)
   return Object.assign(shaped, { parent, worlds })
 }
 
 test('the transparent copy reads the world matrix the engine holds, it keeps no snapshot of it', () => {
-  const mesh = G.mesh(new G.Geometry())
+  const mesh = G.mesh(new Geometry())
   mesh.position.set(1, 2, 3)
   const worlds = hostWorldPlacements(mesh)
   const copy = createBlendCopyRecord(drawSourceOf(mesh), 7, worlds.of(mesh), surfaceOf([]))
@@ -56,7 +61,7 @@ test('the transparent copy reads the world matrix the engine holds, it keeps no 
 })
 
 test('a world box follows the mesh matrix, a direct move as well as a parent move', () => {
-  const mobile = item(new G.Vector3(0, 0, 0))
+  const mobile = item(new Vector3(0, 0, 0))
   assert.deepEqual(Array.from(mobile.bounds!), [-1, -1, -1, 1, 1, 1])
 
   mobile.drawSource.node.position.set(0, 5, 0)
@@ -71,7 +76,7 @@ test('a world box follows the mesh matrix, a direct move as well as a parent mov
 })
 
 test('a shear is not decomposed: the box stays that of the requested matrix', () => {
-  const cisaille = item(new G.Vector3(0, 0, 0))
+  const cisaille = item(new Vector3(0, 0, 0))
   // `y` pushes `x`: the unit box then covers x ∈ [-4, 4], which no TRS product yields. The pose
   // is SET, as `setTransform` does: the engine takes it as-is.
   cisaille.drawSource.node.matrixAutoUpdate = false
@@ -82,16 +87,16 @@ test('a shear is not decomposed: the box stays that of the requested matrix', ()
 })
 
 test('an item that cannot be rejected, with no local box, or whose matrix carries a NaN', () => {
-  const libre = item(new G.Vector3(1, 0, 0), false)
+  const libre = item(new Vector3(1, 0, 0), false)
   assert.equal(libre.bounds, undefined, 'without a box buffer, the item is never rejected')
   assert.equal(refreshBlendWorlds([libre]), 0, 'and it is not even visited')
 
-  const sansBoite = item(new G.Vector3(1, 0, 0))
+  const sansBoite = item(new Vector3(1, 0, 0))
   sansBoite.sourceGeometry.boundingBox = null
   refreshBlendBounds(sansBoite)
   assert.equal(sansBoite.bounds, undefined, 'no local box, so no rejection')
 
-  const douteux = item(new G.Vector3(0, 0, 0))
+  const douteux = item(new Vector3(0, 0, 0))
   douteux.drawSource.node.position.x = Number.NaN
   douteux.worlds.refresh()
   refreshBlendBounds(douteux)

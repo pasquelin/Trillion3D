@@ -1,7 +1,7 @@
-import type * as WebgpuLent from '../webgpu/impostor/lent.ts'
+import type { impostorLent } from '../webgpu/impostor/lent.ts'
 
 /** What the core lends the impostor family (`../webgpu/impostor/lent.ts`). */
-export type Lent = typeof WebgpuLent
+export type Lent = typeof impostorLent
 
 /**
  * The core's pieces as the impostor family reads them (#1335, #1336): filled by `lend`, which

@@ -82,7 +82,6 @@ export function createReadbackRing<T = number>(
     all: Staging<T>[] = []
   const { chain } = options
   let destroyed = false,
-    unmappable = false,
     flying = 0
   let waiting: Array<() => void> = []
   const landed = () => {
@@ -97,11 +96,6 @@ export function createReadbackRing<T = number>(
       buffer = createStaging(device, options.label, bytes)
     } catch {
       // Refused — the budget, the device —: this take gets none, the next asks again.
-      return undefined
-    }
-    if (typeof buffer?.mapAsync !== 'function' || typeof buffer.getMappedRange !== 'function') {
-      buffer?.destroy()
-      unmappable = true
       return undefined
     }
     const staging: Staging<T> = {
@@ -125,7 +119,7 @@ export function createReadbackRing<T = number>(
     all.push(staging)
     return staging
   }
-  const room = () => !destroyed && !unmappable && all.length < options.count
+  const room = () => !destroyed && all.length < options.count
   /** A free buffer of `bytes` at least: one held, made again when too small, or a new one. */
   const freeOf = (bytes: number) => {
     const staging = free.pop()

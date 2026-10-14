@@ -4,6 +4,7 @@
 // JSON-stringified, what the site took from the camera for that frame.
 import { surfaceOf } from '../page/surface.ts'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
@@ -111,7 +112,7 @@ const pureSites: Site[] = [
     measure: (_state, camera: HostCamera) =>
       projectedPageError(
         { lodError: 0.05, sphere: [0.5, 0, 0, 0.6] },
-        new G.Matrix4(),
+        new Matrix4(),
         engine(camera),
         VIEWPORT,
       ),

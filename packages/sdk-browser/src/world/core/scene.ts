@@ -12,7 +12,6 @@ import type { SavedScene } from '../saved/format.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import { validateSceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { sceneFogOf, type Fog } from './sceneFog.ts'
-export { sceneFogOf }
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {

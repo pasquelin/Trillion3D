@@ -2,7 +2,7 @@
  * TEST SCENES BUILT OF THE ENGINE'S OWN GRAPH: every node, surface, texture, light and camera a
  * test hands the engine, made of `./` and the core's numbers — never of a rendering library.
  *
- * The classes are re-exported as they are; the builders below cover the few that a test declares
+ * A test imports the classes from their own modules; the builders below cover the few it declares
  * by positional arguments (a camera by its optics, a light by its colour and range, a raw texture
  * by its texels, a box by its sizes), each with fixed defaults, so a test reads in one line and the
  * engine receives only objects of its own graph.
@@ -23,30 +23,6 @@ import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { HostAttributes } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
-
-export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
-export { Color } from '../../../../sdk-core/src/world/math/color.ts'
-export { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
-export { Matrix3 } from '../../../../sdk-core/src/world/math/matrix3.ts'
-export { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
-export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
-export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
-export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
-export {
-  BufferAttribute,
-  InterleavedBufferAttribute,
-  InterleavedBuffer,
-} from '../../../../sdk-core/src/world/buffer/attribute.ts'
-export { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-export { Light } from '../../../../sdk-core/src/world/light/light.ts'
-export { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts'
-export type { HostMesh } from '../resources.ts'
-export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-export { Scene } from '../../world/core/scene.ts'
-export { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-export * from './graphLights.fixture.ts'
 
 /** The faces a surface draws, as a declaration names them. */
 export const FRONT_SIDE: Side = 'front',
@@ -188,4 +164,3 @@ export function byName(root: Object3D, name: string) {
   })
   return found
 }
-export * from './kinds.ts'

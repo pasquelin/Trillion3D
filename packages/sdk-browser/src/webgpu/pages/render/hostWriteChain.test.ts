@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { selectionRoot } from '../../core/transformShear.fixture.ts'
 import { hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransforms } from './transform.ts'
@@ -16,8 +17,8 @@ const CHAIN = 100
  *  ancestor. */
 function chained(count: number) {
   const s = hostScene(count)
-  const links: G.Object3D[] = []
-  let parent: G.Object3D = s.holder
+  const links: Object3D[] = []
+  let parent: Object3D = s.holder
   for (let k = 0; k < CHAIN; k++) {
     const link = G.mesh(s.meshes[0].geometry)
     parent.add(link)

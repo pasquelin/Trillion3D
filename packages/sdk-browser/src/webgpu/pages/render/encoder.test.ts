@@ -4,6 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { Vector3 } from '../../../../../sdk-core/src/world/math/vector3.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -27,12 +29,12 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
     await backend.prepare()
     // Rig nobody else walks: the local host camera stays at the origin, only the rig carries the
     // translation. The traced pose must follow the rig, not the camera's local pose.
-    const rig = new G.Object3D()
+    const rig = new Object3D()
     rig.position.set(7, -1, 4)
     const hostCamera = G.perspectiveCamera(55, 1, 0.1, 100)
     rig.add(hostCamera)
     rig.updateWorldMatrix(true, false)
-    const attendu = G.worldPosition(hostCamera, new G.Vector3()).toArray()
+    const attendu = G.worldPosition(hostCamera, new Vector3()).toArray()
     assert.notDeepEqual(attendu, G.xyz(hostCamera.position), 'witness: the rig does move the eye')
 
     backend.render(hostCamera)

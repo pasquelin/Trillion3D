@@ -1,6 +1,8 @@
 import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { collectClusterPages } from './collect.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
@@ -14,11 +16,11 @@ export function dagFixture() {
     const x = -2 + t
     positions.push(x, -0.5, 0, x + 1, -0.5, 0, x + 0.5, 0.5, 0)
   }
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(positions, 3))
   geometry.setIndex(G.indices([...Array(12).keys()]))
   const mesh = G.mesh(geometry, G.basicSurface({ side: G.DOUBLE_SIDE }))
-  const source = new G.Group()
+  const source = new Group()
   source.add(mesh)
   const leftSphere = [-1, 0, 0, 1.2],
     rightSphere = [1, 0, 0, 1.2],

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import {
@@ -52,7 +53,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     },
     itemWordsHold: createDrawItemWordsHold(2),
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
-    selectionRoots: [{ world: new G.Matrix4() }],
+    selectionRoots: [{ world: new Matrix4() }],
     // Both rows draw a page of the one placement: their packed ranks name root 0.
     placement: { baseOfRoot: Int32Array.of(0), packedCount: 2 },
   }

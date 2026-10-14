@@ -4,7 +4,6 @@ import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { World } from './world.ts'
 import { families } from '../../host/families.ts'
-export type { JobProgress }
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
 type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null }

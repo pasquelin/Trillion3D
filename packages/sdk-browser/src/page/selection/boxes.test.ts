@@ -4,12 +4,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { collectClusterPages } from './collect.ts'
-import type { PageRec } from './types.ts'
+import type { PageRec, ClusterRoot } from './types.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { wideCamera } from './dag.fixture.ts'
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts'
 import { blendFixture } from './blend.fixture.ts'
-import type { ClusterRoot } from './types.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { graphDraws } from './drawSource.ts'
 

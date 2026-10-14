@@ -9,8 +9,6 @@ import type { WebgpuBudgetState } from '../../residency/budgetState.ts'
 import type { MovedWorlds } from '../render/movedWorlds.ts'
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
 
-export { createWebgpuRunState } from './runState.ts'
-
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
 export interface WebgpuRunState extends WebgpuBudgetState {

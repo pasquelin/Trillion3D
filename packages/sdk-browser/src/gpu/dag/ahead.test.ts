@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { VIEWPORT } from './selectionHelpers.fixture.ts'
@@ -27,7 +28,7 @@ function scene(at = [0, 20, 40].map((x) => [x, 0])) {
   const pages = scenePages(1024, 6)
   const roots = sceneRoots(
     pages,
-    at.map(([x, z]) => new G.Matrix4().makeTranslation(x, 0, z)),
+    at.map(([x, z]) => new Matrix4().makeTranslation(x, 0, z)),
   )
   return { pages, roots, packed: packDagSelection(roots) }
 }

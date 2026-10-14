@@ -1,8 +1,9 @@
 import * as G from '../host/graph/graph.fixture.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../host/resources.ts'
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { MANIFEST_IDENTITY } from '../engine/pagesEngine.fixture.ts'
-import { dagRoots } from '../engine/pagesEngine.fixture.ts'
+import { MANIFEST_IDENTITY, dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
 import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts'
@@ -33,7 +34,7 @@ function placedScene(links: readonly RowLink[]) {
   const geometries = [0, 1, 2].map(() => triangleGeometry())
   const surface = G.basicSurface({ color: 0xff0000, side: G.DOUBLE_SIDE })
   const [ground, ...leaves] = geometries.map((geometry) => G.mesh(geometry, surface))
-  const source = new G.Group()
+  const source = new Group()
   source.add(ground, ...leaves)
   const structure = { version: 1, roots: [0], groups: [] }
   const primitive = (mesh: number, rank: number, url: string) => ({
@@ -51,7 +52,7 @@ function placedScene(links: readonly RowLink[]) {
   const indices = new Map(
     ['ground', 'leaf-0', 'leaf-1'].map((url) => [url, new Uint32Array([0, 1, 2])]),
   )
-  const associations = new Map<G.HostMesh, RowLink>([
+  const associations = new Map<HostMesh, RowLink>([
     [ground, { meshes: 0, primitives: 0 }],
     [leaves[0], links[0]],
     [leaves[1], links[1]],

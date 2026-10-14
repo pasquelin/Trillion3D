@@ -1,11 +1,13 @@
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { DAG, type Cluster } from './pagesEngine.fixture.ts'
 import type { PageSurface } from '../page/surface.ts'
 
 /** One indexed triangle over three `positions`; by default (−1, −1), (1, −1), (0, 1) at z = 0. */
 export function triangleGeometry(positions = [-1, -1, 0, 1, -1, 0, 0, 1, 0]) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(positions, 3))
   geometry.setIndex(G.indices([0, 1, 2]))
   return geometry
@@ -26,11 +28,11 @@ export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
 
 /** A unit quad as two triangles: the source most page tests cluster. */
 export function quadMesh(material: PageSurface = G.basicSurface()) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3))
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]))
   const mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   return { geometry, material, mesh, source }
 }
@@ -67,7 +69,7 @@ export function frontCamera() {
 /** A transparent, double-sided fan of three triangles: clusters 0..2, plus the indices of their
  *  coarse replacements 3 and 4. */
 export function fanScene() {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -1, 0, 0], 3),
@@ -75,7 +77,7 @@ export function fanScene() {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 0, 3, 4]))
   const material = G.basicSurface({ transparent: true, side: G.DOUBLE_SIDE }),
     mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   const indices = new Map([
     ['0', new Uint32Array([0, 1, 2])],

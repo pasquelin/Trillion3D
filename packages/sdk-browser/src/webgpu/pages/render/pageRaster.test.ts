@@ -1,7 +1,7 @@
 import test from 'node:test'
 import { MANIFEST_IDENTITY } from '../../../engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
+import { isDrawnNode } from '../../../host/graph/kinds.ts'
 import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import {
   drawnPageIds,
@@ -32,7 +32,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   backend.render(camera())
   let pageMeshes = 0
   backend.scene.traverse((o) => {
-    if (G.isDrawnNode(o)) pageMeshes++
+    if (isDrawnNode(o)) pageMeshes++
   })
   assert.equal(pageMeshes, 0)
   assert.equal(backend.metrics().clusters, 2)

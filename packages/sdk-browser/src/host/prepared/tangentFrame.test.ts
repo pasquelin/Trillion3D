@@ -9,6 +9,7 @@ import { preparedMaterials } from './materials.ts'
 import { entry } from '../../world/api/materialApi.fixture.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import * as G from '../graph/graph.fixture.ts'
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 
 const plain = { vertexColors: false, flatShading: false, twoSided: false }
 
@@ -26,7 +27,7 @@ test('both variants of a table surface shade a page with one factor, vertex tang
 })
 
 test('a surface no table wrote keeps the factor it declares in either frame', () => {
-  const foreign = G.standardSurface({ normalScale: new G.Vector2(1, 0.5) })
+  const foreign = G.standardSurface({ normalScale: new Vector2(1, 0.5) })
   assert.equal(frameNormalScaleY(foreign, false), 0.5)
   assert.equal(frameNormalScaleY(foreign, true), 0.5)
 })

@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { clipPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { frustumClipBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { referenceBoxClip } from '../../../../../bench/oracles/browser/selection.ts'
@@ -13,7 +14,7 @@ const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 100)
 cam.position.z = 6
 cam.lookAt(0, 0, 0)
 cam.updateMatrixWorld()
-const clip = new G.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
+const clip = new Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
 const planes = new Float64Array(24)
 clipPlanesFromMatrix(planes, clip.elements)
 

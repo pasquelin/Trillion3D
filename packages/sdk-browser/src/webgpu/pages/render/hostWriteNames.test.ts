@@ -6,8 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import { Group, Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { selectionRoot } from '../../core/transformShear.fixture.ts'
-import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { updateTransformTree } from '../../../../../sdk-core/src/world/transform-tree/pass.ts'
 import { hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransform } from './transform.ts'
@@ -45,7 +45,7 @@ test('a slot freed and taken by another node names nothing of the old node’s r
   assert.equal(appendRootsUnder(rt.layout, gone, named, 0), 1)
   assert.deepEqual(named, [4], 'its root')
   gone.destroy()
-  const other = new G.Group()
+  const other = new Group()
   holder.add(other)
   assert.equal(other.index, gone.index, 'the slot taken again')
   assert.equal(appendRootsUnder(rt.layout, other, [], 0), 0, 'none of the old root')

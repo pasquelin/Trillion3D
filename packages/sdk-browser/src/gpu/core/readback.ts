@@ -10,15 +10,15 @@ import { mapStaging } from './readbackRing.ts'
  * that wants to check what the GPU wrote calls them.
  */
 
-/** Copies `bytes` bytes of a GPU buffer from byte `offset`, or `undefined` if the device does not
- *  map: through the device's held mapped buffer, as `readGpuImage` (a failed copy's is destroyed). */
+/** Copies `bytes` bytes of a GPU buffer from byte `offset`, `undefined` under four bytes: through
+ *  the device's held mapped buffer, as `readGpuImage` (a failed copy's is destroyed). */
 export async function readGpuBuffer(
   device: GPUDevice,
   source: GPUBuffer,
   bytes: number,
   offset = 0,
 ): Promise<Uint32Array | undefined> {
-  if (bytes < 4 || typeof device.createBuffer !== 'function') return undefined
+  if (bytes < 4) return undefined
   const staging = takeReadback(device, bytes, 'Trillion3D buffer readback')
   let read = false
   try {
@@ -44,7 +44,7 @@ export async function readGpuTextureR32F(
   width: number,
   height: number,
 ): Promise<Float32Array | undefined> {
-  if (width < 1 || height < 1 || typeof device.createBuffer !== 'function') return undefined
+  if (width < 1 || height < 1) return undefined
   const bytes = await readGpuImage(device, texture, width, height, undefined, { topDown: true })
   return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 }

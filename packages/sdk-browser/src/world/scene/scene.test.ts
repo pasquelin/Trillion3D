@@ -2,6 +2,9 @@ import '../../wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { pagesBounds } from './pagesBounds.ts'
 import { emptyWorldBox } from '../../host/world/bounds.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
@@ -67,10 +70,10 @@ test('a manifest with no page and no bundle yields empty indexes on both sides',
 })
 
 test('pagesBounds boxes the exact page at the mesh position, a « coarse » page excluded, a mesh without association reported', () => {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   const meshFound = G.mesh(geometry, G.basicSurface())
   const meshMissing = G.mesh(geometry, G.basicSurface())
-  const source = new G.Group()
+  const source = new Group()
   source.add(meshFound, meshMissing)
   meshFound.position.set(2, 0, 0)
   const exact = pageDe(0, 'p/0')
@@ -82,12 +85,12 @@ test('pagesBounds boxes the exact page at the mesh position, a « coarse » page
   const metadata = {
     primitives: [{ mesh: 0, primitive: 0, pages: [exact, grossiere] }],
   } as unknown as ClusterManifest
-  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<HostMesh, { meshes: number; primitives: number }>([
     [meshFound, { meshes: 0, primitives: 0 }],
   ])
-  const manques: G.HostMesh[] = []
+  const manques: HostMesh[] = []
   const actual = pagesBounds(source, associations, metadata, (m) =>
-    manques.push(asHostLibrary<G.HostMesh>(m)),
+    manques.push(asHostLibrary<HostMesh>(m)),
   )
   assert.deepEqual(Array.from(actual), [2, 0, 0, 3, 1, 1])
   assert.deepEqual(manques, [meshMissing])
@@ -97,21 +100,21 @@ test('pagesBounds boxes the exact page at the mesh position, a « coarse » page
 // worked out by hand: the page box [-1,-2,-3]..[4,5,6] goes through `x' = x + 0.6 y + 2`,
 // `y' = y + 3`, `z' = 0` (the sheared child), then the root's `x -> -3 x`.
 function hostileScene(nanShift: boolean) {
-  const geometry = new G.Geometry()
-  const root = new G.Group()
+  const geometry = new Geometry()
+  const root = new Group()
   root.scale.set(-3, 1, 1)
-  const child = new G.Group()
+  const child = new Group()
   child.matrixAutoUpdate = false
   child.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1)
   root.add(child)
   const singulier = G.mesh(geometry, G.basicSurface())
   child.add(singulier)
-  const grandchild = new G.Group()
+  const grandchild = new Group()
   grandchild.position.set(nanShift ? NaN : 0, 5, -0)
   child.add(grandchild)
   const profond = G.mesh(geometry, G.basicSurface())
   grandchild.add(profond)
-  const source = new G.Group()
+  const source = new Group()
   source.add(root)
   const page = pageDe(0, 'p/0')
   page.min = [-1, -2, -3]
@@ -122,10 +125,10 @@ function hostileScene(nanShift: boolean) {
       { mesh: 1, primitive: 0, pages: [page] },
     ],
   } as unknown as ClusterManifest
-  const boxOf = (mesh: G.HostMesh, manifestMesh: number) =>
+  const boxOf = (mesh: HostMesh, manifestMesh: number) =>
     pagesBounds(
       source,
-      new Map<G.HostMesh, { meshes: number; primitives: number }>([
+      new Map<HostMesh, { meshes: number; primitives: number }>([
         [mesh, { meshes: manifestMesh, primitives: 0 }],
       ]),
       metadata,
@@ -151,9 +154,9 @@ test('pagesBounds: a NaN position makes the whole box NaN, and leaves the siblin
 // Batch M4a: no allocation per page — one working buffer for the whole loop. Checked by passing
 // the same `into` output from one call to the next: that is what comes back, never a new object.
 test('pagesBounds reuses the `into` output instead of allocating one per page', () => {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   const mesh = G.mesh(geometry, G.basicSurface())
-  const source = new G.Group()
+  const source = new Group()
   source.add(mesh)
   const pages = Array.from({ length: 50 }, (_, i) => {
     const p = pageDe(i, `p/${i}`)
@@ -162,7 +165,7 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
     return p
   })
   const metadata = { primitives: [{ mesh: 0, primitive: 0, pages }] } as unknown as ClusterManifest
-  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>([
+  const associations = new Map<HostMesh, { meshes: number; primitives: number }>([
     [mesh, { meshes: 0, primitives: 0 }],
   ])
   const into = emptyWorldBox()
@@ -173,10 +176,10 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
 // A mesh placed by rows is bounded by the box its rows place it in, before the view reads its
 // primitive: the scene opens, and nothing is called missing.
 test('pagesBounds bounds a mesh placed by rows whose primitive is not read yet by its box', () => {
-  const placed = Object.assign(G.mesh(new G.Geometry(), G.basicSurface()), {
+  const placed = Object.assign(G.mesh(new Geometry(), G.basicSurface()), {
     boundingBox: { min: { x: -1, y: 0, z: -2 }, max: { x: 3, y: 4, z: 5 } },
   })
-  const source = new G.Group()
+  const source = new Group()
   source.add(placed)
   const associations = new Map([
     [placed, { meshes: 7, primitives: 0, placements: createPlacementRows(1) }],

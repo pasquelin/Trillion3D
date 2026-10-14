@@ -1,4 +1,4 @@
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { packDagSelection } from './pack.ts'
@@ -18,7 +18,7 @@ import { REQUEST_PRIORITY_SCALE } from './request.ts'
  */
 export function requestScene(threshold: number, feuilles = 4096, levels = 8) {
   const pages = scenePages(feuilles, levels)
-  const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z))
+  const poses = [0, 12, 30, 70].map((z) => new Matrix4().makeTranslation(0, 0, -z))
   const roots = sceneRoots(pages, poses)
   const packed = packDagSelection(roots)
   // Posed by the scene builder that owns camera poses, read through the contract.

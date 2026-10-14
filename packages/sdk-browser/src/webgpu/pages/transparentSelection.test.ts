@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -46,7 +47,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
   for (const item of cases) {
     const fixture = quadScene(),
       { device, draws } = fakeDevice(BACKEND),
-      mesh = fixture.source.children[0] as G.HostMesh
+      mesh = fixture.source.children[0] as HostMesh
     fixture.metadata.primitives[0].pass = 'shared-blend'
     fixture.material.transparent = true
     G.sided(fixture.material, G.DOUBLE_SIDE)

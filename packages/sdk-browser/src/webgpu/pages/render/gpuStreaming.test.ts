@@ -7,7 +7,7 @@ import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
-import { coarseQuadScene } from '../testOccluder.fixture.ts'
+import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
 

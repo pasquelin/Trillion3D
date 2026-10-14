@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { BLEND_ORDER_SHADER } from './orderWgsl.ts'
 import { orderBlendPasses } from './order.ts'
@@ -52,7 +53,7 @@ test('the kernel keys an item as the CPU does, to the bit, far from the origin a
     previous = [...c, r]
     items.push({
       surface: surfaceOf(G.basicSurface({ transparent: true })),
-      matrix: new G.Matrix4().makeTranslation(c[0], c[1], c[2]),
+      matrix: new Matrix4().makeTranslation(c[0], c[1], c[2]),
       count: 0,
       paged: true,
       bounds:

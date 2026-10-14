@@ -4,9 +4,9 @@ import { cameraAdopter } from './worldLink.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
 import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
-import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts'
+import { createWorldFrames } from './worldFrames.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
-import { Scene, type LoadOptions } from './scene.ts'
+import { Scene } from './scene.ts'
 import { sceneFogOf } from './sceneFog.ts'
 import { worldModelLoader } from './worldLoader.ts'
 import { worldSceneMethods } from './worldSceneMethods.ts'
@@ -299,4 +299,3 @@ function worldMethods(parts: WorldParts) {
 }
 
 /** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>
-export type { FrameInfo, BeforeFrameInfo, WorldTarget, LoadOptions, WorldOptions }

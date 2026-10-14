@@ -1,16 +1,3 @@
-export { collectClusterPages } from './collect.ts'
-export { projectedPageError } from './diagnostic.ts'
-export {
-  resolvePixelError,
-  pageRequestUrl,
-  RequestStamps,
-  indexPagesByUrl,
-  collectPendingUrls,
-  acceptPageArray,
-} from './requests.ts'
-export type { PageRec, ClusterRoot } from './types.ts'
-export { rootOf } from './placements.ts'
-
 /**
  * Camera-independent minimal complete cover: the clusters no other cluster replaces.
  *

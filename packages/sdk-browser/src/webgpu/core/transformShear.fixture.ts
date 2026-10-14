@@ -5,6 +5,8 @@
 import '../../wasm/sdkWasm.fixture.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { BOX_VALUES, boxTransform } from '../../../../math/src/geometry/box.ts'
 import { createWebgpuRunState } from '../pages/state/runState.ts'
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts'
@@ -14,10 +16,10 @@ import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 
 /** Two non-orthogonal axes: `y` pushes `x`. No TRS decomposition yields this matrix. */
 export function cisaillee(facteur = 3, tx = 0) {
-  return new G.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+  return new Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 }
 
-export const versGpu = (m: G.Matrix4) => new Float32Array(m.elements)
+export const versGpu = (m: Matrix4) => new Float32Array(m.elements)
 
 export function proche(
   obtenu: ArrayLike<number>,
@@ -34,7 +36,7 @@ export function proche(
 
 /** Host scene AND the engine's world-matrix index, the one a move recomputes. */
 export function scene(name = 'target') {
-  const source = new G.Object3D(),
+  const source = new Object3D(),
     mesh = G.mesh()
   mesh.name = name
   source.add(mesh)
@@ -43,7 +45,7 @@ export function scene(name = 'target') {
 
 /** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
  *  is the engine's, like every collected root. */
-export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWorldPlacements) {
+export function selectionRoot(mesh: Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
     world = worlds.of(mesh)
@@ -57,7 +59,7 @@ export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWor
 }
 
 export function runtime(
-  source: G.Object3D,
+  source: Object3D,
   roots: Array<ClusterRoot<PageRec>> = [],
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {

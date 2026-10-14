@@ -1,4 +1,4 @@
-import * as G from '../../../host/graph/graph.fixture.ts'
+import type { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -8,7 +8,7 @@ import type { PageSurface } from '../../../page/surface.ts'
 
 /** A pages backend on the mock device drawing the quad scene with `map` on its surface: prepared,
  *  one image drawn and flushed — the state a change made after it is measured from. */
-export async function mappedQuadRun(map: G.Texture) {
+export async function mappedQuadRun(map: Texture) {
   installGpuGlobals()
   const gpu = fakeDevice(BACKEND)
   map.needsUpdate = true

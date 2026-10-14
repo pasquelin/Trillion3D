@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -46,7 +47,7 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   const { gpu, counted, frame } = offThreadGpu()
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
-  ;(fixture.source.children[0] as G.HostMesh).material = material
+  ;(fixture.source.children[0] as HostMesh).material = material
   const guides = createGuideSet()
   const backend = webgpuPagesEngine({
     ...fixture,

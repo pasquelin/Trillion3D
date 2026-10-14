@@ -12,7 +12,8 @@ import {
   nodesWrittenSince,
   noteNodeWrite,
 } from '../../../../../sdk-core/src/scene/core/nodeEdits.ts'
-import * as G from '../../../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { pointLight } from '../../../host/graph/graphLights.fixture.ts'
 
 test('a hide and a light set in one task: the root hidden is parked', () => {
   const { meshes, rt, parks, image } = hostScene(100)
@@ -68,9 +69,9 @@ test('a hundred hides an image over a hundred images scan the same nodes at 10³
 })
 
 test('a write made while the journal is read is read next, nothing dropped', () => {
-  const node = new G.Object3D(),
-    other = new G.Object3D(),
-    late = new G.Object3D()
+  const node = new Object3D(),
+    other = new Object3D(),
+    late = new Object3D()
   // Bring the journal to one write short of its end, then two writes across it.
   while (nodeWrites() % 4096 !== 4095) noteNodeWrite(node)
   const from = nodeWrites()
@@ -91,7 +92,7 @@ test('a write made while the journal is read is read next, nothing dropped', () 
 test('a light out of a world names itself: its colour written scans it alone', () => {
   const scans = [1e3, 1e5].map((count) => {
     const { source, meshes, run, image } = hostScene(count)
-    const lamp = G.pointLight()
+    const lamp = pointLight()
     source.add(lamp)
     // A light the host adds is a reshape the engine announces: the watch reads the list anew.
     run.gate.sceneChanged()

@@ -4,7 +4,7 @@
 // the records packed are the same words an unshared packing of every placement gives.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { createDagReadiness } from './readiness.ts'
@@ -35,10 +35,10 @@ function world(placements: number, primitives: number, reads: Reads) {
     counted(scenePages(64 + 16 * u, 4), reads),
   )
   // The placements of a primitive share its pages and its hierarchy, as a manifest gives them.
-  const templates = arrays.map((pages) => sceneRoots(pages, [new G.Matrix4()])[0])
+  const templates = arrays.map((pages) => sceneRoots(pages, [new Matrix4()])[0])
   return Array.from({ length: placements }, (_, w) => ({
     ...templates[w % primitives],
-    world: new G.Matrix4().makeTranslation(w, 0, 0),
+    world: new Matrix4().makeTranslation(w, 0, 0),
   }))
 }
 

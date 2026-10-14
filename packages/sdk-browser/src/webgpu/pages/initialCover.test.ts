@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -16,7 +18,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     ...BACKEND,
     limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
   })
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(
@@ -27,7 +29,7 @@ test('the initial cover also protects regions first discovered after a camera ju
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6]))
   const material = G.basicSurface(),
     mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   const pages = dagRoots([
     {

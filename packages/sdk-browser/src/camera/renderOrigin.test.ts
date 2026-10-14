@@ -14,6 +14,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { worldToRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
@@ -43,7 +44,7 @@ function envoi(offset: readonly [number, number, number]) {
   camera.lookAt(TARGET[0] + offset[0], TARGET[1] + offset[1], TARGET[2] + offset[2])
   camera.updateMatrixWorld(true)
   const cam = engineCamera(camera)
-  const world = new G.Matrix4()
+  const world = new Matrix4()
     .makeRotationY(0.7)
     .setPosition(POSE[0] + offset[0], POSE[1] + offset[1], POSE[2] + offset[2])
   const worlds = new Float32Array(16)
@@ -77,7 +78,7 @@ test('camera at the world origin: nothing changes by a bit', () => {
   memesNombres(cam.eye, [0, 0, 0], 'the eye is at world zero')
   memesNombres(cam.viewRelative, cam.view, 'the relative view IS the view')
   memesNombres(cam.planesRelative, cam.planes, 'the relative planes ARE the planes')
-  const world = new G.Matrix4().makeRotationZ(-0.4).setPosition(POSE[0], POSE[1], POSE[2])
+  const world = new Matrix4().makeRotationZ(-0.4).setPosition(POSE[0], POSE[1], POSE[2])
   const ramene = worldToRenderOrigin(new Float64Array(16), world.elements, cam.eye)
   memesNombres(ramene, world.elements, 'the world matrix is returned as-is')
 })

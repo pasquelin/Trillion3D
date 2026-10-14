@@ -4,6 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts'
 import { visibilityDepth } from './visibilityDepth.fixture.ts'
 import { buildHizPyramid } from '../../../../bench/oracles/browser/hizPyramid.ts'
@@ -108,8 +110,8 @@ test('a pixel reads only its own id: blanking half the ids leaves the other half
 test('a page whose index reaches past its triangle stays background, not a thrown error', () => {
   const page = {
     array: new Uint32Array([0, 1]), // Truncated triangle: base + 2 >= index.length.
-    attributes: new G.Geometry().attributes,
-    matrix: new G.Matrix4(),
+    attributes: new Geometry().attributes,
+    matrix: new Matrix4(),
     material: surfaceOf(G.basicSurface()),
   }
   const ids = new Uint32Array(1).fill(packVisibilityId(0, 0))

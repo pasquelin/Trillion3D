@@ -1,9 +1,8 @@
 import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { rootOf } from '../../page/selection/placements.ts'
-import type { PageRec } from '../../page/selection/types.ts'
+import type { PageRec, DeformationOutput } from '../../page/selection/types.ts'
 import type { Placements } from '../../page/selection/placements.ts'
-import type { DeformationOutput } from '../../page/selection/types.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { createPageRowConstants } from './pageRowConstants.ts'
 import {

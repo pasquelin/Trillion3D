@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { orderBlendPasses } from './order.ts'
 import { planItem, refreshBlendPlan } from './plan.ts'
@@ -46,7 +47,7 @@ function scene(count: number, seed: number, edges = false) {
       z = pick(7) - 3
     const bounds = new Float64Array([x - 1, y - 1, z - 1, x + 1, y + 1, z + 1])
     if (edges && next() < 0.2) bounds[pick(6)] = EDGES[pick(EDGES.length)]
-    const matrix = new G.Matrix4().makeTranslation(x, y, z)
+    const matrix = new Matrix4().makeTranslation(x, y, z)
     items.push({
       surface: surfaceOf(G.basicSurface({ side: SIDES[pick(3)] })),
       matrix,

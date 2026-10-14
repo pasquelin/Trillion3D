@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { compareImages } from '../../../sdk-core/src/runtime/compareImages.ts'
 import { rasterPages } from '../page/raster.fixture.ts'
 import type { VisPage } from './types.ts'
@@ -19,7 +20,7 @@ import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image
 import { VIS_INVALID, unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1], 3),
@@ -91,7 +92,7 @@ test('the second pass samples the source map at reconstructed UVs', () => {
 })
 
 test('UV derivatives come from the winning triangle, not a neighbour across a visbuffer seam', () => {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0], 3),

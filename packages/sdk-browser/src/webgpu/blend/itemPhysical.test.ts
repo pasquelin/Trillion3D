@@ -5,6 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { refreshBlendScene } from './sceneRefresh.ts'
@@ -17,10 +19,10 @@ import { emptyGeometryBlock } from '../row/pageRowMaterial.ts'
 function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasUv1 = false) {
   const floats = new Float32Array(BLEND_ITEM_WORDS),
     ints = new Uint32Array(floats.buffer)
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   const record = {
     surface: surfaceOf(surface),
-    matrix: new G.Matrix4(),
+    matrix: new Matrix4(),
     flags: 1,
     count: 3,
     sourceGeometry: geometry,

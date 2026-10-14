@@ -1,13 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
 import { dagRoots, DAG } from './pagesEngine.fixture.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3))
   geometry.setIndex(G.indices([0, 1, 2]))
   const material = G.physicalSurface({
@@ -16,7 +18,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     roughness: 0,
   })
   const mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   const pages = [
     { id: 0, url: '0', count: 3, min: [-1, -1, 0], max: [1, 1, 0], bytes: 12, sha256: 'x' },

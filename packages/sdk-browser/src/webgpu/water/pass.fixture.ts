@@ -1,4 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
+import { Scene } from '../../world/core/scene.ts'
 import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { voidStaleBlendGroups } from '../blend/identity.ts'
@@ -62,7 +64,6 @@ function copy(material: PageSurface, order: number) {
   mesh.frustumCulled = false
   return Object.assign(mesh, { surface: surfaceOf(material) })
 }
-
 function eau(transmission: number) {
   return G.physicalSurface({
     ...{ transparent: true, opacity: 0.6, side: G.FRONT_SIDE },
@@ -70,7 +71,7 @@ function eau(transmission: number) {
     ior: 1.33,
     thickness: 2.5,
     attenuationDistance: 6,
-    attenuationColor: new G.Color().setRGB(0.35, 0.72, 0.68),
+    attenuationColor: new Color().setRGB(0.35, 0.72, 0.68),
   })
 }
 
@@ -89,7 +90,7 @@ export function prepared() {
     copy(eau(1), 1),
     copy(G.standardSurface({ transparent: true, opacity: 0.2 }), 2),
   ]
-  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new G.Scene())
+  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new Scene())
   // The scene's transparent list IS the draw list: static tables and the encode plan are built with
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState, uniformStride())

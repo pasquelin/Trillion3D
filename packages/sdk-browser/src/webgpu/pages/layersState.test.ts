@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -51,7 +51,7 @@ test('visSlotPipeline routes a coplanar-layer slot to its own pipeline set, not 
   })) as unknown as GPURenderPipeline[]
   const rt = {
     vis: { drawLayerSlots: 2, visLayerPipelines: pipelines },
-    layout: { selectionRoots: [{ world: new G.Matrix4() }] },
+    layout: { selectionRoots: [{ world: new Matrix4() }] },
   } as unknown as WebgpuPagesCore
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull')
   assert.equal(visSlotPipeline(rt, BASE_SLOTS + HALF_SLOTS), pipelines[3], 'its tested back cull')

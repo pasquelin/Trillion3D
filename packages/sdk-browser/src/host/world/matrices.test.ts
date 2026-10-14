@@ -3,24 +3,30 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { assertFiniteTransform, resolveHostSubtree } from './matrices.ts'
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts'
 
 /** Parent → child → grandchild → great-grandchild chain, hostile transforms included. */
 function hostileHierarchy() {
-  const root = new G.Group()
+  const root = new Group()
   root.position.set(1, -2, 3)
   root.scale.set(-1, 2, 0.5) // negative and non-uniform scale
-  const child = new G.Group()
+  const child = new Group()
   child.matrixAutoUpdate = false
   // Matrix set by hand, column-major: x shear along y, zero scale on z.
   child.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -Infinity, 0, 0, 0, 0, 0, 0, 0, 1)
   root.add(child)
-  const grandchild = new G.Group()
+  const grandchild = new Group()
   grandchild.position.set(NaN, 0, -0)
   child.add(grandchild)
-  const feuille = G.mesh(new G.Geometry(), G.basicSurface())
+  const feuille = G.mesh(new Geometry(), G.basicSurface())
   feuille.position.set(2, 2, 2)
   grandchild.add(feuille)
   return { root, child, grandchild, feuille }
@@ -44,15 +50,15 @@ test('resolveHostSubtree is idempotent: a second call changes no bit', () => {
 })
 
 test('resolveHostSubtree always forces recompute (force: true): a local matrix rewritten by hand, without updateMatrix, is still taken', () => {
-  const parent = new G.Group()
+  const parent = new Group()
   parent.matrixAutoUpdate = false // the host sets its own local matrix
-  const child = new G.Group()
+  const child = new Group()
   parent.add(child)
   resolveHostSubtree(parent) // first resolution: matrixWorld = identity for both
   // The host rewrites the local matrix directly: nothing marks the node dirty.
   parent.matrix.elements[12] = 7
   resolveHostSubtree(parent)
-  const expected = new G.Matrix4()
+  const expected = new Matrix4()
   expected.elements[12] = 7
   assertBits(parent.matrixWorld.elements, expected.elements)
   // The child inherits the recomputed parent.
@@ -80,17 +86,17 @@ test('resolveHostSubtree does not walk parents: a stale ancestor is not recomput
 // Case 4 of the singular-normal convention (singular-normals batch): a non-finite pose never
 // enters the engine, it is refused right here, before any inversion or any normal read.
 test('assertFiniteTransform: a fully finite matrix passes without throwing', () => {
-  const m = new G.Matrix4().compose(
-    new G.Vector3(1, -2, 3),
-    new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
-    new G.Vector3(-2, 3, 0.5),
+  const m = new Matrix4().compose(
+    new Vector3(1, -2, 3),
+    new Quaternion().setFromEuler(new Euler(0.3, -0.5, 0.2)),
+    new Vector3(-2, 3, 0.5),
   ).elements
   assert.doesNotThrow(() => assertFiniteTransform(m, 'node'))
 })
 
 test('assertFiniteTransform: NaN at any of the sixteen indices throws NON_FINITE_TRANSFORM with the node name and the faulty rank', () => {
   for (let index = 0; index < 16; index++) {
-    const m = new G.Matrix4().identity().elements.slice()
+    const m = new Matrix4().identity().elements.slice()
     m[index] = NaN
     assert.throws(
       () => assertFiniteTransform(m, 'target'),
@@ -107,7 +113,7 @@ test('assertFiniteTransform: NaN at any of the sixteen indices throws NON_FINITE
 
 test('assertFiniteTransform: an infinity, positive or negative, throws NON_FINITE_TRANSFORM', () => {
   for (const valeur of [Infinity, -Infinity]) {
-    const m = new G.Matrix4().identity().elements.slice()
+    const m = new Matrix4().identity().elements.slice()
     m[5] = valeur
     assert.throws(
       () => assertFiniteTransform(m, 'light'),

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
 import { createPrimitiveTemplates } from '../page/selection/template.ts'
@@ -16,7 +17,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
 function blendGeometry(withUv: boolean) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
   geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
   if (withUv) geometry.setAttribute('uv', G.floatAttribute([0, 0, 1, 0, 0, 1], 2))

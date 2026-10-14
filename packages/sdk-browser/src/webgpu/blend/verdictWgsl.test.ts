@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -93,7 +94,7 @@ function scene(count: number, next: () => number, edges: boolean) {
     const transmissive = next() < 0.25
     items.push({
       surface: surfaceOf(G.basicSurface({ side: Math.floor(next() * 3) })),
-      matrix: new G.Matrix4().makeTranslation(next() * 50, 0, next() * 50),
+      matrix: new Matrix4().makeTranslation(next() * 50, 0, next() * 50),
       count: 3,
       transmissive,
       flags: transmissive ? ++water << WATER_RANK_SHIFT : 0,

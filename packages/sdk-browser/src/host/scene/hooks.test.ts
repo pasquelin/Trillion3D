@@ -6,13 +6,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import * as G from '../graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { hookHostNode, unhookHostNode } from './hooks.ts'
 import type { WriteRevision } from './hookCore.ts'
 
 const mark = (): WriteRevision => ({ revision: 0, wrote() {} })
 
 function hooked() {
-  const parent = new G.Group()
+  const parent = new Group()
   const mesh = G.mesh()
   parent.add(mesh)
   const revision = mark()
@@ -30,7 +33,7 @@ const WRITES: Array<{ name: string; write: (s: Scene) => void }> = [
   {
     name: 'quaternion.setFromAxisAngle',
     write: ({ mesh }) =>
-      void mesh.quaternion.copy(new G.Quaternion().setFromAxisAngle(new G.Vector3(0, 1, 0), 1)),
+      void mesh.quaternion.copy(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 1)),
   },
   { name: 'an ancestor pose', write: ({ parent }) => void (parent.position.z = -4) },
 ]
@@ -112,6 +115,6 @@ test('the hooked fields read back what was written, for the host and for the ref
   mesh.updateMatrix()
   twin.updateMatrix()
   assert.deepEqual(mesh.matrix.elements, twin.matrix.elements, 'the same composed matrix')
-  assert.ok(mesh.position instanceof G.Vector3)
+  assert.ok(mesh.position instanceof Vector3)
   assert.deepEqual(G.xyz(mesh.clone().position), [1, 2, 3], 'a clone copies through the accessors')
 })

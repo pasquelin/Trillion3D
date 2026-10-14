@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import { Group } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { setWebgpuTransform } from './transform.ts'
 import { runtime } from '../../core/transformShear.fixture.ts'
 import { hostWorldPlacements } from '../../../host/world/placements.ts'
@@ -13,7 +14,7 @@ import { hostWorldPlacements } from '../../../host/world/placements.ts'
 /** Two drawn models, A and B, watched by the gate as the first image leaves them — or, not
  *  `hooked`, before any image. */
 function twoModels(hooked = true) {
-  const source = new G.Group(),
+  const source = new Group(),
     a = G.mesh(),
     b = G.mesh()
   a.name = 'A'

@@ -7,6 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
@@ -21,7 +22,7 @@ const VIEWPORT: [number, number] = [1280, 720]
  *  in seven is blended: without that, `transparentTriangles` would agree on zero. */
 function scene(threshold: number, z = 16) {
   const pages = scenePages(4096, 8).map((page, i) => ({ ...page, transparent: i % 7 === 0 }))
-  const roots = sceneRoots(pages, [new G.Matrix4()])
+  const roots = sceneRoots(pages, [new Matrix4()])
   const packed = packDagSelection(roots)
   const uni = uniforms(threshold, z)
   // The kernel works in the render frame: without rebasing, a relative view and an absolute world

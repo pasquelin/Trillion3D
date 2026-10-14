@@ -3,6 +3,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
@@ -19,8 +22,8 @@ const [template] = blendFixture().metadata.primitives[0].pages
 
 /** The words of the row one lit triangle of `surface` writes; `hasUv1`, its float block's. */
 function rowOf(surface: PageSurface, hasUv1 = false) {
-  const source = new G.Group()
-  const geometry = new G.Geometry()
+  const source = new Group()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))
   geometry.setIndex(G.indices([0, 1, 2]))
   const mesh = G.mesh(geometry, surface)
@@ -55,7 +58,7 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
       emissiveAoShown: false,
     } as never,
     () => {},
-    [{ world: new G.Matrix4() }] as never,
+    [{ world: new Matrix4() }] as never,
     (packed) => packed,
   )
   writer(rec, 0, 0, 0, floats, ints)

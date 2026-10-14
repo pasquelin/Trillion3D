@@ -17,6 +17,7 @@ import test from 'node:test'
 import { asHostLibrary } from '../../host/resources.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -30,7 +31,7 @@ const pages = scenePages(16384, 8)
 function montage() {
   const roots = sceneRoots(
     pages,
-    Array.from({ length: 12 }, () => new G.Matrix4()),
+    Array.from({ length: 12 }, () => new Matrix4()),
   )
   // Packing derives page bounds and stores the floor in the node
   // (`packNodes.ts`): counted descent reads it where the GPU reads it, not beside it.
@@ -49,7 +50,7 @@ function image(
 ) {
   const { roots, packed } = m
   for (let w = 0; w < roots.length; w++)
-    asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
+    asHostLibrary<Matrix4>(roots[w].world).makeTranslation(
       (w % 4) * 6.5 - 9.75 + displacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,

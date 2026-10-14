@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -39,7 +40,7 @@ function field(count: number) {
   const roots = sceneRoots(
     pages,
     Array.from({ length: count }, (_, w) =>
-      new G.Matrix4()
+      new Matrix4()
         .makeRotationY(w * 0.3)
         .setPosition((w % side) * 6 - 3 * side, 0, -Math.floor(w / side) * 6),
     ),
@@ -132,7 +133,7 @@ test('placements holding their own open counts cut as each alone, a table short 
   const [root] = packed(dagFixture()).roots
   const roots = Array.from({ length: 9 }, (_, w) => ({
     ...root,
-    world: new G.Matrix4().setPosition((w % 3) * 5 - 5, 0, -Math.floor(w / 3) * 5),
+    world: new Matrix4().setPosition((w % 3) * 5 - 5, 0, -Math.floor(w / 3) * 5),
   }))
   const resident = new Uint8Array(roots.length * root.pages.length).fill(1)
   // Every page resident: each placement holds counts of its own, the table's to keep.

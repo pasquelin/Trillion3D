@@ -4,15 +4,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { spotLight, lightProbe } from '../graph/graphLights.fixture.ts'
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { scan, snapshot, verdictOf, type WatchVerdict } from './scan.ts'
 import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 
 function scene() {
-  const parent = new G.Group()
+  const parent = new Group()
   const mesh = G.mesh()
   parent.add(mesh)
-  const light = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2)
-  const sky = G.lightProbe()
+  const light = spotLight(0xffffff, 1, 10, 0.5, 0.2, 2)
+  const sky = lightProbe()
   return { parent, mesh, light, sky }
 }
 
@@ -34,7 +37,7 @@ const WRITES: Array<{
   {
     name: 'reparenting',
     node: 'mesh',
-    write: ({ mesh }) => void new G.Group().add(mesh),
+    write: ({ mesh }) => void new Group().add(mesh),
     verdict: 'reshaped',
   },
   { name: 'light intensity', node: 'light', write: ({ light }) => void (light.intensity = 7) },
@@ -51,7 +54,7 @@ const WRITES: Array<{
   {
     name: 'a light colour replaced',
     node: 'light',
-    write: ({ light }) => void Object.assign(light, { color: new G.Color(0xff0000) }),
+    write: ({ light }) => void Object.assign(light, { color: new Color(0xff0000) }),
   },
   {
     name: 'a probe colour component',
@@ -114,10 +117,10 @@ test("the reference's own walk over automatic nodes is nothing: a still scene st
 })
 
 test('a frozen matrix scanned frame after frame lists nothing; a write kept behind the getter is taken', () => {
-  const node = new G.Group()
+  const node = new Group()
   node.matrixAutoUpdate = false
   const kept = node.matrix,
-    tree = G.Object3D._treeOf(node),
+    tree = Object3D._treeOf(node),
     state = snapshot(node)
   updateTransformTree(tree)
   for (let frame = 0; frame < 3; frame++) assert.equal(verdictOf(scan(state)), 0)

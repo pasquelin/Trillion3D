@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { surfaceFrontOnly, surfaceOf } from './surface.ts'
 import { declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
@@ -13,7 +14,7 @@ test('a mesh wears its surface record itself: every reader holds the one record'
   const material = G.standardSurface({ color: 0x336699, metalness: 0.25 })
   assert.equal(surfaceOf(material), material, 'no second object stands for the material')
   assert.equal(material.metalness, 0.25)
-  const blue = new G.Color(0x336699)
+  const blue = new Color(0x336699)
   assert.deepEqual(material.baseColor, [blue.r, blue.g, blue.b])
   assert.notEqual(surfaceOf(G.standardSurface()), material, 'another declaration, another record')
   material.dispose()

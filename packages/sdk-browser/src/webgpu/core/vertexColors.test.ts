@@ -4,6 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Scene } from '../../world/core/scene.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { prepareWebgpuGeometry } from './geometryPrepare.ts'
@@ -29,7 +31,7 @@ function vertColor(uvs: Float32Array, id: number) {
 const floats = (write: FakeWrite) => new Float32Array(written(write).slice().buffer)
 
 function triangleGeometry(colour?: number[], itemSize = 3, uv = true) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
   if (uv) geometry.setAttribute('uv', G.floatAttribute([0.25, 0.5, 1, 0, 0, 1], 2))
   if (colour) geometry.setAttribute('color', G.floatAttribute(colour, itemSize))
@@ -95,7 +97,7 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
   }
   const red = [1, 0, 0, 1, 0, 0, 1, 0, 0]
   const copies = [copy(true, red), copy(false, red), copy(true)]
-  prepareWebgpuBlend(device, copies, gpu, blendState, new G.Scene())
+  prepareWebgpuBlend(device, copies, gpu, blendState, new Scene())
   const coloured = blendState.blendGpu.map((item) => (item.flags & FLAG_HAS_COLOR) !== 0)
   assert.deepEqual(coloured, [true, false, false])
   // The vertex stage multiplies the item colour, alpha included, at the vertex it fetched.

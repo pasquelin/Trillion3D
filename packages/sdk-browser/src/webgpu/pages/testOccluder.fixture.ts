@@ -1,6 +1,9 @@
 import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import assert from 'node:assert/strict'
 import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
@@ -9,8 +12,8 @@ import { webgpuPagesEngine } from './pages.ts'
 import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { dagLevel, dagRoots } from '../../engine/pagesEngine.fixture.ts'
-import { camera, quadScene, withDraws } from './testScenes.fixture.ts'
+import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { camera, withDraws } from './testScenes.fixture.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import {
   backendRasterRgba,
@@ -21,7 +24,7 @@ import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-ima
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 export function occluderScene() {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(
@@ -35,7 +38,7 @@ export function occluderScene() {
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]))
   const material = G.basicSurface({ color: 0xff0000 }),
     mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   const pages = dagRoots([
     {
@@ -78,23 +81,6 @@ export function occluderScene() {
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return withDraws({ geometry, material, source, metadata, indices, associations })
 }
-/** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
-export function coarseQuadScene(error = 1) {
-  const fixture = quadScene()
-  const leaves = fixture.metadata.primitives[0].pages
-  const level = dagLevel(leaves, [{ ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }], error)
-  return {
-    ...fixture,
-    metadata: {
-      ...fixture.metadata,
-      primitives: [{ ...fixture.metadata.primitives[0], ...level }],
-    },
-    indices: new Map([...fixture.indices, ['2', new Uint32Array([0, 1, 2, 0, 2, 3])]] as [
-      string,
-      Uint32Array,
-    ][]),
-  }
-}
 
 /** The GPU image of the occluder scene equals the CPU raster of the cut (one placement, every shown
  *  page placed by root 0), and only the front page survives in the visibility identifiers. */
@@ -102,7 +88,7 @@ export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesEngine>,
   shown: PageRec[],
   roots: Placements,
-  camera: G.Camera,
+  camera: Camera,
   viewport: [number, number],
 ) {
   const cam = readCameraWorld(createEngineCamera(), camera)
@@ -134,43 +120,6 @@ export function assertOccluderImage(
     }),
   )
   assert.deepEqual([...drawn].sort(), [0])
-}
-
-/** Two coarse quads a hundred units apart, as two primitives of one source, each drawn by `quad`:
- *  their clusters share the resident slots, so a camera jump between them evicts and recycles rows
- *  once the slots hold less than both. */
-export function twoCoarseQuadsScene(
-  quad: () => ReturnType<typeof coarseQuadScene> = coarseQuadScene,
-) {
-  const a = quad(),
-    b = quad()
-  const mesh = b.source.children[0] as G.HostMesh
-  mesh.position.x = 100
-  a.source.add(mesh)
-  const primitive = {
-    ...b.metadata.primitives[0],
-    mesh: 1,
-    pages: b.metadata.primitives[0].pages.map((page: { url: string }) => ({
-      ...page,
-      url: 'b' + page.url,
-    })),
-  }
-  const associations = new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]])
-  return withDraws({
-    source: a.source,
-    metadata: { primitives: [...a.metadata.primitives, primitive] },
-    indices: new Map([
-      ...a.indices,
-      ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
-    ]),
-    associations,
-    dispose() {
-      for (const scene of [a, b]) {
-        scene.geometry.dispose()
-        scene.material.dispose()
-      }
-    },
-  })
 }
 
 /** The occluder scene on a pages backend over `device` (four resident pages, occlusion culling

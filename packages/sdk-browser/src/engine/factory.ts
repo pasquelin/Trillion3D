@@ -17,7 +17,7 @@ export type EngineFactory = (context: EngineContext) => Engine
 export const webgpuEngine: EngineFactory = (context) => {
   const code = families.webgpu.get()
   if (!code) throw new EngineError('FAMILY_LOAD_FAILED', 'The WebGPU renderer is not loaded')
-  return code.createEngine(context)
+  return code.webgpuPagesEngine(context)
 }
 
 /** Starts the renderer family; rejects as a family refusal does (`FAMILY_LOAD_FAILED`). Awaited

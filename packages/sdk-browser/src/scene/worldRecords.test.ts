@@ -10,11 +10,10 @@ import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
 import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
 import { sourceSurface } from '../page/surface.ts'
-import { drawSourceOf } from '../page/selection/drawSource.ts'
+import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
-import { graphDraws } from '../page/selection/drawSource.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {

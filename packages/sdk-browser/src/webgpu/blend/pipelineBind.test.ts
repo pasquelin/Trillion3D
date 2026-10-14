@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { drawBlendPass } from './draw.ts'
 import { blendLightResources } from './lighting.ts'
@@ -21,7 +22,7 @@ const FRONT = 'front' as unknown as GPURenderPipeline,
 
 /** An already-bound blend item: only the pipeline sequence is observed here. */
 const item = (side: Side, negatif = false, paged = false) => {
-  const matrix = new G.Matrix4()
+  const matrix = new Matrix4()
   if (negatif) matrix.makeScale(-1, 1, 1)
   return {
     surface: surfaceOf(G.basicSurface({ side })),

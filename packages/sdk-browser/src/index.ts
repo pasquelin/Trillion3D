@@ -5,15 +5,30 @@ export * from '../../sdk-core/src/world/geometry/index.ts'
 export * from '../../sdk-core/src/world/buffer/index.ts'
 export * from '../../sdk-core/src/world/object/index.ts'
 export * from '../../sdk-core/src/world/material/index.ts'
-export * from '../../sdk-core/src/world/light/index.ts'
+export { light, Light, type LightParameters } from '../../sdk-core/src/world/light/light.ts'
 export * from '../../sdk-core/src/world/effect/index.ts'
 export * from '../../sdk-core/src/world/camera/index.ts'
-export * from '../../sdk-core/src/world/animation/index.ts'
+export type {
+  Clip,
+  Track,
+  TrackBinding,
+  TrackKind,
+} from '../../sdk-core/src/world/animation/clip.ts'
+export { Action, Mixer, advanceMixers } from '../../sdk-core/src/world/animation/mixer.ts'
+export { animation } from '../../sdk-core/src/world/animation/family.ts'
+export { Skeleton } from '../../sdk-core/src/world/animation/skeleton.ts'
+export type { WindOptions } from '../../sdk-core/src/world/animation/wind.ts'
 export * from '../../sdk-core/src/world/constants/index.ts'
 export * from './world/texture/index.ts'
 export * from './world/api/loaderFamily.ts'
 export * from './world/api/helperFamily.ts'
-export * from './guides/index.ts'
+export {
+  GUIDE_VERTEX_CEILING,
+  type Guides,
+  type GuideHandle,
+  type GuideLines,
+  type GuidePoints,
+} from './guides/guideSet.ts'
 export * from './world/controls/index.ts'
 export * from './world/page/index.ts'
 export * from './world/api/budgetFamily.ts'
@@ -161,27 +176,7 @@ export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabi
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
-export {
-  MATRIX_VALUES,
-  NORMAL_MATRIX_VALUES,
-  POSITION_VALUES,
-  QUATERNION_VALUES,
-  SPHERE_VALUES,
-} from '../../math/src/batch/strides.ts'
-export { boxUnionBatch } from '../../math/src/batch/batch.ts'
-export { composeMatrix4Batch } from '../../math/src/matrix/matrix4Compose.ts'
-export {
-  decomposeMatrix4Batch,
-  invertMatrix4Batch,
-  normalMatrix3Batch,
-} from '../../math/src/batch/transforms.ts'
-export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
-export { linearToSrgbBatch, srgbToLinearBatch } from '../../math/src/batch/color.ts'
-export {
-  transformDirectionsBatch,
-  transformPointsBatch,
-  transformPointsByMatricesBatch,
-} from '../../math/src/batch/points.ts'
+export type { PathRun } from './camera/path.ts'
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
 export type { ChangeListener, ControlVector, PivotCameraControls } from './camera/controls/types.ts'

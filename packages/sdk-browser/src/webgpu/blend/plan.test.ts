@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { planPipeline } from './plan.ts'
 import { planVertexCull } from './expandCpu.fixture.ts'
 import { blendSceneOf } from './plan.fixture.ts'
@@ -15,7 +16,7 @@ function plan(material: PageSurface | PageSurface[], { transmissive = false, pag
     {
       transmissive,
       surface: surfaceOf(material),
-      matrix: new G.Matrix4(),
+      matrix: new Matrix4(),
       count: 3,
       paged,
     } as unknown as BlendGpuItem,

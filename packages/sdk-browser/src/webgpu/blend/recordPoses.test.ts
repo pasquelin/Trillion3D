@@ -5,6 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { BLEND_ITEM_WORDS } from './items.ts'
@@ -19,7 +21,7 @@ const RECORD = BLEND_ITEM_WORDS * 4
 /** Four unpaged items in a row, their records allocated as `prepareBlendResources` does, and the
  *  spans the queue is sent (`fakeDevice`). */
 function scene() {
-  const matrices = [0, 1, 2, 3].map((i) => new G.Matrix4().makeTranslation(i, 0, 0))
+  const matrices = [0, 1, 2, 3].map((i) => new Matrix4().makeTranslation(i, 0, 0))
   const items = matrices.map(
     (matrix, i) =>
       ({
@@ -27,7 +29,7 @@ function scene() {
         count: 3,
         flags: 1,
         matrix,
-        sourceGeometry: new G.Geometry(),
+        sourceGeometry: new Geometry(),
         bounds: new Float64Array([i, 0, 0, i + 1, 1, 1]),
       }) as unknown as BlendGpuItem,
   )

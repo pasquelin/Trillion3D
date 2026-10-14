@@ -5,6 +5,8 @@ import type {
   TableTextureSlot,
 } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
@@ -58,7 +60,7 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
 export async function scene(
   materialClassRefusal: typeof webgpuMaterialClassRefusal = webgpuMaterialClassRefusal,
 ) {
-  const textures = [new G.Texture(), new G.Texture()]
+  const textures = [new Texture(), new Texture()]
   const materialOf = preparedMaterials(
     [
       entry({ name: 'floor', map: slot(0), baseColor: [0.5, 0.5, 0.5] }),
@@ -70,7 +72,7 @@ export async function scene(
     async (from) => textures[from.texture],
   )
   const plain = { vertexColors: false, flatShading: false, twoSided: false }
-  const source = new G.Group()
+  const source = new Group()
   const floor = [await materialOf(0, plain), await materialOf(0, { ...plain, vertexColors: true })]
   // Each mesh draws manifest primitive `i/0`: the drawable a created material is assigned to.
   const associations = new Map<Object3D, { meshes: number }>()

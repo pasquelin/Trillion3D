@@ -1,5 +1,4 @@
 import type { GpuTimingSample } from './types.ts'
-export type { GpuTimingSample } from './types.ts'
 import { READBACKS } from './encoder.ts'
 import { createTimedEncoder, dropActive, readsInFlight } from './admission.ts'
 import { closeTimedImage } from './closeImage.ts'

@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { scan, snapshot, verdictOf } from './scan.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -47,7 +48,7 @@ function counted(node: Object3D) {
 
 /** A mesh under a group: the shape `scan` walks, with its flags counted. */
 function mesh() {
-  const parent = new G.Group(),
+  const parent = new Group(),
     node = G.mesh()
   parent.add(node)
   return counted(node)
@@ -80,7 +81,7 @@ test('a frozen node reads each flag once, and the matrix is what it compares', (
 
 test('a reparented node is read once and still reshapes the watch', () => {
   const node = mesh().node
-  const { verdict, reads } = scanCounts(node, () => void new G.Group().add(node))
+  const { verdict, reads } = scanCounts(node, () => void new Group().add(node))
   assert.equal(verdict, 'reshaped', 'the ancestor chain moved')
   assert.equal(reads.parent, 1, 'the parent read once, and it is what the verdict came from')
 })

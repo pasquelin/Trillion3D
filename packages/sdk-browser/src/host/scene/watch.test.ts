@@ -6,23 +6,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { pointLight, directionalLight } from '../graph/graphLights.fixture.ts'
 import { createHostSceneWatch } from './watch.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 
 function graphe() {
-  const source = new G.Group()
-  const mesh = G.mesh(new G.Geometry(), G.basicSurface())
-  const light = G.pointLight(0xffffff, 1)
-  const sun = G.directionalLight(0xffffff, 1)
+  const source = new Group()
+  const mesh = G.mesh(new Geometry(), G.basicSurface())
+  const light = pointLight(0xffffff, 1)
+  const sun = directionalLight(0xffffff, 1)
   source.add(mesh, light, sun)
   source.updateMatrixWorld(true)
   return { source, mesh, light, sun }
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const drawn = (...meshes: G.Object3D[]) => meshes.map((node) => ({ drawSource: { node } }))
+const drawn = (...meshes: Object3D[]) => meshes.map((node) => ({ drawSource: { node } }))
 
-function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
+function veille(source: Object3D, ...meshes: Object3D[]) {
   const watch = createHostSceneWatch()
   watch.observe(source, drawn(...meshes))
   return watch
@@ -52,7 +55,7 @@ test('visibility written directly by the host is seen; a reparent reshapes', () 
   mesh.visible = false
   assert.equal(watch.take(), 'moved')
   assert.equal(watch.take(), 0)
-  new G.Group().add(mesh)
+  new Group().add(mesh)
   assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed')
   assert.equal(watch.take(), 0)
 })
@@ -63,7 +66,7 @@ test('a node reparented is written and flipped, so its roots alone follow; a nod
   watch.take()
   watch.takeWritten()
   watch.takeFlipped()
-  new G.Group().add(mesh)
+  new Group().add(mesh)
   assert.equal(watch.take(), 'reshaped')
   assert.deepEqual([...watch.takeWritten()], [mesh])
   assert.deepEqual([...watch.takeFlipped()], [mesh])
@@ -120,7 +123,7 @@ test('a write the engine made itself is settled with its revision, not announced
   // A structural engine write: the list is read anew, the node it still watches keeping what was
   // last read of it, and the write the journal holds for it is read once at the next take — a host
   // write in the same task could not be told apart —, then none after.
-  new G.Group().add(mesh)
+  new Group().add(mesh)
   gate.sceneChanged()
   gate.readScene(source, draws)
   const reparented = gate.revisions.scene
@@ -132,7 +135,7 @@ test('a write the engine made itself is settled with its revision, not announced
 test("a lamp's target moved under another node: the new parent is hooked, its later pose is seen", () => {
   const gate = createFrameGateCore(1)
   const { source, sun } = graphe()
-  const parent = new G.Group()
+  const parent = new Group()
   source.add(parent)
   gate.readScene(source, [])
   gate.readScene(source, [])
@@ -149,7 +152,7 @@ test("a lamp's target moved under another node: the new parent is hooked, its la
 
 test('a bone posed by the host is seen: it moves the skin it deforms (#357)', () => {
   const { source, mesh } = graphe()
-  const bone = new G.Group()
+  const bone = new Group()
   source.add(bone)
   Object.assign(mesh, { skeleton: { bones: [bone] } })
   const watch = veille(source, mesh)

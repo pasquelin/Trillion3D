@@ -1,6 +1,9 @@
 // The fixtures of the blended casters' rows: a catalogue of one opaque and one blended
 // triangle, and the row table mounted over it.
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
@@ -21,14 +24,14 @@ const cluster = (url: string) => ({ ...template, url, sha256: url })
 /** One opaque triangle, then one blended at `opacity`, which asks for its shadow unless
  *  `transparentShadow` is false: the catalogue pages, placed. */
 export function catalogue(opacity: number, blended = true, transparentShadow = true) {
-  const source = new G.Group(),
-    associations = new Map<G.Object3D, { meshes: number; primitives: number }>()
+  const source = new Group(),
+    associations = new Map<Object3D, { meshes: number; primitives: number }>()
   const materials = [
     G.standardSurface(),
     G.standardSurface({ transparent: blended, opacity: blended ? opacity : 1, transparentShadow }),
   ]
   const primitives = materials.map((material, index) => {
-    const geometry = new G.Geometry()
+    const geometry = new Geometry()
     geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))
     geometry.setIndex(G.indices([0, 1, 2]))
     const mesh = G.mesh(geometry, material)
@@ -64,7 +67,7 @@ export function mount(pages: PageRec[], blendSlots: number) {
     } as never,
     rows.markRowDirty,
     // The catalogue's meshes sit at the origin: every page's root is placed at the identity.
-    pages.map(() => ({ world: new G.Matrix4() })),
+    pages.map(() => ({ world: new Matrix4() })),
     (packed) => packed,
   )
   pages.forEach((_, page) => {

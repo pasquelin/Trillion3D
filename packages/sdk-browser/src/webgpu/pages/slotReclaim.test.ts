@@ -9,7 +9,7 @@ import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/gl
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera } from './testScenes.fixture.ts'
-import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
+import { twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'

@@ -108,8 +108,7 @@ function uploadPicture(
     }
   } else {
     const image = map.image as GPUCopyExternalImageSource | undefined
-    if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-      throw new Error(errorCode)
+    if (!image) throw new Error(errorCode)
     device.queue.copyExternalImageToTexture(
       { source: image, flipY: map.flipY },
       { texture, premultipliedAlpha: map.premultiplyAlpha },

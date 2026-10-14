@@ -12,6 +12,7 @@ import test from 'node:test'
 import { asHostLibrary } from '../../host/resources.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
@@ -60,7 +61,7 @@ const SEUILS = [0.25, 1, 4]
 test('the one hierarchy: top-down pruning removes no kept cluster', () => {
   const roots = sceneRoots(
     pages,
-    Array.from({ length: 4 }, () => new G.Matrix4()),
+    Array.from({ length: 4 }, () => new Matrix4()),
   )
   const packed = packDagSelection(roots)
   // The same packing with every replacement ceiling withdrawn: what the descent walks when
@@ -72,7 +73,7 @@ test('the one hierarchy: top-down pruning removes no kept cluster', () => {
   for (const [nom, x, z] of POSES)
     for (const threshold of SEUILS) {
       for (let w = 0; w < roots.length; w++)
-        asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
+        asHostLibrary<Matrix4>(roots[w].world).makeTranslation(
           (w % 2) * 6.5 - 3.25,
           Math.floor(w / 2) * 6.5 - 3.25,
           0,

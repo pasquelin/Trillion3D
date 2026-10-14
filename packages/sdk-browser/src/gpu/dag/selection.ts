@@ -20,8 +20,6 @@ import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { cutHeldSlots } from './listCap.ts'
 import type { CutAdmission } from './cutBuffers.ts'
 import type { DagResources, RowCutPass } from './resources.ts'
-export { packDagSelection } from './pack.ts'
-export type { PackedDag } from './types.ts'
 
 export async function createGpuDagSelection(
   device: GPUDevice,

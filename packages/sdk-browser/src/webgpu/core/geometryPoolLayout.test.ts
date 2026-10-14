@@ -8,6 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
@@ -29,7 +30,7 @@ import type { HostAttributes } from '../../host/resources.ts'
 
 /** A triangle whose every normal and tangent component differs. */
 function triangle() {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
   geometry.setAttribute(
     'normal',

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type * as G from '../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../host/resources.ts'
 import type { PageRec, ClusterRoot } from '../../page/selection/types.ts'
 
 import type { BlendGpuItem } from '../blend/state.ts'
@@ -9,9 +9,9 @@ import { evaluateTransparentCompaction } from './compactCpu.fixture.ts'
 import { CULL_STRIDE } from '../../gpu/dag/types.ts'
 import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
-const mesh = (name: string) => ({ name }) as unknown as G.HostMesh
+const mesh = (name: string) => ({ name }) as unknown as HostMesh
 // A placement is named by the world its root and its item read: here, one per mesh.
-const rec = (node: G.HostMesh, id: number, sourceOrder: number, transparent = true) =>
+const rec = (node: HostMesh, id: number, sourceOrder: number, transparent = true) =>
   ({
     id,
     sourceOrder,
@@ -42,7 +42,7 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
     culling: { nodes, stride: CULL_STRIDE },
   } as unknown as ClusterRoot<PageRec>
 }
-const item = (node: G.HostMesh | undefined, paged: boolean) =>
+const item = (node: HostMesh | undefined, paged: boolean) =>
   ({ drawSource: node && { node }, matrix: node, paged }) as unknown as BlendGpuItem
 
 /** A reproducible pseudo-random stream: the sweep below has to be the same on every run. */
@@ -106,7 +106,7 @@ test('the compaction keeps the table order and nothing else, on every subset', (
   for (let trial = 0; trial < 150; trial++) {
     const roots: Array<ClusterRoot<PageRec>> = []
     const bases: number[] = []
-    const meshes: G.HostMesh[] = []
+    const meshes: HostMesh[] = []
     const packed: PageRec[] = []
     for (let m = 0; m < 3; m++) {
       const source = mesh(`m${m}`)

@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../../host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -25,7 +26,7 @@ async function opened(emits: boolean) {
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
   if (emits) material.emissive = [0.5, 0.25, 0]
-  ;(fixture.source.children[0] as G.HostMesh).material = material
+  ;(fixture.source.children[0] as HostMesh).material = material
   const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,

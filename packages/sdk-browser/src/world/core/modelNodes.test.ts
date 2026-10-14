@@ -2,7 +2,6 @@ import '../../wasm/sdkWasm.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { LoadedModel, type ModelRecord } from './loadedModel.ts'
 import { createWorldPoses } from './worldPoses.ts'
@@ -12,10 +11,10 @@ import { noModels } from './worldModels.fixture.ts'
 /** A compiled model's graph as its loader builds it: a root, a turbine and its rotor, and a
  *  crane nobody looks up. */
 function compiledModel() {
-  const root = new G.Object3D(),
-    turbine = new G.Object3D(),
-    rotor = new G.Object3D(),
-    crane = new G.Object3D()
+  const root = new Object3D(),
+    turbine = new Object3D(),
+    rotor = new Object3D(),
+    crane = new Object3D()
   root.name = 'Scene'
   turbine.name = 'turbine'
   turbine.position.set(10, 0, 0)

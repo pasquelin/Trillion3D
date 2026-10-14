@@ -5,14 +5,14 @@
 // generated scenes of 10² to 10⁵ meshes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { countScans, hostScene } from './hostWrite.fixture.ts'
 import { setWebgpuTransforms } from './transform.ts'
 import { noteNodeWrite } from '../../../../../sdk-core/src/scene/core/nodeEdits.ts'
 import { copyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 
 /** Each of `meshes` frozen on storage of its own, its first image read; the storages. */
-function frozenOnOwn(meshes: readonly G.Object3D[], image: () => void) {
+function frozenOnOwn(meshes: readonly Object3D[], image: () => void) {
   const storages = meshes.map((mesh) => {
     mesh.matrixAutoUpdate = false
     const own = Float64Array.from(mesh.matrix.elements)
@@ -36,7 +36,7 @@ test('three thousand frozen nodes on storage of their own written in one image a
 test('a hide behind a backlog of a ring less one, two frozen nodes read first, is kept', () => {
   const { meshes, parks, image } = hostScene(100)
   const storages = frozenOnOwn([meshes[0], meshes[1]], image)
-  const filler = new G.Object3D()
+  const filler = new Object3D()
   storages.forEach((own, k) => (own[12] = 9 + k))
   meshes[0].matrixWorldNeedsUpdate = true
   meshes[1].matrixWorldNeedsUpdate = true

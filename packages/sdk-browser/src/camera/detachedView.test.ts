@@ -4,11 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createEngineCamera } from './engineCamera.ts'
 import { readCameraWorld } from './world.ts'
 
 test('a capture view keeps the resolved world pose and takes the aspect it is drawn at', () => {
-  const rig = new G.Group()
+  const rig = new Group()
   rig.position.set(3, -2, 7)
   rig.rotation.set(0.4, -1.2, 0.3)
   const camera = G.perspectiveCamera(48, 16 / 9, 0.25, 640)

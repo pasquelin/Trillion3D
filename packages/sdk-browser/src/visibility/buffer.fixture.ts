@@ -1,4 +1,5 @@
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf, type PageSurface } from '../page/surface.ts'
 import type { VisPage } from './types.ts'
 import { triangleAt } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
@@ -21,8 +22,8 @@ export function camera() {
 export function quadPages(
   material: PageSurface,
   uv?: number[],
-): { pages: VisPage[]; geometry: G.Geometry; roots: ReturnType<typeof identityRoots> } {
-  const geometry = new G.Geometry()
+): { pages: VisPage[]; geometry: Geometry; roots: ReturnType<typeof identityRoots> } {
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3))
   if (uv) geometry.setAttribute('uv', G.floatAttribute(uv, 2))
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]))

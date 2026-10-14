@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createFloatAtlas } from './floatAtlas.ts'
 import { uv1TailAt, writeUv1Tail } from './uv1Tail.ts'
@@ -38,7 +39,7 @@ test('vertex k of the tail is at float T − 2(k + 1), the pairs kept whole', ()
 /** A triangle with a second UV set. */
 function secondSet() {
   const attributes = G.triangleAttributes() as HostAttributes & Record<string, unknown>
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   for (const [name, list] of Object.entries(attributes)) geometry.setAttribute(name, list as never)
   geometry.setAttribute('uv1', G.floatAttribute([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], 2))
   return geometry.attributes as HostAttributes

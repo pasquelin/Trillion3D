@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createFrameGateCore } from './gateCore.ts'
 import type { CameraMotion } from '../camera/motion.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
@@ -22,7 +23,7 @@ const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose
 
 test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
   const gate = createFrameGateCore(1)
-  const source = new G.Object3D()
+  const source = new Object3D()
   const rig = creeRig()
   const motion: CameraMotion = {}
   const image = () => {
@@ -45,7 +46,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
 
 test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
   const gate = createFrameGateCore(1)
-  const source = new G.Object3D()
+  const source = new Object3D()
   const rig = creeRig()
   const motion: CameraMotion = {}
   poseRig(rig, DEPLACE_ET_TOURNE, false) // never walked: only `enterFrame` can see it.

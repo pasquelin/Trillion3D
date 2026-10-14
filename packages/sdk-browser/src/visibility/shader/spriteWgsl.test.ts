@@ -5,6 +5,10 @@ import assert from 'node:assert/strict'
 import { SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { locatedBy } from '../../page/selection/placements.fixture.ts'
@@ -33,11 +37,11 @@ const clipOf = (m: ArrayLike<number>, p: ArrayLike<number>) =>
 
 /** A world matrix: a position, a turn about `y` and a scale per axis. */
 function place(at: number[], turn: number, scale: number[]) {
-  const m = new G.Matrix4()
+  const m = new Matrix4()
   m.compose(
-    new G.Vector3(at[0], at[1], at[2]),
-    new G.Quaternion().setFromAxisAngle(new G.Vector3(0, 1, 0), turn),
-    new G.Vector3(scale[0], scale[1], scale[2]),
+    new Vector3(at[0], at[1], at[2]),
+    new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), turn),
+    new Vector3(scale[0], scale[1], scale[2]),
   )
   return m.elements
 }
@@ -117,9 +121,9 @@ function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   const sprite = object.sprite(material.sprite({ color: '#ff0', ...parameters }))
   const drawn = drawnTriangles(sprite.geometry, 'sprite')!
   const surface = hostSurface(sprite.material as Material, false, 'sprite')
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(drawn.positions, 3))
-  const matrix = new G.Matrix4()
+  const matrix = new Matrix4()
   matrix.elements.set(place([0, 0, 0], turn, [1, 1, 1]))
   const page = { array: drawn.indices, attributes: geometry.attributes }
   const ids = rasterVisibilityIds(

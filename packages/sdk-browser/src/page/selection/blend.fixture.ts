@@ -1,4 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from './drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
@@ -10,14 +12,14 @@ export function blendFixture(
     side: G.DOUBLE_SIDE,
   }),
 ) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
   )
   geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]))
   const mesh = G.mesh(geometry, material),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   // Two level-0 clusters that nothing replaces: the smallest legal DAG, so both are root clusters.
   const pages = [

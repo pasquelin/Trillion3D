@@ -19,7 +19,6 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import type { Intersection, RayFilter } from '../world/query/types.ts'
-export type { EngineCapabilities, EngineDiagnostic, DiagnosticDetail }
 type ViewSize = { width: number; height: number }
 /** The engine: the WebGPU page raster (`../webgpu/pages/pages.ts`), the session's one renderer.
  *  Every member is its own and required; a test's stand-in casts a partial one. */
@@ -178,7 +177,7 @@ export interface EngineContext {
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
-  readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>
+  readSceneProxy?: () => Promise<import('../../../sdk-core/src/contracts/proxy.ts').SceneProxy>
   readPage?: (url: string) => Promise<Uint32Array> // Validated reader of a page not yet in memory.
   /** Catalogues the pages of a primitive added to the manifest after the open, before they are
    *  read (`PageQueue.admit`). */
@@ -196,5 +195,3 @@ export interface EngineContext {
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock
 }
-export type { EngineFactory } from './factory.ts'
-export type { MeasuredWorldOptions, PointOfInterest } from '../world/session/options.ts'

@@ -28,7 +28,7 @@ export async function createMeasuredWorldJob(
   target: MeasuredWorldTarget,
   options: MeasuredWorldOptions,
 ) {
-  const { createJob } = await import('../../../sdk-core/src/index.ts')
+  const { createJob } = await import('../../../sdk-core/src/runtime/jobs/jobs.ts')
   return createJob(
     id,
     ({ signal, progress }) =>

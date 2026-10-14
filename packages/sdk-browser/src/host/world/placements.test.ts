@@ -6,6 +6,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { hostWorldPlacements } from './placements.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
@@ -17,16 +20,16 @@ import { graphDraws } from '../../page/selection/drawSource.ts'
 /** A scene nobody has walked up: rotated root, parent with negative and non-uniform scale, leaf
  *  sheared by that scale, plus a node whose matrix is set. */
 function scene() {
-  const root = new G.Group(),
-    parent = new G.Group(),
+  const root = new Group(),
+    parent = new Group(),
     leaf = G.mesh(),
-    posed = new G.Group()
+    posed = new Group()
   root.position.set(3, -4, 5)
-  root.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(0.4, 0.1, -0.2)))
+  root.quaternion.copy(new Quaternion().setFromEuler(new Euler(0.4, 0.1, -0.2)))
   parent.scale.set(-2, 0.5, 3)
   parent.position.set(-0, 7, 0.25)
   leaf.position.set(1, 2, -3)
-  leaf.quaternion.copy(new G.Quaternion().setFromEuler(new G.Euler(-0.3, 0.7, 0.9)))
+  leaf.quaternion.copy(new Quaternion().setFromEuler(new Euler(-0.3, 0.7, 0.9)))
   leaf.scale.set(1, 1, -1)
   posed.matrixAutoUpdate = false
   posed.matrix.set(1, 3, 0, 2, 0, 1, 0, -1, 0, 0, 1, 4, 0, 0, 0, 1)
@@ -59,7 +62,7 @@ test("a pose is its node's own world storage, and stays it while the tree grows"
   const worlds = hostWorldPlacements(root)
   const view = worlds.of(leaf).elements
   assert.equal(view, leaf.matrixWorld.elements, 'one storage for the node and the engine')
-  for (let i = 0; i < 300; i++) new G.Group()
+  for (let i = 0; i < 300; i++) new Group()
   parent.position.set(1, 1, 1)
   worlds.refresh()
   assert.equal(worlds.of(leaf).elements, view)
@@ -77,7 +80,7 @@ test('a pass that moves nothing leaves every pose on the bits it carried', () =>
 
 test('page records and cluster roots carry the tree world of their mesh', () => {
   const fixture = blendFixture()
-  const parent = new G.Group()
+  const parent = new Group()
   parent.scale.set(2, -1, 0.5)
   parent.add(fixture.source)
   fixture.mesh.position.set(4, -2, 7)

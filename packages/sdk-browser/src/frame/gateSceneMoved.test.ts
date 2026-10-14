@@ -5,11 +5,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../host/resources.ts'
 import { createFrameGateCore } from './gateCore.ts'
 
 /** A source graph and the entry list that names the node the engine draws. */
 function scene() {
-  const source = new G.Group(),
+  const source = new Group(),
     mesh = G.mesh()
   mesh.name = 'drawn'
   source.add(mesh)
@@ -66,7 +68,7 @@ test('both announce the scene: a held frame is refused after either of them', ()
 
 test('a host write of its own is still taken after a move: the watch keeps listening', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.readScene(source, drawn)
   gate.movedInPlace()
@@ -80,7 +82,7 @@ test('a host write of its own is still taken after a move: the watch keeps liste
 
 test('a move announced before the first image still has the watched set built', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
   const gate = createFrameGateCore(1)
   gate.movedInPlace()
   gate.readScene(source, drawn)
@@ -108,7 +110,7 @@ test('a reshape then a move before the same image: the node the reshape brought 
 
 test('a node the host reparented has the roots under it read, not every root; a destroyed one every root', () => {
   const { source, drawn } = scene()
-  const mesh = (drawn[0] as { drawSource: { node: G.HostMesh } }).drawSource.node
+  const mesh = (drawn[0] as { drawSource: { node: HostMesh } }).drawSource.node
   const world = { refresh() {} } as Parameters<
     ReturnType<typeof createFrameGateCore>['updateWorlds']
   >[0]
@@ -121,7 +123,7 @@ test('a node the host reparented has the roots under it read, not every root; a 
   )
   gate.readScene(source, drawn)
   const moved: unknown[] = []
-  new G.Group().add(mesh)
+  new Group().add(mesh)
   gate.readScene(source, drawn)
   const write = gate.updateWorlds(world, (nodes) => moved.push(...nodes))
   assert.equal(write && write.reshaped, false)

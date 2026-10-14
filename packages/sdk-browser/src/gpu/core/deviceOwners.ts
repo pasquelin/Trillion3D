@@ -35,10 +35,7 @@ const registries = new WeakMap<GPUDevice, Registry>()
 /** One sequence for every device: a tag never names two claims. */
 let lastId = 0
 
-const outOfMemory = (error: unknown) =>
-  typeof GPUOutOfMemoryError === 'function'
-    ? error instanceof GPUOutOfMemoryError
-    : (error as object | null)?.constructor?.name === 'GPUOutOfMemoryError'
+const outOfMemory = (error: unknown) => error instanceof GPUOutOfMemoryError
 
 /** Claims `device` for one session: its errors and the device's loss reach `owner` until
  *  `release`, and the session creates through `claim.device`. A first claim on a device already

@@ -11,7 +11,7 @@ import {
   flushedGpuScene,
   disposeQuadRun,
 } from './testScenes.fixture.ts'
-import { coarseQuadScene } from './testOccluder.fixture.ts'
+import { coarseQuadScene } from './coarseQuads.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import type { Engine } from '../../engine/types.ts'
 

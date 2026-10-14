@@ -3,6 +3,7 @@
 // written to the device counted.
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { MANIFEST_IDENTITY, dagRoots } from '../engine/pagesEngine.fixture.ts'
 import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
 import { manifestCulling } from '../gpu/dag/culling.fixture.ts'
@@ -54,7 +55,7 @@ export async function session(placements: number) {
   const surface = G.basicSurface({ color: 0xff0000, side: G.DOUBLE_SIDE })
   const geometry = triangleGeometry()
   const mesh = G.mesh(geometry, surface)
-  const source = new G.Group()
+  const source = new Group()
   source.add(mesh)
   const held = primitive(7, 'held')
   const metadata = { ...QUAD_MANIFEST, primitives: [held], ...MANIFEST_IDENTITY }

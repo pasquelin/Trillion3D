@@ -2,11 +2,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { replicateInstances } from './replicateInstances.ts'
 
 /** A scene of one unit mesh at x = 1, and the bounds a caller prepared for it. */
 function oneMesh() {
-  const source = new G.Group(),
+  const source = new Group(),
     mesh = G.mesh(G.boxGeometry(2, 1, 3), G.basicSurface())
   mesh.position.set(1, 0, 0)
   source.add(mesh)

@@ -1,25 +1,24 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { BOX_CORNER_VALUES, pageCornersInto } from './corners.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
+import { BOX_CORNER_VALUES, pageCornersInto, HIZ_BOUNDS_VALUES } from './corners.ts'
 import type { HizPage } from './types.ts'
 import { splitOccludersInto } from './split.fixture.ts'
 import { rankByDepth } from './depthRank.fixture.ts'
-import { HIZ_BOUNDS_VALUES } from './corners.ts'
-import { projectCornersInto } from './projection.fixture.ts'
+import { projectCornersInto, projectBoxesFlat } from './projection.fixture.ts'
 import { projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { locatedBy } from '../page/selection/placements.fixture.ts'
-import { projectBoxesFlat } from './projection.fixture.ts'
 import { lcgFloatRandom } from '../../../math/src/sequence/seeded.fixture.ts'
 
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
   const rnd = lcgFloatRandom(12345)
-  const pages: (HizPage & { matrix: G.Matrix4 })[] = []
+  const pages: (HizPage & { matrix: Matrix4 })[] = []
   for (let i = 0; i < 300; i++) {
     const centre = [rnd() * 20 - 10, rnd() * 20 - 10, -rnd() * 40],
       half = [rnd() * 2 + 0.01, rnd() * 2 + 0.01, rnd() * 2 + 0.01]
-    const matrix = new G.Matrix4()
+    const matrix = new Matrix4()
       .makeRotationY(rnd() * 6)
       .setPosition(rnd() * 4 - 2, rnd() * 4 - 2, rnd() * 4 - 2)
     pages.push({

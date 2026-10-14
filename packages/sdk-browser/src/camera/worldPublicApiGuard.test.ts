@@ -17,6 +17,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import type { VisPage } from '../visibility/types.ts'
 import {
@@ -34,7 +36,7 @@ type Pose = (typeof POSES_PARENT)[number]
 const POSE = POSES_PARENT[2] as Pose // moved AND rotated: neither translation nor rotation can be guessed.
 
 function pageTriangle(): VisPage {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))
   return {
     array: new Uint32Array([0, 1, 2]),
@@ -45,7 +47,7 @@ function pageTriangle(): VisPage {
 
 test('cameraSelectionUniforms rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.Camera
+    camera = poseRig(rig, POSE, true) as Camera
   // `camera` has neither `.planes` nor `.view` nor `.viewProjection`: what `test:gpu` found on
   // a real GPU is already visible here, without GPU or browser.
   assert.throws(
@@ -62,7 +64,7 @@ test('cameraSelectionUniforms rejects the raw host camera: it does not convert a
 
 test('rasterVisibility rejects the raw host camera: it does not convert at the boundary', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.Camera
+    camera = poseRig(rig, POSE, true) as Camera
   assert.throws(
     () =>
       rasterVisibility(
@@ -78,8 +80,8 @@ test('rasterVisibility rejects the raw host camera: it does not convert at the b
 
 test('cameraSelectionUniforms(engineCamera(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.Camera,
-    flattened = flattenedCamera(POSE) as G.Camera
+    camera = poseRig(rig, POSE, true) as Camera,
+    flattened = flattenedCamera(POSE) as Camera
   const sousRig = cameraSelectionUniforms(engineCamera(camera), 0, [1000, 1000])
   const expected = cameraSelectionUniforms(engineCamera(flattened), 0, [1000, 1000])
   assert.deepEqual([...sousRig.planes], [...expected.planes], 'frustum planes')
@@ -89,8 +91,8 @@ test('cameraSelectionUniforms(engineCamera(…)): the correct call under a rig t
 
 test('rasterVisibility(engineCamera(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
-    camera = poseRig(rig, POSE, true) as G.Camera,
-    flattened = flattenedCamera(POSE) as G.Camera,
+    camera = poseRig(rig, POSE, true) as Camera,
+    flattened = flattenedCamera(POSE) as Camera,
     roots = identityRoots()
   const sousRig = rasterVisibility([pageTriangle()], roots, engineCamera(camera), [64, 64])
   const expected = rasterVisibility([pageTriangle()], roots, engineCamera(flattened), [64, 64])

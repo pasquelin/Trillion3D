@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sphereRadius } from '../../placement/rowSphere.ts'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
 import { shadowsFollowSurfaces, shadowsFollowTextures } from '../pages/prepare/lightResources.ts'
 import type { PageSurface } from '../../page/surface.ts'
@@ -25,13 +25,13 @@ const leaves = { map: T7 } as unknown as PageSurface,
   knots = { map: T5 } as unknown as PageSurface
 
 /** The roots the records rank, one each, at `x` on the axis; those in `movingRoots` already move. */
-const roots: { world: G.Matrix4 }[] = [],
+const roots: { world: Matrix4 }[] = [],
   movingRoots = new Set<number>()
 
 /** One record of root rank `roots.length - 1` (the record carries no placement). */
 function record(x: number, material = bark, moving = false) {
   if (moving) movingRoots.add(roots.length)
-  roots.push({ world: new G.Matrix4().makeTranslation(x, 0, 0) })
+  roots.push({ world: new Matrix4().makeTranslation(x, 0, 0) })
   return {
     material,
     min: [-1, -1, -1],

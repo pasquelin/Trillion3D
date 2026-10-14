@@ -2,7 +2,7 @@
 // Oracle: the general path, copied into `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { projectedClusterError, type ClusterCut } from './math.ts'
 import { clusterPixels } from './frame.fixture.ts'
 import {
@@ -157,7 +157,7 @@ test('component by component, the axis and the depth equal those taken from the 
 test('axis and depth propagate as NaN and equal zero at the origin of the frame', () => {
   assert.ok(Number.isNaN(viewLateralOf(NaN, 0, 0, view)))
   assert.ok(Number.isNaN(viewDepthOf(0, 0, NaN, view)))
-  const originView = new G.Matrix4().identity().elements
+  const originView = new Matrix4().identity().elements
   assert.equal(viewLateralOf(0, 0, 0, originView), 0)
   assert.equal(viewDepthOf(0, 0, 0, originView), -0)
 })

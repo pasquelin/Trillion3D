@@ -1,6 +1,6 @@
 // Generated cuts for the occlusion split and test: boxes spread through the view, and the screen
 // bounds the engine gives them.
-import * as G from '../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { HizPage } from './types.ts'
 import { splitOccludersInto } from './split.fixture.ts'
 import { cameraAt, projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
@@ -39,4 +39,4 @@ export function split(
 }
 
 export const bounds = (page: Tagged, cam = cameraAt(), viewport: [number, number] = [64, 64]) =>
-  projectBoxToScreen(page.min, page.max, new G.Matrix4(), cam, viewport)
+  projectBoxToScreen(page.min, page.max, new Matrix4(), cam, viewport)

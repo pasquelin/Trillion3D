@@ -18,16 +18,12 @@ export function constructGpuResources<T>(device: GPUDevice, build: () => T): T {
  * stack every session shares: a scope left open takes the errors of the next session, a scope
  * closed twice takes another's. So `build` runs inside the scope, and the scope is closed once in
  * every case, a throw included — the `AbortError` of a session released mid-build among them.
- * A device that cannot open a scope proves no error: nothing is refused on that account, and the
- * caller keeps the path it would have kept.
  */
 export async function validationScope<T>(
   device: GPUDevice,
   build: () => T | Promise<T>,
   filter: GPUErrorFilter = 'validation',
 ): Promise<{ value: T; error: GPUError | null }> {
-  if (typeof device.pushErrorScope !== 'function' || typeof device.popErrorScope !== 'function')
-    return { value: await constructGpuResources(device, build), error: null }
   device.pushErrorScope(filter)
   let value: T
   try {
@@ -69,8 +65,7 @@ export async function validatedOrWhy<T>(
 }
 
 /** A pipeline the device refused to compile off the thread (`GPUPipelineError`). */
-const pipelineRefused = (error: unknown) =>
-  typeof GPUPipelineError !== 'undefined' && error instanceof GPUPipelineError
+const pipelineRefused = (error: unknown) => error instanceof GPUPipelineError
 
 /**
  * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and

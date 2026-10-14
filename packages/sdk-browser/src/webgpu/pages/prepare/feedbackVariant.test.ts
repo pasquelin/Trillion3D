@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../../host/graph/graph.fixture.ts'
+import type { HostMesh } from '../../../host/resources.ts'
 import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -24,7 +25,7 @@ async function opened(textured: boolean) {
   const fixture = quadScene()
   // The pages read their material when the backend is made.
   if (textured)
-    (fixture.source.children[0] as G.HostMesh).material = G.standardSurface({
+    (fixture.source.children[0] as HostMesh).material = G.standardSurface({
       map: G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
     })
   const backend = webgpuPagesEngine({

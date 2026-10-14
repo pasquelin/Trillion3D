@@ -52,8 +52,6 @@ import type { HostRotation } from '../host/scene/graphNodes.ts'
  * neither opens nor closes any gate: it reaches no revision.
  */
 
-export type { CameraMotion } from './motion.ts'
-
 /**
  * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
  *

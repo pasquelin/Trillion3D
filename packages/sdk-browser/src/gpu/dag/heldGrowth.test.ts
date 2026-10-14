@@ -4,7 +4,7 @@
 // node's count, and the cut is the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
@@ -20,7 +20,7 @@ function scene() {
   const [root] = packed(dagFixture()).roots
   const roots = Array.from({ length: 50 }, (_, w) => ({
     ...root,
-    world: new G.Matrix4().setPosition((w % 10) * 5 - 25, 0, -Math.floor(w / 10) * 5),
+    world: new Matrix4().setPosition((w % 10) * 5 - 25, 0, -Math.floor(w / 10) * 5),
   }))
   const dag = packDagSelection(roots)
   const resident = new Uint32Array(dag.pageCount).fill(1)

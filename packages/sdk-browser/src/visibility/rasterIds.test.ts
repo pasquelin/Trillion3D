@@ -3,6 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { camera, quadPages } from './buffer.fixture.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
@@ -32,7 +33,7 @@ function cut(): { pages: ReturnType<typeof quadPages>['pages']; dispose: () => v
   const behind = quadPages(far, [0, 0, 1, 0, 1, 1, 0, 1])
   // Behind the eye, so the far quads cover only what the near ones leave: a real z gradient.
   behind.pages[0].array = new Uint32Array([0, 1, 2])
-  const line = new G.Geometry()
+  const line = new Geometry()
   line.setAttribute(
     'position',
     G.floatAttribute([-1, 0.4, -1, -1, 0.4, -1, 1, 0.4, -1, 1, 0.4, -1], 3),

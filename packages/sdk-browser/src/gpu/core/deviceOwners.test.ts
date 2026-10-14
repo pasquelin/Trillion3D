@@ -62,13 +62,6 @@ test("running out of memory is the live sessions' loss, unless it names a closed
   t.mock.method(console, 'warn', () => {})
   const gpu = fakeDevice(BACKEND),
     { device } = gpu
-  // WebGPU's class, by its name: Node has none.
-  class GPUOutOfMemoryError {
-    message: string
-    constructor(message: string) {
-      this.message = message
-    }
-  }
   const first = deviceOwner(),
     second = deviceOwner()
   const closing = claimGpuDevice(device, first)

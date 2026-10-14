@@ -4,6 +4,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { spotLight, lightProbe } from '../graph/graphLights.fixture.ts'
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { createHostSceneWatch } from './watch.ts'
 import type { WatchVerdict } from './scan.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -35,10 +38,10 @@ function counted(node: Object3D) {
 }
 
 function scene() {
-  const source = new G.Group()
+  const source = new Group()
   const mesh = G.mesh()
-  const lamp = G.spotLight(0xffffff, 1, 10, 0.5, 0.2, 2)
-  const sky = G.lightProbe()
+  const lamp = spotLight(0xffffff, 1, 10, 0.5, 0.2, 2)
+  const sky = lightProbe()
   source.add(mesh, lamp, sky)
   const watch = createHostSceneWatch()
   watch.observe(source, [{ drawSource: { node: mesh } }])
@@ -63,7 +66,7 @@ const WRITES: Array<[string, (s: Scene) => void, WatchVerdict?]> = [
   ['visible', ({ mesh }) => void (mesh.visible = false)],
   ['castShadow', ({ mesh }) => void (mesh.castShadow = false)],
   ['matrixAutoUpdate', ({ mesh }) => void (mesh.matrixAutoUpdate = true)],
-  ['a reparenting', ({ mesh }) => void new G.Group().add(mesh), 'reshaped'],
+  ['a reparenting', ({ mesh }) => void new Group().add(mesh), 'reshaped'],
   ['a light intensity', ({ lamp }) => void (lamp.intensity = 7)],
   ['a light range and cone', ({ lamp }) => void ((lamp.distance = 42), (lamp.angle = 0.1))],
   ['a light colour set', ({ lamp }) => void lamp.color.setRGB(0.25, 0.5, 0.75)],
@@ -74,7 +77,7 @@ const WRITES: Array<[string, (s: Scene) => void, WatchVerdict?]> = [
   ],
   [
     'a colour replaced, announced',
-    ({ lamp }) => void (Object.assign(lamp, { color: new G.Color(0xff0000) }).needsUpdate = true),
+    ({ lamp }) => void (Object.assign(lamp, { color: new Color(0xff0000) }).needsUpdate = true),
   ],
   [
     'a frozen matrix written through the getter',
@@ -113,7 +116,7 @@ test('storage of its own written behind the getter is taken into the tree once a
   own[13] = 4
   mesh.matrixWorldNeedsUpdate = true
   assert.equal(watch.take(), 'moved')
-  assert.equal(G.Object3D._treeOf(mesh).localViews[mesh.index][13], 4, 'the tree holds it')
+  assert.equal(Object3D._treeOf(mesh).localViews[mesh.index][13], 4, 'the tree holds it')
   assert.equal(watch.take(), 0)
 })
 

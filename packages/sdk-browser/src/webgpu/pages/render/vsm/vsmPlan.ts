@@ -7,10 +7,12 @@ import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { planVirtualShadowFrame, vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/frameSetup.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
-import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
+import {
+  vsmInvalidationPhaseFromShadowBoxes,
+  vsmInvalidationPipe,
+} from '../../../../vsm/invalidationPass.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
 import { unshadowLights, vsmCountersOn, wholeTableRows } from './engineVsm.ts'
-import { vsmInvalidationPipe } from '../../../../vsm/invalidationPass.ts'
 import { vsmCastMaps, vsmCastPipes } from '../../../../vsm/castInvalidation.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
