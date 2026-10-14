@@ -6,7 +6,7 @@ import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
-import { COMPOSE_WORLDS_BINDING } from './gpuComposeWgsl.ts'
+import { ROOTS_CUT_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
 /** The roots pass's entries (`COMPOSE_ROOTS_WGSL`), read live: its parameters, the roots' double
  *  worlds, the parents' indices, the cut's worlds and the roots' list. */
@@ -16,8 +16,8 @@ export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),
   ]),
-  resourceEntry(COMPOSE_WORLDS_BINDING, () => gpu.frame.worlds),
-  ...sequentialEntries([liveBuffer(() => gpu.rankList)], COMPOSE_WORLDS_BINDING + 1),
+  resourceEntry(ROOTS_CUT_WORLDS_BINDING, () => gpu.frame.worlds),
+  ...sequentialEntries([liveBuffer(() => gpu.rankList)], ROOTS_CUT_WORLDS_BINDING + 1),
 ]
 
 /** The motion pass's entries (`COMPOSE_MOTION_WGSL`), read live: the passes' one parameters, the

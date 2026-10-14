@@ -21,7 +21,7 @@ import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
 /** The binding of the cut's worlds in the roots pass: a write-only storage texture, the worlds'
  *  record table (`../gpu/dag/worldTable.ts`). */
-export const COMPOSE_WORLDS_BINDING = 3
+export const ROOTS_CUT_WORLDS_BINDING = 3
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
@@ -106,6 +106,6 @@ export const COMPOSE_ROOTS_WGSL = wgslProgram(
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     NO_INDEX,
-    worldTableWgsl('worlds', { group: 0, binding: COMPOSE_WORLDS_BINDING, access: 'write' }),
+    worldTableWgsl('worlds', { group: 0, binding: ROOTS_CUT_WORLDS_BINDING, access: 'write' }),
   ],
 )
