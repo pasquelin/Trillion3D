@@ -40,7 +40,6 @@ function encodeComposedWorlds(
   const state = rt.compose!,
     pipeline = composeKernels.worlds(device).get(),
     held = gpu.worldsGroup
-  writePassParams(device, gpu.worldParams, state.roots, listed)
   held.identity.entries[0] ??= worldEntries(rt, gpu)
   const bound = composeGroup(device, held, pipeline)
   if (state.composedAt === state.ranAt.worlds && !bound) return false
@@ -52,17 +51,20 @@ function encodeComposedWorlds(
 }
 
 /** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds, before the cut kernel
- *  reads them, and the motion buffer the frame's motion pass writes (`composedMotionPass.ts`): a thread each of the composed roots, and nothing on a frame where nothing
- *  they read or write moved — no parent, no link, no host write of the cut's words, and their
- *  motion settled (`encodeComposedMotion`). Into the roots' one compute pass `open`, opened by the
- *  first that runs (`../gpu/core/lazyComputePass.ts`). Whether the worlds were composed anew: the
- *  root boxes pass derives the composed roots' boxes from them. */
+ *  reads them, and the motion buffer the frame's motion pass writes (`composedMotionPass.ts`):
+ *  a thread each of the composed roots, and nothing on a frame where nothing they read or write
+ *  moved — no parent, no link, no host write of the cut's words, and their motion settled
+ *  (`encodeComposedMotion`). Into the roots' one compute pass `open`, opened by the first that
+ *  runs (`../gpu/core/lazyComputePass.ts`). Whether the worlds were composed anew: the root boxes
+ *  pass derives the composed roots' boxes from them. */
 export function encodeComposedRoots(rt: WebgpuPagesRuntime, device: GPUDevice, open: OpenPass) {
   const state = rt.compose,
     gpu = frameParents(rt, device),
     listed = state?.rankList.set.count ?? 0
   // The worlds both read are the roots' double worlds (`rootWorlds.ts`), sent with the frame's rows.
   if (!state || !gpu?.parents || !gpu.rankList || !rt.rootWorlds?.worlds || !listed) return false
+  // The one parameters the worlds, roots and motion passes read.
+  writePassParams(device, gpu.params, state.roots, listed)
   const composed = encodeComposedWorlds(rt, device, open, gpu, listed)
   encodeRootsPass(rt, device, open, gpu, listed)
   return composed
@@ -87,7 +89,6 @@ function encodeRootsPass(
   const motionBuffer = rt.gpu.temporal?.frame.active ? rt.gpu.temporal.motion.buffer : undefined
   const pipeline = composeKernels.roots(device).get(),
     held = gpu.rootGroup
-  writePassParams(device, gpu.rootParams, state.roots, listed)
   gpu.frame.worlds = selection.worlds
   held.identity.entries[0] ??= rootEntries(rt, gpu)
   const bound = composeGroup(device, held, pipeline)

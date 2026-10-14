@@ -114,11 +114,7 @@ export const rootListEntries = (
   reads: readonly GPUBufferBinding[],
 ) =>
   sequentialEntries([
-    liveBuffer(
-      () => list.params[g].buffer,
-      undefined,
-      () => list.params[g].words.byteLength,
-    ),
+    liveBuffer(() => list.params[g].buffer),
     ...reads,
     liveBuffer(() => (g ? rt.compose?.gpu?.rankList : list.list) ?? list.absent),
   ])
