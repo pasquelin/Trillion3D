@@ -1,5 +1,6 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 
 /**
  * THE BOUNCE ATLAS: the probe cascades are a float texture read with `textureLoad` and written by
@@ -24,9 +25,9 @@ export const probeAtlasExtent = (side: number, levels: number): [number, number,
   Math.max(1, levels),
 ]
 
-/** Bytes of an `rgba32float` atlas of this extent. */
+/** Bytes of a bounce atlas of this extent. */
 export const atlasBytes = ([width, height, layers = 1]: readonly number[]) =>
-  width * height * layers * 16
+  width * height * layers * texelBytesOf(BOUNCE_ATLAS_FORMAT)
 
 /** Vector `k` of the probe whose first texel is `probe` — column, row, layer (`probeAddress`,
  *  `gridWgsl.ts`) —: the texel `k` columns further on its row, read with no division. */

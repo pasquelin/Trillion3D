@@ -1,7 +1,7 @@
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
 import { SURFACE_FORMATS } from '../scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalLobes.ts'
-import { textureBytesOf } from '../gpu/core/textureBytes.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
 import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
@@ -54,7 +54,6 @@ export const FRONT_TARGET_FORMATS = {
   lobes: PHYSICAL_LOBES_FORMAT,
 } as const
 const LABEL = 'Trillion3D reflection front layer'
-const texel = (format: GPUTextureFormat) => textureBytesOf({ size: [1, 1], format })!
 
 /** The traced radiance's texture at `size`: written by the upsample, read by the forward programs. */
 const createFrontTraced = (device: GPUDevice, size: GPUExtent3D) =>
@@ -69,10 +68,11 @@ const createFrontTraced = (device: GPUDevice, size: GPUExtent3D) =>
  *  size where the scene has `blends`, a texel without; its normals, half grid, radiance and lobes a
  *  texel. */
 export const frontLayerBytes = (width: number, height: number, blends: boolean) =>
-  (blends ? width * height : 1) * (texel(DEPTH_FORMAT) + texel(FRONT_TARGET_FORMATS.flags)) +
-  texel(FRONT_TARGET_FORMATS.normals) +
+  (blends ? width * height : 1) *
+    (texelBytesOf(DEPTH_FORMAT) + texelBytesOf(FRONT_TARGET_FORMATS.flags)) +
+  texelBytesOf(FRONT_TARGET_FORMATS.normals) +
   halfBytes(1, 1) +
-  texel(FRONT_TRACED_FORMAT) +
+  texelBytesOf(FRONT_TRACED_FORMAT) +
   PHYSICAL_LOBES_TARGET.bytes(width, height, false)
 
 /** The stamp of the image `frame` (`run.frame`): what tells the front pass of this image. */
@@ -128,7 +128,7 @@ export function createFrontLayer(
   const grow = (
     texture: GPUTexture,
     remake: () => GPUTexture,
-    bytes = (width * height - 1) * texel(texture.format),
+    bytes = (width * height - 1) * texelBytesOf(texture.format),
   ) => {
     if (texture.width === width) return { texture, bytes: 0 }
     retire(device, texture)
