@@ -9,7 +9,6 @@ import { spotLight, lightProbe } from '../graph/graphLights.fixture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { createHostSceneWatch } from './watch.ts'
 import type { WatchVerdict } from './scan.ts'
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 const FIELDS = ['parent', 'visible', 'castShadow', 'matrixAutoUpdate'] as const
 

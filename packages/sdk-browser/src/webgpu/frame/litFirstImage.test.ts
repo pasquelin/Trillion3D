@@ -82,11 +82,9 @@ test('a scene with no transparent object compiles no blend program', async () =>
 })
 
 test('a pipeline the device refuses off the thread is a refusal, not a throw', async () => {
-  class GPUPipelineError extends Error {}
-  Object.assign(globalThis, { GPUPipelineError })
   const { device } = fakeDevice()
   const refused = await validated(device, async () => {
-    throw new GPUPipelineError('refused')
+    throw new GPUPipelineError('refused', { reason: 'internal' })
   })
   assert.equal(refused, undefined)
   await assert.rejects(validated(device, async () => Promise.reject(new Error('other'))))

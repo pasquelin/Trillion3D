@@ -54,10 +54,10 @@ async function prepared(folder: URL, written?: unknown) {
     signal: undefined,
     track: (_resource, read) => read,
   })
-  const ranks = built.associations as Map<object, ReturnType<Ranks>>
+  const drawn = built.associations as Map<object, ReturnType<Ranks>>
   const textures = built.textureIndices as Map<object, number>
   const ranks: Ranks = (object) =>
-    textures.has(object) ? { textures: textures.get(object) } : ranks.get(object)
+    textures.has(object) ? { textures: textures.get(object) } : drawn.get(object)
   const source = built.source as unknown as Object3D
   await loadHostVertices(meshes(source))
   return {

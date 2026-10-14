@@ -149,11 +149,9 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
 
 test('a device that refuses the classification draws every class full screen', async () => {
   installGpuGlobals()
-  class GPUPipelineError extends Error {}
-  Object.assign(globalThis, { GPUPipelineError })
   const { device, dispatches } = fakeDevice(BACKEND)
   device.createComputePipeline = (() => {
-    throw new GPUPipelineError('refused')
+    throw new GPUPipelineError('refused', { reason: 'internal' })
   }) as typeof device.createComputePipeline
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device))
   tiles.assign([5, 9])
