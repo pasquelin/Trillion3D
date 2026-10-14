@@ -22,7 +22,7 @@ import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
 import { nodeTableWgsl } from '../gpu/dag/nodeTable.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
-import { frameTableWgsl } from '../gpu/dag/frameTable.ts'
+import { frameTableWgsl, MARK_WORD, ROOT_WORD } from '../gpu/dag/frameTable.ts'
 import { fromF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
@@ -40,12 +40,12 @@ export const TREE_LEAVES_WGSL = wgslProgram(
 @group(0) @binding(2) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(3) var<storage,read> ranks:array<u32>;
 fn writeLeaf(w:u32){
- let root=framesWord(w,1u);
+ let root=framesWord(w,${ROOT_WORD}u);
  if(root==${NO_INDEX}u){return;}
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){world[k]=worlds[w*16u+k];}
- // The reach its mark carries (the frame row's word 3), none past every finite one.
- let mark=framesWord(w,3u);
+ // The reach its mark carries (its frame row's mark word), none past every finite one.
+ let mark=framesWord(w,${MARK_WORD}u);
  var reach=vec2u(0u,0u);
  if((mark>>16u)<${REACH_UNBOUNDED}u){reach=fromF32(bitcast<u32>(unpack2x16float(mark).y));}
  var lo:array<vec2u,3>;

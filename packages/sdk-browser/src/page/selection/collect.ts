@@ -4,7 +4,6 @@ import { sourceSurface, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
-import { worldMoved } from './rootWorld.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -98,8 +97,6 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
           placement ? rowShadowless(placement) : !source.castShadow,
         ) || undefined,
     }
-    // Its world box is taken when a CPU reader asks it (`rootWorld.ts`), the GPU's derived anyway.
-    worldMoved(root)
     roots.push(root)
   }
 }

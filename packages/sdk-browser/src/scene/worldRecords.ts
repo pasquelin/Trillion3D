@@ -34,7 +34,6 @@ import { primitiveFinder } from './primitiveLookup.ts'
 import { sourceSurface } from '../page/surface.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { placementWorld, rowParked, type PlacementRows } from '../placement/rows.ts'
-import { worldMoved } from '../page/selection/rootWorld.ts'
 
 /** The mesh a world page is worn by, and its surface: none when it draws blended. */
 export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
@@ -132,8 +131,6 @@ export function worldSelectionRoot(
     origins: dag.origins,
     pagesOf: (bundle: number) => held.get(bundle) ?? [],
   }
-  // Posed by its model: its box is the local one at that world, taken when read (`rootWorld.ts`).
-  if (placement) worldMoved(root)
   return root
 }
 

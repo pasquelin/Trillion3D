@@ -5,7 +5,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
 import { requestScene } from './requestScene.fixture.ts'
@@ -24,15 +23,16 @@ import type { PageRec } from '../../page/selection/types.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** The first frame the tests cut at: past the two a use protects, so a page never used is old. */
 const START = 10
 /** `packed` cut on the Node device, every page resident for the rule; `cut()` cuts at the next
  *  frame and reads back. */
 async function residentCutOf(packed: ReturnType<typeof packDagSelection>, uniforms: object) {
-  installGpuGlobals()
-  const gpu = fakeDevice({ ...BACKEND, packed })
-  const selection = await createGpuDagSelection(gpu.device, packed)
+  const gpu = fakeDevice({ ...BACKEND, packed }),
+    roots = hostStretches(packed)
+  const selection = await createGpuDagSelection(gpu.device, packed, { roots })
   assert.ok(selection)
   selection.updateResidency(pageResidency(new Uint32Array(packed.pageCount).fill(1)))
   const keys = pageKeys(packed),

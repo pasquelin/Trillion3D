@@ -4,7 +4,7 @@
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
-import { packDoubles } from '../../../math/src/float/splitDouble.ts'
+import { packDoubles, PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
 import { mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
@@ -71,9 +71,9 @@ export function takeSlot(
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
   state.winding[slot] = undefined as unknown as boolean
-  state.worlds = resized(state.worlds, state.slots * 16)
-  state.previous = resized(state.previous, state.slots * 16)
-  state.previous.set(world, slot * 16)
+  state.worlds = resized(state.worlds, state.slots * MATRIX_VALUES)
+  state.previous = resized(state.previous, state.slots * MATRIX_VALUES)
+  state.previous.set(world, slot * MATRIX_VALUES)
   return slot
 }
 
@@ -131,8 +131,8 @@ export function linkRanks(
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)
-    packDoubles(state.locals, rank * MATRIX_VALUES * 2, links[k].local)
-    state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
+    packDoubles(state.locals, rank * PACKED_MATRIX_WORDS, links[k].local)
+    state.localMats.set(links[k].local as ArrayLike<number>, rank * MATRIX_VALUES)
     installComposedWorld(rt, rank)
   }
   if (ranks.length) state.linksDirty = true

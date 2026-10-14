@@ -23,11 +23,16 @@ import {
   recordTable,
 } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.fixture.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
-import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+import {
+  FRAME_TABLE,
+  MARK_WORD,
+  ROOT_WORD,
+} from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import {
   DAG_NODE_FLOATS,
   FRAME_ROW_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 
 /** The words of the tree's table `texture` holds, read back: one layer, as `recordTable` lays them. */
 async function tableWords(device: GPUDevice, texture: GPUTexture, records: number) {
@@ -62,8 +67,8 @@ export async function runRefit() {
   const frames = new Uint32Array(roots.length * FRAME_ROW_WORDS)
   const writeFrames = () => {
     for (let w = 0; w < roots.length; w++) {
-      frames[w * FRAME_ROW_WORDS + 1] = dag.rootNodes[w]
-      frames[w * FRAME_ROW_WORDS + 3] = dag.mark[w]
+      frames[primitiveWordAt(w) + ROOT_WORD] = dag.rootNodes[w]
+      frames[primitiveWordAt(w) + MARK_WORD] = dag.mark[w]
     }
   }
   writeFrames()

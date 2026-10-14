@@ -1,25 +1,20 @@
-import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
-import { FRAME_VEC4, type PackedDag } from './types.ts'
+import type { PackedDag } from './types.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
 import { structuresOf } from './structureTable.ts'
+import {
+  HELD_BY_WORD,
+  MARK_WORD,
+  PAGE_BASE_WORD,
+  PAGE_COUNT_WORD,
+  RECORD_SHIFT_WORD,
+  ROOT_WORD,
+  STRUCTURE_WORD,
+} from './frameTable.ts'
 
-/** First word of primitive `w` in the frame buffer, its row: the stretch it was made with, then the
- *  root (`+ 1`),
- *  the record shift (`+ 2`), the never-culled mark (`+ 3`), its first page (`+ 4`) — what its shared
- *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`), its
- *  page count (`+ 6`) and its group structure's base (`+ 7`, `structureTable.ts`), as
- *  `primitiveFrameWords` lays them. */
-export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
-/** The frame words of a placement's root node, its record shift, its mark, its first page, the
- *  open counts it holds and its group structure's base (`primitiveWordAt`): what a pass beside the
- *  cut reads of a placement (`../../webgpu/rays/rayPlacementWgsl.ts`, `structureTable.ts`). */
-export const ROOT_WORD = 1,
-  RECORD_SHIFT_WORD = 2,
-  MARK_WORD = 3,
-  PAGE_BASE_WORD = 4,
-  HELD_BY_WORD = 5,
-  STRUCTURE_WORD = 7
-const PAGE_COUNT_WORD = 6
+/** First word of primitive `w`'s row in the host's frame words, its words as `frameTable.ts` names
+ *  them. */
+export const primitiveWordAt = (w: number) => w * FRAME_ROW_WORDS
 
 /** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
  *  and word 15. Words 12 to 14 are no cut's — each makes the translation from the exact one at its
@@ -44,20 +39,17 @@ export function changedWorlds(
 }
 
 /**
- * Per-primitive frame words, behind the six planes of its first row: the stretch at its making —
- * `maxStretch` of its world, which the host sends once into the stretch field
- * (`cameraFrames.ts`), the root boxes pass writing it from then on (`../../placement/rootBoxes.ts`):
- * a placement made before its root joins the session's has no world on the GPU yet —, the root the
- * descent starts from, the record shift that leads its pages to their shared records
- * (`layout.ts`), and the primitive's root mark (`PackedDag.mark`). Four words the
- * kernel reads without one more storage buffer bound to the stage.
+ * Per-primitive frame words (`frameTable.ts`): the root the
+ * descent starts from, the record shift that leads its pages to their shared records (`layout.ts`),
+ * the primitive's root mark (`PackedDag.mark`) and the words its pages and structure are found by.
+ * Its stretch is no host word: the root boxes pass writes it (`../../placement/rootBoxes.ts`).
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldSources' | 'rootNodes' | 'recordShift'> &
     Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen' | 'structures'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4)
+  const frameData = new Float32Array(worldCount * FRAME_ROW_WORDS)
   for (let w = 0; w < packed.worldCount; w++) writePrimitiveWords(frameData, packed, w)
   return frameData
 }
@@ -71,9 +63,6 @@ export function writePrimitiveWords(
 ) {
   const at = primitiveWordAt(w),
     frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
-  // A slot of the room a growth keeps holds no root yet: no stretch, as no world.
-  const source = packed.worldSources[w]
-  frameData[at] = source ? maxStretch(source.world.elements) : 0
   frameInts[at + ROOT_WORD] = packed.rootNodes[w]
   frameInts[at + RECORD_SHIFT_WORD] = packed.recordShift[w]
   frameInts[at + MARK_WORD] = packed.mark?.[w] ?? 0

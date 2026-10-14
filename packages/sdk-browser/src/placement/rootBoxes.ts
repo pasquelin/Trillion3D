@@ -83,7 +83,7 @@ function dispatch(
   const gpu = rt.rootBoxes!,
     pipeline = rootBoxesKernel(device).get(),
     held = gpu.groups[g]
-  writePassParams(device, gpu.params[g], rt.rootWorlds!.sent, listed, whole ? 1 : 0)
+  writePassParams(device, gpu.params[g], rt.rootWorlds!.held, listed, whole ? 1 : 0)
   pass.setPipeline(pipeline)
   held.identity.entries[0] ??= entries(rt, gpu, g)
   composeGroup(device, held, pipeline)
@@ -93,27 +93,28 @@ function dispatch(
 }
 
 /**
- * The world boxes and stretches of the roots whose world moved, into `encoder`: the roots a send
- * moved, or every root, then the composed roots when the compose worlds pass `composed` them anew
- * (a dispatch over every root holds them already). Whether it encoded anything; nothing while the
- * cut or the worlds are not made — the roots wait for the pass, kept in their list.
+ * The world boxes and stretches of the roots whose world moved, into `encoder`, their stretches into
+ * `frames`, the cut's frame words: the roots a send moved or made — those a cut took in place
+ * before they join included (`rootWorlds.ts`) —, or every root, then the composed roots when the
+ * compose worlds pass `composed` them anew (a dispatch over every root holds them already). Whether
+ * it encoded anything; nothing while the cut or the worlds are not made — the roots wait for the
+ * pass, kept in their list.
  */
 export function encodeRootBoxes(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  composed: boolean,
+  { composed, frames }: { composed: boolean; frames: GPUTextureView | undefined },
 ) {
-  const held = rt.rootWorlds,
-    selection = rt.run.gpuSelection
-  if (!held?.worlds || !selection) return false
+  const held = rt.rootWorlds
+  if (!held?.worlds || !frames) return false
   const listedComposed = composed ? (rt.compose?.rankList.set.count ?? 0) : 0
   if (!held.roots.whole && !held.roots.count && !listedComposed) return false
   const named = takeMovedRoots(held),
-    listed = named ? named.length : held.sent
+    listed = named ? named.length : held.held
   const gpu = (rt.rootBoxes ??= createRootBoxesGpu(device))
   if (named?.length) sendList(device, gpu, named)
-  gpu.frames = selection.frames
+  gpu.frames = frames
   const pass = encoder.beginComputePass({ label: ROOT_BOXES_PASS })
   if (listed) dispatch(rt, device, pass, { g: 0, listed, whole: !named })
   if (named && listedComposed)

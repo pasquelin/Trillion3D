@@ -12,12 +12,15 @@ import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { REQUEST_STEP_MAX } from './request.ts'
 import { sortStaged, stagedPage, stagedRank, stagedRequest } from './request.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('the requests reach the host in requestRank order, sorted by the GPU', async () => {
   installGpuGlobals()
   const { packed, uni: uniforms } = requestScene(1, 1024, 6)
   const gpu = fakeDevice({ ...BACKEND, packed })
-  const selection = await createGpuDagSelection(gpu.device, packed)
+  const selection = await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  })
   assert.ok(selection)
   selection.dispatch(uniforms)
   const result = await selection.flush()

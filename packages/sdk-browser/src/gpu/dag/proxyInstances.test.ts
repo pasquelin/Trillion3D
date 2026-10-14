@@ -24,6 +24,7 @@ import {
   writes,
 } from './proxyInstances.fixture.ts'
 import { INSTANCE } from '../../bounce/runtimeLayout.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -114,7 +115,9 @@ test('roots appended behind the others join with their instances', async () => {
     worlds: 2 * roots.length,
   })
   const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
-  const selection = (await createGpuDagSelection(gpu.device, packed))!
+  const selection = (await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  }))!
   assert.equal(selection.appendRoots(roots.slice(10)), true)
   const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
   for (const w of [0, 9, 10, 15]) assert.equal(node(w), 0, `placement ${w}`)

@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { rootWorldBox, worldMoved } from '../page/selection/rootWorld.ts'
+import { rootWorldBox } from '../page/selection/rootWorld.ts'
 import { packPageCorners } from '../webgpu/visibility/corners.fixture.ts'
 import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
@@ -103,7 +103,6 @@ test('the corners, the detail and the world box a world derives are the CPU form
     const ready = next() < 0.8,
       childReady = next() < 0.8
     // The CPU: the root's box carried by its world, then the row's words from it.
-    if (root.worldBox) worldMoved(root)
     const cornersCpu = new Float32Array(CORNER_VALUES)
     packPageCorners(cornersCpu, 0, rec, root.world, root.reach)
     const lodCpu = new Float32Array(ROW_LOD_FLOATS)

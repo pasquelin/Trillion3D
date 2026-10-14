@@ -19,6 +19,7 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { PAGE_BYTES, evictionWorld } from './evictionWorld.ts'
 import { readFlightFrame, type FlightFrame } from './evictionFlightFrame.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 /** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
 const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }
@@ -31,8 +32,8 @@ export async function runEvictionFlight(options: typeof FLIGHT = FLIGHT) {
   const { packed, pages, roots, placement } = world
   const reference = packDagSelection(roots)
   const [selection, unbounded] = await Promise.all([
-    createGpuDagSelection(device, packed),
-    createGpuDagSelection(device, reference),
+    createGpuDagSelection(device, packed, { roots: hostStretches(packed) }),
+    createGpuDagSelection(device, reference, { roots: hostStretches(reference) }),
   ])
   if (!selection || !unbounded) return { error: 'GPU_SELECTION_UNAVAILABLE', errors: gpu.errors }
   unbounded.updateResidency(pageResidency(new Uint8Array(reference.pageCount).fill(1)))

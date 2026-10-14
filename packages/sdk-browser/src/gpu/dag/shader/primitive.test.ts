@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
-import { FRAME_VEC4 } from '../types.ts'
+import { FRAME_TABLE } from '../frameTable.ts'
 import { createDagResources } from '../resources.ts'
 import { packDagSelection } from '../pack.ts'
 import { packed } from '../selectionHelpers.fixture.ts'
@@ -39,7 +39,8 @@ test('a placement holds 144 bytes at most, whatever the placements, past one row
       `${count} placements: ${bytes / dag.worldCount} B each`,
     )
   }
-  assert.equal(FRAME_VEC4, 2, 'its words, two vec4s: no block derived beside them')
+  const words = Object.values(FRAME_TABLE.fields).reduce((sum, texels) => sum + texels, 0)
+  assert.equal(words, 8, 'its row and its stretch, eight words: no block derived beside them')
 })
 
 test('the frame’s prepare reads no placement: ten thousand cost it what their tree’s top does', () => {

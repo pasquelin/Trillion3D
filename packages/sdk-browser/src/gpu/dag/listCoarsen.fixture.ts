@@ -16,6 +16,7 @@ import { viewWord } from './viewLayout.ts'
 import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 2000)
 
@@ -71,7 +72,7 @@ export async function worldCut(deviceCap: number) {
   const resources = await createDagResources(fake.device, scene.dag, null, undefined, undefined, 0)
   if (!resources) throw new Error('the fake device refused the tables')
   held.resources = resources
-  const selection = createDagRuntime(resources)
+  const selection = createDagRuntime(resources, undefined, hostStretches(resources.packed))
   /** One image under `uniforms` and its drain. */
   const frame = async (uniforms: SelectionUniforms) => {
     viewed = uniforms

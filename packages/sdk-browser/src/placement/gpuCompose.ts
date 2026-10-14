@@ -33,6 +33,7 @@
  * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
  * whose root is not built yet — are composed for their readers (`composeReaders.ts`).
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { PlacementRows } from './rows.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -130,7 +131,7 @@ export function rebindComposedWorlds(rt: WebgpuPagesRuntime) {
     composeWebgpuPlacements(
       rt,
       parent,
-      state.worlds.slice(slot * 16, slot * 16 + 16),
+      state.worlds.slice(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
       readers,
       false,
     )

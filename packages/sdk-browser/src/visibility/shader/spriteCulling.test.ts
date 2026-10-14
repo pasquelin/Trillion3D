@@ -9,6 +9,7 @@ import { cpuUrls, kernelUrls, packed } from '../../gpu/dag/selectionHelpers.fixt
 import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts'
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts'
 import { neverCulled, spriteMark } from './spriteWgsl.ts'
+import { MARK_WORD } from '../../gpu/dag/frameTable.ts'
 
 /** The test DAG worn as a sprite, its record's sprite facts written in place; `hierarchical` gives
  *  it its culling hierarchy. */
@@ -59,14 +60,16 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   const { dag } = packed(fixture)
   assert.deepEqual(Array.from(dag.mark), [3])
   const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
-  assert.equal(frames[primitiveWordAt(0) + 3], 3)
+  assert.equal(frames[primitiveWordAt(0) + MARK_WORD], 3)
   assert.ok(DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'))
   assert.ok(
     DAG_SELECTION_SHADER.includes(
       'return select(grownPlane(placedT*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));',
     ),
   )
-  // Word 3 of the placement's frame row, the one the host wrote the mark to above.
-  assert.ok(DAG_SELECTION_SHADER.includes('fn markOf(w:u32)->u32{return framesWord(w,3u);}'))
+  // The mark word of the placement's frame row, the one the host wrote the mark to above.
+  assert.ok(
+    DAG_SELECTION_SHADER.includes(`fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}`),
+  )
   fixture.geometry.dispose()
 })

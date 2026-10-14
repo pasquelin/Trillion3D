@@ -17,6 +17,7 @@ import { COLD_TABLE } from './cutTables.ts'
 import { cameraSelectionUniforms } from '../core/selection.ts'
 import { oracleBackend, stripCamera } from '../../page/cut/cutRuleBackends.fixture.ts'
 import { pageResidency, residencySlice } from './readiness.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 const THRESHOLD = 0.1,
   OBJECTS = 12
@@ -51,8 +52,10 @@ function scene() {
 
 test('the cut that packs the world DAG mirrors the rows; one without it reads them', async () => {
   const { packed, mirror, rows, resident } = scene()
-  const cutOf = async (dag: typeof packed) =>
-    createDagRuntime((await createDagResources(fakeDevice({ limits: SHADOW_LIMITS }).device, dag))!)
+  const cutOf = async (dag: typeof packed) => {
+    const device = fakeDevice({ limits: SHADOW_LIMITS }).device
+    return createDagRuntime((await createDagResources(device, dag))!, undefined, hostStretches(dag))
+  }
   // The rows name every page; its mirror sets the object clusters.
   const selection = await cutOf(packed)
   assert.deepEqual([packed.world!.root, selection.packsWorld], [OBJECTS, true])
@@ -145,7 +148,7 @@ test('a placement that gives its object back turns it out before the next cut, n
   const host = fakeDevice({ limits: SHADOW_LIMITS }),
     resources = (await createDagResources(host.device, packed))!
   // The cut runs on no GPU here: what it hands the tables before encoding is what counts.
-  const selection = createDagRuntime(resources)
+  const selection = createDagRuntime(resources, undefined, hostStretches(packed))
   // Cell 1's four objects placed and drawable: their world group is ready.
   for (let o = 4; o < 8; o++) {
     selection.placeObject(o, o)

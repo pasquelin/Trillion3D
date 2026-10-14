@@ -13,6 +13,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 export const VIEWPORT: [number, number] = [1280, 720]
 export function packed(fixture: ReturnType<typeof dagFixture>) {
@@ -101,7 +102,9 @@ export async function cutOnce() {
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
+  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+  })
   assert.ok(selection)
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4)

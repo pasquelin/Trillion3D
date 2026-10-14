@@ -15,6 +15,7 @@ import { OUT_COUNT, OUT_FLAGS } from './layout.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** The two lists one cut publishes: the camera's requests, the drawn pages. */
 export type RigCut = { asked: number[]; drawn: number[] }
@@ -73,7 +74,7 @@ export async function differenceRig(cap: number, placements = 40) {
   /** The kernels encoded since `encoded` was last read, from the `seen`-th dispatch on. */
   let seen = 0
   const resources = (await createDagResources(device, dag, null, cap))!
-  const selection = createDagRuntime(resources)
+  const selection = createDagRuntime(resources, undefined, hostStretches(resources.packed))
   return {
     resources,
     selection,

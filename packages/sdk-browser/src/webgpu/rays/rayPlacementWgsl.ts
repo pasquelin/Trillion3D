@@ -11,7 +11,12 @@ import {
   NODE_FIRST_PAGE,
   NODE_PAGE_COUNT,
 } from '../../gpu/dag/nodeLayout.ts'
-import { MARK_WORD, PAGE_BASE_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from '../../gpu/dag/worlds.ts'
+import {
+  MARK_WORD,
+  PAGE_BASE_WORD,
+  RECORD_SHIFT_WORD,
+  ROOT_WORD,
+} from '../../gpu/dag/frameTable.ts'
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { rayQueryBindingsWgsl } from './deformIndexWgsl.ts'

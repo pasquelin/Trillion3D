@@ -13,6 +13,7 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createDagReadiness } from './readiness.ts'
 import { pageResidency } from './readiness.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** Fifty placements of the grouped fixture on a grid, every page resident — each placement's
  *  open counts its own —, and an eye over them. */
@@ -38,7 +39,10 @@ test('the open counts follow the row cache: a small table refuses nothing, a gro
   installGpuGlobals()
   const { dag, resident, uniforms } = scene()
   const every = allEntries(dag, resident)
-  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, { rows: 4 }))!
+  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+    rows: 4,
+  }))!
   assert.ok(selection.updateResidency(pageResidency(resident)), 'the residency is taken whole')
   const held = dag.heldOpen!
   assert.ok(held.slots < 2 * every && held.dropped > 0, 'four rows: a table short of the counts')

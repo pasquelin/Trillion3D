@@ -7,6 +7,7 @@ import { dagPageUrls } from './pack.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { pageResidency } from './readiness.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals()
@@ -21,7 +22,7 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
     submits++
     submitted.call(queue)
   }
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   const abandoned = selection.dispatch(uniforms, device.createCommandEncoder())
   assert.equal(typeof abandoned, 'function', 'a shared buffer hands back its settlement')
@@ -44,7 +45,7 @@ async function wideSelection(faults?: Parameters<typeof mockDagDevice>[1]) {
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
   const gpu = mockDagDevice(dag, faults)
-  const selection = await createGpuDagSelection(gpu.device, dag)
+  const selection = await createGpuDagSelection(gpu.device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   return { fixture, dag, uniforms, gpu, selection }
 }
@@ -112,7 +113,7 @@ test('a failed readback is read again at the next dispatch, the selection kept',
 
 test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   selection.updateResidency(
     pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),

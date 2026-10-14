@@ -15,6 +15,8 @@ import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { viewTexture } from '../../../../../tests/kit/gpu/fakeWorldPose.ts'
 import { recordWordAt } from '../core/recordTexture.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
+import { MARK_WORD } from './frameTable.ts'
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()
@@ -34,11 +36,11 @@ test('a root mark written once per change reaches the frame word the cut reads',
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const { device, rows } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
   await selection.flush()
-  const at = primitiveWordAt(0) + 3
+  const at = primitiveWordAt(0) + MARK_WORD
   const earlier = rows().length
   for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark)
   assert.deepEqual(rows().slice(earlier), [], 'nothing sent before the next cut')

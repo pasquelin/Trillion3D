@@ -23,6 +23,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { ruleResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
   // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and
@@ -150,7 +151,10 @@ test('a device that refuses the cut gets no GPU selection, and the host is told 
   })
   const told: unknown[][] = []
   const onRefused = (...said: unknown[]) => void told.push(said)
-  assert.equal(await createGpuDagSelection(device, dag, { onRefused }), undefined)
+  assert.equal(
+    await createGpuDagSelection(device, dag, { roots: hostStretches(dag), onRefused }),
+    undefined,
+  )
   // The device's own words reach the host: an error is never swallowed.
   assert.deepEqual(told, [['camera cut creation failed: NO_MEMORY', { why: 'NO_MEMORY' }]])
   fixture.geometry.dispose()
@@ -160,7 +164,10 @@ test('an empty cluster set does not allocate a GPU selection', async () => {
   installGpuGlobals()
   const dag = packDagSelection([])
   assert.equal(dag.pageCount, 0)
-  assert.equal(await createGpuDagSelection(mockDagDevice(dag).device, dag), undefined)
+  assert.equal(
+    await createGpuDagSelection(mockDagDevice(dag).device, dag, { roots: hostStretches(dag) }),
+    undefined,
+  )
 })
 
 test('GPU selection readback page ids match the CPU oracle for the same camera', async () => {
@@ -171,7 +178,9 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
   // The render frame is set BEFORE creation: the GPU receives matrices already brought back to
   // the eye, as the engine carries them each frame.
   const uniforms = kernelUniforms(dag, roots, cam, 3.4)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
+  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+  })
   assert.ok(selection)
   selection.dispatch(uniforms)
   const gpu = await selection.flush()

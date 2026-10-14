@@ -9,12 +9,14 @@ import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { packDagSelection } from './pack.ts'
 import { createDagResources } from './resources.ts'
-import { createDagRuntime, type RootsOnGpu } from './runtime.ts'
+import { createDagRuntime } from './runtime.ts'
+import type { RootsOnGpu } from './runtimeOps.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** A field of `side`² placements cut on a mock device, its tree followed by the run itself
  *  (`createDagRuntime`) over a writer of leaves that records what each fit names — `ready` once
@@ -30,7 +32,7 @@ async function followed(side = 40, ready = { now: true }) {
     })
   const named: { ranks: number[]; whole: boolean }[] = []
   const onGpu: RootsOnGpu = {
-    roots: () => undefined,
+    roots: hostStretches(packed).roots,
     leaves: {
       ready: () => ready.now,
       encode: (_encoder, _tables, { ranks, count, whole }) =>

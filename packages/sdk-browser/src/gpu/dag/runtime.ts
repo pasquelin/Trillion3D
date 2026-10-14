@@ -9,28 +9,24 @@ import { coarsenTick } from './coarsening.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { createWorldResidencyMirror } from './residencyMirror.ts'
 import { createAsideCut } from './aside.ts'
-import { createTreeFollower, type TreeLeaves } from './treeFollow.ts'
+import { createTreeFollower } from './treeFollow.ts'
 import { createLinkFollower } from './worldFollow.ts'
 import {
-  appendRoots,
   flushRuntime,
   parkRoot,
-  rewritePlacement,
   updateRuntimeResidency,
-  updateRuntimeWorlds,
   writeMark,
   type DagRun,
+  type RootsOnGpu,
 } from './runtimeOps.ts'
+import { rewritePlacement, updateRuntimeWorlds } from './runtimeWorlds.ts'
+import { appendRoots } from './runtimeAppend.ts'
 import type { DagResources } from './resources.ts'
 import { cutReaders } from './cutReaders.ts'
 import { cutBytes } from './cutBuffers.ts'
 import { createProxyInstances } from './proxyInstances.ts'
 import { followRecords } from './recordsFollow.ts'
 import { NO_PROXY_BOXES } from '../../bounce/probeSync.ts'
-
-/** What a session writes of its roots on the GPU before every cut on the tables (`syncTables`):
- *  their worlds, boxes and stretches (`../../placement/rootPasses.ts`), then the tree's leaves. */
-export type RootsOnGpu = { roots(): void; leaves: TreeLeaves }
 
 export function createDagRuntime(
   resources: DagResources,
@@ -81,7 +77,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
   const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
-    roots?.roots()
+    roots?.roots(frames.rows)
     run.tree?.sync()
     run.proxies.refresh()
     // The records the cut's groups bind, grown for the proxy's copies since: the groups follow.
@@ -149,9 +145,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
     },
     appendRoots: (roots) => appendRoots(run, roots),
     followRows: (rows) => live() && followRows(resources, state, rows),
-    // The root travels behind the stretch in the frame buffer (`resources.ts`).
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
-    // The mark travels behind the record shift (`primitiveFrameWords`).
     markWorld: (w, mark) => live() && writeMark(run, w, mark),
     // What the passes beside the cut read: its tables, the proxy (`cutReaders.ts`).
     ...cutReaders(run, live),

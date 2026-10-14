@@ -3,7 +3,14 @@ import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/b
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
 import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
-import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+import {
+  FRAME_TABLE,
+  MARK_WORD,
+  PAGE_BASE_WORD,
+  PAGE_COUNT_WORD,
+  RECORD_SHIFT_WORD,
+  ROOT_WORD,
+} from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
@@ -59,12 +66,12 @@ export function packedFromBindings(
   /** Word `at` of each primitive's frame row. */
   const intsAt = (at: number) =>
     Uint32Array.from({ length: worldCount }, (_, w) => frameWord(frames, w, at))
-  const rootNodes = intsAt(1)
+  const rootNodes = intsAt(ROOT_WORD)
   // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
   // kernels read it from the entries that carry it, the double indexes the placements.
   const ranks: number[] = [],
-    firsts = intsAt(4),
-    counts = intsAt(6)
+    firsts = intsAt(PAGE_BASE_WORD),
+    counts = intsAt(PAGE_COUNT_WORD)
   for (let w = 0; w < worldCount; w++)
     for (let page = firsts[w]; page < firsts[w] + counts[w]; page++) ranks[page] = w
   const pageIndex = indexOfRanks(ranks, worldCount)
@@ -86,8 +93,8 @@ export function packedFromBindings(
     ),
     rootNodes,
     rootBases: rootNodes.slice(),
-    recordShift: intsAt(2),
-    mark: intsAt(3),
+    recordShift: intsAt(RECORD_SHIFT_WORD),
+    mark: intsAt(MARK_WORD),
     levelSizes: new Uint32Array(0),
     nodeCount,
     primitiveNodeCount: nodeCount,

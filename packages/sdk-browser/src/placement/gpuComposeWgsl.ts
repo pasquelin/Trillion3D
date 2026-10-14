@@ -64,8 +64,8 @@ export const COMPOSE_WORLDS_WGSL = wgslProgram(
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
- for(var k=0u;k<16u;k++){
-  rootWorlds[rank*16u+k]=composed(p*${MATRIX_VALUES}u,rank*${MATRIX_VALUES}u,k);
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){
+  rootWorlds[rank*${MATRIX_VALUES}u+k]=composed(p*${MATRIX_VALUES}u,rank*${MATRIX_VALUES}u,k);
  }
 }`,
   [PRODUCT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
@@ -112,10 +112,10 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
- var world:array<u32,16>;
+ var world:array<u32,${MATRIX_VALUES}>;
  var origin:array<u32,8>;
- for(var k=0u;k<16u;k++){
-  let value=rootWorlds[rank*16u+k];
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){
+  let value=rootWorlds[rank*${MATRIX_VALUES}u+k];
   world[k]=toF32(value);
   // The exact translation beside the matrix, which each cut reads at its own eye
   // (\`../gpu/dag/shader/worldPoseWgsl.ts\`), high word then low word.
@@ -126,10 +126,10 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  worldsOriginStore(rank,1u,vec4u(origin[4],origin[5],0u,0u));
  let mode=motionMode.mode;
  if(mode==${MOTION_SKIP}u){return;}
- var held:array<u32,16>;
+ var held:array<u32,${MATRIX_VALUES}>;
  var same=true;
- for(var k=0u;k<16u;k++){
-  held[k]=previous[rank*16u+k];
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){
+  held[k]=previous[rank*${MATRIX_VALUES}u+k];
   same=same&&sameWord(held[k],world[k]);
  }
  var words=array<u32,16>(0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u);
@@ -137,9 +137,9 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
   words=motionWords(held,world,array<vec2u,3>(motionMode.eyeX,motionMode.eyeY,motionMode.eyeZ));
  }
  if(mode==${MOTION_RESET}u||(mode==${MOTION_SCAN}u&&!same)){
-  for(var k=0u;k<16u;k++){previous[rank*16u+k]=world[k];}
+  for(var k=0u;k<${MATRIX_VALUES}u;k++){previous[rank*${MATRIX_VALUES}u+k]=world[k];}
  }
- for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){motion[rank*${MATRIX_VALUES}u+k]=words[k];}
 }`,
   [
     toF32,

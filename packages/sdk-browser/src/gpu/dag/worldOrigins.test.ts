@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { createCameraFrames } from './cameraFrames.ts'
-import { FRAME_ROW_WORDS, FRAME_VEC4 } from './types.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
 import { rootWorlds } from './pack.ts'
 import { rootWorldsToRenderOrigin } from './pack.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
@@ -36,7 +36,7 @@ test('the worlds stay one table past one storage binding, and keep absolute orig
   })
   const frames = createCameraFrames(
     fake.device,
-    new Float32Array(sources.length * FRAME_VEC4 * 4),
+    new Float32Array(sources.length * FRAME_ROW_WORDS),
     sources.length,
     next,
     sources,
@@ -65,7 +65,7 @@ test('a millimetre physical move updates only its origin texels, its exact doubl
   const fake = fakeDevice()
   const frames = createCameraFrames(
     fake.device,
-    new Float32Array(sources.length * FRAME_VEC4 * 4),
+    new Float32Array(sources.length * FRAME_ROW_WORDS),
     sources.length,
     next,
     sources,

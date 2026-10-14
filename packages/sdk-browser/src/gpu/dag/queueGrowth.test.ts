@@ -11,6 +11,7 @@ import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { ruleResidency, pageResidency } from './readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import type { GpuSelection } from '../core/selection.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 /** The pages the mask the frame draws holds (`dagCommitMask`), ascending. */
 function maskPages(selection: GpuSelection, pageCount: number) {
@@ -35,7 +36,9 @@ test('a full queue costs no image: the overflowed cut is not adopted, then the t
     list = Math.max(a.work.candidates, a.work.live)
   assert.ok(Math.max(...b.work.levels) > queue && b.work.candidates > list, 'the fine cut passes')
   Object.assign(dag, { queueEntries: queue, candCount: list })
-  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag))!
+  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
+    roots: hostStretches(dag),
+  }))!
   selection.updateResidency(pageResidency(resident))
   selection.dispatch(coarse)
   const drawnA = (await selection.flush())?.drawablePageIds?.slice().sort((x, y) => x - y)

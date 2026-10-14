@@ -7,7 +7,7 @@
  * wrote, in the queue's order: the CPU never waits on the GPU, and no pass composes a world again.
  * The cut, and the frame's rows pass after it, read every word of them.
  */
-import type { RootsOnGpu } from '../gpu/dag/runtime.ts'
+import type { RootsOnGpu } from '../gpu/dag/runtimeOps.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSED, ENCODED, encodeComposedRoots } from './gpuComposeEncode.ts'
 import { encodeRootBoxes, rootBoxesKernel } from './rootBoxes.ts'
@@ -16,9 +16,10 @@ import { leafKernel, treeLeaves } from './treeLeaves.ts'
 import { createImagePart } from '../webgpu/pages/render/encoder.ts'
 
 /** Runtime `rt`'s roots brought level on the GPU — the composition's passes first when `compose` —,
- *  their own command buffer submitted when it holds a pass: nothing in a frame where nothing moved
- *  since the last time. */
-function writeRoots(rt: WebgpuPagesRuntime, compose: boolean) {
+ *  their stretches into `frames`, the frame words of the cut they go before, their own command
+ *  buffer submitted when it holds a pass: nothing in a frame where nothing moved since the last
+ *  time. */
+function writeRoots(rt: WebgpuPagesRuntime, compose: boolean, frames: GPUTextureView | undefined) {
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
   sendRootWorlds(rt, device)
@@ -31,20 +32,21 @@ function writeRoots(rt: WebgpuPagesRuntime, compose: boolean) {
     ? createImagePart(rt, device)
     : device.createCommandEncoder({ label: 'Trillion3D roots' })
   const done = compose ? encodeComposedRoots(rt, device, encoder) : 0
-  const boxed = encodeRootBoxes(rt, device, encoder, (done & COMPOSED) !== 0)
+  const boxed = encodeRootBoxes(rt, device, encoder, { composed: (done & COMPOSED) !== 0, frames })
   if (boxed || done & ENCODED) device.queue.submit([encoder.finish()])
 }
 
 /** The roots on the GPU of runtime `rt`, as every cut of its session writes them first. */
 export const rootsOnGpu = (rt: WebgpuPagesRuntime): RootsOnGpu => ({
-  roots: () => writeRoots(rt, true),
+  roots: (frames) => writeRoots(rt, true, frames.view),
   leaves: treeLeaves(rt),
 })
 
 /** The worlds the host moved since the cut last wrote the roots, their boxes and stretches with
  *  them, before the rows pass reads the boxes (`rowWordsPass.ts`): what an image no cut ran before
  *  still owes. The composition is the cut's alone. */
-export const writeMovedRoots = (rt: WebgpuPagesRuntime) => writeRoots(rt, false)
+export const writeMovedRoots = (rt: WebgpuPagesRuntime) =>
+  writeRoots(rt, false, rt.run.gpuSelection?.frames)
 
 /** Asks the kernels the roots' passes bind at a frame's entry (`../webgpu/frame/framePipelines.ts`):
  *  the root boxes pass once there is a root, the tree's leaves once its cut has a tree. */

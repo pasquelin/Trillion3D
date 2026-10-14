@@ -12,6 +12,7 @@ import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.
 import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../kit/cameraRig.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
 
@@ -32,7 +33,7 @@ async function sequence(
     fixture.indices,
   )
   const packed = packDagSelection(roots)
-  const selection = await createGpuDagSelection(device, packed)
+  const selection = await createGpuDagSelection(device, packed, { roots: hostStretches(packed) })
   if (!selection) throw new Error('GPU_SELECTION_UNAVAILABLE')
   const frames: FrameSelection[] = []
   for (const pose of POSES_PARENT) {

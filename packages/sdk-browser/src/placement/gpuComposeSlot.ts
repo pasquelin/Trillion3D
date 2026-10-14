@@ -3,6 +3,7 @@
  * its winding turned, the tree groups and the impostor cards of its roots told, its move told to
  * the shadow mobility.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { matrixWindingCw } from '../../../math/src/matrix/orientation.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -13,7 +14,9 @@ import { slotRanks, type ComposeState } from './gpuComposeState.ts'
  *  when its winding turned: a mirror changes which face each row's bin culls (`pipelineFor.ts`).
  *  The rows are written as a row moved is (`moveRootRows`), once a turn, never a move. */
 function remakeBins(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
-  const cw = matrixWindingCw(state.worlds.subarray(slot * 16, slot * 16 + 16))
+  const cw = matrixWindingCw(
+    state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
+  )
   const was = state.winding[slot]
   state.winding[slot] = cw
   if (was === undefined || was === cw) return
@@ -63,18 +66,18 @@ export function settleSlot(
   },
 ) {
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
-  const moved = p !== undefined && !sameElements(state.worlds, world, slot * 16)
+  const moved = p !== undefined && !sameElements(state.worlds, world, slot * MATRIX_VALUES)
   // A parent's move moves its roots: its first makes them moving casters, each how far it went
   // (`mobility.moveLead`), from the world it held.
   if (moved)
     rt.lights.mobility.moveLead(
       slot,
       state.ranksOf[slot],
-      state.worlds.subarray(slot * 16, slot * 16 + 16),
+      state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
       world,
     )
   if (moved || p === undefined) state.parentsDirty = true
-  state.worlds.set(world, slot * 16)
+  state.worlds.set(world, slot * MATRIX_VALUES)
   state.version++
   remakeBins(rt, state, slot)
   if (moved || relinked) moveCards(rt, state, slot)

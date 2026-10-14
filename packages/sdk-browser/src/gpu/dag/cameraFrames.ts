@@ -26,9 +26,8 @@ export function createCameraFrames(
 ) {
   // Worlds: written by the host and by the composition of the poses
   // (`../../placement/gpuComposeWgsl.ts`), copied once when the proxy's copies outgrow them
-  // (`RecordTexture.hold`). Frame words: their rows written by the host, their stretch by the host
-  // once, when a placement is made, then by the root boxes pass alone
-  // (`../../placement/rootBoxesWgsl.ts`).
+  // (`RecordTexture.hold`). Frame words: their rows written by the host, their stretch by the root
+  // boxes pass alone (`../../placement/rootBoxesWgsl.ts`).
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     written = read | GPUTextureUsage.STORAGE_BINDING
   const f: Frames = {
@@ -71,12 +70,8 @@ export function createCameraFrames(
         layout,
         entries: dagGroupEntries({ ...group, frames: f.rows.view, worlds: f.worlds.view }),
       }),
-    /** The host rows of placements `[from, to)` — every one by default — to their records, their
-     *  stretches with them: placements made, whose stretch no pass derived yet. `dagPrepare`
-     *  writes the rest. */
+    /** The host rows of placements `[from, to)` — every one by default — to their records. */
     writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),
-    /** The host rows of the `count` increasing placements of `named`, each run to its records. */
-    writeNamedRows: (named: Int32Array, count: number) => writeNamed(f, named, count),
     /** The world matrices in `next` of placements `[from, to)` — every one by default —, to
      *  their records. */
     writeWorlds: (next: Float32Array, from = 0, to = Infinity) => writeWorlds(f, next, from, to),
@@ -126,22 +121,14 @@ function writeRows(f: Frames, from: number, to: number) {
   const rows = Math.min(to, f.worldCount) - from
   if (rows <= 0) return
   f.writes++
-  writeFrameRows(f.rows, f.frameData, from, rows)
-}
-
-/** Placements `[from, from + count)` of the host rows `frameData` to the frame words `rows`: their
- *  rows, and the stretch each was made with — its row's first word — into its own field, which the
- *  root boxes pass writes from then on (`frameTable.ts`). A placement made, never one sent again. */
-function writeFrameRows(
-  rows: RecordTexture,
-  frameData: Float32Array<ArrayBuffer>,
-  from: number,
-  count: number,
-) {
-  rows.write('Row', from, count, frameData.buffer, frameData.byteOffset + primitiveWordAt(from) * 4)
-  const stretches = new Float32Array(count)
-  for (let k = 0; k < count; k++) stretches[k] = frameData[primitiveWordAt(from + k)]
-  rows.write('Stretch', from, count, stretches.buffer, 0)
+  const { frameData } = f
+  f.rows.write(
+    'Row',
+    from,
+    rows,
+    frameData.buffer,
+    frameData.byteOffset + primitiveWordAt(from) * 4,
+  )
 }
 
 function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
