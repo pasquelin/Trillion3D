@@ -2,7 +2,6 @@ import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { levelViews } from '../texture/mipGroups.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import type { RadiancePyramid, RadianceStages } from './radiance.ts'
 
@@ -74,7 +73,8 @@ const radianceGroups = (
  * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
  * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
  * the image is encoded (`fresh`, `adoptRadianceImage`). `inputs.view` is the lighting's view, whose
- * drawn size the first dispatch reads. With `hashless` — a settled view, whose hash no sample reads
+ * drawn size the first dispatch reads. `still`: the image is drawn from where the held one was, as the
+ * image decided it (`drawnFromHeld`). With `hashless` — a settled view, whose hash no sample reads
  * (`settle.verified`) — the image is not hashed: the next image that is hashes the one before it too.
  */
 export function encodeRadiancePyramid(
@@ -85,7 +85,8 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
-  hashless = false,
+  still: boolean,
+  hashless: boolean,
 ) {
   const { levels, held, build } = pyramid
   if (levels < 3) return
@@ -104,11 +105,6 @@ export function encodeRadiancePyramid(
   // Drawn from where the image before it was: hashed, and the image before it too where that one
   // moved or was settled and hashed nothing — still whole, the pyramid's level 0.
   const hashedBefore = pyramid.hashed,
-    still =
-      held.valid &&
-      held.size[0] === size[0] &&
-      held.size[1] === size[1] &&
-      sameElements(held.viewProjection, viewProjection),
     hashing = still && !hashless
   const first = !hashing
     ? pipelines.firstPipeline

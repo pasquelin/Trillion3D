@@ -1,8 +1,4 @@
-import {
-  REFLECTION_PASS,
-  REFLECTION_RADIANCE_PASS,
-  REFLECTION_TRACE_PASS,
-} from '../stage/passLabels.ts'
+import { REFLECTION_PASS, REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import {
   directLightResources,
@@ -12,12 +8,11 @@ import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
-import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
+import type { RadianceInputs } from './radianceBuild.ts'
+import { encodeImageRadiance, stageReflectionImage } from './image.ts'
 import { encodeReflectionTrace, type TraceInputs } from './halfEncode.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
-import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
-import { REFLECTION_COUNTS } from './constants.ts'
 import {
   environmentCurve,
   environmentExposure,
@@ -40,7 +35,7 @@ const surroundings = createSurroundings()
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
-/** Stages the image's reflection view (`ScreenReflection.writeView`), which the trace and the forward
+/** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
 function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
   const { gpu, run } = rt
@@ -54,23 +49,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
-  // An image drawn from elsewhere than the last, or under other lights, is drawn for a change: the
-  // accumulation clamps on it, and the quiet images after it freeze the history (`temporalWgsl.ts`).
-  const { held } = reflection.radiance,
-    lights = rt.lights.store.epoch
-  if (
-    !held.valid ||
-    lights !== reflection.lightsSeen ||
-    !sameElements(held.viewProjection, viewProj)
-  )
-    reflection.settle.busy()
-  reflection.lightsSeen = lights
-  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_COUNTS.REFLECTION_HISTORY)
-  // The turn moves on while the history fills, and holds once it is frozen: a still view writes nothing.
-  if (frame.quiet < REFLECTION_COUNTS.REFLECTION_HISTORY)
-    reflection.turn = (reflection.turn + 1) % REFLECTION_COUNTS.REFLECTION_SEQUENCE
-  frame.turn = reflection.turn
-  reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
+  stageReflectionImage(reflection, frame, rt.lights.store.epoch)
 }
 
 /**
@@ -108,11 +87,13 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     hiz = vis.gpuHiz,
     depth = hiz?.depth(),
     lightView = reflectionLightView(rt)
-  if (!reflection || !stages || !hiz || !depth || !lightView) return
+  if (!reflection || !stages || !lightView) return
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
+  // Every image whose radiance is built is staged, its move decided: the build reads that decision.
   writeFrame(rt, reflection, traced)
+  if (!hiz || !depth) return
   const open = tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
@@ -155,23 +136,10 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines
   if (!reflection || !stages || !gpu.hdrTexture || !gpu.deferred) return
-  const pass = encoder.beginComputePass({ label: REFLECTION_RADIANCE_PASS })
   radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
   radianceInputs.hash = reflection.settle.hash
-  encodeRadiancePyramid(
-    pass,
-    reflection.device,
-    reflection.radiance,
-    stages,
-    radianceInputs,
-    gpu.targetSize,
-    viewProj,
-    // A settled view samples no hash: its image is not hashed.
-    reflection.settle.verified,
-  )
-  pass.end()
-  reflection.settle.image(encoder, reflection.radiance.hashed)
+  encodeImageRadiance(encoder, reflection, stages, radianceInputs, gpu.targetSize, viewProj)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

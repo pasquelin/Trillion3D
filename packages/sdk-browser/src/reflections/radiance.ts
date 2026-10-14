@@ -5,6 +5,7 @@ import {
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import {
   HDR_FORMAT,
@@ -84,6 +85,19 @@ export const heldImage = (fields: Partial<HeldImage> = {}): HeldImage => ({
   still: false,
   ...fields,
 })
+
+/** Whether an image drawn at `size` through `viewProjection` is drawn from where `held` was: the one
+ *  rule, taken once an image (`stageReflectionImage`), that the quiet count and the hash both read —
+ *  a resize, whatever its view-projection, is a move. */
+export const drawnFromHeld = (
+  held: HeldImage,
+  size: readonly [number, number],
+  viewProjection: ArrayLike<number>,
+) =>
+  held.valid &&
+  held.size[0] === size[0] &&
+  held.size[1] === size[1] &&
+  sameElements(held.viewProjection, viewProjection)
 
 /** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
  *  past level 0 of the frame's, whose level 0 the frame's targets count (`frameTargetBytes`). */

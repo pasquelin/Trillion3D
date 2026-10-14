@@ -5,7 +5,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { heldImage } from './radiance.ts'
+import { drawnFromHeld, heldImage } from './radiance.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 
 /** A radiance pyramid of `levels` over `width × height` as `encodeRadiancePyramid` reads it: its
@@ -62,6 +62,8 @@ export function recordedBuild(
       inputs,
       size,
       viewProjection,
+      drawnFromHeld(pyramid.held, size, viewProjection),
+      false,
     )
     return record
   }

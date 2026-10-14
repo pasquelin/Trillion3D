@@ -77,10 +77,12 @@ export function createScreenReflection(
     half,
     uniform,
     settle,
-    /** The reflections' turn (`ReflectionView.temporal`), and the lights' epoch the last image was drawn
-     *  under: an image under others is drawn for a change (`writeFrame`). */
+    /** The reflections' turn (`ReflectionView.temporal`), the lights' epoch the last image was drawn
+     *  under — an image under others is drawn for a change —, and whether the image being drawn is
+     *  drawn from where the held one was (`stageReflectionImage`). */
     turn: 0,
     lightsSeen: NaN,
+    still: false,
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),
@@ -167,8 +169,8 @@ export function bindForwardReflection(pass: GPURenderPassEncoder, rt: Reflection
  *  whatever the scene was before — the series they converge to starts from the same image. */
 export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
   if (!reflection) return
+  // No image held: the next is drawn for a change (`stageReflectionImage`).
   reflection.radiance.held.valid = false
-  reflection.settle.busy()
 }
 
 /**
