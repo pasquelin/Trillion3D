@@ -93,7 +93,16 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(parks, [[0, true]])
   assert.equal(item.hidden, true, 'the blend item of the hidden node is hidden')
   assert.ok(!kept.hidden, 'another node keeps its blend item')
-  const asked = () => (rt as { rowWords?: { roots: number[] } }).rowWords?.roots ?? []
+  // The roots named to the rows pass since the last step, taken as its follow takes them: a root
+  // is listed once a follow (`deriveRootRows`).
+  const asked = () => {
+    const words = (rt as { rowWords?: { roots: number[]; rootListed: Uint8Array } }).rowWords
+    if (!words) return []
+    const roots = [...words.roots]
+    for (const rank of roots) words.rootListed[rank] = 0
+    words.roots.length = 0
+    return roots
+  }
   assert.deepEqual(asked(), [0], 'its rows, derived again, stale its shadow pages')
   assert.deepEqual(changed, [], 'no box declared on the CPU')
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")
@@ -106,7 +115,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     KEY_DRAWN,
   )
   uploadWorlds(rt)
-  assert.equal(asked().length, 1, 'a revision that changes nothing stales nothing')
+  assert.deepEqual(asked(), [], 'a revision that changes nothing stales nothing')
   group.visible = true
   uploadWorlds(rt)
   assert.deepEqual(parks, [
@@ -114,7 +123,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     [0, false],
   ])
   assert.equal(item.hidden, false)
-  assert.equal(asked().length, 2, 'shown again, its shadow is drawn again')
+  assert.deepEqual(asked(), [0], 'shown again, its shadow is drawn again')
   assert.deepEqual(touched, [0, 0])
   assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 })
   assert.equal(drawnBit(), KEY_DRAWN)
@@ -122,6 +131,6 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   node.castShadow = false
   uploadWorlds(rt)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
-  assert.equal(asked().length, 3, 'its shadow is drawn again without it')
+  assert.deepEqual(asked(), [0], 'its shadow is drawn again without it')
   assert.deepEqual(changed, [])
 })
