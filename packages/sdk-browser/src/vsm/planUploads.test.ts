@@ -37,6 +37,10 @@
 // words past its old place closed up, their pads gone; every other buffer kept.
 // Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes
 // for 192): the mip offsets moved up twelve words; every other buffer kept.
+// Retaken when the CPU's boxes joined the rows' shadow changes in one stale (`castInvalidation.ts`):
+// the invalidation's buffers are that stale's — its parameters (the maps' count, the boxes'), its
+// maps' words, its boxes of 48 bytes (the centre split high and low, the flags, the half extent) —
+// where they were the box pass's instances and items; every other buffer kept.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

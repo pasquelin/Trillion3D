@@ -1,9 +1,9 @@
 /**
- * THE ONE MAP FILTER OF A STALE: which previous-frame map a changed box stales. Both stales name a
- * map by one word — the CPU's boxes in their items' payload (`invalidationPhase.ts`), the rows' shadow
- * changes in the list of maps the CPU sends (`castInvalidation.ts`) —: its id, and whether it draws
- * its moving casters over a receiver cover, which a moving box skips. Both kernels read it through
- * `vsmStaleMap` (`staleBoxesWgsl.ts`, `castInvalidationWgsl.ts`).
+ * THE ONE MAP FILTER OF THE STALE: which previous-frame map a changed box stales. The stale
+ * (`castInvalidationWgsl.ts`) names each map by one word, from the list the CPU sends
+ * (`vsmCastMaps`, `castInvalidation.ts`): its id, and whether it draws its moving casters over a
+ * receiver cover, which a box of casters already moving skips — the rows' changes and the CPU's
+ * boxes alike, through `vsmStaleMap`.
  */
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'

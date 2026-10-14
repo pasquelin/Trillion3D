@@ -8,10 +8,10 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  * prev page marks, prev allocated page rect bounds; the invalidation bits are OR'ed into the prev
  * page requests, which the pool's page carry (step 4) folds into the pool page info.
  *
- * Instance data: a compact `VsmInvalidationInstance` array (96 B each) is uploaded per pass with
- * only the fields the invalidation reads: the local-to-world (rotation-scale + double translation
- * split high/low), the local bounds and two flags (casts shadows, cached as dynamic). Items address
- * it as batch items (offset, count, payload).
+ * An instance (`VsmInvalidationInstance`) holds only the fields the invalidation reads: the
+ * local-to-world (rotation-scale + double translation split high/low), the local bounds and two
+ * flags (casts shadows, cached as dynamic). The one entry that builds them is the shadow changes'
+ * (`castInvalidationWgsl.ts`).
  */
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
@@ -27,12 +27,8 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
-import { VSM_STALE_BOXES_WGSL } from './staleBoxesWgsl.ts'
-import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 
-/** Bytes per `VsmInvalidationInstance`. */
-export const VSM_INVALIDATION_INSTANCE_BYTES = 96
-/** Bytes of `VsmInvalidationParams`. */
+/** Bytes of the stale's parameters (`VsmCastParams`). */
 export const VSM_INVALIDATION_PARAMS_BYTES = 16
 
 /** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math keeps. */
@@ -58,8 +54,7 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
   },
 ]
 
-/** The instance an invalidation stales the pages of, and its two flags: shared by the boxes' entry
- *  (`vsmStaleBoxes`) and the rows' shadow changes' (`castInvalidationWgsl.ts`). */
+/** The instance an invalidation stales the pages of, and its two flags. */
 const VSM_INVALIDATION_INSTANCE_WGSL = wgslBlock(
   'VSM_INVALIDATION_INSTANCE_WGSL',
   [],
@@ -194,7 +189,3 @@ export function vsmInvalidationProgram(
     WORKGROUP_THREADS_WGSL,
   ])
 }
-
-/** The whole instance invalidation module (entry `vsmStaleBoxes`). */
-export const vsmInvalidationWgsl = (layout: VsmLayout) =>
-  vsmInvalidationProgram(layout, VSM_STALE_BOXES_WGSL, [VSM_STALE_MAP_WGSL])

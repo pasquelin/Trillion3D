@@ -14,7 +14,8 @@ import {
   planVirtualShadowFrame,
 } from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
-import { encodeVsmInvalidations } from './invalidationEncode.ts'
+import { encodeCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
+import { invalidationOf } from './invalidationPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from './invalidationPhase.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
@@ -108,12 +109,18 @@ export function planFrames() {
       count: boxes.length,
       read: (b) => ({ ...boxes[b], detail: false }),
     })
+    const maps = vsmCastMaps(state.cache, phase, undefined)
     const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
     const camera = { view, projection, eye, perspective: true }
     const lights = world.lights.map((light) => ({ light }))
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
-    encodeVsmInvalidations(encoder, res, { device, mapSlotCount: prevSlots }, [phase])
+    encodeCastInvalidation(encoder, res, invalidationOf(res), {
+      device,
+      mapSlotCount: prevSlots,
+      maps,
+      boxes: phase,
+    })
     marking.encode(encoder.beginComputePass(), {
       fullMapCount: plan.fullMapCount,
       singlePageMapCount: plan.singlePageMapCount,

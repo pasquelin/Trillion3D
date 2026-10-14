@@ -164,7 +164,6 @@ function coarsestMipNeeded(
 const X_AXIS = [1, 0, 0],
   direction: [number, number, number] = [0, 0, 0],
   preShadow: [number, number, number] = [0, 0, 0],
-  lightOrigin: [number, number, number] = [0, 0, 0],
   shape: [number, number, number] = [0, 0, 0],
   worldToLight = new Float64Array(16),
   localKey = { worldToLight, lightOriginShift: preShadow, isCachedFarLight: false, shape },
@@ -186,10 +185,7 @@ export function addVsmLocalLightShadow(
   const isSpot = light.kind === 'spot'
   const radius = light.range
   const origin = light.position
-  for (let k = 0; k < 3; k++) {
-    preShadow[k] = -origin[k]
-    lightOrigin[k] = origin[k]
-  }
+  for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
   const localLevelBias = Math.fround(
     vsmMovingBias(VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING, movingShare) +
       (light.levelBias ?? 0),
@@ -272,7 +268,7 @@ export function addVsmLocalLightShadow(
   shape[0] = isSpot ? 1 : 0
   shape[1] = radius
   shape[2] = outerCone
-  cacheEntry.updateLocal(localKey, lightOrigin, radius, forceInvalidate)
+  cacheEntry.updateLocal(localKey, forceInvalidate)
   if (isCachedFarLight && cacheEntry.scheduledFrame === (cache.frameStamp | 0))
     cacheEntry.invalidate()
 

@@ -8,11 +8,9 @@
 // a finite number is a zero and added to a non-zero term is that term: no clip coordinate, depth
 // or inverse entry the shader reads moves, and the sweep holds every uploaded word to it.
 //
-// The invalidation's box radius (`invalidationPhase.ts`) and a sun level's f32 room
-// (`rowPageBound.ts` measureKey) take `length3` for `Math.hypot`: one last bit of a double apart.
-// The radius only decides whether a light's range meets a box's bounding sphere, where the light
-// is zero; the room widens a bound 2⁸ times past the f32 roundings it covers. The sweep holds the
-// decisions and the room's float32 equal.
+// A sun level's f32 room (`rowPageBound.ts` measureKey) takes `length3` for `Math.hypot`: one last
+// bit of a double apart. The room widens a bound 2⁸ times past the f32 roundings it covers. The
+// sweep holds the room's float32 equal.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeVirtualShadowProjection } from './projectionPass.ts'
@@ -24,7 +22,6 @@ import {
   orthographicProjection,
   perspectiveProjection,
 } from '../../../math/src/projection/camera.ts'
-import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import {
   HALTON_SWEEP,
@@ -122,29 +119,6 @@ test('the projection view header: every word as the old composition wrote it', (
       check(view, undefined, true)
       check(view, [e, 0, -e], false)
     }
-})
-
-test("the invalidation's box radius: the same light-range decisions", () => {
-  const centre = new Float64Array(3),
-    origin = new Float64Array(3)
-  const decide = (h: number[], range: number, radius: (h: number[]) => number) =>
-    spheresOverlap(centre, radius(h), origin, range)
-  const hypot = (h: number[]) => Math.hypot(h[0], h[1], h[2])
-  const rule = (h: number[]) => length3(h[0], h[1], h[2])
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    for (let k = 0; k < 3; k++) centre[k] = haltonSpan(i, [2, 3, 5][k], -500, 500)
-    for (let k = 0; k < 3; k++) origin[k] = haltonSpan(i, [7, 11, 13][k], -500, 500)
-    const h = [17, 19, 23].map((b) => haltonSpan(i, b, 0, 200))
-    const range = haltonSpan(i, 29, 0, 600)
-    assert.equal(decide(h, range, rule), decide(h, range, hypot), `box ${i}`)
-  }
-  centre.fill(0)
-  origin.fill(0)
-  for (const e of edgeValues(0, 1e6)) {
-    const h = [e, e, e]
-    for (const range of [0, e, hypot(h), rule(h), 1])
-      assert.equal(decide(h, range, rule), decide(h, range, hypot), `edge ${e}, range ${range}`)
-  }
 })
 
 test("a sun level's room: the same float32 as the old hypot", () => {

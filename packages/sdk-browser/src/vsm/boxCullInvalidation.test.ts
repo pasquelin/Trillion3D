@@ -2,17 +2,19 @@
 // golden taken when it was proved to do what it did on its own: the pixel rect and pixel radius at
 // each mip, the page words written with their bits, in their order, over seeded lights — suns
 // and local lights, turned at random, or every value drawn with its edges — and instances about
-// them, on stand-in page tables. The instances carry the flags the host sets (`packBox`,
-// `invalidationPack.ts`): casts shadows, and cached as dynamic or not, each in its own bits.
+// them, on stand-in page tables, in the one stale's module (`castInvalidationWgsl.ts`). The instances
+// carry the flags a change's instance holds (`vsmCastInstance`): casts shadows, and cached as
+// dynamic or not, each in its own bits.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts'
-import { VSM_BOX_MOVING, VSM_BOX_CASTS, vsmInvalidationWgsl } from './invalidationWgsl.ts'
+import { VSM_BOX_MOVING, VSM_BOX_CASTS } from './invalidationWgsl.ts'
+import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { bitsDigest, inputs } from './sameBits.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const INVALIDATION = vsmInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
+const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
 const GOLDEN = '12589a9143e0bea67d99a07f2bbfaca8638621b1a2f7ada98a11e5a221d4a3cb'

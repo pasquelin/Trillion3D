@@ -7,7 +7,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { vsmInvalidationWgsl } from './invalidationWgsl.ts'
+import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { MORE_BUILTINS, inputs, withArrays } from './sameBits.fixture.ts'
 import { hash } from './pageWorld.fixture.ts'
@@ -18,7 +18,7 @@ import { crossVector3 } from '../../../math/src/vector/vector.ts'
 export type Draw = ReturnType<typeof inputs>
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
 /** The two shipped modules the shared box cull is compiled into, on the one layout. */
-export const INVALIDATION = vsmInvalidationWgsl(LAYOUT),
+export const INVALIDATION = castInvalidationWgsl(LAYOUT),
   RENDER = vsmRenderCullWgsl(LAYOUT)
 type Fn = (...args: unknown[]) => unknown
 type Offset = { tableXY: number[] }

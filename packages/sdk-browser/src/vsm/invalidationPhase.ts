@@ -1,28 +1,24 @@
 /**
- * The CPU half of the invalidation (step 7): the engine's change boxes as one phase of
- * (box, map) instances, filtered per light (`vsmInvalidationPhaseFromShadowBoxes`). Its GPU half,
- * the dispatch that stales their pages, is `invalidationPass.ts`.
+ * THE CPU'S CHANGE BOXES, AS THE ONE STALE READS THEM (`castInvalidationWgsl.ts`, `VsmCastBox`):
+ * what no row says — geometry rewritten in place, a light, a sphere buffer made anew, residency,
+ * released representation changes (`sdk-core/src/scene/light-shadow/changes.ts`). They are staled
+ * beside the rows' shadow changes, by the same kernel over the same maps (`vsmCastMaps`) through
+ * the same filter (`vsmStaleMap`): no light is filtered here, the kernel's own range test and map
+ * cull decide (`vsmStaleBoxPages`).
  */
-import type {
-  VsmCacheManager,
-  VsmInstanceInvalidation,
-  VsmInvalidationBatch,
-  VsmLightCache,
-} from './cacheManager.ts'
-import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
+import type { VsmCacheManager } from './cacheManager.ts'
+import { UNBOUNDED_EXTENT, VSM_BOX_CASTS, VSM_BOX_MOVING } from './invalidationWgsl.ts'
+import { VSM_CAST_BOX_BYTES } from './castInvalidationWgsl.ts'
 import { boxCenter } from '../../../math/src/geometry/box.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
-import { vsmMapWord } from './staleMapWgsl.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 
-/** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
- *  1 when it is cached as dynamic, else 0. */
-export const BOX_WORDS = 7
+/** Words of a box (`VsmCastBox`). */
+const BOX_WORDS = VSM_CAST_BOX_BYTES / 4
 
-/** One invalidation call: the collector's batch and the boxes its instances name — box `b` at
- *  `BOX_WORDS · b`, each drawn as one instance of identity rotation (`packBox`, `invalidationPack.ts`). */
+/** The frame's boxes: `count` boxes in the first `count · VSM_CAST_BOX_BYTES` bytes of `words`. */
 export interface VsmInvalidationPhase {
-  batch: VsmInvalidationBatch
-  boxes: Float64Array
+  words: Float32Array<ArrayBuffer>
+  count: number
 }
 
 /** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`, `createShadowChanges`). */
@@ -35,79 +31,52 @@ interface VsmShadowBoxSource {
   }
 }
 
-/** The last box `writeBox` wrote, centre then half extent, as the lights' range test reads it. */
-const lastBox = new Float64Array(6)
+/** The centre of the box `writeBox` writes. */
+const centre = new Float64Array(3)
 
-/** Writes the box `[min, max]` at `at` of `boxes` (`BOX_WORDS`) and into `lastBox`: its centre and
- *  half extent, the unbounded box when they are not finite or the box is inverted; false then. */
-function writeBox(
-  boxes: Float64Array,
-  at: number,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-  moving: boolean,
-) {
-  boxCenter(lastBox, 0, min[0], min[1], min[2], max[0], max[1], max[2])
+/** The frame's boxes, rebuilt in place: read in the frame that wrote them (`encodeCastInvalidation`). */
+const phase: VsmInvalidationPhase = { words: new Float32Array(BOX_WORDS * 16), count: 0 }
+let flags = new Uint32Array(phase.words.buffer)
+
+/** Writes the box `[min, max]` at word `at` of the phase: its centre split high and low, its flags
+ *  — it casts, and its casters already move or not —, its half extent; the unbounded box, centred
+ *  on the origin, when they are not finite or the box is inverted. */
+function writeBox(at: number, min: ArrayLike<number>, max: ArrayLike<number>, moving: boolean) {
+  const words = phase.words
+  boxCenter(centre, 0, min[0], min[1], min[2], max[0], max[1], max[2])
   let finite = true
   for (let a = 0; a < 3; a++) {
-    lastBox[3 + a] = (max[a] - min[a]) * 0.5
-    finite &&= Number.isFinite(lastBox[a]) && Number.isFinite(lastBox[3 + a]) && lastBox[3 + a] >= 0
+    const half = (max[a] - min[a]) * 0.5
+    finite &&= Number.isFinite(centre[a]) && Number.isFinite(half) && half >= 0
+    words[at + 8 + a] = half
   }
   if (!finite) {
-    lastBox.fill(0, 0, 3)
-    lastBox.fill(UNBOUNDED_EXTENT, 3, 6)
+    centre.fill(0)
+    words.fill(UNBOUNDED_EXTENT, at + 8, at + 11)
   }
-  boxes.set(lastBox, at)
-  boxes[at + 6] = moving ? 1 : 0
-  return finite
+  for (let a = 0; a < 3; a++) writeSplitDouble(words, at + a, at + 4 + a, centre[a])
+  flags[at + 3] = VSM_BOX_CASTS | (moving ? VSM_BOX_MOVING : 0)
+  words[at + 7] = words[at + 11] = 0
 }
 
-/** The frame's phase, rebuilt in place: its boxes, its instances and the entries it walks. */
-let phaseBoxes = new Float64Array(0)
-const phaseInstances: VsmInstanceInvalidation[] = []
-const phaseEntries: VsmLightCache[] = []
-
 /**
- * The engine's change boxes (`worldChanged` — geometry rewritten in place, a light, a sphere buffer
- * made anew —, `residencyChanged`, released representation changes) as one invalidation phase — a
- * move's are the rows' own, on the GPU (`castInvalidation.ts`) —,
- * filtered per light like the collector's: no entry fully cached, uncached
- * or invalidated; local lights cull by radius. Each instance names its map by its word
- * (`vsmMapWord`). A moving box skips a receiver-cover map here, where the box says it moves; the
- * rows' changes skip it on the GPU (`vsmStaleMap`), the word the same.
- * One instance per box (identity rotation, world AABB); `moving` (already moving, outside the
- * static layer) = cached as dynamic, else static. Read the boxes before the plan consumes them
- * (`changes.settled()`). Returns null when the invalidation processing would skip (no cache data).
+ * The engine's change boxes as the stale reads them: one each, `moving` (already moving, outside
+ * the static layer) cached as dynamic, else as static. Read the boxes before the plan consumes them
+ * (`changes.settled()`). Null when the cache would stale nothing (no cache data) or no box changed.
  */
 export function vsmInvalidationPhaseFromShadowBoxes(
   cache: VsmCacheManager,
   source: VsmShadowBoxSource,
 ): VsmInvalidationPhase | null {
   if (!cache.acceptsInvalidations() || source.count === 0) return null
-  // The phase is encoded in the frame that read it: its buffers are the frame's scratch.
-  if (phaseBoxes.length < source.count * BOX_WORDS)
-    phaseBoxes = new Float64Array(2 * source.count * BOX_WORDS)
-  const boxes = phaseBoxes
-  const instances = phaseInstances
-  instances.length = 0
-  const entries = phaseEntries
-  entries.length = 0
-  for (const e of cache.entries.values()) if (e.mayHoldCachedPages()) entries.push(e)
-  for (let b = 0; b < source.count; b++) {
-    const { min, max, moving } = source.read(b)
-    const finite = writeBox(boxes, b * BOX_WORDS, min, max, moving),
-      radius = length3(lastBox[3], lastBox[4], lastBox[5])
-    for (const entry of entries) {
-      if (moving && entry.useCover) continue
-      if (finite && !entry.affectsBounds(lastBox, radius)) continue
-      for (let i = 0; i < entry.mapCaches.length; i++)
-        instances.push({
-          firstInstance: b,
-          instanceCount: 1,
-          payload: vsmMapWord(entry, i),
-        })
-    }
+  if (phase.words.length < source.count * BOX_WORDS) {
+    phase.words = new Float32Array(2 * source.count * BOX_WORDS)
+    flags = new Uint32Array(phase.words.buffer)
   }
-  if (instances.length === 0) return null
-  return { batch: { instances }, boxes }
+  for (let b = 0; b < source.count; b++) {
+    const box = source.read(b)
+    writeBox(b * BOX_WORDS, box.min, box.max, box.moving)
+  }
+  phase.count = source.count
+  return phase
 }

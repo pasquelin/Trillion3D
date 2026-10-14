@@ -1,47 +1,34 @@
 /**
- * THE ROWS' SHADOW CHANGES STALE THE PREVIOUS FRAME'S PAGES (`castInvalidationWgsl.ts`): the GPU
- * half of a move's invalidation, beside the CPU's boxes of what no row says — residency, geometry
- * rewritten in place, lights (`invalidationPhase.ts`). The CPU sends the maps that may hold cached
- * pages, read before the plan gives this frame its ids (`vsmCastMaps`), never a box: the rows pass
- * appended them (`../webgpu/shadow/castChanges.ts`), and a one-thread kernel sizes the stale's
- * dispatch from their count. Once read, the list is emptied in the same command buffer.
+ * THE SHADOW CHANGES STALE THE PREVIOUS FRAME'S PAGES (`castInvalidationWgsl.ts`), in one pass: the
+ * rows' — appended by the rows pass (`../webgpu/shadow/castChanges.ts`), never read by the CPU —
+ * and the CPU's boxes of what no row says (`invalidationPhase.ts`). The CPU sends the maps that may
+ * hold cached pages, read before the plan gives this frame its ids (`vsmCastMaps`), and its boxes;
+ * a one-thread kernel sizes the stale's dispatch from the list's count. Once read, the list is
+ * emptied in the same command buffer.
  */
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { consumedCasts, type CastChanges } from '../webgpu/shadow/castChanges.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
-import {
-  CAST_ARGS_ENTRY,
-  CAST_ARGS_WGSL,
-  CAST_INVALIDATION_ENTRY,
-  castInvalidationWgsl,
-} from './castInvalidationWgsl.ts'
-import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts'
-import type { VsmLayout } from './layout.ts'
+import { VSM_CAST_BOX_BYTES } from './castInvalidationWgsl.ts'
+import type { VsmInvalidationPhase } from './invalidationPhase.ts'
+import { VSM_INVALIDATION_PARAMS_BYTES } from './invalidationWgsl.ts'
 import { vsmMapWord } from './staleMapWgsl.ts'
-import { vsmComputePipe } from './passKit.ts'
-import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
-import {
-  vsmBindGroupEntries,
-  vsmBindGroupLayoutEntries,
-  vsmFrameSetHeld,
-  vsmPerFrameSet,
-  type VsmPerFrameSet,
-  type VsmResources,
-} from './resources.ts'
-import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
-
-/** The pass that stales the rows' changes, its two kernels in it. */
-const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
+import { castState, encodeCastStale, type VsmCastState } from './castStale.ts'
+import { vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
+import type { VsmResources } from './resources.ts'
 
 /** The words `vsmCastMaps` writes, rewritten each plan and read by the frame that made them. */
 let mapWords = new Uint32Array(16)
 
-/** The maps that may hold cached pages, each a word (`vsmMapWord`), ids the previous frame's: as
- *  the CPU's boxes filter them (`vsmInvalidationPhaseFromShadowBoxes`), less the range test, which
- *  the GPU makes per box. None when the cache holds nothing to stale. */
-export function vsmCastMaps(cache: VsmCacheManager): Uint32Array | null {
-  if (!cache.acceptsInvalidations()) return null
+/** The maps that may hold cached pages, each a word (`vsmMapWord`), ids the previous frame's. None
+ *  when the cache holds nothing to stale, or when nothing changed: neither the CPU's `boxes` nor a
+ *  pass appended to the rows' list `casts` since it was last read. */
+export function vsmCastMaps(
+  cache: VsmCacheManager,
+  boxes: VsmInvalidationPhase | null,
+  casts: CastChanges | undefined,
+): Uint32Array | null {
+  if (!cache.acceptsInvalidations() || !(boxes || casts?.appended)) return null
   let count = 0
   for (const entry of cache.entries.values()) {
     if (!entry.mayHoldCachedPages()) continue
@@ -51,129 +38,61 @@ export function vsmCastMaps(cache: VsmCacheManager): Uint32Array | null {
   return count ? mapWords.subarray(0, count) : null
 }
 
-/** The stale's kernel and the arguments' kernel for `layout`, made once a device and source. */
-export function vsmCastPipes(device: GPUDevice, layout: VsmLayout) {
-  const C = GPUShaderStage.COMPUTE
-  const [uniform, read, write] = (['uniform', 'read-only-storage', 'storage'] as const).map(
-    (type) => (binding: number) => computeBufferEntry(binding, type, C),
-  )
-  return {
-    stale: vsmComputePipe(
-      device,
-      CAST_LABEL,
-      castInvalidationWgsl(layout),
-      CAST_INVALIDATION_ENTRY,
-      [
-        vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, C),
-        [uniform(0), read(1), read(2)],
-      ],
-    ),
-    args: vsmComputePipe(device, CAST_LABEL, CAST_ARGS_WGSL, CAST_ARGS_ENTRY, [
-      [uniform(0), read(1), write(2)],
-    ]),
-  }
-}
+/** The parameters' words: the maps' count, the CPU's boxes' count, then padding. */
+const paramsImage = new Uint32Array(VSM_INVALIDATION_PARAMS_BYTES / 4)
 
-/** What the stale holds for a set (`VsmInvalidationState.casts`): its kernels, its group over the
- *  set's tables, its buffers — the parameters, the maps, the indirect arguments — and its two other
- *  groups with the list they were made over, made again when a buffer they name moved. */
-export interface VsmCastState {
+/** What the frame stales: the previous frame's map slot count, its maps (`vsmCastMaps`), the
+ *  CPU's boxes (`vsmInvalidationPhaseFromShadowBoxes`) and the rows' list. */
+interface VsmCastFrame {
   device: GPUDevice
-  pipes: ReturnType<typeof vsmCastPipes>
-  tables: VsmPerFrameSet<GPUBindGroup>
-  params: GPUBuffer
-  buffers: Partial<Record<'maps' | 'args', GPUBuffer>>
-  groups?: { over: GPUBuffer[]; sizing: GPUBindGroup; stale: GPUBindGroup }
+  mapSlotCount: number
+  maps: Uint32Array | null
+  boxes: VsmInvalidationPhase | null
+  casts?: CastChanges
 }
-
-/** The arguments' group and the stale's own over `list`, the maps and the arguments: those held
- *  while each names the same buffers. */
-function castGroups(state: VsmCastState, list: GPUBuffer, maps: GPUBuffer, args: GPUBuffer) {
-  const over = [list, maps, args],
-    held = state.groups
-  if (held && held.over.every((buffer, k) => buffer === over[k])) return held
-  const { device, pipes, params } = state
-  return (state.groups = {
-    over,
-    sizing: vsmBufferGroup(device, pipes.args.groups[0], [params, list, args]),
-    stale: vsmBufferGroup(device, pipes.stale.groups[1], [params, maps, list]),
-  })
-}
-
-function castState(device: GPUDevice, res: VsmResources, held: { casts?: VsmCastState }) {
-  return (held.casts ??= {
-    device,
-    pipes: vsmCastPipes(device, res.layout),
-    tables: vsmFrameSetHeld(),
-    params: device.createBuffer({
-      label: 'vsm.castInvalidation.params',
-      size: 16,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
-    buffers: {},
-  })
-}
-
-/** Group 0 of the stale over the tables of `res.current`. */
-const tablesGroup = (res: VsmResources, state: VsmCastState) =>
-  state.device.createBindGroup({
-    layout: state.pipes.stale.groups[0],
-    entries: vsmBindGroupEntries(res, VSM_INVALIDATION_SPECS),
-  })
-
-/** The parameters' words: the maps' count, then padding. */
-const paramsImage = new Uint32Array(4)
 
 /**
- * Stales the pages the rows' changes in `casts` touched in the previous frame's maps `maps`
- * (`vsmCastMaps`), into `encoder`, then empties the list; nothing when no light casts or no pass
- * appended to it since it was last read, nothing staled when the previous frame had no slot or no
- * map may hold cached pages, the list emptied all the same — no page holds what it names. Must run
- * where the CPU's boxes do, before the page carry (`encodeVsmInvalidations`).
+ * Stales the pages the shadow changes touched in the previous frame's maps, into `encoder`: the
+ * rows' list `casts`, then emptied, and the CPU's `boxes`. Nothing when neither changed, nothing
+ * staled when the previous frame had no slot or no map may hold cached pages, the list emptied all
+ * the same — no page holds what it names. Must run before the page carry. Returns the threads the
+ * CPU's boxes take, the CPU's part of the dispatch the GPU sizes.
  */
 export function encodeCastInvalidation(
   encoder: GPUCommandEncoder,
   res: VsmResources,
   held: { casts?: VsmCastState },
-  frame: { device: GPUDevice; mapSlotCount: number; maps: Uint32Array | null; casts?: CastChanges },
+  frame: VsmCastFrame,
 ) {
-  const { device, mapSlotCount, maps, casts } = frame
-  if (!casts?.appended) return
+  const { device, mapSlotCount, maps, boxes, casts } = frame
+  const boxCount = boxes?.count ?? 0
+  if (!casts?.appended && !boxCount) return 0
+  let threads = 0
   if (mapSlotCount > 0 && maps) {
     const state = castState(device, res, held),
-      label = 'vsm.castInvalidation',
-      indirect = GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT
-    const mapBuffer = vsmEnsureBuffer(
+      label = 'vsm.castInvalidation'
+    const storage = vsmRenderStorage()
+    const mapBuffer = vsmEnsureBuffer(state, label, 'maps', maps.byteLength, storage, 16),
+      boxBuffer = vsmEnsureBuffer(
         state,
         label,
-        'maps',
-        maps.byteLength,
-        vsmRenderStorage(),
-        16,
-      ),
-      args = vsmEnsureBuffer(state, label, 'args', 16, indirect, 16),
-      groups = castGroups(state, casts.buffer, mapBuffer, args)
-    // `vsmCastMaps`'s words, a view of its own buffer.
+        'boxes',
+        Math.max(1, boxCount) * VSM_CAST_BOX_BYTES,
+        storage,
+        VSM_CAST_BOX_BYTES,
+      )
+    // `vsmCastMaps`'s words, a view of its own buffer; the boxes, the phase's own scratch.
     device.queue.writeBuffer(mapBuffer, 0, maps as Uint32Array<ArrayBuffer>)
+    if (boxes && boxCount)
+      device.queue.writeBuffer(boxBuffer, 0, boxes.words, 0, (boxCount * VSM_CAST_BOX_BYTES) / 4)
     paramsImage[0] = maps.length
+    paramsImage[1] = boxCount
     device.queue.writeBuffer(state.params, 0, paramsImage)
-    const { stale, args: sizing } = state.pipes
-    const pass = encoder.beginComputePass({ label: CAST_LABEL })
-    pass.setPipeline(sizing.pipeline)
-    pass.setBindGroup(0, groups.sizing)
-    pass.dispatchWorkgroups(1)
-    pass.setPipeline(stale.pipeline)
-    pass.setBindGroup(0, vsmPerFrameSet(state.tables, res, tablesGroup, state))
-    pass.setBindGroup(1, groups.stale)
-    pass.dispatchWorkgroupsIndirect(args, 0)
-    pass.end()
+    // No list yet (no sphere buffer made): an empty one, its header zero as a buffer is made.
+    const list = casts?.buffer ?? vsmEnsureBuffer(state, label, 'empty', 16, storage, 16)
+    encodeCastStale(encoder, res, state, { list, maps: mapBuffer, boxes: boxBuffer })
+    threads = boxCount * maps.length
   }
-  consumedCasts(casts, encoder)
-}
-
-/** Frees the stale's buffers with the set (`releaseVsmInvalidation`). */
-export function releaseCastInvalidation(held: { casts?: VsmCastState }) {
-  held.casts?.params.destroy()
-  for (const buffer of Object.values(held.casts?.buffers ?? {})) buffer?.destroy()
-  held.casts = undefined
+  if (casts?.appended) consumedCasts(casts, encoder)
+  return threads
 }

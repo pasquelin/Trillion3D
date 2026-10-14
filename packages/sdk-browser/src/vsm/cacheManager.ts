@@ -30,7 +30,6 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createReadbackRing, type ReadbackRing } from '../gpu/core/readbackRing.ts'
 import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
-import { spheresOverlap } from '../../../math/src/geometry/sphere.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import type { VsmLocalLightSetup } from './localLight.ts'
 
@@ -151,9 +150,6 @@ export class VsmLightCache {
     shape: [Number.NaN, Number.NaN, Number.NaN],
   }
   private clipmapCacheKey: VsmSunCacheKey = { lightDirection: [NaN, NaN, NaN], firstLevel: 0 }
-  /** Rough bounds for invalidation culling, metres; radius < 0 = infinite. */
-  lightOrigin: [number, number, number] = [0, 0, 0]
-  lightRange = -1
   /** A sun's clipmap (`buildVsmClipmap`), a local light's setup (`addVsmLocalLightShadow`): kept
    *  with the entry, rewritten in place every frame, made anew with a new entry. */
   clipmap?: VsmClipmap
@@ -221,17 +217,10 @@ export class VsmLightCache {
       copyInto(k.lightDirection, key.lightDirection)
       k.firstLevel = key.firstLevel
     }
-    this.lightOrigin.fill(0)
-    this.lightRange = -1
   }
 
   /** Updates a local light's cache entry. */
-  updateLocal(
-    key: VsmLocalLightCacheKey,
-    lightOrigin: [number, number, number],
-    lightRange: number,
-    forceInvalidate: boolean,
-  ) {
+  updateLocal(key: VsmLocalLightCacheKey, forceInvalidate: boolean) {
     const k = this.localCacheKey
     const changed =
       !sameValues(key.worldToLight, k.worldToLight) ||
@@ -245,28 +234,7 @@ export class VsmLightCache {
       k.isCachedFarLight = key.isCachedFarLight
       copyInto(k.shape, key.shape)
     }
-    copyInto(this.lightOrigin, lightOrigin)
-    this.lightRange = lightRange
   }
-
-  /** Whether the light's range reaches a bounding sphere (metres). */
-  affectsBounds(center: ArrayLike<number>, sphereRadius: number) {
-    if (this.lightRange <= 0) return true
-    return spheresOverlap(center, sphereRadius, this.lightOrigin, this.lightRange)
-  }
-}
-
-/** One instance range × one VSM id, with its payload: the VSM id. */
-export interface VsmInstanceInvalidation {
-  firstInstance: number
-  instanceCount: number
-  payload: number
-}
-
-/** One phase's invalidations, for the GPU invalidation pass. */
-export interface VsmInvalidationBatch {
-  /** Every (instance range, VSM id) pair; ids are the previous frame's. */
-  instances: VsmInstanceInvalidation[]
 }
 
 /** A light's mobility state, which the scene renderer reads as its factor: `firstActiveFrame` the

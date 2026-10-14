@@ -7,11 +7,11 @@ import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { planVirtualShadowFrame, vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/frameSetup.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
-import { vsmInvalidationPipe } from '../../../../vsm/invalidationPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPhase.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
 import { unshadowLights, vsmCountersOn, wholeTableRows } from './engineVsm.ts'
-import { vsmCastMaps, vsmCastPipes } from '../../../../vsm/castInvalidation.ts'
+import { vsmCastMaps } from '../../../../vsm/castInvalidation.ts'
+import { vsmCastPipes } from '../../../../vsm/castPipes.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
@@ -74,7 +74,6 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
   const pipes = [
-    vsmInvalidationPipe(device, layout),
     casts.stale,
     casts.args,
     marking.clear('all'),
@@ -135,13 +134,13 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   }
   const { state } = vsm
   followCasters(rt)
-  // The invalidations: the world's change boxes against the PREVIOUS frame's maps,
-  // read before the plan gives this frame its ids. Representation changes held for the camera to
-  // rest enter now: they invalidate at once.
+  // The invalidation: the world's change boxes and the rows' shadow changes against the PREVIOUS
+  // frame's maps, read before the plan gives this frame its ids — the maps only when something
+  // changed. Representation changes held for the camera to rest enter now: they invalidate at once.
   const changes = lights.changes
   changes.releaseDeferred()
   const boxes = vsmInvalidationPhaseFromShadowBoxes(state.cache, changes),
-    castMaps = vsmCastMaps(state.cache)
+    castMaps = vsmCastMaps(state.cache, boxes, lights.casts)
   changes.settled()
   const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
   // The sun's clipmap is sized for the display, whatever scale this frame draws at; local lights
