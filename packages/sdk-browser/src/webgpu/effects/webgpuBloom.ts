@@ -1,7 +1,8 @@
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts'
+import { bloomBlend, bloomLevelSizes, bloomLevelsTexture } from './bloomFilter.ts'
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
 import { BLOOM_UNIFORM, BLOOM_UNIFORM_BYTES, bloomLevelLayout } from './bloomLevel.ts'
 import { uniformSlots } from '../../residency/pools.ts'
@@ -169,12 +170,11 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
       passes = count
       sizes = bloomLevelSizes(width, height)
       if (!sizes.length) return
-      levelBytes = bloomLevelBytes(width, height)
+      const levels = bloomLevelsTexture(sizes)
+      levelBytes = textureBytesOf(levels) ?? 0
       texture = device.createTexture({
+        ...levels,
         label: `${BLOOM_PASS} levels`,
-        size: { width: sizes[0][0], height: sizes[0][1] },
-        mipLevelCount: sizes.length,
-        format: HDR_FORMAT,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       })
       slots = uniformSlots(device.limits, passes * sizes.length * 2, SLOT_WORDS)

@@ -1,6 +1,7 @@
 import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts'
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts'
-import { BLOOM_TEXEL_BYTES } from '../webgpu/effects/bloomFilter.ts'
+import { textureBytesOf } from '../gpu/core/textureBytes.ts'
+import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */
@@ -20,15 +21,14 @@ const PASS_TARGETS = 2
 /** Pass targets a chain of `passes` passes holds. */
 export const effectPassTargets = (passes: number) => Math.min(passes, PASS_TARGETS)
 
-/** Bytes per pixel of every pass target: `rgba16float`, the bloom's own format. */
-const PASS_TEXEL_BYTES = BLOOM_TEXEL_BYTES
 /**
- * Bytes of a chain's `targets` pass targets on a `width × height` image. Every kind holds its own
+ * Bytes of a chain's `targets` pass targets on a `width × height` image, each made in `HDR_FORMAT`
+ * (`../webgpu/effects/webgpuEffects.ts`). Every kind holds its own
  * besides (`EFFECT_KIND_BYTES`). The one rule the renderer counts its targets by and the memory
  * budget reserves them by (`../residency/memoryBudget.ts`).
  */
 export const effectTargetBytes = (width: number, height: number, targets: number) =>
-  width * height * targets * PASS_TEXEL_BYTES
+  (textureBytesOf({ size: [width, height], format: HDR_FORMAT }) ?? 0) * targets
 
 /** Every kind, read off the one table typed by all of them. */
 export const EFFECT_KINDS = Object.keys(EFFECT_KIND_BYTES) as readonly EffectKind[]
