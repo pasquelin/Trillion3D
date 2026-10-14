@@ -58,6 +58,14 @@ export function tilesAt(width: number, height: number, level: number): [number, 
   return [ceilDiv(w, TILE_SIZE), ceilDiv(h, TILE_SIZE)]
 }
 
+/** First texel, along one side, of tile `t`'s region gutter included, clipped at the image edge:
+ *  the region its pool cell receives (`../webgpu/tile/write.ts`) and the blocks its record holds
+ *  (`tileRecords.ts`), so the two never disagree. On a multiple of four, a block boundary. */
+export const tileSpanStart = (t: number) => Math.max(0, t * TILE_SIZE - TILE_BORDER)
+/** One past the last texel of that region, along a side `texels` long. */
+export const tileSpanEnd = (texels: number, t: number) =>
+  Math.min(texels, (t + 1) * TILE_SIZE + TILE_BORDER)
+
 /**
  * Where a tail level starts in its tile, by rank from the first: 0, then 64, 96, 112, 120, 124,
  * 128. Each level sits to the right of the previous, on a multiple of four so a block-compressed

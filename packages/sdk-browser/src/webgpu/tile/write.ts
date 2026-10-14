@@ -1,5 +1,11 @@
 import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
-import { tailOffset, TILE_PITCH, type TilePlace } from '../../texture/tiles.ts'
+import {
+  tailOffset,
+  tileSpanEnd,
+  tileSpanStart,
+  TILE_PITCH,
+  type TilePlace,
+} from '../../texture/tiles.ts'
 import { TILE_BORDER, TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /**
@@ -25,10 +31,10 @@ export type TileRegion = {
 
 /** Rectangle of a tile in its level, gutter included, clipped at the image edge. */
 export function tileRegion(levelWidth: number, levelHeight: number, tx: number, ty: number) {
-  const x0 = Math.max(0, tx * TILE_SIZE - TILE_BORDER),
-    y0 = Math.max(0, ty * TILE_SIZE - TILE_BORDER)
-  const x1 = Math.min(levelWidth, (tx + 1) * TILE_SIZE + TILE_BORDER),
-    y1 = Math.min(levelHeight, (ty + 1) * TILE_SIZE + TILE_BORDER)
+  const x0 = tileSpanStart(tx),
+    y0 = tileSpanStart(ty)
+  const x1 = tileSpanEnd(levelWidth, tx),
+    y1 = tileSpanEnd(levelHeight, ty)
   return {
     sx: x0,
     sy: y0,
