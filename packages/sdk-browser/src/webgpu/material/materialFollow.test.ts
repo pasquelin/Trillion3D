@@ -7,12 +7,20 @@ import { createMaterialTable } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
+import { surfaceVariant } from '../../page/surfaceVariant.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const ROWS = 10_000,
   SURFACES = 100
+
+/** A variant: vertex colours, both faces. */
+const variant = (vertexColors: boolean, twoSided: boolean) => ({
+  vertexColors,
+  flatShading: false,
+  twoSided,
+})
 
 /** A table whose 10⁴ rows name 100 standard surfaces, sent up once: the frame they were drawn in. */
 function drawn() {
@@ -92,4 +100,31 @@ test('a blended surface rewritten moves its items and casters: they read its val
   glass.version = 1
   table.word(glass, layers)
   assert.equal(table.follow(layers), true)
+})
+
+test("a material's variants name its one record: an edit written to each writes it once", () => {
+  const { device, textureWrites } = fakeDevice()
+  const table = createMaterialTable()
+  const layers = { mapLayer: new Map<Texture, number>(), dataLayer: new Map<Texture, number>() }
+  const plain = surfaceOf(G.basicSurface()),
+    variants = new Map()
+  const tinted = surfaceVariant(plain, variants, variant(true, false)),
+    sheet = surfaceVariant(plain, variants, variant(false, true))
+  const words = [plain, tinted, sheet].map((surface) => table.word(surface, layers))
+  assert.deepEqual(words, [0, 0, 0], 'one record, its faces and colours its rows own')
+  table.follow(layers)
+  table.upload(device)
+  for (const surface of [tinted, sheet]) {
+    surface.baseColor = [0.5, 0.25, 0]
+    surfaceWritten(surface)
+  }
+  assert.equal(table.follow(layers), false)
+  table.upload(device)
+  assert.deepEqual(textureWrites.at(-1)!.size, [MATERIAL_RECORD_TEXELS, 1])
+  const floats = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer)
+  assert.deepEqual(
+    [...floats.subarray(0, 3)],
+    [0.5, 0.25, 0],
+    'the variants written, not the plain',
+  )
 })

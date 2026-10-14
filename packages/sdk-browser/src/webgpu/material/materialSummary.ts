@@ -3,7 +3,7 @@ import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { MaterialSurface } from './materialRecord.ts'
-import type { MaterialEntry } from './materialState.ts'
+import type { SurfaceSeen } from './materialState.ts'
 
 /** The facts a frame derives from its rows' surfaces beside their flags, a bit each: the vertex
  *  colours a row reads where its geometry has some, a sprite no cut culls (`neverCulled`), the
@@ -28,28 +28,28 @@ function factsOf(mat: MaterialSurface) {
 const blendedSurface = (mat: MaterialSurface) => mat.transparent || mat.transmission > 0
 
 /**
- * What the rows and items of `mat` read of it beside its record, into `entry`: its flags' surface
+ * What the rows and items of `mat` read of it beside its record, into `seen`: its flags' surface
  * bits and its resolve class's, as a row without geometry has them (`rowMaterial`), and its facts.
- * True when a former summary moved — a row of it must be written again —, or when a blended or
- * transmitting surface's record did (`changed`): never on its first.
+ * True when a former summary of it moved — a row of it must be written again —, or when a blended
+ * or transmitting surface's record did (`changed`): never on its `first`.
  */
 export function summarize(
-  entry: MaterialEntry,
+  seen: SurfaceSeen,
   mat: MaterialSurface,
   layers: MaterialLayers,
   changed: boolean,
+  first: boolean,
 ) {
   const { flags, classKey } = rowMaterial(mat, undefined, layers),
-    facts = factsOf(mat),
-    first = entry.version === undefined && entry.epoch < 0
+    facts = factsOf(mat)
   const moved =
     !first &&
-    (flags !== entry.flags ||
-      classKey !== entry.classKey ||
-      facts !== entry.facts ||
+    (flags !== seen.flags ||
+      classKey !== seen.classKey ||
+      facts !== seen.facts ||
       (changed && blendedSurface(mat)))
-  entry.flags = flags
-  entry.classKey = classKey
-  entry.facts = facts
+  seen.flags = flags
+  seen.classKey = classKey
+  seen.facts = facts
   return moved
 }

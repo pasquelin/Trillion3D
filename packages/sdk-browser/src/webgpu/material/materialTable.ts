@@ -1,5 +1,6 @@
 import { MATERIAL_SECOND_UV } from '../../visibility/types.ts'
 import { surfaceJournals } from '../../page/surfaceWrites.ts'
+import { variantPlain } from '../../page/surfaceVariant.ts'
 import type { MaterialLayers } from '../row/pageRowMaterial.ts'
 import type { MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
@@ -29,7 +30,7 @@ import type { MaterialEntry, MaterialRecords } from './materialState.ts'
  */
 export function createMaterialTable() {
   const p: MaterialRecords = {
-    ...{ entries: new WeakMap(), surfaces: [] },
+    ...{ entries: new WeakMap(), seen: new WeakMap(), surfaces: [] },
     ...{ freed: [], lobesFreed: [], lobeSlots: [], lobesHeld: 0 },
     reclaim: new FinalizationRegistry<MaterialEntry>((entry) => release(p, entry)),
     ints: new Uint32Array(MATERIAL_RECORD_WORDS),
@@ -77,23 +78,26 @@ export function createMaterialTable() {
 
 export type MaterialTable = ReturnType<typeof createMaterialTable>
 
-/** The entry of `mat`, its record written first where its version or the atlas moved. */
+/** The entry of `mat`'s record — its material's, shared by its variants (`variantPlain`): their
+ *  values are one —, written first from `mat` where its version or the atlas moved since. */
 function recordOf(p: MaterialRecords, mat: MaterialSurface, layers: MaterialLayers) {
-  let entry = p.entries.get(mat)
+  const plain = variantPlain(mat)
+  let entry = p.entries.get(plain)
   if (!entry) {
-    const rank = takeRank(p)
-    entry = { rank, lobes: -1, version: undefined, epoch: -1, flags: 0, classKey: 0, facts: 0 }
-    p.entries.set(mat, entry)
-    p.surfaces[entry.rank] = new WeakRef(mat)
-    p.reclaim.register(mat, entry)
-  } else if (entry.version !== undefined && entry.version === mat.version) {
-    if (entry.epoch === p.epoch) return entry
+    entry = { rank: takeRank(p), lobes: -1, epoch: -1, source: undefined }
+    p.entries.set(plain, entry)
+    p.surfaces[entry.rank] = new WeakRef(plain)
+    p.reclaim.register(plain, entry)
+  } else {
+    const seen = p.seen.get(mat)
+    if (seen && seen.version !== undefined && seen.version === mat.version)
+      if (seen.epoch === p.epoch && entry.epoch === p.epoch) return entry
   }
   refresh(p, mat, entry, layers)
   return entry
 }
 
-/** The record of `mat` written again, and whether its rows' summary moved noted for `follow`. */
+/** The record written again from `mat`, and whether its rows' summary moved noted for `follow`. */
 function refresh(
   p: MaterialRecords,
   mat: MaterialSurface,
@@ -101,25 +105,34 @@ function refresh(
   layers: MaterialLayers,
 ) {
   const changed = writeEntry(p, mat, entry, layers)
-  if (summarize(entry, mat, layers, changed)) p.moved = true
-  entry.version = mat.version
-  entry.epoch = p.epoch
+  let seen = p.seen.get(mat)
+  const first = !seen
+  if (!seen) {
+    seen = { version: undefined, epoch: -1, flags: 0, classKey: 0, facts: 0 }
+    p.seen.set(mat, seen)
+  }
+  if (summarize(seen, mat, layers, changed, first)) p.moved = true
+  seen.version = mat.version
+  seen.epoch = entry.epoch = p.epoch
+  if (entry.source?.deref() !== mat) entry.source = new WeakRef(mat)
 }
 
 /** The written surfaces' records, every one's after a census; whether a summary moved since. */
 function follow(p: MaterialRecords, layers: MaterialLayers) {
   const journal = (p.journal ??= surfaceJournals.open())
   for (const mat of journal) {
-    const entry = p.entries.get(mat)
-    if (entry && entry.version !== mat.version) refresh(p, mat, entry, layers)
+    const entry = p.entries.get(variantPlain(mat))
+    if (entry && p.seen.get(mat)?.version !== mat.version) refresh(p, mat, entry, layers)
   }
   journal.clear()
   if (p.forgotten) {
     p.forgotten = false
     for (const held of p.surfaces) {
-      const mat = held?.deref(),
-        entry = mat && p.entries.get(mat)
-      if (entry && entry.epoch !== p.epoch) refresh(p, mat, entry, layers)
+      const plain = held?.deref(),
+        entry = plain && p.entries.get(plain)
+      // Written again from the surface it was last written from: the one whose values are current.
+      const mat = entry && (entry.source?.deref() ?? (plain as MaterialSurface))
+      if (entry && mat && entry.epoch !== p.epoch) refresh(p, mat, entry, layers)
     }
   }
   const moved = p.moved
