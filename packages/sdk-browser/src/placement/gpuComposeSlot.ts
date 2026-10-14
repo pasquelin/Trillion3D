@@ -41,14 +41,9 @@ function moveGroups(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
   selection.groupsMoved(groups)
 }
 
-/** The impostor cards of `slot`'s roots follow the parent's move: each card is written again from
- *  the composed world its root reads (`composedWorld`). */
-function moveCards(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
-  rt.gpu.impostors?.worldsMoved(slotRanks(state, slot))
-}
-
-/** The parent's world at `slot`, held; its move told to the shadow mobility — the rows pass stales
- *  the pages its roots' rows left and entered (`rowCastWgsl.ts`) — and the temporal pyramid. */
+/** The parent's world at `slot`, held, the composition's version moved when it or a link did; its
+ *  move told to the shadow mobility — the rows pass stales the pages its roots' rows left and
+ *  entered (`rowCastWgsl.ts`) — and the temporal pyramid. */
 export function settleSlot(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -77,8 +72,12 @@ export function settleSlot(
     )
   if (moved || p === undefined) state.parentsMoved.mark(slot)
   state.worlds.set(world, slot * MATRIX_VALUES)
-  state.version++
+  // The composition moves only with a world or a link: a still parent sent again keeps every
+  // composed world and every memo keyed by its stamp.
+  if (moved || relinked || p === undefined) state.version++
   remakeBins(rt, state, slot)
-  if (moved || relinked) moveCards(rt, state, slot)
-  if (moved || relinked) moveGroups(rt, state, slot)
+  if (!moved && !relinked) return
+  // The impostor cards of its roots are written again from the composed worlds they read.
+  rt.gpu.impostors?.worldsMoved(slotRanks(state, slot))
+  moveGroups(rt, state, slot)
 }
