@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
+import { destroyRetired } from '../gpu/core/frameRetire.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { ROOT_WORLD_WORDS } from './rootWorldSends.ts'
 
@@ -35,6 +36,10 @@ test('a composed world survives the root tables growing', () => {
   sendRootWorlds(rt, device)
   const after = rt.rootWorlds!.worlds!
   assert.notEqual(after, before, 'the tables grew')
+  // The image being encoded may still name the old tables: retired, freed after its submit.
+  assert.ok(!fake.destroyed.includes(before), 'the old worlds are not destroyed at the growth')
+  destroyRetired(device)
+  assert.ok(fake.destroyed.includes(before), 'and go once the frame is submitted')
   const words = new Uint32Array((after as unknown as { data: Uint8Array }).data.buffer)
   assert.deepEqual(
     Array.from(words.subarray(ROOT_WORLD_WORDS, 2 * ROOT_WORLD_WORDS)),
