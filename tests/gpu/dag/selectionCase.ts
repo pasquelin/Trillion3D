@@ -25,6 +25,7 @@ import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTab
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+import { writeFrameRows } from '../../../packages/sdk-browser/src/gpu/dag/cameraFrames.ts'
 import {
   childBase,
   savedJournalWord,
@@ -165,7 +166,7 @@ export function bindCase(
   // The frame words' table, as the engine's host writes it (`cameraFrames.ts`).
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     frames = createRecordTexture(device, FRAME_TABLE, at.worldCount, read)
-  frames.write('Row', 0, at.worldCount, at.frames.buffer, at.frames.byteOffset)
+  writeFrameRows(frames, at.frames, 0, at.worldCount)
   made.push(worlds, tree, frames, ...Object.values(tables))
   const views = {
     worlds: worlds.view,

@@ -130,7 +130,7 @@ function simulateRootBoxes(bind: ComputeBind) {
       ...DOUBLE_HELPERS,
       ...['affineAxis', 'dLess', 'dMin', 'dMax', 'carriedBox', 'composeBox', 'toF32', 'fromF32'],
       ...['dDiv', 'dRsqrt', 'dSqrt', 'chebyshevRoot', 'maxStretchOf', 'maxStretchBits'],
-      ...['framesRowStore', 'framesSetWord', 'deriveRoot'],
+      ...['framesStretchStore', 'framesSetStretch', 'deriveRoot'],
     ],
     {
       rootWorlds: pairs(boundWords(bind, 1)),

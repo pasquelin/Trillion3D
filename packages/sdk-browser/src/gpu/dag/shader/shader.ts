@@ -66,7 +66,7 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  return !outsideFrustum(w,vi,boxMin(r),boxMax(r));
 }
-fn stretchOf(world:u32)->f32{return bitcast<f32>(framesWord(world,0u))*views[vi].cameraStretch;}
+fn stretchOf(world:u32)->f32{return bitcast<f32>(framesStretchBits(world))*views[vi].cameraStretch;}
 /** The frame's reset and the descent's first entries in a single dispatch: the output counters
  *  and block counts \`dagMask\` accumulates, then queue 0. No placement is prepared: what a cut reads
  *  of one is made where it is read (\`primitiveWgsl.ts\`).

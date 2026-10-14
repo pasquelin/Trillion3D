@@ -16,6 +16,8 @@ import { packDagSelection } from './pack.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
+import { FRAME_TABLE } from './frameTable.ts'
+import { fieldStart } from '../core/recordLayout.ts'
 
 const COUNT = 5000
 
@@ -45,10 +47,13 @@ test('two words far apart go up as their two rows', () => {
   assert.equal(sent, 2 * FRAME_ROW_WORDS, 'their two rows, nothing between')
   // What the table holds once every write landed: the three words, each at its row.
   const held = (table.rows.texture as unknown as { words: Uint32Array }).words
-  const word = (w: number, slot: number) => {
-    const row = w >> 10
-    return held[row * 8192 + (w & 1023) * FRAME_ROW_WORDS + slot]
-  }
+  const { rowShift } = FRAME_TABLE
+  const word = (w: number, slot: number) =>
+    held[
+      (w >> rowShift) * fieldStart(FRAME_TABLE) +
+        (w & ((1 << rowShift) - 1)) * FRAME_ROW_WORDS +
+        slot
+    ]
   assert.deepEqual([word(3, 1), word(3, 2), word(4990, 1)], [7, 8, 9])
   table.flushWords()
   assert.equal(rows().length, before + 2, 'nothing more to send')
