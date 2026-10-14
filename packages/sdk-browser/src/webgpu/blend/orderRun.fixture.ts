@@ -76,11 +76,3 @@ export function runOrderDispatch(
     }
   }
 }
-
-/** The workgroups a dispatch of entry `entry` takes under `uni`, as the host sizes it: a block
- *  each, a thread per compare-exchange, a thread per own entry (one when there is none). */
-export function orderGroups(uni: Record<string, number>, entry: number) {
-  if (entry === 1) return Math.ceil(uni.size / 2 / THREADS)
-  if (entry === 2) return Math.ceil(Math.max(uni.ownCount, 1) / WORKGROUP_THREADS)
-  return Math.ceil(uni.size / SORT_BLOCK)
-}

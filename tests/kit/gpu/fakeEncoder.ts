@@ -89,7 +89,7 @@ export function createFakeCommandEncoderFactory(
           const [pipeline, bind, offsets] = [computePipeline, computeBind, computeOffsets]
           act(
             kernel?.(entryPoint, bind, offsets) ??
-              (() => simulateComputeDispatch(pipeline, bind, packed, offsets)),
+              (() => simulateComputeDispatch(pipeline, bind, packed, offsets, call.direct)),
           )
         }
         return recordCommands(

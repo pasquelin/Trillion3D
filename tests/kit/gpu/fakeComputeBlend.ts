@@ -14,7 +14,6 @@ import {
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
 import {
-  orderGroups,
   orderKernelOf,
   runOrderDispatch,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderRun.fixture.ts'
@@ -92,13 +91,16 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
 }
 
 /** Runs a dispatch of the paint order (`BLEND_ORDER_SHADER`), entry point `entry` of
- *  `BLEND_ORDER_ENTRIES` (its rank): its shipped WGSL (`runOrderDispatch`) over the words the dispatch binds,
- *  under the uniform at its dynamic offset, at the workgroups the host encodes for it. */
+ *  `BLEND_ORDER_ENTRIES` (its rank): its shipped WGSL (`runOrderDispatch`) over the words the
+ *  dispatch binds, under the uniform at its dynamic offset, at the `groups` workgroups the host
+ *  dispatched — a host that sizes a dispatch wrong runs wrong here too. */
 function simulateBlendOrder(
   bind: ComputeBind,
   offsets: readonly number[] | undefined,
   entry: number,
+  groups: number | undefined,
 ) {
+  if (groups === undefined) throw new Error('the paint order is dispatched direct')
   const at = (binding: number) => boundWords(bind.entries, binding)
   const words = at(ORDER_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
   const uni: Record<string, number> = {}
@@ -112,7 +114,7 @@ function simulateBlendOrder(
     placed: at(ORDER_BINDING.placed),
     held: [] as number[][],
   }
-  runOrderDispatch(orderKernelOf(scope), scope, entry, orderGroups(uni, entry))
+  runOrderDispatch(orderKernelOf(scope), scope, entry, groups)
 }
 
 /** Runs the frustum verdict (`judgeBlendItems`): its shipped WGSL (`runVerdict`) over the words
@@ -130,18 +132,17 @@ function simulateBlendVerdict(bind: ComputeBind) {
 }
 
 /** The transparent kernels the double runs, by entry point: every dispatch of the compaction, the
- *  verdict and the order; the expansion's last, once everything it reads is there. */
+ *  verdict and the order — at the workgroups its dispatch asked —; the expansion's last, once
+ *  everything it reads is there. */
 export const TRANSPARENT_STAGES: Record<
   string,
-  ((bind: ComputeBind, offsets?: readonly number[]) => void) | undefined
+  ((bind: ComputeBind, offsets?: readonly number[], groups?: number) => void) | undefined
 > = {
-  countTransparentGroups: (bind) => simulateTransparentCompaction(bind, 'countTransparentGroups'),
-  prefixTransparentItems: (bind) => simulateTransparentCompaction(bind, 'prefixTransparentItems'),
-  scatterTransparentGroups: (bind) =>
-    simulateTransparentCompaction(bind, 'scatterTransparentGroups'),
   judgeBlendItems: simulateBlendVerdict,
-  sortBlendBlocks: (bind, offsets) => simulateBlendOrder(bind, offsets, 0),
-  sortBlendStep: (bind, offsets) => simulateBlendOrder(bind, offsets, 1),
-  placeBlendSlots: (bind, offsets) => simulateBlendOrder(bind, offsets, 2),
+  sortBlendBlocks: (bind, offsets, groups) => simulateBlendOrder(bind, offsets, 0, groups),
+  sortBlendStep: (bind, offsets, groups) => simulateBlendOrder(bind, offsets, 1, groups),
+  placeBlendSlots: (bind, offsets, groups) => simulateBlendOrder(bind, offsets, 2, groups),
   writeBlendRuns: simulateBlendExpansion,
 }
+for (const entry of Object.keys(COMPACT_THREADS))
+  TRANSPARENT_STAGES[entry] = (bind) => simulateTransparentCompaction(bind, entry)
