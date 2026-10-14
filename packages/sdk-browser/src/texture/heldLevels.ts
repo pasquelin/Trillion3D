@@ -19,7 +19,6 @@
  * live with the reader, one per level or record asked at most.
  */
 import {
-  bitmapBytes,
   type TextureLevel,
   type TextureLevelAddress,
   type TextureLevelReader,
@@ -30,6 +29,7 @@ import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { tileRecord } from './tileRecords.ts'
 import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/texture/previewFormat.ts'
+import { rgbaBytes } from './imageExtent.ts'
 
 /** Block bytes that are not the whole blocks their dimensions imply: a tile's record answered
  *  short or foreign, or a tail level (`webgpu/tile/writeBlocks.ts`). */
@@ -118,7 +118,7 @@ function createHeldLevels(read: TextureLevelReader) {
         address.format === PREVIEW_LOSSLESS_FORMAT
           ? undefined
           : tileRecord(size[0], size[1], tx, ty),
-      bytes = range?.bytes ?? bitmapBytes(size[0], size[1]),
+      bytes = range?.bytes ?? rgbaBytes(size[0], size[1]),
       room = store.roomBytes
     if (bytes > room) return 'refused'
     // The reads in flight hold their room: one that fits only once they have landed waits for

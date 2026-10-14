@@ -2,6 +2,7 @@ import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { createTileScratch, type TileScratch } from './scratch.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { TileCounters } from './counters.ts'
+import { rgbaBytes } from '../../texture/imageExtent.ts'
 
 /** The working texture of host texture `slot` of `atlas`, built now, its mips not yet; its picture
  *  in `encoder` when given (`TileScratch.settle` once submitted). */
@@ -30,7 +31,7 @@ export function buildHostScratch(
     encoder,
   )
   counters.scratches++
-  counters.uploadedBytes += layout.width * layout.height * 4
+  counters.uploadedBytes += rgbaBytes(layout.width, layout.height)
   return scratch
 }
 

@@ -7,6 +7,7 @@ import {
   type TilePlace,
 } from '../../texture/tiles.ts'
 import { TILE_BORDER, TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+import { rgbaBytes } from '../../texture/imageExtent.ts'
 
 /**
  * Gestures that post texels into a pool tile. Three sources, one draw: the tile receives its 128×128
@@ -114,7 +115,7 @@ export type TailLevelWriter = (
 
 /** A lossless tail level: four bytes a texel, rows packed. */
 export const writeRgbaLevel: TailLevelWriter = (queue, pool, origin, pixels, [width, height]) => {
-  if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES')
+  if (pixels.byteLength !== rgbaBytes(width, height)) throw new Error('TEXTURE_TAIL_BYTES')
   writeRgba(queue, pool, origin, pixels, width, height)
 }
 

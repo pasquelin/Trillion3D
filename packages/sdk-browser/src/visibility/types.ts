@@ -3,6 +3,7 @@ import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
+import { rgbaBytes } from '../texture/imageExtent.ts'
 /** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
 export const VIS_MAX_PAGES = VIS_CARD_ROWS - 1
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
@@ -95,7 +96,7 @@ const texelsReason = ({ format, image }: { format: string; image: unknown }) => 
   const { data, width, height } = image as { data?: unknown; width: number; height: number }
   if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray))
     return 'texel storage is unsupported: 8-bit texels only'
-  if (data.length !== width * height * 4)
+  if (data.length !== rgbaBytes(width, height))
     return `texel storage holds ${data.length} bytes, not ${width}×${height} RGBA`
 }
 

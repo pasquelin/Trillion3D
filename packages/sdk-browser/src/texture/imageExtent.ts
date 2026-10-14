@@ -17,3 +17,7 @@ export function pictureSize(image: unknown): [number, number] {
     height = picture?.videoHeight ?? picture?.displayHeight ?? picture?.height ?? 1
   return [Math.max(1, width), Math.max(1, height)]
 }
+
+/** Bytes of `width` × `height` RGBA8 texels, rows packed: a decoded bitmap's, a tail level's, a
+ *  texel image's, a working texture's source. */
+export const rgbaBytes = (width: number, height: number) => width * height * 4

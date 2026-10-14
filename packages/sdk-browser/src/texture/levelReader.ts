@@ -3,6 +3,7 @@ import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.t
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { PageCache } from '../streaming/pageCache.ts'
 import { decodeRaw } from './decode.ts'
+import { rgbaBytes } from './imageExtent.ts'
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
  *  or, block-compressed, the bytes as the file holds them, which the GPU reads as they are. */
@@ -40,11 +41,9 @@ export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<Text
   readonly key: string
 }
 
-/** Host bytes a decoded bitmap of `width` × `height` texels holds. */
-export const bitmapBytes = (width: number, height: number) => width * height * 4
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
-  level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height)
+  level instanceof Uint8Array ? level.byteLength : rgbaBytes(level.width, level.height)
 export const closeTextureLevel = (level: TextureLevel) => {
   if (!(level instanceof Uint8Array)) level.close()
 }
