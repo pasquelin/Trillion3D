@@ -33,7 +33,7 @@ export type WorldMemo = {
 }
 
 /** The world of `root` moved: what is derived from it is taken again at its next read. */
-export function worldMoved(root: Pick<WorldMemo, 'worldAt'>) {
+export function worldMoved(root: Pick<WorldMemo, 'world' | 'worldAt'>) {
   root.worldAt = (root.worldAt ?? 0) + 1
 }
 
