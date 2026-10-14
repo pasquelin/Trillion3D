@@ -3,7 +3,7 @@
 // frame's work (`TRACE_LIST.spent`) is what its pixels asked — the proxy budget's number, `N·ū`, reported
 // here for the recette (the image it holds is the one the family proof, `runtime-proxy.gpu.ts`, judges).
 //
-//   node bench/dawn/proofs.ts tests/gpu/reflections/runtime-budget.gpu.ts
+//   node bench/dawn/proofs.ts tests/gpu/reflections/runtime-every-ray.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -19,9 +19,9 @@ test(
   },
   async () => {
     const page = (await loadPage(
-      resolve(import.meta.dirname, 'runtimeBudgetPage.ts'),
-      'reflectionBudget',
-    )) as typeof import('./runtimeBudgetPage.ts')
+      resolve(import.meta.dirname, 'runtimeEveryRayPage.ts'),
+      'reflectionEveryRay',
+    )) as typeof import('./runtimeEveryRayPage.ts')
     const result = await runOnDawn(page.run, [1920, 1080] as const)
     assert.equal(result.error, undefined, result.error)
     assert.deepEqual(result.errors, [])

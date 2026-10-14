@@ -1,6 +1,6 @@
-// The page of the run-time proxy's budget proof: the first case of the family drawn at a size whose rays once
-// outnumbered a frame's budget, the temporal accumulation off so that the image holds; each frame's work read
-// (`traceCounters`) until the image holds.
+// The page of the proof that every ray of the run-time proxy is cast in its frame: case 25 of the family drawn
+// at a size whose rays once outnumbered a frame's budget, the temporal accumulation off so that the image
+// holds; each frame's work read (`traceCounters`) until the image holds.
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
@@ -9,19 +9,19 @@ import { familyCase } from './runtimeFamilyCases.ts'
 import { familyWorld, traceCounters } from './runtimeFamilyWorld.ts'
 
 /** What the proof reads: each frame's work spent, and whether the world holds its image at the end. */
-export type BudgetReading = {
+export type EveryRayReading = {
   trail: { spent: number }[]
   held: boolean
   worldErrors: string[]
 }
 
-/** The case the budget proof draws: one whose floor reflects many shapes. */
-export const BUDGET_CASE = 25
+/** The case the proof draws: one whose floor reflects many shapes. */
+const EVERY_RAY_CASE = 25
 
 export const run = (size: readonly [number, number]) =>
-  runOnDevice<BudgetReading>(async (_device, _events, result) => {
+  runOnDevice<EveryRayReading>(async (_device, _events, result) => {
     const { errors, made } = listenToWorldDevices()
-    const canvas = proofCanvas('runtime-budget') as unknown as HTMLCanvasElement & {
+    const canvas = proofCanvas('runtime-every-ray') as unknown as HTMLCanvasElement & {
       readable: boolean
       css: { width: number; height: number }
     }
@@ -29,7 +29,7 @@ export const run = (size: readonly [number, number]) =>
     Object.assign(canvas.css, { width: size[0], height: size[1] })
     canvas.width = size[0]
     canvas.height = size[1]
-    const { world } = familyWorld(canvas, familyCase(BUDGET_CASE))
+    const { world } = familyWorld(canvas, familyCase(EVERY_RAY_CASE))
     await world.ready
     world.temporalAntialiasing = false
     let held = 0
@@ -40,7 +40,7 @@ export const run = (size: readonly [number, number]) =>
       current: GPUTexture | null
       getConfiguration(): { device: GPUDevice }
     }
-    const trail: BudgetReading['trail'] = []
+    const trail: EveryRayReading['trail'] = []
     for (
       let frame = 0;
       frame < 900 &&
