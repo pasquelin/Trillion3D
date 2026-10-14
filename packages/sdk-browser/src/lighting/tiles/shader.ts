@@ -42,10 +42,11 @@ var<workgroup> lightCount:u32;
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
  let column=gridColumn(cell.xy);
  if(lane==0u){lightCount=lights.count;cached=0u;resume=ALL_CACHED;}
- if(lane<2u){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
+ if(lane<LANE_WORDS){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  counts[slice]=0u;atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
+  counts[slice]=0u;
+  for(var word=0u;word<LANE_WORDS;word++){atomicStore(&masks[slice*LANE_WORDS+word],0u);}
  }
  let count=workgroupUniformLoad(&lightCount);
  // First walk: each light's run, counted in the slices it holds; the runs kept while they fit.
@@ -55,13 +56,13 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   markEntry(lane,entry);
   workgroupBarrier();
   countSlices(lane);
-  let kept=countOneBits(atomicLoad(&keptLanes[0]))+countOneBits(atomicLoad(&keptLanes[1]));
+  let kept=keptCount();
   let fits=resume==ALL_CACHED&&cached+kept<=CACHE;
   if(fits){cacheEntry(lane,entry);}
   workgroupBarrier();
   if(lane==0u){
    if(fits){cached+=kept;}else if(resume==ALL_CACHED){resume=first;}
-   atomicStore(&keptLanes[0],0u);atomicStore(&keptLanes[1],0u);atomicStore(&slotted[0],0u);atomicStore(&slotted[1],0u);
+   clearBatch();
   }
   workgroupBarrier();
  }

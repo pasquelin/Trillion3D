@@ -1,4 +1,5 @@
-import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
+import { WORKGROUP_THREADS, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LANE_SCAN_WGSL, laneRunSum, laneRunWalk } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -22,6 +23,8 @@ const GRID_CACHE = 512
  *
  * A column holds `slices` cells (`COLUMN_SLICES`): the view's columns their depth slices
  * (`gridSlices`), the bounce's world columns their cells along z (`cascadeSize`, `./shader.ts`).
+ * A lane mask is `LANE_WORDS` words, as many as the batch's lanes need, whatever
+ * `WORKGROUP_THREADS` occupancy tunes it to.
  */
 export const gridCompactWgsl = (slices: number) =>
   wgslBlock(
@@ -30,6 +33,7 @@ export const gridCompactWgsl = (slices: number) =>
     `${wgslConsts({
       CACHE: GRID_CACHE,
       COLUMN_SLICES: slices,
+      LANE_WORDS: bitWords(WORKGROUP_THREADS),
     })}
 /** A run \`first | last << 16\` that holds no slice; the one that holds them all. */
 const EMPTY_RUN:u32=0xffffu;
@@ -41,11 +45,11 @@ struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
 /** The batch: each lane's light, its shadow slot in the high bit, and its run. */
 var<workgroup> chunk:array<vec2u,WORKGROUP_THREADS>;
 /** Per slice, the lanes of the batch whose run holds it; the lanes holding a shadow slot. */
-var<workgroup> masks:array<atomic<u32>,${2 * slices}u>;
+var<workgroup> masks:array<atomic<u32>,${bitWords(WORKGROUP_THREADS) * slices}u>;
 /** The lanes whose entry holds every slice: their bit stands for every slice's mask. */
-var<workgroup> full:array<atomic<u32>,2>;
-var<workgroup> slotted:array<atomic<u32>,2>;
-var<workgroup> keptLanes:array<atomic<u32>,2>;
+var<workgroup> full:array<atomic<u32>,LANE_WORDS>;
+var<workgroup> slotted:array<atomic<u32>,LANE_WORDS>;
+var<workgroup> keptLanes:array<atomic<u32>,LANE_WORDS>;
 /** Per slice, its count (the high bit: a shadow slot listed), then where its list is written. */
 var<workgroup> counts:array<u32,COLUMN_SLICES>;
 var<workgroup> cursor:array<u32,COLUMN_SLICES>;
@@ -84,41 +88,63 @@ fn markEntry(lane:u32,entry:vec2u){
  atomicOr(&keptLanes[word],bit);
  if((entry.x&TILE_SHADOWED)!=0u){atomicOr(&slotted[word],bit);}
  if(whole){return;}
- for(var slice=first;slice<=last;slice++){atomicOr(&masks[slice*2u+word],bit);}
+ for(var slice=first;slice<=last;slice++){atomicOr(&masks[slice*LANE_WORDS+word],bit);}
+}
+/** The lanes whose entry holds every slice, read once by a lane before its slices. */
+fn wholeLanes()->array<u32,LANE_WORDS>{
+ var whole:array<u32,LANE_WORDS>;
+ for(var word=0u;word<LANE_WORDS;word++){whole[word]=atomicLoad(&full[word]);}
+ return whole;
 }
 /** The slices lane \`lane\` owns count the batch's lights in their mask, then clear it. */
 fn countSlices(lane:u32){
- let shadow=vec2u(atomicLoad(&slotted[0]),atomicLoad(&slotted[1]));
- let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
+ let whole=wholeLanes();
+ var shadow:array<u32,LANE_WORDS>;
+ for(var word=0u;word<LANE_WORDS;word++){shadow[word]=atomicLoad(&slotted[word]);}
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
-  let mask=whole|vec2u(atomicLoad(&masks[slice*2u]),atomicLoad(&masks[slice*2u+1u]));
-  counts[slice]+=countOneBits(mask.x)+countOneBits(mask.y);
-  if(any((mask&shadow)!=vec2u(0u))){counts[slice]|=TILE_SHADOWED;}
-  atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
+  var count=0u;var shadowed=0u;
+  for(var word=0u;word<LANE_WORDS;word++){
+   let mask=whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]);
+   count+=countOneBits(mask);
+   shadowed|=mask&shadow[word];
+   atomicStore(&masks[slice*LANE_WORDS+word],0u);
+  }
+  counts[slice]+=count;
+  if(shadowed!=0u){counts[slice]|=TILE_SHADOWED;}
  }
 }
 /** The slices lane \`lane\` owns write the batch's lights of their mask in increasing order. */
 fn writeSlices(lane:u32){
- let whole=vec2u(atomicLoad(&full[0]),atomicLoad(&full[1]));
+ let whole=wholeLanes();
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
   var at=cursor[slice];
-  for(var word=0u;word<2u;word++){
-   var mask=whole[word]|atomicLoad(&masks[slice*2u+word]);
+  for(var word=0u;word<LANE_WORDS;word++){
+   var mask=whole[word]|atomicLoad(&masks[slice*LANE_WORDS+word]);
    while(mask!=0u){
     tiles[at]=chunk[word*32u+firstTrailingBit(mask)].x&~TILE_SHADOWED;
     at++;mask&=mask-1u;
    }
-   atomicStore(&masks[slice*2u+word],0u);
+   atomicStore(&masks[slice*LANE_WORDS+word],0u);
   }
   cursor[slice]=at;
  }
 }
 /** Lane \`lane\`'s entry, in order among the batch's kept ones, into the cache at \`cached\`. */
 fn cacheEntry(lane:u32,entry:vec2u){
- let kept=vec2u(atomicLoad(&keptLanes[0]),atomicLoad(&keptLanes[1]));
- let below=lowBits(lane%32u);
- let rank=select(countOneBits(kept.x&below),countOneBits(kept.x)+countOneBits(kept.y&below),lane>=32u);
+ let word=bitWord(lane);
+ var rank=countOneBits(atomicLoad(&keptLanes[word])&lowBits(lane%32u));
+ for(var w=0u;w<word;w++){rank+=countOneBits(atomicLoad(&keptLanes[w]));}
  if(lowHalf(entry.y)<=highHalf(entry.y)){cache[cached+rank]=entry;}
+}
+/** The lanes of the batch whose entry meets the column. */
+fn keptCount()->u32{
+ var kept=0u;
+ for(var word=0u;word<LANE_WORDS;word++){kept+=countOneBits(atomicLoad(&keptLanes[word]));}
+ return kept;
+}
+/** Lane zero, after a batch: no lane kept nor slotted for the next. */
+fn clearBatch(){
+ for(var word=0u;word<LANE_WORDS;word++){atomicStore(&keptLanes[word],0u);atomicStore(&slotted[word],0u);}
 }
 /** The room of the slices before lane \`lane\`'s run \`span\` (\`laneRun\`): the runs' totals,
  *  scanned over the lanes. Every lane calls it, from uniform control flow;
