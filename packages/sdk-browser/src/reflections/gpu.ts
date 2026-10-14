@@ -16,6 +16,7 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
+  REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
@@ -130,7 +131,7 @@ export function reflectionGroup(
     label: 'Trillion3D reflection',
     layout: reflectionLayout(device),
     entries: [
-      { binding: 0, resource: { buffer: reflection.uniform } },
+      { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
       { binding: REFLECTION_SAMPLER_BINDING, resource: reflection.radiance.sampler },
       ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },

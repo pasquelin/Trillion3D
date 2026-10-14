@@ -50,6 +50,9 @@ export const REFLECTION_VIEW_WGSL = wgslBlock('REFLECTION_VIEW_WGSL', [], LAYOUT
  *  trace's and the forward passes'. */
 export const REFLECTION_GROUP = 1
 
+/** The binding of the reflection's view (`ReflectionView`) in the reflection group. */
+export const REFLECTION_VIEW_BINDING = 0
+
 /** The binding of the radiance pyramid's trilinear sampler in the reflection group. */
 export const REFLECTION_SAMPLER_BINDING = 2
 
@@ -80,7 +83,7 @@ export const reflectionBindingsWgsl = (group: number) =>
   wgslBlock(
     `reflectionBindingsWgsl(${group})`,
     [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
-    `@group(${group}) @binding(0) var<uniform> reflectionView:ReflectionView;
+    `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
 @group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;
 fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}`,

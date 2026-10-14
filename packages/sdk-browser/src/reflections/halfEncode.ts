@@ -3,6 +3,7 @@ import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_GROUP } from './viewLayout.ts'
 import type { FrontLayer } from './frontLayer.ts'
 import { REFLECTION_TRACE_BINDINGS, halfLayouts } from './halfBindings.ts'
 import type { HalfGrids } from './halfTexture.ts'
@@ -178,7 +179,7 @@ export function encodeReflectionTrace(
 ) {
   const groups = traceGroups(reflection, stages, inputs)
   const parity = (reflection.trace.parity ^= 1)
-  pass.setBindGroup(1, depthGroup)
+  pass.setBindGroup(REFLECTION_GROUP, depthGroup)
   const surface = (side: 'opaque' | 'front') => {
     for (const kernel of KERNELS) {
       const cells = kernel === 'upsample' ? 1 : 2

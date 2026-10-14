@@ -19,6 +19,7 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
+  REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 
@@ -33,7 +34,11 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     entries: [
-      computeUniformEntry(0, { minBindingSize: REFLECTION_VIEW_BYTES }, visibility),
+      computeUniformEntry(
+        REFLECTION_VIEW_BINDING,
+        { minBindingSize: REFLECTION_VIEW_BYTES },
+        visibility,
+      ),
       { binding: REFLECTION_SAMPLER_BINDING, visibility, sampler: { type: 'filtering' } },
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
