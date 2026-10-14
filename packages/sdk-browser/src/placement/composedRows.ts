@@ -13,8 +13,7 @@ import {
   takeMirrored,
   type MirroredKeys,
 } from '../webgpu/cut/denseKeys.ts'
-import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
-import { writeBufferRuns } from './rootListPass.ts'
+import { sendWords, writeBufferRuns } from './rootListPass.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import type { ComposeState } from './gpuComposeState.ts'
@@ -22,7 +21,7 @@ import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /**
  * `list` in `held` on the GPU, the buffer returned: one made again — the list sent whole — when the
- * list outgrows it, at a capacity grown by the one rule (`sizedBuffer`); else the places written
+ * list outgrows it, by the one sized send (`sendWords`); else the places written
  * since sent in the cut's one run writer's runs. Nothing when none was.
  */
 export function sendList(
@@ -31,19 +30,15 @@ export function sendList(
   label: string,
   list: MirroredKeys,
 ) {
-  const { set, moves } = list,
-    count = set.count
-  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    buffer = sizedBuffer(device, held, Math.max(4, count) * 4, usage, label)
-  if (buffer !== held) {
+  const { set, moves } = list
+  if (!held || held.size < set.count * 4) {
     moves.clear()
-    if (count) device.queue.writeBuffer(buffer, 0, set.list, 0, count)
-    return buffer
+    return sendWords(device, held, set.list, set.count, label)
   }
-  if (!moves.count) return buffer
+  if (!moves.count) return held
   const moved = takeMirrored(list)
-  if (moved.length) writeBufferRuns(device, buffer, moved, moved.length, mirroredWords(list), 1)
-  return buffer
+  if (moved.length) writeBufferRuns(device, held, moved, moved.length, mirroredWords(list), 1)
+  return held
 }
 
 /** Whether `row` is a caster row the table holds: a drawn row, or a blended caster's. */
