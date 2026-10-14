@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { updateWholeDeformationBounds } from '../../deformation/wholeBounds.ts'
-import { frame, scene } from './rectKernel.fixture.ts'
+import { frame, scene } from '../../../../../tests/gpu/water/rectKernel.ts'
 import { SIZE } from '../../../../../tests/gpu/water/waterCostScene.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
