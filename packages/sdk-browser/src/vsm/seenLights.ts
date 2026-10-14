@@ -21,8 +21,7 @@ const seenClip = new Float64Array(16)
  * view's frustum one pixel wider on each side of `width` × `height` — a jittered sample stays
  * within half a pixel of it — and its near plane as much nearer; no far plane where the projection
  * has none. The opaque, blend and water passes read a shadow only at their own pixels (bounce
- * traces its proxy): a light no such point is in reach of
- * has no shadow anyone reads.
+ * traces its proxy): a light no such point is in reach of has no shadow anyone reads.
  */
 export function vsmSeenPlanes(
   out: Float64Array,
