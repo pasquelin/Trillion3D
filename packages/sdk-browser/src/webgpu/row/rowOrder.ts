@@ -1,6 +1,6 @@
 import { createSlotOrder } from '../../gpu/pool/slotOrder.ts'
 import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
-import type { RowWords } from './rowWords.ts'
+import type { RowUseWords } from './rowWords.ts'
 
 /** Frames the arrivals are remembered for: past the frames a readback lands behind its cut. */
 const FRAMES = 8
@@ -26,7 +26,7 @@ const NONE = new Uint32Array(0)
  */
 export function createRowOrder(
   rowOf: (page: number) => number,
-  words: RowWords,
+  words: RowUseWords,
   /** Asks the next cut to cut again, and rank a queue on its way. */
   ask: () => void = () => {},
 ) {

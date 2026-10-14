@@ -1,11 +1,11 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
-import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 import { WORK_DROPPED } from './viewsWgsl.ts'
 
 export const DAG_COMMIT_WGSL = wgslBlock(
   'DAG_COMMIT_WGSL',
-  [ceilDiv, FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
+  [ceilDivWgsl, FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   `/**
  * The cut's mask and drawn log made the frame's, unless work was dropped (\`dropWork\`): a cut whose
  * queue or list was full is not drawn, the frame keeps the last whole cut's mask and log, and the

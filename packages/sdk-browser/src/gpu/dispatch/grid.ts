@@ -1,7 +1,7 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock, wgslConst } from '../../../../math/src/wgsl/decl.ts'
-import { ceilDiv as ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * DISPATCHES IN ROWS: a pass counts one thread per page, node, slot or listed entry, and a scene

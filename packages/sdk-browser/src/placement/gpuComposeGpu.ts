@@ -2,14 +2,14 @@
  * WHAT THE COMPOSITION HOLDS ON THE GPU (`gpuCompose.ts`): the links, the parents' worlds, the
  * previous worlds and the motion mode, the lists, the passes' parameters and their groups.
  */
-import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { heldGroup } from './composeGroups.ts'
 
 export function createComposeGpu(device: GPUDevice, rootCount: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const locals = device.createBuffer({
     label: 'Trillion3D composed locals',
-    size: Math.max(1, rootCount) * MATRIX_DOUBLES * 8,
+    size: Math.max(1, rootCount) * MATRIX_VALUES * 8,
     usage: storage,
   })
   const parentOf = device.createBuffer({

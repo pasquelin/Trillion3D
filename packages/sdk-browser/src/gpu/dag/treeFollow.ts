@@ -7,6 +7,7 @@
  * engine's one (`treeRefit.ts`), and so are the leaves it fits over (`TreeLeaves`): this module
  * names the placements whose leaves are written and the groups to fit, and holds no box.
  */
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { drawnAlways, treeMarkMoved, TREE_SPAN } from './placementTree.ts'
 import { type PackedDag } from './types.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
@@ -75,7 +76,7 @@ export function createTreeFollower(
       const mark = packed.mark[w]
       if (!treeMarkMoved(before, mark)) return
       touch(w)
-      if (w < tree.slot.length && tree.slot[w] !== 0xffffffff)
+      if (w < tree.slot.length && tree.slot[w] !== NO_INDEX)
         mirrorKey(tree.always, w, drawnAlways(mark))
     },
     /** The poses a send moved (`updateWorlds`), a host walk's as a call's. */
@@ -85,8 +86,8 @@ export function createTreeFollower(
     /** The member group of placement `w`, none outside the tree: what a composition names the
      *  groups of the roots a parent moves by. */
     groupOf(w: number) {
-      const slot = w < tree.slot.length ? tree.slot[w] : 0xffffffff
-      return slot === 0xffffffff ? -1 : Math.floor(slot / TREE_SPAN)
+      const slot = w < tree.slot.length ? tree.slot[w] : NO_INDEX
+      return slot === NO_INDEX ? -1 : Math.floor(slot / TREE_SPAN)
     },
     /** The groups `named` fit again: those of the roots a parent composed, which moved with it. */
     groupsMoved(named: ArrayLike<number>) {
@@ -107,7 +108,7 @@ export function createTreeFollower(
       let count = 0
       if (placements) written = resized(written, placements.length)
       for (const w of placements ?? []) {
-        if (tree.slot[w] === 0xffffffff) continue
+        if (tree.slot[w] === NO_INDEX) continue
         fit.add(Math.floor(tree.slot[w] / TREE_SPAN))
         written[count++] = w
       }

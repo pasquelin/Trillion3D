@@ -13,9 +13,9 @@ import {
 } from './transformTree.ts'
 import { updateTransformTree } from './pass.ts'
 import {
-  removeTransformNode,
+  removeTreeNode,
   releaseTransformNode,
-  reparentTransformNode,
+  reparentTreeNode,
   setNodeWorldLazy,
 } from './structure.ts'
 import { updateNodeWorldMatrix } from './update.ts'
@@ -117,7 +117,7 @@ test('a leaf made lazy leaves the children no walk steps over; made eager again 
 test('removing a parent frees its lazy leaves, releasing it makes them roots, a move to another parent makes them eager', () => {
   const removed = family(2, 4, true)
   const before = removed.tree.freeCount
-  removeTransformNode(removed.tree, removed.roots[0])
+  removeTreeNode(removed.tree, removed.roots[0])
   assert.equal(removed.tree.freeCount - before, 5, 'the parent and its four lazy leaves')
   const released = family(1, 4, true)
   releaseTransformNode(released.tree, released.roots[0])
@@ -126,7 +126,7 @@ test('removing a parent frees its lazy leaves, releasing it makes them roots, a 
     assert.equal(released.tree.flags[leaf] & NODE_WORLD_LAZY, 0)
   }
   const moved = family(2, 2, true)
-  reparentTransformNode(moved.tree, moved.leaves[0], moved.roots[1])
+  reparentTreeNode(moved.tree, moved.leaves[0], moved.roots[1])
   assert.equal(moved.tree.flags[moved.leaves[0]] & NODE_WORLD_LAZY, 0)
   assert.equal(moved.tree.parent[moved.leaves[0]], moved.roots[1])
   assert.equal(updateTransformTree(moved.tree), 1)

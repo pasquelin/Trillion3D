@@ -8,14 +8,11 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   bitLength,
-  ceilDiv,
+  ceilDivWgsl,
   floorLog2,
   pow2FromExponent,
 } from '../../../../math/src/wgsl/integer.ts'
-import {
-  ceilDiv as ceilDivTs,
-  floorLog2 as floorLog2Ts,
-} from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv, floorLog2 as floorLog2Ts } from '../../../../math/src/scalar/integers.ts'
 
 type U = (x: number, n?: number) => number
 
@@ -50,10 +47,10 @@ const WORDS = [
 ]
 
 test('ceilDiv is the processor ceilDiv on every count that does not wrap', () => {
-  const run = shaderRun<{ ceilDiv: U }>(ceilDiv, ['ceilDiv'], U32_SCOPE).ceilDiv
+  const run = shaderRun<{ ceilDiv: U }>(ceilDivWgsl, ['ceilDiv'], U32_SCOPE).ceilDiv
   for (const a of WORDS.filter((a) => a < 2 ** 31))
     for (const n of [1, 2, 3, 4, 32, 64, 255, 1000])
-      assert.equal(run(a, n), ceilDivTs(a, n), `${a}/${n}`)
+      assert.equal(run(a, n), ceilDiv(a, n), `${a}/${n}`)
   // Past 2³² − n the sum wraps, as every site's did.
   assert.equal(run(2 ** 32 - 1, 64), 0)
 })

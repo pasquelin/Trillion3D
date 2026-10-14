@@ -1,11 +1,6 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import {
-  bitAt,
-  bitMask,
-  bitWord,
-  ceilDiv as ceilDivWgsl,
-} from '../../../../math/src/wgsl/integer.ts'
+import { bitAt, bitMask, bitWord, ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'

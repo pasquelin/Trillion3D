@@ -5,7 +5,7 @@ import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import type { WebgpuRowState } from './state.ts'
 import type { createRowDemand } from './rowDemand.ts'
-import type { RowWords } from './rowWords.ts'
+import type { RowUseWords } from './rowWords.ts'
 import type { RowOrder } from './rowOrder.ts'
 
 /** What the row cache's passes share (`slots.ts`): the table, the catalogue, the ranks freed, the
@@ -21,7 +21,7 @@ export type RowSlots = {
   /** Arrivals that claim a record and wait their turn, from one image to the next. */
   claims: ReturnType<typeof createWebgpuRowClaims>
   /** The rows' use words the GPU stamps (`rowWords.ts`), its queues (`rowOrder.ts`), its clock. */
-  words: RowWords
+  words: RowUseWords
   order: RowOrder
   frame: () => number
   demand: ReturnType<typeof createRowDemand>

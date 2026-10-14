@@ -1,8 +1,8 @@
-import * as structure from '../../world/transform-tree/structure.ts'
+import { removeTreeNode, reparentTreeNode } from '../../world/transform-tree/structure.ts'
 import { NODE_AUTO_UPDATE } from '../../world/transform-tree/nodeFlags.ts'
 import {
-  setNodeAutoUpdate as setAutoUpdate,
-  setNodeLocalMatrix as setLocalMatrix,
+  setTreeNodeAutoUpdate,
+  setTreeNodeLocalMatrix,
   type TransformTree,
 } from '../../world/transform-tree/transformTree.ts'
 
@@ -68,33 +68,30 @@ export function nodesWrittenSince(from: number, visit: (slot: number) => void, t
   return true
 }
 
-/** `reparentTransformNode`, counted: the one way a scene node changes parent. */
+/** `reparentTreeNode`, counted: the one way a node changes parent. */
 export function reparentTransformNode(tree: TransformTree, node: number, parent: number) {
-  structure.reparentTransformNode(tree, node, parent)
+  reparentTreeNode(tree, node, parent)
   noteObjectEdit()
   noteSlotWrite(node)
 }
 
-/** `setNodeWorldLazy`: a leaf's world composed elsewhere is read where it is needed. */
-export const setNodeWorldLazy = structure.setNodeWorldLazy
-
-/** `removeTransformNode`, counted: a freed node leaves its parent. */
+/** `removeTreeNode`, counted: a freed node leaves its parent. */
 export function removeTransformNode(tree: TransformTree, node: number) {
-  structure.removeTransformNode(tree, node)
+  removeTreeNode(tree, node)
   noteObjectEdit()
   noteSlotWrite(node)
 }
 
-/** `setNodeLocalMatrix`, counted: a scene node's matrix set by hand. */
+/** `setTreeNodeLocalMatrix`, counted: a scene node's matrix set by hand. */
 export function setNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLike<number>) {
-  setLocalMatrix(tree, node, m)
+  setTreeNodeLocalMatrix(tree, node, m)
   noteSlotWrite(node)
 }
 
-/** `setNodeAutoUpdate`, counted when the flag flips: whether a scene node's matrix follows its
+/** `setTreeNodeAutoUpdate`, counted when the flag flips: whether a scene node's matrix follows its
  *  pose. */
 export function setNodeAutoUpdate(tree: TransformTree, node: number, auto: boolean) {
   const was = (tree.flags[node] & NODE_AUTO_UPDATE) !== 0
-  setAutoUpdate(tree, node, auto)
+  setTreeNodeAutoUpdate(tree, node, auto)
   if (was !== auto) noteSlotWrite(node)
 }

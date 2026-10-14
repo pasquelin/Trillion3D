@@ -26,7 +26,7 @@ export const ROW_USE = 0,
  * with it: a page that took its row after a queue's cut is never that queue's victim
  * (`../../gpu/pool/slotOrder.ts`).
  */
-export function createRowWords() {
+export function createRowUseWords() {
   let words: Uint32Array<ArrayBuffer> = new Uint32Array(ROW_USE_WORDS),
     generations = new Int32Array(1),
     arrivals = 0,
@@ -98,7 +98,7 @@ export function createRowWords() {
   }
 }
 
-export type RowWords = ReturnType<typeof createRowWords>
+export type RowUseWords = ReturnType<typeof createRowUseWords>
 
 /**
  * The GPU buffer of the rows' use words, `ROW_USE_WORDS` a row over the visibility rows: made for
@@ -106,14 +106,14 @@ export type RowWords = ReturnType<typeof createRowWords>
  * (`rewriteAll`). `upload` sends the host's writes before the frame's commands and says whether
  * the buffer was made anew: the bind groups follow.
  */
-export function createRowWordsGpu(
+export function createRowUseWordsGpu(
   device: Pick<GPUDevice, 'queue'>,
   /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
   make: BufferMaker,
 ) {
   let buffer: GPUBuffer | undefined
   return {
-    upload(words: RowWords, rows: number, count: number, clock: number) {
+    upload(words: RowUseWords, rows: number, count: number, clock: number) {
       const bytes = Math.max(1, rows) * ROW_USE_WORDS * 4
       let made = false
       if (!buffer || buffer.size < bytes) {

@@ -13,7 +13,7 @@ const CATEGORY_RULES: [string, RegExp][] = [
   ],
   [
     'math',
-    /^packages\/math\/src\/|\/src\/(?:hiz|world\/(?:math|transform-tree)|runtime\/path)\/|\/world\/observed\.ts$/,
+    /^packages\/math\/src\/|\/src\/(?:hiz|world\/(?:math|transform-tree)|runtime\/path)\/|\/world\/observed\.ts$|\/scene\/core\/nodeEdits\.ts$/,
   ],
   [
     'lighting',

@@ -7,10 +7,10 @@ import assert from 'node:assert/strict'
 import {
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
+  setTreeNodeAutoUpdate,
   setNodePosition,
 } from './transformTree.ts'
-import { reparentTransformNode } from './structure.ts'
+import { reparentTreeNode } from './structure.ts'
 import { updateNodeMatrixWorld, updateNodeWorldMatrix } from './update.ts'
 
 test('updateNodeMatrixWorld: composes and copies a root local matrix, version goes to 1', () => {
@@ -50,7 +50,7 @@ test('a dirty parent propagates to descendants even if they are not marked thems
 test('matrixAutoUpdate false: without force, a never-marked node keeps its starting world matrix', () => {
   const tree = createTransformTree(4)
   const root = addTransformNode(tree)
-  setNodeAutoUpdate(tree, root, false)
+  setTreeNodeAutoUpdate(tree, root, false)
   setNodePosition(tree, root, 7, 7, 7) // pose written, but nothing reaches it without force
   updateNodeMatrixWorld(tree, root, false)
   assert.equal(tree.version[root], 0, 'never reached: no calculation')
@@ -60,7 +60,7 @@ test('matrixAutoUpdate false: without force, a never-marked node keeps its start
 test('matrixAutoUpdate false: `force=true` reaches the node a first time', () => {
   const tree = createTransformTree(4)
   const root = addTransformNode(tree)
-  setNodeAutoUpdate(tree, root, false)
+  setTreeNodeAutoUpdate(tree, root, false)
   setNodePosition(tree, root, 7, 7, 7)
   updateNodeMatrixWorld(tree, root, true)
   assert.equal(tree.version[root], 1)
@@ -107,7 +107,7 @@ test('a reparent marks the node dirty: its world matrix follows its new parent a
   const child = addTransformNode(tree, a)
   updateNodeMatrixWorld(tree, a, true)
   updateNodeMatrixWorld(tree, b, true)
-  reparentTransformNode(tree, child, b)
+  reparentTreeNode(tree, child, b)
   updateNodeMatrixWorld(tree, b, true)
   assert.equal(tree.worldViews[child][12], 100, 'the child now follows b, not a')
 })

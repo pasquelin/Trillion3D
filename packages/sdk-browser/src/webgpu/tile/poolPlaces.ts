@@ -1,11 +1,9 @@
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
 
 // The places of a tile pool (`pool.ts`): which key each holds, the free ones, the changed ones.
 
-/** A free place's owner: no key reaches it — a tail's id sets the high bit, a tile's never does. */
-const FREE = 0xffffffff
-
-/** What a pool knows of its places: per place, the key it holds — `FREE` free —, whether it is pinned
+/** What a pool knows of its places: per place, the key it holds — `NO_INDEX` free: no key reaches it, a tail's id sets the high bit, a tile's never does —, whether it is pinned
  *  and the arrival it came with; the free places; the places changed since their use words were
  *  written. */
 type Places = {
@@ -25,7 +23,7 @@ type Places = {
 
 export const placesOf = (tiles: number): Places => ({
   tiles,
-  owner: new Uint32Array(tiles).fill(FREE),
+  owner: new Uint32Array(tiles).fill(NO_INDEX),
   pinned: new Uint8Array(tiles),
   arrived: new Uint32Array(tiles),
   arrivals: 0,
@@ -40,12 +38,12 @@ function settle(places: Places) {
   const { free, owner } = places
   free.length = 0
   for (let index = places.tiles - 1; index >= 0; index--)
-    if (owner[index] === FREE) free.push(index)
+    if (owner[index] === NO_INDEX) free.push(index)
   places.freeStale = false
 }
 
 /** Whether `index` is free. */
-export const freeAt = ({ owner }: Places, index: number) => owner[index] === FREE
+export const freeAt = ({ owner }: Places, index: number) => owner[index] === NO_INDEX
 
 /** `index`, held: a free place is refused. */
 export function taken(places: Places, index: number) {
@@ -87,7 +85,7 @@ export function pin(places: Places, index: number, pinned: boolean) {
 
 export function release(places: Places, index: number) {
   taken(places, index)
-  places.owner[index] = FREE
+  places.owner[index] = NO_INDEX
   places.count--
   places.changed.mark(index)
   if (!places.freeStale) places.free.push(index)

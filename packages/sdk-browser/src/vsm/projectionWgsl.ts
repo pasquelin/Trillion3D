@@ -44,7 +44,7 @@ import {
   bitIsSet,
   bitMask,
   bitWord,
-  ceilDiv as ceilDivWgsl,
+  ceilDivWgsl,
   isFiniteWord,
   lowBits,
 } from '../../../math/src/wgsl/integer.ts'

@@ -2,7 +2,7 @@ import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
-import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -29,7 +29,7 @@ import { bitMask, bitWord, ceilDiv } from '../../../../../math/src/wgsl/integer.
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, ceilDiv, bitWord, bitMask, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  [LANE_SCAN_WGSL, ceilDivWgsl, bitWord, bitMask, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
   `const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,WORKGROUP_THREADS);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */

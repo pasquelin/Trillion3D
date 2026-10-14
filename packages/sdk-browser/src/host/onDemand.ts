@@ -2,6 +2,7 @@ import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { HTTP_ATTEMPTS, pause } from '../cluster/checked.ts'
 import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts'
 import { FAMILY_LOAD_FAILED_ID } from './familyLoadFailedId.ts'
+import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 
 /**
  * The engine's one on-demand loader: a module imported on its first use, which the
@@ -11,7 +12,8 @@ import { FAMILY_LOAD_FAILED_ID } from './familyLoadFailedId.ts'
  * the network's, worth a second try); what still fails is a `FAMILY_LOAD_FAILED` naming the
  * family, told to `refused` once per round.
  * A refusal is not kept for the session: the next ask starts a new round, once the longest wait
- * of the HTTP loader (`RETRY_AFTER_CAP_MS`) has passed since it. `get` starts the import and
+ * of the HTTP loader (`RETRY_AFTER_CAP_MS`) has passed since it on the engine's one CPU clock
+ * (`../diagnostic/stopwatch.ts`). `get` starts the import and
  * answers the module once it has arrived, `undefined` until then; `arrived` says it has;
  * `settled` waits for the round in flight and `load` for the module itself, refused as the round
  * was. A frame never reads a module that has not arrived: what uses it waits for it first
@@ -30,7 +32,7 @@ export function onDemand<M>(
     loading: Promise<void> | undefined,
     refusedAt = -Infinity
   const round = async () => {
-    const wait = refusedAt + RETRY_AFTER_CAP_MS - Date.now()
+    const wait = RETRY_AFTER_CAP_MS - msSince(refusedAt)
     if (wait > 0) await pause(wait)
     let cause: unknown
     for (let tried = 0; tried < HTTP_ATTEMPTS; tried++) {
@@ -42,7 +44,7 @@ export function onDemand<M>(
         cause = error
       }
     }
-    refusedAt = Date.now()
+    refusedAt = cpuNow()
     refusal = new EngineError(
       'FAMILY_LOAD_FAILED',
       `${FAMILY_LOAD_FAILED_ID} FAMILY_LOAD_FAILED: the ${family} family did not load after ${HTTP_ATTEMPTS} attempts: ${String(cause)}`,

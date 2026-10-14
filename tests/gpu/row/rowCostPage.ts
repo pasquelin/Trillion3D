@@ -9,7 +9,7 @@ import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { createRowEviction } from '../../../packages/sdk-browser/src/webgpu/row/rowEviction.ts'
-import { createRowWords } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
+import { createRowUseWords } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { closureScene } from './rowClosureRun.ts'
@@ -25,7 +25,7 @@ interface Sweep {
  *  (`closureScene`) —, a full table of them, each row's words its page's. */
 function rowScene(rows: number) {
   const scene = closureScene(ceilDiv(rows, 90) + 1)
-  const words = createRowWords()
+  const words = createRowUseWords()
   words.fit(scene.count)
   scene.rows.forEach((page, value) => words.assign(value - 1, page, 0))
   const clock = { frame: 10 }

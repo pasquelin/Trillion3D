@@ -18,7 +18,7 @@ import { writeRanges, type RangeTarget } from './runWrites.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
-import { setBit } from '../../../../math/src/scalar/bits.ts'
+import { lowestBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** No page of the rows moved: only the links did. */
@@ -62,7 +62,7 @@ export function createLinkFollower(
       for (let word = low >>> 5; word <= high >>> 5; word++)
         for (let bits = dirty[word]; bits; bits &= bits - 1) {
           if (count === moved.length) moved = resized(moved, count + 1)
-          moved[count++] = (word << 5) + 31 - Math.clz32(bits & -bits)
+          moved[count++] = (word << 5) + lowestBit(bits)
         }
     return (listed = count)
   }

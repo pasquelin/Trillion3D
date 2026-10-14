@@ -2,6 +2,7 @@
 // added as a child whose row the CPU writes: its flags go through the one row write, the session
 // parks or takes it from that write, and the GPU composes only roots linked to a parent it holds
 // (modelled here by the product the pass computes: its parent's world times its local).
+import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,7 +16,6 @@ import { followPlacementRows } from '../../placement/update.ts'
 import { composeWebgpuPlacements } from '../../placement/gpuCompose.ts'
 import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import { composeRuntime } from '../../placement/composeRuntime.fixture.ts'
-import { MATRIX_DOUBLES } from '../../placement/gpuComposeWgsl.ts'
 import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
 import type { Seat } from './worldBatches.ts'
 import { noModels } from './worldModels.fixture.ts'
@@ -71,7 +71,7 @@ function drawnWorld(state: ComposeState | undefined, roots: Galaxy['roots'], ran
   const slot = state?.parentOf[rank] ?? NO_INDEX
   if (slot === NO_INDEX) return roots[rank].world.elements
   for (let k = 0; k < 16; k++) {
-    const at = (rank * MATRIX_DOUBLES + k) * 2
+    const at = (rank * MATRIX_VALUES + k) * 2
     words[1] = state!.locals[at]
     words[0] = state!.locals[at + 1]
     local[k] = cell[0]

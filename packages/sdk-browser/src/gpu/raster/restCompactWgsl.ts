@@ -4,7 +4,7 @@ import { HIZ_REJECTED_WGSL, ST_TESTED } from '../partition/contract.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the tested half, between the occlusion test and the second geometry pass.
@@ -128,7 +128,7 @@ fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
     FLAT_INDEX_WGSL,
     GROUP_GRID_WGSL,
     WORKGROUP_THREADS_WGSL,
-    ceilDiv,
+    ceilDivWgsl,
     LANE_SCAN_WGSL,
   ],
 )

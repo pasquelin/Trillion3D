@@ -1,7 +1,7 @@
 import { TRANSPARENT_GROUP } from './table.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { DRAW_MASK_WGSL } from '../../gpu/dag/shader/drawMaskWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -78,5 +78,5 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  instances[groupOffsets[group]+rank]=i;
 }
 `,
-  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, ceilDiv, DRAW_MASK_WGSL],
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl, DRAW_MASK_WGSL],
 )

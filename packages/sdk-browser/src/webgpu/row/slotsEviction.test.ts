@@ -10,7 +10,7 @@ import { poolRank } from '../../gpu/pool/rank.fixture.ts'
 import { ROW_BURST } from '../../gpu/dag/readoutWords.ts'
 import { closeRows } from './rowClosure.fixture.ts'
 import { createRowOrder } from './rowOrder.ts'
-import { createRowWords, ROW_PAGE, ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
+import { createRowUseWords, ROW_PAGE, ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
 import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
 
 /** One primitive: pages 0 and 1 a group, its output page 2 the root nothing replaces. */
@@ -31,7 +31,7 @@ function scene() {
     { pageBase: 3, structure },
   ]
   const rowOf = new Map<number, number>(),
-    words = createRowWords(),
+    words = createRowUseWords(),
     use = new Uint32Array(8 * ROW_USE_WORDS)
   words.fit(8)
   const place = (row: number, page: number) => {

@@ -7,8 +7,8 @@ import { NODE_ALIVE, NODE_LOCAL_CHANGED } from './nodeFlags.ts'
 import {
   nextStamp,
   releaseTransformNode,
-  removeTransformNode,
-  reparentTransformNode,
+  removeTreeNode,
+  reparentTreeNode,
   visitSubtree,
 } from './structure.ts'
 import { updateNodeMatrixWorld } from './update.ts'
@@ -17,7 +17,7 @@ test('visitSubtree: after a reparent that inverts the indices, each parent prece
   const tree = createTransformTree(4)
   const a = addTransformNode(tree)
   const b = addTransformNode(tree) // b after a, but will become its parent
-  reparentTransformNode(tree, a, b)
+  reparentTreeNode(tree, a, b)
   const visits: number[] = []
   visitSubtree(tree, b, (_t, n) => visits.push(n))
   assert.deepEqual(visits, [b, a])
@@ -74,13 +74,13 @@ test('visitSubtree: visits the node then its descendants parents first, never it
   assert.ok(!visites.includes(root))
 })
 
-test('removeTransformNode: removes the node and its descendants, a sibling stays alive', () => {
+test('removeTreeNode: removes the node and its descendants, a sibling stays alive', () => {
   const tree = createTransformTree(8)
   const root = addTransformNode(tree)
   const branche = addTransformNode(tree, root)
   const feuille = addTransformNode(tree, branche)
   const frere = addTransformNode(tree, root)
-  removeTransformNode(tree, branche)
+  removeTreeNode(tree, branche)
   assert.equal(tree.flags[branche] & NODE_ALIVE, 0)
   assert.equal(tree.flags[feuille] & NODE_ALIVE, 0)
   assert.ok(tree.flags[frere] & NODE_ALIVE)
@@ -92,43 +92,43 @@ test('removeTransformNode: removes the node and its descendants, a sibling stays
   )
 })
 
-test('removeTransformNode: freed indices are reused, as a stack, by the next add', () => {
+test('removeTreeNode: freed indices are reused, as a stack, by the next add', () => {
   const tree = createTransformTree(4)
   const a = addTransformNode(tree)
   const b = addTransformNode(tree)
-  removeTransformNode(tree, b)
-  removeTransformNode(tree, a)
+  removeTreeNode(tree, b)
+  removeTreeNode(tree, a)
   const reutiliseA = addTransformNode(tree) // last freed, first reused (stack)
   assert.equal(reutiliseA, a)
   const reutiliseB = addTransformNode(tree)
   assert.equal(reutiliseB, b)
 })
 
-test('reparentTransformNode: changes the parent and marks NODE_LOCAL_CHANGED', () => {
+test('reparentTreeNode: changes the parent and marks NODE_LOCAL_CHANGED', () => {
   const tree = createTransformTree(4)
   const a = addTransformNode(tree)
   const b = addTransformNode(tree)
   const child = addTransformNode(tree, a)
   tree.flags[child] &= ~NODE_LOCAL_CHANGED
-  reparentTransformNode(tree, child, b)
+  reparentTreeNode(tree, child, b)
   assert.equal(tree.parent[child], b)
   assert.ok(tree.flags[child] & NODE_LOCAL_CHANGED)
 })
 
-test('reparentTransformNode: no effect if the parent is already that one (no remake)', () => {
+test('reparentTreeNode: no effect if the parent is already that one (no remake)', () => {
   const tree = createTransformTree(4)
   const a = addTransformNode(tree)
   const child = addTransformNode(tree, a)
   tree.flags[child] &= ~NODE_LOCAL_CHANGED
-  reparentTransformNode(tree, child, a)
+  reparentTreeNode(tree, child, a)
   assert.equal(tree.flags[child] & NODE_LOCAL_CHANGED, 0, 'no remake for an unchanged parent')
 })
 
-test('reparentTransformNode: throws a cycle if the new parent is the node itself or one of its descendants', () => {
+test('reparentTreeNode: throws a cycle if the new parent is the node itself or one of its descendants', () => {
   const tree = createTransformTree(4)
   const root = addTransformNode(tree)
   const child = addTransformNode(tree, root)
   const grandchild = addTransformNode(tree, child)
-  assert.throws(() => reparentTransformNode(tree, root, root), /TRANSFORM_CYCLE|cycle/)
-  assert.throws(() => reparentTransformNode(tree, root, grandchild), /TRANSFORM_CYCLE|cycle/)
+  assert.throws(() => reparentTreeNode(tree, root, root), /TRANSFORM_CYCLE|cycle/)
+  assert.throws(() => reparentTreeNode(tree, root, grandchild), /TRANSFORM_CYCLE|cycle/)
 })

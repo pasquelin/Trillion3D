@@ -2,17 +2,13 @@
  * THE COMPOSITION'S FRAME (`gpuCompose.ts`): its kernels, asked off the thread, and the links, the
  * parents' worlds and the composed roots' list sent once a frame, each only when it moved.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import {
-  COMPOSE_ROOTS_WGSL,
-  COMPOSE_WORLDS_ENTRY,
-  COMPOSE_WORLDS_WGSL,
-  MATRIX_DOUBLES,
-} from './gpuComposeWgsl.ts'
+import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
 import { sendList } from './composedRows.ts'
 import type { ComposeState } from './gpuComposeState.ts'
 import { createComposeGpu } from './gpuComposeGpu.ts'
@@ -53,11 +49,11 @@ function writeParents(state: ComposeState) {
   state.moving = false
   if (!state.parentsDirty) return false
   const count = state.slots
-  state.packed = resized(state.packed, count * MATRIX_DOUBLES * 2)
+  state.packed = resized(state.packed, count * MATRIX_VALUES * 2)
   const { worlds, previous } = state
   for (let p = 0; p < count; p++) {
     const at = p * 16
-    packDoubles(state.packed, p * MATRIX_DOUBLES * 2, worlds, at, 16)
+    packDoubles(state.packed, p * MATRIX_VALUES * 2, worlds, at, MATRIX_VALUES)
     for (let k = at; k < at + 16; k++)
       if (previous[k] !== worlds[k]) {
         state.moving = true
@@ -84,7 +80,7 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (linked) {
     // The tables are the capacity (`resized`): the roots' words alone go up.
     const roots = Math.max(1, state.roots)
-    device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * MATRIX_DOUBLES * 2)
+    device.queue.writeBuffer(gpu.locals, 0, state.locals, 0, roots * MATRIX_VALUES * 2)
     device.queue.writeBuffer(gpu.parentOf, 0, state.parentOf, 0, roots)
     state.linksDirty = false
   }
@@ -100,18 +96,18 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     state.rankList,
   )
   const count = state.slots
-  const made = !gpu.parents || gpu.parents.size < count * MATRIX_DOUBLES * 8
+  const made = !gpu.parents || gpu.parents.size < count * MATRIX_VALUES * 8
   if (made) {
     gpu.parents?.destroy()
     gpu.parents = device.createBuffer({
       label: 'Trillion3D composed parent worlds',
-      size: count * MATRIX_DOUBLES * 16,
+      size: count * MATRIX_VALUES * 16,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
     state.parentsDirty = true
   }
   if (writeParents(state))
-    device.queue.writeBuffer(gpu.parents!, 0, state.packed, 0, count * MATRIX_DOUBLES * 2)
+    device.queue.writeBuffer(gpu.parents!, 0, state.packed, 0, count * MATRIX_VALUES * 2)
   if (state.moving || linked || seeded || made) state.composedAt++
   return gpu
 }

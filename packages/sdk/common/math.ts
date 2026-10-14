@@ -15,8 +15,6 @@ export {
 export {
   addTransformNode,
   createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -114,7 +112,9 @@ export { normalMatrix3 } from '../../math/src/matrix/matrix3.ts'
 export {
   removeTransformNode,
   reparentTransformNode,
-} from '../../sdk-core/src/world/transform-tree/structure.ts'
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+} from '../../sdk-core/src/scene/core/nodeEdits.ts'
 export { sphereFromBounds } from '../../math/src/geometry/sphere.ts'
 export {
   transformDirectionsBatch,

@@ -30,7 +30,7 @@ import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** The group side of the page marks from pixels pass. */
@@ -569,6 +569,6 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
       VSM_PAGE_MARKING_WGSL,
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,
-      ceilDiv,
+      ceilDivWgsl,
     ],
   )

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { Group } from '../../world/object/object3d.ts'
 import { Light } from '../../world/light/light.ts'
 import { nodeWrites, objectEdits } from './nodeEdits.ts'
+import * as sdk from '../../index.ts'
 
 /** True when `edit` moved the count. */
 function counted(edit: () => void) {
@@ -69,4 +70,21 @@ test('nodeWrites: every field no pose hook hears moves it; a pose write does not
   node.quaternion.set(0, 1, 0, 0)
   node.visible = false // already hidden
   assert.equal(nodeWrites(), before, 'hooked poses are heard otherwise; a same value is no write')
+})
+
+test('the public node mutators are the counted ones: no edit escapes the counts', () => {
+  const tree = sdk.createTransformTree(4),
+    a = sdk.addTransformNode(tree),
+    b = sdk.addTransformNode(tree)
+  const edits: [string, () => void, boolean][] = [
+    ['reparentTransformNode', () => sdk.reparentTransformNode(tree, b, a), true],
+    ['setNodeLocalMatrix', () => sdk.setNodeLocalMatrix(tree, b, new Float64Array(16)), false],
+    ['setNodeAutoUpdate', () => sdk.setNodeAutoUpdate(tree, b, false), false],
+    ['removeTransformNode', () => sdk.removeTransformNode(tree, b), true],
+  ]
+  for (const [name, edit, renames] of edits) {
+    const writes = nodeWrites()
+    assert.equal(counted(edit), renames, name)
+    assert.notEqual(nodeWrites(), writes, name)
+  }
 })

@@ -1,3 +1,4 @@
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { BODY_INDEX, EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { JoltModule } from './joltModule.ts'
@@ -28,7 +29,7 @@ export function createTickResults(
   send: (message: FromPhysics, transfer?: Transferable[]) => void,
 ) {
   const slotOf = new Int32Array(budget.bodies),
-    stamp = new Uint32Array(budget.bodies).fill(0xffffffff),
+    stamp = new Uint32Array(budget.bodies).fill(NO_INDEX),
     befores = beforesAt(budget),
     events = eventsAt(budget)
   const soft = createSoftTick(),

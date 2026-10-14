@@ -17,8 +17,7 @@ export const ROW_MAP_HEAD = 1
 export const ROW_MAP_WGSL = wgslBlock(
   'ROW_MAP_WGSL',
   [mixWord, NO_INDEX],
-  `const ROW_MAP_EMPTY:u32=0xffffffffu;
-/** The visibility row packed page \`page\` holds, NO_INDEX for none. */
+  `/** The visibility row packed page \`page\` holds, NO_INDEX for none. */
 fn rowOfPage(page:u32)->u32{
  let slots=rowMap[0u];
  if(slots==0u){return NO_INDEX;}
@@ -26,7 +25,7 @@ fn rowOfPage(page:u32)->u32{
  for(var k=0u;k<slots;k++){
   let key=rowMap[${ROW_MAP_HEAD}u+at];
   if(key==page){return rowMap[${ROW_MAP_HEAD}u+slots+at]-1u;}
-  if(key==ROW_MAP_EMPTY){return NO_INDEX;}
+  if(key==NO_INDEX){return NO_INDEX;}
   at=(at+1u)&mask;
  }
  return NO_INDEX;

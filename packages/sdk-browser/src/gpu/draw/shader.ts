@@ -3,7 +3,7 @@ import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { bitAt, bitWord, ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { bitAt, bitWord, ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
@@ -161,7 +161,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
       LANE_SCAN_WGSL,
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
-      ceilDiv,
+      ceilDivWgsl,
       bitWord,
       bitAt,
       DRAW_MASK_WGSL,
