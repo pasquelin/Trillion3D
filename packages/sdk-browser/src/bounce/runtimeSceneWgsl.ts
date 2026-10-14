@@ -78,10 +78,15 @@ fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;}
 fn rtSpent()->bool{return rtWork>=RT_WORK||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
- let base=rtProxy.trianglesWord+index*RT_TRIANGLE_FLOATS+vertex*3u;
- return vec3f(rtFloat(base),rtFloat(base+1u),rtFloat(base+2u));
+ return rtVec(rtProxy.trianglesWord+index*RT_TRIANGLE_FLOATS+vertex*3u);
 }
-${wideNodeFns({ box: 'rtBox', child: 'rtChild', source: 'rtProxy', float: 'rtFloat' })}
+${wideNodeFns({
+  box: 'rtBox',
+  child: 'rtChild',
+  source: 'rtProxy',
+  float: 'rtFloat',
+  vec: 'rtVec',
+})}
 struct RtHit{distance:f32,placement:u32,triangle:u32,found:bool,}
 ${wideTraversal({
   name: 'rtTraceCut',
@@ -107,10 +112,8 @@ ${wideTraversal({
 fn rtWorldOf(w:u32)->mat4x4f{
  if(w>=rtProxy.instances){
   let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
-  return mat4x4f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u),0.0,
-   rtFloat(at+4u),rtFloat(at+5u),rtFloat(at+6u),0.0,
-   rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
-   rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),1.0);
+  return mat4x4f(vec4f(rtVec(at),0.0),vec4f(rtVec(at+4u),0.0),vec4f(rtVec(at+8u),0.0),
+   vec4f(rtVec(at+12u),1.0));
  }
  let l=rtWorldsLinear(w);
  return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(rtWorldsTranslation(w),1.0));

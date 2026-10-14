@@ -56,12 +56,11 @@ struct RtRadiance{color:vec3f,confidence:f32,}
 var<private> rtHitDistance:f32;
 /** A surface's words (\`runtimeLayout.ts\`): its diffuse tint and opacity, its emission and its flags. */
 struct RtSurface{tint:vec3f,opacity:f32,emission:vec3f,blended:bool,}
-fn rtSurfaceVec(at:u32)->vec3f{return vec3f(rtFloat(at),rtFloat(at+1u),rtFloat(at+2u));}
 fn rtSurfaceOf(index:u32)->RtSurface{
  let base=rtProxy.surfacesWord+index*RT_SURFACE_WORDS;
  return RtSurface(
-  rtSurfaceVec(base+RT_SURFACE_TINT),rtFloat(base+RT_SURFACE_OPACITY),
-  rtSurfaceVec(base+RT_SURFACE_EMISSION),
+  rtVec(base+RT_SURFACE_TINT),rtFloat(base+RT_SURFACE_OPACITY),
+  rtVec(base+RT_SURFACE_EMISSION),
   (rtProxy.words[base+RT_SURFACE_FLAGS]&RT_SURFACE_BLENDED)!=0u);
 }
 /** The light a hit's surface returns, seen from \`direction\`: its tint lit at the point by the lights

@@ -77,7 +77,6 @@ ${wgslConsts({
 /** x: the level's first node in \`ids\`; y: how many; z: the poses. */
 @group(0) @binding(4) var<uniform> step:vec4u;
 fn arenaFloat(word:u32)->f32{return bitcast<f32>(arena.words[word]);}
-fn arenaVec(word:u32)->vec3f{return vec3f(arenaFloat(word),arenaFloat(word+1u),arenaFloat(word+2u));}
 ${deformRecordFns(POSE_RECORD)}
 ${deformSkinFn(POSE_RECORD, {
   name: 'poseSkin',
@@ -86,7 +85,13 @@ ${deformSkinFn(POSE_RECORD, {
   weight: 'arenaFloat(corner+INFLUENCES+k)',
   joint: 'u32(arenaFloat(corner+k))',
 })}
-${wideNodeFns({ box: 'poseBox', child: 'poseChild', source: 'arena', float: 'arenaFloat' })}
+${wideNodeFns({
+  box: 'poseBox',
+  child: 'poseChild',
+  source: 'arena',
+  float: 'arenaFloat',
+  vec: 'arenaVec',
+})}
 /** The point \`rest\` of the corner whose table begins at \`corner\`, moved by the record \`a\`: the
  *  morph targets, then the blend of the corner's joints (\`deformSkinFn\`). */
 fn posePoint(a:DeformAt,corner:u32,rest:vec3f)->vec3f{

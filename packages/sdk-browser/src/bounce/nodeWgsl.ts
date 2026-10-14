@@ -11,8 +11,15 @@ import { dIsNan } from '../../../math/src/wgsl/doubleWords.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 
 /** The names a wide tree's reader is written under: its two functions, the storage variable whose
- *  `boundsWord`, `childrenWord` and `words` hold the tree, and the function reading a word as a float. */
-export type WideNodeNames = { box: string; child: string; source: string; float: string }
+ *  `boundsWord`, `childrenWord` and `words` hold the tree, the function reading a word as a float, and
+ *  the one it writes reading three consecutive words as a vector (`vec`). */
+export type WideNodeNames = {
+  box: string
+  child: string
+  source: string
+  float: string
+  vec: string
+}
 
 /**
  * The two reads of a wide tree — a node's exact bounds and the dequantized box of one of its
@@ -25,11 +32,13 @@ export const wideNodeFns = ({
   child,
   source,
   float,
-}: WideNodeNames) => `/** Exact bounds of a node, which also serve as the frame for its children's boxes. */
+  vec,
+}: WideNodeNames) => `/** The three floats from \`word\` on, a vector. */
+fn ${vec}(word:u32)->vec3f{return vec3f(${float}(word),${float}(word+1u),${float}(word+2u));}
+/** Exact bounds of a node, which also serve as the frame for its children's boxes. */
 fn ${box}(node:u32)->Box{
  let base=${source}.boundsWord+node*NODE_FLOATS;
- return Box(vec3f(${float}(base),${float}(base+1u),${float}(base+2u)),
-            vec3f(${float}(base+3u),${float}(base+4u),${float}(base+5u)));
+ return Box(${vec}(base),${vec}(base+3u));
 }
 /** A child of a node, dequantized in its parent's bounds. */
 fn ${child}(node:u32,slot:u32,frame:Box)->ProxyChild{
