@@ -55,20 +55,27 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  if(rank>=params.rootCount){return;}
  if(parentOf[rank]==NO_INDEX){return;}
  let mode=motionMode.mode;
- var world:array<u32,${MATRIX_VALUES}>;
- var held:array<u32,${MATRIX_VALUES}>;
- var same=true;
- for(var k=0u;k<${MATRIX_VALUES}u;k++){
-  world[k]=toF32(rootWorlds[rank*${MATRIX_VALUES}u+k]);
-  held[k]=previous[rank*${MATRIX_VALUES}u+k];
-  same=same&&sameWord(held[k],world[k]);
- }
  var words=array<u32,16>(0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u);
- if(mode==${MOTION_SCAN}u&&!same){
-  words=motionWords(held,world,array<vec2u,3>(motionMode.eyeX,motionMode.eyeY,motionMode.eyeZ));
- }
- if(mode==${MOTION_RESET}u||(mode==${MOTION_SCAN}u&&!same)){
-  for(var k=0u;k<${MATRIX_VALUES}u;k++){previous[rank*${MATRIX_VALUES}u+k]=world[k];}
+ // An image whose poses are not compared writes identity and reads neither world.
+ if(mode!=${MOTION_KEEP}u){
+  var world:array<u32,${MATRIX_VALUES}>;
+  for(var k=0u;k<${MATRIX_VALUES}u;k++){world[k]=toF32(rootWorlds[rank*${MATRIX_VALUES}u+k]);}
+  var taken=mode==${MOTION_RESET}u;
+  if(mode==${MOTION_SCAN}u){
+   var held:array<u32,${MATRIX_VALUES}>;
+   var same=true;
+   for(var k=0u;k<${MATRIX_VALUES}u;k++){
+    held[k]=previous[rank*${MATRIX_VALUES}u+k];
+    same=same&&sameWord(held[k],world[k]);
+   }
+   if(!same){
+    words=motionWords(held,world,array<vec2u,3>(motionMode.eyeX,motionMode.eyeY,motionMode.eyeZ));
+    taken=true;
+   }
+  }
+  if(taken){
+   for(var k=0u;k<${MATRIX_VALUES}u;k++){previous[rank*${MATRIX_VALUES}u+k]=world[k];}
+  }
  }
  for(var k=0u;k<${MATRIX_VALUES}u;k++){motion[rank*${MATRIX_VALUES}u+k]=words[k];}
 }`,
