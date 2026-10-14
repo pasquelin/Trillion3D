@@ -17,6 +17,7 @@ import {
   WHEEL_STATE_WORDS,
   WHEEL_WORDS,
 } from '../../packages/sdk-core/src/physics/vehicleLayout.ts'
+import { upper } from './printer.ts'
 import { header } from './statements.ts'
 
 const SOURCES = [
@@ -57,9 +58,6 @@ const COUNTS = {
   TORQUE_POINTS,
   MAX_GEARS,
 }
-
-/** `camelCase` as the module names it, `CAMEL_CASE`. */
-const upper = (name: string) => name.replace(/[A-Z]/g, '_$&').toUpperCase()
 
 /** The module's layout header: `Op` and `Error` with the numbers the page writes and reads, then
  *  each word count and size the layouts export. */

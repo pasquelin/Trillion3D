@@ -3,7 +3,7 @@
 // language when the source's `PUBLIC` lists it there, the printed module's own when it does not.
 import ts from 'typescript'
 import { PUBLIC, scaled } from '../../packages/sdk-browser/src/texture/coverageMath.ts'
-import { type Target, expression, snake, unsupported } from './printer.ts'
+import { type Target, expression, snake, unsupported, upper } from './printer.ts'
 import { functionsOf } from './source.ts'
 import { comment, header, statements } from './statements.ts'
 
@@ -40,7 +40,7 @@ function coverageFunctions(lang: keyof typeof PUBLIC) {
   return ordered
 }
 
-const wgslName = (name: string) => `${snake(name).toUpperCase()}_WGSL`
+const wgslName = (name: string) => `${upper(name)}_WGSL`
 
 export function coverageWgsl() {
   const blocks = coverageFunctions('wgsl').map(({ name, source, doc, params, calls, exported }) => {

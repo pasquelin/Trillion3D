@@ -37,6 +37,11 @@ export const unsupported = (node: ts.Node): never => {
 
 /** `camelCase` as `snake_case`. */
 export const snake = (name: string) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
+/** `camelCase` as `SCREAMING_CASE`: `triangleBudget` is `TRIANGLE_BUDGET`. */
+export const upper = (name: string) => snake(name).toUpperCase()
+
+/** C++'s names of JavaScript's non-finite numbers. */
+const CPP_NUMBERS: Record<string, string> = { Infinity: 'INFINITY', NaN: 'NAN' }
 
 /** Whether `node` prints as one operand, needing no parentheses before a method call. */
 const atomic = (node: ts.Expression): boolean =>
@@ -52,12 +57,13 @@ export function expression(node: ts.Expression, t: Target): string {
   if (own !== undefined) return own
   const space = t.lang === 'wgsl' ? '' : ' '
   if (ts.isNumericLiteral(node)) return t.unsigned ? `${node.getText()}u` : node.getText()
-  if (ts.isIdentifier(node)) return node.text
+  if (ts.isIdentifier(node)) return (t.lang === 'cpp' && CPP_NUMBERS[node.text]) || node.text
   if (ts.isParenthesizedExpression(node)) return `(${expression(node.expression, t)})`
   if (ts.isPrefixUnaryExpression(node))
     return `${ts.tokenToString(node.operator)}${expression(node.operand, t)}`
   if (ts.isBinaryExpression(node)) {
-    const op = node.operatorToken.getText()
+    // Every target compares without JavaScript's coercion: its strict operators are their own.
+    const op = node.operatorToken.getText().replace(/^([!=]=)=$/, '$1')
     return `${expression(node.left, t)}${space}${op}${space}${expression(node.right, t)}`
   }
   if (ts.isElementAccessExpression(node)) {
@@ -108,6 +114,9 @@ function call(node: ts.CallExpression, t: Target): string {
     if (t.lang === 'wgsl') return `${name}(${printed()})`
     return t.lang === 'cpp' ? `std::${name}(${printed()})` : `${expression(args[0], t)}.${name}()`
   }
+  // C++'s are of doubles: `std::fabs`, `std::sqrt`.
+  if (t.lang === 'cpp' && (callee === 'Math.abs' || callee === 'Math.sqrt'))
+    return `std::${callee === 'Math.abs' ? 'fabs' : 'sqrt'}(${printed()})`
   if (!ts.isIdentifier(node.expression)) return unsupported(node)
   return `${t.call ? t.call(callee) : callee}(${printed()})`
 }
