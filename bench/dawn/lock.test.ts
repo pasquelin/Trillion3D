@@ -4,7 +4,8 @@ import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
-import { LOCK_OWNER, benchAlive, lockHolder, takeBenchLock, waitBenchLock } from './lock.ts'
+import { LOCK_OWNER, benchAlive, takeBenchLock, waitBenchLock } from './lock.ts'
+import { lockHolder } from '../../scripts/machine-lock.ts'
 
 const scratch = () => join(mkdtempSync(join(tmpdir(), 'bench-lock-')), 'gpu-bench.lock')
 

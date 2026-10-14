@@ -1,14 +1,15 @@
-import { mkdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { readJson } from './repository-files.ts'
 import { git } from './git-paths.ts'
+import { processAlive, tryLock } from './machine-lock.ts'
 
 // The heavy local steps (a test run, `build`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
 // otherwise start dozens of processes together. The lock is a file in the main checkout's
-// `.worktrees/logs/`, which every worktree shares; a lock whose process is dead is taken over. The
-// CI runs each job on its own machine, and takes no lock.
+// `.worktrees/logs/`, which every worktree shares, taken as every machine lock is
+// (`scripts/machine-lock.ts`): a lock whose process is dead is taken over. The CI runs each job on
+// its own machine, and takes no lock.
 
 /** Environment variable a lock holder passes to its children, so a nested heavy step runs inside it. */
 const HELD = 'TRILLION3D_HEAVY_LOCK'
@@ -28,85 +29,29 @@ export function heavyLockPath(cwd = process.cwd()): string | undefined {
   }
 }
 
-function alive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
-
-function holder(path: string): { pid: number; step: string; cwd: string } | undefined {
-  try {
-    return readJson(path)
-  } catch {
-    return undefined
-  }
-}
-
-/** A takeover guard older than this was left by a process killed inside its few file operations. */
-const GUARD_STALE_MS = 10_000
-
-/**
- * Removes the lock at `path` if it is still the dead process `dead`'s. One waiter at a time holds
- * the guard file beside the lock; under it the lock is read again and removed only if it is the
- * dead one's. A live lock is never moved or removed, so it is never absent while it is held, and
- * nobody can create the lock between the check and the removal (the dead lock is still there).
- */
-export function takeOver(path: string, dead: number): void {
-  const guard = `${path}.takeover`
-  try {
-    writeFileSync(guard, String(process.pid), { flag: 'wx' })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-    try {
-      if (Date.now() - statSync(guard).mtimeMs > GUARD_STALE_MS) unlinkSync(guard)
-    } catch {
-      // the guard was released meanwhile
-    }
-    return
-  }
-  try {
-    if (holder(path)?.pid === dead) unlinkSync(path)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-  } finally {
-    unlinkSync(guard)
-  }
-}
-
 const pause = new Int32Array(new SharedArrayBuffer(4))
 
 /** Takes the lock at `path`, waiting while a live process holds it; returns the release. */
 export function acquireHeavyLock(path: string, step: string, pollMs = 500): () => void {
-  mkdirSync(dirname(path), { recursive: true })
-  const record = JSON.stringify({ pid: process.pid, step, cwd: process.cwd() })
+  const holder = { pid: process.pid, step, cwd: process.cwd() }
   let told = false
   for (;;) {
-    try {
-      writeFileSync(path, record, { flag: 'wx' })
-      break
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    const taken = tryLock(path, holder, processAlive)
+    if (taken && 'release' in taken) {
+      const release = (): void => {
+        taken.release()
+        process.off('exit', release)
+      }
+      process.on('exit', release)
+      return release
     }
-    const current = holder(path)
-    if (current && !alive(current.pid)) {
-      takeOver(path, current.pid)
-      continue
-    }
-    if (!told && current) {
+    if (!told && taken) {
+      const current = taken.holder
       console.log(`Waiting for ${current.step} (pid ${current.pid}, ${current.cwd}).`)
       told = true
     }
     Atomics.wait(pause, 0, 0, pollMs)
   }
-  const release = (): void => {
-    if (holder(path)?.pid === process.pid) unlinkSync(path)
-    process.off('exit', release)
-  }
-  process.on('exit', release)
-  return release
 }
 
 /**
