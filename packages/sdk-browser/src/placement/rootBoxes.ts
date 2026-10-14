@@ -2,8 +2,8 @@
  * THE ROOT BOXES PASS ON THE GPU (`rootBoxesWgsl.ts`): each root whose world moved has its world box
  * and its stretch derived from the world the GPU holds — the roots a send moved (`takeMoved`),
  * every root after a whole send, and the roots a parent composes once the compose worlds pass wrote
- * their worlds anew. It runs in the roots' command buffer before every cut (`rootPasses.ts`), after
- * the composition's passes: the cut reads the stretches, the rows pass the boxes. A move costs the
+ * their worlds anew. It runs in the roots' one compute pass before every cut (`rootPasses.ts`),
+ * after the composition's dispatches: the cut reads the stretches, the rows pass the boxes. A move costs the
  * CPU no box and no stretch, and the list of the roots it moved alone.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
