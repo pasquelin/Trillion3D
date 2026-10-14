@@ -5,7 +5,7 @@
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { POOL_RANKS } from './rank.ts'
-import { POOL_SORT_BOUND } from './sort.ts'
+import { POOL_SORT_BOUND } from './sortWords.ts'
 
 const LANES = 256,
   THREADS = 64

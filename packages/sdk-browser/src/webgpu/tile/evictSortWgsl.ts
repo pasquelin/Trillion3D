@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../gpu/pool/sortWgsl.ts'
-import { POOL_SORT_WORDS } from '../../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS } from '../../gpu/pool/sortWords.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { TILE_PLACE_WORD_WGSL, TILE_UNRANKED } from './slotUse.ts'
 

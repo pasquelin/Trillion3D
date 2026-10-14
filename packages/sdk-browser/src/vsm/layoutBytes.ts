@@ -11,7 +11,7 @@ import {
   VSM_TILE_DEPTHS_PER_PAGE,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sortWords.ts'
 import { alignUp, ceilDiv, floorLog2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { VsmLayout } from './layout.ts'

@@ -10,7 +10,7 @@ import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { POOL_RANKS } from '../gpu/pool/rank.ts'
 import { ageStep } from '../gpu/pool/rank.fixture.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sortWords.ts'
 import { runPoolSort } from '../gpu/pool/sortRun.fixture.ts'
 
 const CODE = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 })).poolCount.code

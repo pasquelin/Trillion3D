@@ -47,6 +47,7 @@ const NOT_IN_CORE = {
 const SHADOW_SIZES = [
   'sdk-browser/src/vsm/constants.js',
   'sdk-browser/src/vsm/layout.js',
+  'sdk-browser/src/vsm/layoutBytes.js',
   'sdk-browser/src/vsm/transmissionLayout.js',
 ]
 

@@ -1,7 +1,7 @@
 import { KEY_PAGE_BITS } from '../evict.ts'
 import { EVICT_IN_USE, OLD_STEP, POOL_RANKS, POOL_TIERS } from '../../pool/rank.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../pool/sortWgsl.ts'
-import { POOL_SORT_WORDS } from '../../pool/sort.ts'
+import { POOL_SORT_WORDS } from '../../pool/sortWords.ts'
 import { EVICTION_BURST } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 

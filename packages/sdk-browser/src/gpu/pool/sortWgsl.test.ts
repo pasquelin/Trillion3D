@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { POOL_SORT_WGSL } from './sortWgsl.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from './sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from './sortWords.ts'
 import { POOL_RANKS } from './rank.ts'
 import { sortPool } from './sort.fixture.ts'
 import { runPoolSort } from './sortRun.fixture.ts'

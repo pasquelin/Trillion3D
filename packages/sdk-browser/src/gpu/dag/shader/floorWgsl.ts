@@ -83,7 +83,7 @@ export const WORK_BLOCK_WORDS = 2 + (2 * WORKGROUP_THREADS) / 32
 
 import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../../pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../../pool/sortWords.ts'
 import { SELECTION_LIST_CAP } from '../layout.ts'
 import { EVICTION_BURST } from '../readoutWords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'

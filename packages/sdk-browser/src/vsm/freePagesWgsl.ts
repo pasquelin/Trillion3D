@@ -15,7 +15,7 @@
  * scratch over the pool's pages (`poolScratchWords`).
  */
 import { POOL_AGES } from '../gpu/pool/rank.ts'
-import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS } from '../gpu/pool/sortWords.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../gpu/pool/sortWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
