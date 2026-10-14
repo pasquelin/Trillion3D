@@ -1,4 +1,5 @@
 import type { AssetScope, PreparationProgress } from '../../../sdk-core/src/contracts/base.ts'
+import type { Simplification } from '../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
 import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
 
@@ -61,7 +62,7 @@ export interface CompilerEvent {
   /** The compiler program to run. */ executable?: string
   /** Threads the compiler may use. @defaultValue 2 */ threads?: number
   /** Memory the compiler may use, in MB. @defaultValue 256 */ ramBudgetMb?: number
-  /** How meshes are simplified. @defaultValue 'none' */ simplification?: 'none' | 'qem-endpoints'
+  /** How meshes are simplified. @defaultValue 'none' */ simplification?: Simplification
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -120,16 +121,15 @@ export interface CompilationPointer extends CompilationSummary {
   [key: string]: unknown
 }
 
-/** One model in a batch. */ export interface BatchJob {
+/** One model in a batch: the fields of one compile job (`JOB_FIELDS`), named as a single job names
+ *  them; its scope defaults to `'full'`. */
+export interface BatchJob extends Pick<
+  CompilationJobOptions,
+  'resourceBaseUrl' | 'scope' | 'triangleBudget' | 'threads' | 'ramBudgetMb' | 'simplification'
+> {
   /** Its name. */ id?: string
   /** The source file. */ source: string
   /** The cache folder. */ cache: string
-  /** Resource address. */ resourceBaseUrl: string
-  /** Full or streamed. */ scope?: AssetScope
-  /** Triangle budget. */ triangles?: number
-  /** Threads. */ threads?: number
-  /** Memory, in MB. */ ramBudgetMb?: number
-  /** Simplification. */ simplification?: 'none' | 'qem-endpoints'
 }
 
 /** How a batch runs. */ export interface BatchOptions {

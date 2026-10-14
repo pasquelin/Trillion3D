@@ -5,23 +5,9 @@ use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use trillion3d_compiler::{
     compiler_budget::{batch_share, fit_workers},
-    texture_formats, Options, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS, DEFAULT_TRIANGLE_BUDGET,
-    TEXTURE_FORMAT_DEFAULT,
+    job_field, job_options, positive, JobDefaults, Options, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS,
 };
 
-fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
-    match value {
-        None | Some(Value::Null) => Ok(default),
-        Some(v) => v
-            .as_u64()
-            .filter(|n| *n > 0)
-            .map(|n| n as usize)
-            .ok_or_else(|| format!("{v} is not a positive integer")),
-    }
-}
-fn text<'a>(value: Option<&'a Value>, default: &'a str) -> &'a str {
-    value.and_then(Value::as_str).unwrap_or(default)
-}
 /// Identity of a destination, whether it already exists or not. `canonicalize`
 /// alone fails on a missing folder and then returns the raw text: `x` and `p/../x`
 /// would pass as two caches. Resolution is therefore two-step. First the path
@@ -62,19 +48,33 @@ fn cache_identity(path: &Path) -> PathBuf {
         }
     }
 }
-/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangles":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..}]}`.
+/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangleBudget":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..,"texturesFormat":..}]}`,
+/// each job read by `job_options`, as the command line's one job is; a job's scope defaults to `full`.
 /// Per-job RAM defaults to the batch budget divided by the admitted concurrency, which is itself
 /// lowered until the jobs running at the same time fit in that budget.
 pub(super) fn parse_batch(
     spec: &Value,
     cancellation: &Cancellation,
 ) -> Result<(usize, Vec<(String, Options)>), String> {
-    let workers = number(spec.get("workers"), 1)?.min(64);
-    let ram_total = number(spec.get("ramBudgetMb"), DEFAULT_RAM_BUDGET_MB * workers)?;
-    let default_threads = number(spec.get("threads"), DEFAULT_THREADS)?;
+    let workers = positive(spec.get("workers"), 1, "workers")?.min(64);
+    let ram_total = positive(
+        spec.get(job_field::RAM_BUDGET_MB),
+        DEFAULT_RAM_BUDGET_MB * workers,
+        job_field::RAM_BUDGET_MB,
+    )?;
+    let threads = positive(
+        spec.get(job_field::THREADS),
+        DEFAULT_THREADS,
+        job_field::THREADS,
+    )?;
     // Announced concurrency is admitted only if the total can carry it: a share
     // never goes below a job's floor, so it is the worker count that yields.
-    let (workers, default_ram) = batch_share(workers, ram_total)?;
+    let (workers, ram_budget_mb) = batch_share(workers, ram_total)?;
+    let defaults = JobDefaults {
+        scope: "full",
+        threads,
+        ram_budget_mb,
+    };
     let jobs = spec
         .get("jobs")
         .and_then(Value::as_array)
@@ -86,50 +86,31 @@ pub(super) fn parse_batch(
     let mut seen = std::collections::HashSet::new();
     let mut caches = std::collections::HashMap::new();
     for (i, job) in jobs.iter().enumerate() {
-        let id = text(job.get("id"), "").to_string();
+        let id = job.get("id").and_then(Value::as_str).unwrap_or("");
         let id = if id.is_empty() {
             format!("job-{i}")
         } else {
-            id
+            id.to_string()
         };
         if !seen.insert(id.clone()) {
             return Err(format!("duplicate job id {id}"));
         }
-        let source = text(job.get("source"), "");
-        let cache = text(job.get("cache"), "");
-        let resource_base = text(job.get("resourceBaseUrl"), "");
-        if source.is_empty() || cache.is_empty() || resource_base.is_empty() {
-            return Err(format!(
-                "job {id}: source, cache and resourceBaseUrl are required"
-            ));
-        }
+        let options = job
+            .as_object()
+            .ok_or_else(|| "a job must be an object".to_string())
+            .and_then(|job| job_options(job, &defaults, cancellation.flag(&id)))
+            .map_err(|e| format!("job {id}: {e}"))?;
         // One cache holds one pointer per scope and prunes itself after each job: two jobs writing
         // it, under whatever spelling, would destroy each other's output.
-        if let Some(other) = caches.insert(cache_identity(Path::new(cache)), (id.clone(), cache)) {
+        let cache = options.cache.to_string_lossy().into_owned();
+        if let Some(other) =
+            caches.insert(cache_identity(&options.cache), (id.clone(), cache.clone()))
+        {
             return Err(format!(
                 "job {id}: cache {cache} is the directory that job {} already writes as {}",
                 other.0, other.1
             ));
         }
-        let field = |name: &str, default: usize| {
-            number(job.get(name), default).map_err(|e| format!("job {id}: {name} {e}"))
-        };
-        let options = Options {
-            source: PathBuf::from(source),
-            cache: PathBuf::from(cache),
-            resource_base: resource_base.to_string(),
-            scope: text(job.get("scope"), "full").to_string(),
-            triangle_budget: field("triangles", DEFAULT_TRIANGLE_BUDGET)?,
-            threads: field("threads", default_threads)?,
-            ram_budget_mb: field("ramBudgetMb", default_ram)?,
-            simplification: text(job.get("simplification"), "none").to_string(),
-            texture_formats: texture_formats(text(
-                job.get("texturesFormat"),
-                TEXTURE_FORMAT_DEFAULT,
-            ))
-            .map_err(|e| format!("job {id}: {e}"))?,
-            cancelled: cancellation.flag(&id),
-        };
         parsed.push((id, options));
     }
     // Shares that jobs themselves request enter the same total: the greediest

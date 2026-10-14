@@ -165,7 +165,7 @@ mod shared_math_tests;
 mod tests;
 use compiler_accessor_create::*;
 use compiler_accessor_types::*;
-pub use compiler_args::{parse_compiler_args, texture_formats, TEXTURE_FORMAT_DEFAULT};
+pub use compiler_args::{job_options, parse_compiler_args, positive, JobDefaults};
 use compiler_buffers::*;
 pub use compiler_build::compile;
 use compiler_bundle_dependencies::*;

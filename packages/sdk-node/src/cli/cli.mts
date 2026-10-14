@@ -4,9 +4,16 @@ import { createTerminalProgress } from './progress.mts'
 import { compilerError, describeMessage, messageOf } from '../messages/catalogue.mts'
 import { messageTally } from './messageTally.mts'
 import {
+  ASSET_SCOPES,
+  DEFAULT_SCOPE,
+  type AssetScope,
+} from '../../../sdk-core/src/contracts/base.ts'
+import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
+  SIMPLIFICATIONS,
+  type Simplification,
 } from '../../../sdk-core/src/contracts/compilerAbi.ts'
 
 /** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
@@ -17,26 +24,30 @@ const flags = new Set(argv.filter((arg) => arg.startsWith('--')))
 const [
   input,
   output,
-  scope = 'slice',
+  scope = DEFAULT_SCOPE,
   budget = String(DEFAULT_TRIANGLE_BUDGET),
   resourceBaseUrl,
   threads = String(DEFAULT_THREADS),
   ramBudgetMb = String(DEFAULT_RAM_BUDGET_MB),
-  simplification = 'none',
+  simplification = SIMPLIFICATIONS[0],
 ] = argv.filter((arg) => !arg.startsWith('--'))
 const triangleBudget = Number(budget)
 const unknown = [...flags].filter((flag) => !FLAGS.has(flag))
 if (!input || !output || !resourceBaseUrl || unknown.length)
   throw compilerError(
     'INVALID_ARGS',
-    'usage: trillion3d-compile [--strict] [--verbose] SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
+    `usage: trillion3d-compile [--strict] [--verbose] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
   )
-if (scope !== 'slice' && scope !== 'full')
-  throw compilerError('INVALID_OPTIONS', 'scope must be slice or full')
+const isScope = (word: string): word is AssetScope =>
+  (ASSET_SCOPES as readonly string[]).includes(word)
+const isSimplification = (word: string): word is Simplification =>
+  (SIMPLIFICATIONS as readonly string[]).includes(word)
+if (!isScope(scope))
+  throw compilerError('INVALID_OPTIONS', `scope must be ${ASSET_SCOPES.join(' or ')}`)
 if (!Number.isSafeInteger(triangleBudget) || triangleBudget < 1)
-  throw compilerError('INVALID_OPTIONS', 'triangle-budget must be a positive integer')
-if (simplification !== 'none' && simplification !== 'qem-endpoints')
-  throw compilerError('INVALID_OPTIONS', 'simplification must be none or qem-endpoints')
+  throw compilerError('INVALID_OPTIONS', 'triangleBudget must be a positive integer')
+if (!isSimplification(simplification))
+  throw compilerError('INVALID_OPTIONS', `simplification must be ${SIMPLIFICATIONS.join(' or ')}`)
 const [strict, verbose] = [flags.has('--strict'), flags.has('--verbose')]
 const controller = new AbortController()
 process.once('SIGINT', () => controller.abort())

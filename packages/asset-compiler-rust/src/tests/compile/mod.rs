@@ -10,6 +10,7 @@ pub(in crate::tests) mod dag_dependency_scenes;
 pub(in crate::tests) mod impostor_bake;
 pub(in crate::tests) mod indices_runtime;
 pub(in crate::tests) mod inputs;
+pub(in crate::tests) mod job_args;
 pub(in crate::tests) mod job_measures;
 pub(in crate::tests) mod mesh_share;
 pub(in crate::tests) mod mesh_share_compile;

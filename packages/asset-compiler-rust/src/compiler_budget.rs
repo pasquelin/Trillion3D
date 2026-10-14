@@ -5,22 +5,19 @@
 //! not bound the process, and occupied memory is not measured. It still has to
 //! count what it commits: two workers each given the floor share must not commit
 //! twice that share, whatever total the batch announced.
-use crate::Options;
+use crate::{Options, MIN_RAM_BUDGET_MB};
 pub mod waves;
-
-/// Share under which a job has not enough to decode the smallest scene.
-pub const MIN_JOB_RAM_MB: usize = 64;
 
 /// Concurrency a total budget can hold, and the share then given to a job that
 /// does not request one. A total under a single job's floor is refused: nothing
 /// would fit.
 pub fn batch_share(workers: usize, ram_total_mb: usize) -> Result<(usize, usize), String> {
-    if ram_total_mb < MIN_JOB_RAM_MB {
+    if ram_total_mb < MIN_RAM_BUDGET_MB {
         return Err(format!(
-            "ramBudgetMb {ram_total_mb} is below the {MIN_JOB_RAM_MB} MiB one job needs"
+            "ramBudgetMb {ram_total_mb} is below the {MIN_RAM_BUDGET_MB} MiB one job needs"
         ));
     }
-    let admitted = workers.max(1).min(ram_total_mb / MIN_JOB_RAM_MB);
+    let admitted = workers.max(1).min(ram_total_mb / MIN_RAM_BUDGET_MB);
     Ok((admitted, ram_total_mb / admitted))
 }
 

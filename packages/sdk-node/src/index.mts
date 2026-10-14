@@ -48,6 +48,9 @@ import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
+  JOB_FIELDS,
+  SIMPLIFICATIONS,
+  type JobField,
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
 export { reviewCutouts } from './cutout/review.mts'
@@ -70,16 +73,18 @@ export async function prepare(
 ): Promise<CompilationResult> {
   if (typeof options?.resourceBaseUrl !== 'string' || !options.resourceBaseUrl)
     throw compilerError('INVALID_OPTIONS', 'resourceBaseUrl is required')
-  const args = [
-    input,
-    output,
+  // The compiler's command line takes the job's fields in the order `JOB_FIELDS` declares.
+  const job: Record<JobField, string> = {
+    source: input,
+    cache: output,
     scope,
-    String(budget),
-    String(options.threads ?? DEFAULT_THREADS),
-    String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
-    options.resourceBaseUrl,
-    options.simplification ?? 'none',
-  ]
+    triangleBudget: String(budget),
+    threads: String(options.threads ?? DEFAULT_THREADS),
+    ramBudgetMb: String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
+    resourceBaseUrl: options.resourceBaseUrl,
+    simplification: options.simplification ?? SIMPLIFICATIONS[0],
+  }
+  const args = JOB_FIELDS.map((field) => job[field])
   const pointer = await runCompiler<CompilationPointer | CompilerRefusal>(
     args,
     options,
