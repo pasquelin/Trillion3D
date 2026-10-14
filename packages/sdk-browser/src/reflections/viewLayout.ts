@@ -16,8 +16,7 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    spans under an orthographic projection (`z`), and whether the projection is a perspective
  *    (`w`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
- *    depth and the radiance pyramid an earlier image of this view) and this image's drawn size
- *    (`yz`);
+ *    depth and the radiance pyramid an earlier image of this view);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,

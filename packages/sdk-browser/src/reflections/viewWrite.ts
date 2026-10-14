@@ -25,8 +25,8 @@ export type ReflectionFrame = {
 
 /**
  * The writer of a view uniform `buffer`: it stages this image's view — the view-projection, the
- * radiance image's view-projection, drawn size and top level (`levels` − 1), this
- * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
+ * radiance image's view-projection, drawn size and top level (`levels` − 1), the geometry of a
+ * surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
  * is traced, the resident proxy's error, whether the trace answers the transparents' front
@@ -50,8 +50,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     staged[REFLECTION_VIEW_AT.radiance + 2] = levels - 1
     staged.set(screenSlab(m, height), REFLECTION_VIEW_AT.slab)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
-    traced[1] = frame.size[0]
-    traced[2] = frame.size[1]
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0
