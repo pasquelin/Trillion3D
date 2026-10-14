@@ -3,8 +3,6 @@
  * one compute pass, whose command buffer goes before every cut (`rootPasses.ts`): what they write
  * is on the GPU before the root boxes, the tree's leaves, the cut and the rows read it.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { composeGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
 import { composeKernels, frameParents } from './gpuComposeFrame.ts'
@@ -12,6 +10,7 @@ import { writePassParams } from '../gpu/core/passParams.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
 import type { OpenPass } from '../gpu/core/lazyComputePass.ts'
 import { rootEntries, worldEntries } from './gpuComposeEntries.ts'
+import { dispatchGroup } from './rootListPass.ts'
 
 /** `pipeline` over `held`'s group, a thread each of the `listed` roots, into the roots' pass. */
 function dispatchListed(
@@ -21,11 +20,8 @@ function dispatchListed(
   held: HeldGroup,
   listed: number,
 ) {
-  const pass = open.pass
-  pass.setPipeline(pipeline)
-  pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
-  rt.run.gpuComputeDispatches++
+  open.pass.setPipeline(pipeline)
+  dispatchGroup(rt, open.pass, held, listed)
 }
 
 /**

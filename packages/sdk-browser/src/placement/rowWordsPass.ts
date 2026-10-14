@@ -8,10 +8,7 @@
  * CPU named for a shadow change where it stands (`ROW_STALES`) appends the box of the sphere it
  * holds before its thread derives it; while every row is derived, those rows' list goes first.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
-import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import {
@@ -23,15 +20,9 @@ import {
   PART_SPHERES,
 } from './rowWordsWgsl.ts'
 import { composeGroup } from '../webgpu/core/bindIdentity.ts'
-import {
-  castsBound,
-  createRowWordsGpu,
-  partsMoved,
-  rowEntries,
-  type RowWordsGpu,
-} from './rowWordsGpu.ts'
+import { castsBound, createRowWordsGpu, partsMoved, rowEntries } from './rowWordsGpu.ts'
+import { dispatchGroup, sendWords } from './rootListPass.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
-import type { RowWords } from './rowWords.ts'
 import { partsMadeAnew, targetsTaken } from './rowTargets.ts'
 import { writeMovedRoots } from './rootPasses.ts'
 import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
@@ -43,13 +34,6 @@ const rowsKernel = autoKernel(COMPOSE_ROWS_PASS, DERIVE_ROWS_WGSL, DERIVE_ROWS_E
  *  (`../webgpu/frame/framePipelines.ts`). */
 export function askRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (rt.layout.rows.casterSlots) rowsKernel(device).ask()
-}
-
-/** The rows the CPU named, sent; a list made again when they outgrow it. */
-function sendTargets(device: GPUDevice, gpu: RowWordsGpu, state: RowWords) {
-  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  gpu.list = sizedBuffer(device, gpu.list, state.count * 4, usage, 'Trillion3D rows pass list')
-  device.queue.writeBuffer(gpu.list, 0, state.targets, 0, state.count)
 }
 
 /** The rows of the composed roots the pass derives this frame: all of them on the first frame
@@ -71,9 +55,14 @@ function dispatch(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   pass: GPUComputePassEncoder,
-  { gpu, pipeline, g, listed, all, emitAll }: RowDispatch,
+  pipeline: GPUComputePipeline,
+  g: number,
+  listed: number,
+  all: boolean,
+  emitAll: boolean,
 ) {
-  const words = gpu.words[g]
+  const gpu = rt.rowWords!.gpu!,
+    words = gpu.words[g]
   words[0] = rt.layout.selectionRoots.length
   words[1] =
     (gpu.frame[0] ? PART_SPHERES : 0) |
@@ -87,17 +76,7 @@ function dispatch(
   const held = gpu.groups[g]
   held.identity.entries[0] ??= rowEntries(rt, gpu, g)
   composeGroup(device, held, pipeline)
-  pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
-  rt.run.gpuComputeDispatches++
-}
-type RowDispatch = {
-  gpu: RowWordsGpu
-  pipeline: GPUComputePipeline
-  g: number
-  listed: number
-  all: boolean
-  emitAll: boolean
+  dispatchGroup(rt, pass, held, listed)
 }
 
 /**
@@ -132,7 +111,8 @@ export function encodeRowWords(
     listed = all ? rows.casterSlots : state.count,
     staledFirst = all && state.stales > 0
   if (!listed && !composed) return
-  if (state.count && (!all || staledFirst)) sendTargets(device, gpu, state)
+  if (state.count && (!all || staledFirst))
+    gpu.list = sendWords(device, gpu.list, state.targets, state.count, 'Trillion3D rows pass list')
   const casts = castsBound(rt) ? rt.lights.casts : undefined
   if (casts) {
     const asked = 2 * ((all ? 0 : composed) + state.emits) + state.stales
@@ -141,12 +121,10 @@ export function encodeRowWords(
   const pipeline = rowsKernel(device).get()
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)
-  const run = { gpu, pipeline, all: false, emitAll: true }
-  if (composed && !all) dispatch(rt, device, pass, { ...run, g: 1, listed: composed })
+  if (composed && !all) dispatch(rt, device, pass, pipeline, 1, composed, false, true)
   // Every row derived: the staled rows' list first, every change asked, as the whole pass asks.
-  if (staledFirst) dispatch(rt, device, pass, { ...run, g: 0, listed: state.count })
-  if (listed)
-    dispatch(rt, device, pass, { ...run, g: staledFirst ? 1 : 0, listed, all, emitAll: all })
+  if (staledFirst) dispatch(rt, device, pass, pipeline, 0, state.count, false, true)
+  if (listed) dispatch(rt, device, pass, pipeline, staledFirst ? 1 : 0, listed, all, all)
   pass.end()
   targetsTaken(state, encoder)
 }

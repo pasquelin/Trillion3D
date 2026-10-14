@@ -4,14 +4,13 @@
  * temporal pass decides this image: the motion it bound is written here, after the decision
  * (`decideComposedMotion`), so the uniform it reads is the decided one, in queue order.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { composeGroup } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_MOTION_PASS } from '../stage/passLabels.ts'
 import { decideComposedMotion, MOTION_KEEP, MOTION_RESET, MOTION_SCAN } from './composedMotion.ts'
 import { composeKernels } from './gpuComposeFrame.ts'
 import { motionEntries } from './gpuComposeEntries.ts'
+import { dispatchGroup } from './rootListPass.ts'
 
 /**
  * The temporal pass's decision for the linked roots' motion — a restart without `history`, a
@@ -40,8 +39,6 @@ export function encodeComposedMotion(
   composeGroup(device, held, pipeline)
   const pass = encoder.beginComputePass({ label: COMPOSE_MOTION_PASS })
   pass.setPipeline(pipeline)
-  pass.setBindGroup(0, held.group!)
-  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
+  dispatchGroup(rt, pass, held, listed)
   pass.end()
-  rt.run.gpuComputeDispatches++
 }
