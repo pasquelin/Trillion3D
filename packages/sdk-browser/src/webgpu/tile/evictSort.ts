@@ -106,7 +106,7 @@ export function createTileEvictions(device: GPUDevice) {
       let sorted = 0
       for (let q = 0; q < TILE_QUEUES; q++) {
         if (stamped) stampedSince[q] = 1
-        const { slotUse } = atlases[Math.floor(q / lanes)] ?? {},
+        const slotUse = atlases[Math.floor(q / lanes)]?.slotUse,
           pool = slotUse?.pools[q % lanes]
         record.pools[q] = undefined
         if (!slotUse || !pool || pool.tiles - pool.resident >= TILE_BURST) continue
