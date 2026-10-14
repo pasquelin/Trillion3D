@@ -5,11 +5,13 @@ import type { BlendGpuItem } from '../blend/state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
-/** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
- *  never spans two items and the per-item prefix is a walk over whole groups. */
-export const TRANSPARENT_GROUP = 64
+/** Entries one counting group of the compaction covers, a lane each of one workgroup. Item ranges
+ *  are aligned on it, so a group never spans two items and the per-item prefix is a walk over whole
+ *  groups. */
+export const TRANSPARENT_GROUP = WORKGROUP_THREADS
 
 export type TransparentTable = ReturnType<typeof transparentTable>
 
