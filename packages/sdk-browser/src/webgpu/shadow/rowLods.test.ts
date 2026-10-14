@@ -104,7 +104,7 @@ function scene() {
     timing: { encodeCounts: { rowsUploaded: 0 } },
     vis: {
       pageTable: device.createBuffer({ size: ROWS * PAGE_INFO_STRIDE, usage }),
-      materialTable: { pending: false },
+      materialTable: { viewFor: () => undefined },
     },
     gpu: { device },
   } as unknown as WebgpuPagesRuntime

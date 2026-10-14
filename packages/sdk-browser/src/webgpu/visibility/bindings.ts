@@ -43,6 +43,6 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime) {
   // The records the rows wrote go up before a group names their texture.
   const { materialTable } = rt.vis,
     device = rt.gpu.device
-  if (materialTable.pending && device) materialTable.upload(device)
+  if (device) materialTable.viewFor(device)
   voidStaleVisibilityGroups(rt)
 }

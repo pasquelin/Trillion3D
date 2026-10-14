@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout,
     { materialTable } = rt.vis
-  if (materialTable.pending && rt.gpu.device) materialTable.upload(rt.gpu.device)
+  if (rt.gpu.device) materialTable.viewFor(rt.gpu.device)
   rt.timing.encodeCounts.rowsUploaded = 0
   if (!rows.dirtyCount || !rt.vis.pageTable || !rows.pageTableFloats) return
   rows.forEachDirtyRun(rt, uploadRun)

@@ -64,13 +64,10 @@ export function createMaterialTable() {
       p.epoch++
       p.forgotten = true
     },
-    /** Whether `upload` has records to send, or no texture yet. */
-    get pending() {
-      return p.written.from <= p.written.to || !p.records
-    },
     /** The view the passes bind, its texture made or grown to hold every record, and the records
-     *  written since the last upload sent up. */
-    upload: (device: GPUDevice) => uploadMaterials(p, device),
+     *  written since the last call sent up — nothing sent when none was: the one call every pass
+     *  makes before a group names the texture (`uploadMaterials`). */
+    viewFor: (device: GPUDevice) => uploadMaterials(p, device),
     /** The device's resources gone: the texture dropped, and the writes no longer followed — the
      *  records of the surfaces read after are written as their versions say. */
     dispose() {

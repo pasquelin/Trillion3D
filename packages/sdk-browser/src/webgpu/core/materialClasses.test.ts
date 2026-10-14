@@ -47,7 +47,7 @@ test('a cut-out cluster names its surface, whose record carries its alpha test',
     { device, textureWrites } = fakeDevice()
   /** The threshold the record of the row's surface holds, as the table sends it up. */
   const cut = () => {
-    materialTable.upload(device)
+    materialTable.viewFor(device)
     const sent = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer),
       rank = ints[PAGE_INFO.at.material] & MATERIAL_RANK_MASK
     return sent[rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.cut]

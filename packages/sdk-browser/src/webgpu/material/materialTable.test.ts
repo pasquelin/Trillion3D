@@ -36,7 +36,7 @@ test('every surface takes a rank; a lobed one names its lobe extension, three to
   assert.equal(table.word(coated, l), 1)
   assert.equal(table.word(brushed, l), 3)
   assert.equal(table.word(coated, l), 1, 'a surface keeps its record')
-  table.upload(device)
+  table.viewFor(device)
   const words = sentWords(textureWrites)
   const lobes = (rank: number) => words[rank * MATERIAL_RECORD_WORDS + F.lobes]
   assert.deepEqual([lobes(0), lobes(1), lobes(3)], [0, 2 * MATERIAL_RECORD_TEXELS + 1, 2 * 10 + 4])
@@ -59,7 +59,7 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
     ...{ attenuationDistance: 2, transmission: 1, fog: false, model: 3 },
   }
   table.word(surface, l)
-  table.upload(device)
+  table.viewFor(device)
   const words = sentWords(textureWrites),
     floats = new Float32Array(words.buffer)
   assert.deepEqual([...floats.slice(0, 4)], [0.5, 0.25, 1, 2], 'the opacity as declared')
@@ -80,15 +80,20 @@ test('a surface whose version and atlas held is not written again; a new one is'
   const l = layers()
   const surface = { ...lit(), version: 3 }
   table.word(surface, l)
-  table.upload(device)
+  table.viewFor(device)
   // A field written without its version moving is not read: the version says what is current.
   surface.roughness = 0.5
+  // Nothing to send: a call sends nothing.
+  const sent = () => {
+    const before = textureWrites.length
+    table.viewFor(device)
+    return textureWrites.length - before
+  }
   table.word(surface, l)
-  assert.equal(table.pending, false)
+  assert.equal(sent(), 0)
   surface.version = 4
   table.word(surface, l)
-  assert.equal(table.pending, true)
-  table.upload(device)
+  assert.equal(sent(), 1)
   assert.equal(new Float32Array(textureWrites.at(-1)!.data.buffer)[F.roughness], 0.5)
   // A slot that moved under the same count is read again once the atlas says so (`forget`).
   const map = { channel: 0 } as Texture
@@ -96,13 +101,13 @@ test('a surface whose version and atlas held is not written again; a new one is'
   surface.version = 5
   l.mapLayer.set(map, 5)
   table.word(surface, l)
-  table.upload(device)
+  table.viewFor(device)
   l.mapLayer.set(map, 2)
   table.word(surface, l)
-  assert.equal(table.pending, false)
+  assert.equal(sent(), 0)
   table.forget()
   table.word(surface, l)
-  table.upload(device)
+  table.viewFor(device)
   assert.equal(sentWords(textureWrites)[F.mapIndex], 2)
 })
 
@@ -112,7 +117,7 @@ test('an upload sends the span of the records written since, not the whole table
   const l = layers()
   const surfaces = Array.from({ length: 5 }, (_, i) => ({ ...lit(), version: i }))
   for (const surface of surfaces) table.word(surface, l)
-  table.upload(device)
+  table.viewFor(device)
   for (const [i, version] of [
     [2, 10],
     [3, 11],
@@ -121,7 +126,7 @@ test('an upload sends the span of the records written since, not the whole table
     surfaces[i].version = version
     table.word(surfaces[i], l)
   }
-  table.upload(device)
+  table.viewFor(device)
   const sent = textureWrites.at(-1)!
   assert.deepEqual(
     [sent.destination.origin, sent.size],
@@ -143,7 +148,7 @@ test('a surface that loses its lobe gives its extension to the next lobed one', 
   table.word(coated, l)
   const brushed = { ...lit(), anisotropy: 1 }
   assert.equal(table.word(brushed, l), 2)
-  table.upload(device)
+  table.viewFor(device)
   const words = sentWords(textureWrites)
   assert.equal(words[F.lobes], 0)
   assert.equal(words[2 * MATERIAL_RECORD_WORDS + F.lobes], MATERIAL_RECORD_TEXELS + 1)

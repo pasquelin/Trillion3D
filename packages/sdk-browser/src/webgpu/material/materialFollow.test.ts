@@ -32,7 +32,7 @@ function drawn() {
     table.word(surfaces[row % SURFACES], layers),
   )
   assert.equal(table.follow(layers), false, 'nothing written since')
-  table.upload(device)
+  table.viewFor(device)
   return { device, textureWrites, table, layers, surfaces, words, sent: textureWrites.length }
 }
 
@@ -42,7 +42,7 @@ test('a colour edit among 10⁴ rows writes one record of 160 bytes, and no row'
   edited.baseColor = [0.25, 0.5, 0.75]
   surfaceWritten(edited)
   assert.equal(table.follow(layers), false, 'its rows read nothing of it but its record')
-  table.upload(device)
+  table.viewFor(device)
   assert.equal(textureWrites.length, sent + 1)
   const write = textureWrites.at(-1)!
   assert.deepEqual(write.size, [MATERIAL_RECORD_TEXELS, 1, 1], 'one record: 10 texels, 160 B')
@@ -53,7 +53,9 @@ test('a colour edit among 10⁴ rows writes one record of 160 bytes, and no row'
   // Every row still names the record it named.
   for (let row = 0; row < ROWS; row++)
     assert.equal(table.word(surfaces[row % SURFACES], layers), words[row])
-  assert.equal(table.pending, false, 'nothing more to send')
+  const held = textureWrites.length
+  table.viewFor(device)
+  assert.equal(textureWrites.length, held, 'nothing more to send')
 })
 
 test('an alpha test or a map that appears moves the rows: they are written again', () => {
@@ -78,12 +80,12 @@ test('an atlas census rewrites every record a slot moved in, and moves the rows 
   surfaces[8].map = map
   surfaceWritten(surfaces[8])
   table.follow(layers)
-  table.upload(device)
+  table.viewFor(device)
   // The texture moves to another slot: no surface was written, the census says so.
   layers.mapLayer.set(map, 6)
   table.forget()
   assert.equal(table.follow(layers), false, 'a slot that moved flags nothing new')
-  table.upload(device)
+  table.viewFor(device)
   const floats = new Uint32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer)
   assert.equal(floats[8 * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.mapIndex], 6)
   // Released: slot 0, no map any more — the rows' base map flag goes.
@@ -113,13 +115,13 @@ test("a material's variants name its one record: an edit written to each writes 
   const words = [plain, tinted, sheet].map((surface) => table.word(surface, layers))
   assert.deepEqual(words, [0, 0, 0], 'one record, its faces and colours its rows own')
   table.follow(layers)
-  table.upload(device)
+  table.viewFor(device)
   for (const surface of [tinted, sheet]) {
     surface.baseColor = [0.5, 0.25, 0]
     surfaceWritten(surface)
   }
   assert.equal(table.follow(layers), false)
-  table.upload(device)
+  table.viewFor(device)
   assert.deepEqual(textureWrites.at(-1)!.size, [MATERIAL_RECORD_TEXELS, 1, 1])
   const floats = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer)
   assert.deepEqual(

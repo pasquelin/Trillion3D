@@ -54,7 +54,7 @@ const SHADER = wgslProgram(
 function records(device: GPUDevice): GPUBindGroupEntry[] {
   const table = createMaterialTable()
   assert.equal(table.word(GLASS, { mapLayer: new Map(), dataLayer: new Map() }), 0)
-  return [{ binding: VIS_BINDINGS.material, resource: table.upload(device) }]
+  return [{ binding: VIS_BINDINGS.material, resource: table.viewFor(device) }]
 }
 
 /** `values` against `expected`, each within the law's f32 rounding (`volume-law.gpu.ts`). */

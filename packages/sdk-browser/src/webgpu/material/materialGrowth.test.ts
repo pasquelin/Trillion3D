@@ -25,12 +25,12 @@ test('the table grows by a GPU copy, no record sent again, the old texture retir
   const rowRecords = 1 << MATERIAL_TABLE.rowShift,
     rowTexels = rowRecords * MATERIAL_RECORD_TEXELS
   table.word({ ...lit(), roughness: 0.5, version: 0 }, l)
-  const first = table.upload(device),
+  const first = table.viewFor(device),
     old = textures.at(-1)!
   assert.equal(old.height, 1)
   const sent = textureWrites.length
   for (let i = 1; i < rowRecords * 2 + 1; i++) table.word(lit(), l)
-  assert.notEqual(table.upload(device), first)
+  assert.notEqual(table.viewFor(device), first)
   // Three rows hold the records; the first record moves on the GPU, the new ones alone are sent.
   const grown = textures.at(-1)!
   assert.deepEqual([grown.height, grown.width], [3, rowTexels])

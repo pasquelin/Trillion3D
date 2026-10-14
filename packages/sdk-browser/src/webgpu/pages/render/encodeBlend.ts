@@ -81,7 +81,7 @@ export function encodeBlend(
   // picks the blend and water programs (`createForwardVariants`).
   const contract = directLightResources(rt)
   // The material records the item records named go up before a group names their texture.
-  if (rt.vis.materialTable.pending) rt.vis.materialTable.upload(device)
+  rt.vis.materialTable.viewFor(device)
   voidStaleBlendGroups(rt, blendLightResources(rt, contract))
   const prepared = cpuNow()
   timing.transparentPrepareMs += prepared - cpuStart

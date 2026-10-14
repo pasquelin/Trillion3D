@@ -19,7 +19,7 @@ export function visGroupFor(
   if (!layout || !vis.gpuDraw || !(rest ? vis.gpuHiz?.flags : vis.zeroFlags)) return
   if (vis.visSlotGroups[key]) return vis.visSlotGroups[key]
   // The surfaces' records go up before a group names their texture.
-  if (vis.materialTable.pending) vis.materialTable.upload(device)
+  vis.materialTable.viewFor(device)
   const entries = visibilityEntries(rt, rest, slot)
   if (!entriesReady(entries)) return
   return (vis.visSlotGroups[key] = device.createBindGroup({ layout, entries }))

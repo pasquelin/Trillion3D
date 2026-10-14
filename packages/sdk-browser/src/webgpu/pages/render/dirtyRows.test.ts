@@ -37,7 +37,7 @@ const session = (marks: number[], length = 8) => {
       },
     },
     // No surface record written: the material table sends nothing up.
-    vis: { pageTable: {} as GPUBuffer, materialTable: { pending: false } },
+    vis: { pageTable: {} as GPUBuffer, materialTable: { viewFor: () => undefined } },
     gpu: { device },
     timing: { encodeCounts: { rowsUploaded: 0 } },
   } as unknown as WebgpuPagesRuntime
