@@ -1,7 +1,7 @@
 /**
  * WHAT THE SWITCH READS OF EACH ROOT, kept from one view to the next (`watch.ts`): per root its
  * baked entry (`baked.ts`), radius and the two switch depths, taken again only when the root, its
- * world's linear part or the focal length changes. One table per holder: the watch's. The switch
+ * world's linear part or the focal length changes. The watch holds the one table. The switch
  * is the engine's one oracle (`switch.ts`), never a per-scene constant: `f` is the engine's focal
  * length in pixels (`focalPixels`), `z` the pivot's view depth, each bound taken where the
  * projection magnifies most off the view axis (`switchesAt`), `R`, `T`, `c` and `r_f` only from
@@ -71,19 +71,18 @@ export type SwitchTable = {
   /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
   depthFocal: Float64Array
 }
-const tables = new WeakMap<object, SwitchTable>()
 /** Numbers a root's linear part takes in `linear`, at its matrix's own indices (`LINEAR_PART`). */
 const LINEAR_SPAN = 11
 
-/** `holder`'s table, made again for another root list or section; a new focal length retakes the
- *  depths it scales root by root, as each is read (`rootSwitch`). */
+/** `prev`, or a new table for another root list or section; a new focal length retakes the depths
+ *  it scales root by root, as each is read (`rootSwitch`). */
 export function switchTable(
-  holder: object,
+  prev: SwitchTable | undefined,
   roots: readonly ImpostorRoot[],
   section: ImpostorSection | undefined,
   focal: number,
 ) {
-  let table = tables.get(holder)
+  let table = prev
   if (!table || table.roots !== roots || table.section !== section) {
     const n = roots.length
     table = {
@@ -99,7 +98,6 @@ export function switchTable(
       triangleDepth: new Float64Array(n),
       depthFocal: new Float64Array(n).fill(NaN),
     }
-    tables.set(holder, table)
   } else if (table.held.length !== roots.length) resize(table, roots.length)
   table.focal = focal
   return table
