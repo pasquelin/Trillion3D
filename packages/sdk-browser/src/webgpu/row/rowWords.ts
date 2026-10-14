@@ -1,6 +1,10 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+
+/** The use words' buffer: a cut's (`cutBuffer`). */
+const LABEL = 'Trillion3D DAG row use'
 
 /** Words of a row's use: its last use, its walk gate, its page (`rowClosureWgsl.ts`). */
 export const ROW_USE_WORDS = 3
@@ -107,33 +111,21 @@ export type RowUseWords = ReturnType<typeof createRowUseWords>
  * the buffer was made anew: the bind groups follow.
  */
 export function createRowUseWordsGpu(
-  device: Pick<GPUDevice, 'queue'>,
+  device: Pick<GPUDevice, 'queue' | 'createBuffer'>,
   /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
   make: BufferMaker,
 ) {
   let buffer: GPUBuffer | undefined
+  const send = (row: number, data: Uint32Array<ArrayBuffer>) =>
+    device.queue.writeBuffer(buffer!, row * ROW_USE_WORDS * 4, data)
   return {
     upload(words: RowUseWords, rows: number, count: number, clock: number) {
-      const bytes = Math.max(1, rows) * ROW_USE_WORDS * 4
-      let made = false
-      if (!buffer || buffer.size < bytes) {
-        const old = buffer
-        buffer = make(
-          {
-            label: 'Trillion3D DAG row use',
-            size: bytes,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-          },
-          old,
-        )
-        old?.destroy()
-        words.rewriteAll(count, clock)
-        made = true
-      }
-      const target = buffer
-      words.flush(count, (row, data) =>
-        device.queue.writeBuffer(target, row * ROW_USE_WORDS * 4, data),
-      )
+      const held = buffer,
+        usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+      buffer = sizedBuffer(device, held, Math.max(1, rows) * ROW_USE_WORDS * 4, usage, LABEL, make)
+      const made = buffer !== held
+      if (made) words.rewriteAll(count, clock)
+      words.flush(count, send)
       return made
     },
     /** The buffer the closure and the sort bind, made at the first `upload`. */

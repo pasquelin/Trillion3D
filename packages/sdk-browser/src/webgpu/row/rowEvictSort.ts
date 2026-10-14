@@ -2,10 +2,13 @@ import { createPoolSortKit, poolSortBytes } from '../../gpu/pool/sortKit.ts'
 import { ROW_BURST } from '../../gpu/dag/readoutWords.ts'
 import { ROW_SORT_WGSL } from './rowEvictSortWgsl.ts'
 import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 
 /** Words of the sort's uniform: the clock, the live rows, the queue's first word in `out`, its
  *  burst. */
 const UNIFORM_WORDS = 4
+/** Its counts and scratch: a cut's buffer (`cutBuffer`). */
+const COUNTS_LABEL = 'Trillion3D DAG row eviction counts'
 /** The dynamic offset of its one uniform slot. */
 const AT_START = [0]
 
@@ -42,18 +45,7 @@ export function createRowEvictSort(
     ) {
       if (!kit.ready) return false
       const bytes = poolSortBytes(Math.max(1, at.slots), ROW_BURST)
-      if (!counts || counts.size < bytes) {
-        const old = counts
-        counts = make(
-          {
-            label: 'Trillion3D DAG row eviction counts',
-            size: 2 * bytes,
-            usage: GPUBufferUsage.STORAGE,
-          },
-          old,
-        )
-        old?.destroy()
-      }
+      counts = sizedBuffer(device, counts, bytes, GPUBufferUsage.STORAGE, COUNTS_LABEL, make)
       uniform ??= make({
         label: 'Trillion3D DAG row eviction uniforms',
         size: UNIFORM_WORDS * 4,

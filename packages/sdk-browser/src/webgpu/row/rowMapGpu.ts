@@ -2,6 +2,7 @@ import { createChangedRuns } from '../residency/ranges.ts'
 import { writeRanges } from '../../gpu/dag/runWrites.ts'
 import { ROW_MAP_HEAD } from './rowMapWgsl.ts'
 import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 
 /** What the row cache's page→row map (`pageState.ts`) wrote since the GPU's copy was last sent:
  *  the slots, or a rebuild of its tables — then sent whole. */
@@ -37,7 +38,7 @@ const words = (a: Int32Array<ArrayBuffer>) => new Uint32Array(a.buffer, a.byteOf
  * second hash and no mirror on the host: the map is the cache's own. The CPU never reads it back.
  */
 export function createRowMapGpu(
-  device: Pick<GPUDevice, 'queue'>,
+  device: Pick<GPUDevice, 'queue' | 'createBuffer'>,
   map: MapTables,
   journal: RowMapJournal,
   /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
@@ -49,21 +50,10 @@ export function createRowMapGpu(
     device.queue.writeBuffer(buffer!, offset, data, from, size)
   const whole = () => {
     const n = map.keys.length,
-      bytes = (ROW_MAP_HEAD + 2 * Math.max(1, n)) * 4
-    let made = false
-    if (!buffer || buffer.size < bytes) {
-      const old = buffer
-      buffer = make(
-        {
-          label: 'Trillion3D DAG row map',
-          size: bytes,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        },
-        old,
-      )
-      old?.destroy()
-      made = true
-    }
+      bytes = (ROW_MAP_HEAD + 2 * Math.max(1, n)) * 4,
+      held = buffer,
+      usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    buffer = sizedBuffer(device, held, bytes, usage, 'Trillion3D DAG row map', make)
     device.queue.writeBuffer(buffer, 0, new Uint32Array([n]))
     if (n) {
       device.queue.writeBuffer(buffer, ROW_MAP_HEAD * 4, words(map.keys))
@@ -72,7 +62,7 @@ export function createRowMapGpu(
     slots = n
     journal.rebuilt = false
     journal.slots.clear()
-    return made
+    return buffer !== held
   }
   return {
     /** Sends what the map wrote since the last call; true when the buffer was made anew. */

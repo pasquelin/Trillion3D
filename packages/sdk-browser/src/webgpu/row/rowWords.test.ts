@@ -3,7 +3,15 @@
 // on the others stand; a move keeps its row's generation and counts as used now.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRowUseWords, ROW_PAGE, ROW_USE, ROW_USE_WORDS, ROW_WALK } from './rowWords.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import {
+  createRowUseWords,
+  createRowUseWordsGpu,
+  ROW_PAGE,
+  ROW_USE,
+  ROW_USE_WORDS,
+  ROW_WALK,
+} from './rowWords.ts'
 
 /** The rows each flush sends, as `[first, last]` row pairs. */
 function sent(words: ReturnType<typeof createRowUseWords>, count: number) {
@@ -52,4 +60,26 @@ test('a table grown sends every live row whole, each used now', () => {
   words.flush(1, (_, data) => void runs.push(data))
   assert.equal(runs.length, 1)
   assert.equal(runs[0][ROW_USE], 9)
+})
+
+test('the buffer grows by doubling, and a refused growth keeps the one held', () => {
+  const { device, destroyed } = fakeDevice()
+  let refuse = false
+  const gpu = createRowUseWordsGpu(device, (d) => {
+    if (refuse) throw new Error('GPU_CUT_TABLES_PAST_SHARE')
+    return device.createBuffer(d)
+  })
+  const words = createRowUseWords()
+  let made = 0
+  for (let rows = 1; rows <= 1024; rows++) {
+    words.fit(rows)
+    if (gpu.upload(words, rows, 0, 1)) made++
+  }
+  // One row more at a time: made anew 11 times (1, 2, 4 … 1024 rows), never once per row.
+  assert.equal(made, 11)
+  const held = gpu.buffer!
+  refuse = true
+  words.fit(2048)
+  assert.throws(() => gpu.upload(words, 2048, 0, 1), /PAST_SHARE/)
+  assert.ok(!destroyed.includes(held), 'the refused growth destroyed nothing')
 })
