@@ -135,3 +135,18 @@ test('a moving glass derives its own entries again and sends no input', () => {
   assert.deepEqual(after.slice(split), before.slice(split), 'the other glass kept')
   assert.deepEqual(after, oracle())
 })
+
+test('before the roots have worlds, the inputs are sent once and every entry waits for them', () => {
+  const { rt, held, oracle, image, inputs, unculled } = runtime()
+  const worlds = rt.rootWorlds
+  ;(rt as { rootWorlds?: unknown }).rootWorlds = undefined
+  assert.equal(image(), 0, 'no worlds, no pass')
+  assert.deepEqual(inputs(), [[0, ENTRIES]])
+  assert.equal(image(), 0)
+  assert.deepEqual(inputs(), [], 'the inputs are not sent again each image')
+  assert.equal(unculled(), 1)
+  ;(rt as { rootWorlds?: unknown }).rootWorlds = worlds
+  assert.equal(image(), 1, 'the worlds made: one pass over every entry')
+  assert.deepEqual(inputs(), [])
+  assert.deepEqual(held(), oracle())
+})

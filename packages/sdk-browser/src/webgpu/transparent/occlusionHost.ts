@@ -73,6 +73,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime, encoder: GPUCo
     occlusion.unculledBits.fill(0)
     sendEntryInputs(rt, held, { from: 0, to: last, bits: occlusion.unculledBits })
     occlusion.uploadUnculled()
+    held.corners = occlusion.corners
     held.all = true
   } else {
     const to = Math.min(moved.to, last)
@@ -83,9 +84,5 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime, encoder: GPUCo
   }
   moved.from = Infinity
   moved.to = -1
-  encodeEntryCorners(rt, device, encoder, {
-    held,
-    corners: occlusion.corners,
-    capacity: table.capacity,
-  })
+  encodeEntryCorners(rt, device, encoder, { held, capacity: table.capacity })
 }
