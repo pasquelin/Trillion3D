@@ -1,4 +1,5 @@
 use super::*;
+use crate::gltf_codes::{index_bytes_of, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT};
 
 pub(super) struct SparseAccessor<'a> {
     pub(super) count: usize,
@@ -8,24 +9,20 @@ pub(super) struct SparseAccessor<'a> {
     pub(super) values_bin: &'a [u8],
     pub(super) values_offset: usize,
 }
-/// The unsigned integer that a glTF index component (5121, 5123 or 5125) holds at the start of
+/// The unsigned integer that a glTF index component (`INDEX_COMPONENTS`) holds at the start of
 /// `bytes`, or `None` for another component or too few bytes: the one reading of those types.
 pub(super) fn index_value(component: usize, bytes: &[u8]) -> Option<u32> {
     Some(match component {
-        5121 => u32::from(*bytes.first()?),
-        5123 => u32::from(u16::from_le_bytes(*bytes.first_chunk()?)),
-        5125 => u32::from_le_bytes(*bytes.first_chunk()?),
+        UNSIGNED_BYTE => u32::from(*bytes.first()?),
+        UNSIGNED_SHORT => u32::from(u16::from_le_bytes(*bytes.first_chunk()?)),
+        UNSIGNED_INT => u32::from_le_bytes(*bytes.first_chunk()?),
         _ => return None,
     })
 }
 impl SparseAccessor<'_> {
     pub(super) fn index(&self, offset: usize, count: usize) -> Result<usize> {
-        let width = match self.indices_component {
-            5121 => 1,
-            5123 => 2,
-            5125 => 4,
-            _ => return Err(invalid("Unsupported sparse indices component")),
-        };
+        let width = index_bytes_of(self.indices_component)
+            .ok_or_else(|| invalid("Unsupported sparse indices component"))?;
         let start = self.indices_offset + offset * width;
         let index = self
             .indices_bin

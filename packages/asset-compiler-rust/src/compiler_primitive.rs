@@ -1,6 +1,7 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
 pub(crate) mod cost;
+mod triangles;
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -62,45 +63,7 @@ pub(super) fn compile_primitive(
             "Only static triangles are supported",
         ));
     }
-    let positions = accessor(
-        g,
-        bin,
-        required_index(
-            p.get("attributes")
-                .and_then(Value::as_object)
-                .and_then(|a| a.get("POSITION")),
-            "primitive.attributes.POSITION",
-        )?,
-        Some(validated),
-    )?;
-    if positions.width != 3 || positions.component != 5126 {
-        return Err(invalid("POSITION must be float VEC3"));
-    }
-    let (index_values, triangle_count) = if p.get("indices").is_some() {
-        let ids = accessor(
-            g,
-            bin,
-            required_index(p.get("indices"), "primitive.indices")?,
-            Some(validated),
-        )?;
-        if ids.width != 1 || ids.normalized || ![5121, 5123, 5125].contains(&ids.component) {
-            return Err(invalid("indices component must be unsigned SCALAR"));
-        }
-        if ids.count == 0 || ids.count % 3 != 0 {
-            return Err(CompilerError::new(
-                "INVALID_TRIANGLES",
-                "Index count must be a positive multiple of three",
-            ));
-        }
-        (ids.collect_u32()?, ids.count / 3)
-    } else {
-        if positions.count == 0 || positions.count % 3 != 0 {
-            return Err(invalid(
-                "Unindexed POSITION count must be a positive multiple of three",
-            ));
-        }
-        ((0..positions.count as u32).collect(), positions.count / 3)
-    };
+    let (positions, index_values, triangle_count) = triangles::read(g, bin, p, validated)?;
     let pos = {
         let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?

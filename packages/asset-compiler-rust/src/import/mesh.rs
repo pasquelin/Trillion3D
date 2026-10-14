@@ -1,4 +1,5 @@
 use super::*;
+use crate::gltf_codes::{UNSIGNED_INT, UNSIGNED_SHORT};
 
 pub(super) struct MeshOut {
     pub(super) mesh: Value,
@@ -124,15 +125,15 @@ fn deformed_vertex(deform: &MeshDeform<'_>, vertex: u32, out: &mut Vertices) {
 /// Indices of a part, in 16 or 32 bits depending on the vertex count. The buffer
 /// starts at its final size: a `flat_map(...).collect()` rediscovers it chunk by
 /// chunk.
-pub(crate) fn index_bytes(indices: &[u32], vertex_count: usize) -> (Vec<u8>, u32) {
+pub(crate) fn index_bytes(indices: &[u32], vertex_count: usize) -> (Vec<u8>, usize) {
     if vertex_count <= u16::MAX as usize {
         let mut out = Vec::with_capacity(indices.len() * 2);
         out.extend(indices.iter().flat_map(|i| (*i as u16).to_le_bytes()));
-        return (out, 5123);
+        return (out, UNSIGNED_SHORT);
     }
     let mut out = Vec::with_capacity(indices.len() * 4);
     out.extend(indices.iter().flat_map(|i| i.to_le_bytes()));
-    (out, 5125)
+    (out, UNSIGNED_INT)
 }
 
 #[cfg(test)]

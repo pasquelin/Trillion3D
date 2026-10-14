@@ -1,3 +1,4 @@
+use crate::gltf_codes::{component_bytes, index_bytes_of};
 use crate::{
     compiler_accessor_types::index_value, invalid, item, optional_index, required_index, values,
     Result,
@@ -44,12 +45,8 @@ pub fn validate(g: &Value, bin: &[u8], id: usize) -> Result<()> {
     let a = item(values(g, "accessors")?, id, "accessor")?;
     let views = values(g, "bufferViews")?;
     let component = required_index(a.get("componentType"), "accessor.componentType")?;
-    let bytes: usize = match component {
-        5120 | 5121 => 1,
-        5122 | 5123 => 2,
-        5125 | 5126 => 4,
-        _ => return Err(invalid("Unsupported accessor component")),
-    };
+    let bytes =
+        component_bytes(component).ok_or_else(|| invalid("Unsupported accessor component"))?;
     let (columns, rows) = match a.get("type").and_then(Value::as_str) {
         Some("SCALAR") => (1, 1),
         Some("VEC2") => (1, 2),
@@ -112,12 +109,8 @@ pub fn validate(g: &Value, bin: &[u8], id: usize) -> Result<()> {
             .ok_or_else(|| invalid("sparse.values is required"))?;
         let index_component =
             required_index(indices.get("componentType"), "sparse.indices.componentType")?;
-        let index_bytes = match index_component {
-            5121 => 1,
-            5123 => 2,
-            5125 => 4,
-            _ => return Err(invalid("sparse indices component is invalid")),
-        };
+        let index_bytes = index_bytes_of(index_component)
+            .ok_or_else(|| invalid("sparse indices component is invalid"))?;
         let iv = item(
             views,
             required_index(indices.get("bufferView"), "sparse.indices.bufferView")?,

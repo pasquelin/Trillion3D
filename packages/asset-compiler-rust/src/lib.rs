@@ -7,6 +7,7 @@ mod dag;
 mod eac_modifiers;
 mod geometry_page_deform;
 mod geometry_page_quant;
+mod gltf_codes;
 pub mod import;
 mod impostor;
 mod join;
