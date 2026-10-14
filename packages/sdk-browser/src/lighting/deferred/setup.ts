@@ -2,7 +2,7 @@ import { receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
 import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
-import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts'
+import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../../bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { runtimeStandIns } from '../../bounce/runtimeStandIns.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
@@ -43,7 +43,9 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   })
-  const probes = emptyAtlas(device, 'Trillion3D empty bounce probes', PROBE_TEXELS)
+  const probes = standInTexture(device, 'Trillion3D empty bounce probes', BOUNCE_ATLAS_FORMAT, {
+    side: PROBE_TEXELS,
+  })
   // The proxy's bindings in every program that traces it when no placement wears one.
   const standIns = runtimeStandIns(device)
   const receiver = receiverPlaceholders(device)

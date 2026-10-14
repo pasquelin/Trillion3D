@@ -1,6 +1,7 @@
 // The radiance pyramid's shipped kernels (`RADIANCE_SHADER`) run as JavaScript for its tests, over
 // images of texels read as the sampler reads them, bilinear, their edge clamped.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
@@ -96,7 +97,7 @@ export function radianceKernels(drawn: number[]) {
      *  before it too (`radianceFirstBoth`), its words in `before`. */
     first(
       source: Image,
-      groups = [Math.ceil(source.width / 32), Math.ceil(source.height / 32)],
+      groups = [ceilDiv(source.width, 32), ceilDiv(source.height, 32)],
       before?: Image,
     ) {
       io.finer = source
@@ -116,7 +117,7 @@ export function radianceKernels(drawn: number[]) {
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(io.coarser.width >> 1, io.coarser.height >> 1)
       dispatch(
-        [Math.ceil(io.coarsest.width / 8), Math.ceil(io.coarsest.height / 8)],
+        [ceilDiv(io.coarsest.width, 8), ceilDiv(io.coarsest.height, 8)],
         [source.width, source.height],
         false,
       )

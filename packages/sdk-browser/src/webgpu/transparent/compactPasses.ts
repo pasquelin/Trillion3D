@@ -30,7 +30,10 @@ function compactLayout(device: GPUDevice) {
  *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
 export async function compactKernels(device: GPUDevice) {
   const layout = compactLayout(device)
-  const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
+  const module = device.createShaderModule({
+    label: 'Trillion3D transparent compaction',
+    code: TRANSPARENT_COMPACT_SHADER,
+  })
   if (await shaderFailed(module)) return undefined
   const entryPoints = [
     'countTransparentGroups',
@@ -76,8 +79,8 @@ export function compactPasses(
     const made = held()
     const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
     const items = Math.max(1, table.pagedItems.length)
-    // A thread a group, an item, an entry.
-    const launches = [ceilDiv(groups, WORKGROUP_THREADS), ceilDiv(items, WORKGROUP_THREADS), groups]
+    // A workgroup a group, a thread an item, a workgroup a group.
+    const launches = [groups, ceilDiv(items, WORKGROUP_THREADS), groups]
     uniData[0] = table.length
     uniData[1] = groups
     uniData[2] = table.pagedItems.length

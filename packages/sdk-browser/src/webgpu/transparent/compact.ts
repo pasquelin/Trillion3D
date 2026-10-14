@@ -1,6 +1,7 @@
 import type { TransparentTable } from './table.ts'
 import { compactKernels, compactPasses } from './compactPasses.ts'
 import { compactBuffers } from './compactBuffers.ts'
+import { grownByCopy } from '../../gpu/core/tableGrowth.ts'
 
 export type TransparentCompaction = NonNullable<
   Awaited<ReturnType<typeof createTransparentCompaction>>
@@ -81,7 +82,8 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
           buffers = []
           held = compactBuffers(device, table, buffers)
           write(true)
-          for (const buffer of outgrownBuffers) buffer.destroy()
+          // Retired, not destroyed: the image being encoded may still name them.
+          grownByCopy(device, outgrownBuffers)
         } else write(false)
       },
       /** Uploads the spans the last residency change rewrote, and nothing else. */

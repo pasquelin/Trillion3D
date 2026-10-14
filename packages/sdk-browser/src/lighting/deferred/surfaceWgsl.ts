@@ -1,7 +1,6 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
-import { PIXEL_FOOTPRINT_WGSL, SHADOW_VIEW_AT_WGSL } from './footprintWgsl.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
@@ -16,23 +15,22 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
  * (`vsmMaskPixel`), and, where the frame holds translucent casters, what their transmission's
- * located sample takes (`vsmLocate`, its one reader in the resolve): the pixel's footprint at its
- * unjittered centre, whence its view, and its receiver, moved by its shading-point offset,
- * and its triangle's plane the bias follows (`shadowReceiver`, from the visibility buffer).
+ * located sample takes (`vsmLocate`, its one reader in the resolve): the eye, and its receiver,
+ * moved by its shading-point offset, and its triangle's plane the bias follows (`shadowReceiver`,
+ * from the visibility buffer); its normal bias is the projection's (`vsmNormalOffset`).
  * The mask carries the opaque shadow from the receiver the projection read
  * (`vsm/projectionWgsl.ts`): without translucent casters nothing reads the rest, so a pixel loads
- * none of its eight neighbour depths nor its receiver offset.
+ * no receiver offset.
  * Set only where the pixel's cell lists a shadowed light (`cellShadowed`): nothing else reads
  * it.
  */
 const SHADOW_SETUP_WGSL = wgslBlock(
   'SHADOW_SETUP_WGSL',
   [],
-  `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
+  `fn shadowSetup(coord:vec2i,pixel:vec4f){
  vsmMaskAt(coord);
  if(vsmTranslucentCasters()){
-  shadowFootprint=pixelFootprint(coord,pixel.xy,z,P);
-  shadowViewAt(shadowFootprint,z);
+  shadowCamera=view.camera.xyz;
   let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
  }
 }`,
@@ -58,13 +56,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
   const { bounce: bounced, thin, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
-    [
-      receiverOffsetWgsl(DEFERRED_BINDINGS.receiver),
-      PIXEL_FOOTPRINT_WGSL,
-      SHADOW_VIEW_AT_WGSL,
-      SURFACE_EMISSIVE_AO_WGSL,
-      SHADOW_SETUP_WGSL,
-    ],
+    [receiverOffsetWgsl(DEFERRED_BINDINGS.receiver), SURFACE_EMISSIVE_AO_WGSL, SHADOW_SETUP_WGSL],
     `${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return vec4f(0.0);}
@@ -77,7 +69,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  let normal=textureLoad(normalRough,coord,0);let emissive=surfaceEmissiveAo(coord,surfaceFlag);
  // The pixel's cell of the light grid, read once: its shadow flag, then its list.
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
- if(shadowed){shadowSetup(coord,pixel,z,P);}
+ if(shadowed){shadowSetup(coord,pixel);}
  let V=viewToEye(P);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);

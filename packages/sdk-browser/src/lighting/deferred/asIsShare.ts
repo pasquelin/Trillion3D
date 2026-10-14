@@ -26,7 +26,10 @@ export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask
  *  whose transparents or particles can write the share (`askAsIsSeed`): frame targets made again at
  *  another size compile nothing, and the image that first seeds finds it compiled. */
 const seedProgram = oncePerDevice((device) => {
-  const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER })
+  const module = device.createShaderModule({
+    label: 'Trillion3D as-is share seed',
+    code: AS_IS_SHARE_SHADER,
+  })
   const layout = device.createBindGroupLayout({
     entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.FRAGMENT)],
   })

@@ -1,7 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /**
- * Where a water pixel reads its shadows: the side its normal faces, at the footprint the
- * deferred resolve lights a pixel at (`pixelFootprint`, `footprintWgsl.ts`; `compositeWgsl.ts`,
+ * Where a water pixel reads its shadows: the side its normal faces (`compositeWgsl.ts`,
  * `waterColor`).
  */
 export const WATER_SHADOW_READ_WGSL = wgslBlock(

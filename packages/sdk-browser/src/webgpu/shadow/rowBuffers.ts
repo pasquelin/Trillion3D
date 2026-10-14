@@ -41,12 +41,24 @@ export const mobilityRows = (device: GPUDevice, casterSlots: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
 
+/** One row's detail words per row of `casterSlots` rows (`rowLods.ts`). */
+export const rowLodBuffer = (device: GPUDevice, casterSlots: number) => ({
+  buffer: device.createBuffer({
+    label: 'Trillion3D shadow row detail v1',
+    size: rowBufferBytes(casterSlots, ROW_LOD_FLOATS),
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  }),
+  rows: casterSlots,
+})
+
 /**
- * The shadow pass's own buffers sized by row, for a table grown to `casterSlots` rows
- * (`../pages/prepare/growTables.ts`): the spheres and the mobility words, each where the session
- * already made it, put in place by `commit` at the size their next upload keeps. Every row is
- * dirty then, and the mobility words are written whole: both are filled again, once — the spheres
- * by the rows pass, which derives every row of a buffer made anew.
+ * THE ONE RESIZE OF THE SHADOW PASS'S BUFFERS SIZED BY ROW, for a table grown to `casterSlots` rows
+ * (`../pages/prepare/growTables.ts`): the spheres, the mobility words and the row detail, each where
+ * the session already made it, made aside under the growth's refusal scope and put in place by
+ * `commit` at the size their next upload keeps, the old ones retired after the frame's submit. Their
+ * first making (`ensureClusterSpheres`, `uploadDirtyRowMobility`, `ensureRowLods`) never resizes.
+ * Every row is dirty then, and the mobility words are written whole: all are filled again, once —
+ * the spheres and the detail by the rows pass, which derives every row of a buffer made anew.
  */
 export function growShadowRows(
   lights: WebgpuLightState,
@@ -72,6 +84,16 @@ export function growShadowRows(
         const old = lights.mobilityRows
         lights.mobilityRows = next
         return [old]
+      }),
+    )
+  }
+  if (lights.rowLods) {
+    const next = rowLodBuffer(device, casterSlots)
+    grown.push(
+      pendingBuffers(device, [next.buffer], () => {
+        const old = lights.rowLods
+        lights.rowLods = next
+        return [old?.buffer]
       }),
     )
   }

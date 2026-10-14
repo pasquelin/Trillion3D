@@ -101,9 +101,9 @@ function uploadRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice, from: numb
     { casterSlots } = layout.rows,
     { mobility } = lights
   mobility.ensure(layout.selectionRoots.length, casterSlots, source.worldOf)
-  if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
-    lights.mobilityRows?.destroy()
-    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length)
+  // Made the first time a light casts; a table grown resizes it (`growShadowRows`).
+  if (!lights.mobilityRows) {
+    lights.mobilityRows = mobilityRows(device, casterSlots)
     from = 0
     to = casterSlots - 1
   }

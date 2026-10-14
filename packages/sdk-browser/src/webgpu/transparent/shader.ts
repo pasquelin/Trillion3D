@@ -4,14 +4,15 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { DRAW_MASK_WGSL } from '../../gpu/dag/shader/drawMaskWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
  *
  * The input is the scene's static draw order (`webgpuTransparentTable`); the only per-image input is
- * the selection mask the cluster cut wrote this very frame. A count per group, a serial prefix over
- * the groups of each item, then a scatter that places each surviving cluster at its rank inside its
- * group: the output is the input order with the unselected entries removed, which is exactly the
+ * the selection mask the cluster cut wrote this very frame. A group is a workgroup, a lane an entry:
+ * its count by the engine's lane scan (`laneScan`), a serial prefix over the groups of each item,
+ * then a scatter that places each surviving cluster at its rank inside its group, the same scan's: the output is the input order with the unselected entries removed, which is exactly the
  * list the CPU would sort by `sourceOrder` every frame.
  *
  * Item ranges are aligned on the group, so no group spans two items and each item's instances are
@@ -38,15 +39,17 @@ fn selected(i:u32)->bool{
  if(occluded[i]!=0u){return false;}
  return maskSelects(cluster);
 }
+/** Whether lane \`lane\` of group \`group\` holds an entry the image keeps. */
+fn keptInGroup(group:u32,lane:u32)->bool{
+ let i=group*WORKGROUP_THREADS+lane;
+ return i<uni.entryCount&&selected(i);
+}
 @compute @workgroup_size(WORKGROUP_THREADS)
-fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let group=flatIndex(id,n,WORKGROUP_THREADS);
+fn countTransparentGroups(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+ let group=flatIndex(wg,n,1u);
  if(group>=uni.groupCount){return;}
- let begin=group*${TRANSPARENT_GROUP}u;
- let end=min(begin+${TRANSPARENT_GROUP}u,uni.entryCount);
- var count=0u;
- for(var i=begin;i<end;i++){if(selected(i)){count=count+1u;}}
- groupCounts[group]=count;
+ let kept=laneScan(lane,select(0u,1u,keptInGroup(group,lane)));
+ if(lane==WORKGROUP_THREADS-1u){groupCounts[group]=kept;}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -68,15 +71,13 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
  indirect[o+3u]=0u;
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
-fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let i=flatIndex(id,n,WORKGROUP_THREADS);
- if(i>=uni.entryCount||!selected(i)){return;}
- let group=i/${TRANSPARENT_GROUP}u;
- let begin=group*${TRANSPARENT_GROUP}u;
- var rank=0u;
- for(var j=begin;j<i;j++){if(selected(j)){rank=rank+1u;}}
- instances[groupOffsets[group]+rank]=i;
+fn scatterTransparentGroups(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+ let group=flatIndex(wg,n,1u);
+ if(group>=uni.groupCount){return;}
+ let kept=keptInGroup(group,lane);
+ let rank=laneScan(lane,select(0u,1u,kept));
+ if(kept){instances[groupOffsets[group]+rank-1u]=group*WORKGROUP_THREADS+lane;}
 }
 `,
-  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl, DRAW_MASK_WGSL],
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl, DRAW_MASK_WGSL, LANE_SCAN_WGSL],
 )

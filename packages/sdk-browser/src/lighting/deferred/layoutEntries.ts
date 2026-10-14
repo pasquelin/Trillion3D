@@ -29,13 +29,12 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
   ]
   if (direct) entries.push(...contractLayoutEntries(fragment))
-  // The pool a non-mask read samples, the projection's view and noise its fragments trace with
-  // (`vsmTraceFactor`): the water composite's alone, the resolve reading the
-  // mask (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
+  // The pool a non-mask read samples and the noise its fragments trace with (`vsmTraceFactor`):
+  // the water composite's alone, the resolve reading the mask (`directShadowWgsl`), so it holds
+  // the eight storage buffers with the receiver's three.
   if (direct && !resolve)
     entries.push(
       computeBufferEntry(CONTRACT_VSM_BINDINGS.pool, 'read-only-storage', fragment),
-      computeBufferEntry(CONTRACT_TRACE_BINDINGS.view, 'uniform', fragment),
       computeTextureEntry(CONTRACT_TRACE_BINDINGS.noise, 'unfilterable-float', '2d', fragment),
     )
   if (direct && resolve) entries.push(...resolveLayoutEntries(fragment))
@@ -61,6 +60,8 @@ function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
     computeBufferEntry(CONTRACT_VSM_BINDINGS.pageTable, 'read-only-storage', fragment),
     computeBufferEntry(CONTRACT_VSM_BINDINGS.projectionData, 'read-only-storage', fragment),
     computeBufferEntry(CONTRACT_VSM_BINDINGS.uniforms, 'uniform', fragment),
+    // The projection's view: the normal bias every shadow read takes (`vsmNormalOffset`).
+    computeBufferEntry(CONTRACT_TRACE_BINDINGS.view, 'uniform', fragment),
     // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
     // translucent casters' transmission on the same number: both words.
     computeTextureEntry(CONTRACT_SHADOW_BINDINGS.transmittance, 'uint', '2d-array', fragment),

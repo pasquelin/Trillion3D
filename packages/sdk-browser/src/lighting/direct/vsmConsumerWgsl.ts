@@ -12,6 +12,7 @@ import {
   vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionReadWgsl.ts'
+import { VSM_NORMAL_OFFSET_WGSL } from '../../vsm/receiverTraceWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { byShadowKind, shadowKindsLabel, type ShadowKinds } from './shadowKinds.ts'
@@ -28,7 +29,8 @@ const RESOLVE_POOL = wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32
  * lookup with a coarser-level fallback — for VSM id `id`: what the translucent casters'
  * transmission read starts from (`vsmTransmissionRead`), at a point `P` of unit normal `N` moved
  * along it by the normal bias length (`vsmReceiverFromEye`). The origin shift is the pass's eye
- * (`shadowCamera`), in single precision. `pool`: the pass reads the pool (`forwardPool`),
+ * (`shadowCamera`), in single precision. The host declares the projection's view `vsmView`
+ * (`vsmTraceViewWgsl`). `pool`: the pass reads the pool (`forwardPool`),
  * which the traces sample (`vsmTraceWgsl`); the opaque resolve does not.
  */
 export const vsmConsumerWgsl = (
@@ -44,6 +46,7 @@ export const vsmConsumerWgsl = (
       VSM_STRUCTS_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      VSM_NORMAL_OFFSET_WGSL,
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       vsmProjectionSampleWgsl(pool ? forwardPool(b.pool) : RESOLVE_POOL),
@@ -55,12 +58,12 @@ export const vsmConsumerWgsl = (
 @group(0) @binding(${b.pageTable}) var<storage,read> vsmPageTable:array<u32>;
 fn vsmPageTableLoad(i:u32)->u32{return vsmPageTable[i];}
 @group(0) @binding(${b.projectionData}) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
-/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias, which grows with
- *  the distance and the pixel's angular size. */
+/** The receiver \`P\` from the eye, pushed along its normal \`N\` by the normal bias the projection's
+ *  trace pushes it by (\`vsmNormalOffset\`), at the point it reads: \`P\` shifted to the projection's
+ *  origin, from its eye. */
 fn vsmReceiverFromEye(P:vec3f,N:vec3f)->vec3f{
- let distanceToCamera=length(P-shadowCamera);
- let inverseTangent=1.0/max(shadowAngularPixel*shadowViewWidth*0.5,1e-6);
- return (P-shadowCamera)+N*vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,inverseTangent);
+ let shifted=(P+vsmView.originShiftHigh)+vsmView.originShiftLow;
+ return (P-shadowCamera)+N*vsmNormalOffset(shifted-vsmView.shiftedEye);
 }
 /** Where a receiver \`fromEye\` (\`vsmReceiverFromEye\`) is read in map \`id\`: its sample \`sm\` —
  *  invalid where no page holds the point, nothing mapped at any level —, whether it is a sun's

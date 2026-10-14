@@ -7,6 +7,7 @@ import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { vsmReceiverTraceWgsl } from '../../vsm/receiverTraceWgsl.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from '../../vsm/blueNoise.ts'
 import { VSM_PROJECTION_VIEW_STRUCT } from '../../vsm/projectionView.ts'
+import { VSM_TRACE_LIGHT_WGSL } from '../../vsm/traceWgsl.ts'
 import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import {
   forwardPool,
@@ -35,6 +36,17 @@ fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,N:vec3f){
 }`,
 )
 
+/** The shadow projection's view uniform (`VsmProjectionView`) at `binding`: what a fragment's trace
+ *  and every pass's transmission read take their normal bias from (`vsmNormalOffset`). */
+export const vsmTraceViewWgsl = (binding: number) =>
+  wgslBlock(
+    `vsmTraceViewWgsl(${binding})`,
+    [VSM_TRACE_LIGHT_WGSL],
+    `
+${VSM_PROJECTION_VIEW_STRUCT}
+@group(0) @binding(${binding}) var<uniform> vsmView:VsmProjectionView;`,
+  )
+
 /**
  * A blended surface's or the water's trace (`vsmTraceFactor`): the receiver's trace of the
  * projection (`vsmReceiverTraceWgsl`), lone, at the fragment's point. Its pixel is the fragment's,
@@ -48,6 +60,7 @@ export const vsmFragmentTraceWgsl = (vsm: VsmConsumerBindings, t: VsmTraceBindin
   wgslBlock(
     `vsmFragmentTraceWgsl(${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(t)})`,
     [
+      vsmTraceViewWgsl(t.view),
       vsmBlueNoiseWgsl(0, t.noise),
       vsmReceiverTraceWgsl({
         pool: forwardPool(vsm.pool),
@@ -57,8 +70,6 @@ export const vsmFragmentTraceWgsl = (vsm: VsmConsumerBindings, t: VsmTraceBindin
       }),
     ],
     `
-${VSM_PROJECTION_VIEW_STRUCT}
-@group(0) @binding(${t.view}) var<uniform> vsmView:VsmProjectionView;
 var<private> vsmTracePixel:vec2u=vec2u(0u);
 /** The fragment the lights that follow are traced at (\`pixel\`, its framebuffer position). */
 fn vsmTraceAt(pixel:vec2f){vsmTracePixel=vec2u(pixel);}

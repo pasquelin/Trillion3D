@@ -15,7 +15,6 @@ const BLEND_VIEW_FIELDS = [
   ['viewFlags', 'u32'],
   ['vertexShift', 'u32'],
   ['feedback', 'u32'],
-  ['pixelScale', 'f32'],
   ['viewport', 'vec2f'],
   ['eye', 'vec3f'],
   ['pixelRatio', 'f32'],

@@ -2,6 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.t
 import { tileViewInverse } from './tileFrame.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import {
@@ -19,8 +20,9 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
  * The light grid's passes (`./shader.ts`) over ONE buffer every reader of a list binds: the view's
  * grid — its cells the view's, its records then the pool of their lists (`./pool.ts`) — then the
  * bounce's world grid over the last cascade level's lattice (`ensureWorld`), its records then its
- * pool. The buffer is reallocated only when a grid changes columns or its pool grows — then the
- * world grid's lists are listed again (`revision`) —; each grid's group follows the light buffer,
+ * pool. The grids are laid out again only when a grid changes columns or its pool grows — the
+ * buffer grown by the engine's one rule, the old one retired; then the world grid's lists are
+ * listed again (`revision`) —; each grid's group follows the light buffer,
  * which grows with the scene; encoding allocates nothing. The passes read no depth.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
@@ -83,20 +85,27 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
     bind(grid)
     return !!grid.group
   }
-  /** Both grids in a new buffer: the view's, then the world's. */
+  /** Both grids laid out again in the buffer, grown by the engine's one rule (`sizedBuffer`), never
+   *  past what the device binds: the view's, then the world's. The view's lists are written by its
+   *  pass each image; the world's are listed again (`revision`). */
   const reallocate = () => {
-    state.tiles?.destroy()
     view.start = 0
     world.start = recordsOf(view) + view.poolWords
-    state.tiles = device.createBuffer({
-      label: 'Trillion3D light tiles v1',
-      size: (world.start + recordsOf(world) + world.poolWords) * 4,
+    state.tiles = sizedBuffer(
+      device,
+      state.tiles,
+      (world.start + recordsOf(world) + world.poolWords) * 4,
       // Copyable, as the pool state: a proof reads the lists back.
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    })
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+      'Trillion3D light tiles v1',
+      ({ label, size, usage }) =>
+        device.createBuffer({ label, size: Math.min(size, bindableBytes()), usage }),
+    )
     for (const grid of grids) grid.group = undefined
     state.revision++
   }
+  /** The largest buffer the device binds, in whole words. */
+  const bindableBytes = () => Math.floor(storageBufferCap(device.limits) / 4) * 4
   /** A grid's uniform as `packed` holds it, its records' start, and its pool opened past them. */
   const upload = (grid: Grid) => {
     grid.words[START_WORD] = grid.start

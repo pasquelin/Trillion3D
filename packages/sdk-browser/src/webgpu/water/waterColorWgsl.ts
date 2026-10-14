@@ -2,7 +2,6 @@ import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
-import { PIXEL_FOOTPRINT_WGSL, SHADOW_VIEW_AT_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
 import { FOG_WGSL } from '../../lighting/fogShader.ts'
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
 import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
@@ -23,8 +22,6 @@ export const WATER_COLOR_WGSL = wgslBlock(
     WATER_UNPACK_WGSL,
     WORLD_AT_WGSL,
     WATER_SHADOW_READ_WGSL,
-    PIXEL_FOOTPRINT_WGSL,
-    SHADOW_VIEW_AT_WGSL,
     WATER_TRANSMITTED_WGSL,
     FOG_WGSL,
     VOLUME_MARKED_WGSL,
@@ -40,10 +37,9 @@ export const WATER_COLOR_WGSL = wgslBlock(
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- // Shadows read at the pixel's own footprint (\`shadowReadWgsl.ts\`, #1412); the normal of the side
- // we look from, else refraction would go the wrong way and Fresnel turn black.
- shadowFootprint=pixelFootprint(coord,pixel.xy,fragZ,P);
- shadowViewAt(shadowFootprint,fragZ);
+ // Shadows read from the eye (\`shadowReadWgsl.ts\`); the normal of the side we look from, else
+ // refraction would go the wrong way and Fresnel turn black.
+ shadowCamera=view.camera.xyz;
  let V=viewToEye(P);
  let Nv=waterFacing(normal.xyz,V);
  let rough=lobeRoughness(normal.a);
