@@ -7,7 +7,6 @@
 // derived from the composed world (`gpuComposeDerived.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
 import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -20,7 +19,6 @@ const differing = (a: Uint32Array, b: Uint32Array) => {
 }
 
 test('a group turned once and linked by its rows own write leaves every row word as the CPU writes it', () => {
-  assert.equal(MATRIX_DOUBLES, 16)
   const { group, meshes, settle } = crystals()
   settle()
   group.rotation.y = -0.6

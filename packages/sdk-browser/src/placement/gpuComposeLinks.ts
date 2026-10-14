@@ -2,11 +2,11 @@
  * THE LINKS OF THE COMPOSITION (`gpuCompose.ts`): the session's composition over its root list, a
  * parent's slot, the roots a call links and those a whole set no longer holds.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { rootRankOfRow } from './update.ts'
@@ -131,7 +131,7 @@ export function linkRanks(
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)
-    packDoubles(state.locals, rank * MATRIX_DOUBLES * 2, links[k].local)
+    packDoubles(state.locals, rank * MATRIX_VALUES * 2, links[k].local)
     state.localMats.set(links[k].local as ArrayLike<number>, rank * 16)
     installComposedWorld(rt, rank)
   }

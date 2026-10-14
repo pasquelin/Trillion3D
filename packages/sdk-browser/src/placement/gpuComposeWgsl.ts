@@ -10,6 +10,7 @@
  * a translation is kept exact, as two words a coordinate, for each cut to take its eye off
  * (`../gpu/dag/shader/worldPoseWgsl.ts`).
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { dAdd, dMul } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
@@ -21,8 +22,6 @@ import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
-/** Doubles of one matrix, each two words. */
-export const MATRIX_DOUBLES = 16
 /** The binding of the cut's worlds in the roots pass: a write-only storage texture, the worlds'
  *  record table (`../gpu/dag/worldTable.ts`). */
 export const COMPOSE_WORLDS_BINDING = 3
@@ -66,7 +65,7 @@ export const COMPOSE_WORLDS_WGSL = wgslProgram(
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
  for(var k=0u;k<16u;k++){
-  rootWorlds[rank*16u+k]=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
+  rootWorlds[rank*16u+k]=composed(p*${MATRIX_VALUES}u,rank*${MATRIX_VALUES}u,k);
  }
 }`,
   [PRODUCT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],

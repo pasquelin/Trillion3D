@@ -3,10 +3,10 @@
  * parent slot and local matrix —, the parents' worlds, the lists the passes run over and
  * what each pass last ran at; grown with the session's roots.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { createMirroredKeys } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { MATRIX_DOUBLES } from './gpuComposeWgsl.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import type { Readers } from './composeReaders.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
@@ -15,7 +15,7 @@ export function createComposeState(roots: number) {
   return {
     roots,
     parentOf: new Uint32Array(Math.max(1, roots)).fill(NO_INDEX),
-    locals: new Uint32Array(Math.max(1, roots) * MATRIX_DOUBLES * 2),
+    locals: new Uint32Array(Math.max(1, roots) * MATRIX_VALUES * 2),
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * 16),
@@ -73,7 +73,7 @@ export function createComposeState(roots: number) {
     /** Whether each parent's world reverses orientation, as the draw bins of its rows were made
      *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
     winding: [] as boolean[],
-    packed: new Uint32Array(MATRIX_DOUBLES * 2),
+    packed: new Uint32Array(MATRIX_VALUES * 2),
     /** The worlds pass's parameters (the ranges' passes keep theirs, `rangeParams`). */
     worldParams: new Uint32Array(4),
     /** Roots linked since the last frame, with the world their motion starts from. */
@@ -115,7 +115,7 @@ export function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: nu
 export function growComposeState(rt: WebgpuPagesRuntime, state: ComposeState, roots: number) {
   const held = state.roots
   state.parentOf = resized(state.parentOf, roots, NO_INDEX)
-  state.locals = resized(state.locals, roots * MATRIX_DOUBLES * 2)
+  state.locals = resized(state.locals, roots * MATRIX_VALUES * 2)
   state.localMats = resized(state.localMats, roots * 16)
   state.refreshed = resized(state.refreshed, roots)
   state.roots = roots
