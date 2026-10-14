@@ -9,6 +9,14 @@ import { type Tri, type V, geometry } from './transmissionSheets.fixture.ts'
 import { VSM_TRANSMISSION_BLOCK_TEXELS, VSM_TRANSMISSION_WIDTH } from './transmissionLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
+import { VSM_PAGE_TEXELS } from './constants.ts'
+import {
+  CELL_COUNT,
+  HEADER_TEXELS,
+  RECORDS_TEXEL,
+  VSM_TRANSMISSION_CELLS,
+  VSM_TRANSMISSION_CHAIN,
+} from './transmissionShared.ts'
 
 export interface Caster {
   tri: Tri
@@ -31,19 +39,20 @@ export function memoryOf(casters: Caster[]) {
       [0, 0, 0, 0],
     ]
   })
-  const lists: number[][] = Array.from({ length: 256 }, () => [])
+  const lists: number[][] = Array.from({ length: CELL_COUNT }, () => [])
   casters.forEach(({ tri: [a, b, c] }, l) => {
     const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
     if (area === 0) return
     const lo = [Math.min(a[0], b[0], c[0]), Math.min(a[1], b[1], c[1])]
     const hi = [Math.max(a[0], b[0], c[0]), Math.max(a[1], b[1], c[1])]
-    if (hi[0] < 0 || hi[1] < 0 || lo[0] >= 128 || lo[1] >= 128) return
+    if (hi[0] < 0 || hi[1] < 0 || lo[0] >= VSM_PAGE_TEXELS || lo[1] >= VSM_PAGE_TEXELS) return
     const r = geometry.vsmTCellRange(lo, hi)
     for (let y = r[1]; y <= r[3]; y++)
       for (let x = r[0]; x <= r[2]; x++)
-        if (geometry.vsmTCoversCell(a, b, c, Math.sign(area), [x, y])) lists[y * 16 + x].push(l)
+        if (geometry.vsmTCoversCell(a, b, c, Math.sign(area), [x, y]))
+          lists[y * VSM_TRANSMISSION_CELLS + x].push(l)
   })
-  const recordsAt = 72,
+  const recordsAt = RECORDS_TEXEL,
     listsAt = recordsAt + 4 * records.length
   let at = listsAt
   const headers: number[] = []
@@ -52,10 +61,13 @@ export function memoryOf(casters: Caster[]) {
     for (let k = 0; k < list.length; k += 4)
       slice[at++] = [0, 1, 2, 3].map((i) => (k + i < list.length ? recordsAt + 4 * list[k + i] : 0))
   }
-  for (let t = 0; t < 64; t++) slice[t] = headers.slice(4 * t, 4 * t + 4)
+  for (let t = 0; t < HEADER_TEXELS; t++) slice[t] = headers.slice(4 * t, 4 * t + 4)
   const blocks = ceilDiv(at, VSM_TRANSMISSION_BLOCK_TEXELS)
-  const chain = Array.from({ length: 32 }, (_, j) => (j < blocks ? j : NO_INDEX))
-  for (let t = 0; t < 8; t++) slice[64 + t] = chain.slice(4 * t, 4 * t + 4)
+  const chain = Array.from({ length: VSM_TRANSMISSION_CHAIN }, (_, j) =>
+    j < blocks ? j : NO_INDEX,
+  )
+  for (let t = 0; t < VSM_TRANSMISSION_CHAIN / 4; t++)
+    slice[HEADER_TEXELS + t] = chain.slice(4 * t, 4 * t + 4)
   records.forEach((r, l) => r.forEach((w, t) => (slice[recordsAt + 4 * l + t] = w)))
   slice.forEach((w, v) => {
     const b = Math.floor(v / VSM_TRANSMISSION_BLOCK_TEXELS)
@@ -100,7 +112,7 @@ export function reader(memory: Map<string, V>): Read {
     ],
     {
       vsm: { poolPages: 4, poolPagesXY: [2, 2] },
-      VSM_PAGE_TEXELS: 128,
+      VSM_PAGE_TEXELS,
       vsmTransmissionMemory: 'memory',
       vec2u: vector(2),
       vec4u: vector(4),

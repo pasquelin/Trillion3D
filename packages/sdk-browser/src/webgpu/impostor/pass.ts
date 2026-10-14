@@ -3,10 +3,7 @@ import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
 import { cardPipelines } from './pipelines.ts'
 import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import type { WebgpuTileAtlas } from '../tile/atlasTypes.ts'
-
-/** The atlases the tile group is made over: their lane views and tables. */
-type TileAtlases = { color: WebgpuTileAtlas; data: WebgpuTileAtlas }
+import type { CardAtlases } from '../tile/cardReads.ts'
 
 /**
  * What the card pass holds beside its pipelines (`cardPipelines`, checked where the session
@@ -33,6 +30,15 @@ export function createImpostorPass(device: GPUDevice) {
   const ids = core.createWebgpuBindIdentity(),
     tiles = core.createWebgpuBindIdentity()
   let idsGroup: GPUBindGroup | undefined, tilesGroup: GPUBindGroup | undefined
+  // What the tile group binds, set before its entries are read: they read it live.
+  const bound = {
+    atlases: undefined as unknown as CardAtlases,
+    sampler: undefined as unknown as GPUSampler,
+  }
+  tiles.entries[0] = core.cardTileEntries(
+    () => bound.atlases,
+    () => bound.sampler,
+  )
   return {
     surfacePipeline,
     visPipeline,
@@ -59,13 +65,14 @@ export function createImpostorPass(device: GPUDevice) {
       return image
     },
     /** The tile pool's group, group 1 of every stage: the one binding of every card's maps. */
-    tilesGroup(atlases: TileAtlases, sampler: GPUSampler) {
-      core.cardTileResources(tiles.next, atlases, sampler)
-      if (tiles.moved())
+    tilesGroup(atlases: CardAtlases, sampler: GPUSampler) {
+      bound.atlases = atlases
+      bound.sampler = sampler
+      if (tiles.entriesMoved(tilesLayout))
         tilesGroup = device.createBindGroup({
           label: 'Trillion3D impostor tiles',
           layout: tilesLayout,
-          entries: core.cardTileEntries(atlases, tiles.next),
+          entries: tiles.entries[0],
         })
       return tilesGroup!
     },

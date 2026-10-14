@@ -23,7 +23,7 @@ export const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
 
 /** The three kernels of the transparent pass, compiled: their layouts and pipelines, which name
  *  no size of the scene. */
-export type BlendKernels = NonNullable<Awaited<ReturnType<typeof expandKernels>>>
+export type BlendKernels = Awaited<ReturnType<typeof expandKernels>>
 
 const VERDICT_ENTRIES = ['judgeBlendItems'] as const
 

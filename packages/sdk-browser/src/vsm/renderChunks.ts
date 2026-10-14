@@ -16,7 +16,7 @@ import {
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './renderRasterWgsl.ts'
 import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from './resources.ts'
-import type { VsmChunkKernels, vsmChunkPasses } from './chunkKernels.ts'
+import type { VsmChunkKernels } from './chunkKernels.ts'
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
@@ -81,28 +81,24 @@ function encodeVsmChunkRaster(
 
 /**
  * The candidates' kernel over `rowCount` rows, then, for each of `chunks` — one at least, the rows
- * being some (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster pass. The candidates open chunk 0's pass: its dispatches read
- * what theirs wrote, as a following pass would, and no command of the encoder lies between them.
+ * being some (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster
+ * pass. The candidates open chunk 0's pass: its dispatches read what theirs wrote, as a following
+ * pass would, and no command of the encoder lies between them.
  */
 export function vsmEncodeChunks(
   encoder: GPUCommandEncoder,
-  ctx: VsmChunkKernels & {
-    candidates: { pipeline: GPUComputePipeline }
-    raster: { pipeline: GPURenderPipeline }
-    target: GPUTextureView
-  },
-  passes: ReturnType<typeof vsmChunkPasses>,
+  ctx: VsmRenderContext,
   groups: { cand: GPUBindGroup; chunk: VsmChunkGroups; raster1: GPUBindGroup },
   pageGroup: GPUBindGroup,
   args: GPUBuffer,
   rowCount: number,
   chunks: number,
 ) {
-  const opening = passes.chunk(0),
+  const opening = ctx.passes.chunk(0),
     first = encoder.beginComputePass(opening.cullPass)
   encodeVsmCandidates(first, ctx.candidates.pipeline, groups.cand, ctx, groups.chunk.args, rowCount)
   for (let c = 0; c < chunks; c++) {
-    const each = passes.chunk(c)
+    const each = ctx.passes.chunk(c)
     const pass = c ? encoder.beginComputePass(each.cullPass) : first
     encodeVsmChunkCull(pass, ctx, groups.chunk, args, c, each.offset)
     pass.end()

@@ -3,6 +3,8 @@
 
 /** Calls `each` once on every device granted from now on, before the engine sees it. */
 export function onGrantedDevices(each: (device: GPUDevice) => void) {
+  // A device handed out again is hooked once: a page (or a proof's fake adapter) may resolve the
+  // same device on every request, and a hook run twice would count its work twice.
   const seen = new WeakSet<GPUDevice>()
   const gpu = navigator.gpu
   const requestAdapter = gpu.requestAdapter.bind(gpu)

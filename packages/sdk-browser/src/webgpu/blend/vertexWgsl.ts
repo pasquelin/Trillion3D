@@ -147,7 +147,8 @@ const blendVertexStage = ({
  var page:PageInfo;
  page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
 ${VERTEX_PAGE}
- // A padding or dropped lane leaves the clip volume; every other output stays zero, as declared.
+ // A padding or dropped lane leaves the clip volume; every output but \`water\` and the normal
+ // stays zero, as declared.
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return out;}
  // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a drawn
  // vertex, never by a padding or dropped lane.

@@ -39,10 +39,14 @@ test('every surface takes a rank; a lobed one names its lobe extension, three to
   table.viewFor(device)
   const words = sentWords(textureWrites)
   const lobes = (rank: number) => words[rank * MATERIAL_RECORD_WORDS + F.lobes]
-  assert.deepEqual([lobes(0), lobes(1), lobes(3)], [0, 2 * MATERIAL_RECORD_TEXELS + 1, 2 * 10 + 4])
+  assert.deepEqual(
+    [lobes(0), lobes(1), lobes(3)],
+    [0, 2 * MATERIAL_RECORD_TEXELS + 1, 2 * MATERIAL_RECORD_TEXELS + 4],
+  )
   // The coat's extension: its clamped factors and its coat normal's scales.
   const floats = new Float32Array(words.buffer)
-  assert.deepEqual([...floats.slice(80, 86)], [0, 0, 1, Math.fround(ROUGHNESS_FLOOR), 1, 1])
+  const coat = 2 * MATERIAL_RECORD_WORDS
+  assert.deepEqual([...floats.slice(coat, coat + 6)], [0, 0, 1, Math.fround(ROUGHNESS_FLOOR), 1, 1])
 })
 
 test('a record holds the factors, the cut, both normal factors, the slots and the volume', () => {

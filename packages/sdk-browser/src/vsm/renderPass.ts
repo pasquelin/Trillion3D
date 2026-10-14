@@ -132,7 +132,7 @@ const chunking: VsmRenderChunking = {
 }
 
 /**
- * Renders the casters of this frame into the pages marked and allocated this frame
+ * Renders the casters of this frame into the pages marked and allocated this frame.
  * Nothing when no light renders or no row exists.
  */
 export function encodeVsmRender(
@@ -169,6 +169,6 @@ export function encodeVsmRender(
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
-  vsmEncodeChunks(encoder, ctx, ctx.passes, tables, scene.pageGroup, args, scene.rowCount, chunks)
+  vsmEncodeChunks(encoder, ctx, tables, scene.pageGroup, args, scene.rowCount, chunks)
   return { chunks, chunkRows, roomLimited }
 }

@@ -1,6 +1,7 @@
 // The row cache's bench (#1483): `instances` opaque clusters, each at its own address, over a table
 // of `slots` visibility rows, the residency follower and the readbacks driven by hand, and the GPU's
 // cut of the rows each frame (`rowGpu`).
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { createWebgpuRowState } from './state.ts'
 import { slotTable } from './pageState.fixture.ts'
 import { createWebgpuRowSync } from './sync.ts'
@@ -86,11 +87,7 @@ export function rowGpu(
 ) {
   let use = new Uint32Array(0)
   return (clock: number, seeds: readonly number[]) => {
-    if (use.length < rows.blendFirst * ROW_USE_WORDS) {
-      const grown = new Uint32Array(rows.blendFirst * ROW_USE_WORDS)
-      grown.set(use)
-      use = grown
-    }
+    use = resized(use, rows.blendFirst * ROW_USE_WORDS)
     sync.rowWords.flush(rows.packedCount, (row, data) => use.set(data, row * ROW_USE_WORDS))
     const stamped = seeds.map((page) => ({ page, placement: placementOf(page), value: clock }))
     closeRows(stamped, placements, rows.rowOf, use)

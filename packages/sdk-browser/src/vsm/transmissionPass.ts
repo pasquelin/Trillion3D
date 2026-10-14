@@ -82,6 +82,7 @@ export function encodeVsmTransmission(
   const ctx = vsmTransmissionContext(trans, device)
   const { layout, caps } = trans
   const plan = binPlan(ctx, trans, frame, scene)
+  const binning = plan?.within.size ? plan : undefined
   const regions = vsmTransmissionRegions(layout.poolPages, caps)
   uniformImage[0] = frame.stamp >>> 0
   uniformImage[1] = frame.rowFirst
@@ -90,22 +91,22 @@ export function encodeVsmTransmission(
   uniformImage[4] = caps.blocks
   uniformImage[5] = regions.records
   uniformImage[6] = regions.patches
-  uniformImage[7] = plan?.within.size ? plan.cmds : 0
-  uniformImage[8] = plan?.within.size ? plan.pairs : 0
+  uniformImage[7] = binning ? binning.cmds : 0
+  uniformImage[8] = binning ? binning.pairs : 0
   writeChanged(device, trans.uniform, uniformImage, 0, uniformImage.length)
 
   const groups = transmissionGroups(device, ctx, trans)
   // The encoder's clears first: the clear, the bin and the resolve are then one compute pass, each
   // dispatch reading what those before it wrote.
   encoder.clearBuffer(trans.build, 0, VSM_TRANSMISSION_COUNTER_WORDS * 4)
-  const bin = plan?.within.size ? binLists(encoder, ctx, trans, res, scene, plan) : undefined
+  const bin = binning && binLists(encoder, ctx, trans, res, scene, binning)
   const pass = encoder.beginComputePass(TRANSMISSION_PASS)
   pass.setPipeline(ctx.clear.pipeline)
   pass.setBindGroup(0, vsmPerFrameSet(groups.clear0, res, clearTables, ctx))
   pass.setBindGroup(1, groups.clear1)
   // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
-  if (bin) encodeBin(pass, ctx, scene, plan!, bin)
+  if (binning && bin) encodeBin(pass, ctx, scene, binning, bin)
   // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty
   // slice.
   {
@@ -123,7 +124,7 @@ export function encodeVsmTransmission(
     pass.dispatchWorkgroupsIndirect(trans.args, VSM_TRANSMISSION_ARGS_AT.headers)
   }
   pass.end()
-  return plan?.within || undefined
+  return plan?.within
 }
 
 // The frame's scratch of `encodeVsmTransmission`, rewritten each frame.

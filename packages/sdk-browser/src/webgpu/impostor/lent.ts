@@ -11,12 +11,7 @@ import { VIS_CARD_BASE } from '../../visibility/visWords.ts'
 import { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 import { focalPixels } from '../../../../math/src/projection/camera.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
-import {
-  cardTileEntries,
-  cardTileLayoutEntries,
-  cardTileResources,
-  cardTileWgsl,
-} from '../tile/cardReads.ts'
+import { cardTileEntries, cardTileLayoutEntries, cardTileWgsl } from '../tile/cardReads.ts'
 import { createCardHold } from '../tile/cardTiles.ts'
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
@@ -41,7 +36,6 @@ export const impostorLent = {
   grownLength,
   cardTileEntries,
   cardTileLayoutEntries,
-  cardTileResources,
   cardTileWgsl,
   createCardHold,
   sendEngineDiagnostic,

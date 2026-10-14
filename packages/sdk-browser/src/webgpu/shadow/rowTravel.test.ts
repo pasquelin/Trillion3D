@@ -155,10 +155,24 @@ test('a placement counted whole commits no travel: neither its first move nor on
   mobility.follow(0, 0)
   mobility.follow(0, -1)
   commitRowMotion(rt, 0)
-  assert.equal(motion.derived, 3 * root.pages.length)
+  assert.equal(motion.derived, 2 * root.pages.length, 'linked then let go: its rows once')
   // The parent carried it anywhere: a move near its last CPU pose still lands its rows anywhere.
   mobility.move(0, world(rand, 2, 1, [5e3, 1, -4e3]), true)
   commitRowMotion(rt, 0)
-  assert.equal(motion.derived, 4 * root.pages.length, 'its first move after a parent is a jump')
+  assert.equal(motion.derived, 3 * root.pages.length, 'its first move after a parent is a jump')
+  assert.equal(motion.travel, 0)
+})
+
+test('a still placement linked, let go and moved in one frame counts its rows once, not once a cause', () => {
+  const rand = mulberry32(13)
+  const root = rootOf(rand, [1, 2, 3], 2, 0)
+  const { rt, mobility, motion } = runtime([root])
+  // Linked, let go, then its first move: an unknown pose and a promotion, all jumps of the same
+  // rows.
+  mobility.follow(0, 0)
+  mobility.follow(0, -1)
+  mobility.move(0, world(rand, 2, 1, [5e3, 0, -4e3]), true)
+  commitRowMotion(rt, 0)
+  assert.equal(motion.derived, root.pages.length)
   assert.equal(motion.travel, 0)
 })
