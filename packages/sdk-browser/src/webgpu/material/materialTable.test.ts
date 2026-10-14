@@ -160,14 +160,19 @@ test('the rank of a surface the collector took goes to the next surface', async 
   const table = createMaterialTable()
   const l = layers()
   assert.equal(table.word(lit(), l), 0)
-  const kept = lit()
-  assert.equal(table.word(kept, l), 1)
-  for (let round = 0; round < 10; round++) {
+  // Every later surface stays held to the end: the first is the only one the collector may take,
+  // so each round's rank is the next one or the first's.
+  const held = [lit()]
+  assert.equal(table.word(held[0], l), 1)
+  let taken = false
+  for (let round = 0; round < 10 && !taken; round++) {
     collect()
     await new Promise((settled) => setTimeout(settled, 0))
-    const word = table.word(lit(), l)
-    if (word === 0) return
-    assert.equal(word, 2 + round)
+    held.push(lit())
+    const word = table.word(held.at(-1)!, l)
+    taken = word === 0
+    if (!taken) assert.equal(word, 2 + round)
   }
-  assert.fail('the first surface was never collected')
+  assert.ok(taken, 'the first surface was never collected')
+  assert.equal(table.word(held[0], l), 1)
 })
