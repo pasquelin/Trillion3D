@@ -12,6 +12,7 @@ import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { materialRecordsSent } from '../material/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
 
 /** Each drawn row's line flag and the width its surface's record holds, after one frame of
@@ -33,10 +34,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
     await backend.flush?.()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
-    const sent = textureWrites.findLast(
-      ({ destination }) =>
-        (destination.texture as { label?: string }).label === 'Trillion3D material records',
-    )!
+    const sent = materialRecordsSent(textureWrites).at(-1)!
     const records = new Float32Array(sent.data.buffer as ArrayBuffer)
     const rows: { line: boolean; width: number }[] = []
     for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++) {

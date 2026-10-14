@@ -17,6 +17,7 @@ import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
+import { materialRecordsSent } from '../../material/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
 
 /** The quad opened on WebGPU, its material API, and what its drawn rows say: the colour of the
@@ -46,10 +47,7 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = bases.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
     assert.ok(drawn.length, 'the quad has rows')
-    const sent = textureWrites.findLast(
-      ({ destination }) =>
-        (destination.texture as { label?: string }).label === 'Trillion3D material records',
-    )!
+    const sent = materialRecordsSent(textureWrites).at(-1)!
     const records = new Float32Array(sent.data.buffer as ArrayBuffer)
     const colour = (base: number) => {
       const rank = ints[base + PAGE_INFO.at.material] & MATERIAL_RANK_MASK,
