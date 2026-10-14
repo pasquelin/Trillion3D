@@ -17,7 +17,8 @@
  */
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import { collectedSink, drawsBlended, type Collected } from '../page/selection/collect.ts'
+import { collectedSink, type Collected } from '../page/selection/collect.ts'
+import { drawsBlended } from '../page/selection/collectBlend.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { sourceSurface, type PageSurface } from '../page/surface.ts'

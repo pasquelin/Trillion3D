@@ -1,5 +1,5 @@
-// What a root's world decides on the CPU is taken when read (`rootWorld.ts`): a move no one reads
-// transforms no box and solves no stretch; a read after it is the formula's at the new world, to
+// What a root's world decides on the CPU is taken when read (`rootWorld.ts`): a root made or a move
+// no one reads transforms no box and solves no stretch; a read after it is the formula's at the new world, to
 // the bit; a read before it is taken is the box the root leaves; a world a parent composes moves
 // both with its own stamp.
 import test from 'node:test'
@@ -8,13 +8,7 @@ import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { generated } from '../../placement/composeDoubles.fixture.ts'
-import {
-  rootWorldBox,
-  takeWorldBox,
-  worldMoved,
-  worldStretch,
-  type WorldMemo,
-} from './rootWorld.ts'
+import { rootWorldBox, worldMoved, worldStretch, type WorldMemo } from './rootWorld.ts'
 
 /** A root of a generated local box, posed by `elements`. */
 const rootAt = (elements: Float64Array): WorldMemo => ({
@@ -33,8 +27,9 @@ test('a move no one reads takes no box; a read after it is the formula’s, to t
   const next = lcgRandom(5),
     elements = generated(next, 1e4),
     root = rootAt(elements)
-  takeWorldBox(root)
-  assert.deepEqual(Array.from(root.worldBox!), expectedBox(root), 'taken with the root')
+  worldMoved(root)
+  assert.deepEqual(Array.from(root.worldBox!), new Array(6).fill(0), 'a root made takes none')
+  assert.deepEqual(Array.from(rootWorldBox(root)!), expectedBox(root), 'its first read takes it')
   const left = Array.from(root.worldBox!)
   for (let k = 0; k < 20; k++) {
     elements.set(generated(next, 1e4))
@@ -48,8 +43,8 @@ test('a box read before the move is taken is the one the root leaves', () => {
   const next = lcgRandom(9),
     elements = generated(next, 10),
     root = rootAt(elements)
-  takeWorldBox(root)
-  const before = expectedBox(root)
+  worldMoved(root)
+  const before = Array.from(rootWorldBox(root)!)
   // The owner writes the world in place; the engine takes the move after it reads what it leaves.
   elements.set(generated(next, 10))
   assert.deepEqual(Array.from(rootWorldBox(root)!), before)
