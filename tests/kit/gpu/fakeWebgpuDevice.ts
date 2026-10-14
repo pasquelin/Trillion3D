@@ -1,4 +1,5 @@
 import { validating } from './validation.ts'
+import { installGpuGlobals } from './globals.ts'
 import type { LostInfo } from './fakeRecords.ts'
 
 /** A device's error scopes, innermost last, each with the first error raised under it: `push` opens
@@ -23,6 +24,8 @@ export function asWebgpuDevice(
   members: Record<string, unknown>,
   scopes: Array<object | null> = [],
 ) {
+  // WebGPU's globals, its error classes among them: what the engine tests a raised error against.
+  installGpuGlobals()
   // Every call checked by WebGPU's rules before it is made (`validation.ts`).
   validating(members)
   let settle: (info: LostInfo) => void = () => {}

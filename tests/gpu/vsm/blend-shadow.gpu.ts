@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, publishAndVerify, type PageProofResult } from '../kit/enginePageProof.ts'
-import { luminance } from './shadowScene.ts'
+import { pixelLuminance } from './shadowScene.ts'
 import type { Shots } from './blendShadowPage.ts'
 
 test('a blended receiver is shadowed as the opaque one, penumbra for penumbra', async () => {
@@ -30,9 +30,9 @@ test('a blended receiver is shadowed as the opaque one, penumbra for penumbra', 
     sumB = 0,
     worst = 0
   for (let i = 0; i < pixels; i++) {
-    const la = luminance(a, i),
-      lb = luminance(b, i)
-    if (luminance(o, i) - la > 4) shaded++
+    const la = pixelLuminance(a, i),
+      lb = pixelLuminance(b, i)
+    if (pixelLuminance(o, i) - la > 4) shaded++
     const d = Math.abs(la - lb)
     worst = Math.max(worst, d)
     if (d > 2) apart++

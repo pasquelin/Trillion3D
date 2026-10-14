@@ -36,7 +36,7 @@ export async function openBenchWorld(
 }
 
 /** The luminance of pixel `i` of an RGBA image. */
-export const luminance = (p: Uint8Array, i: number) =>
+export const pixelLuminance = (p: Uint8Array, i: number) =>
   luminance(p[4 * i], p[4 * i + 1], p[4 * i + 2])
 
 /**
@@ -58,7 +58,7 @@ export function shadingGap(
     height = pixels / width
   const darkening: number[] = []
   for (let i = 0; i < pixels; i++) {
-    const d = luminance(open, i) - luminance(settled, i)
+    const d = pixelLuminance(open, i) - pixelLuminance(settled, i)
     if (d > 0) darkening.push(d)
   }
   // The factor 1/2 is not derived: it is the midpoint between "unchanged" (0) and "shadowed" (the
@@ -70,13 +70,13 @@ export function shadingGap(
   const edge = (i: number) => {
     const x = i % width,
       y = (i - x) / width,
-      own = luminance(settled, i)
+      own = pixelLuminance(settled, i)
     for (let dy = -radius; dy <= radius; dy++)
       for (let dx = -radius; dx <= radius; dx++) {
         const nx = x + dx,
           ny = y + dy
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-        if (Math.abs(luminance(settled, ny * width + nx) - own) > step) return true
+        if (Math.abs(pixelLuminance(settled, ny * width + nx) - own) > step) return true
       }
     return false
   }
@@ -85,8 +85,8 @@ export function shadingGap(
     shadowed = 0,
     shadowedOffEdge = 0
   for (let i = 0; i < pixels; i++) {
-    const moved = Math.abs(luminance(stopped, i) - luminance(settled, i)) > step
-    const shade = luminance(open, i) - luminance(settled, i) > step
+    const moved = Math.abs(pixelLuminance(stopped, i) - pixelLuminance(settled, i)) > step
+    const shade = pixelLuminance(open, i) - pixelLuminance(settled, i) > step
     if (!moved && !shade) continue
     const inside = !edge(i)
     if (moved) differing++

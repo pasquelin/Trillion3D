@@ -14,7 +14,7 @@ import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metr
 import { runOnDawn } from '../kit/onDawn.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { benchManifest, SDK_URL, settle } from '../world/proofWorld.ts'
-import { luminance, openBenchWorld } from './shadowScene.ts'
+import { pixelLuminance, openBenchWorld } from './shadowScene.ts'
 
 const SIZE: [number, number] = [1280, 720]
 /** The measurement SDK the bench's street probe imports by its address, as the proofs load it. */
@@ -51,7 +51,7 @@ async function sunBehindTheEye() {
     // What the sun's shadow darkens on screen: every caster of it stands behind the eye.
     let darkened = 0
     for (let i = 0; i < open.length / 4; i++)
-      if (luminance(open, i) - luminance(shadowed, i) > 40) darkened++
+      if (pixelLuminance(open, i) - pixelLuminance(shadowed, i) > 40) darkened++
     // The bench trajectory with the sun: one pose per animation frame, as a moving camera.
     for (let index = 0; index < PATH_POSES; index += 2) {
       await animationFrame()
