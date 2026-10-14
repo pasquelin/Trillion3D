@@ -1,8 +1,8 @@
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import { bufferEntry } from '../core/liveEntries.ts'
+import { composeGroup, heldGroup } from '../../placement/composeGroups.ts'
 import { WATER_RECT_BINDING, WATER_RECT_SHADER, waterRectBindEntries } from './rectWgsl.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
@@ -22,8 +22,12 @@ export async function createWaterRect(device: GPUDevice) {
     'boundWaterItems',
     'writeWaterArgs',
   ])
-  const identity = createWebgpuBindIdentity()
-  let group: GPUBindGroup | undefined
+  // What the group names, read live by its entries: written once, made again when one moved.
+  const bound = {} as Record<keyof typeof WATER_RECT_BINDING, GPUBuffer>
+  const held = heldGroup()
+  held.identity.entries[0] = (Object.keys(WATER_RECT_BINDING) as (keyof typeof bound)[]).map(
+    (name) => bufferEntry(WATER_RECT_BINDING[name], () => bound[name]),
+  )
   return {
     /** The water items' rectangles, then the pass's words, in the open compute pass `pass`: the
      *  kernels' buffers, the item records and the volumes bound. */
@@ -34,27 +38,14 @@ export async function createWaterRect(device: GPUDevice) {
       volumes: GPUBuffer,
       waters: number,
     ) {
-      const named = identity.next
-      named[0] = buffers.frame
-      named[1] = buffers.keyed
-      named[2] = buffers.waterItems
-      named[3] = items
-      named[4] = volumes
-      named[5] = buffers.verdict
-      named.length = 6
-      if (identity.moved() || !group)
-        group = device.createBindGroup({
-          layout,
-          entries: namedEntries(WATER_RECT_BINDING, {
-            frame: { buffer: buffers.frame },
-            keyed: { buffer: buffers.keyed },
-            waterItems: { buffer: buffers.waterItems },
-            items: { buffer: items },
-            volumes: { buffer: volumes },
-            verdict: { buffer: buffers.verdict },
-          }),
-        })
-      pass.setBindGroup(0, group)
+      bound.frame = buffers.frame
+      bound.keyed = buffers.keyed
+      bound.waterItems = buffers.waterItems
+      bound.items = items
+      bound.volumes = volumes
+      bound.verdict = buffers.verdict
+      composeGroup(device, held, stages.boundWaterItems)
+      pass.setBindGroup(0, held.group!)
       pass.setPipeline(stages.boundWaterItems)
       dispatchRows(pass, workgroupCount(waters, WORKGROUP_THREADS))
       pass.setPipeline(stages.writeWaterArgs)
