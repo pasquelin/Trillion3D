@@ -95,14 +95,20 @@ fn triangle_deviation(
     error: f64,
 ) -> Option<f64> {
     let (face, _) = face_normal(positions, tri).filter(|&(_, width)| width > error)?;
+    let shading = shading_normal(tri, normals)?;
+    // fdlibm's arc cosine (the maths crate's, the bits of `libm::acos`), not the platform's: macOS
+    // and glibc differ in its last bit, and the deviation enters the cook's bytes.
+    Some(acos(dot(face, shading).clamp(-1.0, 1.0)).to_degrees())
+}
+
+/// The normal the centre of `tri` is shaded with, the unit mean of its corners' normals; `None`
+/// when no corner carries one, or they cancel out.
+pub(super) fn shading_normal(tri: &[u32; 3], normals: &[f32]) -> Option<[f64; 3]> {
     let mean = tri
         .iter()
         .filter_map(|&corner| unit_normal(normals, corner))
         .fold([0.0; 3], add);
-    let shading = unit(mean)?;
-    // fdlibm's arc cosine (the maths crate's, the bits of `libm::acos`), not the platform's: macOS
-    // and glibc differ in its last bit, and the deviation enters the cook's bytes.
-    Some(acos(dot(face, shading).clamp(-1.0, 1.0)).to_degrees())
+    unit(mean)
 }
 
 /// Three floats of `values` at vertex `v`, if it has them.
