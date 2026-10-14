@@ -5,7 +5,9 @@ import assert from 'node:assert/strict'
 import { REFLECTION_FIELD_ALPHA, bandThree, fieldAlpha } from './reach.ts'
 
 test('the band-3 response falls from a mirror’s one to the clamped cosine’s zero', () => {
-  assert.ok(bandThree(0.05) > 0.95, 'a near mirror keeps its band 3')
+  // GGX's tail is heavy: in closed form, with c = 2k/(1 − k) and u = 1 − z, a₃(0.05) = 1 −
+  // ∫(1 − u)(6u − 7.5u² + 2.5u³)/(u + c)² / ∫(1 − u)/(u + c)² ≈ 1 − 17.07/194.2 ≈ 0.912.
+  assert.ok(bandThree(0.05) > 0.9, 'a near mirror keeps most of its band 3')
   assert.ok(Math.abs(bandThree(1)) < 1e-6, 'α = 1 is the clamped cosine, odd bands past 1 vanish')
   let last = Infinity
   for (let alpha = 0.05; alpha <= 1; alpha += 0.05) {
