@@ -1,46 +1,21 @@
 import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { runtimeRadianceWgsl } from './runtimeTraceWgsl.ts'
 import { BOUNCE_LIGHT_LIST_BINDING } from './lightCellWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
-import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
-import { GOLDEN_ANGLE, TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
+import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
 
 /** The proxy in the probe pass (`probes.ts`): its buffer, the culling's records — the worlds it is
  *  placed by and its instances — and the placement tree its rays walk. */
 export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8 } as const
-
-/**
- * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
- * rank in the level, the cell that rank carries — the inverse of toroidal storage, in
- * `[base, base + side)` —, the probe's first texel, and whether the level exists. One text, so the
- * texels the snapshot copies are the ones the update wrote.
- */
-const QUEUED_PROBE_WGSL = wgslBlock(
-  'QUEUED_PROBE_WGSL',
-  [],
-  `struct QueuedProbe{level:u32,rank:u32,cell:vec3i,probe:vec3u,valid:bool,}
-fn queuedProbe(entry:u32)->QueuedProbe{
- let packed=probeQueue[entry];
- let perLevel=max(bounce.counts.z,1u);
- let level=packed/perLevel;
- if(level>=bounce.counts.y){return QueuedProbe(level,0u,vec3i(0),vec3u(0u),false);}
- let rank=packed%perLevel;
- let side=i32(bounce.counts.x);
- let base=vec3i(bounce.levels[level].base.xyz);
- let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
- let cell=base+(((ranked-base)%side)+side)%side;
- return QueuedProbe(level,rank,cell,probeOf(level,cell),true);
-}`,
-)
 
 /**
  * Update of the cascade irradiance probes.
@@ -73,9 +48,6 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
 @group(0) @binding(${BOUNCE_LIGHT_LIST_BINDING}) var<storage,read> tileLights:array<u32>;
-${wgslConsts({
-  RAYS_PER_PROBE: BOUNCE_SETTINGS.raysPerProbe,
-})}
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
@@ -85,19 +57,7 @@ const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 fn probeStore(probe:vec3u,k:u32,value:vec4f){
  textureStore(probesOut,vec2u(probe.x+k,probe.y),probe.z,value);
 }
-/** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
-fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
- let index=f32(slot)+jitter;
- let z=1.0-2.0*index/f32(RAYS_PER_PROBE);
- let radius=sinFromCos(z);
- let angle=index*GOLDEN_ANGLE+rotation;
- return vec3f(radius*cos(angle),radius*sin(angle),z);
-}
-/** Partial sums of a group: nine basis accumulators, four of distance, the travel and the rays that
- *  answered. */
-var<workgroup> partial:array<array<vec3f,WORKGROUP_THREADS>,13>;
-var<workgroup> partialTravelled:array<vec2f,WORKGROUP_THREADS>;
-@compute @workgroup_size(WORKGROUP_THREADS)
+@compute @workgroup_size(PROBE_THREADS)
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
  // The queue says, rank by rank, which probe of which level works: the scheduler filled
@@ -119,7 +79,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  var answered=0.0;
  // One thread per ray: a probe at sixty-four rays occupies a whole group, where a single
  // thread chained them one after another and left the GPU idle.
- for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP_THREADS){
+ for(var ray=lane;ray<RAYS_PER_PROBE;ray+=PROBE_THREADS){
   let d=rayDirection(ray,jitter,rotation);
   let sample=rtProbeRay(origin,d,reach);
   // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
@@ -139,7 +99,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // round, and thread zero writes the probe.
  for(var k=0u;k<13u;k++){partial[k][lane]=sums[k];}
  partialTravelled[lane]=vec2f(travelled,answered);
- for(var stride=WORKGROUP_THREADS/2u;stride>0u;stride>>=1u){
+ for(var stride=PROBE_THREADS/2u;stride>0u;stride>>=1u){
   workgroupBarrier();
   if(lane<stride){
    for(var k=0u;k<13u;k++){partial[k][lane]+=partial[k][lane+stride];}
@@ -193,11 +153,9 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     DIRECT_LIGHT_WGSL,
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
-    WORKGROUP_THREADS_WGSL,
+    PROBE_GROUP_WGSL,
     TWO_PI,
-    GOLDEN_ANGLE,
     hashUnit,
-    sinFromCos,
   ],
 )
 
