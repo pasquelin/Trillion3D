@@ -115,7 +115,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
     setup: { viewport: [32, 32] },
     run: {
       diagnostic: 'beauty',
-      funding: { refreshing: undefined, cutAsked: 0, renewal: Promise.resolve() },
+      funding: { refreshing: undefined, cutAsked: 0, pending: Promise.resolve() },
     },
     layout: { rows: { packedCount: 0, packedRecs: [] } },
     blendState: { blendGpu: [] },

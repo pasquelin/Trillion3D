@@ -8,7 +8,8 @@ import { noteWhole } from './swap.ts'
 import { recutView } from './runtimeState.ts'
 import { createCoarsening, type Coarsening } from './coarsening.ts'
 import { readDagSlot } from './readbackSlot.ts'
-import { createReadbackRing, ReadbackRefused } from '../core/readbackRing.ts'
+import { createReadbackRing, unlessRefused } from '../core/readbackRing.ts'
+import { behind } from '../core/behind.ts'
 import { widerFlagShape } from './flagSections.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
@@ -77,19 +78,13 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
       bytes: 2 * SELECTION_HEADER_WORDS * 4 + ADMISSION_BUCKETS * 4,
       count: DAG_READBACK_SLOTS,
       chain(read, copy) {
-        slots.pending = slots.pending
-          .catch(() => {})
-          .then(async () => {
-            try {
-              await read()
-            } catch (error) {
-              // A mapping cut short by `dispose` or refused: the next copy tries again. Any other
-              // error is the engine's: it surfaces.
-              if (!(error instanceof ReadbackRefused)) throw error
-            } finally {
-              settled(copy)
-            }
-          })
+        // A mapping cut short by `dispose` or refused: the next copy tries again. Any other error
+        // is the engine's: it surfaces.
+        void behind(slots, () =>
+          read()
+            .catch(unlessRefused)
+            .finally(() => settled(copy)),
+        )
       },
     },
     (range, _staging, copy) => readAsideSlot(own, range, copy, scratch[reads++ % scratch.length]),

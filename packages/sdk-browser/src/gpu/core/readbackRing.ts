@@ -19,6 +19,11 @@ const createStaging = (device: Pick<GPUDevice, 'createBuffer'>, label: string, b
  *  caller's. */
 export class ReadbackRefused extends Error {}
 
+/** A chained read's failure: nothing when its mapping was refused, thrown again otherwise. */
+export function unlessRefused(error: unknown) {
+  if (!(error instanceof ReadbackRefused)) throw error
+}
+
 interface Staging<T> {
   buffer: GPUBuffer
   /** What the frame that took the buffer says of its copy, given back to `read`. */

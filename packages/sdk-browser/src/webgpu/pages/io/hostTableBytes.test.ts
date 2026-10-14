@@ -13,7 +13,7 @@ import {
   RESIDENT,
   VIEWPORT,
 } from '../../../impostor/section.fixture.ts'
-import { hostTableBytesOf } from './memory.ts'
+import { hostTableBytesOf } from './besidePools.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What a root holds at least in the tier's tables, in bytes. The watch: its verdict (1), the frame
