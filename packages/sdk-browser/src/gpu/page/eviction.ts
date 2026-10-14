@@ -27,20 +27,6 @@ export type Accept<V extends Held = ResidentPage> = (page: V) => boolean
 /** Why no slot is given back: no order, or the order spent. */
 export type NoVictim = 'eviction-queue-spent'
 
-/**
- * Which resident page an arrival takes the slot of, in a pool of fixed slots: the next page of the
- * order the GPU cut published (`../dag/evict.ts`), which alone knows when each page was last used
- * by any view, and holds a page's parents as long as the page. Each entry is passed once; one
- * pinned or refused when passed waits in `held` for its unpin, and is offered before the entries
- * after it. A page that arrived after the order's cut is never its victim, nor one it does not list.
- * Before any order, or while the frames draw a cut older than it, there is no victim: the arrival
- * waits for the next readback. `lower` — a page of a lower tier asking — takes only from the order's
- * OLD head: it never evicts a page any view used of late.
- *
- * A pin is the cache's own hold: the root cover's pages, which the GPU never lists either
- * (`../dag/poolList.ts`). No clock, no recency: the GPU's. The one victim taker of every GPU pool,
- * keyed `K`, each resident key's entry `V`.
- */
 /** Whether `order` is there and lets its pages leave. */
 const opened = <K>(order: EvictionOrder<K> | undefined): order is EvictionOrder<K> =>
   !!order && (order.open?.() ?? true)
@@ -48,6 +34,20 @@ const opened = <K>(order: EvictionOrder<K> | undefined): order is EvictionOrder<
 const endOf = <K>(order: EvictionOrder<K>, lower: boolean) =>
   lower ? (order.old ?? order.count) : order.count
 
+/**
+ * Which resident page an arrival takes the slot of, in a pool of fixed slots: the next page of the
+ * order the pool's GPU sort published (`../pool/sortWgsl.ts`), which alone knows when each page was
+ * last used by any view, and holds a page's parents as long as the page. Each entry is passed once;
+ * one pinned or refused when passed waits in `held` for its unpin, and is offered before the
+ * entries after it. A page that arrived after the order's cut is never its victim, nor one it does
+ * not list. Before any order, or while the frames draw a cut older than it, there is no victim: the
+ * arrival waits for the next readback. `lower` — a page of a lower tier asking — takes only from
+ * the order's OLD head: it never evicts a page any view used of late.
+ *
+ * A pin is the cache's own hold: the root cover's pages, which the GPU never lists either
+ * (`../dag/poolList.ts`). No clock, no recency: the GPU's. The one victim taker of every GPU pool,
+ * keyed `K`, each resident key's entry `V`.
+ */
 export function createEviction<K = string, V extends Held = ResidentPage>(
   resident: Pick<ReadonlyMap<K, V>, 'get'>,
 ) {
