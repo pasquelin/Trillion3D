@@ -151,18 +151,16 @@ export function growRowCopies(
     (copy, placement) => poseMatrix(copy, placement, rebound),
     (template, placement) => {
       if (template.userData.pagedBlend || !template.userData.drawSource) return undefined
-      const copy = createBlendCopyRecord(
+      // What its primitive gives every placement comes whole from the template, as a copy collected
+      // at the open carries it (`collect.ts`).
+      return createBlendCopyRecord(
         template.userData.drawSource,
         template.renderOrder,
         placementWorld(placement.rows, placement.index),
         template.surface,
         placement,
+        template,
       )
-      // What its primitive gives every placement: the deformation, and the proxy a ray meets it
-      // by (`collect.ts`), as a copy collected at the open carries them.
-      copy.deformation = template.deformation
-      copy.proxy = template.proxy
-      return copy
     },
   ).map(({ item }) => item)
 }

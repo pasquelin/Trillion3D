@@ -18,6 +18,10 @@ import type { PlacementOf } from '../placement/rows.ts'
  * record reads, like the opaque pages of the same mesh, which carry that same pose. Nothing may
  * write through `matrix`: those sixteen floats are the world buffer of every page of that mesh.
  *
+ * What its primitive gives every placement — the deformation, and the proxy a ray meets it by —
+ * comes whole in `shared`: one place builds a placement's copy, at the open (`collect.ts`) and at a
+ * growth (`../placement/growth.ts`) alike.
+ *
  * A witness that draws its transparent surfaces with a host renderer needs a host mesh instead,
  * and builds one on its side (`blendCopyMesh.ts`, injected into `collectClusterPages`).
  */
@@ -27,8 +31,9 @@ export function createBlendCopyRecord(
   world: MatrixElements,
   surface: PageSurface,
   placement?: PlacementOf,
+  shared?: Pick<BlendCopy, 'deformation' | 'proxy'>,
 ): BlendCopy {
-  return {
+  const copy: BlendCopy = {
     geometry: source.geometry,
     surface,
     matrix: world,
@@ -37,4 +42,9 @@ export function createBlendCopyRecord(
     renderOrder,
     userData: { drawSource: source },
   }
+  if (shared) {
+    copy.deformation = shared.deformation
+    copy.proxy = shared.proxy
+  }
+  return copy
 }
