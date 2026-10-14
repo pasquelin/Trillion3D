@@ -6,11 +6,10 @@ import { type WgslSource, wgslSource } from '../../../../math/src/wgsl/source.fi
  * An expression is made of names, `u`-suffixed integer literals, `!`, `&&`, `||`, comparisons,
  * the integer operators `& | << >> + - * /` (u32, wrapping, as the kernel's index math), calls,
  * indexing and field access. A name is a parameter, a host binding, or a one-statement WGSL
- * function of the same source, called by its text; nothing else parses — a float literal, an
- * unknown name or function, a statement — so a kernel edit that leaves this subset fails loudly.
- * `f32` arguments are rounded to f32 first, as the kernel receives them, and `u32` wrapped.
- * The line and sprite shaders' float-vector reader is another subset, of other statements
- * (`../../visibility/shader/shaderText.fixture.ts`).
+ * function of the same source or WGSL's `min` and `max`, called by its text; nothing else parses —
+ * a float literal, an unknown name, a statement — so a kernel edit that leaves it fails loudly.
+ * `f32` arguments are rounded to f32 first, as the kernel receives them, and `u32` wrapped. The
+ * line and sprite shaders' reader is another subset (`../../visibility/shader/shaderText.fixture.ts`).
  */
 type Value = boolean | number | object
 type Env = Record<string, Value>
@@ -148,7 +147,8 @@ const CAST: Record<string, (value: Value) => Value> = {
   f32: (value) => Math.fround(value as number),
   u32: (value) => (value as number) >>> 0,
 }
-
+/** WGSL's own `min` and `max`, read where the source and the host name none. */
+const BUILTIN: Env = { min: Math.min, max: Math.max }
 /**
  * The expressions and one-statement functions of `source`, with `host` naming what the kernel reads
  * from its buffers, uniforms and locals. A host function stands for a WGSL one only where the
@@ -163,7 +163,7 @@ export function wgslScope(source: WgslSource, host: Env = {}) {
       wgslSource(source),
     )
     if (!match) {
-      const bound = host[name]
+      const bound = host[name] ?? BUILTIN[name]
       if (typeof bound !== 'function') throw new Error(`WGSL_PREDICATE_MISSING: ${name}`)
       return (_env, ...args) => (bound as (...args: Value[]) => Value)(...args)
     }
