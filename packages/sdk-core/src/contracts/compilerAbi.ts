@@ -17,6 +17,8 @@ export const DEFAULT_RAM_BUDGET_MB = 256
 export const MIN_RAM_BUDGET_MB = 64
 /** How meshes may be simplified; the first, `'none'`, is the default. */
 export const SIMPLIFICATIONS = ['none', 'qem-endpoints'] as const
+/** The simplification a job runs when it names none. */
+export const DEFAULT_SIMPLIFICATION: Simplification = 'none'
 /** How meshes are simplified, one of `SIMPLIFICATIONS`. */
 export type Simplification = (typeof SIMPLIFICATIONS)[number]
 /**

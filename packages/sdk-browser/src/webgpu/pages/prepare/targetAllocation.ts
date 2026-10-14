@@ -70,7 +70,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     reflectionBytes(width, height, sceneBlends(rt)) +
     // The Hi-Z level 0's front layer, a scene's whose transparents write a front depth, kept once
     // made (`GpuHiz.front`): a pyramid made after holds it.
-    (hiz && (sceneBlends(rt) || rt.vis.gpuHiz!.level0.depthOrArrayLayers > HIZ_FRONT_LAYER)
+    (hiz && (sceneBlends(rt) || (rt.vis.gpuHiz?.level0?.depthOrArrayLayers ?? 1) > HIZ_FRONT_LAYER)
       ? level0LayerBytes(width, height)
       : 0) +
     display * DISPLAY_BYTES

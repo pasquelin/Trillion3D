@@ -17,7 +17,7 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
   const files = [
     'vsm/markingPass.ts',
     'vsm/projectionPass.ts',
-    'vsm/invalidationPass.ts',
+    'vsm/castPipes.ts',
     'vsm/pageManagementEncode.ts',
     'vsm/pageManagementPass.ts',
     'vsm/transmissionPass.ts',
@@ -25,7 +25,8 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
   ]
   const labels = new Set<string>()
   for (const file of files) {
-    const text = readFileSync(new URL(file, root), 'utf8')
+    // A label built on the passes' prefix is read as the prefix it is.
+    const text = readFileSync(new URL(file, root), 'utf8').replaceAll('${VSM_PASS_PREFIX}', 'vsm.')
     for (const m of text.matchAll(/['`](vsm\.[\w.() ${}]*)['`]/g))
       labels.add(m[1].replace(/\$\{[^}]*\}/g, '0'))
   }

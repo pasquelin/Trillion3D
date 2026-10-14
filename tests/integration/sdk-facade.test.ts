@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 710 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 701 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -86,7 +86,11 @@ test('generated inventory and explicit facade files are current', async () => {
   // (TABLE_FILTERS); the bounce budget is the proxy's (ProxyBudget). The material kinds' default
   // exponent and index of refraction are engine values, never public. No standalone CPU `raycast`
   // stands beside `world.raycast`, which the GPU ray query answers; its `Intersection` stays public.
-  assert.equal(inventory.exports.length, 710)
+  // No CPU batch loop the engine never runs (invertMatrix4Batch, normalMatrix3Batch,
+  // decomposeMatrix4Batch, srgbToLinearBatch, linearToSrgbBatch), no CPU cone test beside the GPU
+  // cull (boxConeRejects), no full impostor walk beside the watch (planImpostors, ImpostorCard,
+  // ImpostorPlan); the compile job's scopes are one public table (ASSET_SCOPES).
+  assert.equal(inventory.exports.length, 701)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -173,10 +177,12 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core. The
   // batch union of moved boxes gone to the WebAssembly lot, its module scratch box with it, takes
   // thirty-five more off each of the three. Every module importing the maths from its own file,
-  // not through the core's barrel, takes six off the core and 143 off the browser condition.
+  // not through the core's barrel, takes six off the core and 143 off the browser condition. The
+  // node setters the package exports being the counted ones, noted in the write journal, put the
+  // journal's counters in the package's chain: 32 bytes on, 42 on its browser condition.
   assert.equal(baseline.outputFiles[0].contents.length, 3_006)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_371)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 2_946)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_403)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 2_988)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
