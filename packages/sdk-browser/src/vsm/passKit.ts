@@ -1,12 +1,13 @@
 /**
- * What the shadow maps' compute passes share: the compute
- * pipeline of a WGSL source described once a device and compiled the engine's one way
- * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
+ * What the shadow maps' compute passes share: the compute pipeline of a WGSL source described
+ * once a device and compiled the engine's one way (`preparedComputePipeline`), and a group of
+ * whole buffers (`vsmBufferGroup`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
  * the maths package's (`packages/math/src/scalar`).
  */
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
 /** A compute pipeline and the layouts of its groups: `prepared` compiles it off the thread (the
  *  prepare step awaits it, `prepareVsmPipelines`); `pipeline`, read where it is bound, is the one
@@ -67,3 +68,17 @@ export const vsmComputePipe = (
   entryPoint: string,
   groups: GPUBindGroupLayoutEntry[][],
 ): VsmComputePipe => vsmKit(device).of({ label, code, entryPoint, groups })
+
+/** A bind group of whole buffers in binding order, but for the entries that name their own window
+ *  (a `GPUBufferBinding`, the raster's parameters). No `instanceof GPUBuffer`: the interface is no
+ *  global outside a WebGPU realm. */
+export function vsmBufferGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  resources: readonly (GPUBuffer | GPUBufferBinding)[],
+) {
+  return device.createBindGroup({
+    layout,
+    entries: sequentialEntries(resources.map((r) => ('buffer' in r ? r : { buffer: r }))),
+  })
+}

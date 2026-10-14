@@ -1,23 +1,25 @@
 /**
  * THE BINS PASS ENCODED (`rowBinsWgsl.ts`): once a frame a bound's bins pay, what they are asked
- * with moved since the last one encoded (`bins.asked`) and a staging buffer is free, after the rows
- * pass wrote the spheres, the histograms cleared, every row of the range binned,
- * and the histograms copied into a buffer of the readback ring (`../gpu/core/readbackRing.ts`). It
- * maps after the frame's submit (`rowBinsSubmitted`) and lands a few frames later
- * (`landRowBins`): no frame waits for it, and a frame with every buffer in flight bins nothing. Its
- * kernel compiles off the thread: the bound keeps the worst case until it has.
+ * with moved since the last one submitted (`bins.asked`) and a staging buffer is free, after the
+ * rows pass wrote the spheres, the histograms cleared, every row of the range binned, and the
+ * histograms copied into a buffer of the readback ring (`../gpu/core/readbackRing.ts`). It maps
+ * after the frame's submit (`rowBinsSubmitted`), its ask then the one later asks are compared with,
+ * and lands a few frames later (`landRowBins`): no frame waits for it, and a frame with every
+ * buffer in flight bins nothing. Its kernel compiles off the thread: the bound keeps the worst case
+ * until it has.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { composeGroup, heldGroup } from '../webgpu/core/bindIdentity.ts'
 import { rowBinTables } from './rowBins.ts'
 import { rowBinsRequest } from './rowBinsParams.ts'
-import { landRowBins, type RowBinsTag } from './rowBinsRecord.ts'
+import { landRowBins, type RowBinsScene, type RowBinsTag } from './rowBinsRecord.ts'
 import { ROW_BINS_WGSL } from './rowBinsWgsl.ts'
-import type { VsmBoundLight, VsmRowBound, VsmRowSpheres } from './rowPageBound.ts'
+import type { VsmBoundLight, VsmRowBound } from './rowPageBound.ts'
 
 const LABEL = 'Trillion3D shadow row bins'
 /** Histograms in flight at most: one a frame, each read a few frames late. */
@@ -45,7 +47,7 @@ function createRowBinsGpu(device: GPUDevice, bound: VsmRowBound) {
   const tables = createTables(device),
     held = heldGroup()
   const named: GPUBufferBinding[] = Array.from({ length: 5 }, () => ({ buffer: tables }))
-  held.identity.entries[0] = named.map((resource, binding) => ({ binding, resource }))
+  held.identity.entries[0] = sequentialEntries(named)
   return {
     device,
     tables,
@@ -53,9 +55,9 @@ function createRowBinsGpu(device: GPUDevice, bound: VsmRowBound) {
     bins: undefined as GPUBuffer | undefined,
     held,
     named,
-    /** The last histogram's encoder was submitted (`rowBinsSubmitted`): one never submitted is
-     *  asked again, its copy taking the place of the one that never ran. */
-    sent: true,
+    /** The ask whose histogram this frame's encoder copies, until its submit makes it the last
+     *  asked (`rowBinsSubmitted`). */
+    taken: undefined as RowBinsTag | undefined,
     ring: createReadbackRing<RowBinsTag>(
       device,
       { label: LABEL, bytes: 4, count: IN_FLIGHT },
@@ -89,17 +91,9 @@ function gpuOf(device: GPUDevice, bound: VsmRowBound) {
   return made
 }
 
-/** What the pass reads of the frame: the rows' spheres and mobility words, and what changed in
- *  the spheres (`VsmRowSpheres`). */
-interface RowBinsScene {
-  spheres: GPUBuffer
-  mobility: GPUBuffer
-  rowSpheres: VsmRowSpheres
-}
-
 /** The bins pass of `bound` over rows `[first, end)` of `scene` under `lights`, into `encoder`:
- *  nothing when the bins would bound nothing, would bin what the last one encoded did over the same
- *  buffers (`bins.asked`), the kernel is compiling, or every staging buffer is in flight. */
+ *  nothing when the bins would bound nothing, would bin what the last one submitted did over the
+ *  same buffers (`bins.asked`), the kernel is compiling, or every staging buffer is in flight. */
 export function encodeRowBins(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
@@ -108,14 +102,13 @@ export function encodeRowBins(
   range: { first: number; end: number },
   lights: readonly VsmBoundLight[],
 ) {
+  // An ask taken by an encoder never submitted: its buffer free again, read never.
   const last = gpus.get(bound)
-  if (
-    !last?.sent ||
-    last.named[0].buffer !== scene.spheres ||
-    last.named[1].buffer !== scene.mobility
-  )
-    bound.bins.asked = undefined
-  const request = rowBinsRequest(bound.bins, scene.rowSpheres, range, lights)
+  if (last?.taken) {
+    last.ring.dropped()
+    last.taken = undefined
+  }
+  const request = rowBinsRequest(bound.bins, scene, range, lights)
   if (!request) return
   const compiled = kernel(device)
   if (!compiled.ready) return void compiled.prepare().catch(() => {})
@@ -142,14 +135,15 @@ export function encodeRowBins(
   dispatchRows(pass, ceilDiv(range.end - range.first, WORKGROUP_THREADS))
   pass.end()
   encoder.copyBufferToBuffer(gpu.bins, 0, staging, 0, bytes)
-  bound.bins.asked = tag
-  gpu.sent = false
+  gpu.taken = tag
 }
 
-/** After the frame's submit: the histogram its encoder copied maps, and lands a few frames late. */
+/** After the frame's submit: the histogram its encoder copied maps, and lands a few frames late;
+ *  its ask is the last asked. */
 export function rowBinsSubmitted(bound: VsmRowBound | undefined) {
   const gpu = bound && gpus.get(bound)
-  if (!gpu) return
+  if (!bound || !gpu?.taken) return
   gpu.ring.submitted()
-  gpu.sent = true
+  bound.bins.asked = gpu.taken
+  gpu.taken = undefined
 }

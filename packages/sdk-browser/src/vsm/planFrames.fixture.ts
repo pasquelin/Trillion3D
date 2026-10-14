@@ -8,15 +8,12 @@ import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createVsmResources } from './resources.ts'
-import {
-  createVsmFrameState,
-  finishVirtualShadowFrame,
-  planVirtualShadowFrame,
-} from './frameSetup.ts'
+import { createVsmFrameState } from './frameState.ts'
+import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
 import { encodeCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
-import { invalidationOf } from './invalidationPass.ts'
-import { vsmInvalidationPhaseFromShadowBoxes } from './invalidationPhase.ts'
+import { vsmCastBoxes } from './castBoxes.ts'
+import { createCastChanges } from '../webgpu/shadow/castChanges.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 
@@ -75,6 +72,8 @@ export function planFrames() {
   // The engine's per-page entries, built as `vsmEncode.ts` builds them.
   const perPage = vsmPerPageFrame()
   const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
+  // The list the CPU's boxes join (`vsmEncode.ts`), no rows pass appending to it.
+  const casts = createCastChanges(device)
   // The shadow page group the engine keeps (`shadowPageGroup`): the same every frame.
   const pageLayout = {} as GPUBindGroupLayout,
     pageGroup = {} as GPUBindGroup
@@ -82,7 +81,8 @@ export function planFrames() {
   /** Each buffer's bytes as the writes so far left them. */
   const contents = new Map<GPUBuffer, Uint8Array<ArrayBuffer>>()
 
-  /** Plans and encodes one frame of `world`; returns the plan, the writes and the groups it made. */
+  /** Plans and encodes one frame of `world`; returns the plan, the writes and the groups it
+   *  made. */
   function frame(world: PlanWorld) {
     const { eye } = world
     const groupsBefore = fake.bindGroups.length
@@ -105,21 +105,20 @@ export function planFrames() {
       1,
     ])
     const boxes = world.boxes
-    const phase = vsmInvalidationPhaseFromShadowBoxes(state.cache, {
-      count: boxes.length,
-      read: (b) => ({ ...boxes[b], detail: false }),
-    })
-    const maps = vsmCastMaps(state.cache, phase, undefined)
+    const changed = vsmCastBoxes(state.cache, { count: boxes.length, read: (b) => boxes[b] })
+    const maps = vsmCastMaps(state.cache, changed, casts)
     const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
     const camera = { view, projection, eye, perspective: true }
     const lights = world.lights.map((light) => ({ light }))
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
-    encodeCastInvalidation(encoder, res, invalidationOf(res), {
+    encodeCastInvalidation(encoder, res, {
       device,
       mapSlotCount: prevSlots,
       maps,
-      boxes: phase,
+      boxes: changed,
+      casts,
+      rows: 5000,
     })
     marking.encode(encoder.beginComputePass(), {
       fullMapCount: plan.fullMapCount,
@@ -133,7 +132,10 @@ export function planFrames() {
       { device, lights: plan.lights },
       {
         rowCount: 5000,
-        ...{ pageTable: rows, spheres: rows, mobility: rows, rowLods: rows },
+        pageTable: rows,
+        spheres: rows,
+        mobility: rows,
+        rowLods: rows,
         pageLayout,
         pageGroup,
         rowSpheres: emptyRowSpheres(),

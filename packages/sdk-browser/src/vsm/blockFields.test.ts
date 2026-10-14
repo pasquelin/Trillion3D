@@ -101,7 +101,6 @@ const PASS_STRUCTS = [
   'VsmProjectionView',
   'VsmProjectionLight',
   'VsmCastParams',
-  'VsmCastBox',
   'VsmInvalidationInstance',
   'VsmRenderParams',
   'VsmMapWalkParams',

@@ -3,7 +3,7 @@
 // device are capped as a device limit, never asked of it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { vsmTransmissionMostCaps } from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionMostCaps } from '../../../../vsm/transmissionCaps.ts'
 import { shortTransmission } from './vsmTransmission.fixture.ts'
 import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts'
 

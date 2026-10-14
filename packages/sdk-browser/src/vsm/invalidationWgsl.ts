@@ -8,10 +8,9 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  * prev page marks, prev allocated page rect bounds; the invalidation bits are OR'ed into the prev
  * page requests, which the pool's page carry (step 4) folds into the pool page info.
  *
- * An instance (`VsmInvalidationInstance`) holds only the fields the invalidation reads: the
- * local-to-world (rotation-scale + double translation split high/low), the local bounds and two
- * flags (casts shadows, cached as dynamic). The one entry that builds them is the shadow changes'
- * (`castInvalidationWgsl.ts`).
+ * An instance (`VsmInvalidationInstance`) is a world box and two flags (casts shadows, cached as
+ * dynamic): its centre, its half extent along the world's axes. The one entry that builds them is
+ * the shadow changes' (`castInvalidationWgsl.ts`), from the list's records.
  */
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
@@ -28,10 +27,8 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
 
-/** Bytes of the stale's parameters (`VsmCastParams`). */
-export const VSM_INVALIDATION_PARAMS_BYTES = 16
-
-/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math keeps. */
+/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
+ *  keeps. */
 export const UNBOUNDED_EXTENT = 1e15
 
 /** Instance flags, the two the host knows of a box: it casts shadows (a valid instance), and it is
@@ -54,21 +51,12 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
   },
 ]
 
-/** The instance an invalidation stales the pages of, and its two flags. */
+/** The world box an invalidation stales the pages of, and its two flags. */
 const VSM_INVALIDATION_INSTANCE_WGSL = wgslBlock(
   'VSM_INVALIDATION_INSTANCE_WGSL',
   [],
   `
-struct VsmInvalidationInstance{
- localToWorld0:vec4f,
- localToWorld1:vec4f,
- localToWorld2:vec4f,
- translationLow:vec3f,
- pad:u32,
- boxCentre:vec3f,
- flags:u32,
- boxExtent:vec3f,
-}
+struct VsmInvalidationInstance{centre:vec3f,flags:u32,extent:vec3f,}
 ${wgslConsts({ VSM_BOX_CASTS, VSM_BOX_MOVING })}
 `,
 )
@@ -100,21 +88,23 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 /** Invalidates the pages of one instance. */
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
- // The shadow view's shifted space (the high/low translation summed with the origin shift).
- let translation=(vec3f(inst.localToWorld0.w,inst.localToWorld1.w,inst.localToWorld2.w)+pd.originShiftHigh)
-  +(inst.translationLow+pd.originShiftLow);
+ // The box's centre in the shadow view's shifted space (the origin shift split high and low; the
+ // record holds no low part: its zero is summed as the old split translation's was).
+ let translation=(inst.centre+pd.originShiftHigh)+(vec3f(0.0)+pd.originShiftLow);
+ // Its world axes and that translation, as a matrix: the products and sums its images take keep
+ // the roundings, signed zeros and non-finite values of the general instance it replaced, bit for
+ // bit (boxCullInvalidation.test.ts); a translation alone is all a record moves.
  let localToShifted=mat4x4f(
-  vec4f(inst.localToWorld0.xyz,0.0),
-  vec4f(inst.localToWorld1.xyz,0.0),
-  vec4f(inst.localToWorld2.xyz,0.0),
+  vec4f(1.0,0.0,0.0,0.0),
+  vec4f(0.0,1.0,0.0,0.0),
+  vec4f(0.0,0.0,1.0,0.0),
   vec4f(translation,1.0));
- let axisScale=vec3f(length(inst.localToWorld0.xyz),length(inst.localToWorld1.xyz),length(inst.localToWorld2.xyz));
- let boxRadius=length(inst.boxExtent*axisScale);
+ let boxRadius=length(inst.extent);
  // The bounds' shifted centre, which a local light's tests alone read.
  var shiftedCenter=vec3f(0.0);
  // Distance cull for local lights.
  if(!sunMap){
-  shiftedCenter=transformPoint(localToShifted,inst.boxCentre);
+  shiftedCenter=transformPoint(localToShifted,vec3f(0.0));
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
@@ -122,11 +112,11 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
- // The box to clip space through its local-to-world, then the view's world-to-clip.
+ // The box to clip space through its local-to-shifted, then the view's shifted-to-clip.
  let toClip=uvToClip*pd.shiftedToMapUv;
- let boxPoint=vsmBoxCullPoint(inst.boxCentre,inst.boxExtent,isOrtho,nearClip);
+ let boxPoint=vsmBoxCullPoint(vec3f(0.0),inst.extent,isOrtho,nearClip);
  let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
-  inst.boxExtent,pd.lightViewToClip,isOrtho,nearClip);
+  inst.extent,pd.lightViewToClip,isOrtho,nearClip);
  var pixelRadius=vsmClipRadius(isOrtho,boxRadius,shiftedCenter,pd.lightViewToClip)*f32(VSM_LEVEL0_TEXELS);
  if(!cull.inMapView){return;}
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);
@@ -167,9 +157,9 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
 `,
 )
 
-/** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its own
- *  group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of an
- *  instance's pages they call (`vsmStaleBoxPages`). */
+/** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its
+ *  own group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of
+ *  an instance's pages they call (`vsmStaleBoxPages`). */
 export function vsmInvalidationProgram(
   layout: VsmLayout,
   text: string,

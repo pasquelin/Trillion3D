@@ -88,6 +88,15 @@ export function binRows(params: Uint32Array, rows: SceneRows, words: number) {
   return out
 }
 
+const STAND_IN = {} as GPUBuffer
+/** What the pass reads of `rows`: their spheres, on stand-in buffers the histogram never reads
+ *  here (`binRows` reads the rows). */
+export const onBuffers = (rows: SceneRows) => ({
+  spheres: STAND_IN,
+  mobility: STAND_IN,
+  rowSpheres: rows.spheres,
+})
+
 /** The bins pass of `bound` over rows `[first, end)` of `rows` under `lights`, landed at once:
  *  whether one was asked. */
 export function landBins(
@@ -96,7 +105,7 @@ export function landBins(
   range: { first: number; end: number },
   lights: readonly VsmBoundLight[],
 ) {
-  const request = rowBinsRequest(bound.bins, rows.spheres, range, lights)
+  const request = rowBinsRequest(bound.bins, onBuffers(rows), range, lights)
   if (!request) return false
   const counts = binRows(request.params, rows, request.tag.words)
   landRowBins(bound.bins, request.tag, counts.buffer)

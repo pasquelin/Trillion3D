@@ -3,7 +3,7 @@
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { noteResidenceChange } from '../../../shadow/bounds.ts'
-import { directionalCount, fullMapsFor } from './engineVsm.ts'
+import { directionalCount, fullMapsFor } from './vsmLightMaps.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
 import { reserveProjection } from './vsmBeside.ts'

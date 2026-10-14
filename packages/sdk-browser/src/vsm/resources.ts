@@ -26,7 +26,7 @@ import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
 import type { VsmProjectionState } from './projectionPass.ts'
 import type { VsmRenderContext } from './renderPass.ts'
 import type { VsmPageManagementContext } from './pageManagementPass.ts'
-import type { VsmInvalidationState } from './invalidationPass.ts'
+import type { VsmCastState } from './castStale.ts'
 import { vsmLayout, type VsmLayout, type VsmResourceOptions } from './layout.ts'
 import {
   bufferBytes,
@@ -97,11 +97,11 @@ export interface VsmResources {
   /** What the passes made for this set and hold while it lives, each freed by its own release
    *  with the set (`destroyEngineVsm`): the projection's view uniform and blue noise
    *  (`releaseVsmProjection`), the raster's context (`releaseVsmRender`), the page management's
-   *  (`releaseVsmPageManagement`), the invalidation's pipe and slots (`releaseVsmInvalidation`). */
+   *  (`releaseVsmPageManagement`), the shadow changes' stale (`releaseVsmInvalidation`). */
   projection?: VsmProjectionState
   render?: VsmRenderContext
   pageManagement?: VsmPageManagementContext
-  invalidation?: VsmInvalidationState
+  invalidation?: VsmCastState
   destroy(): void
   bytes: number
 }

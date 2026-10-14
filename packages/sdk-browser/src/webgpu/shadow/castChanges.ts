@@ -1,20 +1,20 @@
 /**
- * THE SHADOW CHANGES OF THE ROWS, ON THE GPU: the list the rows pass appends to (`castChangesWgsl.ts`)
- * and the shadow maps' invalidation reads (`../../vsm/castInvalidation.ts`). Each record is a world
- * box, its centre and its half extent, four floats: a row derived again writes the box of its sphere
- * at the pose it leaves and at the one it enters (`../../placement/rowCastWgsl.ts`); a row whose
- * shadow changed where it stands — a cutout's colour tile, a surface's alpha —, the box of its sphere
- * as it stands, the CPU naming the row alone (`nameCastRow`, `../../placement/rowWords.ts`). The CPU
- * names no box:
- * it only keeps the list large enough for what the passes it encodes may append.
+ * THE SHADOW CHANGES, ON THE GPU: the list the passes append to (`castChangesWgsl.ts`) and the
+ * shadow maps' invalidation reads (`../../vsm/castInvalidation.ts`). Each record is a world box,
+ * its centre and its half extent, four floats: a row derived again writes the box of its sphere at
+ * the pose it leaves and at the one it enters (`../../placement/rowCastWgsl.ts`); a row whose
+ * shadow changed where it stands — a cutout's colour tile, a surface's alpha —, the box of its
+ * sphere as it stands, the CPU naming the row alone (`nameCastRow`, `../../placement/rowWords.ts`);
+ * a change no row says, the box the CPU wrote of it, appended by the invalidation itself
+ * (`../../vsm/castBoxes.ts`). The CPU reads no record: it keeps the list large enough for what the
+ * passes it encodes may append.
  *
  * Layout: a header of four words — the records asked so far, then a flag set for good once one was
  * asked past the list —, then `records` records, each a box's centre and its half extent, negative
  * for a box of casters already moving, which the static slice never held. A record asked past the
  * list is not written; the flag, which a list grown since keeps, has the invalidation stale every
- * page, never fewer. The list lives across frames until an
- * invalidation reads it (`consumedCasts`): a frame that plans no shadow keeps what its rows appended
- * for the next one.
+ * page, never fewer. The list lives across frames until an invalidation reads it
+ * (`consumedCasts`): a frame that plans no shadow keeps what its rows appended for the next one.
  */
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
@@ -54,12 +54,19 @@ export type CastChanges = ReturnType<typeof createCastChanges>
 
 /**
  * Room for `more` records beside those already pending, before a pass that may append them is
- * encoded: a list too small is made again, larger, what it holds copied into it by a command buffer
- * of its own, submitted at once — the frame's, should it be dropped, takes nothing with it. `rows`
+ * encoded: a list too small is made again, larger, what it holds copied into it — into `encoder`
+ * when a pass encoded there before may append to the list it names, else by a command buffer of
+ * its own, submitted at once: the frame's, should it be dropped, takes nothing with it. `rows`
  * bounds the list: past twice the table's rows — every row's two poses — the overflow stales every
  * page anyway.
  */
-export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number, rows: number) {
+export function reserveCasts(
+  casts: CastChanges,
+  device: GPUDevice,
+  more: number,
+  rows: number,
+  encoder?: GPUCommandEncoder,
+) {
   casts.pending += more
   casts.appended = true
   const ceiling = clampLowWins(2 * rows, CAST_FLOOR, CAST_CEILING)
@@ -67,9 +74,10 @@ export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number
   const records = Math.min(ceiling, grownLength(casts.records, casts.pending)),
     old = casts.buffer
   casts.buffer = castBuffer(device, records)
-  const encoder = device.createCommandEncoder({ label: 'Trillion3D shadow cast changes growth' })
-  encoder.copyBufferToBuffer(old, 0, casts.buffer, 0, old.size)
-  device.queue.submit([encoder.finish()])
+  const copy =
+    encoder ?? device.createCommandEncoder({ label: 'Trillion3D shadow cast changes growth' })
+  copy.copyBufferToBuffer(old, 0, casts.buffer, 0, old.size)
+  if (!encoder) device.queue.submit([copy.finish()])
   casts.records = records
   retire(device, old)
 }

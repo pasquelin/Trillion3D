@@ -77,13 +77,15 @@ const HANDED_IN = new Set([
   'texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
-  'vsm/invalidationPass.ts',
+  'vsm/castStale.ts',
+  'vsm/chunkKernels.ts',
   'vsm/markingPass.ts',
   'vsm/passKit.ts',
   'vsm/pageManagementPass.ts',
   'vsm/projectionPass.ts',
-  'vsm/renderPass.ts',
-  'vsm/transmissionPass.ts',
+  'vsm/renderPipes.ts',
+  'vsm/transmissionContext.ts',
+  'vsm/transmissionPipes.ts',
 ])
 
 test('the list holds the text of every call that compiles a module', () => {

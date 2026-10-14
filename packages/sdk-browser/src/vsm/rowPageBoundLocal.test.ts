@@ -1,6 +1,6 @@
-// The shadow raster's chunks by where the rows are, under local lights (`rowPageBound.ts`), from the
-// GPU's joint histograms (`rowBins.fixture.ts` lands them): what a chunk of K rows is said to hold is
-// never below what the K rows of the most pairs and commands make under the shipped cull
+// The shadow raster's chunks by where the rows are, under local lights (`rowPageBound.ts`), from
+// the GPU's joint histograms (`rowBins.fixture.ts` lands them): what a chunk of K rows is said to
+// hold is never below what the K rows of the most pairs and commands make under the shipped cull
 // (`bruteForceLocal`) — spots and point lights, rows near and far, with a sun or alone, a light
 // that moves then holds still; lamps that cannot beat the worst case binned no more.
 import test from 'node:test'
@@ -11,7 +11,7 @@ import {
   type VsmBoundLight,
   type VsmRowBound,
 } from './rowPageBound.ts'
-import { vsmRenderViews } from './renderPass.ts'
+import { vsmRenderViews } from './chunkParams.ts'
 import {
   bruteForce,
   bruteForceLocal,

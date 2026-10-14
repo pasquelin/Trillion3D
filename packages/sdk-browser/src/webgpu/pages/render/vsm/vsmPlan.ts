@@ -4,17 +4,19 @@ import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/cont
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { planVirtualShadowFrame, vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/frameSetup.ts'
+import { planVirtualShadowFrame } from '../../../../vsm/frameSetup.ts'
+import { vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/seenLights.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
-import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPhase.ts'
+import { vsmCastBoxes } from '../../../../vsm/castBoxes.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
-import { unshadowLights, vsmCountersOn, wholeTableRows } from './engineVsm.ts'
+import { unshadowLights, vsmCountersOn } from './engineVsm.ts'
+import { wholeTableRows } from './vsmLightMaps.ts'
 import { vsmCastMaps } from '../../../../vsm/castInvalidation.ts'
-import { vsmCastPipes } from '../../../../vsm/castPipes.ts'
+import { vsmCastPipes } from '../../../../vsm/castStale.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
-import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
+import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPipes.ts'
 import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
@@ -61,10 +63,10 @@ export function castingLights(rt: WebgpuPagesRuntime) {
 /**
  * The shadow maps' pipelines for the set the scene's casting lights are first granted
  * (`vsmFirstSetLayout`: their maps at the full pool), described here and compiled off the thread
- * before the first frame (`prepareShadowPipelines` awaits the compiles returned): every compute pipe
- * of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page group and the
- * projection's twin. That frame compiles none of them unless the budget grants a smaller pool, or
- * other lights a larger set. Nothing while no light casts.
+ * before the first frame (`prepareShadowPipelines` awaits the compiles returned): every compute
+ * pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page group and
+ * the projection's twin. That frame compiles none of them unless the budget grants a smaller pool,
+ * or other lights a larger set. Nothing while no light casts.
  */
 export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const pageLayout = rt.lights.pageLayout
@@ -74,8 +76,9 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
   const pipes = [
-    casts.stale,
+    casts.append,
     casts.args,
+    casts.stale,
     marking.clear('all'),
     marking.clear('directionalOnly'),
     marking.rect(),
@@ -139,7 +142,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   // changed. Representation changes held for the camera to rest enter now: they invalidate at once.
   const changes = lights.changes
   changes.releaseDeferred()
-  const boxes = vsmInvalidationPhaseFromShadowBoxes(state.cache, changes),
+  const boxes = vsmCastBoxes(state.cache, changes),
     castMaps = vsmCastMaps(state.cache, boxes, lights.casts)
   changes.settled()
   const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0

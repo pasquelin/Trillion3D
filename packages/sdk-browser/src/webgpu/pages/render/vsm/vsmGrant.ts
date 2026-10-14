@@ -14,14 +14,8 @@ import {
   type Refusal,
 } from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../../shadow/memoryGrant.ts'
-import {
-  createEngineVsm,
-  destroyEngineVsm,
-  directionalCount,
-  engineVsmOptions,
-  fullMapsFor,
-  type EngineVsm,
-} from './engineVsm.ts'
+import { createEngineVsm, destroyEngineVsm, type EngineVsm } from './engineVsm.ts'
+import { directionalCount, engineVsmOptions, fullMapsFor } from './vsmLightMaps.ts'
 import { vsmLayout, type VsmResourceOptions } from '../../../../vsm/layout.ts'
 import { vsmResourceBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmPoolDraw, vsmPoolFloor, vsmPoolWithin } from '../../../../vsm/poolDraw.ts'
@@ -30,9 +24,9 @@ import { bytesBeside, heldBeside } from './vsmBeside.ts'
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
 
-/** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`), the
- *  maps those lights want, and the set asked for them — an overflow regrow's, never asked again as
- *  the set that overflowed. */
+/** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`),
+ *  the maps those lights want, and the set asked for them — an overflow regrow's, never asked again
+ *  as the set that overflowed. */
 export type VsmRefusal = Refusal & {
   wanted: number
   directional: number
@@ -41,17 +35,18 @@ export type VsmRefusal = Refusal & {
 }
 
 /**
- * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages
- * up to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set
- * aside (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as
- * room. A set the device refuses — undone whole (`constructGpuResources`), or freed when its
- * verdict comes (`madeSet`) — is drawn again at half its bytes, the one rule of every pool
- * (`halvings`), down to the eighth: the lights keep casting, coarser. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
- * replaces a smaller one (`grownFrom`), its growth (`shadow-pool-regrown`) —, and the shadows'
- * resolution bias is its halvings from the full pool; its fill then raises the resolution bias as
- * the full pool's does (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no
- * shadow, by name (`pool-refused`), until the room holds the smallest pool or the lights change;
- * when the device refuses even the eighth, until its refusal's wait ends or the lights change.
+ * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages up
+ * to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set aside
+ * (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as room. A
+ * set the device refuses — undone whole (`constructGpuResources`), or freed when its verdict comes
+ * (`madeSet`) — is drawn again at half its bytes, the one rule of every pool (`halvings`), down to
+ * the eighth: the lights keep casting, coarser. A pool short of the full one is said
+ * (`pool-shrunk`, `gpu-out-of-memory`) — or, when it replaces a smaller one (`grownFrom`), its
+ * growth (`shadow-pool-regrown`) —, and the shadows' resolution bias is its halvings from the full
+ * pool; its fill then raises the resolution bias as the full pool's does
+ * (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no shadow, by name
+ * (`pool-refused`), until the room holds the smallest pool or the lights change; when the device
+ * refuses even the eighth, until its refusal's wait ends or the lights change.
  */
 export function grantEngineVsm(
   rt: WebgpuPagesRuntime,
@@ -102,7 +97,8 @@ export function grantEngineVsm(
       continue
     }
     vsm.regrowFrame = frame + VSM_PRESSURE_CALM_FRAMES
-    sayPool(rt, pages, grownFrom, () => outOfMemoryContext('shadow', vsmResourceBytes(asked), pool))
+    if (grownFrom) sayPoolGrown(rt, pages, grownFrom)
+    else sayPoolMade(rt, pages, () => outOfMemoryContext('shadow', vsmResourceBytes(asked), pool))
     lights.vsmRefusal = undefined
     if (lights.shadowReason?.startsWith(UNAVAILABLE)) lights.shadowReason = null
     return (lights.vsm = vsm)
@@ -162,30 +158,33 @@ export function madeSet(
   )
 }
 
-/** The pool made at `pages`: a growth from `grownFrom` pages said as one, a first pool short of
- *  the full one said as a shrink with `shrunk`'s context — a regrowth, which never shrinks, gives
- *  none; the shadows' resolution bias, its halvings from the full pool. */
-export function sayPool(
-  rt: WebgpuPagesRuntime,
-  pages: number,
-  grownFrom: number,
-  shrunk?: () => Record<string, unknown>,
-) {
-  const { memory } = rt.lights
+/** The shadows' resolution bias of a pool of `pages`: its halvings from the full pool. */
+function biasOf(rt: WebgpuPagesRuntime, pages: number) {
   const halvings = Math.log2(VSM_POOL_PAGES / pages)
-  memory.bias = halvings
-  if (grownFrom && pages > grownFrom)
+  rt.lights.memory.bias = halvings
+  return halvings
+}
+
+/** The pool grown again from `from` pages to `pages`, said when it grew: its bias. */
+export function sayPoolGrown(rt: WebgpuPagesRuntime, pages: number, from: number) {
+  biasOf(rt, pages)
+  if (pages > from)
     rt.diag.engineDiagnostic(
       'shadow-pool-regrown',
       'The GPU budget holds a larger shadow page pool again: finer shadows',
-      { kind: 'info', fromPages: grownFrom, pages },
+      { kind: 'info', fromPages: from, pages },
     )
-  else if (!grownFrom && halvings > 0 && shrunk) {
-    noteShadowPressure(memory, 'pool-shrunk', halvings)
-    rt.diag.engineDiagnostic(
-      'gpu-out-of-memory',
-      'The GPU budget holds a smaller shadow page pool: coarser shadows',
-      shrunk(),
-    )
-  }
+}
+
+/** The first pool, made at `pages`: one short of the full pool said as a shrink, with `shrunk`'s
+ *  context; its bias. */
+function sayPoolMade(rt: WebgpuPagesRuntime, pages: number, shrunk: () => Record<string, unknown>) {
+  const halvings = biasOf(rt, pages)
+  if (halvings <= 0) return
+  noteShadowPressure(rt.lights.memory, 'pool-shrunk', halvings)
+  rt.diag.engineDiagnostic(
+    'gpu-out-of-memory',
+    'The GPU budget holds a smaller shadow page pool: coarser shadows',
+    shrunk(),
+  )
 }

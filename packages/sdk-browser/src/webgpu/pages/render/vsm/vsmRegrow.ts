@@ -4,20 +4,20 @@ import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { VSM_PRESSURE_CALM_FRAMES, VSM_POOL_PAGES } from '../../../../vsm/constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
-import {
-  destroyEngineVsm,
-  directionalCount,
-  engineVsmBytes,
-  engineVsmOptions,
-  engineVsmSideBytes,
-  growEngineVsmTables,
-  type EngineVsm,
-} from './engineVsm.ts'
+import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
+import { directionalCount, engineVsmOptions, sunsOf } from './vsmLightMaps.ts'
+import { engineVsmBytes } from './vsmStats.ts'
+import { growVsmTables } from '../../../../vsm/resources.ts'
+import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
+import { rebindVsmPageManagement } from '../../../../vsm/pageManagementPass.ts'
+import { VSM_PROJECTION_RECORD_BYTES } from '../../../../vsm/constants.ts'
+import { VSM_NEXT_MAP_BYTES } from '../../../../vsm/mapIds.ts'
+import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
 import { vsmLayout } from '../../../../vsm/layout.ts'
 import { vsmTableBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmPoolWithin } from '../../../../vsm/poolDraw.ts'
 import { bytesBeside, heldBeside } from './vsmBeside.ts'
-import { grantEngineVsm, madeSet, sayPool } from './vsmGrant.ts'
+import { grantEngineVsm, madeSet, sayPoolGrown } from './vsmGrant.ts'
 
 /**
  * The held set's tables grown for `list` — `fullMapCapacity` full maps at least, the receiver
@@ -80,7 +80,7 @@ export function regrowEngineVsm(
       const made = madeSet(rt, device, list, { ...options, poolPages: grown })
       made.regrowFrame = vsm.regrowFrame
       destroyEngineVsm(vsm)
-      sayPool(rt, grown, pages)
+      sayPoolGrown(rt, grown, pages)
       return (lights.vsm = made)
     } catch {
       return vsm
@@ -93,4 +93,32 @@ export function regrowEngineVsm(
     made = grantEngineVsm(rt, device, list, fullMapCapacity, pages, pages)
   }
   return made
+}
+
+/**
+ * The tables of `vsm` grown in place to `options` (`growVsmTables`): the pool, its pages, their
+ * cache and the passes' state kept, the groups that bound the old tables made again. Made whole
+ * or not at all (`constructGpuResources`); false when `options` asks no more than held.
+ */
+export function growEngineVsmTables(
+  device: GPUDevice,
+  vsm: EngineVsm,
+  options: VsmResourceOptions,
+) {
+  const layout = constructGpuResources(device, () => growVsmTables(device, vsm.res, options))
+  if (!layout) return false
+  vsm.suns = Math.max(vsm.suns, sunsOf(options))
+  rebindVsmPageManagement(vsm.res)
+  const { state } = vsm
+  const slots = layout.mapSlots
+  state.projectionImage = grownImage(state.projectionImage, slots * VSM_PROJECTION_RECORD_BYTES)
+  state.nextMapsImage = grownImage(state.nextMapsImage, slots * VSM_NEXT_MAP_BYTES)
+  return true
+}
+
+/** `image` copied into the prefix of `bytes` bytes. */
+function grownImage(image: ArrayBuffer, bytes: number) {
+  const grown = new ArrayBuffer(bytes)
+  new Uint8Array(grown).set(new Uint8Array(image))
+  return grown
 }

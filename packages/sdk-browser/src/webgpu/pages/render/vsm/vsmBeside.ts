@@ -3,29 +3,24 @@
 // (`vsmGrant.ts`), and the projection's reserve each frame makes before any other shadow bytes.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
-import {
-  vsmTransmissionContextBytes,
-  vsmTransmissionFloorBytes,
-} from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext.ts'
+import { vsmTransmissionFloorBytes } from '../../../../vsm/transmissionBinPlan.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
-import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
+import { VSM_CAST_PARAMS_BYTES } from '../../../../vsm/castInvalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
 import {
   castingCount,
   directionalCount,
-  engineVsmSideBytes,
   engineVsmOptions,
-  ensureMask,
   fullMapsFor,
-  maskBytes,
-  maskGrowth,
-  maskLayersFor,
   renderViewBound,
-  type EngineVsm,
-} from './engineVsm.ts'
-import { vsmRenderContextBytes, vsmRenderFloorBytes } from '../../../../vsm/renderPass.ts'
+} from './vsmLightMaps.ts'
+import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
+import { ensureMask, maskBytes, maskGrowth, maskLayersFor } from './vsmMask.ts'
+import { vsmRenderContextBytes } from '../../../../vsm/renderPass.ts'
+import { vsmRenderFloorBytes } from '../../../../vsm/renderBudget.ts'
 import { vsmLayout, type VsmLayout } from '../../../../vsm/layout.ts'
 import { vsmResourceBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts'
@@ -43,12 +38,12 @@ export const heldBeside = (vsm: EngineVsm | undefined): HeldBeside => ({
 
 /**
  * Bytes the frame makes beside a set of `layout`: the maps' own buffers beside the set
- * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a layer per four casting
- * lights; the raster's draw context as large as the replaced set's, and never under the least
- * that draws every caster row (`vsmRenderFloorBytes`); and, while a blended caster casts, the
- * coloured atlas as large as the replaced set's, never under the first one and its least draw
- * context. The lists grow past these only within the room (`vsmChunkRowsWithin`). Without `mask`,
- * all but the mask, which a frame's own size sets (`vsmAskedBytes`).
+ * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a
+ * layer per four casting lights; the raster's draw context as large as the replaced set's, and
+ * never under the least that draws every caster row (`vsmRenderFloorBytes`); and, while a blended
+ * caster casts, the coloured atlas as large as the replaced set's, never under the first one and
+ * its least draw context. The lists grow past these only within the room (`vsmChunkRowsWithin`).
+ * Without `mask`, all but the mask, which a frame's own size sets (`vsmAskedBytes`).
  */
 export function bytesBeside(
   rt: WebgpuPagesRuntime,
@@ -77,9 +72,7 @@ export function bytesBeside(
   // The passes' own state a new set makes: its page management, its projection's views and blue
   // noise, the invalidation's first parameters.
   const passes =
-    vsmPmContextBytes(device.limits) +
-    vsmProjectionBytesToMake(undefined) +
-    VSM_INVALIDATION_PARAMS_BYTES
+    vsmPmContextBytes(device.limits) + vsmProjectionBytesToMake(undefined) + VSM_CAST_PARAMS_BYTES
   return (
     engineVsmSideBytes(device.limits) +
     passes +

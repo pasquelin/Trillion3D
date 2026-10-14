@@ -1,13 +1,11 @@
 // The shadow maps' opaque raster, then the coloured light the translucent casters let through.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { encodeVsmRender, vsmRenderViews, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
-import {
-  createVsmTransmission,
-  encodeVsmTransmission,
-  vsmTransmissionFits,
-  vsmTransmissionFloorBytes,
-  type VsmTransmission,
-} from '../../../../vsm/transmissionPass.ts'
+import { encodeVsmRender, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
+import { vsmRenderViews } from '../../../../vsm/chunkParams.ts'
+import { createVsmTransmission, type VsmTransmission } from '../../../../vsm/transmissionMade.ts'
+import { encodeVsmTransmission } from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionFits } from '../../../../vsm/transmissionCaps.ts'
+import { vsmTransmissionFloorBytes } from '../../../../vsm/transmissionBinPlan.ts'
 import type { VsmResources } from '../../../../vsm/resources.ts'
 import { VSM_PRESSURE_CALM_FRAMES } from '../../../../vsm/constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
@@ -38,12 +36,12 @@ function transmissionFloor(
 }
 
 /**
- * The transmission this frame bins into: made with the first blended caster at the first
- * capacities (`vsmTransmissionFirstCaps`), and made again once at the capacities a frame wanted
+ * The transmission this frame bins into: made with the first blended caster at the first capacities
+ * (`vsmTransmissionFirstCaps`), and made again once at the capacities a frame wanted
  * (`VsmTransmission.wanted`: each short one to the power of two that holds it) — each only while
  * the GPU budget's room holds the bytes it adds to those a held one frees, and the device the
- * capacities (`vsmTransmissionFits`). Past either, said once — `shadow-transmission-bounded` for the
- * device, never asked again; `gpu-out-of-memory` for the budget —: a held transmission is kept
+ * capacities (`vsmTransmissionFits`). Past either, said once — `shadow-transmission-bounded` for
+ * the device, never asked again; `gpu-out-of-memory` for the budget —: a held transmission is kept
  * `capped`, what it cannot hold drawing no coloured transmission; with none held, the maps make
  * none (`transmissionDenied`) and the blended casters colour no shadow. A budget's cap is asked
  * again every `VSM_PRESSURE_CALM_FRAMES` frames, and grows back once the room holds it. A new
@@ -130,7 +128,8 @@ function sayRoomLimited(
 }
 
 /**
- * The opaque raster, then the coloured transmission of the translucent casters from the same caster rows, into `heldTransmission`'s atlas.
+ * The opaque raster, then the coloured transmission of the translucent casters from the same caster
+ * rows, into `heldTransmission`'s atlas.
  */
 export function encodeVsmRenderAndTransmission(
   rt: WebgpuPagesRuntime,
