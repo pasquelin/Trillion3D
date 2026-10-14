@@ -30,6 +30,9 @@ fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
         pressure: None,
     }
 }
+fn masses(vertices: &[f32]) -> impl Iterator<Item = f32> + '_ {
+    vertices.iter().skip(3).step_by(SOFT_VERTEX_WORDS).copied()
+}
 // Behaviour: the cloth's vertices weigh the area each holds at 0.2 kg/m², its pins nothing, and
 // its settings cook to the same bytes twice, the golden ones (`TRILLION3D_WRITE_GOLDEN` rewrites
 // them); the cook's vertex stride is the worker's (`layout.h`).
@@ -40,13 +43,7 @@ fn a_cloth_cooks_to_the_golden_settings() {
     let (pos, triangles) = cloth();
     let pinned = declared("cloth", &[6.0, 8.0]);
     let record = soft_record(&pos, Some(&triangles), [1.0; 3], &pinned).unwrap();
-    let masses: Vec<f32> = record
-        .vertices
-        .iter()
-        .skip(3)
-        .step_by(SOFT_VERTEX_WORDS)
-        .copied()
-        .collect();
+    let masses: Vec<f32> = masses(&record.vertices).collect();
     let total: f32 = masses.iter().sum();
     assert!(
         (masses[6], masses[8]) == (0.0, 0.0) && masses[4] > masses[0],
@@ -66,13 +63,7 @@ fn a_cloth_cooks_to_the_golden_settings() {
 fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
     let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0., 0.];
     let rope = soft_record(&seam, None, [2.0, 1.0, 1.0], &declared("rope", &[0.0])).unwrap();
-    let masses: Vec<f32> = rope
-        .vertices
-        .iter()
-        .skip(3)
-        .step_by(SOFT_VERTEX_WORDS)
-        .copied()
-        .collect();
+    let masses: Vec<f32> = masses(&rope.vertices).collect();
     // Three vertices: the seam's two are one.
     assert_eq!(
         masses,
@@ -84,15 +75,7 @@ fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
         ..declared("rope", &[])
     };
     let spread = soft_record(&seam, None, [1.0; 3], &heavy).unwrap();
-    assert_eq!(
-        spread
-            .vertices
-            .iter()
-            .skip(3)
-            .step_by(SOFT_VERTEX_WORDS)
-            .sum::<f32>(),
-        3.0
-    );
+    assert_eq!(masses(&spread.vertices).sum::<f32>(), 3.0);
     let pin = soft_record(&seam, None, [1.0; 3], &declared("rope", &[4.0]));
     assert_eq!(
         pin.err().unwrap(),
