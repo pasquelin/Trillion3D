@@ -11,7 +11,7 @@ import {
 } from './layout.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { readoutRow } from './bufferTable.ts'
-import { cutBuffer, cutBytes } from './cutBuffers.ts'
+import { admitInto } from './cutBuffers.ts'
 import type { DagResources } from './resources.ts'
 import { newRegions } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -42,10 +42,11 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
 /**
  * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
  * open counts, between two frames and with no readback in flight: a new readout, the bind groups
- * that name it, and the old ones retired — the readback ring takes the new size at its next copy. Made under an out-of-memory scope, within one binding: a device that
- * cannot grant them keeps the old readout whole and says `false`, so the next truncated readout
- * coarsens its cut (`coarsening.ts`) — or the views aside cut without a region — rather than end on an
- * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
+ * that name it, and the old ones retired — the readback ring takes the new size at its next copy.
+ * Made under an out-of-memory scope, within one binding: a device that cannot grant them keeps the
+ * old readout whole and says `false`, so the next truncated readout coarsens its cut
+ * (`coarsening.ts`) — or the views aside cut without a region — rather than end on an error of the
+ * whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
  * `pageCones`, keeps its own (`layout.ts`).
  */
 export async function growDagList(
@@ -154,10 +155,10 @@ function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap:
 }
 
 /**
- * A maker of the buffers that replace `replaced`, each noted in `made`: one that would take the cut
- * past its share — what it holds, less what it replaces, with what is made and the `reserved` bytes
- * a growth keeps for later — is never made, and the growth is refused by name (`pastShare`): the
- * view coarsens instead (`coarsening.ts`).
+ * A maker of the buffers that replace `replaced`, each noted in `made` and admitted against what
+ * the cut holds (`admitInto`), less what it replaces, with what is made so far and the `reserved`
+ * bytes a growth keeps for later: one past the share is never made, and the growth is refused by
+ * name (`pastShare`): the view coarsens instead (`coarsening.ts`).
  */
 function madeWithin(
   resources: DagResources,
@@ -165,8 +166,13 @@ function madeWithin(
   made: GPUBuffer[],
   reserved = 0,
 ) {
-  const { device, admit, share } = resources,
-    aside = cutBytes(resources) - replaced.reduce((sum, buffer) => sum + buffer.size, 0) + reserved
-  const growth = { buffers: made, aside, device, admit, share }
-  return (descriptor: GPUBufferDescriptor) => cutBuffer(growth, descriptor)
+  const leaving = replaced.reduce((sum, buffer) => sum + buffer.size, 0) - reserved
+  return (descriptor: GPUBufferDescriptor) => {
+    const beside = made.reduce((sum, buffer) => sum + buffer.size, 0),
+      bytes = descriptor.size,
+      build = () => resources.device.createBuffer(descriptor)
+    const buffer = admitInto(resources, { label: descriptor.label, bytes }, build, leaving - beside)
+    made.push(buffer)
+    return buffer
+  }
 }

@@ -105,7 +105,7 @@ export async function createDagResources(
       ...arm,
       /** Whose cut the mask, the journal and `out` hold (`swap.ts`). */
       swap: createMaskSwap(),
-      /** The most its tables may hold, growths included (`queueGrowth.ts`, `listCap.ts`), and the
+      /** The most its tables may hold, growths included (`queueGrowth.ts`, `listGrowth.ts`), and the
        *  budget each growth asks first. */
       share,
       admit,
@@ -113,7 +113,7 @@ export async function createDagResources(
       rowPass: undefined as RowCutPass | undefined,
     }
     // The frame's copies of the lists, read back in order: made last, within what the tables leave.
-    const readbacks = createMainReadbacks(device, resources, made.readbackBytes)
+    const readbacks = createMainReadbacks(resources, made.readbackBytes)
     return {
       ...resources,
       readbacks,

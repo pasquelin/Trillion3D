@@ -140,7 +140,7 @@ function readAsideSlot(
   // The next copy follows what the cut asks, twice it, within the list.
   if (demand > slots.copied || 4 * demand < slots.copied)
     slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
-  // A cut past its list grows it, as the main cut's does (`listCap.ts`).
+  // A cut past its list grows it, as the main cut's does (`listGrowth.ts`).
   if (grown) state.grow = Math.max(state.grow, grown)
   // A cut that dropped work grows the queues or lists it filled, as the main cut's does
   // (`queueGrowth.ts`), and is never adopted.

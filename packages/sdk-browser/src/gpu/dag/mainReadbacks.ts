@@ -1,6 +1,6 @@
 import { createReadbackRing, type ReadbackRing } from '../core/readbackRing.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
-import { admitInto, type CutAdmission } from './cutBuffers.ts'
+import { admitInto, type CutAdmission, type CutHeld } from './cutBuffers.ts'
 import { chainMain, landMain, type MainCopy } from './dispatchRead.ts'
 
 /** A take's buffer, its budget asked by the growth that made room for it (`growDagList`). */
@@ -16,32 +16,20 @@ const asked: CutAdmission = () => {}
  * slot refused at the start refuses the cut by name, as any table's; one refused at a later take
  * leaves that frame without a copy, the next asks again.
  */
-export function createMainReadbacks(
-  device: GPUDevice,
-  cut: { buffers: readonly GPUBuffer[]; admit: CutAdmission; share: number },
-  bytes: number,
-): ReadbackRing<MainCopy> {
-  // The ring once made: its buffers count themselves from then on (`cutBytes`).
-  const made: { ring?: ReadbackRing<MainCopy> } = {}
-  let first = 0,
+export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<MainCopy> {
+  // The ring once made counts its buffers (`ReadbackRing.bytes`); while it makes its first ones,
+  // they are counted here. Neither is among the cut's lists: both count beside them.
+  let ring: ReadbackRing<MainCopy> | undefined,
+    first = 0,
     refusal: unknown
   const funded = {
     createBuffer(descriptor: GPUBufferDescriptor) {
-      // The ring counts its own once made; while it makes its first buffers, they are counted here.
-      const { ring } = made,
-        holder = {
-          buffers: cut.buffers,
-          readbacks: ring ?? { bytes: first },
-          device,
-          admit: ring ? asked : cut.admit,
-          share: cut.share,
-        }
+      const made = { label: descriptor.label, bytes: descriptor.size },
+        build = () => cut.device.createBuffer(descriptor)
       try {
-        const bytes = descriptor.size,
-          buffer = admitInto(holder, { label: descriptor.label, bytes }, () =>
-            device.createBuffer(descriptor),
-          )
-        if (!made.ring) first += buffer.size
+        const beside = ring ? ring.bytes : first
+        const buffer = admitInto(cut, made, build, -beside, ring ? asked : cut.admit)
+        if (!ring) first += buffer.size
         return buffer
       } catch (error) {
         refusal ??= error
@@ -51,11 +39,11 @@ export function createMainReadbacks(
   }
   const label = 'Trillion3D DAG readback slot',
     count = DAG_READBACK_SLOTS
-  const ring = (made.ring = createReadbackRing(
+  ring = createReadbackRing(
     funded,
     { label, bytes, count, eager: true, chain: chainMain },
     landMain,
-  ))
+  )
   if (refusal === undefined) return ring
   ring.destroy()
   throw refusal

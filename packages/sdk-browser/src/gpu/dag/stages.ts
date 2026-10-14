@@ -69,7 +69,7 @@ export async function createDagStages(
     /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
     differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
     keepPipelines: KEEP_STAGES.map((name) => stage[name]),
-    /** Each kept list ranked in a readout made again (`listCap.ts`). */
+    /** Each kept list ranked in a readout made again (`listGrowth.ts`). */
     rekeepPipelines: REKEEP_STAGES.map((name) => stage[name]),
     /** A view's saved journal written back with its draw flags (`shader/swapWgsl.ts`). */
     restorePipeline: stage.dagRestoreJournal,
