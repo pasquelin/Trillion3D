@@ -1,8 +1,6 @@
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
-import { hasSubgroups } from '../../gpu/core/subgroups.ts'
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-import { bufferEntries, computeBufferEntries } from '../../gpu/core/computeBindings.ts'
+import { bufferEntries } from '../../gpu/core/computeBindings.ts'
+import { compileStep, stepLayouts, type StepPipelines } from './particleStep.ts'
 import { createPoolStates, usedSlots } from './poolStates.ts'
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts'
 import { DRAW_FLOATS } from '../../particles/drawWords.ts'
@@ -10,7 +8,6 @@ import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import {
   DISC_VERTICES,
   particleGroups,
-  particlesWgsl,
   PARTICLE_ARGS_BYTES,
   PARTICLE_PARTIAL_BYTES,
   PARTICLE_STATE_HEAD,
@@ -27,13 +24,6 @@ type PoolState = DrawState & {
   args: GPUBuffer
   group: GPUBindGroup
   bounds: GPUBindGroup
-}
-
-/** The pipelines of the step's three entries (`particlesWgsl`). */
-type StepPipelines = {
-  main: GPUComputePipeline
-  emit: GPUComputePipeline
-  bound: GPUComputePipeline
 }
 
 /** Bytes of `pool`'s state: the window the draw reads its arguments from, then its slots. */
@@ -56,11 +46,7 @@ const stateBytes = (pool: ParticlePool) => PARTICLE_STATE_HEAD + pool.capacity *
  * pipeline that could not be made, and every pool is then `refused`.
  */
 export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
-  const STEP_SLOTS: GPUBufferBindingType[] = ['uniform', 'read-only-storage', 'storage', 'storage']
-  const layoutOf = (types: GPUBufferBindingType[]) =>
-    device.createBindGroupLayout({ entries: computeBufferEntries(types) })
-  const layout = layoutOf(STEP_SLOTS),
-    boundLayout = layoutOf([...STEP_SLOTS, 'storage'])
+  const { layout, boundLayout } = stepLayouts(device)
   let pipeline: StepPipelines | null | undefined
   compileStep(device, layout, boundLayout)
     .then((made) => (pipeline = made))
@@ -116,32 +102,6 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
     askRouted: drawn.askRouted,
     dispose: made.dispose,
   }
-}
-
-/** The step's three pipelines, compiled off the thread: folded by subgroup where the device has
- *  them, through workgroup memory elsewhere. */
-async function compileStep(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  boundLayout: GPUBindGroupLayout,
-): Promise<StepPipelines> {
-  const module = await createCheckedShaderModule(
-    device,
-    particlesWgsl(hasSubgroups(device)),
-    'PARTICLES',
-  )
-  const build = (entryPoint: string, bindGroupLayout: GPUBindGroupLayout) =>
-    buildComputePipeline(device, {
-      label: `${PARTICLES_PASS} ${entryPoint}`,
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-      compute: { module, entryPoint },
-    })
-  const [main, emit, bound] = await Promise.all([
-    build('main', layout),
-    build('emit', layout),
-    build('bound', boundLayout),
-  ])
-  return { main, emit, bound }
 }
 
 /** `pool`'s buffers and groups: its step words, staged records, state — a disc's vertices and no
