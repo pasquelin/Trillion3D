@@ -10,6 +10,19 @@ import { join } from 'node:path'
 import { git } from '../git-paths.ts'
 import { runChecked } from '../run.ts'
 
+/**
+ * The branch checked out at `root`, named even before its first commit; empty when detached
+ * (rebase, bisect, cherry-pick in progress) or when git cannot answer. `symbolic-ref` is known to
+ * every git, where `branch --show-current` needs 2.22: an older git never stops the hook.
+ */
+export function currentBranch(root: string): string {
+  try {
+    return git(root, 'symbolic-ref', '--short', '-q', 'HEAD')
+  } catch {
+    return ''
+  }
+}
+
 /** Stops the git command with its reason. */
 export function refuse(reason: string): never {
   process.stderr.write(`git hook: ${reason}\n`)
