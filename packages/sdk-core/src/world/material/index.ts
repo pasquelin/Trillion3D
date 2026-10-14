@@ -1,5 +1,10 @@
 import { Material, type MaterialParameters } from './material.ts'
 
+/** A Phong surface's exponent, and a physical one's index of refraction, where none is declared:
+ *  the kinds start from them and a surface record reads them (`page/surfaceRecord.ts`). */
+export const DEFAULT_SHININESS = 30
+export const DEFAULT_IOR = 1.5
+
 /** A member building one kind, with the values that kind starts from. */
 const kind =
   (name: string, defaults: Partial<MaterialParameters> = {}) =>
@@ -15,11 +20,11 @@ export const material = {
   /** The usual material: a colour, how metallic it is and how rough it is. */
   meshStandard: kind('meshStandard'),
   /** The standard material plus glass, varnish and sheen. */
-  meshPhysical: kind('meshPhysical', { ior: 1.5, thickness: 0, transmission: 0 }),
+  meshPhysical: kind('meshPhysical', { ior: DEFAULT_IOR, thickness: 0, transmission: 0 }),
   /** A flat colour that ignores every light. */
   meshBasic: kind('meshBasic'),
   /** A shiny plastic look, with a bright spot where light bounces. */
-  meshPhong: kind('meshPhong', { shininess: 30 }),
+  meshPhong: kind('meshPhong', { shininess: DEFAULT_SHININESS }),
   /** A matte look, like chalk or paper. */
   meshLambert: kind('meshLambert'),
   /** A cartoon look, lit in a few flat bands. */

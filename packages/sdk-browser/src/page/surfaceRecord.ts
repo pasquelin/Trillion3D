@@ -15,6 +15,7 @@
  * (`../scene/surfaceModel.ts`); a field a family does not read is left at its silent value.
  */
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
+import { DEFAULT_IOR, DEFAULT_SHININESS } from '../../../sdk-core/src/world/material/index.ts'
 import { Releasable } from '../host/graph/resource.ts'
 import {
   SURFACE_MODEL,
@@ -71,7 +72,7 @@ function factors(d: SurfaceDeclaration, { lit, side, standard, sheet }: Reading)
     roughness: standard
       ? (d.roughness ?? 1)
       : d.family === 'phong'
-        ? shininessRoughness(d.shininess ?? 30)
+        ? shininessRoughness(d.shininess ?? DEFAULT_SHININESS)
         : 1,
     lit,
     fog: d.fog !== false,
@@ -128,7 +129,7 @@ function lobes(d: SurfaceDeclaration, { physical }: Reading) {
     clearcoat: valueIf(physical, d.clearcoat, 0),
     clearcoatRoughness: valueIf(physical, d.clearcoatRoughness, 0),
     transmission: valueIf(physical, d.transmission, 0),
-    ior: valueIf(physical, d.ior, 1.5, 1.5),
+    ior: valueIf(physical, d.ior, DEFAULT_IOR, DEFAULT_IOR),
     thickness: valueIf(physical, d.thickness, 0),
     attenuationDistance:
       physical && Number.isFinite(d.attenuationDistance) ? d.attenuationDistance! : 0,
@@ -158,7 +159,7 @@ const raster = (d: SurfaceDeclaration) => ({
   depthWrite: d.depthWrite !== false,
   flatShading: d.flatShading === true,
   forVertexTangents: d.forVertexTangents,
-  shininess: d.family === 'phong' ? (d.shininess ?? 30) : undefined,
+  shininess: d.family === 'phong' ? (d.shininess ?? DEFAULT_SHININESS) : undefined,
   specular: d.family === 'phong' ? rgb(d.specular ?? PHONG_SPECULAR) : undefined,
 })
 

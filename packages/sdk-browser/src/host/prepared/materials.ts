@@ -21,9 +21,6 @@ import type { SurfaceDeclaration } from '../../page/surfaceDeclaration.ts'
 type Slot = (slot: TableTextureSlot, colour: boolean) => Promise<Texture | null>
 type Params = Record<string, unknown>
 
-/** A colour of three linear components, as the table declares it. */
-const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2])
-
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
  *  at `cutoff`; opaque, neither. */
@@ -79,7 +76,7 @@ function extensionParams(
     if (isSlot(value)) assign(name, value)
     else if (name === 'clearcoatNormalScale')
       params[name] = new Vector2(value as number, value as number)
-    else if (MATERIAL_COLOURS.has(name)) params[name] = linearColour(value as number[])
+    else if (MATERIAL_COLOURS.has(name)) params[name] = new Color(value as [number, number, number])
     else params[name] = Array.isArray(value) ? [...value] : value
   }
   // A frame rebuilt from the triangle, on geometry without tangents, turns the second clear-coat
@@ -102,7 +99,7 @@ async function build(
   slot: Slot,
 ) {
   const entry = materials[rank]
-  const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity }
+  const params: Params = { color: new Color(entry.baseColor), opacity: entry.opacity }
   const pending: Promise<void>[] = []
   // A map that holds a colour (`COLOUR_MAPS`) is read in sRGB.
   const assign = (name: string, from: TableTextureSlot | null) => {
@@ -123,7 +120,7 @@ async function build(
     params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY)
     assign('aoMap', entry.aoMap)
     params.aoMapIntensity = entry.aoIntensity
-    params.emissive = linearColour(entry.emissive)
+    params.emissive = new Color(entry.emissive)
     assign('emissiveMap', entry.emissiveMap)
     extensionParams(entry, params, assign)
   }
@@ -132,7 +129,7 @@ async function build(
     params.ior = entry.ior
     params.thickness = entry.thickness
     params.attenuationDistance = entry.attenuationDistance || Infinity
-    params.attenuationColor = linearColour(entry.attenuationColor)
+    params.attenuationColor = new Color(entry.attenuationColor)
   }
   // Which frame the normal factors were written for: an engine pass that reads no tangent turns
   // the second one of a surface written for vertex tangents (`../../page/surfaceRecord.ts`).
