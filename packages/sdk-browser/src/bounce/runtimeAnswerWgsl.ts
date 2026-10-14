@@ -31,10 +31,15 @@ export type RuntimeBindings = SceneBindings & { list: number; store: number }
  * reads as zero or not alone. The budget a ray is checked against is the work the workgroups before it sent,
  * and its pixel's own.
  */
-export const runtimeAnswerWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
+/** What names a fragment of a program over `runtime`, the bindings it answers the proxy from: none
+ *  without (a program with no proxy's stage). */
+export const runtimeKey = (runtime?: RuntimeBindings) =>
+  runtime ? `${sceneKey(runtime)}, ${runtime.list}, ${runtime.store}` : 'none'
+
+export const runtimeAnswerWgsl = (runtime: RuntimeBindings) =>
   wgslBlock(
-    `runtimeAnswerWgsl(${sceneKey(scene)}, ${list}, ${store})`,
-    [runtimeRadianceWgsl(scene), SHARED_EXPONENT_WGSL],
+    `runtimeAnswerWgsl(${runtimeKey(runtime)})`,
+    [runtimeRadianceWgsl(runtime), SHARED_EXPONENT_WGSL],
     `
 ${wgslConsts({
   RT_FRAME_WORK: FRAME_WORK,
@@ -45,8 +50,8 @@ ${wgslConsts({
   RT_STAMP_SHIFT: STORE_BITS.stamp,
   RT_STORE_LAYERS: STORE_LAYERS,
 })}
-@group(${scene.group}) @binding(${list}) var<storage,read_write> traceList:array<atomic<u32>>;
-@group(${scene.group}) @binding(${store}) var rtStore:texture_storage_2d_array<r32uint,read_write>;
+@group(${runtime.group}) @binding(${runtime.list}) var<storage,read_write> traceList:array<atomic<u32>>;
+@group(${runtime.group}) @binding(${runtime.store}) var rtStore:texture_storage_2d_array<r32uint,read_write>;
 /** The pixel the trace is at, the rank of its tile, and the rays it has asked of the proxy for it: the
  *  first is the base lobe's, which keeps its answer in the store (\`rtAnswer\`); a coat's goes without. */
 var<private> rtPixel:vec2u;

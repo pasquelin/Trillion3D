@@ -10,7 +10,6 @@ import {
 } from '../webgpu/pages/prepare/contractLight.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { encodeFrontDepth } from './frontCarry.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
@@ -40,9 +39,9 @@ const surroundings = createSurroundings()
 const inputs = {} as TraceInputs
 const radianceInputs = {} as RadianceInputs
 
-/** Stages the image's reflection view (`ScreenReflection.writeView`): what the front depth's carry
- *  (`encodeDepthPyramid`) and the trace (`encodeReflections`) both read; unchanged, nothing is sent. */
-function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
+/** Stages the image's reflection view (`ScreenReflection.writeView`), which the trace and the forward
+ *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
+function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
   const { gpu, run, bounce } = rt
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
@@ -62,42 +61,27 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     // would restart the budget for ever.
     gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
-  // The transparents' front surface, where this very image drew it (`encodeFrontPass`).
-  const front = reflection.store.front,
-    stamp = frontStamp(run.frame)
-  frame.front = front?.drawn === stamp ? stamp : 0
+  // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
+  frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
 /**
  * The depth pyramid's nearest layer, with the finished depth's farthest, once the visibility drew
  * the whole depth (`GpuHiz.encodeNearest`: the Hi-Z's build, which only the readers of the whole
- * depth read): the last image's transparents' front depth carried to this one's pixels first
- * (`frontDepth.ts`), which the nearest layer folds in, then one compute pass, before every reader
- * of it — the direct lights' contact rays (`vsm/`) and the reflections' trace both walk it with the
- * screen march (`gpu/hiz/screenMarch.ts`).
+ * depth read): one compute pass, after this image's front pass wrote the transparents' covering depth
+ * into level 0's front layer (`frontLayer.ts`), which the build folds in where the pass drew this image
+ * — its frame word up —, and before every reader of it — the direct lights' contact rays (`vsm/`) and
+ * the reflections' trace both walk it with the screen march (`gpu/hiz/screenMarch.ts`).
  */
 export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { gpu, vis } = rt,
-    reflection = gpu.reflection,
-    stages = vis.reflectionPipelines,
+  const { gpu, vis, run } = rt,
     hiz = vis.gpuHiz
   if (!hiz) return
-  // Level 0's front layer is folded only while this image's transparents' fold writes it
-  // (`FrontDepth.wanted`, with the reflection's stages and the lighting's view): an opaque scene's
-  // level 0 is one layer, and pays nothing for them; a scene that lost its last transparent keeps
-  // the layer, its frame word down, so no fold reads the last glass's depth.
-  const writes = !!reflection?.front.wanted && !!stages && !!reflectionLightView(rt),
-    front = hiz.front(encoder, writes),
-    depth = hiz.depth()
-  // The front depth is the layer's one owner: an image that writes none leaves the last glass in
-  // it, so the one that writes it again finds it unknown and clears it first (`encodeFrontDepth`).
-  if (reflection && !front) reflection.front.target = undefined
-  if (reflection && stages && depth && front) {
-    writeFrame(rt, reflection)
-    encodeFrontDepth(encoder, reflection, stages, front)
-  }
-  if (!rt.run.depthDrawn) return
+  // An image whose front pass drew none, a scene that lost its last transparent: the word down, so no
+  // reader folds the last glass.
+  hiz.front(encoder, gpu.reflection?.front.drawn === frontStamp(run.frame))
+  if (!run.depthDrawn) return
   hiz.encodeNearest(reflectionPass.begin(encoder))
   reflectionPass.end()
 }
@@ -117,10 +101,10 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     depth = hiz?.depth(),
     lightView = reflectionLightView(rt)
   if (!reflection || !stages || !hiz || !depth || !lightView) return
-  writeFrame(rt, reflection)
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
+  writeFrame(rt, reflection, traced)
   const open = tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
@@ -141,13 +125,6 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
     inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
     inputs.store = reflection.store.view ?? deferred.placeholders.runtimeStore
-    // The transparents' front surface, or the opaque one's targets in its place, which no pixel reads.
-    const front = reflection.store.front
-    inputs.frontFlags = front?.flagsView ?? inputs.flags
-    inputs.frontNormals = front?.normalsView ?? inputs.normals
-    inputs.frontLobes = front?.lobesView ?? inputs.lobes
-    inputs.frontDepth = front?.depthView ?? inputs.normals
-    inputs.frontTarget = front?.tracedView ?? deferred.placeholders.frontTraced
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }

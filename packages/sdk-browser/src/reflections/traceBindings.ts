@@ -10,8 +10,9 @@ import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
  * (`work`), the trace's list with the frame's counters, the store of the run-time proxy's answers,
  * the proxy's buffer and instances, the
  * culling's worlds it places its meshes by and the placement tree its rays walk, the light grid's buffer, whose world
- * lists the proxy hits walk, and the transparents' front surface (`frontLayer.ts`): its flags, normals, lobes and
- * depth, and the target its traced radiance is written to.
+ * lists the proxy hits walk, and the transparents' front surface (`frontLayer.ts`): its flags, normals and lobes
+ * — its depth is the reflection group's (`REFLECTION_FRONT_BINDING`) —, and the target its traced radiance is
+ * written to.
  */
 export const TRACE_BINDINGS = {
   flags: 0,
@@ -32,8 +33,7 @@ export const TRACE_BINDINGS = {
   frontFlags: 18,
   frontNormals: 19,
   frontLobes: 20,
-  frontDepth: 21,
-  frontTarget: 22,
+  frontTarget: 21,
 } as const
 
 /** The bindings of the proxy in the trace's group 0 (`bounce/runtimeAnswerWgsl.ts`), the table's. */
@@ -71,8 +71,6 @@ export function traceLayouts(device: GPUDevice) {
         computeTextureEntry(TRACE_BINDINGS.frontFlags, 'uint'),
         computeTextureEntry(TRACE_BINDINGS.frontNormals, 'unfilterable-float'),
         computeTextureEntry(TRACE_BINDINGS.frontLobes, 'uint'),
-        // The front pass's depth attachment itself, read as the float it holds.
-        computeTextureEntry(TRACE_BINDINGS.frontDepth, 'unfilterable-float'),
         storageEntry(TRACE_BINDINGS.frontTarget, FRONT_TRACED_FORMAT),
       ],
     }),

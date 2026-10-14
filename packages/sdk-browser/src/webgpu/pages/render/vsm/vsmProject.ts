@@ -145,3 +145,14 @@ export function encodeVsmProjection(
   vsm.projectionHold.keep(mask.array)
   return 1
 }
+
+/** The projection `encodeVsmFrame` held, encoded now that the depth pyramid holds this image's depth and
+ *  its transparents' front (`encodeDepthPyramid`), which its screen rays march; none where none was held. */
+export function encodeHeldVsmProjection(rt: WebgpuPagesRuntime) {
+  const vsm = rt.lights.vsm,
+    scratch = vsm?.frameScratch,
+    held = scratch?.held
+  if (!vsm || !scratch || !held) return
+  scratch.held = undefined
+  vsm.stats.projectionPasses = encodeVsmProjection(held.frame, scratch.projected, held.views)
+}

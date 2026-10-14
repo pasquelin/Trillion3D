@@ -9,20 +9,28 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { blendShader } from './shader.ts'
+import { blendFrontShader } from './frontStageWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { FACING_SHIFT } from './facing.ts'
 
 const DERIVATIVE = /\b(?:dpdx|dpdy|fwidth)(?:Fine|Coarse)?\(|\btextureSample(?:Bias|Compare)?\(/
 const COVERAGE = /if\(!blendKeeps\([^{]*\)\{discard;return /
 const STAGES = blendShader({}, { stage: waterSurfaceWgsl(true) })
+/** The front stage's modules, one for each of what its pass writes (`frontStage.ts`). */
+const FRONTS = ([0, 1, 2] as const).map((outputs) => blendFrontShader(outputs))
 
 test('the blend and water stages take every derivative before their coverage test returns', () => {
   const taking = [...STAGES.matchAll(/fn (\w+)\(/g)]
     .map(([, name]) => name)
     .filter((name) => DERIVATIVE.test(functionsOf(STAGES, [name])))
   assert.deepEqual(taking, ['blendGrads', 'blendFragment'])
-  for (const stage of ['blendFragment', 'fsWater', 'fsWaterLobed', 'fsFront']) {
-    const body = functionsOf(STAGES, [stage]),
+  for (const [stage, text] of [
+    ['blendFragment', STAGES],
+    ['fsWater', STAGES],
+    ['fsWaterLobed', STAGES],
+    ...FRONTS.map((front) => ['fsFront', front]),
+  ]) {
+    const body = functionsOf(text, [stage]),
       coverage = body.search(COVERAGE)
     assert.ok(coverage > 0, `${stage} returns at its coverage test`)
     assert.ok(body.indexOf('blendGrads(in)') < coverage, `${stage} takes the derivatives first`)

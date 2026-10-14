@@ -22,7 +22,7 @@ import { encodeCastInvalidation } from '../../../../vsm/castInvalidation.ts'
 import { createCastChanges } from '../../../shadow/castChanges.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
 import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
-import { encodeVsmProjection, encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
+import { encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
 
 /** The page marking's one compute pass (`markingPass.ts`). */
 const MARKING_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}marking` }
@@ -36,6 +36,8 @@ export interface VsmFrameScratch {
   perPage: VsmPerPageFrame
   suns: Uint32Array<ArrayBuffer>
   projected: VsmProjectionLight[]
+  /** The image's projection, held until the depth pyramid holds its transparents (`encodeHeldVsmProjection`). */
+  held?: { frame: VsmFrame; views: GPUTextureView[] }
   /** The marking's frame and its view of the engine's frame, their fields set each frame. */
   marking: VsmMarkingFrame
   markingView: VsmMarkingView
@@ -71,7 +73,8 @@ const frameScratch = (vsm: EngineVsm) =>
 
 /**
  * The frame's GPU work of the virtual shadow maps, after the light lists and before the lighting:
- * invalidation, page management, marking, allocation, raster, post-render and projection.
+ * invalidation, page management, marking, allocation, raster and post-render; the projection, whose
+ * screen rays march the depth pyramid, is held for after it (`encodeHeldVsmProjection`).
  */
 export function encodeVsmFrame(
   rt: WebgpuPagesRuntime,
@@ -130,7 +133,7 @@ export function encodeVsmFrame(
   const views = encodeVsmMarking(frame, scratch, perPage, pmFrame)
   encodeVsmRaster(frame)
   encodeVsmAfterRaster(encoder, res, pmFrame)
-  stats.projectionPasses = encodeVsmProjection(frame, scratch.projected, views)
+  scratch.held = { frame, views }
 }
 
 /** The page marking, one compute pass: the physical page addresses remapped to this frame's ids,

@@ -1,21 +1,17 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
-import { REFLECTION_SIDE } from '../../reflections/constants.ts'
 
-/** The side of the backdrop copy's tiles (`copyWgsl.ts`), and of the front-depth scatter's. */
+/** The side of the backdrop copy's tiles (`copyWgsl.ts`). */
 export const WATER_COPY_TILE = 8
 const COPY_SHIFT = Math.log2(WATER_COPY_TILE)
-const FRONT_SHIFT = Math.log2(REFLECTION_SIDE)
-if (!Number.isInteger(FRONT_SHIFT)) throw new Error('REFLECTION_SIDE is not a power of two')
 
 /**
  * WHAT THE WATER PASS DRAWS, written by one thread once the rectangles are folded
  * (`rectWgsl.ts`): the rectangle — the surfaces' union, or the full target when no surface was
  * folded in, as the CPU's freeze chose —, the backdrop copy over the union of the backdrops and the
  * surfaces (the full target with it), the copy's tiles, the rectangle's quad, drawn by the depth
- * restore and the composite, and the next image's front-depth scatter over the rectangle — each
- * with zero instances or workgroups when no water draws. That is the gate: no CPU reads it. Its
+ * restore and the composite — each with zero instances or workgroups when no water draws. That is the gate: no CPU reads it. Its
  * host binds \`frame\` and \`verdict\`.
  */
 export const WATER_ARGS_WGSL = wgslBlock(
@@ -50,9 +46,6 @@ fn writeWaterArgs(){
  writeWords(VERDICT_COPY,vec4u(copied.x,copied.y,size.x,size.y));
  writeWords(VERDICT_COPY_ARGS,vec4u((size.x+${WATER_COPY_TILE - 1}u)>>${COPY_SHIFT}u,(size.y+${WATER_COPY_TILE - 1}u)>>${COPY_SHIFT}u,n,0u));
  writeWords(VERDICT_QUAD_ARGS,vec4u(6u,n,0u,0u));
- let fx=select(0u,(rect.z-rect.x+${REFLECTION_SIDE - 1}u)>>${FRONT_SHIFT}u,rect.z>rect.x);
- let fy=select(0u,(rect.w-rect.y+${REFLECTION_SIDE - 1}u)>>${FRONT_SHIFT}u,rect.w>rect.y);
- writeWords(VERDICT_FRONT_ARGS,vec4u(fx,fy,n,0u));
 }
 `,
 )

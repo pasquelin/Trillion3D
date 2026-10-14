@@ -6,10 +6,11 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { proxyKey } from './proxy.ts'
-import type { RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
+import { runtimeKey, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
 import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { reflectionFrontWgsl } from './viewLayout.ts'
+import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../sdk-core/src/lod/depthLayer.ts'
 
 /**
  * What a lit surface keeps of the radiance it reflects, and how it traces it. `reflectionWeight`
@@ -28,7 +29,7 @@ import { wgslF32 } from '../../../math/src/wgsl/number.ts'
  */
 export const reflectionShareWgsl = (group: number, lobes: boolean, runtime?: RuntimeBindings) =>
   wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes}, ${runtime ? proxyKey(runtime) : 'none'})`,
+    `reflectionShareWgsl(${group}, ${lobes}, ${runtimeKey(runtime)})`,
     [reflectedRadianceWgsl(group, runtime), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
     `struct Reflected{base:vec3f,coat:vec3f,}
 fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
@@ -65,37 +66,41 @@ fn reflectedShare(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
 }`,
   )
 
-/** How far a fragment's depth may lie from the front depth the trace read and still be that surface
- *  (`forwardTrace`), relative to it: eight times the transparent passes' depth bias (16 units of a
- *  float depth's last bit, 2⁻¹⁹ of it, `TRANSPARENT_DEPTH_LAYER`), far under the depth between a pane's
- *  two faces (a centimetre at a hundred metres is 10⁻⁴ of it). */
-const FRONT_DEPTH_MATCH = 2 ** -16
+/** How far a fragment's depth may lie from the front depth and still be that surface (`forwardTrace`),
+ *  relative to it: eight times the transparent passes' depth bias (`TRANSPARENT_DEPTH_LAYER`, in units of
+ *  a float depth's last bit, 2⁻²³ of it), far under the depth between a pane's two faces (a centimetre at
+ *  a hundred metres is 10⁻⁴ of it). */
+const FRONT_DEPTH_MATCH = 8 * depthLayerUnits(TRANSPARENT_DEPTH_LAYER) * 2 ** -23
 
 /**
  * A forward program's reflection (blend, water), inline in its fragment stage, its resources in
  * bind group `group` and the front's traced radiance at binding `traced` of group 0
  * (`frontLayer.ts`). `forwardTrace` is what a fragment's lobes reflect: where it is the front surface
- * of its pixel — its depth the one the trace wrote there, by this image's front pass —, the radiance
- * the trace wrote, one load; anywhere else — a surface behind the front, an image without a front
- * pass —, the chain without the proxy's stage (`reflectionTrace`): the screen, the probes and the
- * environment, never a ray of the proxy. `surfaceReflection` is the blend's, weighed on the
+ * of its pixel — its depth the front pass's there, in an image whose trace answered the front —, the
+ * radiance the trace wrote, one load; anywhere else — a surface behind the front, an image whose trace
+ * did not answer it —, the chain without the proxy's stage (`reflectionTrace`): the screen, the probes
+ * and the environment, never a ray of the proxy. `surfaceReflection` is the blend's, weighed on the
  * reflectance `f0` as the opaque trace's is; the water traces once (`forwardTrace`) and weighs the one
  * trace on two reflectances (`reflectionShare`).
  */
 export const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes}, ${traced})`,
-    [reflectionShareWgsl(group, lobes), surfaceReflects, SHARED_EXPONENT_WGSL],
+    [
+      reflectionShareWgsl(group, lobes),
+      reflectionFrontWgsl(group),
+      surfaceReflects,
+      SHARED_EXPONENT_WGSL,
+    ],
     `@group(0) @binding(${traced}) var frontTraced:texture_2d<u32>;
 const FRONT_DEPTH_MATCH:f32=${wgslF32(FRONT_DEPTH_MATCH)};
 /** What a fragment at framebuffer \`position\` reflects of \`P\`, of normal \`N\` and roughness \`rough\`, seen from
  *  \`V\`: the front's traced radiance where \`front\` lets it be the front surface and its depth is that one's. */
 fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Reflected{
- if(front&&reflectionView.runtime.y!=0u){
-  let t=textureLoad(frontTraced,vec2i(position.xy),0);
-  if(t.w==reflectionView.runtime.y&&abs(bitcast<f32>(t.z)-position.z)<=position.z*FRONT_DEPTH_MATCH){
-   return Reflected(rtUnpackShared(t.x),rtUnpackShared(t.y));
-  }
+ let at=vec2i(position.xy);
+ if(front&&reflectionFrontTraced()&&abs(reflectionFrontDepth(at)-position.z)<=position.z*FRONT_DEPTH_MATCH){
+  let t=textureLoad(frontTraced,at,0);
+  return Reflected(rtUnpackShared(t.x),rtUnpackShared(t.y));
  }
  return reflectionTrace(P,N,V,rough);
 }

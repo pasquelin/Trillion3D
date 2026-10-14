@@ -1,5 +1,4 @@
 import { bindForwardReflection } from '../../reflections/gpu.ts'
-import { frontAttachment, frontFromWater } from '../../reflections/frontAttachment.ts'
 import { createWaterCopy } from './copy.ts'
 import { createWaterDepthRestore } from './depthRestore.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
@@ -120,18 +119,15 @@ function encodeWaterFrame(
 ) {
   const { group, passes, sources } = frame
   if (!group || !frame.surfaces) throw new Error('WATER_NOT_BOUND')
-  const [width, height] = rt.gpu.targetSize,
-    front = rt.gpu.reflection!.front
+  const [width, height] = rt.gpu.targetSize
   frame.copy.encode(encoder)
   const written = rt.vis.writesFeedback ? feedbackAttachment(rt) : undefined
-  const pass = encoder.beginRenderPass(passes.surface(lobed, frontAttachment(front, true), written))
+  const pass = encoder.beginRenderPass(passes.surface(lobed, written))
   pass.setViewport(0, 0, width, height, 0, 1)
   frame.restore.draw(pass, lobed)
   rt.run.gpuDrawCalls++
   const encoded = drawBlendRuns(rt, frame.device, pass, 1, pipelines)
   pass.end()
-  // The next image's front depth carries this one's from the rectangle the GPU wrote.
-  frontFromWater(encoder, front, sources.verdict)
   const share = activeAsIsShare(rt),
     filter = routedFilter(rt.gpu.displayFilter)
   const composite = encoder.beginRenderPass(passes.composite(filter, share?.view))

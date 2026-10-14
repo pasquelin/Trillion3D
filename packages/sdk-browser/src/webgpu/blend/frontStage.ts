@@ -1,46 +1,55 @@
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { FRONT_TARGET_FORMATS } from '../../reflections/frontLayer.ts'
+import { FRONT_TARGET_FORMATS, type FrontOutputs } from '../../reflections/frontLayer.ts'
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
+import { blendFrontShader } from './frontStageWgsl.ts'
 
-/** The targets of the front stage, in its outputs' order: the normal and roughness, the surface flags,
- *  then, with `lobes`, the lobes texel (`../../reflections/frontLayer.ts`). */
-export const frontStageTargets = (lobes: boolean): GPUColorTargetState[] => [
-  { format: FRONT_TARGET_FORMATS.normals },
+/** The targets of the front stage of `outputs`, in its outputs' order: the Hi-Z front layer, the surface
+ *  flags, then the normal and roughness, then the lobes texel (`../../reflections/frontLayer.ts`). */
+export const frontStageTargets = (outputs: FrontOutputs): GPUColorTargetState[] => [
+  { format: FRONT_TARGET_FORMATS.front },
   { format: FRONT_TARGET_FORMATS.flags },
-  ...(lobes ? [{ format: FRONT_TARGET_FORMATS.lobes }] : []),
+  ...(outputs > 0 ? [{ format: FRONT_TARGET_FORMATS.normals }] : []),
+  ...(outputs > 1 ? [{ format: FRONT_TARGET_FORMATS.lobes }] : []),
 ]
 
 /**
- * The front stage's three culls (`fsFront`, `frontStageWgsl.ts`) of the blend module `module`, on the
- * blend layout, their depth tested and written as the water surface stage's are: the nearest reflecting
- * transparent of a pixel is the one kept. Nothing is described nor compiled before a front pass asks for
- * them (`ask`, `frontPass.ts`): a scene without the proxy's store or without a transparent never does. Their
- * compile runs off the frame, the frames held until it lands; a rank of any blending mode draws its cull's,
- * the stage blending nothing.
+ * The front stages of a device's blend layout, one set of three culls for each `FrontOutputs`, its
+ * module of its own (`blendFrontShader`): what every blend program's front pass draws with, whatever its
+ * lights' key. Their depth is tested and written as the water surface stage's is — the nearest fragment
+ * that covers or reflects is the one kept —, on the blend group alone. Nothing is described nor compiled
+ * before a front pass asks for a set (`ask`): a scene without a transparent never does. The compile runs
+ * off the frame, the frames held until it lands; a rank of any blending mode draws its cull's.
  */
-export function frontStagePipelines(
-  device: GPUDevice,
-  module: GPUShaderModule,
-  layout: GPUBindGroupLayout,
-  lobes: boolean,
-): FrontStagePipelines {
-  let culls: PreparedPipeline<GPURenderPipeline>[] | undefined
-  const made = () =>
-    (culls ??= stageDescriptors(
-      device,
-      module,
-      layout,
-      { module, entryPoint: 'fsFront', targets: frontStageTargets(lobes) },
-      true,
-    ).map((descriptor) => preparedPipeline(device, descriptor)))
-  return {
-    lobes,
-    get ready() {
-      return !!culls && culls.every((cull) => cull.ready)
-    },
-    ask() {
-      for (const cull of made()) cull.ask()
-    },
-    at: (rank) => made()[rank % 3].get(),
+export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout) {
+  const sets: FrontStagePipelines[] = []
+  const setOf = (outputs: FrontOutputs): FrontStagePipelines => {
+    let culls: PreparedPipeline<GPURenderPipeline>[] | undefined
+    const made = () => {
+      if (culls) return culls
+      const module = device.createShaderModule({
+        label: `Trillion3D front stage ${outputs}`,
+        code: blendFrontShader(outputs),
+      })
+      const fragment = { module, entryPoint: 'fsFront', targets: frontStageTargets(outputs) }
+      return (culls = stageDescriptors(
+        device,
+        module,
+        layout,
+        fragment,
+        true,
+        undefined,
+        false,
+      ).map((descriptor) => preparedPipeline(device, descriptor)))
+    }
+    return {
+      get ready() {
+        return !!culls && culls.every((cull) => cull.ready)
+      },
+      ask() {
+        for (const cull of made()) cull.ask()
+      },
+      at: (rank) => made()[rank % 3].get(),
+    }
   }
+  return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
 }

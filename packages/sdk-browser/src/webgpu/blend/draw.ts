@@ -1,4 +1,3 @@
-import { frontAttachment } from '../../reflections/frontAttachment.ts'
 import { bindForwardReflection } from '../../reflections/gpu.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
@@ -45,7 +44,8 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
  * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
- * same, and they are the blend pass's. Returns the draws encoded.
+ * same, and they are the blend pass's — the reflection group too, but for a pass whose pipelines read
+ * none (`reflected` false: the front pass). Returns the draws encoded.
  */
 export function drawBlendRuns(
   rt: WebgpuPagesRuntime,
@@ -55,6 +55,7 @@ export function drawBlendRuns(
   pipelines: RankedPipelines,
   filter?: DisplayFilter,
   share = false,
+  reflected = true,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
@@ -64,7 +65,7 @@ export function drawBlendRuns(
     main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!
-  bindForwardReflection(pass, rt)
+  if (reflected) bindForwardReflection(pass, rt)
   if (filter) pass.setBindGroup(2, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
@@ -154,8 +155,6 @@ export function drawBlendPass(
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
       ...(filter ? filter.attachments() : [null, null]),
-      // The nearest transparent surface of each pixel, the reflections' (`frontDepth.ts`).
-      frontAttachment(gpu.reflection!.front),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })

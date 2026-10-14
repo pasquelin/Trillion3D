@@ -13,6 +13,7 @@ import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { bindBlend, encodeBlend, prepareBlend } from './encodeBlend.ts'
 import { encodeFrontPass } from '../../blend/frontPass.ts'
+import { encodeHeldVsmProjection } from './vsm/vsmProject.ts'
 import {
   encodeDepthPyramid,
   encodeReflectionRadiance,
@@ -60,15 +61,19 @@ export function encodeSurfaceLighting(
   const [width, height] = gpu.targetSize,
     raw = run.diagnostic !== 'beauty'
   invertMatrix4(inverseViewProj, viewProj)
-  // The depth's pyramid, complete: the contact rays of the lights and the reflections march it.
-  encodeDepthPyramid(rt, encoder)
-  // The transparents are selected and ordered first; light lists encode before resolve, its inputs.
+  // The transparents are selected and ordered first; light lists encode before resolve, its inputs —
+  // every lighting resource the blend group names made with them.
   const blendRuns = prepareBlend(rt, encoder, true)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
-  // The transparents bound for the image, and their front surface drawn: the trace reads it.
+  // The transparents bound for the image, and their front pass drawn: their nearest depth and the
+  // surface the trace reads.
   const blendKey = blendRuns ? bindBlend(rt, device) : undefined
-  if (blendKey) encodeFrontPass(rt, device, encoder, blendKey)
+  if (blendKey) encodeFrontPass(rt, device, encoder)
+  // The depth's pyramid, complete with this image's transparents: the contact rays of the lights —
+  // the shadows' projection, held until now — and the reflections march it.
+  encodeDepthPyramid(rt, encoder)
+  encodeHeldVsmProjection(rt)
   // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
   // transparents' front one, which the blends and the water read; behind it, they read the same
   // view inline.
@@ -89,7 +94,8 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls++
   const blendShare = seedAsIsShare(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
-  encodeBlend(rt, device, encoder, true, blendKey)
+  // Bound again: the shadows' projection may have made a resource the blend group names since.
+  encodeBlend(rt, device, encoder, true, blendKey && bindBlend(rt, device))
   drawParticles(rt, encoder, directTiles())
   // The lit image whole, before its resolve: the next image's reflections read it.
   encodeReflectionRadiance(rt, encoder)

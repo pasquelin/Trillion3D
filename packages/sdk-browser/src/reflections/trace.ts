@@ -31,8 +31,8 @@ import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
  * a tile listed once for each of its surfaces that reflects, the surface in the word's top bit), the trace
  * (`traceReflections`) runs over the listed tiles alone: each opaque pixel of such a surface writes the share
  * of the radiance it reflects (`reflectedShare`: both its lobes, traced, weighed on its reflectance and
- * coated), each front pixel the radiance its lobes reflect, with the depth it was traced at and the stamp of
- * the image, which the transparent fragment weighs (`forwardReflectionWgsl`); any other pixel writes nothing
+ * coated), each front pixel the radiance its lobes reflect, which the transparent fragment of its depth
+ * weighs (`forwardReflectionWgsl`); any other pixel writes nothing
  * and the resolve reads nothing of it (`resolvedReflection`). The tiles are dispatched indirectly, in rows
  * (`work`: the workgroups along x and y, then 1, then the count of tiles): the classification opens a slice
  * for each tile it lists (`openSlice`), so that an image of any size, whose tiles outnumber what a dimension
@@ -58,17 +58,22 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  let inside=all(vec2f(id.xy)<view.viewport.xy);
  let coord=vec2i(id.xy);
  if(inside&&surfaceReflects(textureLoad(traceFlags,coord,0).r)){atomicOr(&reflecting,1u);}
- if(inside&&traceFront()&&surfaceReflects(textureLoad(frontFlags,coord,0).r)){atomicOr(&reflecting,2u);}
+ if(inside&&reflectionFrontTraced()&&surfaceReflects(textureLoad(frontFlags,coord,0).r)){atomicOr(&reflecting,2u);}
  workgroupBarrier();
  if(lane!=0u){return;}
+ // The tile's surfaces listed at once: one rank, one count and one slice for both.
  let layers=atomicLoad(&reflecting);
+ let n=countOneBits(layers);
+ if(n==0u){return;}
+ let first=atomicAdd(&work[3],n);
+ var rank=first;
  for(var layer=0u;layer<2u;layer++){
   if((layers&(1u<<layer))==0u){continue;}
-  let rank=atomicAdd(&work[3],1u);
   atomicStore(&traceList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u)|(layer<<31u));
-  atomicMax(&traceList[${TRACE_LIST.count}u],rank+1u);
-  openSlice(0u,rank);
+  rank++;
  }
+ atomicMax(&traceList[${TRACE_LIST.count}u],first+n);
+ openSlice(0u,first+n-1u);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) rows:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -101,7 +106,7 @@ fn tracePixel(rank:u32,lid:vec2u){
  if(rtLayer!=0u){
   // The front's radiance as its lobes reflect it, weighed by the fragment that reads it.
   let traced=reflectionTrace(P,N,V,normal.a);
-  textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),bitcast<u32>(depth),reflectionView.runtime.y));
+  textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),0u,0u));
   return;
  }
  let base=textureLoad(traceBase,coord,0);

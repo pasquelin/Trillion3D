@@ -26,7 +26,7 @@ export function blendLightResources(
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
-    // The front's radiance the trace wrote, which no image without a front pass reads.
-    frontTraced: rt.gpu.reflection?.store.front?.tracedView ?? placeholders.frontTraced,
+    // The front's radiance the trace wrote (`frontLayer.ts`), a texel until a transparent reflects.
+    frontTraced: rt.gpu.reflection!.front.views.traced,
   }
 }

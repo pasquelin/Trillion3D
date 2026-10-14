@@ -52,9 +52,10 @@ test('a pixel’s front surface keeps its answer in its own cell, never the opaq
 
 type Reflected = { base: Vec; coat: Vec }
 
-/** `forwardTrace` of the shipped forward program, over a front texel `texel` at every pixel, this image's
- *  front stamp `stamp`; the chain without the proxy answers `chain`. */
-function forward(texel: number[], stamp: number) {
+/** `forwardTrace` of the shipped forward program, over a front texel `texel` and a front depth `depth` at
+ *  every pixel, `answered` whether this image's trace answered the front; the chain without the proxy
+ *  answers `chain`. */
+function forward(texel: number[], depth: number, answered = true) {
   const chain: Reflected = { base: [7, 7, 7], coat: [0, 0, 0] }
   const run = shaderRun<{
     forwardTrace: (
@@ -65,33 +66,36 @@ function forward(texel: number[], stamp: number) {
       position: number[],
       front: boolean,
     ) => Reflected
-  }>(wgslModule(forwardReflectionWgsl(1, false, 24)), ['forwardTrace', 'rtUnpackShared'], {
-    frontTraced: { load: () => texel },
-    reflectionView: { runtime: [2, stamp, 0, 0] },
-    reflectionTrace: () => chain,
-    Reflected: (base: Vec, coat: Vec) => ({ base, coat }),
-  })
+  }>(
+    wgslModule(forwardReflectionWgsl(1, false, 24)),
+    ['forwardTrace', 'rtUnpackShared', 'reflectionFrontTraced', 'reflectionFrontDepth'],
+    {
+      frontTraced: { load: () => texel },
+      reflectionFront: { load: () => [depth, 0, 0, 0] },
+      reflectionView: { runtime: [2, answered ? 1 : 0, 0, 0] },
+      reflectionTrace: () => chain,
+      Reflected: (base: Vec, coat: Vec) => ({ base, coat }),
+    },
+  )
   return (z: number, front = true) =>
     run.forwardTrace([0, 0, 0], [0, 0, 1], [0, 0, 1], 0.1, [3.5, 4.5, z, 1], front)
 }
 
-test('a fragment of this image’s front surface reads the trace’s radiance; any other, the chain', () => {
+test('a fragment at the front depth reads the trace’s radiance; any other, the chain', () => {
   const pack = runOver(glow([0, 0, 0])).rtPackShared
-  const z = 0.25,
-    bits = new Uint32Array(new Float32Array([z]).buffer)[0]
-  const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), bits, 9]
-  const read = forward(texel, 9)
+  const z = 0.25
+  const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), 0, 0]
+  const read = forward(texel, z)
   const front = read(z)
   front.base.forEach((c, k) => assert.ok(Math.abs(c - [1, 2, 4][k]) < 1e-2, `${front.base}`))
   assert.ok(Math.abs(front.coat[0] - 0.5) < 1e-3, 'the coat’s own')
   // Its depth within the transparent passes' bias of the front's: the same surface.
   assert.notDeepEqual(read(z * (1 + 2 ** -19)).base, [7, 7, 7])
-  // A surface behind it, a fragment told it is not the front, a texel of another image, an image
-  // without a front pass: the chain, with no proxy stage.
+  // A surface behind it, a fragment told it is not the front, an image whose trace did not answer the
+  // front: the chain, with no proxy stage.
   assert.deepEqual(read(z * (1 - 2 ** -12)).base, [7, 7, 7])
   assert.deepEqual(read(z, false).base, [7, 7, 7])
-  assert.deepEqual(forward(texel, 10)(z).base, [7, 7, 7])
-  assert.deepEqual(forward(texel, 0)(z).base, [7, 7, 7])
+  assert.deepEqual(forward(texel, z, false)(z).base, [7, 7, 7])
 })
 
 test('only the trace casts the proxy’s rays: a forward program binds no proxy', () => {
@@ -99,9 +103,9 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
   for (const name of ['rtRadiance', 'rtAnswer', 'rtProxy', 'reflectionProxied'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectedRadianceWgsl(1, RUNTIME_BINDINGS)), /\breflectionProxied\b/)
-  // The trace writes the front's radiance with the depth and the stamp the fragment matches.
+  // The trace writes the front's radiance where this image answers the front surface.
   assert.ok(TRACE_SHADER.includes('textureStore(frontOut,'))
-  assert.ok(TRACE_SHADER.includes('reflectionView.runtime.y'))
+  assert.ok(TRACE_SHADER.includes('reflectionFrontTraced()'))
   // A tile is listed for each surface, and its trace answers that surface's cell.
   assert.ok(TRACE_SHADER.includes('|(layer<<31u)'))
   assert.ok(TRACE_SHADER.includes('rtLayer=tile>>31u;'))

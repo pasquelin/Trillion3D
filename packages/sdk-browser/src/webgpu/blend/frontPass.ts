@@ -1,50 +1,53 @@
-import { wantsContractLighting } from '../pages/prepare/contractLight.ts'
-import { frontStamp } from '../../reflections/frontLayer.ts'
-import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { frontStamp, type FrontOutputs } from '../../reflections/frontLayer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { drawBlendRuns } from './draw.ts'
 
 /**
- * The transparents' front pass (`../../reflections/frontLayer.ts`), before the reflection trace that
- * reads it: the opaque depth copied into the front's, then every transparent run of the image — the
- * blends and the transmissive slice — drawn through the front stage of the program the frame lights the
- * blends with (`key`), its lobes target attached where that program writes lobes. Only where the view
- * holds the proxy's store with a front layer, the image is lit and traced, a beauty view, and its
- * transparents were prepared (`prepareBlend`, the caller's): elsewhere no pass, and the image's stamp is
- * never the layer's, so no fragment reads it. Returns whether it drew.
+ * The transparents' front pass (`../../reflections/frontLayer.ts`), the one producer of the nearest
+ * transparent depth, after the transparents were prepared (`prepareBlend`) and bound (`bindBlend`), and
+ * before the depth pyramid that folds it in and the trace that reads it: the opaque depth copied into the
+ * layer's, then every transparent run of the image — the blends and the transmissive slice — drawn
+ * through the front stage, on the blend group alone. It writes the covering depth into the Hi-Z front
+ * layer, and, where a transparent of the scene reflects (`blendState.reflects`), the reflecting surface
+ * too — with its lobes where one carries them —, the store's front cells held from then on
+ * (`holdFront`). None without transparents or a depth pyramid; a stage still compiling is asked, off the
+ * frame, the frames held until it lands.
  */
 export function encodeFrontPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  key: Partial<ContractKey>,
 ) {
   const { gpu, vis, run, blendState } = rt,
-    front = gpu.reflection?.store.front
+    reflection = gpu.reflection,
+    hiz = vis.gpuHiz
   if (
-    !front ||
+    !reflection?.front.wanted ||
+    !hiz ||
     !gpu.depthTexture ||
     !vis.blendPipelines ||
-    !vis.reflectionPipelines ||
-    run.diagnostic !== 'beauty' ||
-    !wantsContractLighting(rt) ||
     (!blendState.runCount[0] && !blendState.runCount[1])
   )
-    return false
-  const set = vis.blendPipelines.lit(key, blendState.lobed || blendState.waterLobed).front
-  // Compiled off the frame at its first ask, the frames held until then: no image draws without it.
-  if (!set.ready) {
-    set.ask()
-    return false
-  }
+    return
+  const outputs: FrontOutputs = !blendState.reflects
+    ? 0
+    : blendState.lobed || blendState.waterLobed
+      ? 2
+      : 1
+  const set = vis.blendPipelines.front(outputs)
+  if (!set.ready) return set.ask()
+  const hizFront = hiz.front(encoder, true)
+  if (!hizFront) return
+  const { front } = reflection
+  if (outputs > 0) gpu.targetBytes += reflection.store.holdFront()
   encoder.copyTextureToTexture({ texture: gpu.depthTexture }, { texture: front.depth }, [
     front.depth.width,
     front.depth.height,
   ])
-  const pass = encoder.beginRenderPass(front.begin(frontStamp(run.frame), set.lobes, gpu))
+  const pass = encoder.beginRenderPass(front.begin(frontStamp(run.frame), hizFront, outputs, gpu))
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   for (const slice of [0, 1])
-    if (blendState.runCount[slice]) run.gpuDrawCalls += drawBlendRuns(rt, device, pass, slice, set)
+    if (blendState.runCount[slice])
+      run.gpuDrawCalls += drawBlendRuns(rt, device, pass, slice, set, undefined, false, false)
   pass.end()
-  return true
 }

@@ -22,7 +22,7 @@ import {
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
  *  nearest for the readers of the whole depth. Without compute, returns `undefined`. Its level 0
  *  holds the opaque depth and, while its transparents write it (`front`), the nearest transparent
- *  surface's beside it, which the transparents' fold writes (`reflections/frontDepth.ts`); zero
+ *  surface's beside it, which the transparents' front pass writes (`reflections/frontLayer.ts`); zero
  *  where none lies, whose fold is the opaque depth, bit for bit. */
 export async function createGpuHiz(
   device: GPUDevice,

@@ -22,8 +22,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
-import { frontStagePipelines } from './frontStage.ts'
-import { TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
+import { createFrontStages } from './frontStage.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
   FULL_CONTRACT,
@@ -39,10 +38,9 @@ export type BlendedSurface = Pick<BlendGpuItem, 'surface' | 'transmissive'>
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
 
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
-const BLEND_OUT: [string, string][] = [
-  ...['color', 'asIs', 'tint', 'add'].map((name): [string, string] => [name, 'vec4f']),
-  TRANSPARENT_FRONT.out,
-]
+const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map(
+  (name): [string, string] => [name, 'vec4f'],
+)
 const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const
 
 /** The transmission code a scene that transmits imports (`families.transmission`). */
@@ -59,6 +57,8 @@ type BlendProgramSetup = {
   reach: Reach
   /** The pass's lit programs, once made: what a frame's pick reads. */
   programs: () => ForwardVariants<BlendProgram>
+  /** The front stages every program draws its front pass with (`createFrontStages`). */
+  front: ReturnType<typeof createFrontStages>
 }
 type ForwardVariants<P> = Awaited<ReturnType<typeof createForwardVariants<P>>>
 
@@ -104,6 +104,7 @@ export async function createWebgpuBlendPipelines(
     share,
     reach,
     programs: () => programs,
+    front: createFrontStages(device, blendBindGroupLayout),
   }
   const programs = await createForwardVariants((key) => blendProgram(setup, key), lit)
   const { water, waterRefused } = await blendWater(setup, programs, waterLit)
@@ -181,7 +182,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   await catchUp()
   const pipelines: BlendModePipelines = {
     mask: maskSet.mask,
-    front: frontStagePipelines(device, module, layout, !key.lobeless),
+    front: setup.front,
     reach: reach.reach,
     lit: (frame, lobed) => setup.programs().pick(frame, lobed).pipelines,
     lobedAwaited: () => setup.programs().awaited(FULL_CONTRACT),

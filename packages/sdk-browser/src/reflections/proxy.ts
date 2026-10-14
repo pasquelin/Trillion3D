@@ -3,12 +3,7 @@ import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
-import { runtimeAnswerWgsl, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
-import { sceneKey } from '../bounce/sceneBindings.ts'
-
-/** What names a fragment of a program over `runtime`: its bindings, and the store it keeps its answers in. */
-export const proxyKey = (runtime: RuntimeBindings) =>
-  `${sceneKey(runtime)}, ${runtime.list}, ${runtime.store}`
+import { runtimeAnswerWgsl, runtimeKey, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
 
 /**
  * The proxy's answer to a reflection (`reflectionProxied`), where the screen does not give one: the engine's
@@ -23,7 +18,7 @@ export const proxyKey = (runtime: RuntimeBindings) =>
  */
 export const reflectionProxyWgsl = (group: number, runtime: RuntimeBindings) =>
   wgslBlock(
-    `reflectionProxyWgsl(${group}, ${proxyKey(runtime)})`,
+    `reflectionProxyWgsl(${group}, ${runtimeKey(runtime)})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,

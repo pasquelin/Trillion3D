@@ -3,15 +3,17 @@ import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
-import { createFrontDepth, frontBytes } from './frontDepth.ts'
+import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
 import { createTraceGroups } from './trace.ts'
 import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes } from './traceTiles.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
-import { createProxyStore, proxyStoreBytes } from './proxyStore.ts'
+import { createProxyStore } from './proxyStore.ts'
+import { storeBytes } from '../bounce/runtimeLayout.ts'
 import {
   REFLECTION_DEPTH_BINDING,
+  REFLECTION_FRONT_BINDING,
   REFLECTION_GROUP,
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
@@ -24,19 +26,19 @@ import { reflectionLayout } from './reflectionPipelines.ts'
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
  *  after it in the mips of both targets (`radianceBytes`) —, its tile list, its uniform, its radiance
- *  hash, the front depth (`frontBytes`, which `blends` sizes) and, while a placement wears a proxy
- *  (`store`), the run-time proxy's answers (`proxyStore.ts`), with the transparents' front layer where
- *  it has `blends`; the depth it marches is the Hi-Z's, its front depth folded in. */
+ *  hash, the transparents' front layer (`frontLayerBytes`, which `blends` sizes) and, while a placement
+ *  wears a proxy (`store`), the run-time proxy's answers (`proxyStore.ts`); the depth it marches is the
+ *  Hi-Z's, the front layer's covering depth folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
     radianceBytes(width, height) +
-    frontBytes(width, height, blends) +
+    frontLayerBytes(width, height, blends) +
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
     SETTLE_BYTES +
-    (store ? proxyStoreBytes(width, height, blends) : 0)
+    (store ? storeBytes(width, height) : 0)
   )
 }
 
@@ -44,7 +46,7 @@ export function reflectionBytes(width: number, height: number, blends: boolean, 
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
  * reprojects its hits with its view-projection), the tile list of the trace, the view uniform and
- * its writer. `blends`, whether the scene has any, sizes the front depth (`createFrontDepth`);
+ * its writer. `blends`, whether the scene has any, sizes the transparents' front layer (`createFrontLayer`);
  * `store`, whether a placement wears a proxy, makes the store of its answers (`createProxyStore`).
  */
 export function createScreenReflection(
@@ -70,8 +72,8 @@ export function createScreenReflection(
   const radiance = createRadiancePyramid(device, width, height)
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
-  const front = createFrontDepth(device, width, height, blends)
-  const answers = createProxyStore(device, width, height, store, blends)
+  const front = createFrontLayer(device, width, height, blends)
+  const answers = createProxyStore(device, width, height, store)
   return {
     device,
     target,
@@ -82,6 +84,7 @@ export function createScreenReflection(
     settle,
     /** The run-time proxy's answers, kept from image to image (`proxyStore.ts`). */
     store: answers,
+    /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over the depth it was bound with (`GpuHiz.depth`), the lit image the
@@ -108,7 +111,7 @@ export function createScreenReflection(
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
 /** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
- *  image its pyramid holds now and the lighting's view `lightView`, made again when one of them is
+ *  image its pyramid holds now, its front layer's depth and the lighting's view `lightView`, made again when one of them is
  *  not the one it was made over: the two HDR targets taking turns find a group each. */
 export function reflectionGroup(
   reflection: ScreenReflection,
@@ -135,6 +138,8 @@ export function reflectionGroup(
       { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
       // Every level of the pyramid: the lit image and its mips (`hdrTargetDescriptor`).
       { binding: REFLECTION_IMAGE_BINDING, resource: image.createView() },
+      // The transparents' front depth, the front pass's depth itself (`frontLayer.ts`).
+      { binding: REFLECTION_FRONT_BINDING, resource: reflection.front.views.depth },
     ],
   }))
 }

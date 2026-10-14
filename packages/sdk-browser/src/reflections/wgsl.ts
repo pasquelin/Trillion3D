@@ -4,8 +4,8 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionRayWgsl } from './ray.ts'
-import { proxyKey, reflectionProxyWgsl } from './proxy.ts'
-import type { RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
+import { reflectionProxyWgsl } from './proxy.ts'
+import { runtimeKey, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
@@ -111,7 +111,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  */
 export const reflectedRadianceWgsl = (group: number, runtime?: RuntimeBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${runtime ? proxyKey(runtime) : 'none'})`,
+    `reflectedRadianceWgsl(${group}, ${runtimeKey(runtime)})`,
     [
       reflectionSeenWgsl(group),
       ...(runtime ? [reflectionProxyWgsl(group, runtime)] : []),

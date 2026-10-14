@@ -7,7 +7,7 @@
 // HDR target takes its turn (`adoptRadianceImage`): each image lays the lit image in the HDR
 // target of its turn, as an image's lighting draws it. Consecutive still images, whose reflection
 // targets are read back to the bit.
-import { rigProxy, withoutFront } from './rigRuntime.ts'
+import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
 import {
@@ -106,7 +106,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const probes = emptyAtlas(device, 'reflection proof probes', PROBE_TEXELS)
-  const inputs = withoutFront(device, {
+  const inputs = {
     base: base.createView(),
     flags: flags.createView(),
     normals: normals.createView(),
@@ -116,7 +116,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     probes: probes.createView({ dimension: '2d-array' }),
     ...rigProxy(device, reflection, frame.proxy?.faces),
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
-  })
+  }
   return {
     reflection,
     /** One image: the view written, the depth pyramid built, the trace; then, when `radiance`, the

@@ -134,9 +134,7 @@ export function targets(gpu: WebgpuGpuState) {
     backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {
       uniform: {},
-      placeholders: Object.fromEntries(
-        ['bounceGrid', 'probes', 'tiles', 'frontTraced'].map((k) => [k, {}]),
-      ),
+      placeholders: Object.fromEntries(['bounceGrid', 'probes', 'tiles'].map((k) => [k, {}])),
     },
   })
 }
