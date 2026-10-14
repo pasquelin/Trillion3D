@@ -30,6 +30,26 @@ export type RigFrame = {
   environment?: readonly number[]
 }
 
+/** A frame of `size` pixels seen through `viewProjection` from `eye`, every pixel empty: no depth,
+ *  no surface, zero normals, base and radiance. Its builders fill the pixels they show. */
+export function rigFrameOf(
+  size: readonly [number, number],
+  viewProjection: Float64Array,
+  eye: readonly [number, number, number],
+): RigFrame {
+  const pixels = size[0] * size[1]
+  return {
+    size,
+    viewProjection,
+    eye,
+    depth: new Float32Array(pixels),
+    flags: new Uint8Array(pixels),
+    normals: new Float32Array(pixels * 4),
+    base: new Float32Array(pixels * 4),
+    radiance: new Float32Array(pixels * 4),
+  }
+}
+
 export const halves = (values: ArrayLike<number>) => Uint16Array.from(values, toHalf)
 
 /** The half-float word of a not-a-number: what a pixel the trace leaves unwritten keeps. */

@@ -6,6 +6,7 @@
 // roughness, and the lit colour the image holds there.
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
+import { rigFrameOf, type RigFrame } from './rigFrame.ts'
 
 export const MIRROR = {
   size: 128,
@@ -18,13 +19,13 @@ export const MIRROR = {
 /** The eye of the frame: at the origin, looking down -z, 60° vertically. */
 const eye = () => camera([0, 0, 0], [0, 0, -1], MIRROR.size, MIRROR.size, Math.PI / 3, MIRROR.near)
 
-export function mirrorScene() {
+/** The frame: its floor a polished metal, white and of metalness one, so that the share is the
+ *  lobe's own weight. */
+export function mirrorScene(): RigFrame {
   const { size, near, quad, floor } = MIRROR
   const view = eye()
-  const depth = new Float32Array(size * size),
-    flags = new Uint8Array(size * size),
-    normals = new Float32Array(size * size * 4),
-    radiance = new Float32Array(size * size * 4)
+  const frame = rigFrameOf([size, size], view.m, [0, 0, 0])
+  frame.base.fill(1)
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
       const at = py * size + px
@@ -35,12 +36,12 @@ export function mirrorScene() {
       const onFloor = !onQuad && ray[1] < 0
       if (!onQuad && !onFloor) continue
       const distance = onQuad ? 6 : -1 / ray[1]
-      depth[at] = near / distance
-      flags[at] = onQuad ? MODEL_FLAG.diffuse : MODEL_FLAG.physical
-      normals.set(onQuad ? [0, 0, 1, 1] : [0, 1, 0, 0], at * 4)
-      radiance.set(onQuad ? quad : floor, at * 4)
+      frame.depth[at] = near / distance
+      frame.flags[at] = onQuad ? MODEL_FLAG.diffuse : MODEL_FLAG.physical
+      frame.normals.set(onQuad ? [0, 0, 1, 1] : [0, 1, 0, 0], at * 4)
+      frame.radiance.set(onQuad ? quad : floor, at * 4)
     }
-  return { viewProjection: view.m, depth, flags, normals, radiance }
+  return frame
 }
 
 /** The pixel the floor shows the quad's point `(x, y, -6)` at: the eye's ray to its mirror image

@@ -24,8 +24,7 @@ export function run() {
   return runOnDevice<MirrorReading>(async (device, _events, result) => {
     result.families = {}
     for (const [name, made] of Object.entries(FAMILIES)) {
-      const { scene, lobes } = made()
-      const rig = await openMirror(device, scene, lobes)
+      const rig = await openRig(device, made())
       // The first image has no radiance pyramid yet: the environment alone; the next three reflect
       // the lit image, the HDR targets taking turns between them.
       rig.image()
@@ -61,7 +60,8 @@ export function roughFloor(coat: boolean, rough = ROUGH) {
     // `physicalTexel` writes — the octahedral map of +y is (0, 1), the unorm pair (0, 1).
     lobes.set([0, OCT_UP, COAT_ONE, 0], p * 4)
   }
-  return { scene, lobes: coat ? lobes : undefined }
+  if (coat) scene.lobes = lobes
+  return scene
 }
 
 /** The floor's roughness: its own lobe is wide, the coat's the narrowest the engine allows. */
@@ -74,8 +74,7 @@ export function runCoat() {
   return runOnDevice<CoatReading>(async (device, _events, result) => {
     const { size } = MIRROR
     for (const coat of [false, true]) {
-      const { scene, lobes } = roughFloor(coat)
-      const rig = await openMirror(device, scene, lobes)
+      const rig = await openRig(device, roughFloor(coat))
       rig.image()
       rig.image()
       result[coat ? 'coated' : 'bare'] = Array.from(await rig.read())

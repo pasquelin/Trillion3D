@@ -6,9 +6,8 @@
 // first light and starts on the second is the cold converged image: the held one is it, to the bit.
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { animationFrame } from '../kit/frame.ts'
-import { openMirror } from './mirrorPage.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
-import type { openRig } from './rig.ts'
+import { openRig } from './rig.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: the images each loop drew and the target it held, as raw half words. */
@@ -46,11 +45,7 @@ async function untilSettled(rig: Awaited<ReturnType<typeof openRig>>, limit = 60
 
 export function run() {
   return runOnDevice<SettleReading>(async (device, _events, result) => {
-    const open = async (scale: number) => {
-      const rig = await openMirror(device, frameLitBy(scale))
-      return { rig }
-    }
-    const { rig } = await open(1)
+    const rig = await openRig(device, frameLitBy(1))
     const first = await untilSettled(rig)
     result.first = { images: first, target: Array.from(await rig.read()) }
     // The light doubles, the camera still: the lit image changes, one image is drawn for it.
@@ -61,9 +56,9 @@ export function run() {
     result.changed = { images: 1 + (await untilSettled(rig)), target: [] }
     result.changed.target = Array.from(await rig.read())
     rig.dispose()
-    const cold = await open(2)
-    const images = await untilSettled(cold.rig)
-    result.cold = { images, target: Array.from(await cold.rig.read()) }
-    cold.rig.dispose()
+    const cold = await openRig(device, frameLitBy(2))
+    const images = await untilSettled(cold)
+    result.cold = { images, target: Array.from(await cold.read()) }
+    cold.dispose()
   })
 }
