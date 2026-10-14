@@ -14,6 +14,7 @@ import { dagBindingOf } from './shader/bindings.fixture.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { FRAME_TABLE } from './frameTable.ts'
 import { fieldStart } from '../core/recordLayout.ts'
+import { f32Bits } from '../../../../math/src/float/bits.ts'
 
 /** Forty-eight placements of the fixture's primitive, each `k + 1` metres along x — a translation
  *  a new table does not hold already —, on a device whose storage binding holds twenty rows of
@@ -73,9 +74,9 @@ test("the host's rows and words land at their placement's record, never on the G
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7)
   // Once made, the stretch is the root boxes pass's: a row sent again leaves its field as it is.
   const stretchAt = fieldStart(FRAME_TABLE, 'Stretch') + 25
-  words[stretchAt] = 0x40400000
+  words[stretchAt] = f32Bits(3)
   frames.writeWord(25, 3, 9)
   frames.flushWords()
-  assert.equal(words[stretchAt], 0x40400000, "the GPU's stretch kept")
+  assert.equal(words[stretchAt], f32Bits(3), "the GPU's stretch kept")
   assert.equal(words[25 * FRAME_ROW_WORDS + 3], 9, 'the row sent')
 })
