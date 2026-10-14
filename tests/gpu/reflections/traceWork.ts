@@ -1,5 +1,5 @@
 // The work the run-time proxy's rays spend in a frame, counted by the proof alone: the engine counts
-// nothing in its kernel (`bounce/runtimeTraceWgsl.ts`, its cost is the frame's GPU duration the proxy
+// nothing in its kernel (`bounce/runtimeRadianceWgsl.ts`, its cost is the frame's GPU duration the proxy
 // budget observes). On every device the page's WebGPU grants from now on, the shipped trace is compiled
 // with a counter the proof adds to its text — each ray's work summed over its workgroup, one atomic a
 // workgroup into a word the proof adds past the tile list's tiles —, and the frame state's kernel
@@ -8,7 +8,7 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import { latestMade } from '../kit/worldErrors.ts'
 
 /** The trace's text, whose ray of the proxy and whose entry the counter joins. */
-const RAY = 'return rtRadiance(origin,direction,reach,tangent);'
+const RAY = 'return ReflectionProxied(seen.color,seen.confidence);'
 const ENTRY = 'tracePixel(flatIndex(wg,rows,1u),lid.xy);'
 const BEGIN = 'fn reflectionBegin(){'
 
@@ -22,7 +22,7 @@ fn proofShare(first:bool){
  workgroupBarrier();
  if(first){
   let spent=atomicLoad(&proofGroupSpent);
-  if(spent!=0u){atomicAdd(&rtList[arrayLength(&rtList)-1u],spent);}
+  if(spent!=0u){atomicAdd(&traceList[arrayLength(&traceList)-1u],spent);}
  }
 }
 `
@@ -35,10 +35,7 @@ function counted(code: string) {
   if (!code.includes(RAY)) throw new Error('the shipped trace has no ray of the proxy to count')
   return (
     code
-      .replace(
-        RAY,
-        'let seen=rtRadiance(origin,direction,reach,tangent);proofSpentHere+=rtWork+rtExtra;return seen;',
-      )
+      .replace(RAY, `proofSpentHere+=rtWork+rtExtra;${RAY}`)
       .replace(ENTRY, `${ENTRY}proofShare(all(lid.xy==vec2u(0u)));`) + COUNTER
   )
 }

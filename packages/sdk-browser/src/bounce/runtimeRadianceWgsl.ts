@@ -133,26 +133,3 @@ fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 }
 `,
   )
-
-/** The bindings of the opaque trace's program: the proxy's, and the trace's list (`runtimeLayout.ts`). */
-export type RuntimeBindings = SceneBindings & { list: number }
-
-/**
- * THE RUN-TIME PROXY'S RAYS OF THE OPAQUE TRACE: the radiance above, every ray cast in its frame — no answer
- * kept from one image to the next, no frame budget cutting a ray —, none where no placement wears a proxy;
- * beside it the trace's list, which the trace binds writable. What the rays cost is the frame's GPU
- * duration, which the proxy budget observes (`ProxyBudget`): nothing is counted in the kernel.
- */
-export const runtimeTraceWgsl = ({ list, ...scene }: RuntimeBindings) =>
-  wgslBlock(
-    `runtimeTraceWgsl(${sceneKey(scene)}, ${list})`,
-    [runtimeRadianceWgsl(scene)],
-    `
-@group(${scene.group}) @binding(${list}) var<storage,read_write> rtList:array<atomic<u32>>;
-/** A reflection's ray of the proxy (\`rtRadiance\`). No placement wearing a proxy, no ray. */
-fn rtCast(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
- if(rtProxy.instances==0u){return RtRadiance(vec3f(0.0),0.0);}
- return rtRadiance(origin,direction,reach,tangent);
-}
-`,
-  )

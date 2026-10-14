@@ -19,10 +19,16 @@ import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
-import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { BEGIN_BINDINGS, RUNTIME_BINDINGS, TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
 import type { TraceGroups } from './traceEncode.ts'
+
+/**
+ * THE FRAME'S COUNTER OF THE REFLECTION TRACE, in its list: the tiles the classification listed
+ * (`count`), then the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
+ */
+const TRACE_LIST = { count: 0 } as const
+const TRACE_LIST_FIRST = 1
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -48,6 +54,7 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(${TRACE_BINDINGS.bounceGrid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${TRACE_BINDINGS.probes}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${TRACE_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
+@group(0) @binding(${TRACE_BINDINGS.list}) var<storage,read_write> traceList:array<atomic<u32>>;
 @group(0) @binding(${TRACE_BINDINGS.base}) var traceBase:texture_2d<f32>;
 @group(0) @binding(${TRACE_BINDINGS.lightLists}) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
@@ -57,8 +64,8 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  workgroupBarrier();
  if(lane==0u&&atomicLoad(&reflecting)!=0u){
   let rank=atomicAdd(&work[3],1u);
-  atomicStore(&rtList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u));
-  atomicMax(&rtList[${TRACE_LIST.count}u],rank+1u);
+  atomicStore(&traceList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u));
+  atomicMax(&traceList[${TRACE_LIST.count}u],rank+1u);
   openSlice(0u,rank);
  }
 }
@@ -68,9 +75,9 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
 }
 /** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
 fn tracePixel(rank:u32,lid:vec2u){
- let count=atomicLoad(&rtList[${TRACE_LIST.count}u]);
+ let count=atomicLoad(&traceList[${TRACE_LIST.count}u]);
  if(rank>=count){return;}
- let tile=atomicLoad(&rtList[${TRACE_LIST_FIRST}u+rank]);
+ let tile=atomicLoad(&traceList[${TRACE_LIST_FIRST}u+rank]);
  let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);

@@ -93,9 +93,3 @@ export const RAY_THROUGH_FLOOR = 0.02
 /** The least distance a ray leaves a hit by to look behind it, in metres, where the proxy's own
  *  error is smaller. */
 export const RAY_ERROR_FLOOR = 1e-3
-/**
- * THE FRAME'S COUNTER OF THE REFLECTION TRACE, in its list (`TRACE_LIST`): the tiles the classification
- * listed, then the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
- */
-export const TRACE_LIST = { count: 0 } as const
-export const TRACE_LIST_FIRST = 1

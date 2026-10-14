@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { countTraceWork } from './traceWork.ts'
 
 const TRACE =
-  'fn tracePixel(){return rtRadiance(origin,direction,reach,tangent);}\n' +
+  'fn reflectionProxied(){return ReflectionProxied(seen.color,seen.confidence);}\n' +
   'fn main(){tracePixel(flatIndex(wg,rows,1u),lid.xy);}'
 
 test('every case counts the trace once: its text and its tile list hooked a single time', async () => {

@@ -7,7 +7,6 @@ import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
-import type { ProxyBindings } from './proxy.ts'
 
 /**
  * What a lit surface keeps of the radiance it reflects, and how it traces it. `reflectionWeight`
@@ -23,9 +22,9 @@ import type { ProxyBindings } from './proxy.ts'
  * (`lobeThrough`), and the coat's added; `reflectedShare` traces and weighs on one reflectance. A
  * program without lobes has no coat and a round lobe.
  */
-export const reflectionShareWgsl = (group: number, lobes: boolean, runtime: ProxyBindings) =>
+export const reflectionShareWgsl = (group: number, lobes: boolean, runtime: SceneBindings) =>
   wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes}, ${sceneKey(runtime)}, ${'list' in runtime})`,
+    `reflectionShareWgsl(${group}, ${lobes}, ${sceneKey(runtime)})`,
     [reflectedRadianceWgsl(group, runtime), LTC_WGSL, LOBE_AXIS_WGSL, ndotvClamped, DIELECTRIC_F0],
     `struct Reflected{base:vec3f,coat:vec3f,}
 fn reflectionWeight(f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{

@@ -1,4 +1,4 @@
-// The run-time proxy's rays on the CPU (`runtimeTraceWgsl.ts`), the scene level: the same walk of the
+// The run-time proxy's rays on the CPU (`runtimeRadianceWgsl.ts`), the scene level: the same walk of the
 // placement tree and of each placement's box, over the packing's own tables, the same budget. The tests
 // compare it with every triangle tested in turn.
 import { NO_INDEX } from '../../../math/src/constants.ts'

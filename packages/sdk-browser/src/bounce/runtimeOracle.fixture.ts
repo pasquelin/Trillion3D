@@ -1,4 +1,4 @@
-// The run-time proxy's rays on the CPU (`runtimeTraceWgsl.ts`), the cut level: the same wide traversal of
+// The run-time proxy's rays on the CPU (`runtimeRadianceWgsl.ts`), the cut level: the same wide traversal of
 // a cut's columns, the same budget (`runtimeSceneOracle.fixture.ts` walks the placements above them).
 import {
   PROXY_CHILD_WORDS,

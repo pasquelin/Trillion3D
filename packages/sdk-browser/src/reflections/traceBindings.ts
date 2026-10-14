@@ -1,5 +1,5 @@
 import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
-import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
+import type { SceneBindings } from '../bounce/sceneBindings.ts'
 import { storageEntry } from './bindings.ts'
 
 /**
@@ -27,13 +27,12 @@ export const TRACE_BINDINGS = {
   lightLists: 17,
 } as const
 
-/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`), the table's. */
-export const RUNTIME_BINDINGS: RuntimeBindings = {
+/** The bindings of the proxy in the trace's group 0 (`bounce/runtimeRadianceWgsl.ts`), the table's. */
+export const RUNTIME_BINDINGS: SceneBindings = {
   group: 0,
   proxy: TRACE_BINDINGS.proxy,
   worlds: TRACE_BINDINGS.proxyWorlds,
   tree: TRACE_BINDINGS.proxyTree,
-  list: TRACE_BINDINGS.list,
 }
 
 /** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */

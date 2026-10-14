@@ -7,8 +7,7 @@ import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
-import type { ProxyBindings } from './proxy.ts'
-import { sceneKey } from '../bounce/sceneBindings.ts'
+import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -32,7 +31,7 @@ import { sceneKey } from '../bounce/sceneBindings.ts'
  * of the radiance is left under `REFLECTION_EPSILON` is not evaluated. Nothing of the chain reads a
  * count of images, a seed or a history of its own, so two images of a still view give the same
  * bits, the run-time proxy's stage included: every one of its rays is cast in its frame
- * (`bounce/runtimeTraceWgsl.ts`).
+ * (`bounce/runtimeRadianceWgsl.ts`).
  *
  * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;
  * - `footprint.ts`: the cone of the lobe, the footprint it reads of the radiance pyramid
@@ -103,9 +102,9 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  * α along it (`w`; the roughness's α on a round lobe, `lobeAlpha`): the material's anisotropic GGX
  * parameters (`reflectionLobeOf`).
  */
-export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
+export const reflectedRadianceWgsl = (group: number, runtime: SceneBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${sceneKey(runtime)}, ${'list' in runtime})`,
+    `reflectedRadianceWgsl(${group}, ${sceneKey(runtime)})`,
     [
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group, runtime),
