@@ -5,7 +5,7 @@
 // evicted while the image read it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuTileAtlas } from './atlas.ts'
+import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
@@ -20,23 +20,11 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
 
-const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
-
 /** One 4096² texture in one lossless layer — 900 places, its tail pinned —, at clock `now.clock`. */
 function scene() {
   const { device } = fakeDevice()
   const now = { clock: 1 }
-  const atlas = createWebgpuTileAtlas(device, {
-    kind: 'color',
-    encoding: poolEncoding(undefined),
-    layers: { lossless: 1, rgba: 0, 'two-channel': 0 },
-    feedbackOffset: 0,
-    textures: [
-      { layout: tileLayout(4096, 4096), lane: 'lossless', source: { kind: 'bytes', tail: empty } },
-    ],
-    clock: () => now.clock,
-  })
-  atlas.pinTails({ writeTexture() {} } as never, () => {})
+  const atlas = losslessAtlas(device, () => now.clock)
   const evictions = createTileEvictions(device)
   /** One image at `now.clock`: the pixels asking `asked` stamp what they read (`stampWgsl.ts`),
    *  then the queue is cut and read back into the pool. */

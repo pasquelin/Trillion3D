@@ -4,29 +4,15 @@
 // burst was ranked again every image a readback was free, three dispatches over all its places.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuTileAtlas } from './atlas.ts'
 import { createTileEvictions } from './evictSort.ts'
-import { tileLayout } from '../../texture/tiles.ts'
-import { poolEncoding } from '../../texture/blockFormats.ts'
+import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 
-const empty = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
-
 test('a queue that still holds victims and saw nothing move is not cut again', () => {
   const { device } = fakeDevice()
-  const atlas = createWebgpuTileAtlas(device, {
-    kind: 'color',
-    encoding: poolEncoding(undefined),
-    layers: { lossless: 1, rgba: 0, 'two-channel': 0 },
-    feedbackOffset: 0,
-    textures: [
-      { layout: tileLayout(4096, 4096), lane: 'lossless', source: { kind: 'bytes', tail: empty } },
-    ],
-    clock: () => 1,
-  })
-  atlas.pinTails({ writeTexture() {} } as never, () => {})
+  const atlas = losslessAtlas(device, () => 1)
   const pool = atlas.pools[0]
   for (let i = 0; pool.resident < pool.tiles; i++)
     atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })
