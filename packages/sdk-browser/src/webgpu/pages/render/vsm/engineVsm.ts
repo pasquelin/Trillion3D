@@ -434,7 +434,7 @@ export const engineVsmBytes = (vsm: EngineVsm) =>
   (vsm.transmission ? vsm.transmission.bytes + vsmTransmissionContextBytes(vsm.transmission) : 0)
 
 /** The mask at the targets' size, one layer per four shadowed lights at least — `exact` when the
- *  plan reserves it for every casting light (`reserveProjection`, `vsmGrant.ts`), the frame then
+ *  plan reserves it for every casting light (`reserveProjection`, `vsmBeside.ts`), the frame then
  *  drawing into as many as its own lights take —, made whole or not at all
  *  (`constructGpuResources`). */
 export function ensureMask(

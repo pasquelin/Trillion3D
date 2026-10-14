@@ -28,7 +28,7 @@ const shadowedLights = (rt: WebgpuPagesRuntime) =>
  * the frame —, or its growth to it, funded with the frame targets before the geometry and texture
  * pools (`fundFrameTargets`), the shadows first as the budget's split declares
  * (`splitMemoryBudget`). The set itself is drawn within the room at the first lit frame
- * (`vsmReserveBytes`) and grows back within it (`vsmGrant.ts`); the lists and the coloured atlas
+ * (`vsmReserveBytes`) and grows back within it (`vsmRegrow.ts`); the lists and the coloured atlas
  * grow within it too. While no light casts, nothing.
  */
 export function vsmAskedBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
