@@ -48,8 +48,8 @@ export function flagSectionCaps(limits?: Parameters<typeof storageBufferCap>[0])
 
 /** The shape of `packed`'s flags as a cut starts on a device of `limits`: a view's reach, each
  *  section within one binding (`flagSectionCaps`) — a reach past it is grown into on demand, never
- *  refused up front. Queue 0 keeps a root slot a placement (`pack.ts`): a device too narrow for
- *  them refuses the cut (`pastBinding`). */
+ *  refused up front. Queue 0 keeps a root slot a placement (`pack.ts`), past one binding if it
+ *  must: the flags are a record table (`cutTables.ts`), never refused for it. */
 export function dagFlagShape(
   packed: {
     queueEntries?: number

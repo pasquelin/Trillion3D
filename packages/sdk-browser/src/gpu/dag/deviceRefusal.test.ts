@@ -41,9 +41,15 @@ test('every table past one binding is a record table: two storage buffers, whate
     'storage bindings',
   )
   // The flags too: a list starts within one binding's worth and grows no further
-  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table.
-  const section = { maxStorageBufferBindingSize: 2048 }
-  const roots = { ...dag(), worldCount: 1000, nodeCount: 1000 }
+  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table. The
+  // binding holds `work` — the eviction sort's counts and places, whatever the pages — and no more.
+  const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
+  const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
+  const { shape } = cameraCutBuffers(roots, section)
+  assert.ok(
+    shape.queueWords * 4 > section.maxStorageBufferBindingSize,
+    'the roots past one binding',
+  )
   assert.equal(dagDeviceRefusal(section, roots), undefined, 'the roots past one binding held')
 })
 
