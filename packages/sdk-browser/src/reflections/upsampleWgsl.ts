@@ -36,7 +36,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
   ],
   `@group(0) @binding(${B.upsampleIn}) var upsampleIn:texture_2d<u32>;
 @group(0) @binding(${B.base}) var traceBase:texture_2d<f32>;
-@group(0) @binding(${B.target}) var traceOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 /** The radiance the surface \`layer\` reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
 fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
@@ -58,7 +58,7 @@ fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){
  let own=reflectingPixelAt(0u,coord,flags);
  let base=textureLoad(traceBase,coord,0);
  let share=reflectionShare(upsampled(0u,coord,own.P,own.N,own.V),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
- textureStore(traceOut,coord,vec4f(share,1.0));
+ textureStore(reflectionOut,coord,vec4f(share,1.0));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn upsampleFront(@builtin(global_invocation_id) id:vec3u){
