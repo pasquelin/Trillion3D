@@ -5,6 +5,7 @@ import * as basis from './basis.ts'
 import * as color from './color.ts'
 import * as constants from './constants.ts'
 import * as double from './double.ts'
+import * as doubleAffine from './doubleAffine.ts'
 import * as doubleOrder from './doubleOrder.ts'
 import * as doubleRound from './doubleRound.ts'
 import * as doubleWords from './doubleWords.ts'
@@ -27,6 +28,7 @@ const MODULES = {
   color,
   constants,
   double,
+  doubleAffine,
   doubleOrder,
   doubleRound,
   doubleWords,

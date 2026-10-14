@@ -6,11 +6,14 @@ import { withoutComments } from './comments.fixture.ts'
 import type { WgslDecl } from './decl.ts'
 import { wgslConst, wgslFn, wgslStruct } from './decl.ts'
 
+/** A WGSL type in a signature: a name with its parameters, or a fixed-size array of one. */
+const TYPE = String.raw`(?:array<[\w<>]+,\d+>|[\w<>]+)`
+
 test('each declaration opens with its own name, function or constant', () => {
   for (const decl of WGSL_LIBRARY) {
     const header =
       decl.kind === 'fn'
-        ? new RegExp(`^fn ${decl.name}\\((\\w+:[\\w<>]+,?)*\\)(->[\\w<>]+)?\\{`)
+        ? new RegExp(`^fn ${decl.name}\\((\\w+:${TYPE},?)*\\)(->${TYPE})?\\{`)
         : decl.kind === 'struct'
           ? new RegExp(`^struct ${decl.name}\\{`)
           : new RegExp(`^const ${decl.name}(:\\w+)?=[^;]+;$`)
