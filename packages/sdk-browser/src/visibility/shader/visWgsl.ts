@@ -1,5 +1,7 @@
 import { PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL, maskKeepWgsl } from './pageWgsl.ts'
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, UV_READ } from './pageGeometryWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, UV_READ } from './pageGeometryWgsl.ts'
+import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
+import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
@@ -26,13 +28,14 @@ const visVertex = (name: string, hiz: boolean) => {
  out.instance=pageIndex;out.tc=vec3f(0.0);
 ${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
- let id=hardwareCorner(page,h,corner);
+ let shape=pageShape(page);
+ let id=hardwareCorner(page,h,corner,shape);
  if(id==NO_INDEX){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
- if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}
- if(page.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p);}
+ if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}
+ if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}
  out.id=page.packedBase|((corner/3u)&0xffu);
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
  if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
@@ -68,11 +71,11 @@ fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
 /** The page corner this vertex draws, or none (\`NO_INDEX\`) when hardware leaves its triangle to
  *  the compute raster, which takes it: without a share, only the vertex's own corner is decoded,
  *  with one, its triangle once, which the test and the corner both read. */
-fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
+fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape)->u32{
  if(uni.computeSpan<=0.0){return pageCorner(page,h,vertexIndex);}
  let corners=pageTriangle(page,h,vertexIndex/3u);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let vp=uni.viewProj*page.world;
- if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return NO_INDEX;}
+ if(computeTakes(pageClip(vp,page,h,ia,shape),pageClip(vp,page,h,ib,shape),pageClip(vp,page,h,ic,shape))){return NO_INDEX;}
  return corners[vertexIndex%3u];
 }
 ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
@@ -93,7 +96,8 @@ ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@l
       TILE_POOL_WGSL,
       COLOR_SAMPLE_WGSL,
       PAGE_LOOKUP_WGSL,
-      PAGE_SCREEN_WGSL,
+      PAGE_SHAPE_WGSL,
+      materialTableWgsl(VIS_BINDINGS.material),
       maskKeepWgsl(maskAlphaWgsl(false)),
       PAGE_GEOMETRY_WGSL,
       COMPUTE_TAKES_WGSL,

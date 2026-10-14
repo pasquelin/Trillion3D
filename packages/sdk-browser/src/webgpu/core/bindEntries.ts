@@ -21,6 +21,8 @@ export type VisBindResources = AtlasResources & {
   uv: GPUBuffer
   instances: GPUBuffer
   slotOffsets: GPUBuffer
+  /** The surfaces' records (`../material/materialTable.ts`). */
+  material: GPUTextureView
 }
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
@@ -37,8 +39,8 @@ export type ShadeBindResources = AtlasResources & {
   uniform: GPUBuffer
   /** The frame's cache (`../../visibility/shader/shadeCacheWgsl.ts`). */
   shadeCache: GPUBuffer
-  /** The physical records (`../visibility/physicalTable.ts`) and the lobes target the resolve writes. */
-  physical: GPUTextureView
+  /** The surfaces' records (`../material/materialTable.ts`) and the lobes target the resolve writes. */
+  material: GPUTextureView
   lobes: GPUTextureView
 }
 /** Resources of the software raster of small triangles: it only reads the alpha cutout. */
@@ -53,6 +55,8 @@ export type SmallBindResources = AtlasResources & {
   /** The raster image then, right after it, the list of small triangles. */
   work: GPUBuffer
   selectionMask: GPUBuffer
+  /** The surfaces' records (`../material/materialTable.ts`). */
+  material: GPUTextureView
 }
 
 /** The four entries of an atlas: one view per lane, in `PREVIEW_LAYOUT_NAMES` order, and its page table. */
@@ -84,6 +88,7 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.instances, () => r.instances),
     bufferEntry(b.slotOffsets, () => r.slotOffsets),
+    resourceEntry(b.material, () => r.material),
   ]
 }
 
@@ -105,7 +110,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.uniform, () => r.uniform),
     ...atlasEntries(b.data, () => r.textures?.data),
     bufferEntry(b.shadeCache, () => r.shadeCache),
-    resourceEntry(b.physical, () => r.physical),
+    resourceEntry(b.material, () => r.material),
     resourceEntry(b.lobes, () => r.lobes),
   ]
 }
@@ -129,5 +134,6 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.work, () => r.work),
     bufferEntry(b.selectionMask, () => r.selectionMask),
+    resourceEntry(b.material, () => r.material),
   ]
 }

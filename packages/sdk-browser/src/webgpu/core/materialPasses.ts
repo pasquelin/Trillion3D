@@ -154,6 +154,7 @@ export function encodeMaterialPasses(
     uvs: vis.concatUv!,
     normals: vis.concatNrm!,
     uniform: vis.shadeUniform!,
+    material: vis.materialTable.view!,
   })
   if (tileGroup)
     tiles.encode(pass, { vis: vis.visView!, pages: vis.pageTable!, uniform: vis.shadeUniform! })

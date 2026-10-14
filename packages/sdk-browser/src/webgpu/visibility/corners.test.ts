@@ -77,6 +77,7 @@ function scatteredScene() {
     gpu: { device },
     vis: {
       pageTable: {},
+      materialTable: { pending: false },
       gpuPartition: {
         forgetRows: (from: number, to: number) => forgotten.push(to - from + 1),
       },

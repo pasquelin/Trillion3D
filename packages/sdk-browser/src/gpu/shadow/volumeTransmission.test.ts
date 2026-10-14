@@ -5,6 +5,7 @@ import { blendTransmittanceWgsl } from './transmittanceWgsl.ts'
 import { FLAG_HAS_MAP, FLAG_HAS_UV } from '../../visibility/types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { volumeAttenuation } from '../../webgpu/transparent/volumeLaw.ts'
 
 /** The material reads the transmittance takes as providers, run as written: a half alpha, a
  *  fixed colour. */
@@ -25,17 +26,15 @@ const world = (x = 1, y = 1, z = 1) => [
   [0, 0, z, 0],
   [0, 0, 0, 1],
 ]
+/** A page, its surface's record in its material word (`materialAt` hands it back): its colour
+ *  (0.5, 0.25, 1) over 2, the law's constant `k` as the record holds it. */
 const page = () => ({
   world: world(),
-  transmission: 1,
-  thickness: 2,
-  blendCoverage: 1,
   flags: 0,
-  mapIndex: 0,
-  baseColor: [1, 1, 1, 1],
-  attenuationRG: [0.5, 0.25],
-  attenuationB: 1,
-  attenuationDistance: 2,
+  material: {
+    ...{ transmission: 1, thickness: 2, opacity: 1, mapIndex: 0, baseColor: [1, 1, 1] },
+    attenuation: volumeAttenuation([0.5, 0.25, 1], 2),
+  },
 })
 type Page = ReturnType<typeof page>
 const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
@@ -54,13 +53,14 @@ const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
     'volumeBoundary',
     'volumeWorldThickness',
     'blendTransmittance',
-    'volumeTransmittanceOf',
+    'volumeTransmittance',
     'matrixWindingCwTriple',
     'cofactor3',
     'maskAlpha',
     'colorSample',
   ],
   {
+    materialAt: (record: Page['material']) => record,
     mat3x3f: (...columns: number[][]) => columns,
     mix: (a: number[], b: number[], t: number) => a.map((v, i) => v * (1 - t) + b[i] * t),
   },
@@ -81,7 +81,7 @@ test('a closed volume absorbs once; two volumes multiply, while thin sheets reta
   p.world = world(-1, 1, 1)
   assert.equal(volumeBoundary(p, true), false)
   assert.equal(volumeBoundary(p, false), true)
-  p.thickness = 0
+  p.material.thickness = 0
   assert.equal(volumeBoundary(p, true), true)
   assert.equal(volumeBoundary(p, false), true)
   assert.deepEqual(through(p), [1, 1, 1, 0])
@@ -105,9 +105,9 @@ test('the color atlas tints transmission independently of coverage, retaining al
   const p = page()
   p.flags = FLAG_HAS_MAP | FLAG_HAS_UV
   assert.deepEqual(through(p), [0.5625, 0.5625, 1, 0.5])
-  p.transmission = 0
+  p.material.transmission = 0
   assert.deepEqual(through(p), [0.5, 0.5, 0.5, 0.5])
   assert.equal(volumeBoundary(p, false), true)
-  p.blendCoverage = 0
+  p.material.opacity = 0
   assert.deepEqual(through(p), [1, 1, 1, 1])
 })

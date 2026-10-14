@@ -9,11 +9,12 @@ import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts
  *
  * This is the ONLY remaining loop over items, and a camera that moves does not trigger it: it
  * only restarts on a matrix move or a resource mount. With `posesOnly` — a frame whose scene moved
- * (`../pages/render/render.ts`) —, the records are written whole only when a material's values
- * moved since they last were (`rows.materialEpoch`): otherwise only the poses can have, and each item
- * compares its sixteen matrix words, the moved ones sent as one span (`writeBlendPoses`). What a
- * record reads besides — material, flags, maps, its lobe and deformation words — moves with a
- * material, a texture's sampling (a whole rewrite, `followSampling`) or a new scene (`prepare`).
+ * (`../pages/render/render.ts`) —, only the poses can have moved: a record holds none of its
+ * surface's values, which its record in the material table does (`../material/materialTable.ts`),
+ * and each item compares its sixteen matrix words, the moved ones sent as one span
+ * (`writeBlendPoses`). What a record reads besides — its flags, its lobe and deformation words —
+ * moves with a surface's summary or a texture's sampling (a whole rewrite, the render's
+ * `followSceneInputs`) or a new scene (`prepare`).
  */
 export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, posesOnly = false) {
   const { blendState, vis } = rt,
@@ -23,12 +24,10 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     blendState.lobed = blendState.waterLobed = false
     return
   }
-  const epoch = rt.layout.rows.materialEpoch,
-    whole = !posesOnly || blendState.recordEpoch !== epoch
-  if (whole) writeBlendRecords(rt, device.queue, buffer, epoch)
-  else writeBlendPoses(blendState, device.queue, buffer)
+  if (posesOnly) writeBlendPoses(blendState, device.queue, buffer)
+  else writeBlendRecords(rt, device.queue, buffer)
   refreshBlendPlan(blendState)
-  if (!whole) return
+  if (posesOnly) return
   // A blending written on a surface starts its compile here, off the frame (`reach.ts`).
   vis.blendPipelines?.reach({
     modes: blendState.planModes,
@@ -38,12 +37,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
 }
 
 /** Every record written whole, and the lobe switches derived from them. */
-function writeBlendRecords(
-  rt: WebgpuPagesRuntime,
-  queue: GPUQueue,
-  buffer: GPUBuffer,
-  epoch: number,
-) {
+function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUBuffer) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
     packed = blendState.itemPacked
@@ -51,13 +45,12 @@ function writeBlendRecords(
     waterLobed = false
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
-    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis) !== 0
+    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     lobed ||= item.lobed
     waterLobed ||= item.lobed && !!item.transmissive
   }
   blendState.lobed = lobed
   blendState.waterLobed = waterLobed
-  blendState.recordEpoch = epoch
   // A transmissive surface that brings a lobe: the water's lobed stage compiles, off the frame, the
   // frames held until it lands (`lobedStage.ts`).
   if (waterLobed) blendState.water?.lobed.ask()

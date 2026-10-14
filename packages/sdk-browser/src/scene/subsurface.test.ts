@@ -9,7 +9,7 @@ import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../world/core/worldSurface.ts'
-import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts'
+import { surfaceRow } from '../webgpu/row/surfaceRow.ts'
 import {
   RECEIVER_TARGET_BYTES,
   RECEIVER_TARGET_FORMAT,
@@ -32,7 +32,7 @@ test('a transmission map enters the existing color atlas and keeps its own slot'
   const image = G.dataTexture(new Uint8Array([20, 100, 40, 255]), 1, 1)
   const surface = G.standardSurface({ side: 'double', subsurfaceMap: image })
   assert.ok(surface.subsurfaceMap)
-  const row = rowMaterial(surface, undefined, {
+  const row = surfaceRow(surface, {
     mapLayer: new Map([[surface.subsurfaceMap, 7]]),
     dataLayer: new Map(),
   })
@@ -91,5 +91,5 @@ test('public material reaches the engine, and a color edit repaints without an A
   const repainted = surface
   assert.deepEqual(repainted.subsurfaceColor, [1, 0, 0])
   const layers = { mapLayer: new Map([[repainted.subsurfaceMap!, 3]]), dataLayer: new Map() }
-  assert.equal(rowMaterial(repainted, undefined, layers).subsurface, 3, 'its own atlas slot')
+  assert.equal(surfaceRow(repainted, layers).subsurface, 3, 'its own atlas slot')
 })

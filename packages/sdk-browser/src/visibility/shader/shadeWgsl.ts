@@ -25,8 +25,9 @@ import {
 } from '../../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
-import { FLAG_FOG_FREE } from '../types.ts'
+import { FLAG_FOG_FREE, FLAG_LINE, FLAG_SPRITE } from '../types.ts'
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
+import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -36,18 +37,14 @@ import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
  */
 export const shadeShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
   wgslProgram(
-    `/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
- *  transmission, and its shadow receiver's offset and plane. Private, so zero at each pixel's start:
- *  a path that finds none leaves zero, as a cleared texel holds. */
-var<private> thinOut:vec3f;
-var<private> rcvOffset:vec3f;
-var<private> rcvPlane:vec3f;
-/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables above. */
+    `/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables of
+ *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let pageIndex=(id>>8u)-1u;
  let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
+ let m=materialAt(page.material);
  // The triangle, as the triangles pass stored it or decoded here (\`pixelTriangle\`).
  let t=pixelTriangle(pageIndex,page,tri);
  let w0=t.w0;let w1=t.w1;let w2=t.w2;
@@ -56,7 +53,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;let c0=t.p0;let c1=t.p1;let c2=t.p2;
  let p=vec2f(pos.x,pos.y);
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);
- var rgb=page.baseColor.xyz;
+ var rgb=m.baseColor;
  let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
  var uv=vec2f(0.0);
  let absArea=abs(area);
@@ -77,7 +74,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
  ${PHYSICAL_UV_READ}
- let request=shadeRequest(page,pos.xy,uv,ddx,ddy);
+ let request=shadeRequest(m,pos.xy,uv,ddx,ddy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
@@ -87,8 +84,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    ['roughSample', 'rough'],
    ['metalSample', 'metal'],
  ])}
- let ao=ormOcclusion(page.aoIntensity,aoSample.r);
- var emissive=page.emissive.xyz;
+ let ao=ormOcclusion(m.aoIntensity,aoSample.r);
+ var emissive=m.emissive;
  ${siCarte('emissive', `emissive*=${lecture('colorSample', 'emissive')}.rgb;`)}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
  ${siCarte('normal', `nrmSample=${lecture('dataSample', 'normal')};`)}
@@ -109,9 +106,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(diagnosticFlat(),request);}
  if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(diagnosticLevel(page.pad1>0.5),request);}
  if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(diagnosticFlat(),request);}
- if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(diagnosticError(ratio),request);}
+ if(uni.mode==${SHADE_MODE['screen-error']}u){return diagnosticSurface(diagnosticError(0.0),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=ormMetalness(page.metalness,metalSample.z);var rough=ormRoughness(page.roughness,roughSample.y);
+ var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=worldMatrix3(page.world);
@@ -126,7 +123,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
   // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): the arithmetic the
   // readers that decode the triangle themselves share (\`receiverOffsetWgsl.ts\`).
-  if(HAS_VERTEX_NORMAL&&page.sprite.y==0.0&&page.lineWidth==0.0){
+  if(HAS_VERTEX_NORMAL&&(page.flags&${FLAG_SPRITE | FLAG_LINE}u)==0u){
    let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
    rcvOffset=receiver.offset;
    rcvPlane=receiver.plane;
@@ -140,7 +137,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   let coatBase=N;
   if(HAS_NORMAL_MAP){
    let nrm=unitToSigned3(nrmSample.xyz);
-   let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScaleY,nrm.z);
+   let mapN=vec3f(nrm.x*m.normalScale,nrm.y*select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),nrm.z);
    var T=vec3f(0.0);var B=vec3f(0.0);
    if(HAS_TANGENT){
     let k=pageTriangle(page,pageHeaderFor(page,false),tri);
@@ -166,26 +163,17 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(flag==${MODEL_FLAG.physical}u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  if(DOUBLE_SIDED&&(page.flags&1u)!=0u){
-  var thin=clamp(vec3f(page.subsurfaceRG,page.subsurfaceB),vec3f(0.0),vec3f(1.0));
-  if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
+  var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
+  if(HAS_UV&&m.subsurfaceMap!=0u){thin*=colorSample(m.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
  ${PHYSICAL_LOBES_CALL}
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
-@fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
- // The background, a page past the table and another class are rejected before any write.
- if(!classAdmits(id)){discard;}
- let surface=shadeSurface(pos,id);
- // Each storage texel written once, with its final value: zero unless the resolve set it.
- storeSubsurface(pos.xy,thinOut);
- storeReceiver(pos.xy,rcvOffset,rcvPlane);
- return surface;
-}
 `,
     [
+      SHADE_ENTRY_WGSL,
       NORMAL_VIEW_COLOR_WGSL,
       EMISSIVE_AO_FLAG_WGSL,
       SHADE_DECL_WGSL,

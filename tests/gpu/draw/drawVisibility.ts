@@ -73,6 +73,10 @@ export function setupVisibility(
     })
     .createView({ dimension: '2d-array' })
   const sampler = device.createSampler()
+  // No page draws a sprite, a line or a cutout: none reads its surface's record.
+  const records = device
+    .createTexture({ size: [1, 1], format: 'rgba32uint', usage: GPUTextureUsage.TEXTURE_BINDING })
+    .createView()
   const layout = device.createBindGroupLayout({ entries: visLayoutEntries() })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const pipelines = ['vis_vs', 'vis_hiz_vs'].map((entryPoint) =>
@@ -114,6 +118,7 @@ export function setupVisibility(
         { binding: b.sampler, resource: sampler },
         { binding: b.instances, resource: { buffer: instances } },
         { binding: b.slotOffsets, resource: { buffer: slotOffsets } },
+        { binding: b.material, resource: records },
       ],
     })
   })

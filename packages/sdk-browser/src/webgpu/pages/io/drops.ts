@@ -95,7 +95,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
     vis.concatUv?.destroy()
   }
   vis.pageTable?.destroy()
-  vis.physicalTable.dispose()
+  vis.materialTable.dispose()
   vis.shadeUniform?.destroy()
   vis.visUniform?.destroy()
   vis.zeroFlags?.destroy()

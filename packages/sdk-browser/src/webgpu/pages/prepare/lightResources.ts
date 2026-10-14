@@ -2,7 +2,8 @@ import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/typ
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 import type { WebgpuLightState } from '../state/lights.ts'
-import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
+import { boxEmpty, boxIsEmpty, type Texture } from '../../../../../sdk-core/src/index.ts'
+import { layerSlot } from '../../row/pageRowMaterial.ts'
 import { FAR_VALUE } from '../../../../../math/src/constants.ts'
 import { changeBoxes, recordMoves } from '../../shadow/bounds.ts'
 import { growClusterBox } from '../../shadow/spheres.ts'
@@ -47,6 +48,8 @@ export function shadowsFollowTextures(
   roots: Placements,
   placement: PlacementIndex,
   slots: ReadonlySet<number> | -1,
+  /** The colour atlas's slots, by texture: where a row's surface's colour map lies. */
+  mapLayer: ReadonlyMap<Texture, number>,
 ) {
   if (!lights.store.count) return
   if (slots === -1) {
@@ -59,7 +62,7 @@ export function shadowsFollowTextures(
     const base = row * ROW_WORDS
     return (
       !!(ints[base + PAGE_INFO.at.flags] & ALPHA_READERS) &&
-      slots.has(ints[base + PAGE_INFO.at.mapIndex])
+      slots.has(layerSlot(mapLayer, rows.packedRecs[row]?.material.map))
     )
   })
 }

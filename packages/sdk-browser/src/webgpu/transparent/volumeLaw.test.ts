@@ -92,35 +92,33 @@ test('f0, 1 / ior and the fifth power come within ULPs of their exact values', (
   assert.ok(fifthShipped < 3 && fifthDevelop > 20, `x⁵ ${fifthShipped} against ${fifthDevelop}`)
 })
 
-test('a black volume transmits nothing past a zero path, in the water and in its shadow', () => {
-  const { volumeTransmittance, volumeTransmittanceOf } = shaderRun<{
+test('one law for the water and its shadow: a black volume transmits nothing past a zero path', () => {
+  // One function, the constant's form: the shadow's own power of the colour is gone.
+  assert.equal(VOLUME_LAW_WGSL.text.match(/\bfn /g)?.length, 1)
+  const { volumeTransmittance } = shaderRun<{
     volumeTransmittance: (k: number[], path: number) => number[]
-    volumeTransmittanceOf: (colour: number[], distance: number, path: number) => number[]
-  }>(VOLUME_LAW_WGSL, ['volumeTransmittance', 'volumeTransmittanceOf'], F32_SCOPE)
+  }>(VOLUME_LAW_WGSL, ['volumeTransmittance'], F32_SCOPE)
   const k = volumeAttenuation([0, 0.5, 2], 3)
   assert.deepEqual(k, [-(2 ** 64), -1 / 3, 0])
   assert.deepEqual(volumeAttenuation([0, 0.5, 1], 0), [0, 0, 0], 'no volume')
   assert.deepEqual(volumeAttenuation([0.5, 0.5, 0.5], Infinity), [-0, -0, -0], 'no absorption')
-  for (const path of [1e-12, 0.01, 3, 1e5]) {
-    assert.deepEqual(
-      volumeTransmittance(k.map(Math.fround), path).slice(0, 1),
-      [0],
-      `water, ${path}`,
-    )
-    assert.deepEqual(volumeTransmittanceOf([0, 0.5, 2], 3, path)[0], 0, `shadow, ${path}`)
-  }
+  for (const path of [1e-12, 0.01, 3, 1e5])
+    assert.deepEqual(volumeTransmittance(k.map(Math.fround), path).slice(0, 1), [0], `${path}`)
   assert.deepEqual(volumeTransmittance(k.map(Math.fround), 0), [1, 1, 1])
-  assert.deepEqual(volumeTransmittanceOf([0, 0.5, 2], 3, 0), [1, 1, 1])
   // Develop's water at a twentieth of the distance: 10⁻⁵ to the 1/20 lets through more than half.
   assert.ok(Math.fround(1e-5) ** (1 / 20) > 0.5)
-  // Any other colour: the shadow's power as it stood, pow(c, x / d).
+  // Any other colour: within far less than half an 8-bit step of the exact c^(x / d), which the
+  // shadow's former per-fragment power approximated too (the GPU's own rounding: the Dawn proof
+  // `tests/gpu/shadow/volume-law.gpu.ts`).
+  let worst = 0
   for (let i = 0; i < 10_000; i++) {
     const c = [random(), random(), random()].map(Math.fround),
       d = Math.fround(0.01 + random() * 10),
       x = Math.fround(random() * 4 * d)
-    const shipped = volumeTransmittanceOf(c, d, x)
-    c.forEach((v, j) => assert.ok(Object.is(shipped[j], Math.fround(v ** Math.fround(x / d)))))
+    const shipped = volumeTransmittance(volumeAttenuation(c, d).map(Math.fround), x)
+    c.forEach((v, j) => (worst = Math.max(worst, Math.abs(shipped[j] - v ** (x / d)))))
   }
+  assert.ok(worst < 1e-5, `${worst}`)
 })
 
 test('the composite reads the per-volume terms and the shadow its law', () => {

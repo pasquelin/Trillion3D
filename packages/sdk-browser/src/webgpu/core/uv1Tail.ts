@@ -8,7 +8,7 @@ import { writeFloatAtlas, type FloatAtlas } from './floatAtlas.ts'
  * count of the atlas's vertices, which only its owner knows: the shader finds it from the texture's
  * size, the normals keep their place at its head, and a pool that grows writes its atlas again,
  * tail included, at the new size. An atlas holds the tail only where a geometry of it has a second
- * set, and a row reads it only where its own geometry does (`PHYSICAL_SECOND_UV`).
+ * set, and a row reads it only where its own geometry does (`MATERIAL_SECOND_UV`).
  */
 export const UV1_FLOATS = 2
 

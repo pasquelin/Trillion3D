@@ -31,7 +31,7 @@ test('sorting pass computes vp/det once per workgroup and rereads them per trian
   // The pageClip() function takes the precomputed product, it never recomputes it.
   assert.match(
     shader,
-    /fn pageClip\(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32\)->vec4f\{/,
+    /fn pageClip\(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32,shape:PageShape\)->vec4f\{/,
   )
   assert.doesNotMatch(shader, /pageClip\(page,/)
   assert.doesNotMatch(shader, /pageClip\(pageTransform/)

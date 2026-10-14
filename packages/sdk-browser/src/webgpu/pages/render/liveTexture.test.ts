@@ -88,9 +88,10 @@ test('a map redrawn for 120 frames is copied in place, one working texture kept'
   }
 })
 
-// A video's frame changes no row: a full row-table rewrite at its frame rate was the cost of
-// every live texture. Only a value written — what a row reads — rewrites the table.
-test('a picture alone leaves the row table as it is; a value written rewrites it', async () => {
+// A video's frame changes no row and no record: a full row-table rewrite at its frame rate was the
+// cost of every live texture. A value written — a factor its record holds — writes that one record
+// (`../../material/materialTable.ts`), and still no row: a row names its surface's record.
+test('a picture alone leaves the rows and the records as they are; a value writes its record', async () => {
   const pixels = new Uint8Array([255, 0, 0, 255])
   const map = G.dataTexture(pixels, 1, 1)
   const { gpu, fixture, surface, backend, cam } = await mappedQuadRun(map)
@@ -99,6 +100,7 @@ test('a picture alone leaves the row table as it is; a value written rewrites it
     const frame = (values: boolean) => {
       pixels[0]++
       map.needsUpdate = true
+      if (values) surface.roughness = surface.roughness === 0.25 ? 0.75 : 0.25
       surfaceWritten(surface)
       const [buffers, textures] = [gpu.writes.length, writes.length]
       assert.equal(backend.refreshMaterials?.(values), true)
@@ -106,11 +108,24 @@ test('a picture alone leaves the row table as it is; a value written rewrites it
       const table = gpu.writes
         .slice(buffers)
         .some((w) => w.buffer.label === 'Trillion3D page table')
-      return { table, picture: writes.slice(textures).some((w) => w.first === pixels[0]) }
+      const sent = writes.slice(textures)
+      return {
+        table,
+        record: sent.some((w) => w.into === 'Trillion3D material records'),
+        picture: sent.some((w) => w.into === 'Trillion3D texture scratch' && w.first === pixels[0]),
+      }
     }
     for (let each = 0; each < 30; each++)
-      assert.deepEqual(frame(false), { table: false, picture: true }, `picture ${each}`)
-    assert.deepEqual(frame(true), { table: true, picture: true }, 'a value rewrites the table')
+      assert.deepEqual(
+        frame(false),
+        { table: false, record: false, picture: true },
+        `picture ${each}`,
+      )
+    assert.deepEqual(
+      frame(true),
+      { table: false, record: true, picture: true },
+      'a value writes its record, no row',
+    )
   } finally {
     disposeQuadRun(backend, fixture)
   }

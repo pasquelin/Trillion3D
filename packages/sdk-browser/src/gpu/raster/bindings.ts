@@ -29,6 +29,7 @@ export function createRasterBindings(
         sampler: () => current.sampler,
         work: () => work,
         selectionMask: () => current.selection?.maskBuffer ?? current.hizFlags,
+        material: () => current.material,
       }),
     ))
     if (identity.entriesMoved(layout)) input.groups[input.groupKey] = undefined

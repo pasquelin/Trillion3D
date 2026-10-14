@@ -133,7 +133,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device)
   // PageInfo is a tightly packed storage array, not a dynamically offset binding per row.
-  assert.equal(PAGE_INFO_STRIDE, 272)
+  assert.equal(PAGE_INFO_STRIDE, 128)
   for (const [index, binding] of [
     [0, VIS_BINDINGS.pageTable],
     [1, SHADE_BINDINGS.pageTable],
@@ -143,7 +143,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     const resource = entry.resource as GPUBufferBinding
     assert.equal(resource.buffer, vis.pageTable)
     assert.equal(resource.offset ?? 0, 0)
-    assert.equal(resource.size ?? resource.buffer.size, 3 * 272)
+    assert.equal(resource.size ?? resource.buffer.size, 3 * 128)
     const layout = groups[index].layout.entries as GPUBindGroupLayoutEntry[]
     assert.equal(
       layout.find((entry) => entry.binding === binding)!.buffer?.hasDynamicOffset ?? false,
@@ -170,6 +170,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     uvs: buffer,
     textures: vis.textures,
     sampler: vis.mapsSampler,
+    material: view,
     pageRows: 1,
     maxTriangles: 3,
     idsView: view,

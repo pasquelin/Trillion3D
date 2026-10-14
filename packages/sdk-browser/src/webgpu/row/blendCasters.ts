@@ -7,6 +7,7 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { surfaceOpacity } from '../../page/surface.ts'
 
 /**
  * The shadow casters of the blended clusters, WITHOUT a visibility row.
@@ -40,6 +41,7 @@ export function createBlendCasterRows(
      *  (`../../page/selection/catalogue.ts`). */
     ...createPageCatalogue(packedPages),
     ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
+    ...{ coverage: new Float32Array(0), transmissive: new Uint8Array(0) },
     waiting: createSparseInts(),
     ...{ table: undefined, epoch: -1 },
     pages: [],
@@ -82,6 +84,9 @@ type Casters = {
   first: number
   free: Int32Array
   freeCount: number
+  /** Each row's coverage and whether it transmits, as last written: what a rewrite compares. */
+  coverage: Float32Array
+  transmissive: Uint8Array
   /** Casters that found no row, each once: what the table grows by. */
   short: number
   /** Casters waiting for a row, counted once however often they are followed (`short`): held
@@ -100,6 +105,8 @@ function seat(c: Casters) {
   const held = c.first >= 0
   const first = (c.first = rows.blendFirst)
   c.free = new Int32Array(rows.casterSlots - first)
+  c.coverage = new Float32Array(c.free.length)
+  c.transmissive = new Uint8Array(c.free.length)
   c.freeCount = 0
   c.short = 0
   c.waiting.clear()
@@ -116,15 +123,18 @@ function followTable(c: Casters) {
 function write(c: Casters, page: number, row: number, held: boolean) {
   const { rows } = c
   const rec = c.recordOf(page)!,
-    ints = rows.pageTableInts!,
-    coverage = row * ROW_WORDS + PAGE_INFO.at.blendCoverage,
-    before = ints[coverage],
-    wasTransmissive = rows.pageTableFloats![row * ROW_WORDS + PAGE_INFO.at.transmission] > 0
+    at = row - c.first,
+    before = c.coverage[at],
+    wasTransmissive = c.transmissive[at] === 1,
+    transmissive = rec.material.transmission > 0
   rows.packedRecs[row] = rec
   rows.packedPageIndex[row] = page
   const offsetWords = rows.offsetOf(page)
-  c.writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, ints)
-  if (held && (ints[coverage] !== before || wasTransmissive || rec.material.transmission > 0))
+  c.writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!)
+  // The light it stops is its surface's (`surfaceOpacity`), read off its record by the shadow.
+  c.coverage[at] = surfaceOpacity(rec.material)
+  c.transmissive[at] = transmissive ? 1 : 0
+  if (held && (c.coverage[at] !== before || wasTransmissive || transmissive))
     c.onCoverageChange(rec, page)
 }
 

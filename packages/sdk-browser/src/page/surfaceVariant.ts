@@ -7,7 +7,9 @@
  * fact is read off the mesh, never off a registry: its geometry's attributes, and the association
  * its manifest gave it (`DrawRanks.twoSided`). A plain variant is the material's record itself;
  * another is a record of its own, copied from it once and kept by its owner (`variants`), so a
- * value written on the material is written on each (`../world/api/materialApi.ts`).
+ * value written on the material is written on each (`../world/api/materialApi.ts`). A variant's
+ * values are its material's: the material table holds one record for both (`variantPlain`), which
+ * the rows read the variant's own facts beside — its faces, its colours — off their flags.
  */
 import { Releasable } from '../host/graph/resource.ts'
 import type { PageSurface } from './surface.ts'
@@ -31,11 +33,19 @@ export const variantOf = (
   twoSided,
 })
 
+/** Each variant record's plain one: the record its material declares. */
+const plains = new WeakMap<object, PageSurface>()
+
+/** The record `surface` was worn from (`surfaceVariant`), or `surface` itself: what its material's
+ *  one record in the material table is held under (`../webgpu/material/materialTable.ts`). */
+export const variantPlain = (surface: object) => plains.get(surface) ?? surface
+
 /** A record of its own with the fields of `record`, the variant's written over them, at
  *  version 0: the one place a variant becomes surface fields. */
 function wear(record: PageSurface, { vertexColors, flatShading, twoSided }: SurfaceVariant) {
   const { released: _released, version: _version, ...fields } = record
   const surface = Object.assign(new Releasable(), fields, { version: 0 }) as PageSurface
+  plains.set(surface, record)
   if (vertexColors) surface.vertexColors = true
   if (flatShading) surface.flatShading = true
   if (twoSided) surface.side = 'double'

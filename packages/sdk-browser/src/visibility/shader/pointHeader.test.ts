@@ -19,6 +19,7 @@ test('an unmasked shadow caster keeps every fragment whatever its UV', () => {
   const run = shaderRun<{ maskKeep: Fn }>(VSM_CODE, ['maskKeep'], {
     lineDash: fail,
     maskAlpha: fail,
+    materialAt: fail,
   })
   for (const [flags] of ROWS.filter(([flags]) => !(flags & F.FLAG_MASK))) {
     const page = { flags: flags | F.FLAG_HAS_UV }

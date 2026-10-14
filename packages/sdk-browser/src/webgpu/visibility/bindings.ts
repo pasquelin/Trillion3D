@@ -18,6 +18,7 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
       sampler: () => rt.vis.mapsSampler,
       instances: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.instanceBuffer),
       slotOffsets: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.slotOffsetsBuffer),
+      material: () => rt.vis.materialTable.view,
     }),
   )
 }
@@ -39,5 +40,9 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
 /** The image's visibility groups follow what their entries name: the slot and raster groups that
  *  named a moved resource are voided, made again by the passes that bind them (`visGroup.ts`). */
 export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime) {
+  // The records the rows wrote go up before a group names their texture.
+  const { materialTable } = rt.vis,
+    device = rt.gpu.device
+  if (materialTable.pending && device) materialTable.upload(device)
   voidStaleVisibilityGroups(rt)
 }

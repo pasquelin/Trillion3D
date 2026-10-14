@@ -80,7 +80,6 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
     assert.equal(words[at + PAGE_INFO.at.deform], session.wordOfWorld(items[i].matrix))
     assert.equal(words[at + PAGE_INFO.at.deformCount], 1)
     assert.equal(words[at + PAGE_INFO.at.deformOutput], items[i].deformOutput)
-    assert.equal(words[at + PAGE_INFO.at.transmission], 0, 'no overwrite of physical transmission')
   }
 })
 

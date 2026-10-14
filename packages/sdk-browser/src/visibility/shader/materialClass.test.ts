@@ -52,7 +52,7 @@ test('a class with vertex colours multiplies its base colour by them, and no oth
     'if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}'
   assert.equal(fragment.split(multiply).length - 1, 1)
   // After the base map, before any view or light reads `rgb`.
-  assert.ok(fragment.indexOf(multiply) > fragment.indexOf('rgb=rgb*colorSample(page.mapIndex'))
+  assert.ok(fragment.indexOf(multiply) > fragment.indexOf('rgb=rgb*colorSample(m.mapIndex'))
   assert.ok(fragment.indexOf(multiply) < fragment.indexOf('if(uni.mode==1u)'))
   assert.match(
     SHADE_SHADER,
@@ -64,11 +64,13 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
   const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shadeSurface'))
   // The raster's test (`maskKeep`) is the only cutout; the resolve reads the colour, anisotropic.
   assert.doesNotMatch(SHADE_SHADER, /fn maskAlpha\(/)
-  assert.ok(fragment.includes('rgb=rgb*colorSample(page.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'))
+  assert.ok(fragment.includes('rgb=rgb*colorSample(m.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'))
   assert.doesNotMatch(fragment, /baseColor\.w/)
-  assert.ok(fragment.includes('if(!classAdmits(id)){discard;}'))
+  assert.ok(SHADE_SHADER.includes('if(!classAdmits(id)){discard;}'))
+  // The entry (`shadeEntryWgsl.ts`) is a declaration of the program: the one reject is the whole
+  // shader's.
   assert.equal(
-    fragment.match(/discard;/g)?.length,
+    SHADE_SHADER.match(/discard;/g)?.length,
     1,
     'visibility bounds and class ownership, one reject, guard storage writes',
   )

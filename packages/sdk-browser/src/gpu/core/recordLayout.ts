@@ -5,8 +5,8 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
  * culling's worlds, and every table a pass reads by placement — in a `uint` texture read with
  * `textureLoad`, whatever its size. A storage binding holds 128 MiB on a guaranteed device and a
  * stage binds eight of them; a sampled texture binds through one of the sixteen sampled slots a stage
- * holds, and addresses 8192 × 8192 × 256 texels: 2³⁴, 256 GiB of `rgba32uint`. The physical records
- * (`../../webgpu/visibility/physicalTable.ts`) are the first table laid so; this module lays any.
+ * holds, and addresses 8192 × 8192 × 256 texels: 2³⁴, 256 GiB of `rgba32uint`. The material records
+ * (`../../webgpu/material/materialTable.ts`) are the first table laid so; this module lays any.
  *
  * A record is a few fields of whole texels. A row holds `1 << rowShift` records: each field's texels
  * of all of them, field after field — so a run of records writes each field from its own host array,

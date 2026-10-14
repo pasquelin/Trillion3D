@@ -11,9 +11,11 @@ import { runOnDawn } from './onDawn.ts'
 import { openGpuModule } from './webgpuDevice.ts'
 
 /** How a run reads, as `computeReadback` does; `setup`, when given, makes its inputs on the device
- *  — a texture written, a sampler — in place of `inputs`. */
+ *  — a texture written, a sampler — in place of `inputs`, and `setupNumbered` those it binds at
+ *  their own numbers (`numbered`). */
 export type ComputeRunOptions = ComputeReadbackOptions & {
   setup?: (device: GPUDevice) => ComputeInput[]
+  setupNumbered?: (device: GPUDevice) => GPUBindGroupEntry[]
 }
 
 type Run = { code: string; bytes: number; workgroups: number; options?: ComputeRunOptions }
@@ -31,11 +33,13 @@ export async function runCompute({ code, bytes, workgroups, options = {} }: Run)
     }
   const { gpu, module } = opened
   const pipeline = await gpu.device.createComputePipelineAsync(autoKernel(module))
-  const { setup, ...read } = options
+  const { setup, setupNumbered, ...read } = options
   const inputs = setup ? setup(gpu.device) : read.inputs
+  const numbered = setupNumbered ? setupNumbered(gpu.device) : read.numbered
   const values = await computeReadback(gpu.device, pipeline, bytes, workgroups, {
     ...read,
     inputs,
+    numbered,
   })
   const { court: adapter } = await gpu.fermer()
   return { adapter, values, errors: gpu.errors }

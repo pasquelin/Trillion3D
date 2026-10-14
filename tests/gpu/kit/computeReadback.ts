@@ -28,6 +28,9 @@ export interface ComputeReadbackOptions {
   output?: number
   /** How the output's words are read: floats unless `u32` (counters, bits). */
   words?: 'f32' | 'u32'
+  /** Bound at their own numbers beside those: what an engine text declares at the number its pass
+   *  binds it at (the material table, `materialTableWgsl`). */
+  numbered?: GPUBindGroupEntry[]
 }
 
 /** Runs a diagnostic compute pipeline whose one storage output is a binding of group 0 — binding
@@ -38,7 +41,7 @@ export async function computeReadback(
   pipeline: GPUComputePipeline,
   bytes: number,
   workgroups = 1,
-  { inputs = [], output: at = inputs.length, words = 'f32' }: ComputeReadbackOptions = {},
+  { inputs = [], output: at = inputs.length, words = 'f32', numbered }: ComputeReadbackOptions = {},
 ) {
   const output = device.createBuffer({
     size: bytes,
@@ -54,7 +57,7 @@ export async function computeReadback(
     }
     const resources = inputs.map(resource)
     resources.splice(at, 0, { buffer: output })
-    const group = groupZero(device, pipeline, resources)
+    const group = groupZero(device, pipeline, resources, numbered)
     const encoder = device.createCommandEncoder()
     const pass = encoder.beginComputePass()
     pass.setPipeline(pipeline)
@@ -77,15 +80,16 @@ export const autoKernel = (
   constants?: Record<string, number>,
 ): GPUComputePipelineDescriptor => ({ layout: 'auto', compute: { module, entryPoint, constants } })
 
-/** Group 0 of `pipeline`, `resources` bound in their order from binding 0. */
+/** Group 0 of `pipeline`, `resources` bound in their order from binding 0, `numbered` at theirs. */
 export const groupZero = (
   device: GPUDevice,
   pipeline: GPUComputePipeline,
   resources: readonly GPUBindingResource[],
+  numbered: readonly GPUBindGroupEntry[] = [],
 ) =>
   device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: sequentialEntries(resources),
+    entries: [...sequentialEntries(resources), ...numbered],
   })
 
 /** `code`'s `main` as a compute pipeline, and its group 0 holding `out` alone: what the bench's

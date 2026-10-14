@@ -71,8 +71,10 @@ test('a cut past one binding is bounded for good, and names what it was asked fo
   const rows = pageTableRows(DEVICE)
   assert.ok(rows * PAGE_INFO_STRIDE <= 128 * MIB, 'the bound is one binding, whole')
   assert.ok((rows + 1) * PAGE_INFO_STRIDE > 128 * MIB, 'and one row past it does not fit')
-  // The slots must be able to ask for more than the binding holds, or nothing is ever bounded.
-  const over = asked(runtime(1_000_000, 900_000, 1_000_000, DEVICE), 1_000_000)
+  // The slots must be able to ask for more than the binding holds, or nothing is ever bounded: twice
+  // its rows, whatever a row's stride.
+  const past = 2 * rows
+  const over = asked(runtime(past, past - past / 8, past, DEVICE), past)
   assert.ok(over.bounded, 'a table past one binding says so')
   assert.ok(over.drawSlots + over.blendSlots <= rows, 'and holds what the binding holds')
   assert.equal(over.bounded?.rows, rows)

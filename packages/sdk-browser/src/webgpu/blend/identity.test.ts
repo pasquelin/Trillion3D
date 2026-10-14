@@ -10,7 +10,7 @@ const pagedGroup = ({ identity, pagedGroups }: WebgpuBlendState) => pagedGroups[
 
 test('blend identity follows translucent depth independently of transmittance', () => {
   const blendState = createWebgpuBlendState()
-  const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
+  const rt = { gpu: {}, vis: { materialTable: {} }, blendState } as unknown as WebgpuPagesRuntime
   const lighting = { shadowTransmittance: {}, shadowTranslucentDepth: {} } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
@@ -26,7 +26,7 @@ test("the groups over each of the shadow maps' double-buffered tables are kept w
   const blendState = createWebgpuBlendState()
   const item = {} as (typeof blendState.blendGpu)[number]
   blendState.blendGpu.push(item)
-  const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
+  const rt = { gpu: {}, vis: { materialTable: {} }, blendState } as unknown as WebgpuPagesRuntime
   const tables = [{}, {}] as GPUBuffer[]
   const frame = (k: number) => {
     voidStaleBlendGroups(rt, { shadowData: tables[k % 2] } as BlendLighting)
@@ -53,17 +53,17 @@ test("the groups over each of the shadow maps' double-buffered tables are kept w
   assert.equal(pagedGroup(blendState), groups[1], 'the table named last keeps its groups')
 })
 
-test('a grown physical table, a new texture, voids the blend groups', () => {
+test('a grown material table, a new texture, voids the blend groups', () => {
   const blendState = createWebgpuBlendState()
-  const physicalTable = { view: {} as GPUTextureView }
-  const rt = { gpu: {}, vis: { physicalTable }, blendState } as unknown as WebgpuPagesRuntime
+  const materialTable = { view: {} as GPUTextureView }
+  const rt = { gpu: {}, vis: { materialTable }, blendState } as unknown as WebgpuPagesRuntime
   const lighting = {} as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
   blendState.pagedGroups[blendState.identity.slot] = group
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), group)
-  physicalTable.view = {} as GPUTextureView
+  materialTable.view = {} as GPUTextureView
   voidStaleBlendGroups(rt, lighting)
   assert.equal(pagedGroup(blendState), undefined)
 })

@@ -60,6 +60,7 @@ export function cacheRun(width: number, height: number, none = false) {
     [
       'decodeTriangle',
       'decodeCorners',
+      'pageShape',
       'transformedNormals',
       'framebuffer',
       'clipToFramebuffer',

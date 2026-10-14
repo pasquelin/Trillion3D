@@ -4,6 +4,7 @@ import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFixture.ts'
 import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
+import { createMaterialTable } from '../webgpu/material/materialTable.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -16,7 +17,7 @@ const material = () =>
     subsurfaceColor: new G.Color().setRGB(0.25, 0.5, 0.75),
   })
 
-test('paged deformation metadata cannot overwrite transmission or thin-surface color', () => {
+test("a row's deformation words are its own, its neighbour's untouched", () => {
   const rec = pageRecFixture({
     triangles: 1,
     material: surfaceOf(material()),
@@ -29,6 +30,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
       asIsShown: false,
       emissiveAoShown: false,
       deformation: { rowWord: () => 123 },
+      materialTable: createMaterialTable(),
     },
     () => {},
     [{ world: new G.Matrix4() }],
@@ -40,9 +42,6 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   write(rec, 0, 1, 100, floats, words)
   const base = ROW_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
-  assert.equal(floats[base + 38], 0.5)
-  assert.equal(floats[base + 39], 2)
-  assert.deepEqual([floats[base + 52], floats[base + 53], floats[base + 58]], [0.25, 0.5, 0.75])
   assert.deepEqual(
     [
       words[base + PAGE_INFO.at.deform],
@@ -53,7 +52,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   )
 })
 
-test('transparent deformation and subsurface records occupy distinct words', () => {
+test("a transparent item's deformation words are its own, its neighbour's untouched", () => {
   const floats = new Float32Array(BLEND_ITEM_WORDS * 2),
     words = new Uint32Array(floats.buffer)
   writeBlendItemRecord(
@@ -74,6 +73,6 @@ test('transparent deformation and subsurface records occupy distinct words', () 
   )
   const base = BLEND_ITEM_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
-  assert.deepEqual([...floats.subarray(base + 44, base + 47)], [0.25, 0.5, 0.75])
-  assert.deepEqual([...words.subarray(base + 48, base + 51)], [123, 456, 789])
+  // `deform`, `deformInput`, `deformOutput`, after the world and the three geometry words.
+  assert.deepEqual([...words.subarray(base + 19, base + 22)], [123, 456, 789])
 })

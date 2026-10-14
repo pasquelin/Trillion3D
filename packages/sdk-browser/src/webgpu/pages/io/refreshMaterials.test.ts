@@ -1,11 +1,18 @@
-// A blended item copies its colour and opacity at prepare. A surface the host rewrites in place
-// (`setMaterial`) must reach its item record at the values refresh, not only at a move.
+// A surface the host rewrites in place (`setMaterial`) reaches its one record in the material table
+// at the values refresh, which its rows and items name: an opaque one's colour writes that record
+// alone, no row; a move between opaque and masked writes its rows again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
-import { FLAG_MASK, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
+import {
+  FLAG_MASK,
+  MATERIAL_RANK_MASK,
+  PAGE_INFO_STRIDE,
+  ROW_WORDS,
+} from '../../../visibility/types.ts'
+import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice, writtenBytes } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
@@ -13,10 +20,17 @@ import { surfaceOf } from '../../../page/surface.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 
-test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
+/** The records the material table sent up last (`Trillion3D material records`). */
+const lastRecords = (textureWrites: ReturnType<typeof fakeDevice>['textureWrites']) =>
+  textureWrites.findLast(
+    ({ destination }) =>
+      (destination.texture as { label?: string }).label === 'Trillion3D material records',
+  )!
+
+test('a blended surface rewritten in place reaches its record at the values refresh', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, writes } = fakeDevice(BACKEND)
+    { device, writes, textureWrites } = fakeDevice(BACKEND)
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
@@ -26,9 +40,13 @@ test('a blended surface rewritten in place reaches its item record at the values
     maxResidentPages: 2,
     viewport: [32, 32],
   })
+  /** The colour and opacity of the record the item names (its material word, its 23rd). */
   const rgba = () => {
     const last = writes.filter((w) => w.buffer.label === 'Trillion3D blend item records').at(-1)!
-    return [...new Float32Array(writtenBytes(last).slice().buffer).subarray(16, 20)]
+    const rank = new Uint32Array(writtenBytes(last).slice().buffer)[22] & MATERIAL_RANK_MASK
+    const words = new Float32Array(lastRecords(textureWrites).data.buffer as ArrayBuffer),
+      at = rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.baseColor
+    return [...words.subarray(at, at + 3), words[at + 3]]
   }
   try {
     await backend.prepare()
@@ -40,6 +58,45 @@ test('a blended surface rewritten in place reaches its item record at the values
     backend.refreshMaterials?.(true)
     backend.render(camera())
     assert.deepEqual(rgba(), [0, 0.5, 1, 0.25])
+  } finally {
+    backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
+  }
+})
+
+// A colour is a value of the record alone: the table writes the surface's one record (ten texels),
+// and the rows that name it, which hold none of its values, are not written again.
+test('an opaque colour rewritten in place writes its one record and no row', async () => {
+  installGpuGlobals()
+  const fixture = quadScene(),
+    { device, writes, textureWrites } = fakeDevice(BACKEND)
+  const backend = webgpuPagesEngine({
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 4,
+    viewport: [32, 32],
+  })
+  const rowWrites = () => writes.filter((w) => w.buffer.label === 'Trillion3D page table').length
+  try {
+    await backend.prepare()
+    backend.render(camera())
+    await backend.flush()
+    backend.render(camera())
+    const [rows, records] = [rowWrites(), textureWrites.length]
+    fixture.material.baseColor = [0.25, 0.5, 0.75]
+    surfaceWritten(fixture.material)
+    backend.refreshMaterials?.(true)
+    backend.render(camera())
+    assert.equal(rowWrites(), rows, 'no row written')
+    const sent = textureWrites
+      .slice(records)
+      .filter(
+        ({ destination }) =>
+          (destination.texture as { label?: string }).label === 'Trillion3D material records',
+      )
+    assert.equal(sent.length, 1, 'one write of the table')
+    assert.deepEqual(sent[0].size, [MATERIAL_RECORD_WORDS / 4, 1], 'of one record')
   } finally {
     backend.dispose()
     fixture.geometry.dispose()
@@ -106,7 +163,6 @@ test('an alpha move is taken in place under a casting light, the shadow over its
     layout: {
       rows: {
         tableEpoch: 1,
-        materialEpoch: 0,
         rowCount: 1,
         blendFirst: 1,
         casterSlots: 1,

@@ -102,7 +102,10 @@ function scene() {
     // The rows' motion is committed each follow (`rowTravel.ts`): the mobility's travel is read.
     lights: { mobility: createShadowMobility() },
     timing: { encodeCounts: { rowsUploaded: 0 } },
-    vis: { pageTable: device.createBuffer({ size: ROWS * PAGE_INFO_STRIDE, usage }) },
+    vis: {
+      pageTable: device.createBuffer({ size: ROWS * PAGE_INFO_STRIDE, usage }),
+      materialTable: { pending: false },
+    },
     gpu: { device },
   } as unknown as WebgpuPagesRuntime
   ensureRowLods(rt, device)

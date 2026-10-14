@@ -1,6 +1,7 @@
-// A frame whose scene moved writes the transparent records' poses alone while no material moved
-// (`refreshBlendScene`): the sixteen words of each item whose matrix moved, sent as one span, every
-// other word as it was; nothing when no pose moved; a material written since, every record whole.
+// A frame whose scene moved writes the transparent records' poses alone (`refreshBlendScene`): the
+// sixteen words of each item whose matrix moved, sent as one span, every other word as it was;
+// nothing when no pose moved, nor when a material's values were written since — a record holds
+// none of them, its surface's record in the material table does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -39,7 +40,7 @@ function scene() {
     blendState,
     vis: { mapLayer: new Map(), dataLayer: new Map() },
     gpu: {},
-    layout: { rows: { tableEpoch: 0, materialEpoch: 0 } },
+    layout: { rows: { tableEpoch: 0 } },
     run: { gate: { movedInPlace() {} } },
   } as unknown as WebgpuPagesRuntime
   /** The spans the queue was sent since the last `clear`. */
@@ -50,7 +51,7 @@ function scene() {
   return { matrices, items, blendState, writes, device: gpu.device, rt }
 }
 
-test('a moved pose sends its sixteen words alone, a moved material every record', () => {
+test('a moved pose sends its sixteen words alone, a material written since no record', () => {
   const { matrices, items, blendState, writes, device, rt } = scene()
   refreshBlendScene(rt, device)
   assert.deepEqual(writes.spans(), [{ offset: 0, size: items.length * RECORD }])
@@ -73,7 +74,10 @@ test('a moved pose sends its sixteen words alone, a moved material every record'
     )
   }
   writes.clear()
+  // A values edit: its surface's record alone is written (`../material/materialTable.ts`).
+  items[2].surface.baseColor = [0, 0.5, 1]
+  items[2].surface.version++
   refreshWebgpuMaterials(rt, true)
   refreshBlendScene(rt, device, true)
-  assert.deepEqual(writes.spans(), [{ offset: 0, size: items.length * RECORD }])
+  assert.deepEqual(writes.spans(), [], 'no item record')
 })

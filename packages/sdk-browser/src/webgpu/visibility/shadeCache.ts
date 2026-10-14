@@ -16,6 +16,7 @@ import {
   TRIANGLE_WORDS,
 } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 
 /** The material cache's A/B in the host URL, temporary, each read once at preparation; the same
  *  image every way. `trillion3dShadeNoCache=1`: no pass encoded, every pixel composes and decodes
@@ -23,7 +24,8 @@ import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 const shadeNoCacheAsked = heldSwitch('trillion3dShadeNoCache')
 
 /** What the frame's passes read beside the cache: the visibility buffer, the page table, the
- *  geometry the pixels decode and the resolve's uniform. */
+ *  geometry the pixels decode, the resolve's uniform and the surfaces' records, which a sprite's
+ *  and a line's triangle is read by (`pageShape`). */
 export type ShadeCacheInputs = {
   vis: GPUTextureView
   pages: GPUBuffer
@@ -32,6 +34,7 @@ export type ShadeCacheInputs = {
   uvs: GPUBuffer
   normals: GPUTextureView
   uniform: GPUBuffer
+  material: GPUTextureView
 }
 
 /**
@@ -145,6 +148,7 @@ function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {
   n[5] = inputs.uvs
   n[6] = inputs.uniform
   n[7] = inputs.normals
+  n[8] = inputs.material
   if (c.bound.moved() || !c.rowsGroup) bindShade(c, passes, inputs)
   const pass = open.pass
   // The marks and the triangles' dispatch start from zero: the pass's first dispatch.
@@ -181,6 +185,8 @@ function bindShade(c: Cache, passes: NonNullable<Cache['passes']>, inputs: Shade
         { buffer: inputs.uniform },
         inputs.normals,
       ]),
+      // At the resolve's number, where the triangle's text reads it (`PIXEL_TRIANGLE_WGSL`).
+      { binding: SHADE_BINDINGS.material, resource: inputs.material },
     ],
   })
 }

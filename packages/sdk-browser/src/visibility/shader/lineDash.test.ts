@@ -64,12 +64,13 @@ for (const [language, run] of Object.entries(DASHES))
 test('every path that draws a line reads the dash, and a solid surface keeps every pixel', () => {
   // Both WebGPU rasters and the shadow cut through `maskKeep`, which a dashed row enters.
   assert.ok(wgslModule(PAGE_GEOMETRY_WGSL).includes(LINE_DASH_WGSL.text))
-  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /packedBase:u32,dash:vec2f,clusterHash/)
-  assert.equal(PAGE_INFO.at.dash, 28, 'the row words of PageInfo.dash')
+  // The dash is the surface's record's (`materialAt`), never a row word.
+  assert.doesNotMatch(wgslSource(PAGE_INFO_STRUCT_WGSL), /dash/)
+  assert.ok(!('dash' in PAGE_INFO.at))
   const keep = maskKeepWgsl(maskAlphaWgsl(false)).text.replace(/\s+\/\/[^\n]*/g, '')
   assert.ok(
     keep.includes(
-      ' if((page.flags&128u)==0u){return true;}\n if(!lineDash(uv.x,page.dash)){return false;}\n if(page.baseColor.w<=0.0){return true;}',
+      ' if((page.flags&128u)==0u){return true;}\n let m=materialAt(page.material);\n if(!lineDash(uv.x,m.dash)){return false;}\n if(m.cut<=0.0){return true;}',
     ),
   )
   // The camera's one cutting fragment stage: the pass always writes its depth pyramid (#1483).
@@ -77,10 +78,8 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   assert.ok(rasterSource(4, 16).includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL.text))
-  assert.match(
-    wgslSource(BLEND_ITEM_WGSL),
-    /emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,physical:u32,\}/,
-  )
-  assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);'))
+  // Its dash is its surface's record's too, read by its vertex stage.
+  assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /dash/)
+  assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(m.alphaTest,m.aoIntensity,m.dash);'))
   assert.ok(BLEND_SHADER.includes('||!lineDash(in.uv.x,in.alphaAo.zw)){discard;return '))
 })

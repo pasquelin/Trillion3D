@@ -2,14 +2,16 @@ import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
-import { volumeAttenuation } from './volumeLaw.ts'
+import { writeVolumeTerms } from '../material/materialRecord.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 
-/** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
- *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the marks word: one record
- *  per transmissive item, read by water rank in a storage buffer. The per-volume terms are computed
- *  here once, in f64, not per pixel in f32. */
+/** The volume's terms as its surface's record holds them (`writeVolumeTerms`: `transmission`, the
+ *  refraction ratio 1 / ior, `thickness`, Fresnel's f0, then aligned the law's constant `k`) and the
+ *  marks word: one record per transmissive item, read by water rank in a storage buffer — the water
+ *  composite's fragment stage holds the sixteen sampled textures WebGPU guarantees, which the
+ *  material table would pass. The per-volume terms are computed once, in f64, by the record's own
+ *  writer, not per pixel in f32. */
 export const VOLUME_WORDS = 8
 /** The marks word's bits, a small integer in a float: the surface takes no fog, and it carries an
  *  anisotropic or clear-coat lobe, whose texel the water composite reads
@@ -85,20 +87,14 @@ export const waterRankOf = (flags: number) => flags >>> WATER_RANK_SHIFT
  *  the composite reads through the water surface. Written with the rows, never per image. */
 export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
-    packed = blendState.volumePacked,
-    k = [0, 0, 0]
+    packed = blendState.volumePacked
   if (!gpu.volumeBuffer || !blendState.transmissive) return
   for (const item of blendState.blendGpu) {
     const rank = waterRankOf(item.flags)
     if (!rank) continue
     const base = (rank - 1) * VOLUME_WORDS,
       mat = item.surface
-    const reflectance = (mat.ior - 1) / (mat.ior + 1)
-    packed[base] = mat.transmission
-    packed[base + 1] = 1 / Math.max(mat.ior, 1e-3)
-    packed[base + 2] = mat.thickness
-    packed[base + 3] = reflectance * reflectance
-    packed.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), base + 4)
+    writeVolumeTerms(packed, base, mat)
     packed[base + 7] = (mat.fog === false ? VOLUME_FOG_FREE : 0) | (item.lobed ? VOLUME_LOBED : 0)
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed)

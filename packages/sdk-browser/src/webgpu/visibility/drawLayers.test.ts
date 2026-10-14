@@ -81,6 +81,7 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
     executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
   } as unknown as GPURenderPassEncoder
   const { device } = fakeDevice()
+  const { visBundles, materialTable } = createWebgpuVisState()
   const rt = {
     vis: {
       drawLayerSlots: 2,
@@ -99,7 +100,9 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       gpuHiz: undefined,
       visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
       gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, slotOffsetsBuffer: {} },
-      visBundles: createWebgpuVisState().visBundles,
+      visBundles,
+      // The surfaces' records a slot's group binds (`../material/materialTable.ts`).
+      materialTable,
     },
     gpu: { cache: { buffer: {} } },
     run: { gpuDrawCalls: 0 },

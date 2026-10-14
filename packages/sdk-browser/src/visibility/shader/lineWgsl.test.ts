@@ -101,23 +101,32 @@ test('a segment seen end-on keeps no width', () => {
 // Every raster reads a line page's corners widened, and only a line page's: the expressions a
 // triangle page draws with stay, character for character, what they were.
 test('every page-geometry raster widens a line page, and a triangle page draws as before', () => {
-  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /depthBias:u32,lineWidth:f32,placement:u32/)
+  // A row carries its line flag; its width is its surface's record's (`pageShape`).
+  assert.doesNotMatch(wgslSource(PAGE_INFO_STRUCT_WGSL), /lineWidth/)
   const raster = rasterSource(4, 16)
-  assert.match(raster, /let ca=pageClip\(vp,page,h,ia\);let cb=pageClip\(vp,page,h,ib\);/)
-  assert.match(VIS_SHADER, /computeTakes\(pageClip\(vp,page,h,ia\),pageClip\(vp,page,h,ib\)/)
+  assert.match(
+    raster,
+    /let ca=pageClip\(vp,page,h,ia,shape\);let cb=pageClip\(vp,page,h,ib,shape\);/,
+  )
+  assert.match(
+    VIS_SHADER,
+    /computeTakes\(pageClip\(vp,page,h,ia,shape\),pageClip\(vp,page,h,ib,shape\)/,
+  )
   const hardware =
-    ' out.position=uni.viewProj*world;\n if(page.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position);}'
+    ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}'
   assert.equal(VIS_SHADER.split(hardware).length - 1, 2, 'both hardware vertex stages')
   assert.match(SHADE_SHADER, /var c0=uni\.viewProj\*w0;var c1=uni\.viewProj\*w1;/)
   assert.match(
     SHADE_SHADER,
-    /if\(page\.lineWidth>0\.0\)\{let vp=uni\.viewProj\*page\.world;c0=pageLine/,
+    /if\(shape\.lineWidth>0\.0\)\{let vp=uni\.viewProj\*page\.world;let width=shape\.lineWidth;c0=pageLine/,
   )
-  assert.match(wgslSource(BLEND_ITEM_WGSL), /emissiveIndex:u32,lineWidth:f32,alphaTest/)
+  assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /lineWidth/)
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)
-  assert.match(BLEND_SHADER, /if\(it\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
+  assert.match(BLEND_SHADER, /if\(m\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL.text))
   for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
-    assert.ok(text.includes('page.lineWidth,uni.viewport.xy,uni.pixelRatio)'))
-  assert.match(BLEND_SHADER, /it\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)
+    assert.ok(
+      text.includes('lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio)'),
+    )
+  assert.match(BLEND_SHADER, /m\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)
 })

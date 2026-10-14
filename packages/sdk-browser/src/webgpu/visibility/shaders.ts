@@ -16,7 +16,11 @@ import {
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
-import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../../gpu/core/computeBindings.ts'
 
 /** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
  *  made again when the table grows (`../pages/prepare/growTables.ts`). */
@@ -46,6 +50,8 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
     { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     computeBufferEntry(b.instances, 'read-only-storage', GPUShaderStage.VERTEX),
     computeBufferEntry(b.slotOffsets, 'read-only-storage', GPUShaderStage.VERTEX),
+    // The surfaces' records: a row's shape in its vertices, its cutout in its fragments.
+    computeTextureEntry(b.material, 'uint', '2d', GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT),
   ]
 }
 

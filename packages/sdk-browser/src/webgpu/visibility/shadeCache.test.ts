@@ -11,6 +11,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createUsageScope } from '../../../../../tests/kit/gpu/scopeRules.ts'
 import { createShadeCache, type ShadeCacheInputs } from './shadeCache.ts'
+import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 import { createWebgpuShadePipelines } from './shadePipelines.ts'
 import {
   ROW_MARK_WORDS,
@@ -43,6 +44,7 @@ const INPUTS = {
   uvs: {},
   normals: {},
   uniform: {},
+  material: {},
 } as unknown as ShadeCacheInputs
 
 test('the cache is laid for the rows and the image, its passes over them in rows of groups', async () => {
@@ -106,7 +108,7 @@ test('the pass runs the marks, the rows, then the triangles over the row table, 
   const named = (label: string) => ({ label }) as unknown as GPUBuffer
   const inputs = {
     ...{ pages: named('pages'), indices: named('indices'), positions: named('positions') },
-    ...{ uvs: named('uvs'), uniform: named('uniform'), vis: {}, normals: {} },
+    ...{ uvs: named('uvs'), uniform: named('uniform'), vis: {}, normals: {}, material: {} },
   } as unknown as ShadeCacheInputs
   const steps: unknown[] = []
   let current: { entryPoint?: string; constants?: Record<string, number> } = {}
@@ -142,7 +144,8 @@ test('the pass runs the marks, the rows, then the triangles over the row table, 
     [2, 'view'],
     [3, 'Trillion3D material cache dispatch'],
   ])
-  // The triangles read the row table first, then the cache, the geometry and the resolve's uniform.
+  // The triangles read the row table first, then the cache, the geometry and the resolve's uniform,
+  // and the surfaces' records at the resolve's number, which a sprite's or a line's corners read.
   assert.deepEqual(bound(triangles[1]), [
     ...[
       [0, 'pages'],
@@ -154,6 +157,7 @@ test('the pass runs the marks, the rows, then the triangles over the row table, 
       [4, 'uvs'],
       [5, 'uniform'],
       [6, 'view'],
+      [SHADE_BINDINGS.material, 'view'],
     ],
   ])
   assert.deepEqual(triangles.slice(2), ['Trillion3D material cache dispatch', 0])

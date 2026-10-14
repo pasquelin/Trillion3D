@@ -1,9 +1,12 @@
 import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-/** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
+/** Uploads the rows whose bytes changed, run by run, and nothing when none did; the records of
+ *  the surfaces they name with them (`../../material/materialTable.ts`), those written since. */
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
-  const { rows } = rt.layout
+  const { rows } = rt.layout,
+    { materialTable } = rt.vis
+  if (materialTable.pending && rt.gpu.device) materialTable.upload(rt.gpu.device)
   rt.timing.encodeCounts.rowsUploaded = 0
   if (!rows.dirtyCount || !rt.vis.pageTable || !rows.pageTableFloats) return
   rows.forEachDirtyRun(rt, uploadRun)

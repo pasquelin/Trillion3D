@@ -51,7 +51,7 @@ for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
     // one in the same varying (`blendSurfaceWgsl`).
     assert.match(
       text,
-      /colorSample\(page\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv\.xy,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
+      /colorSample\(m\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv\.xy,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
     )
     assert.doesNotMatch(text, /wrapOf|wrapModes/, 'no per-material addressing word')
   })
@@ -59,7 +59,7 @@ for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
 test('alpha cut-out addresses the base map by its header, never by the flags', () => {
   assert.ok(
     maskKeepWgsl(maskAlphaWgsl(false)).text.includes(
-      'maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&64u)!=0u)',
+      'maskAlpha(m.mapIndex,uv,ddx,ddy,(page.flags&64u)!=0u)',
     ),
   )
 })

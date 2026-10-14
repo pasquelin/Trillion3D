@@ -51,6 +51,8 @@ export const VIS_BINDINGS = {
   sampler: 10,
   instances: 11,
   slotOffsets: 12,
+  /** The surfaces' records (`../material/materialTable.ts`): a row's cutout and shape. */
+  material: 13,
 }
 
 export const SHADE_BINDINGS = {
@@ -69,8 +71,8 @@ export const SHADE_BINDINGS = {
   receiver: 18,
   /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
   shadeCache: 19,
-  /** The surfaces' anisotropic and clear-coat records (`../visibility/physicalTable.ts`). */
-  physical: 20,
+  /** The surfaces' records (`../material/materialTable.ts`). */
+  material: 20,
   /** The lobes target the resolve writes and the lighting reads (`../../scene/physicalLobes.ts`). */
   lobes: 21,
 }
@@ -113,9 +115,8 @@ export const BLEND_BINDINGS = {
    *  (`BLEND_VSM_BINDINGS`). */
   shadowTransmittance: 26,
   shadowTranslucentDepth: 27,
-  /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
-   *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
-  physical: 28,
+  /** The surfaces' records, the opaque resolve's own table (`../material/materialTable.ts`). */
+  material: 28,
   /** What a fragment traces its shadow with past the maps (`BLEND_TRACE_BINDINGS`): the shadow
    *  projection's view uniform and its blue noise. */
   shadowView: 29,
@@ -140,6 +141,8 @@ export const SMALL_BINDINGS = {
   sampler: 10,
   work: 11,
   selectionMask: 12,
+  /** The visibility raster's number: the one cutout (`maskKeepWgsl`) reads it there in both. */
+  material: VIS_BINDINGS.material,
 }
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,

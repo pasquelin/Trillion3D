@@ -1,15 +1,15 @@
-// A page row names its surface's anisotropic and clear-coat record (`PageInfo.physical`, word 67)
-// and takes the physical resolve class; a surface without a lobe names none and keeps its class.
+// A page row names its surface's record in the material table (`PageInfo.material`) and takes the
+// physical resolve class where the surface carries a lobe; a surface without one keeps its class.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { ROW_WORDS, PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
+import { ROW_WORDS, MATERIAL_SECOND_UV } from '../../visibility/types.ts'
 import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
-import { createPhysicalTable } from '../visibility/physicalTable.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
@@ -44,13 +44,13 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
   ).allPages
   const floats = new Float32Array(ROW_WORDS),
     ints = new Uint32Array(floats.buffer)
-  const physicalTable = createPhysicalTable()
+  const materialTable = createMaterialTable()
   const writer = createPageRowWriter(
     {
       geometryBlocks: new Map([[rec.attributes, { vertexBase: 0, count: 3, hasUv1 }]]),
       mapLayer: new Map(),
       dataLayer: new Map(),
-      physicalTable,
+      materialTable,
       asIsShown: false,
       emissiveAoShown: false,
     } as never,
@@ -59,23 +59,23 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
     (packed) => packed,
   )
   writer(rec, 0, 0, 0, floats, ints)
-  return { physical: ints[PAGE_INFO.at.physical], classKey: ints[PAGE_INFO.at.materialClass] }
+  return { material: ints[PAGE_INFO.at.material], classKey: ints[PAGE_INFO.at.materialClass] }
 }
 
-test('a coated or brushed row names its record and takes the physical class', () => {
+test('a coated or brushed row takes the physical class; a plain one keeps its own', () => {
   for (const lobe of [{ clearcoat: 1 }, { anisotropy: 0.5 }]) {
     const row = rowOf(G.physicalSurface(lobe))
-    assert.equal(row.physical, 1, JSON.stringify(lobe))
+    // Each table its first record: rank zero.
+    assert.equal(row.material, 0, JSON.stringify(lobe))
     assert.ok(row.classKey & CLASS_FEATURE.HAS_PHYSICAL)
   }
   const plain = rowOf(G.physicalSurface())
-  assert.equal(plain.physical, 0)
+  assert.equal(plain.material, 0)
   assert.equal(plain.classKey & CLASS_FEATURE.HAS_PHYSICAL, 0)
 })
 
-test('a coated float row whose geometry has a second UV set says so in its word, high bit', () => {
-  const coated = rowOf(G.physicalSurface({ clearcoat: 1 }), true)
-  assert.equal(coated.physical, (1 | PHYSICAL_SECOND_UV) >>> 0)
-  // A surface without a lobe reads no UV set of its own: its word stays zero.
-  assert.equal(rowOf(G.physicalSurface(), true).physical, 0)
+test('a float row whose geometry has a second UV set says so in its word, high bit', () => {
+  assert.equal(rowOf(G.physicalSurface({ clearcoat: 1 }), true).material, MATERIAL_SECOND_UV)
+  // Whatever its surface: the bit is the geometry's.
+  assert.equal(rowOf(G.physicalSurface(), true).material, MATERIAL_SECOND_UV)
 })

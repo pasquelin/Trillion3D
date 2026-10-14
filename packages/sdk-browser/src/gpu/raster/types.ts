@@ -11,6 +11,8 @@ export type GpuRasterInput = {
   uvs: GPUBuffer
   textures: WebgpuTileStreamer
   sampler: GPUSampler
+  /** The surfaces' records (`../../webgpu/material/materialTable.ts`): a row's cutout and shape. */
+  material: GPUTextureView
   pageRows: number
   maxTriangles: number
   idsView: GPUTextureView

@@ -29,14 +29,15 @@ test('the hardware raster reads the share in the same text as the compute raster
     VIS_SHADER,
     /fn hardwareIdle\(page:PageInfo,vertexIndex:u32\)->bool\{\n return vertexIndex>=page\.indexCount\|\|uni\.computeSpan>=1000000000;\n\}/,
   )
-  // Without a share, only the vertex's own corner; with one, its triangle decoded once.
+  // Without a share, only the vertex's own corner; with one, its triangle decoded once, clipped by
+  // the line or sprite shape its record gives (`pageShape`), read once by the vertex.
   assert.match(
     VIS_SHADER,
-    /fn hardwareCorner\(page:PageInfo,h:ClusterHeader,vertexIndex:u32\)->u32\{\n if\(uni\.computeSpan<=0\.0\)\{return pageCorner\(page,h,vertexIndex\);\}\n let corners=pageTriangle\(page,h,vertexIndex\/3u\);/,
+    /fn hardwareCorner\(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape\)->u32\{\n if\(uni\.computeSpan<=0\.0\)\{return pageCorner\(page,h,vertexIndex\);\}\n let corners=pageTriangle\(page,h,vertexIndex\/3u\);/,
   )
   assert.match(VIS_SHADER, /let vp=uni\.viewProj\*page\.world;/)
   // The corner of the instance's batch (`drawBatch`), in both vertex stages.
-  assert.equal(VIS_SHADER.match(/let id=hardwareCorner\(page,h,corner\);/g)?.length, 2)
+  assert.equal(VIS_SHADER.match(/let id=hardwareCorner\(page,h,corner,shape\);/g)?.length, 2)
 })
 
 function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {
