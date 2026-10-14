@@ -2,6 +2,7 @@
 // its workgroups replayed one after the other, what `verdictWgsl.test.ts` holds to its contract and
 // what a fake device dispatches (`tests/kit/gpu/fakeComputeBlend.ts`).
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { vectors } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BLEND_VERDICT_SHADER, VERDICT_GROUP } from './verdictWgsl.ts'
 import { VERDICT, verdictWords } from './verdictLayout.ts'
@@ -37,12 +38,9 @@ type VerdictWords = {
 /** The verdict kernel over `words`, the items the frame names, its two barrier steps replayed
  *  group by group over fresh workgroup memory. */
 export function runVerdict(words: VerdictWords) {
-  const { draws } = words
   const scope = {
     keyed: words.keyed,
-    draws: Array.from({ length: draws.length >> 2 }, (_, i) =>
-      Array.from(draws.subarray(i * 4, i * 4 + 4)),
-    ),
+    draws: vectors(4, words.draws),
     counts: words.counts,
     frame: words.frame,
     keep: words.keep,
