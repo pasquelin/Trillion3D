@@ -1,17 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { SPHERE_VALUES } from './strides.ts'
+import { boxUnionBatch } from './batch.ts'
+import { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts'
+import { linearToSrgbBatch, srgbToLinearBatch } from './color.ts'
 import {
-  SPHERE_VALUES,
-  boxUnionBatch,
-  frustumKeepsBoxBatch,
-  linearToSrgbBatch,
-  sphereFromBoundsBatch,
-  srgbToLinearBatch,
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from '../index.ts'
-import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
+} from './points.ts'
+import { composeMatrix4 } from '../matrix/matrix4Compose.ts'
 import { frustumPlanesFromMatrix } from '../geometry/frustum/frustum.ts'
 import { perspectiveProjection } from '../projection/camera.ts'
 

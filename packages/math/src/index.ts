@@ -10,12 +10,8 @@ export {
 } from './matrix/matrix4.ts'
 export type { NumberSink } from './matrix/matrix4.ts'
 export { invertMatrix4 } from './matrix/matrix4Inverse.ts'
-export {
-  basisMatrix4,
-  composeMatrix4,
-  decomposeMatrix4,
-  uniformScaleMatrix4,
-} from './matrix/matrix4Trs.ts'
+export { basisMatrix4, decomposeMatrix4, uniformScaleMatrix4 } from './matrix/matrix4Trs.ts'
+export { composeMatrix4, composeMatrix4Batch } from './matrix/matrix4Compose.ts'
 export { normalMatrix3 } from './matrix/matrix3.ts'
 export { linearPartScale } from './matrix/singular.ts'
 export {
@@ -48,19 +44,20 @@ export {
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-  boxUnionBatch,
-  composeMatrix4Batch,
+} from './batch/strides.ts'
+export { boxUnionBatch } from './batch/batch.ts'
+export {
   decomposeMatrix4Batch,
-  frustumKeepsBoxBatch,
   invertMatrix4Batch,
-  linearToSrgbBatch,
   normalMatrix3Batch,
-  sphereFromBoundsBatch,
-  srgbToLinearBatch,
+} from './batch/transforms.ts'
+export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './batch/culling.ts'
+export { linearToSrgbBatch, srgbToLinearBatch } from './batch/color.ts'
+export {
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from './batch/batch.ts'
+} from './batch/points.ts'
 export {
   FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,

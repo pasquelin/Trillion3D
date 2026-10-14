@@ -1,13 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  NORMAL_MATRIX_VALUES,
-  composeMatrix4Batch,
-  decomposeMatrix4Batch,
-  invertMatrix4Batch,
-  normalMatrix3Batch,
-} from '../index.ts'
-import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
+import { NORMAL_MATRIX_VALUES } from './strides.ts'
+import { composeMatrix4Batch, composeMatrix4 } from '../matrix/matrix4Compose.ts'
+import { decomposeMatrix4Batch, invertMatrix4Batch, normalMatrix3Batch } from './transforms.ts'
+
 import { multiplyMatrix4 } from '../matrix/matrix4.ts'
 
 test('invertMatrix4Batch: inverts regular matrices and sets identity on singular', () => {

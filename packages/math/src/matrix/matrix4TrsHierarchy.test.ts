@@ -7,7 +7,8 @@
 // against the witness library lives in the bench (`bench/perf/browser/support/coreEquivalence.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { composeMatrix4, decomposeMatrix4 } from './matrix4Trs.ts'
+import { composeMatrix4 } from './matrix4Compose.ts'
+import { decomposeMatrix4 } from './matrix4Trs.ts'
 import { determinantMatrix4, multiplyMatrix4 } from './matrix4.ts'
 import { invertMatrix4 } from './matrix4Inverse.ts'
 import { normalMatrix3 } from './matrix3.ts'

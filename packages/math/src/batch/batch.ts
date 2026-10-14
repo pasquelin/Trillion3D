@@ -25,12 +25,8 @@ export {
   SPHERE_VALUES,
 } from './strides.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts'
-export {
-  composeMatrix4Batch,
-  decomposeMatrix4Batch,
-  invertMatrix4Batch,
-  normalMatrix3Batch,
-} from './transforms.ts'
+export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts'
+export { decomposeMatrix4Batch, invertMatrix4Batch, normalMatrix3Batch } from './transforms.ts'
 export {
   transformDirectionsBatch,
   transformPointsBatch,

@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  basisMatrix4,
-  composeMatrix4,
-  decomposeMatrix4,
-  uniformScaleMatrix4,
-} from './matrix4Trs.ts'
+import { basisMatrix4, decomposeMatrix4, uniformScaleMatrix4 } from './matrix4Trs.ts'
+import { composeMatrix4 } from './matrix4Compose.ts'
 import { determinantMatrix4 } from './matrix4.ts'
 import { nearly } from '../float/near.fixture.ts'
 
