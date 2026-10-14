@@ -1,5 +1,8 @@
 import { surfaceOf, type PageSurface } from '../../packages/sdk-browser/src/page/surface.ts'
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Geometry } from '../../packages/sdk-core/src/world/geometry/geometry.ts'
+import type { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts'
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/engineCamera.ts'
@@ -26,11 +29,11 @@ export function quad(
   min: number[],
   max: number[],
   clusterId: string,
-): { page: VisPage & HizPage & { matrix: G.Matrix4 }; geometry: G.Geometry } {
+): { page: VisPage & HizPage & { matrix: Matrix4 }; geometry: Geometry } {
   const centre = new Float64Array(3)
   boxCenter(centre, 0, min[0], min[1], min[2], max[0], max[1], max[2])
   const z = centre[2]
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(
@@ -43,7 +46,7 @@ export function quad(
   const page = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    matrix: new G.Matrix4(),
+    matrix: new Matrix4(),
     material: surfaceOf(material),
     clusterId,
     min,
@@ -62,8 +65,8 @@ const boxScratch = new Float64Array(HIZ_BOUNDS_VALUES)
 export function projectBoxToScreen(
   min: number[],
   max: number[],
-  matrix: G.Matrix4,
-  camera: G.Camera | EngineCamera,
+  matrix: Matrix4,
+  camera: Camera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
   projectBoxesFlat(

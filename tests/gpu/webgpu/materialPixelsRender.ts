@@ -3,6 +3,9 @@
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three/webgpu'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts'
 import { witnessScene } from '../../../bench/witnesses/three/displayObjects.ts'
 import {
@@ -13,7 +16,7 @@ import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSce
 import { untilHeld } from '../kit/sceneImageProof.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import type * as SdkCore from '../../../packages/sdk-core/src/index.ts'
+import type { SceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
 export const CLEAR_COLOR = 0x2a303c
@@ -32,7 +35,7 @@ export const SQUARE_SIDE = 2,
   BEHIND = { side: 4, z: -1 }
 
 /** The fixture's square: a lit one carries normals, a normal-mapped one its tangents. */
-function square(fixture: Fixture): G.Geometry {
+function square(fixture: Fixture): Geometry {
   const geometry = G.planeGeometry(SQUARE_SIDE, SQUARE_SIDE)
   if (fixture.tangents)
     geometry.setAttribute(
@@ -43,7 +46,7 @@ function square(fixture: Fixture): G.Geometry {
 }
 
 /** The prepared scene of one fixture: its square, what stands behind it, and the sun when lit. */
-export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
+export function sceneOf(fixture: Fixture, sun: Object3D): ScenePreparee {
   const builder = batisseur()
   const material = fixture.material()
   const pass = material.transparent ? 'clustered-blend' : 'exact-clusters',
@@ -68,7 +71,7 @@ export const rgbAt = (pixels: ArrayLike<number>, [x, y]: number[]): number[] =>
 export async function witnessImage(
   scene: ScenePreparee,
   renderer: THREE.WebGPURenderer,
-  camera: G.Camera,
+  camera: Camera,
 ): Promise<Uint8Array> {
   const witness = witnessScene(scene.source, CLEAR_COLOR)
   try {
@@ -85,8 +88,8 @@ export async function witnessImage(
 export async function engineImage(
   scene: ScenePreparee,
   device: GPUDevice,
-  sceneLights: SdkCore.SceneLightStore,
-  camera: G.Camera,
+  sceneLights: SceneLightStore,
+  camera: Camera,
   events: EngineDiagnostic[],
 ): Promise<{ pixels: number[] | undefined; held: boolean }> {
   const { backend, canvas } = engine(scene, device, (e: EngineDiagnostic) => events.push(e), {

@@ -24,8 +24,15 @@ export function indirectDraws(draws: readonly FakeDraw[]) {
   return vis
 }
 
+/** WebGPU's error classes, one each for the whole process: an error made before a later install is
+ *  still an instance of the class the engine tests it against. */
+class GPUOutOfMemoryError extends Error {}
+class GPUPipelineError extends Error {}
+
 export function installGpuGlobals() {
   Object.assign(globalThis, {
+    GPUOutOfMemoryError,
+    GPUPipelineError,
     GPUBufferUsage: {
       MAP_READ: 1,
       MAP_WRITE: 2,

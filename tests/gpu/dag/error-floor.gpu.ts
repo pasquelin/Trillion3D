@@ -9,6 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
 import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts'
@@ -39,7 +40,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
   const pages = scenePages(4096, 8)
   const camera = G.perspectiveCamera(55, VIEWPORT[0] / VIEWPORT[1], 0.1, 200)
   const cases = POSES.map(([name, x, z, threshold, depths]) => {
-    const worlds = depths.map((depth) => new G.Matrix4().makeTranslation(0, 0, -depth))
+    const worlds = depths.map((depth) => new Matrix4().makeTranslation(0, 0, -depth))
     const roots = sceneRoots(pages, worlds)
     const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots)
     // The CPU cut walks the same nodes with its own bounds, in f64: the reference.

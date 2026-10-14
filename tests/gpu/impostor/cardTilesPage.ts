@@ -8,7 +8,8 @@
 // `cardTileTrilinear.ts`).
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { lend } from '../../../packages/sdk-browser/src/impostor/borrowed.ts'
-import * as lent from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
+import { impostorLent } from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
+import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import {
   cardPipelines,
   prepareImpostorPipelines,
@@ -93,7 +94,7 @@ async function drawn(
       view: target('depth32float').createView(),
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
-      depthClearValue: lent.DEPTH_CLEAR,
+      depthClearValue: DEPTH_CLEAR,
     },
   })
   visual.setPipeline(stages.vis)
@@ -123,7 +124,7 @@ async function drawn(
 
 export function runCardTiles() {
   return runOnDevice(async (device, events, result) => {
-    lend(lent)
+    lend(impostorLent)
     const ok = await prepareImpostorPipelines(device, (phase, error) =>
       events.push({ phase, context: { reason: String(error) } }),
     )

@@ -7,6 +7,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
@@ -21,15 +24,15 @@ const MIN = [-1, -1, -1],
   MAX = [1, 1, 1]
 
 /** The requested matrix: `y` pushes `x`, two non-orthogonal axes. */
-const sheared = new G.Matrix4().set(1, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+const sheared = new Matrix4().set(1, 3, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 
 /** The same matrix reduced to a translation-rotation-scale product: what the defect posed. */
-function recomposed(source: G.Matrix4) {
-  const position = new G.Vector3(),
-    rotation = new G.Quaternion(),
-    scale = new G.Vector3()
+function recomposed(source: Matrix4) {
+  const position = new Vector3(),
+    rotation = new Quaternion(),
+    scale = new Vector3()
   source.decompose(position, rotation, scale)
-  return new G.Matrix4().compose(position, rotation, scale)
+  return new Matrix4().compose(position, rotation, scale)
 }
 
 /** The selection uniforms of a view along -z centred on `x`, of vertical field `fov`. */
@@ -46,7 +49,7 @@ function view(x: number, fov: number) {
  *  frustum would cut in two frames at once. */
 function selectionCase(
   name: string,
-  world: G.Matrix4,
+  world: Matrix4,
   sphere: number[],
   uniforms: ReturnType<typeof view>,
 ) {

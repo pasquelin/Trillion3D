@@ -4,13 +4,18 @@
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
 import { frustumPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
 import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
-import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import {
+  coneCullsPageWith,
+  coneContextFor,
+  createConeContext,
+} from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
@@ -34,7 +39,7 @@ export interface Case extends CaseInput {
   min: Vec3
   max: Vec3
   cone: NormalCone
-  world: G.Matrix4
+  world: Matrix4
   mirrored: boolean
 }
 
@@ -78,7 +83,7 @@ export function buildCase({
   if (mirrored) for (const k of [8, 9, 10]) world.elements[k] = -world.elements[k]
   const mid = new Float64Array(3)
   boxCenter(mid, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-  const centre = new G.Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world).negate()
+  const centre = new Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world).negate()
   world.setPosition(centre.x, centre.y, centre.z)
   const cone = triangleCone(positions, indices)
   return {
@@ -108,11 +113,9 @@ export function rawOrientation(lit: Case) {
   )
   const triangles = triples.map((triangle) => {
     const v = triangle.map((i) =>
-      new G.Vector3().fromArray(lit.positions, i * 3).applyMatrix4(lit.world),
+      new Vector3().fromArray(lit.positions, i * 3).applyMatrix4(lit.world),
     )
-    const normal = new G.Vector3()
-      .subVectors(v[1], v[0])
-      .cross(new G.Vector3().subVectors(v[2], v[0]))
+    const normal = new Vector3().subVectors(v[1], v[0]).cross(new Vector3().subVectors(v[2], v[0]))
     normal.normalize()
     const centre = v[0].clone().add(v[1]).add(v[2]).divideScalar(3)
     const facing = normal.dot(camera.position.clone().sub(centre).normalize())
@@ -171,9 +174,7 @@ export function coneDecision(lit: Case) {
 /** `coneCullsPageWith` and `selectVisiblePages` on the same page: the CPU's two entries. */
 export function cpuDecision(lit: Case) {
   const { conformal, coneCulls } = coneDecision(lit)
-  const box = new G.Box3(new G.Vector3(...lit.min), new G.Vector3(...lit.max)).applyMatrix4(
-    lit.world,
-  )
+  const box = new Box3(new Vector3(...lit.min), new Vector3(...lit.max)).applyMatrix4(lit.world)
   const page = {
     ...pageOf(lit),
     id: '0',

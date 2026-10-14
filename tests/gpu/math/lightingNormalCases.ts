@@ -1,7 +1,10 @@
 // Cases of defect 9 (`xformNormal`, `standardLighting.ts`): a world transform, a local normal, a
 // light, and the true world normal in f64 by the graph's own normal matrix (`getNormalMatrix`, an
 // inverse-transpose with no threshold).
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Matrix3 } from '../../../packages/sdk-core/src/world/math/matrix3.ts'
 import type { Vec3 } from '../kit/vecTypes.ts'
 import { DROPOUT_DEG, normalVerdict } from './inverseTransposeF32.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
@@ -51,13 +54,13 @@ export const LIT_MATERIAL = { light: [0.3, 0.8, 0.5, 3], metal: 0.1, roughness: 
  * checks a non-trivial inverse-transpose stays right. No translation: it moves neither a normal
  * nor a recentring.
  */
-export function worldPose({ s, kind, axis, angleDeg }: PoseParams): G.Matrix4 {
+export function worldPose({ s, kind, axis, angleDeg }: PoseParams): Matrix4 {
   const scale = kind === 'uniform' ? [s, s, s] : [s, s * 1.7, s * 0.6]
-  const rotation = new G.Quaternion().setFromAxisAngle(
-    new G.Vector3(...axis).normalize(),
+  const rotation = new Quaternion().setFromAxisAngle(
+    new Vector3(...axis).normalize(),
     angleDeg * DEG2RAD,
   )
-  return new G.Matrix4().compose(new G.Vector3(), rotation, new G.Vector3(...scale))
+  return new Matrix4().compose(new Vector3(), rotation, new Vector3(...scale))
 }
 
 /** A pose, and the local normal, light and material it is lit with. */
@@ -72,8 +75,8 @@ interface LightingInput extends PoseParams {
 export function lightingCase(input: LightingInput): CampaignCase {
   const { s, kind, axis, angleDeg, normal } = input
   const world = worldPose({ s, kind, axis, angleDeg })
-  const truth = new G.Vector3(...normal)
-    .applyMatrix3(new G.Matrix3().getNormalMatrix(world))
+  const truth = new Vector3(...normal)
+    .applyMatrix3(new Matrix3().getNormalMatrix(world))
     .normalize()
   return {
     ...input,

@@ -2,6 +2,7 @@
 // real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
 // through the water pass and read at its centre; the encoded pass labels prove the intended path.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import {
   VIEWPORT,
   batisseur,
@@ -29,7 +30,7 @@ import {
 
 function scene(paged: boolean, kase: WaterCase): ScenePreparee {
   const builder = batisseur()
-  const ground = G.basicSurface({ color: new G.Color(GROUND.color), side: G.DOUBLE_SIDE })
+  const ground = G.basicSurface({ color: new Color(GROUND.color), side: G.DOUBLE_SIDE })
   builder.place(ground, 'exact-clusters', 4, [kase.groundX, 0, -GROUND.depth]).name = 'ground'
   const water = waterSurface(kase.transmission, kase.thickness)
   builder.place(water, paged ? 'clustered-blend' : 'shared-blend', 1).name = 'water'

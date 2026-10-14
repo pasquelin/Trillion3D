@@ -2,6 +2,11 @@
 // that describes it, and the face-on camera. Nothing names a bench scene — the engine
 // only sees passes and materials, as for any imported scene.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
+import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import type { EngineContext, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
@@ -18,10 +23,9 @@ import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culli
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
-
 /** An indexed square of half-side `half` in the plane `z = 0`, its two triangles already bounded. */
-export function square(half: number): G.Geometry {
-  const geometry = new G.Geometry()
+export function square(half: number): Geometry {
+  const geometry = new Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-half, -half, 0, half, -half, 0, half, half, 0, -half, half, 0], 3),
@@ -36,11 +40,11 @@ export function square(half: number): G.Geometry {
  *  compiler writes (`manifestCulling`). `place` adds a square of half-side `half` (`square`, or a
  *  lit plane's `geometry`) wearing `surface`, at `position`, turned by `turn`, drawn in `pass`. */
 export function batisseur() {
-  const source = new G.Group(),
+  const source = new Group(),
     indices = new Map<string, Uint32Array>(),
-    associations = new Map<G.Object3D, { meshes?: number; primitives?: number }>(),
+    associations = new Map<Object3D, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
-    geometries: G.Geometry[] = [],
+    geometries: Geometry[] = [],
     materials: PageSurface[] = []
   const builder = {
     source,
@@ -59,7 +63,7 @@ export function batisseur() {
       builder.add(mesh, pass, half)
       return mesh
     },
-    add(mesh: G.HostMesh, pass: string, half: number) {
+    add(mesh: HostMesh, pass: string, half: number) {
       const rank = primitives.length,
         radius = half * Math.SQRT2
       const pages: Page[] = [0, 1].map((id) => ({
@@ -130,11 +134,11 @@ export function batisseur() {
 export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>
 
 /** A host-library matrix, column-major, ready for `setTransform`. */
-export const toApiMatrix = (matrix: G.Matrix4): Float32Array => new Float32Array(matrix.elements)
+export const toApiMatrix = (matrix: Matrix4): Float32Array => new Float32Array(matrix.elements)
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
-export function cameraFace(x = 0): G.Camera {
+export function cameraFace(x = 0): Camera {
   const camera = G.perspectiveCamera(55, 1, 0.1, 100)
   camera.position.set(x, 0, 3)
   camera.lookAt(x, 0, 0)

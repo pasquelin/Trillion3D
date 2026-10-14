@@ -7,6 +7,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
+import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
+import { Matrix3 } from '../../../packages/sdk-core/src/world/math/matrix3.ts'
 import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
 import {
   coneContextFor,
@@ -35,7 +41,7 @@ const MIN = [-1e6, -1e6, -1e6],
 
 /** The trigger case: the scale, the triangles' cone, and a camera that sees their face. */
 function triggerCase() {
-  const world = new G.Matrix4().makeScale(1e-8, 1e-6, 1e-6)
+  const world = new Matrix4().makeScale(1e-8, 1e-6, 1e-6)
   const camera = G.perspectiveCamera(60, 1, 0.1, 100)
   camera.position.set(6, 0, -9)
   camera.lookAt(0, 0, -0.5)
@@ -47,7 +53,7 @@ function triggerCase() {
  *  (its eye the origin), as the frame carries it to the GPU. */
 function coneCases(
   name: string,
-  world: G.Matrix4,
+  world: Matrix4,
   camera: ReturnType<typeof G.perspectiveCamera>,
   page: { min: number[]; max: number[] },
   cone: NormalCone,
@@ -72,11 +78,11 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
   const triangles = INDICES.length / 3
   // What the camera sees, from the world vertices: the face toward it, large, in the frustum.
   const corners = [0, 1, 2].map((i) =>
-    new G.Vector3().fromArray(POSITIONS, i * 3).applyMatrix4(world),
+    new Vector3().fromArray(POSITIONS, i * 3).applyMatrix4(world),
   )
-  const normal = new G.Vector3()
+  const normal = new Vector3()
     .subVectors(corners[1], corners[0])
-    .cross(new G.Vector3().subVectors(corners[2], corners[0]))
+    .cross(new Vector3().subVectors(corners[2], corners[0]))
     .normalize()
   const facing = normal.dot(camera.position.clone().sub(corners[0]).normalize())
   const ndc = corners.map((v) => project(v.clone(), camera))
@@ -90,7 +96,7 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
     false,
     'CPU: the cone must not reject a visible face',
   )
-  const box = new G.Box3(new G.Vector3(...MIN), new G.Vector3(...MAX)).applyMatrix4(world)
+  const box = new Box3(new Vector3(...MIN), new Vector3(...MAX)).applyMatrix4(world)
   const material = surfaceOf(G.basicSurface({ side: G.FRONT_SIDE }))
   for (const cones of [true, false]) {
     const page = {
@@ -122,14 +128,14 @@ test('every cut keeps a visible face under a small non-uniform scale', async () 
 
 test('the GPU still rejects a conformal cluster back to the camera', async () => {
   const cone: NormalCone = { axis: [0, 0, 1], angle: Math.PI / 6 }
-  const world = new G.Matrix4().compose(
-    new G.Vector3(2, -1, 3),
-    new G.Quaternion().setFromEuler(new G.Euler(0.3, -0.5, 0.2)),
-    new G.Vector3(50, 50, 50),
+  const world = new Matrix4().compose(
+    new Vector3(2, -1, 3),
+    new Quaternion().setFromEuler(new Euler(0.3, -0.5, 0.2)),
+    new Vector3(50, 50, 50),
   )
-  const centre = new G.Vector3().applyMatrix4(world)
-  const axis = new G.Vector3(...cone.axis)
-    .applyMatrix3(new G.Matrix3().getNormalMatrix(world))
+  const centre = new Vector3().applyMatrix4(world)
+  const axis = new Vector3(...cone.axis)
+    .applyMatrix3(new Matrix3().getNormalMatrix(world))
     .normalize()
   // The camera behind the face, on its axis.
   const camera = G.perspectiveCamera(55, 1, 0.1, 100000)

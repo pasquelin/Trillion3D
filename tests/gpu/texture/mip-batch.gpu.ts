@@ -14,7 +14,8 @@ test('chains reduced together equal each reduced alone, and again on its held gr
     resolve(import.meta.dirname, 'mipBatchPage.ts'),
     'mipBatchPage',
   )) as typeof import('./mipBatchPage.ts')
-  const cases = page.chainCases()
+  const { chainCases } = await import('./pageMipsPage.ts')
+  const cases = chainCases()
   const { adapter, results, errors } = await runOnDawn((all) => page.run(all), cases)
   assert.deepEqual(errors, [], `WebGPU errors on ${adapter}`)
   results.forEach(({ batched, alone, again }, n) => {

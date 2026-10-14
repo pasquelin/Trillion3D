@@ -3,6 +3,7 @@
 // without temporal accumulation: still, under a camera pan, then after a move of the tile. Nothing
 // internal is read: `setTransform` on one side, read-back pixels and `frameHeld` on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import {
   VIEWPORT,
@@ -66,7 +67,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
     if (!backend.setTransform) throw new Error('the backend has no setTransform')
     backend.setTransform(
       'tile',
-      toApiMatrix(new G.Matrix4().makeRotationZ(TURN).setPosition(0.5, 0, 0)),
+      toApiMatrix(new Matrix4().makeRotationZ(TURN).setPosition(0.5, 0, 0)),
     )
     const moved = await untilHeld(backend, camera)
     const capabilities = own.find((e) => e.phase === 'render-capabilities')?.context ?? null

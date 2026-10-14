@@ -4,6 +4,7 @@
 // through the contract a partition calls (`sizeRows`, `placement/growth.ts`). The reference is a
 // session opened on the three placements at once.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import {
   placedMesh,
   sizeRows,
@@ -44,7 +45,7 @@ function place(
   for (const x of places) {
     const row = takeRow(mesh),
       rows = link.placements!
-    rows.matrices.set(new G.Matrix4().makeTranslation(x, 0, 0).elements, row * 16)
+    rows.matrices.set(new Matrix4().makeTranslation(x, 0, 0).elements, row * 16)
     rows.live[row] = 1
     update?.(rows, row, row)
   }

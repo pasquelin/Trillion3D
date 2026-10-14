@@ -3,7 +3,10 @@
 // the way the witness draws — sRGB output, the filmic curve once a light exists, identity without
 // one — and each renderer presents into its own canvas.
 import type * as THREE from 'three/webgpu'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import { directionalLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { cameraFace, releaseScene } from '../kit/sharedSceneProof.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { fixtures } from './materialFixtures.ts'
@@ -28,8 +31,8 @@ interface Sides {
   device: GPUDevice
   renderer: THREE.WebGPURenderer
   canvas: HTMLCanvasElement
-  camera: G.Camera
-  sun: G.Object3D
+  camera: Camera
+  sun: Object3D
   stores: { none: SceneLightStore; sun: SceneLightStore }
 }
 
@@ -127,7 +130,7 @@ export async function run() {
   const { renderer, canvas } = await witnessRenderer()
   // The sun of the witness and the stores of the engine, built once: a light added to another
   // scene moves there, and an unlit fixture reads the empty store.
-  const sun = G.directionalLight(new G.Color(SUN.color), SUN.intensity)
+  const sun = directionalLight(new Color(SUN.color), SUN.intensity)
   const [dx, dy, dz] = SUN.direction ?? [0, -1, 0]
   sun.position.set(-dx, -dy, -dz)
   sun.target.position.set(0, 0, 0)

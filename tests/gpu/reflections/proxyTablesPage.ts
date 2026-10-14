@@ -6,7 +6,7 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { reporting } from '../kit/reportingDevice.ts'
 import { NEW_WALK, oldWalk, walk } from './proxyWalks.ts'
 import { engineWalk } from './proxyEngineWalk.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
@@ -53,10 +53,7 @@ export async function compareWalks({
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
   const { device, errors } = gpu
-  const copies = [
-    new G.Matrix4().makeTranslation(-4, 0, -4),
-    new G.Matrix4().makeTranslation(-8, 1, 0),
-  ]
+  const copies = [new Matrix4().makeTranslation(-4, 0, -4), new Matrix4().makeTranslation(-8, 1, 0)]
   const scene = world(count, seed, { copies })
   // The proxy's buffer: the header's fields at their words (`RUNTIME_HEADER`), then its words.
   const words = new Uint32Array(RUNTIME_HEADER_WORDS + scene.header.words.length)

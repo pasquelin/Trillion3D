@@ -4,9 +4,6 @@ import type { ViewInfo } from './textureRules.ts'
 
 import { checkStageLimits, limitOf } from './limitRules.ts'
 
-export { checkView } from './textureRules.ts'
-export { stageBindingCounts } from './limitRules.ts'
-
 /**
  * The binding rules a device validates when a layout, a group or a pipeline layout is made, as the
  * kit's devices check them (`validation.ts`): a storage texture's format is one WebGPU stores to,

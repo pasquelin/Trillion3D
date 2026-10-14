@@ -1,7 +1,8 @@
 // Reading a rendered frame back: pixels, the frame-held wait, and the pixel counts the engine
 // proofs share; two images are compared by `compareImages`. Split from `sharedSceneProof.ts`
 // (scene construction and mounting) to keep each file under the line gate.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
 import { VIEWPORT, cameraFace, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
@@ -17,7 +18,7 @@ import { clamp } from '../../../packages/math/src/scalar/reals.ts'
  *  publishes the per-stage counters. */
 export async function image(
   backend: Engine,
-  camera: G.Camera,
+  camera: Camera,
 ): Promise<{ pixels: Uint8Array; metrics: ReturnType<Engine['metrics']> }> {
   await animationFrame()
   backend.render(camera)
@@ -39,7 +40,7 @@ const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
  *  wait. */
 export async function untilHeld(
   backend: Engine,
-  camera: G.Camera,
+  camera: Camera,
   onFrame?: (frame: Awaited<ReturnType<typeof image>>) => void,
 ): Promise<{ rendered: number[] | undefined; held: number[] | null; count: number }> {
   let rendered: number[] | undefined,
@@ -78,13 +79,13 @@ export function redCount(pixels: Uint8Array | number[]): number {
   return n
 }
 
-const point = new G.Vector3()
+const point = new Vector3()
 
 /** RGB read where world point `(x, y, z)` projects in an image of `viewport`, clamped to it.
  *  Bottom-left origin, like `capture`. */
 export function colorAt(
   pixels: Uint8Array,
-  camera: G.Camera,
+  camera: Camera,
   x: number,
   y: number,
   z = 0,

@@ -1,5 +1,6 @@
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import { MANIFEST_BINARY_HEADER_WORDS } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import {
   columnElements,
   type Counts,
@@ -19,10 +20,7 @@ export function manifestBinaryRanges(counts: Counts) {
     format.ColumnName,
     { offset: number; length: number }
   >
-  let offset = alignUp(
-    (format.MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2) * 4,
-    8,
-  )
+  let offset = alignUp((MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2) * 4, 8)
   for (const name of format.COLUMN_NAMES) {
     const length = columnBytes(name, counts)
     ranges[name] = { offset, length }

@@ -1,7 +1,8 @@
 // Page of the transparent-transform proof: the real WebGPU engine (`webgpuPagesEngine`), a real
 // device, a real reread image. No internal state is inspected — the public `setTransform` call on
 // one side, pixels and public counters on the other.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { release, toApiMatrix } from '../kit/sharedSceneProof.ts'
 import { colorAt, isRed, image } from '../kit/sceneImageProof.ts'
@@ -11,7 +12,7 @@ import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale product yields it, and the
  *  leaning tile covers a corner a straight tile does not. */
 const shear = (x: number, factor: number) =>
-  toApiMatrix(new G.Matrix4().set(1, factor, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
+  toApiMatrix(new Matrix4().set(1, factor, 0, x, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
 
 /** The three probes, in world units: left, right, and the top-right corner only a sheared tile
  *  covers. */
@@ -24,7 +25,7 @@ const PROBES: [number, number][] = [
 /** A named reading: where the red sits, and what the counters say of the blend. */
 function reading(
   name: string,
-  camera: G.Camera,
+  camera: Camera,
   pixels: Uint8Array,
   metrics: ReturnType<Engine['metrics']>,
 ) {

@@ -1,12 +1,13 @@
 // The images of the material fixtures (`materialFixtures.ts`), drawn in the page on a canvas and
 // handed to both engines as the same host texture.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 import type { ColorSpace } from '../../../packages/sdk-core/src/world/constants/index.ts'
 
 /** How a map is read beyond its pixels: the host texture's fields, written over the canvas one. */
 type MapOptions = Partial<
-  Pick<G.Texture, 'colorSpace' | 'magFilter' | 'minFilter' | 'wrapS' | 'wrapT' | 'anisotropy'>
+  Pick<Texture, 'colorSpace' | 'magFilter' | 'minFilter' | 'wrapS' | 'wrapT' | 'anisotropy'>
 > & { repeat?: number }
 
 /** A `size`² canvas `draw` paints, as a host texture both engines read the same way: unflipped,
@@ -15,7 +16,7 @@ function canvasMap(
   size: number,
   draw: (ctx: CanvasRenderingContext2D) => void,
   { repeat, ...options }: MapOptions = {},
-): G.Texture {
+): Texture {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
   draw(canvas.getContext('2d')!)
@@ -44,7 +45,7 @@ const QUADRANT_AT = [
 export function texture(
   texels: [number, number, number, number][],
   colorSpace: ColorSpace = 'none',
-): G.Texture {
+): Texture {
   return canvasMap(
     2,
     (ctx) =>

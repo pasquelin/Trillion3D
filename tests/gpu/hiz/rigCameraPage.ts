@@ -4,7 +4,7 @@
 // from the matrices the frame sends it, so what is left to prove is the rig resolution: two frames
 // per pose — the one after the move and the one that does not move —, each compared byte for
 // byte to a fresh engine placed at once at the same world pose.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
@@ -55,7 +55,7 @@ interface RigStep {
 export function runRigCamera() {
   // The camera's one local pose, set once: the rig carries the whole move.
   const camera = cameraFace(0),
-    rig = new G.Group()
+    rig = new Group()
   rig.add(camera)
   return onOccluderScene<RigStep>(
     { stageProfile: true },

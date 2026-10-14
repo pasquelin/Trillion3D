@@ -5,7 +5,7 @@
 // (`readCameraWorld`, `depthConvention.ts`). The image must stay identical pixel for pixel, and the
 // held image stay held: nothing is left to recompute when the host declares its convention.
 import { WebGPUCoordinateSystem } from 'three'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
 import { image, redCount } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
@@ -49,7 +49,7 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
     // Tilted about y, the tile's corners leave the z = 0 plane: at near 2.8, one passes in front
     // of the camera's near plane rather than behind it.
     if (!backend.setTransform) throw new Error('the backend has no setTransform')
-    backend.setTransform(TILE, new Float32Array(new G.Matrix4().makeRotationY(0.9).elements))
+    backend.setTransform(TILE, new Float32Array(new Matrix4().makeRotationY(0.9).elements))
     const own = await under('own')
     const webgpu = await under('webgpu', WebGPUCoordinateSystem)
     const back = await under('back')

@@ -2,13 +2,14 @@
 // parked offscreen. Measured by `bench/dawn/waterCost.ts` (`waterCostPage.ts`), bounded by
 // `packages/sdk-browser/src/webgpu/water/rectWgsl.test.ts`.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { batisseur } from '../kit/sharedSceneProof.ts'
-import { BACKGROUND, GROUND, waterSurface } from './waterPassCases.ts'
+import { GROUND, waterSurface } from './waterPassCases.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
-export { BACKGROUND }
 export const SIZE: [number, number] = [1280, 720]
 const DISTANCE = 3
 const MOTION_PIXELS = 8
@@ -43,7 +44,7 @@ export function waterCostScene(fraction: number, enabled: boolean) {
     -GROUND.depth,
     10,
     10,
-    G.basicSurface({ color: new G.Color(GROUND.color), side: G.DOUBLE_SIDE }),
+    G.basicSurface({ color: new Color(GROUND.color), side: G.DOUBLE_SIDE }),
     'exact-clusters',
   )
   // Displaced backdrop patches also exercise refraction outside the tile's projected bounds.
@@ -76,7 +77,7 @@ export function waterCostCamera() {
 }
 
 /** The motion translates eight screen pixels, without rotating or changing projected scale. */
-export function poseWaterCost(camera: G.Camera, frame: number, moving: boolean) {
+export function poseWaterCost(camera: Camera, frame: number, moving: boolean) {
   const offsetPixels = moving ? MOTION_PIXELS * Math.sin((frame * TAU) / 60) : 0
   const x = (offsetPixels / SIZE[0]) * 2 * HALF_X
   camera.position.set(x, 0, DISTANCE)

@@ -7,8 +7,6 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { readLevels } from './pageMipsPage.ts'
 import type { ChainCase } from './pageMipsReference.ts'
 
-export { chainCases } from './pageMipsPage.ts'
-
 /** Each case's levels reduced in one batch with all the others, then alone, then alone again. */
 export async function run(cases: ChainCase[]) {
   const gpu = await openGpuDevice()

@@ -3,7 +3,12 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.
 import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { EVICTION_BURST } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import {
+  EVICTION_BURST,
+  evictionWord,
+  SELECTION_HEADER_WORDS,
+  levelCountsWord,
+} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import {
   sortStaged,
@@ -55,9 +60,9 @@ export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
         now,
         cap: EVICTION_BURST,
       })
-      out[L.evictionWord(listCap)] = queue.length
-      out[L.evictionWord(listCap) + 1] = old
-      out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS)
+      out[evictionWord(listCap)] = queue.length
+      out[evictionWord(listCap) + 1] = old
+      out.set(queue, evictionWord(listCap) + SELECTION_HEADER_WORDS)
     },
   }
 }
@@ -71,9 +76,9 @@ export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>,
   const staged = Array.from({ length: count }, (_, s) =>
     stagedRequest(ints[at + 2 * s], ints[at + 2 * s + 1]),
   )
-  ints.set(sortStaged(staged).map(stagedPage), L.SELECTION_HEADER_WORDS)
+  ints.set(sortStaged(staged).map(stagedPage), SELECTION_HEADER_WORDS)
   // Each admission bucket's count of the camera's requests (`levelCountsWord`).
   const counts = new Uint32Array(ADMISSION_BUCKETS)
   for (const word of staged) counts[(stagedRank(word) - REQUEST_AHEAD) >> ADMISSION_ERROR_BITS]++
-  ints.set(counts, L.levelCountsWord(listCap))
+  ints.set(counts, levelCountsWord(listCap))
 }

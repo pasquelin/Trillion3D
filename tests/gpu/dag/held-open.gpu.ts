@@ -5,7 +5,7 @@
 // same, and the CPU model's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { packed } from '../../../packages/sdk-browser/src/gpu/dag/selectionHelpers.fixture.ts'
 import {
@@ -23,7 +23,7 @@ test('a table of open counts too small for them cuts as one that holds them all,
   const [root] = packed(dagFixture()).roots
   const roots = Array.from({ length: 50 }, (_, w) => ({
     ...root,
-    world: new G.Matrix4().setPosition((w % 10) * 5 - 25, 0, -Math.floor(w / 10) * 5),
+    world: new Matrix4().setPosition((w % 10) * 5 - 25, 0, -Math.floor(w / 10) * 5),
   }))
   const uniforms = cameraSelectionUniforms(engineCamera(frontCamera(30)), 1, [1280, 720])
   const pack = () =>

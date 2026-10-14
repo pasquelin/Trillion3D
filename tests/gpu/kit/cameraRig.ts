@@ -1,6 +1,9 @@
 // Host rig of the "parented camera" reproductions: a camera child of a group that belongs to no
 // prepared scene. The engine only updates its scene; that parent, only the host touches.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 
 /**
  * Parent poses frame after frame: still, moved +5 in X, then rotated, then elsewhere; the fifth
@@ -17,9 +20,9 @@ export const POSES_PARENT = [
 
 /** A pose of the parented rig: `poseRig` only ever reads these three fields. */
 export type PoseParent = { x: number; z: number; ry: number }
-export type Rig = { parent: G.Group; camera: G.Camera }
+export type Rig = { parent: Group; camera: Camera }
 
-const configure = (camera: G.Camera, fov: number, aspect: number): G.Camera => {
+const configure = (camera: Camera, fov: number, aspect: number): Camera => {
   camera.fov = fov
   camera.aspect = aspect
   camera.near = 0.1
@@ -30,7 +33,7 @@ const configure = (camera: G.Camera, fov: number, aspect: number): G.Camera => {
 
 /** The camera is posed locally, never looked at a point: no parent is read. */
 export function creeRig(fov = 55, aspect = 16 / 9): Rig {
-  const parent = new G.Group()
+  const parent = new Group()
   const camera = configure(G.perspectiveCamera(), fov, aspect)
   camera.position.set(0.3, 0.2, 5)
   camera.rotation.set(-0.02, 0.04, 0)
@@ -39,7 +42,7 @@ export function creeRig(fov = 55, aspect = 16 / 9): Rig {
 }
 
 /** Poses the parent. `host`: the host also updates its rig before the frame, as it should. */
-export function poseRig(rig: Rig, pose: PoseParent, host: boolean): G.Camera {
+export function poseRig(rig: Rig, pose: PoseParent, host: boolean): Camera {
   rig.parent.position.set(pose.x, 0, pose.z)
   rig.parent.rotation.y = pose.ry
   if (host) rig.parent.updateMatrixWorld(true)
@@ -58,11 +61,11 @@ export function flattenedCamera(
   fov = 55,
   aspect = 16 / 9,
   plate = configure(G.perspectiveCamera(), fov, aspect),
-): G.Camera {
+): Camera {
   const twin = creeRig(fov, aspect)
   poseRig(twin, pose, true)
   twin.camera.matrixWorld.decompose(plate.position, plate.quaternion, plate.scale)
-  plate.position.copy(new G.Vector3().setFromMatrixPosition(twin.camera.matrixWorld))
+  plate.position.copy(new Vector3().setFromMatrixPosition(twin.camera.matrixWorld))
   plate.matrixAutoUpdate = false
   plate.matrix.copy(twin.camera.matrixWorld)
   plate.updateMatrixWorld(true)
@@ -70,5 +73,5 @@ export function flattenedCamera(
 }
 
 /** A point in normalised device coordinates: seen from `camera`, then projected by it. */
-export const project = (point: G.Vector3, camera: G.Camera) =>
+export const project = (point: Vector3, camera: Camera) =>
   point.applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix)

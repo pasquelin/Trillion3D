@@ -14,17 +14,6 @@ import { fakeBuffers } from './fakeBuffers.ts'
 import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 
-export {
-  BACKEND,
-  dispatchedEntries,
-  replayWrites,
-  written,
-  writtenBytes,
-  type FakeBuffer,
-  type FakeDeviceOptions,
-  type FakeWrite,
-} from './fakeRecords.ts'
-
 /**
  * THE GPU DEVICE OF THE TESTS, in Node, as WebGPU writes one (`asWebgpuDevice`: an event target,
  * error scopes, loss, `this` checks, validation). Every creation, write, command, bundle and

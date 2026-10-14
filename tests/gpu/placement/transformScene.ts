@@ -2,6 +2,8 @@
 // named `tile` under a `pivot` node. The engine tells the tile apart only by its declared pass and
 // its material.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import {
   batisseur,
   cameraFace,
@@ -18,7 +20,7 @@ export const TILE = 'tile',
   PIVOT = 'pivot'
 
 /** A world matrix for `setTransform`: a pure translation along `x`. */
-export const translation = (x: number) => toApiMatrix(new G.Matrix4().makeTranslation(x, 0, 0))
+export const translation = (x: number) => toApiMatrix(new Matrix4().makeTranslation(x, 0, 0))
 
 /** `paged` chooses the tile's pass: `clustered-blend` sends it through the DAG pages,
  *  `shared-blend` through the unpaged path. */
@@ -31,7 +33,7 @@ export function transformScene(paged: boolean): ScenePreparee {
     G.basicSurface({ color: 0xff2020, transparent: true, opacity: 0.85, side: G.DOUBLE_SIDE }),
   )
   tile.name = TILE
-  const pivot = new G.Group()
+  const pivot = new Group()
   pivot.name = PIVOT
   pivot.add(tile)
   builder.source.add(pivot)

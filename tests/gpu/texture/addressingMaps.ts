@@ -3,6 +3,7 @@
 // nibbles (`visibility/wrapModes.test.ts`) both read this material: one thing to read again when
 // the modes change.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import type { WrapMode } from '../../../packages/sdk-core/src/texture/contract.ts'
 import { textureBytes } from './addressingCases.ts'
 import {
@@ -51,7 +52,7 @@ export const UV = AXIS.flatMap((t) => [
 export function mixedMaterial() {
   const material = G.standardSurface({ alphaTest: 0.5 })
   for (const { slot, wrapS, wrapT } of MAPS)
-    material[slot] = Object.assign(new G.Texture(), { wrapS, wrapT })
+    material[slot] = Object.assign(new Texture(), { wrapS, wrapT })
   return material
 }
 
@@ -60,6 +61,6 @@ export function mixedMaterial() {
 export function mixedNibbles() {
   const material = mixedMaterial()
   return MAPS.map(
-    ({ slot }) => (samplingWords(material[slot] as G.Texture)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
+    ({ slot }) => (samplingWords(material[slot] as Texture)[0] >>> SAMPLE_WRAP_SHIFT) & 15,
   )
 }

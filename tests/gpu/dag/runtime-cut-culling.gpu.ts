@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { cutDrawnTriangles } from '../../../packages/sdk-browser/src/world/page/runtimeCut.ts'
 import { cullingNodes } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
@@ -48,7 +49,7 @@ async function cutRoot(side: number): Promise<DagRoot> {
   }))
   const culling = cullingNodes(cut.culling, pages.length)
   assert.ok(culling, 'the cut carries its hierarchy')
-  return { world: new G.Matrix4(), pages, culling } as unknown as DagRoot
+  return { world: new Matrix4(), pages, culling } as unknown as DagRoot
 }
 
 test('a run-time cut tests the pages a view reaches, not all of them, whatever the mesh size', async () => {

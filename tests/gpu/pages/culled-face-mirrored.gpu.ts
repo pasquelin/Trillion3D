@@ -14,6 +14,7 @@
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { rasterVisibility } from '../../../bench/oracles/browser/cpu-image/raster.ts'
 import { coneDecision, rawOrientation, view, type Case } from '../math/inverseTransposeCases.ts'
@@ -25,7 +26,7 @@ const FRONT = surfaceOf(G.basicSurface({ side: G.FRONT_SIDE }))
 
 /** Whether the CPU raster draws the case, as a visibility page placed by its one root. */
 function cpuDraws(lit: Case) {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(lit.positions, 3))
   const page = {
     array: new Uint32Array(lit.indices),

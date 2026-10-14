@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import {
   scenePages,
@@ -34,7 +35,7 @@ test('pruning drops candidates and keeps exactly the same pages', async () => {
     const roots = sceneRoots(
       pages,
       Array.from({ length: 4 }, (_, w) =>
-        new G.Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
+        new Matrix4().makeTranslation((w % 2) * 6.5 - 3.25, Math.floor(w / 2) * 6.5 - 3.25, 0),
       ),
     )
     const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots)

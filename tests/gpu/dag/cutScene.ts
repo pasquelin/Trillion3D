@@ -1,7 +1,7 @@
 // The scene the cut's whole-frame proofs mount (`cut-snapshot`, `frame-ranges`):
 // a pyramid of levels placed once per pose, seen from the front, and the command count an encode
 // opens.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
@@ -19,7 +19,7 @@ import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gp
  * page is resident, through the engine's own upload — both bit sets of the cut rule and each
  * node's open count: ready bits alone would make the drawn cut depend on the descent.
  */
-export function sceneView(leaves: number, levels: number, poses = [new G.Matrix4()]) {
+export function sceneView(leaves: number, levels: number, poses = [new Matrix4()]) {
   const roots = sceneRoots(scenePages(leaves, levels), poses)
   const packed = packDagSelection(roots)
   const resident = ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1))

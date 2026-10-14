@@ -1,6 +1,7 @@
 // What the water proofs render and what they predict from: shared by the pages, which build the
 // scenes, and the test, which computes the expected centre of each from the same numbers.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { colorBytesPerSample } from '../../../packages/sdk-browser/src/gpu/core/colorBytes.fixture.ts'
 import { waterSurfaceTargets } from '../../../packages/sdk-browser/src/webgpu/water/surfaceTargets.ts'
 
@@ -23,7 +24,7 @@ export const WATER: WaterMaterial = {
  *  volume declared with the rest, so the record holds it in the engine's words. */
 export const waterSurface = (transmission: number, thickness: number) =>
   G.physicalSurface({
-    color: new G.Color(WATER.tint),
+    color: new Color(WATER.tint),
     transparent: true,
     opacity: 1,
     side: G.DOUBLE_SIDE,
@@ -32,7 +33,7 @@ export const waterSurface = (transmission: number, thickness: number) =>
     ior: WATER.ior,
     thickness,
     attenuationDistance: WATER.attenuationDistance,
-    attenuationColor: new G.Color(WATER.attenuationColor),
+    attenuationColor: new Color(WATER.attenuationColor),
   })
 
 /** The colour bytes per sample the water surface stage writes, from its own targets: the limit

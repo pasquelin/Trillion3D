@@ -5,7 +5,7 @@
 // writer (`placement/treeLeaves.ts`) is stood in for by the leaves it writes (`leafBoxes`, proven
 // word for word against it), sent once, whole.
 import { walk, NEW_WALK } from './proxyWalks.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { cubeCut } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
@@ -28,7 +28,7 @@ function cubeField(count: number) {
     cut = cubeCut(),
     worn = { primitive: { runtimeProxy: cut }, surface: surface(1) }
   const places = Array.from({ length: count }, (_, w) =>
-    new G.Matrix4().makeTranslation((w % side) * 3, 0, Math.floor(w / side) * 3),
+    new Matrix4().makeTranslation((w % side) * 3, 0, Math.floor(w / side) * 3),
   )
   const roots = sceneRoots(scenePages(16, 2), places)
   roots.forEach((root) => (root.proxy = worn))

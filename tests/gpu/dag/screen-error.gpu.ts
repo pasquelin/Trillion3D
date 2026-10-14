@@ -7,6 +7,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
 import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts'
 import { clusterPixels } from '../../../packages/sdk-browser/src/page/selection/frame.fixture.ts'
@@ -43,12 +47,12 @@ function sample() {
   camera.position.set(3, -2, 7)
   camera.lookAt(-4, 1, -20)
   camera.updateMatrixWorld(true)
-  const world = new G.Matrix4().compose(
-    new G.Vector3(1, 2, -3),
-    new G.Quaternion().setFromEuler(new G.Euler(0.4, -0.9, 0.3)),
-    new G.Vector3(0.6, 1.7, 1.1),
+  const world = new Matrix4().compose(
+    new Vector3(1, 2, -3),
+    new Quaternion().setFromEuler(new Euler(0.4, -0.9, 0.3)),
+    new Vector3(0.6, 1.7, 1.1),
   )
-  const modelView = new G.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world)
+  const modelView = new Matrix4().multiplyMatrices(camera.matrixWorldInverse, world)
   const view = modelView.elements,
     toObject = modelView.clone().invert()
   const stretch = maxStretch(world.elements) * maxStretch(camera.matrixWorldInverse.elements)
@@ -62,7 +66,7 @@ function sample() {
     const margin = radius * stretch * 2.2
     const depth =
       chance() < 0.25 ? camera.near + margin + camera.near * log(1e-4, 1) : margin + log(0.2, 400)
-    const v = new G.Vector3(
+    const v = new Vector3(
       (between(-1, 1) * depth) / p00,
       (between(-1, 1) * depth) / p11,
       -depth,

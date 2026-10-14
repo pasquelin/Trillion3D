@@ -1,7 +1,8 @@
-// The unit tests' manifest encoder, for shapes of their own with no native compile; the magic, the
-// version and the header words are the compiler's (`contracts/writtenFormats.ts`).
+// The unit tests' manifest encoder, no native compile; its header words are the compiler's.
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import * as written from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
+import * as pageFlags from '../../../packages/sdk-core/src/manifest/binaryPageWords.ts'
 import {
   checkedDepthLayer,
   countManifest,
@@ -26,17 +27,14 @@ export function encodeManifestBinary(
   const counts = countManifest(manifest)
   const { ranges, bytes } = manifestBinaryRanges(counts)
   const buffer = new ArrayBuffer(bytes)
-  const header = new Uint32Array(
-    buffer,
-    0,
-    format.MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2,
-  )
-  header[0] = format.MANIFEST_BINARY_MAGIC
-  header[1] = format.MANIFEST_BINARY_VERSION
+  const headerWords = written.MANIFEST_BINARY_HEADER_WORDS
+  const header = new Uint32Array(buffer, 0, headerWords + format.COLUMN_NAMES.length * 2)
+  header[0] = written.MANIFEST_BINARY_MAGIC
+  header[1] = written.MANIFEST_BINARY_VERSION
   header[2] = format.COLUMN_NAMES.length
   format.COLUMN_NAMES.forEach((name, index) => {
-    header[format.MANIFEST_BINARY_HEADER_WORDS + index * 2] = ranges[name].offset
-    header[format.MANIFEST_BINARY_HEADER_WORDS + index * 2 + 1] = ranges[name].length
+    header[headerWords + index * 2] = ranges[name].offset
+    header[headerWords + index * 2 + 1] = ranges[name].length
   })
   const view = <T>(name: format.ColumnName, make: (b: ArrayBuffer, o: number, n: number) => T): T =>
     make(
@@ -84,36 +82,36 @@ export function encodeManifestBinary(
       bounds.set(item.max, page * 6 + 3)
       let flags = 0
       if (item.role !== undefined) {
-        flags |= format.FLAG_ROLE
-        if (item.role === 'coarse') flags |= format.FLAG_COARSE
+        flags |= pageFlags.FLAG_ROLE
+        if (item.role === 'coarse') flags |= pageFlags.FLAG_COARSE
       }
       if (typeof item.lodError === 'number' && Array.isArray(item.sphere)) {
-        flags |= format.FLAG_CLUSTER_ERROR
+        flags |= pageFlags.FLAG_CLUSTER_ERROR
         error[page * 2] = item.lodError
         sphere.set(item.sphere, page * 4)
       }
       if (item.parentError !== undefined) {
-        flags |= format.FLAG_PARENT_ERROR
+        flags |= pageFlags.FLAG_PARENT_ERROR
         if (typeof item.parentError === 'number') {
-          flags |= format.FLAG_PARENT_ERROR_FINITE
+          flags |= pageFlags.FLAG_PARENT_ERROR_FINITE
           error[page * 2 + 1] = item.parentError
         }
       }
       if (item.parentSphere !== undefined) {
-        flags |= format.FLAG_PARENT_SPHERE
+        flags |= pageFlags.FLAG_PARENT_SPHERE
         if (item.parentSphere !== null) {
-          flags |= format.FLAG_PARENT_SPHERE_SET
+          flags |= pageFlags.FLAG_PARENT_SPHERE_SET
           parentSphere.set(item.parentSphere, page * 4)
         }
       }
       ints[page * 8 + format.INT_ID] = item.id
       ints[page * 8 + format.INT_LEVEL] = item.level ?? -1
       if (item.group !== undefined) {
-        flags |= format.FLAG_GROUP
+        flags |= pageFlags.FLAG_GROUP
         ints[page * 8 + format.INT_GROUP] = item.group ?? -1
       } else ints[page * 8 + format.INT_GROUP] = -1
       if (item.source !== undefined) {
-        flags |= format.FLAG_SOURCE
+        flags |= pageFlags.FLAG_SOURCE
         ints[page * 8 + format.INT_SOURCE] = item.source ?? -1
       } else ints[page * 8 + format.INT_SOURCE] = -1
       ints[page * 8 + format.INT_STREAM] = item.stream ?? -1
@@ -124,7 +122,7 @@ export function encodeManifestBinary(
       expectTemplate(descriptor.pageUrl, item.url, item.sha256)
       writeSha(pageSha, page, item.sha256)
       if (item.geometry) {
-        flags |= format.FLAG_GEOMETRY
+        flags |= pageFlags.FLAG_GEOMETRY
         expectTemplate(descriptor.geometryUrl, item.geometry.url, item.geometry.sha256)
         writeSha(geometrySha, page, item.geometry.sha256)
         geometryWords[page * 5] = item.geometry.bytes
@@ -184,7 +182,7 @@ export function encodeManifestBinary(
       ...top,
       binary: {
         ...descriptor,
-        version: format.MANIFEST_BINARY_VERSION,
+        version: written.MANIFEST_BINARY_VERSION,
         sha256: '',
         bytes,
         texturePreviews: counts.previews,

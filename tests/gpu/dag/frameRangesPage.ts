@@ -5,7 +5,7 @@
 // record table (`cutTables.ts`), bound once whatever the binding, the stage two storage buffers.
 // Only the capacity the cut reads changes; the device underneath is the same.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
 import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
 import {
@@ -29,7 +29,7 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
  *  words of the half behind and a third of the half before. */
 const PLACEMENTS = 600
 const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
-  new G.Matrix4().makeTranslation(
+  new Matrix4().makeTranslation(
     ((k % 10) - 4.5) * 4,
     0,
     k < PLACEMENTS / 2 ? 60 : -Math.floor((k - PLACEMENTS / 2) / 10) * 6,

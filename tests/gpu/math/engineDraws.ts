@@ -6,7 +6,8 @@
 // the engine swaps the culled face when the determinant is negative, and under a mirror calls
 // "facing" the face the engine does not draw. A cluster the cut drops is a DEFECT only when the
 // engine draws fragments of it; otherwise the drop is right.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
 import { runWindingRaster } from '../pages/windingRaster.ts'
 import { camera, type Case, type rawOrientation } from './inverseTransposeCases.ts'
@@ -32,7 +33,7 @@ function rasterLoad(cases: Case[]) {
     cases.forEach((lit, i) => {
       if (windingOf(lit) !== winding) return
       for (const vertex of lit.indices) {
-        const p = new G.Vector3().fromArray(lit.positions, vertex * 3).applyMatrix4(lit.world)
+        const p = new Vector3().fromArray(lit.positions, vertex * 3).applyMatrix4(lit.world)
         vertices.push(p.x, p.y, p.z, i)
       }
     })
@@ -40,8 +41,7 @@ function rasterLoad(cases: Case[]) {
   }
   camera.updateWorldMatrix(true, false)
   const viewProj = [
-    ...new G.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-      .elements,
+    ...new Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
   ]
   const [width, height] = RASTER_VIEWPORT
   return { vertices, ranges, viewProj, width, height, slots: cases.length }

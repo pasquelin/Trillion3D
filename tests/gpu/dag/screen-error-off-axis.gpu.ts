@@ -7,6 +7,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts'
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
@@ -25,11 +28,11 @@ const FINE = [8, 0, -10, 8.01, 0, -10, 8, 0.01, -10]
 
 /** A vertex list's box, and its sphere: the box centre, out to the farthest vertex. */
 function boundsOf(vertices: number[]) {
-  const box = new G.Box3().setFromArray(vertices)
-  const c = box.getCenter(new G.Vector3())
+  const box = new Box3().setFromArray(vertices)
+  const c = box.getCenter(new Vector3())
   let r = 0
   for (let i = 0; i < vertices.length; i += 3)
-    r = Math.max(r, c.distanceTo(new G.Vector3().fromArray(vertices, i)))
+    r = Math.max(r, c.distanceTo(new Vector3().fromArray(vertices, i)))
   return { sphere: [c.x, c.y, c.z, r], min: box.min.toArray(), max: box.max.toArray() }
 }
 
@@ -45,14 +48,14 @@ function offAxisCase() {
   // The true screen displacement, in pixels, between the fine and coarse vertices.
   let displacement = 0
   for (let i = 0; i < FINE.length; i += 3) {
-    const a = project(new G.Vector3().fromArray(FINE, i), camera)
-    const b = project(new G.Vector3().fromArray(coarse, i), camera)
+    const a = project(new Vector3().fromArray(FINE, i), camera)
+    const b = project(new Vector3().fromArray(coarse, i), camera)
     displacement = Math.max(
       displacement,
       Math.hypot((b.x - a.x) * VIEWPORT[0], (b.y - a.y) * VIEWPORT[1]) / 2,
     )
   }
-  const world = new G.Matrix4(),
+  const world = new Matrix4(),
     material = surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE }))
   const page = (id: number, box: typeof fineBox, lodError: number, parent: number | null) => ({
     id,

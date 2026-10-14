@@ -4,7 +4,8 @@
 // whose depth differs from the surface stage's by 2⁻¹⁸ (thirty-two units in the last place of a
 // single): the surface stage compares no depth, so the card must come out textured all the same.
 import { lend } from '../../../packages/sdk-browser/src/impostor/borrowed.ts'
-import * as lent from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
+import { impostorLent } from '../../../packages/sdk-browser/src/webgpu/impostor/lent.ts'
+import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import {
   cardPipelines,
   prepareImpostorPipelines,
@@ -73,7 +74,7 @@ async function drawCards(
       view: depth.createView(),
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
-      depthClearValue: lent.DEPTH_CLEAR,
+      depthClearValue: DEPTH_CLEAR,
     },
   })
   visual.setPipeline(pipes.visPipeline(true))
@@ -130,7 +131,7 @@ const linear = (byte: number) => srgbToLinear(byte / 255)
 
 export function runCardId() {
   return runOnDevice(async (device, events, result) => {
-    lend(lent)
+    lend(impostorLent)
     const ok = await prepareImpostorPipelines(device, (phase, error) =>
       events.push({ phase, context: { reason: String(error) } }),
     )

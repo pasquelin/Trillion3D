@@ -5,6 +5,7 @@
 // geometry, its maps and its material go through the engine's page rows, atlases, resolve or blend
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
@@ -14,7 +15,6 @@ import { compilePages } from './compiledPages.ts'
 import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 
 const camera = cameraFace()
-
 /** A one-texel data map of `rgba` (0–255), linear, as a glTF stores its data maps. */
 export const texel = (...rgba: number[]) => G.dataTexture(new Uint8Array(rgba), 1, 1)
 
@@ -24,7 +24,7 @@ export const texel = (...rgba: number[]) => G.dataTexture(new Uint8Array(rgba), 
 export type PlaneOptions = {
   blend?: boolean
   trace?: boolean
-  geometry?: G.Geometry
+  geometry?: Geometry
   compiled?: boolean
   sceneLights?: ReturnType<typeof createSceneLightStore>
 }
