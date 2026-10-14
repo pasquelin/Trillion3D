@@ -17,7 +17,7 @@ import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { blendVerdictCpu } from './verdict.fixture.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
-import { FLUSH, ROUNDING_GAMMA } from '../water/precision.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
 import type { BlendGpuItem } from './state.ts'
 
 const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE, -Number.MAX_VALUE, 5e-324]

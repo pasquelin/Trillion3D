@@ -6,7 +6,8 @@ import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
 import { dBoxTransform } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
-import { FLUSH, ROUND, ROUNDING_GAMMA } from './precision.ts'
+import { ROUND } from './precision.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
 
 /** The doubles the water rectangle computes with, the CPU's constants bit for bit
  *  (`precision.ts`). */
