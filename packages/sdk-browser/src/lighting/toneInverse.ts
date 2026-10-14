@@ -9,17 +9,15 @@
  */
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { applyMatrix3Vector3 } from '../../../math/src/vector/vector.ts'
 import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
 
 export type V3 = [number, number, number]
 const R = TONE_MAPPING_RANK
 
-/** `m · v`, `m` column-major 3×3. */
-const apply3 = (m: readonly number[], v: readonly number[]): V3 => [
-  m[0] * v[0] + m[3] * v[1] + m[6] * v[2],
-  m[1] * v[0] + m[4] * v[1] + m[7] * v[2],
-  m[2] * v[0] + m[5] * v[1] + m[8] * v[2],
-]
+/** `m · v`, `m` column-major 3×3 (`applyMatrix3Vector3`), into a new triple. */
+const times3 = (m: readonly number[], v: readonly number[]) =>
+  applyMatrix3Vector3<V3>([0, 0, 0], m, v[0], v[1], v[2])
 export const each = (v: readonly number[], f: (x: number, k: number) => number): V3 => [
   f(v[0], 0),
   f(v[1], 1),
@@ -31,14 +29,14 @@ const AGX_STEPS = 52
 
 function acesInverse(y: readonly number[]) {
   const F = ACES.fit
-  const v = each(apply3(ACES.outputInverse, y), (x) => clamp(x, -F.b / F.f, 1))
+  const v = each(times3(ACES.outputInverse, y), (x) => clamp(x, -F.b / F.f, 1))
   const c = each(v, (x) => {
     const a = 1 - x * F.d,
       b = F.a - x * F.e,
       q = F.b + x * F.f
     return (Math.sqrt(b * b + 4 * a * q) - b) / (2 * a)
   })
-  return each(apply3(ACES.inputInverse, c), (x) => Math.max(ACES.exposureScale * x, 0))
+  return each(times3(ACES.inputInverse, c), (x) => Math.max(ACES.exposureScale * x, 0))
 }
 
 function cineonInverse(y: readonly number[]) {
@@ -56,8 +54,8 @@ function cineonInverse(y: readonly number[]) {
 const agxContrast = (c: number) => AGX.contrastFit.reduce((sum, k) => sum * c + k, 0)
 
 function agxInverse(y: readonly number[]) {
-  const narrow = each(apply3(AGX.toNarrowInverse, y), (x) => Math.pow(Math.max(x, 0), 1 / GAMMA))
-  const w = apply3(AGX.outsetInverse, narrow)
+  const narrow = each(times3(AGX.toNarrowInverse, y), (x) => Math.pow(Math.max(x, 0), 1 / GAMMA))
+  const w = times3(AGX.outsetInverse, narrow)
   const e = each(w, (target) => {
     let low = 0,
       high = 1
@@ -69,7 +67,7 @@ function agxInverse(y: readonly number[]) {
     return AGX.low + 0.5 * (low + high) * (AGX.high - AGX.low)
   })
   return each(
-    apply3(
+    times3(
       AGX.intoLogInverse,
       each(e, (x) => 2 ** x),
     ),
