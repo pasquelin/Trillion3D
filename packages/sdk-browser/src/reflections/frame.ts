@@ -33,7 +33,6 @@ const frame: ReflectionFrame = {
   viewProjection: viewProj,
   size: [0, 0],
   depthDrawn: false,
-  proxyError: 0,
 }
 /** The radiance a ray that leaves the scene reaches, computed again when the background, the
  *  exposure or the curve moves. */
@@ -44,10 +43,9 @@ const radianceInputs = {} as RadianceInputs
 /** Stages the image's reflection view (`ScreenReflection.writeView`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
 function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
-  const { gpu, run, bounce } = rt
+  const { gpu, run } = rt
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
-  frame.proxyError = bounce.proxy?.errorMetres ?? 0
   const { environment } = rt.lights.store
   frame.surroundings = surroundings(
     run.clearColor,

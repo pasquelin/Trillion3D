@@ -44,7 +44,6 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     viewProjection,
     size: [400, 300] as const,
     depthDrawn: true,
-    proxyError: 0.1,
   }
   write(frame, held, 8)
   const { words, bits: traced } = sent
@@ -67,10 +66,6 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   )
   assert.equal(words[REFLECTION_VIEW_AT.radianceViewProj], 2, "the held image's view-projection")
   assert.equal(traced[REFLECTION_VIEW_AT.traced], 0, 'no held image: the environment alone')
-  assert.deepEqual(
-    [...words.slice(REFLECTION_VIEW_AT.proxy, REFLECTION_VIEW_AT.proxy + 1)],
-    [Math.fround(0.1)],
-  )
   assert.ok(sent.last <= REFLECTION_VIEW_WORDS, 'the view and no word past it')
   assert.deepEqual(
     [...words.slice(REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)],
@@ -92,11 +87,7 @@ test("the slab follows the projection: a perspective's depth at infinity, an ort
   const slab = (viewProjection: number[], size: readonly [number, number]) => {
     const { device, buffer, held: sent } = viewDevice()
     const held = heldImage()
-    createReflectionViewWriter(device, buffer)(
-      { viewProjection, size, depthDrawn: true, proxyError: 0 },
-      held,
-      1,
-    )
+    createReflectionViewWriter(device, buffer)({ viewProjection, size, depthDrawn: true }, held, 1)
     return [...sent.words.slice(REFLECTION_VIEW_AT.slab, REFLECTION_VIEW_AT.slab + 4)]
   }
   // A finite reversed perspective, near 0.1 and far 100: z = n(f − w) / (w(f − n)) = A + B / w.
@@ -127,7 +118,6 @@ test('a still view with transparents writes its view once: the front pass sets a
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
-    proxyError: 0,
     front: true,
   }
   write(frame, held, 6)
@@ -153,7 +143,6 @@ test('the reflections’ turn and quiet images are the view’s, and a frozen vi
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
-    proxyError: 0,
     turn: 7,
     quiet: 12,
   }

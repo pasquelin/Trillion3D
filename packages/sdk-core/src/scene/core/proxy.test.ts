@@ -75,6 +75,11 @@ test('each mesh comes back with its own triangles, albedo, nodes and grid step',
     assert.deepEqual(Array.from(got.nodeBounds), Array.from(want.nodeBounds))
     assert.deepEqual(Array.from(got.nodeChildren), Array.from(want.nodeChildren))
     assert.equal(got.cellMetres, want.cell)
+    assert.equal(
+      got.errorMetres,
+      descriptor.errorMetres,
+      "the manifest's certified error, the cut's included",
+    )
   })
 })
 

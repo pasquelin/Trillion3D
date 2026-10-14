@@ -36,6 +36,9 @@ export interface RuntimeCutProxy {
   /** Exact bounds of each wide node. */ nodeBounds: Float32Array<ArrayBuffer>
   /** The four children of each node. */ nodeChildren: Uint32Array<ArrayBuffer>
   /** The grid step the mesh was snapped to, in the mesh's units. */ cellMetres: number
+  /** A compiled mesh's: the error its manifest certifies, in metres — the cut's and the simplification's at
+   *  the largest scale (`SceneProxyDescriptor.errorMetres`) —, the least distance a ray leaves its surfaces
+   *  by. None on a run-time cut, whose grid step is all its error. */ errorMetres?: number
   /** Present on a mesh that deforms: what poses it (`CutDeformation`). */ deform?: CutDeformation
 }
 

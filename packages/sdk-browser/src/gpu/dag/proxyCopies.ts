@@ -52,7 +52,7 @@ export function createProxyCopies(state: ProxyState) {
         copyMatrix4(held.copyWorlds, world, k * RUNTIME_WORLD_WORDS)
         moved = true
       }
-      noteError(cut.cellMetres, world, 0)
+      noteError(cut, world, 0)
     })
     if (!moved || !held.copies.length || !(arena.buffer || columns.placing)) return
     const made = arena.made()

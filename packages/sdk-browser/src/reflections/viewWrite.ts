@@ -12,8 +12,6 @@ export type ReflectionFrame = {
   size: readonly [number, number]
   /** Whether the depth pyramid holds this image's whole depth. */
   depthDrawn: boolean
-  /** The resident proxy's certified error, in metres: zero without a proxy. */
-  proxyError: number
   /** Whether this image's trace answers the transparents' front surface (`frontLayer.ts`). */
   front?: boolean
   /** The reflections' turn and the images drawn since the last change (`ReflectionView.temporal`). */
@@ -29,7 +27,7 @@ export type ReflectionFrame = {
  * surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced, the resident proxy's error, whether the trace answers the transparents' front
+ * is traced, whether the trace answers the transparents' front
  * surface, the reflections' turn and quiet images, and the surroundings. The words that differ from
  * those it sent go up (`writeChanged`): a frozen view writes nothing — its turn held, its quiet count
  * capped —, transparents or not. Nothing is allocated by a call.
@@ -50,7 +48,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     staged[REFLECTION_VIEW_AT.radiance + 2] = levels - 1
     staged.set(screenSlab(m, height), REFLECTION_VIEW_AT.slab)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
-    staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0
     temporal[1] = frame.quiet ?? 0

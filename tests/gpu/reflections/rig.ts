@@ -129,7 +129,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           viewProjection: frame.viewProjection,
           size: frame.size,
           depthDrawn: true,
-          proxyError: 0,
           surroundings,
         },
         reflection.radiance.held,

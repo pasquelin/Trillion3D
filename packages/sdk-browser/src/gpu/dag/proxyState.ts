@@ -115,9 +115,13 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
   const live = () => packed.live?.worlds ?? packed.worldSources.length
   const boxes = createProxyBoxes(packed, slots, live)
 
-  /** The error of a proxy at a pose: the distance a ray leaves a surface off its normal. */
-  function noteError(cell: number, m: ArrayLike<number>, at: number) {
-    const world = cell * CELL_ERROR_FACTOR * longestColumn(m, at)
+  /** The error of `cut`'s proxy at a pose: the distance a ray leaves a surface off its normal — its
+   *  grid's at the pose's scale, at least the error a compiled mesh's manifest certifies. */
+  function noteError(cut: RuntimeCutProxy, m: ArrayLike<number>, at: number) {
+    const world = Math.max(
+      cut.cellMetres * CELL_ERROR_FACTOR * longestColumn(m, at),
+      cut.errorMetres ?? 0,
+    )
     if (world > held.error) {
       held.error = world
       held.dirty = true
@@ -150,7 +154,7 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     resolved[at + INSTANCE.triangle] = copy?.triangle ?? placed.triangle
     resolved[at + INSTANCE.surface] = arena.surfaceSlot(proxy.surface, tintOf(cut))
     resolved[at + INSTANCE.mark] = markOf(w, packed.mark[w] ?? 0)
-    noteError(cut.cellMetres, packed.worlds, w * 16)
+    noteError(cut, packed.worlds, w * 16)
   }
 
   /** Placements `[from, to)` written: what they wear, parked ones none until they are taken back. */

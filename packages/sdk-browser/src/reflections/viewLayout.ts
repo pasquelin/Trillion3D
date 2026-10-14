@@ -17,8 +17,6 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    (`w`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
  *    depth and the radiance pyramid an earlier image of this view);
- *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
- *    off its normal;
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
  *    `frontLayer.ts`);
  *  - `temporal`, the reflections' turn (`x`: the image's rank in the picks of a 2×2 block and the
@@ -35,7 +33,6 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
   ['traced', 'vec4u'],
-  ['proxy', 'vec4f'],
   ['front', 'vec4u'],
   ['temporal', 'vec4u'],
   ['surroundings', 'vec4f'],

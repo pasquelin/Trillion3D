@@ -167,6 +167,7 @@ export function decodeSceneProxy(
       ) as Float32Array<ArrayBuffer>,
       nodeChildren: children as Uint32Array<ArrayBuffer>,
       cellMetres: cells[mesh * TABLE_WORDS + 2],
+      errorMetres: descriptor.errorMetres,
     })
     triangleAt += count
     nodeAt += nodeCount
