@@ -44,9 +44,8 @@ export function createRowMapGpu(
   make: BufferMaker,
 ) {
   let buffer: GPUBuffer | undefined,
-    slots = -1,
-    /** The tables' word views and where each goes, made with the tables in `whole`: a frame's
-     *  slots are sent through them, nothing allocated. */
+    /** The tables' word views and where each goes, made with the tables in `whole` — a new table
+     *  is a new array —: a frame's slots are sent through them, nothing allocated. */
     keys: Int32Array | undefined,
     sources: readonly RangeSource[] = []
   const target = (offset: number, data: ArrayBuffer, from: number, size: number) =>
@@ -66,7 +65,6 @@ export function createRowMapGpu(
     if (n)
       for (const { data, targetBase } of sources)
         device.queue.writeBuffer(buffer, targetBase * 4, data)
-    slots = n
     journal.rebuilt = false
     journal.slots.clear()
     return buffer !== held
@@ -74,7 +72,7 @@ export function createRowMapGpu(
   return {
     /** Sends what the map wrote since the last call; true when the buffer was made anew. */
     upload() {
-      if (journal.rebuilt || keys !== map.keys || slots !== map.keys.length) return whole()
+      if (journal.rebuilt || keys !== map.keys) return whole()
       if (!journal.slots.count) return false
       const sorted = journal.slots.take()
       for (const source of sources) writeRanges(target, sorted, sorted.length, source)
