@@ -28,18 +28,13 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     size: 32,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const worldParams = device.createBuffer({
-    label: 'Trillion3D compose world params',
-    size: 16,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
   return {
     locals,
     parentOf,
     parents: undefined as GPUBuffer | undefined,
-    /** The roots pass's parameters (`passParams`); the worlds pass's one block. */
+    /** The roots pass's parameters and the worlds pass's (`passParams`). */
     rootParams: passParams('Trillion3D compose params'),
-    worldParams,
+    worldParams: passParams('Trillion3D compose world params'),
     noMotion,
     previous,
     motionMode,
@@ -60,7 +55,7 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
       parentOf.destroy()
       this.parents?.destroy()
       this.rootParams.buffer?.destroy()
-      worldParams.destroy()
+      this.worldParams.buffer?.destroy()
       noMotion.destroy()
       previous.destroy()
       motionMode.destroy()
@@ -73,7 +68,7 @@ export type ComposeGpu = ReturnType<typeof createComposeGpu>
 
 /** A pass's parameters — the roots it runs over, how many roots its list holds, whether it runs
  *  over every root —, one uniform block sent when one of them moved: a frame that runs under the
- *  same lists sends none. The composition's roots pass, the root boxes pass (`rootBoxes.ts`) and
+ *  same lists sends none. The composition's worlds and roots passes, the root boxes pass (`rootBoxes.ts`) and
  *  the tree's leaves (`treeLeaves.ts`) keep theirs so. */
 export const passParams = (label: string) => ({
   label,

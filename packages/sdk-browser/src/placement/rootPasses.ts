@@ -9,7 +9,7 @@
  */
 import type { RootsOnGpu } from '../gpu/dag/runtimeOps.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { COMPOSED, ENCODED, encodeComposedRoots } from './gpuComposeEncode.ts'
+import { COMPOSED, encodeComposedRoots } from './gpuComposeEncode.ts'
 import { encodeRootBoxes, rootBoxesKernel } from './rootBoxes.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { leafKernel, treeLeaves } from './treeLeaves.ts'
@@ -17,23 +17,25 @@ import { createImagePart } from '../webgpu/pages/render/encoder.ts'
 
 /** Runtime `rt`'s roots brought level on the GPU — the composition's passes first when `compose` —,
  *  their stretches into `frames`, the frame words of the cut they go before, their own command
- *  buffer submitted when it holds a pass: nothing in a frame where nothing moved since the last
- *  time. */
+ *  buffer submitted when it holds a pass: no command buffer in a frame where nothing moved since
+ *  the last time. */
 function writeRoots(rt: WebgpuPagesRuntime, compose: boolean, frames: GPUTextureView | undefined) {
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
   sendRootWorlds(rt, device)
-  // Nothing to compose and no root moved: no command buffer.
-  const moved = rt.rootWorlds!.roots
-  if (!(compose && rt.compose?.parentIds.size) && !moved.whole && !moved.count) return
-  // A part of the image it goes before, timed with it (`createImagePart`); a cut no image follows
-  // (a waiting selection's) times nothing.
-  const encoder = rt.timing.frameEncoder
-    ? createImagePart(rt, device)
-    : device.createCommandEncoder({ label: 'Trillion3D roots' })
+  // Made at the first pass encoded: a frame whose passes all find nothing to write makes none. A
+  // part of the image it goes before, timed with it (`createImagePart`); a cut no image follows (a
+  // waiting selection's) times nothing. Submitted at once, never in the frame's command buffer: a
+  // second cut of the frame rewrites the passes' parameters, and an image dropped would drop the
+  // roots it took.
+  let made: GPUCommandEncoder | undefined
+  const encoder = () =>
+    (made ??= rt.timing.frameEncoder
+      ? createImagePart(rt, device)
+      : device.createCommandEncoder({ label: 'Trillion3D roots' }))
   const done = compose ? encodeComposedRoots(rt, device, encoder) : 0
-  const boxed = encodeRootBoxes(rt, device, encoder, { composed: (done & COMPOSED) !== 0, frames })
-  if (boxed || done & ENCODED) device.queue.submit([encoder.finish()])
+  encodeRootBoxes(rt, device, encoder, { composed: (done & COMPOSED) !== 0, frames })
+  if (made) device.queue.submit([made.finish()])
 }
 
 /** The roots on the GPU of runtime `rt`, as every cut of its session writes them first. */

@@ -93,33 +93,32 @@ function dispatch(
 }
 
 /**
- * The world boxes and stretches of the roots whose world moved, into `encoder`, their stretches into
+ * The world boxes and stretches of the roots whose world moved, into the command buffer `encoder`
+ * makes, their stretches into
  * `frames`, the cut's frame words: the roots a send moved or made — those a cut took in place
  * before they join included (`rootWorlds.ts`) —, or every root, then the composed roots when the
- * compose worlds pass `composed` them anew (a dispatch over every root holds them already). Whether
- * it encoded anything; nothing while the cut or the worlds are not made — the roots wait for the
- * pass, kept in their list.
+ * compose worlds pass `composed` them anew (a dispatch over every root holds them already). Nothing
+ * while the cut or the worlds are not made — the roots wait for the pass, kept in their list.
  */
 export function encodeRootBoxes(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  encoder: GPUCommandEncoder,
+  encoder: () => GPUCommandEncoder,
   { composed, frames }: { composed: boolean; frames: GPUTextureView | undefined },
 ) {
   const held = rt.rootWorlds
-  if (!held?.worlds || !frames) return false
+  if (!held?.worlds || !frames) return
   const listedComposed = composed ? (rt.compose?.rankList.set.count ?? 0) : 0
-  if (!held.roots.whole && !held.roots.count && !listedComposed) return false
+  if (!held.roots.whole && !held.roots.count && !listedComposed) return
   const named = takeMovedRoots(held),
     listed = named ? named.length : held.held
   const gpu = (rt.rootBoxes ??= createRootBoxesGpu(device))
   if (named?.length) sendList(device, gpu, named)
   gpu.frames = frames
-  const pass = encoder.beginComputePass({ label: ROOT_BOXES_PASS })
+  const pass = encoder().beginComputePass({ label: ROOT_BOXES_PASS })
   if (listed) dispatch(rt, device, pass, { g: 0, listed, whole: !named })
   if (named && listedComposed)
     dispatch(rt, device, pass, { g: 1, listed: listedComposed, whole: false })
   pass.end()
   gpu.frames = undefined
-  return true
 }

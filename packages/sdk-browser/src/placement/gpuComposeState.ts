@@ -50,8 +50,7 @@ export function createComposeState(roots: number) {
      *  identity: a roots pass would write nothing new (`decideComposedMotion`). */
     previousCurrent: false,
     motionIdentity: false,
-    /** The frame whose roots pass ran, and whether `previous` was current before it did. */
-    ranFrame: -1,
+    /** Whether `previous` was current before the roots pass last ran. */
     ranCurrent: false,
     /** A parent's world was set since the parents went up. */
     parentsDirty: true,
@@ -75,8 +74,6 @@ export function createComposeState(roots: number) {
      *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
     winding: [] as boolean[],
     packed: new Uint32Array(PACKED_MATRIX_WORDS),
-    /** The worlds pass's parameters (the ranges' passes keep theirs, `rangeParams`). */
-    worldParams: new Uint32Array(4),
     /** Roots linked since the last frame, with the world their motion starts from. */
     seeds: new Map<number, Float32Array<ArrayBuffer>>(),
     /** The temporal pass's decision and eye (`composedMotion.ts`), as the roots pass reads it. */

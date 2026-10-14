@@ -38,9 +38,9 @@ export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
 export const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
   sequentialEntries([
     liveBuffer(
-      () => gpu.worldParams,
+      () => gpu.worldParams.buffer,
       undefined,
-      () => 16,
+      () => PASS_PARAM_BYTES,
     ),
     liveBuffer(() => gpu.locals),
     liveBuffer(() => gpu.parentOf),

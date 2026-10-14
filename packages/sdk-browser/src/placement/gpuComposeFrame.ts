@@ -5,8 +5,8 @@
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { packDoubles, PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
 import { sendList } from './composedRows.ts'
@@ -16,31 +16,17 @@ import { createComposeGpu } from './gpuComposeGpu.ts'
 /** The worlds' and the roots' kernels, once a device, compiled off the thread: asked at a frame's
  *  entry once a parent holds a link (`askComposedPlacements`), the frames held until they landed,
  *  so the frame that composes binds them compiled. */
-export const composeKernels = oncePerDevice((device) => {
-  const kernel = (module: GPUShaderModule, entryPoint = 'main') =>
-    preparedComputePipeline(device, {
-      label: module.label,
-      layout: 'auto',
-      compute: { module, entryPoint },
-    })
-  return {
-    roots: kernel(
-      device.createShaderModule({ label: 'Trillion3D compose roots', code: COMPOSE_ROOTS_WGSL }),
-    ),
-    worlds: kernel(
-      device.createShaderModule({ label: 'Trillion3D compose worlds', code: COMPOSE_WORLDS_WGSL }),
-      COMPOSE_WORLDS_ENTRY,
-    ),
-  }
-})
+export const composeKernels = {
+  roots: autoKernel('Trillion3D compose roots', COMPOSE_ROOTS_WGSL, 'main'),
+  worlds: autoKernel('Trillion3D compose worlds', COMPOSE_WORLDS_WGSL, COMPOSE_WORLDS_ENTRY),
+}
 
 /** Asks the kernels the next frame binds once a parent holds a link
  *  (`../webgpu/frame/framePipelines.ts`); nothing while none does. */
 export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!rt.compose?.parentIds.size) return
-  const kernels = composeKernels(device)
-  kernels.roots.ask()
-  kernels.worlds.ask()
+  composeKernels.roots(device).ask()
+  composeKernels.worlds(device).ask()
 }
 
 /** Parent matrices for this frame, each world in doubles, packed when one was set since they last
@@ -96,19 +82,20 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
     state.rankList,
   )
   const count = state.slots
-  const made = !gpu.parents || gpu.parents.size < count * PACKED_MATRIX_WORDS * 4
-  if (made) {
-    gpu.parents?.destroy()
-    gpu.parents = device.createBuffer({
-      label: 'Trillion3D composed parent worlds',
-      // Twice the parents held: room for those to come before it is made again.
-      size: 2 * count * PACKED_MATRIX_WORDS * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-    state.parentsDirty = true
-  }
+  // Room for the parents to come before it is made again (`sizedBuffer`): what it held is sent
+  // again whole.
+  const held = gpu.parents
+  gpu.parents = sizedBuffer(
+    device,
+    held,
+    count * PACKED_MATRIX_WORDS * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    'Trillion3D composed parent worlds',
+  )
+  const made = gpu.parents !== held
+  if (made) state.parentsDirty = true
   if (writeParents(state))
-    device.queue.writeBuffer(gpu.parents!, 0, state.packed, 0, count * PACKED_MATRIX_WORDS)
+    device.queue.writeBuffer(gpu.parents, 0, state.packed, 0, count * PACKED_MATRIX_WORDS)
   if (state.moving || linked || seeded || made) state.composedAt++
   return gpu
 }
