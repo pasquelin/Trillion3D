@@ -63,16 +63,17 @@ fn rtSurfaceOf(index:u32)->RtSurface{
   (rtProxy.words[base+RT_SURFACE_FLAGS]&RT_SURFACE_BLENDED)!=0u);
 }
 /** The light a hit's surface returns, seen from \`direction\`: its tint lit at the point by the lights
- *  (\`surfaceLit\`), on the face that looks at the ray. */
-fn rtLit(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32)->vec3f{
+ *  (\`surfaceLit\`), on the face that looks at the ray. \`world\`: the linear part of the hit
+ *  placement's world, which the caller read once. */
+fn rtLit(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,world:mat3x3f)->vec3f{
  let n=faceNormal(rtVertex(hit.triangle,0u),rtVertex(hit.triangle,1u),rtVertex(hit.triangle,2u));
- var N=unitOrZero(inverseTranspose3(worldMatrix3(rtWorldOf(hit.placement)),n));
+ var N=unitOrZero(inverseTranspose3(world,n));
  if(dot(N,direction)>0.0){N=-N;}
  return surfaceLit(surface.tint,origin+direction*hit.distance,N,reach);
 }
 /** The radiance a hit brings back: what it emits, and what it is lit to. */
-fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32)->vec3f{
- return surface.emission+rtLit(hit,origin,direction,surface,reach);
+fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,world:mat3x3f)->vec3f{
+ return surface.emission+rtLit(hit,origin,direction,surface,reach,world);
 }
 /**
  * The run-time proxy's answer to a ray of length \`reach\` from \`origin\`: its first surface, and
@@ -100,9 +101,10 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
   let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
   let marked=unpack2x16float(instance[RT_INSTANCE_MARK]>>16u).x;
-  let known=spread/(spread+marked*length(rtWorldOf(hit.placement)[0].xyz));
+  let world=worldMatrix3(rtWorldOf(hit.placement));
+  let known=spread/(spread+marked*length(world[0]));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
-  color+=through*opacity*rtShade(hit,start,direction,surface,reach);
+  color+=through*opacity*rtShade(hit,start,direction,surface,reach,world);
   if(rtLost){return RtRadiance(vec3f(0.0),0.0);}
   through*=1.0-opacity;
   let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
@@ -127,7 +129,7 @@ fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  if(rtSpent()){return vec4f(0.0,0.0,0.0,-1.0);}
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
  let surface=rtSurfaceOf(rtWorldsInstance(hit.placement,0u)[RT_INSTANCE_SURFACE]);
- let lit=rtLit(hit,origin,direction,surface,reach);
+ let lit=rtLit(hit,origin,direction,surface,reach,worldMatrix3(rtWorldOf(hit.placement)));
  if(rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
  return vec4f(lit,hit.distance);
 }
