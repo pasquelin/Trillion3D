@@ -5,15 +5,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closeAlone, closePairs } from './rowCache.fixture.ts'
-import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
-import { createRowUse } from './rowUse.ts'
+import { createRowDemand } from './rowDemand.ts'
+import type { InstanceClosure } from './rowDemandState.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { pageStateOf } from './pageState.fixture.ts'
 
 /** A demand over `pages` instances none of which holds a row. */
 function demandOf(pages: number, closure: () => InstanceClosure = closeAlone) {
   const table = pageStateOf(pages)
-  return createRowDemand(table, createRowUse(1), () => true, closure)
+  return createRowDemand(table, () => true, closure)
 }
 
 const always = () => true,

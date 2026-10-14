@@ -55,7 +55,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | --------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Install order: a page after the pages it depends on | `webgpu/residency/admission.ts`                                               |
 | Past the pool, the requests in the GPU's ranking    | `gpu/dag/request.ts`, `webgpu/residency/requestAdmission.ts`                  |
-| Rows, a cache of what the GPU cut draws and asks    | `webgpu/row/slots.ts`, `webgpu/row/rowDemand.ts`, `webgpu/row/rowUse.ts`      |
+| Rows, a cache of what the GPU cut draws and asks    | `webgpu/row/slots.ts`, `webgpu/row/rowDemand.ts`, `webgpu/row/rowOrder.ts`    |
 | Requests ahead of a moving camera, a lower tier     | `gpu/core/aheadView.ts`, `webgpu/residency/lowerTier.ts`                      |
 | The main thread's share                             | `page/integration/frameBudget.ts`                                             |
 | The eviction queue the GPU cut publishes            | `gpu/dag/evict.ts`, `gpu/dag/poolList.ts`, `webgpu/residency/evictionFeed.ts` |

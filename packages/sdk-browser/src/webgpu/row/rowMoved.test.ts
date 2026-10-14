@@ -4,7 +4,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closeAlone, range, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
-import { createRowUse } from './rowUse.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { pageStateOf } from './pageState.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
@@ -37,7 +36,7 @@ test('a full table whose pages move in the pool keeps them resident, rows at the
 test('the demand asks for a page whose row the cut reads not resident, as for one without', () => {
   const table = pageStateOf(3)
   table.setRowOf(0, 0)
-  const demand = createRowDemand(table, createRowUse(1), () => true, closeAlone)
+  const demand = createRowDemand(table, () => true, closeAlone)
   // Page 0 holds row 0, its record owed; page 1 holds none; page 2 is not asked.
   demand.follow({ pageIds: [0, 1] })
   assert.deepEqual(range(3).map(demand.wanted), [true, true, false])

@@ -1,11 +1,11 @@
-// A readback costs the row demand its lists' marks, never the catalogue: each list — drawn, asked,
+// A readback costs the row demand its request lists' marks, never the catalogue: each — asked,
 // asked ahead — reaches it as a difference of plain ids (`../cut/delta.ts`), and no page record is
-// read, nor any catalogue made over the packed instances, at 10³ as at 10⁵ of them.
+// read, nor any catalogue made over the packed instances, at 10³ as at 10⁵ of them. The drawn list
+// costs it nothing: which rows are in use, the GPU says.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closeAlone } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
-import { createRowUse } from './rowUse.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { pageStateOf } from './pageState.fixture.ts'
 
@@ -48,7 +48,7 @@ test('a readback reads no page record and makes no catalogue, at 10³ and 10⁵ 
   for (const count of [1e3, 1e5]) {
     const { counts } = countedPages(count)
     const table = pageStateOf(count)
-    const demand = createRowDemand(table, createRowUse(count), () => true, closeAlone)
+    const demand = createRowDemand(table, () => true, closeAlone)
     let wanted = 0
     for (const cut of readbacks(count, 24)) {
       demand.follow(cut)
@@ -69,24 +69,46 @@ test('per readback, the row table is read per change, never per id named', () =>
   }
   let rowReads = 0
   const counted = { ...table, rowOf: (page: number) => (rowReads++, table.rowOf(page)) }
-  const demand = createRowDemand(counted, createRowUse(count), () => true, closeAlone)
+  const demand = createRowDemand(counted, () => true, closeAlone)
   let named = 0
   for (const cut of readbacks(count, 24)) {
     demand.follow(cut)
     named += cut.drawablePageIds.length + cut.pageIds.length + cut.aheadPageIds.length
   }
-  // The row table is read for what entered or left the held closure alone, never per id named.
+  // The row table is read for what entered or left the requests' closure alone, never per id named.
   assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
 })
 
 test('the demand holds bytes by the pages it holds, never by the largest: one asked at 10⁹', () => {
   const far = 1e9,
-    demand = createRowDemand(pageStateOf(far + 1), createRowUse(8), () => true, closeAlone)
-  demand.follow({ drawablePageIds: [far, 3], pageIds: [far], aheadPageIds: [far - 1] })
+    demand = createRowDemand(pageStateOf(far + 1), () => true, closeAlone)
+  demand.follow({ pageIds: [far], aheadPageIds: [far - 1] })
   assert.ok(demand.wanted(far), 'the far page is asked for')
-  demand.follow({ drawablePageIds: [3], pageIds: [far - 2], aheadPageIds: [] })
+  demand.follow({ pageIds: [far - 2], aheadPageIds: [] })
   assert.ok(demand.wanted(far - 2) && !demand.wanted(far))
   // A mark per id up to the largest named — the lists' or the demand's flags — would weigh a
   // gigabyte each.
   assert.ok(demand.bytes < 1 << 16, `${demand.bytes} bytes for four pages held`)
+})
+
+test('a drawn list that moves costs the demand no closure step: the GPU says which rows are in use', () => {
+  const count = 1e4,
+    table = pageStateOf(count)
+  let steps = 0
+  const counted = () => {
+    const closure = closeAlone(),
+      apply = closure.apply.bind(closure)
+    closure.apply = (cut) => ((steps += cut.enteredCount + cut.exitedCount), apply(cut))
+    return closure
+  }
+  const demand = createRowDemand(table, () => true, counted)
+  demand.follow({ pageIds: [1, 2] })
+  steps = 0
+  // Readbacks whose drawn lists slide by a hundred ids each, their requests standing.
+  for (let f = 0; f < 12; f++) {
+    const drawn = Array.from({ length: 1000 }, (_, i) => (f * 100 + i) % count)
+    const cut = { pageIds: [1, 2], drawablePageIds: drawn }
+    demand.follow(cut)
+  }
+  assert.equal(steps, 0, `${steps} closure steps for the drawn lists`)
 })

@@ -12,7 +12,6 @@ import type { RowSlots } from './slotOps.ts'
  *  on the GPU's words, a move never shortening its protection. */
 export function closeFreeRows(s: RowSlots) {
   const move = (from: number, to: number) => (
-    s.use.moved(from, to),
     s.words.moved(from, to, s.frame()),
     s.writers.moveRow(from, to)
   )
@@ -27,7 +26,6 @@ export function rebuildRows(s: RowSlots) {
   rows.clearRows()
   s.count = 0
   s.free.count = 0
-  s.use.reset()
   // The pages the GPU's queue names took no row of this table: none is its victim.
   s.order.reset()
   s.writers.state.changed = true

@@ -4,7 +4,6 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
 import type { WebgpuRowState } from './state.ts'
-import type { createRowUse } from './rowUse.ts'
 import type { createRowDemand } from './rowDemand.ts'
 import type { RowWords } from './rowWords.ts'
 import type { RowOrder } from './rowOrder.ts'
@@ -21,7 +20,6 @@ export type RowSlots = {
   free: { rows: Int32Array; count: number }
   /** Arrivals that claim a record and wait their turn, from one image to the next. */
   claims: ReturnType<typeof createWebgpuRowClaims>
-  use: ReturnType<typeof createRowUse>
   /** The rows' use words the GPU stamps (`rowWords.ts`), its queues (`rowOrder.ts`), its clock. */
   words: RowWords
   order: RowOrder
@@ -89,7 +87,6 @@ export function releaseRow(s: RowSlots, page: number) {
   if (row < 0) return false
   rows.setRowOf(page, -1)
   free.rows[free.count++] = row
-  s.use.forget(row)
   s.writers.state.changed = true
   return false
 }
@@ -120,10 +117,6 @@ export function placeRow(s: RowSlots, page: number) {
   // A new occupant: used now when a request took it, the first to go when no cut asked for it.
   if (own < 0) s.words.assign(row, page, asked ? s.frame() : 0)
   else if (asked) s.words.stamp(row, s.frame())
-  // A row a readback's closure holds is in use while it holds it (`rowUse.ts`).
-  if (s.demand.holds(page)) s.use.hold(row)
-  else if (asked) s.use.stamp(row)
-  else if (own < 0) s.use.idle(row)
   setResident(s, page, true)
   return true
 }

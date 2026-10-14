@@ -4,8 +4,7 @@
 import { createWebgpuRowState } from './state.ts'
 import { slotTable } from './pageState.fixture.ts'
 import { createWebgpuRowSync } from './sync.ts'
-import { createRowUse } from './rowUse.ts'
-import type { InstanceClosure } from './rowDemand.ts'
+import type { InstanceClosure } from './rowDemandState.ts'
 import type { IdDelta } from '../cut/delta.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -142,11 +141,17 @@ export function rowCache(instances: number, slots: number) {
     }
   }
   /** One readback adopted: what its cut drew, and what it asks for in its order — the cut's
-   *  stamps and queue first, as the GPU lays them before the host reads its lists. */
-  const readback = (drawn: number[], asked: number[]) => {
-    seeds = [...drawn, ...asked]
+   *  stamps and queue first, as the GPU lays them before the host reads its lists. `cut`, the
+   *  cut's whole lists, which the GPU stamps, when the host adopted only their head (a truncated
+   *  readback): `drawn` and `asked` then. */
+  const readback = (
+    drawn: number[],
+    asked: number[],
+    cut: { drawn: number[]; asked: number[] } = { drawn, asked },
+  ) => {
+    seeds = [...cut.drawn, ...cut.asked]
     gpu(clock, seeds)
-    sync.followCut({ result: { drawablePageIds: drawn, pageIds: asked } })
+    sync.followCut({ result: { pageIds: asked } })
   }
   /** One image: the sync, its time budget lifted, then the frame's GPU cut on the lists in hand. */
   const frame = () => {
@@ -163,16 +168,3 @@ export function rowCache(instances: number, slots: number) {
 
 /** `0, 1, …, count - 1`. */
 export const range = (count: number, from = 0) => Array.from({ length: count }, (_, i) => from + i)
-
-/** Readbacks a row stays in use after the last that named it, read by behaviour: a lone row
- *  stamped once, ticked until a request may take it back. */
-export function rowIdleSpan() {
-  const use = createRowUse(1)
-  use.stamp(0)
-  let span = 0
-  while (use.victim(1) < 0 && span < 1 << 16) {
-    use.tick()
-    span++
-  }
-  return span
-}

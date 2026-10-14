@@ -4,7 +4,8 @@ import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
 import type { WebgpuRowState } from './state.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import { createWebgpuRowSlots } from './slots.ts'
-import type { CutLists, InstanceClosure } from './rowDemand.ts'
+import type { CutLists } from './rowDemand.ts'
+import type { InstanceClosure } from './rowDemandState.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
@@ -78,14 +79,12 @@ export function createWebgpuRowSync(
     slots.apply(bounded ? budget : undefined)
     return true
   }
-  /** A readback a view adopted (`cut`, its identity new per readback): its rows stamped used at the
-   *  frame it was cut at, its requests for instances without a row served at the next sync. */
-  const followCut = (
-    cut: { readonly result: CutLists; readonly uniforms?: { frame?: number } } | null | undefined,
-  ) => {
+  /** A readback a view adopted (`cut`, its identity new per readback): its requests for instances
+   *  without a row served at the next sync. Which rows are in use the GPU says (`rowOrder.ts`). */
+  const followCut = (cut: { readonly result: CutLists } | null | undefined) => {
     if (!cut || cut === followed) return
     followed = cut
-    slots.follow(cut.result, cut.uniforms?.frame)
+    slots.follow(cut.result)
   }
   /** WebgpuRowState the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending
