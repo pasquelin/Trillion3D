@@ -1,3 +1,4 @@
+import type { RecordTexture } from '../../gpu/core/recordTexture.ts'
 import type { Span } from '../../../../math/src/sequence/span.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MaterialSurface } from './materialRecord.ts'
@@ -48,13 +49,16 @@ export type MaterialRecords = {
   lobeSlots: number[]
   lobesHeld: number
   reclaim: FinalizationRegistry<MaterialEntry>
+  /** The records as the host last wrote them: what a write compares to tell a change, and the
+   *  span an upload sends; never sent again when the texture grows. */
   ints: Uint32Array<ArrayBuffer>
   /** Ranks handed out so far (the table's height), the atlas slots' epoch, and the range of
    *  records written since the last upload (`from > to`: none). */
   held: number
   epoch: number
   written: Span
-  texture: GPUTexture | undefined
+  /** The table's record texture, made at the first upload. */
+  records: RecordTexture | undefined
   /** A surface rewritten since the last `follow` changed what its rows or items read beside its
    *  record; the atlas's slots moved since; the surfaces written since (`surfaceJournals`). */
   moved: boolean

@@ -3,14 +3,7 @@ import assert from 'node:assert/strict'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 import { createMaterialTable } from './materialTable.ts'
-import {
-  MATERIAL_RECORD,
-  MATERIAL_RECORD_TEXELS,
-  MATERIAL_RECORD_WORDS,
-  MATERIAL_ROW_RECORDS,
-  MATERIAL_ROW_TEXELS,
-} from './materialLayout.ts'
-import { destroyRetired } from '../../gpu/core/frameRetire.ts'
+import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
@@ -81,27 +74,6 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
   assert.ok(floats[F.attenuation + 2] < -1e18)
 })
 
-test('the table grows by doubling its rows, the old texture retired once the frame is submitted', () => {
-  const { device, textureWrites, textures, destroyed, fences } = fakeDevice()
-  const table = createMaterialTable()
-  const l = layers()
-  table.word(lit(), l)
-  const first = table.upload(device),
-    old = textures.at(-1)!
-  assert.equal(old.height, 1)
-  for (let i = 1; i < MATERIAL_ROW_RECORDS * 2 + 1; i++) table.word(lit(), l)
-  assert.notEqual(table.upload(device), first)
-  // Three rows hold the records, every one sent up again; the texture doubles to four.
-  assert.deepEqual([textures.at(-1)!.height, textures.at(-1)!.width], [4, MATERIAL_ROW_TEXELS])
-  assert.deepEqual(textureWrites.at(-1)!.size, [MATERIAL_ROW_TEXELS, 3])
-  // A pass of this image encoded earlier still binds the old view: its submit comes after.
-  assert.equal(destroyed.includes(old), false, 'not destroyed while the image is encoded')
-  assert.equal(fences(), 0, 'no promise per texture: the frame-end retire list holds it')
-  destroyRetired(device)
-  assert.equal(destroyed.includes(old), true, 'destroyed once the frame is submitted')
-  table.dispose()
-})
-
 test('a surface whose version and atlas held is not written again; a new one is', () => {
   const { device, textureWrites } = fakeDevice()
   const table = createMaterialTable()
@@ -154,8 +126,8 @@ test('an upload sends the span of the records written since, not the whole table
   assert.deepEqual(
     [sent.destination.origin, sent.size],
     [
-      [2 * MATERIAL_RECORD_TEXELS, 0],
-      [2 * MATERIAL_RECORD_TEXELS, 1],
+      [2 * MATERIAL_RECORD_TEXELS, 0, 0],
+      [2 * MATERIAL_RECORD_TEXELS, 1, 1],
     ],
   )
 })

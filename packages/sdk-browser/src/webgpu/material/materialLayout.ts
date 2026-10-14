@@ -1,4 +1,5 @@
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
 
 /**
  * THE MATERIAL RECORD: what every pass reads of a surface, once per surface — the page rows, the
@@ -54,8 +55,16 @@ export const MATERIAL_RECORD = fieldLayout('Material', [
 export const MATERIAL_RECORD_WORDS = MATERIAL_RECORD.words,
   MATERIAL_RECORD_TEXELS = MATERIAL_RECORD_WORDS / 4
 
-/** Records a row of the table texture holds: a row is 2560 texels, within every device's side,
- *  and a record's index splits into its row and column by a shift. */
-export const MATERIAL_ROW_RECORDS = 256
-/** Texels of a row of the table texture. */
-export const MATERIAL_ROW_TEXELS = MATERIAL_ROW_RECORDS * MATERIAL_RECORD_TEXELS
+/**
+ * The table's texture as the engine lays every record table (`../../gpu/core/recordLayout.ts`): a
+ * record's ten texels one field, 256 records a row — 2560 texels, within every device's side, a
+ * record's row and column a shift and a mask —, 8192 rows a layer. Grown on the GPU by copy
+ * (`hold`), never sent again from the host.
+ */
+export const MATERIAL_TABLE: RecordLayout = {
+  label: 'Trillion3D material records',
+  format: 'rgba32uint',
+  fields: { Record: MATERIAL_RECORD_TEXELS },
+  rowShift: 8,
+  layerShift: 13,
+}

@@ -35,7 +35,7 @@ export function shadeLayout(device: GPUDevice) {
       computeBufferEntry(b.shadeCache, 'read-only-storage', fragment),
       // The surfaces' records — a texture, no storage buffer of the eight —, and the lobes target
       // (`physicalWgsl.ts`).
-      computeTextureEntry(b.material, 'uint', '2d', fragment),
+      computeTextureEntry(b.material, 'uint', '2d-array', fragment),
       {
         binding: b.lobes,
         visibility: fragment,

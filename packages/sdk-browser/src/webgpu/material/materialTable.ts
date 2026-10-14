@@ -22,7 +22,8 @@ import type { MaterialEntry, MaterialRecords } from './materialState.ts'
  * one pay nothing for it.
  *
  * A record is written when its surface's version (`surfaceWritten`) or the atlases' slots
- * (`forget`) moved since, the texture only over the records that changed (`materialUpload.ts`).
+ * (`forget`) moved since, the texture only over the records that changed (`materialUpload.ts`),
+ * grown on the GPU.
  * `follow` writes the records of the surfaces written since it last ran, and says whether one of
  * them changed what its rows or items read beside the record (`materialSummary.ts`): only then are
  * they written again. An open world's surfaces come and go: the table holds none of them alive
@@ -35,11 +36,14 @@ export function createMaterialTable() {
     ...{ freed: [], lobesFreed: [], lobeSlots: [], lobesHeld: 0 },
     reclaim: new FinalizationRegistry<MaterialEntry>((entry) => release(p, entry)),
     ints: new Uint32Array(MATERIAL_RECORD_WORDS),
-    ...{ held: 0, epoch: 0, written: { from: Infinity, to: -1 }, texture: undefined },
+    ...{ held: 0, epoch: 0, written: { from: Infinity, to: -1 }, records: undefined },
     ...{ moved: false, forgotten: false, journal: undefined },
   }
   const table = {
-    view: undefined as GPUTextureView | undefined,
+    /** The view the passes bind, none before the first upload: a new one when the table grew. */
+    get view() {
+      return p.records?.view
+    },
     /** The word a row or an item names `mat` by: its record's rank, `MATERIAL_SECOND_UV` set where
      *  its geometry is read as floats and carries a second UV set (`vertUv1`). The record is
      *  written first where the surface's version or the atlases' slots moved since. */
@@ -66,16 +70,16 @@ export function createMaterialTable() {
     },
     /** Whether `upload` has records to send, or no texture yet. */
     get pending() {
-      return p.written.from <= p.written.to || !p.texture
+      return p.written.from <= p.written.to || !p.records
     },
     /** The view the passes bind, its texture made or grown to hold every record, and the records
      *  written since the last upload sent up. */
-    upload: (device: GPUDevice) => uploadMaterials(p, table, device),
+    upload: (device: GPUDevice) => uploadMaterials(p, device),
     /** The device's resources gone: the texture dropped, and the writes no longer followed — the
      *  records of the surfaces read after are written as their versions say. */
     dispose() {
-      p.texture?.destroy()
-      p.texture = table.view = undefined
+      p.records?.destroy()
+      p.records = undefined
       if (p.journal) surfaceJournals.close(p.journal)
       p.journal = undefined
     },

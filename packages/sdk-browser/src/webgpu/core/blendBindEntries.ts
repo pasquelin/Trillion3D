@@ -109,7 +109,7 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   // The surfaces' records (`../material/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.
-  material: ['both', { texture: { sampleType: 'uint' } }],
+  material: ['both', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
 }
 const SINGLES = Object.keys(BLEND_TABLE) as Single[]
 

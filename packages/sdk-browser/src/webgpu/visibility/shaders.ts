@@ -51,7 +51,12 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
     computeBufferEntry(b.instances, 'read-only-storage', GPUShaderStage.VERTEX),
     computeBufferEntry(b.slotOffsets, 'read-only-storage', GPUShaderStage.VERTEX),
     // The surfaces' records: a row's shape in its vertices, its cutout in its fragments.
-    computeTextureEntry(b.material, 'uint', '2d', GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT),
+    computeTextureEntry(
+      b.material,
+      'uint',
+      '2d-array',
+      GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+    ),
   ]
 }
 

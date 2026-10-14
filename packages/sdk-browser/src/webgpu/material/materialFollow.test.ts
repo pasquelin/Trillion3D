@@ -45,8 +45,8 @@ test('a colour edit among 10⁴ rows writes one record of 160 bytes, and no row'
   table.upload(device)
   assert.equal(textureWrites.length, sent + 1)
   const write = textureWrites.at(-1)!
-  assert.deepEqual(write.size, [MATERIAL_RECORD_TEXELS, 1], 'one record: 10 texels, 160 B')
-  assert.deepEqual(write.destination.origin, [37 * MATERIAL_RECORD_TEXELS, 0])
+  assert.deepEqual(write.size, [MATERIAL_RECORD_TEXELS, 1, 1], 'one record: 10 texels, 160 B')
+  assert.deepEqual(write.destination.origin, [37 * MATERIAL_RECORD_TEXELS, 0, 0])
   const floats = new Float32Array(write.data.buffer as ArrayBuffer),
     at = 37 * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.baseColor
   assert.deepEqual([...floats.subarray(at, at + 3)], [0.25, 0.5, 0.75])
@@ -120,7 +120,7 @@ test("a material's variants name its one record: an edit written to each writes 
   }
   assert.equal(table.follow(layers), false)
   table.upload(device)
-  assert.deepEqual(textureWrites.at(-1)!.size, [MATERIAL_RECORD_TEXELS, 1])
+  assert.deepEqual(textureWrites.at(-1)!.size, [MATERIAL_RECORD_TEXELS, 1, 1])
   const floats = new Float32Array(textureWrites.at(-1)!.data.buffer as ArrayBuffer)
   assert.deepEqual(
     [...floats.subarray(0, 3)],

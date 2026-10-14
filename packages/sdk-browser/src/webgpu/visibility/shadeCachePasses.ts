@@ -35,7 +35,7 @@ export async function cachePasses(device: GPUDevice) {
         computeBufferEntry(5, 'uniform', compute),
         computeTextureEntry(6, 'unfilterable-float', '2d-array', compute),
         // The surfaces' records, at the resolve's number (`PIXEL_TRIANGLE_WGSL`).
-        computeTextureEntry(SHADE_BINDINGS.material, 'uint', '2d', compute),
+        computeTextureEntry(SHADE_BINDINGS.material, 'uint', '2d-array', compute),
       ] as GPUBindGroupLayoutEntry[],
     })
     const [rows, triangles] = await Promise.all([
