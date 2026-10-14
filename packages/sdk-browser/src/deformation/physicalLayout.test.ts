@@ -9,6 +9,7 @@ import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFi
 import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
 import { createMaterialTable } from '../webgpu/material/materialTable.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
+import { BLEND_ITEM_SHIPPED } from '../webgpu/blend/itemLayout.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
@@ -76,6 +77,9 @@ test("a transparent item's deformation words are its own, its neighbour's untouc
   )
   const base = BLEND_ITEM_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
-  // `deform`, `deformInput`, `deformOutput`, after the world and the three geometry words.
-  assert.deepEqual([...words.subarray(base + 19, base + 22)], [123, 456, 789])
+  const { at } = BLEND_ITEM_SHIPPED
+  assert.deepEqual(
+    [base + at.deform, base + at.deformInput, base + at.deformOutput].map((i) => words[i]),
+    [123, 456, 789],
+  )
 })
