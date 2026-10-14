@@ -7,17 +7,26 @@
 import { DEG2RAD, TAU } from '../../../packages/math/src/constants.ts'
 import { add, reflect, scale } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
+import { halton } from '../../../packages/math/src/sequence/halton.ts'
 import { GRID, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
 import { crossings, radiance, type Vec } from './runtimeFamilyRays.ts'
 
 /**
- * The lobe's reference samples: ONE, the lobe's centre. The run-time proxy answers a lobe along its centre, one ray;
- * the mean over a rough lobe's directions (importance sampling of the lobe and of the emitters, accumulated in the
- * store) is DEFERRED lobe work, and until it lands the family judges rough floors against the estimator this branch
- * ships. The many-sample lobe is the parameter of `expectedFloor`, kept for that work: the deferred estimator is
- * judged by passing 4096 here.
+ * The lobe's reference samples: the mean of the GGX lobe over this many directions wherever the engine samples
+ * the lobe (`reflectionSampled`, its own shipped rule: a cone wider than a pixel over the screen march), its
+ * images and neighbours averaging it (`sampleWgsl.ts`); one ray, the centre, on a mirror, which the engine reads
+ * along its centre.
  */
-const LOBE_SAMPLES = 1
+const LOBE_SAMPLES = 4096
+/** Whether the engine samples a lobe of width `alpha` (`reflectionSampled`, run as shipped). */
+const { reflectionSampled } = shaderRun<{ reflectionSampled: (alpha: number) => boolean }>(
+  wgslModule(REFLECTION_SAMPLE_WGSL),
+  ['reflectionSampled'],
+  {},
+)
 /** The error the proof declares: relative to the expected value, plus an absolute floor. */
 export const TOLERANCE = { relative: 0.25, absolute: 0.02 }
 const FLOOR_REACH = 30
@@ -86,17 +95,13 @@ export function expectedFloor(
         nov = v[1]
       const alpha = Math.max(rough * rough, 1e-4)
       const total: Rgb = [0, 0, 0]
-      const count = rough < 0.04 ? 1 : lobeSamples
+      const count = reflectionSampled(alpha) ? lobeSamples : 1
       for (let k = 0; k < count; k++) {
         // The half vector of the lobe's D·cosθ, on a Hammersley set.
         const u = (k + 0.5) / count
-        let bits = k,
-          radical = 0,
-          f = 0.5
-        for (; bits; bits >>= 1, f /= 2) radical += (bits & 1) * f
         const cosT = count === 1 ? 1 : Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
           sinT = Math.sqrt(1 - cosT * cosT),
-          phi = TAU * radical
+          phi = TAU * halton(k, 2)
         // The eye's direction mirrored about the half vector: the light's.
         const l = reflect(scale(v, -1), [sinT * Math.cos(phi), cosT, sinT * Math.sin(phi)])
         if (l[1] <= 0) continue
