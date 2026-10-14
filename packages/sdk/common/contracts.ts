@@ -108,6 +108,7 @@ export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
 export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft.ts'
 export {
+  TABLE_FILTERS,
   TABLE_FLAGS,
   TABLE_NUMBERS,
   TABLE_SLOTS,

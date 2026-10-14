@@ -12,24 +12,11 @@
  * - colour maps are sRGB, the rest linear; rows are not flipped;
  * - each is the engine's texture record itself (`Texture`), its transform composed as it is placed.
  */
-import type {
-  TableFilter,
-  TableTextureSlot,
-  TextureFilter,
-} from '../../../../sdk-core/src/index.ts'
+import type { TableTextureSlot } from '../../../../sdk-core/src/index.ts'
+import { TABLE_FILTERS } from '../../../../sdk-core/src/scene/core/tableSurfaces.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-
-/** The compiler's filter words in the engine's: the one table between them, read at load. */
-const FILTERS: Record<TableFilter, TextureFilter> = {
-  nearest: 'nearest',
-  linear: 'linear',
-  'nearest-mip-nearest': 'nearestMipNearest',
-  'linear-mip-nearest': 'linearMipNearest',
-  'nearest-mip-linear': 'nearestMipLinear',
-  'linear-mip-linear': 'linearMipLinear',
-}
 
 /**
  * The textures of `tables` for the images of `document`: `slot` resolves a material's map slot
@@ -73,8 +60,8 @@ export function preparedTextures(
         built.name = declared.name || image.name || ''
         if (!built.name && image.uri !== null && !image.uri.startsWith('data:image/'))
           built.name = image.uri
-        built.magFilter = FILTERS[declared.magFilter]
-        built.minFilter = FILTERS[declared.minFilter]
+        built.magFilter = TABLE_FILTERS[declared.magFilter]
+        built.minFilter = TABLE_FILTERS[declared.minFilter]
         built.wrapS = declared.wrapS
         built.wrapT = declared.wrapT
         ranks.set(built, rank)
