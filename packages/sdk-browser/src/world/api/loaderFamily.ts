@@ -2,6 +2,9 @@ import { checked } from '../../cluster/checked.ts'
 import { decodeRaw, imageElement } from '../../texture/decode.ts'
 import { texture } from '../texture/index.ts'
 
+/** The picture at `url`, fetched and decoded by the engine's one decoder. */
+const rawBitmap = async (url: string) => decodeRaw(await (await checked(url)).blob())
+
 /**
  * The `loader` family: files fetched and turned into what a scene uses. A file is read through
  * the engine's checked fetch (`cluster/checked.ts`), which refuses a failed response by its status;
@@ -20,10 +23,11 @@ export const loader = {
    */
   cubeTexture: async (urls: string[]) => texture.cube(await Promise.all(urls.map(imageElement))),
   /**
-   * Fetches a picture and decodes it into an `ImageBitmap`.
+   * Fetches a picture and decodes it into an `ImageBitmap`, by the engine's one decoder
+   * (`texture/decode.ts`): the pixels the file stores, neither colour-converted nor premultiplied.
    * @param url - Where the picture is.
    */
-  imageBitmap: async (url: string) => createImageBitmap(await (await checked(url)).blob()),
+  imageBitmap: rawBitmap,
   /**
    * Fetches a file as text, bytes or JSON.
    * @param url - Where the file is.
@@ -38,17 +42,16 @@ export const loader = {
         : response.text()
   },
   /**
-   * An image file read as linear RGBA pixels: a data texture. The pixels are those the file
-   * stores, decoded by the engine's one decoder (`texture/decode.ts`), neither colour-converted nor
-   * premultiplied by the decode: a normal or roughness map keeps its numbers.
+   * An image file read as linear RGBA numbers: a data texture. Its picture is the bitmap the
+   * engine's one decoder gives (`imageBitmap`), copied to the GPU as the file stores it — no canvas
+   * between, which would premultiply it and lose the colour of a transparent pixel: a normal,
+   * roughness or packed mask map keeps every number, its alpha too.
    * @param url - Where the picture is.
    */
   async data(url: string) {
-    const bitmap = await decodeRaw(await (await checked(url)).blob())
-    const page = new OffscreenCanvas(bitmap.width, bitmap.height)
-    const context = page.getContext('2d')!
-    context.drawImage(bitmap, 0, 0)
-    const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height)
-    return texture.data(new Uint8Array(data.buffer), bitmap.width, bitmap.height)
+    const map = texture.image(await rawBitmap(url))
+    map.colorSpace = 'linear'
+    map.flipY = false
+    return map
   },
 }
