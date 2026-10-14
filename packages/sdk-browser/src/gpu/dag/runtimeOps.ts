@@ -109,7 +109,7 @@ const rewritten = new Int32Array(1)
 
 /**
  * The placements of `named`, increasing — the ones a call moved —, compared with the worlds last
- * received and those that moved sent, each run to its range, with their exact translations; their
+ * received and those that moved sent, each run to its records, with their exact translations; their
  * stretch is the GPU's, from the world it holds (`../../placement/rootBoxes.ts`): a frame's CPU and
  * upload follow what moved, never the placements' count. Each cut reads a translation at its own eye from the exact one
  * (`shader/worldPoseWgsl.ts`): a translation that alone moved writes its doubles alone. The ranks
@@ -130,7 +130,7 @@ function updateNamedWorlds(run: DagRun, next: Float32Array, all: Int32Array) {
 }
 
 /** The `moved` first placements of `movedScratch`, whose read words moved: their worlds copied
- *  into those held and sent, each run to its range; their count. */
+ *  into those held and sent, each run to its records; their count. */
 function sendMoved(run: DagRun, next: Float32Array, moved: number) {
   const { packed, frames } = run.resources
   for (let i = 0; i < moved; i++) {

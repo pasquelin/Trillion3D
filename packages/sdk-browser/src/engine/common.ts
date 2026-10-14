@@ -59,10 +59,9 @@ export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
 /** The adapter's own limits the session's device asks for, each up to the ceiling beside it: WebGPU
  *  grants the portable defaults otherwise.
  *  - `Infinity`, all the adapter offers: a virtual shadow page pool is as wide as
- *    `maxTextureDimension2D` (`../vsm/resources.ts`), a cut's tables split past one binding bind
- *    each part at once (`gpu/dag/split.ts`), and the water surface stage writes more colour bytes
- *    per sample than the default 32; an adapter below what it needs refuses the pass by name
- *    (`water-pass-refused`).
+ *    `maxTextureDimension2D` (`../vsm/resources.ts`), and the water surface stage writes more
+ *    colour bytes per sample than the default 32; an adapter below what it needs refuses the pass
+ *    by name (`water-pass-refused`).
  *  - A count, the most bindings of that kind one stage of the engine's layouts holds: the device
  *    asks no more than it binds, and a layout that outgrows the count fails its unit test
  *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: WebGPU's
@@ -84,7 +83,8 @@ export const WEBGPU_REQUIRED_LIMITS = {
 } as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>
 /** The WGSL language features every engine program relies on: the targets read by load alone
  *  (subsurface, lobes, shadow mask table) are read-only storage textures, and the placement tree's
- *  refit reads and writes its record table in place, a read-write one (`../gpu/dag/treeRefitWgsl.ts`).
+ *  refit and the cut's kernels read and write a record table in place, a read-write one
+ *  (`../gpu/dag/treeRefitWgsl.ts`, `../gpu/dag/cutTables.ts`).
  *  A browser whose `navigator.gpu.wgslLanguageFeatures` lacks one is refused by name
  *  (`WEBGPU_UNAVAILABLE`). */
 export const WEBGPU_REQUIRED_WGSL_FEATURES = ['readonly_and_readwrite_storage_textures'] as const

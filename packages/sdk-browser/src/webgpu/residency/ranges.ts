@@ -62,7 +62,7 @@ export function coalesceRanges(
  * of its own coalescer (`runs`): `gap` the largest step two neighbours share a run across, `cap` the
  * most runs (none bounds them: every run stays apart), made when asked, once per change. A writer
  * whose runs follow the stride of its records takes them increasing instead (`take`) and coalesces
- * them by their bytes (`../../gpu/dag/split.ts`, `writeRanges`).
+ * them by their bytes (`../../gpu/dag/runWrites.ts`, `writeRanges`).
  *
  * An index is marked by a byte, the marks grown to the largest marked: the indices are those of a
  * table the engine holds, so the marks weigh a byte per entry of it at most, and a mark is one array

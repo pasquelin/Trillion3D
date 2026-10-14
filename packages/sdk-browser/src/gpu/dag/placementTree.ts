@@ -214,8 +214,8 @@ const groupMembers = (tree: PlacementTree, g: number) =>
   clampLowWins(tree.count - g * TREE_SPAN, 0, TREE_SPAN)
 
 /**
- * Writes every tree node into `tree.nodes`: children, kind, the world a range dispatch reads them
- * under (the first), no error to prune by, its box open until the refit fits it. A cell's children
+ * Writes every tree node into `tree.nodes`: children, kind, the world it is read under (the
+ * first), no error to prune by, its box open until the refit fits it. A cell's children
  * are every node of the level below it lays out; a group's, its live members. The list of members
  * drawn whatever the view starts as written whole (`treeTable.ts`).
  */

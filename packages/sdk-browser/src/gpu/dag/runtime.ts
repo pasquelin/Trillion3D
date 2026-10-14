@@ -70,8 +70,6 @@ export function createDagRuntime(
 function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
   const { resources, state, uploadResidency, poolList, mirror, chain } = run
   const { packed, pageCount, frames, buffers, textures } = resources
-  // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
-  // bind one buffer at one offset, whatever the split.
   const live = () => !state.disposed && !state.dead
   // What the programs read the proxy through, made again when its buffer is (`proxy`).
   let proxy: ProxyResources | undefined
@@ -100,7 +98,7 @@ function selectionOver(run: DagRun, roots?: RootsOnGpu): GpuSelection {
       return frames.originBytes + uploadResidency.hostBytes + pool + (mirror?.hostBytes ?? 0)
     },
     // The draw mask, a bit a page in `work` (`shader/compactWgsl.ts`): its readers bind one buffer at
-    // one offset, whatever the split.
+    // one offset.
     maskBuffer: resources.work,
     maskOffset: dagWorkLayout(resources.blockCount).drawMask,
     get pageCount() {
