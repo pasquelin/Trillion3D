@@ -19,7 +19,7 @@ import {
   ROW_RECORD_WORDS,
   SHADE_CACHE_HEADER_WORDS,
   TRIANGLE_WORDS,
-} from '../../visibility/shader/shadeCacheWgsl.ts'
+} from '../../visibility/shader/shadeCacheLayout.ts'
 /** A compute pass that records its dispatches, an indirect one as its buffer's label and offset,
  *  refused where the device would refuse it (`createUsageScope`). The cache is given the pass:
  *  it has no encoder to clear or open a pass with. */

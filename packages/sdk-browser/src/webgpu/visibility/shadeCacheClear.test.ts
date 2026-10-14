@@ -14,9 +14,9 @@ import {
   ROW_RECORD_WORDS,
   SHADE_CACHE_HEADER_WORDS,
   SHADE_CACHE_ROWS_WORD,
-  SHADE_CACHE_SHADER,
   TRIANGLE_WORDS,
-} from '../../visibility/shader/shadeCacheWgsl.ts'
+} from '../../visibility/shader/shadeCacheLayout.ts'
+import { SHADE_CACHE_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const r = lcgRandom(5)

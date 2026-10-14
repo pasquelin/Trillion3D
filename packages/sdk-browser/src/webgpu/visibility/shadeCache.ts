@@ -14,7 +14,7 @@ import {
   SHADE_CACHE_HEADER_WORDS,
   SHADE_CACHE_ROWS_WORD,
   TRIANGLE_WORDS,
-} from '../../visibility/shader/shadeCacheWgsl.ts'
+} from '../../visibility/shader/shadeCacheLayout.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 

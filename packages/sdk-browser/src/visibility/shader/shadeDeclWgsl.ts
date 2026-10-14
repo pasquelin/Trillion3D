@@ -21,7 +21,7 @@ import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts'
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
-import { shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
+import { shadeCacheReadWgsl } from './shadeCacheLayout.ts'
 import { PHYSICAL_RESOLVE_WGSL } from './physicalWgsl.ts'
 
 /**

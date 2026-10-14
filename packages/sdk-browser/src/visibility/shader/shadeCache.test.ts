@@ -12,7 +12,8 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { SHADE_CACHE_SHADER, shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
+import { SHADE_CACHE_SHADER } from './shadeCacheWgsl.ts'
+import { shadeCacheReadWgsl } from './shadeCacheLayout.ts'
 
 type V = number[]
 type Frame = { invT: { adj: V[]; scale: number; regular: boolean }; positive: boolean }

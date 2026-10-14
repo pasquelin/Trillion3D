@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
-import { SHADE_CACHE_HEADER_WORDS } from '../../visibility/shader/shadeCacheWgsl.ts'
+import { SHADE_CACHE_HEADER_WORDS } from '../../visibility/shader/shadeCacheLayout.ts'
 
 test('without the cache no pass runs and the pixels compute their own', async () => {
   Object.assign(globalThis, { location: { search: '?trillion3dShadeNoCache=1' } })
