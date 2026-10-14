@@ -1,6 +1,7 @@
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
-import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
+import { refreshBlendPlan } from './plan.ts'
+import { buildBlendStatics } from './statics.ts'
 import { mountBlendExpand } from './expand.ts'
 import { compileBlendExpand, EXPANSION_REFUSED } from './expandKernels.ts'
 import { validated } from '../../gpu/core/errorScope.ts'

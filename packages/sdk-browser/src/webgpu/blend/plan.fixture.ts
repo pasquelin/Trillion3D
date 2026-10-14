@@ -1,4 +1,5 @@
-import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
+import { planItem, refreshBlendPlan } from './plan.ts'
+import { buildBlendStatics } from './statics.ts'
 import { cpuModel, orderBlendPlanCpu, orderEye, refreshEyeKeys } from './expandCpu.fixture.ts'
 import { RUN_WORDS } from './planLayout.ts'
 import { precedes } from './paintOrder.ts'

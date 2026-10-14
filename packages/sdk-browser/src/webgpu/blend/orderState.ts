@@ -4,7 +4,7 @@ import type { OrderStep } from './orderSteps.ts'
  *  kernels read (`plan.ts`, `order.ts`, `runs.ts`, `keyRecords.ts`): reused from one image to the
  *  next, rebuilt with the plan. */
 export const createBlendOrderState = () => ({
-  /** Static tables of the encoding plan (`plan.ts`). */
+  /** Static tables of the encoding plan (`statics.ts`). */
   drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   /** Seeded entries of each pass — blend, then transmission —, in source order, a double-sided
    *  item's back before its face (`plan.ts`). Like everything that goes per pass, indexed by

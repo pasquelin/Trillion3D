@@ -11,10 +11,8 @@ import {
   type BlendGpuItem,
   type WebgpuBlendState,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/state.ts'
-import {
-  buildBlendStatics,
-  refreshBlendPlan,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
+import { refreshBlendPlan } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
+import { buildBlendStatics } from '../../../../packages/sdk-browser/src/webgpu/blend/statics.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
 import { frustumExcludesBox } from '../../../../packages/sdk-core/src/index.ts'
