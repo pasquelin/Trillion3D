@@ -30,9 +30,6 @@ import { bytesBeside, heldBeside } from './vsmBeside.ts'
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
 
-/** What every reason this module gives the lights for reading no shadow starts with. */
-const UNAVAILABLE = 'virtual shadow maps'
-
 /** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`), the
  *  maps those lights want, and the set asked for them — an overflow regrow's, never asked again as
  *  the set that overflowed. */
