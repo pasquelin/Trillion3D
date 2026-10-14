@@ -50,6 +50,26 @@ export function dagGroupEntries(
   })
 }
 
+/** The cut's tables a pass beside it reads where they lie (`../../../webgpu/rays/rayQueryWgsl.ts`):
+ *  the nodes, the placements' frame words and records, and the placement tree. */
+export type DagReadTables = Record<'nodes' | 'frames' | 'worlds' | 'tree', GPUTextureView>
+
+/** Their declarations, in group 0 at the culling's bindings and under its names: one text the
+ *  culling and a pass beside it both list. */
+export const DAG_READ_TABLES_WGSL = wgslBlock(
+  'DAG_READ_TABLES_WGSL',
+  [
+    nodeTableWgsl('nodes', { group: 0, binding: B.nodes }),
+    worldTableWgsl('worlds', { group: 0, binding: B.worlds, access: 'read' }),
+    frameTableWgsl('frames', { group: 0, binding: B.frames, access: 'read' }),
+    treeTableWgsl('tree', { group: 0, binding: B.tree, access: 'read' }),
+  ],
+  '',
+)
+
+/** Their entries, each at the binding the culling reads it at (`DAG_READ_TABLES_WGSL`). */
+export const dagReadEntries = (tables: DagReadTables) => namedEntries(DAG_BINDING, tables)
+
 /** Group-0 declarations of the selection kernel; its table accessors are `DAG_ACCESS_WGSL`. */
 export const DAG_BINDINGS_WGSL = wgslBlock(
   'DAG_BINDINGS_WGSL',
@@ -60,17 +80,14 @@ export const DAG_BINDINGS_WGSL = wgslBlock(
       binding: B.clusters,
       access: 'read',
     }),
-    nodeTableWgsl('nodes', { group: 0, binding: B.nodes }),
+    DAG_READ_TABLES_WGSL,
     recordTextureWgsl(FLAG_TABLE, {
       name: 'flags',
       group: 0,
       binding: B.flags,
       access: 'read_write',
     }),
-    worldTableWgsl('worlds', { group: 0, binding: B.worlds, access: 'read' }),
-    frameTableWgsl('frames', { group: 0, binding: B.frames, access: 'read' }),
     recordTextureWgsl(COLD_TABLE, { name: 'cold', group: 0, binding: B.cold, access: 'read' }),
-    treeTableWgsl('tree', { group: 0, binding: B.tree, access: 'read' }),
   ],
   `@group(0) @binding(${B.views}) var<uniform> views:array<Uniforms,MAX_VIEWS>;
 @group(0) @binding(${B.out}) var<storage, read_write> out:Output;

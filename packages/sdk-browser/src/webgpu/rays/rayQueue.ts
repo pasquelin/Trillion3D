@@ -45,7 +45,7 @@ function sourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | un
   if (!entries || !spans) return undefined
   const entryCount = compaction ? (blendState.table?.length ?? 0) : 0
   return {
-    ...{ tables, ranges: selection.worldRanges, records, pageTable },
+    ...{ tables, records, pageTable },
     ...{ rows: layout.rows.packedCount, entries, spans, entryCount, geometry, positions },
   }
 }
@@ -130,7 +130,7 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (!asks.length) return
     const sources = sourcesOf(rt, records)
     if (!sources) return settleAll(asks.splice(0))
-    if (!query.compiled(sources, schedule, () => settleAll(asks.splice(0)))) return
+    if (!query.compiled(schedule, () => settleAll(asks.splice(0)))) return
     const batch = asks.splice(0, BATCH_RAYS)
     const staging = ring.take(batch, batch.length * RAY_HIT.words * 4)
     // Every staging buffer in flight: the batch waits, and a landing calls the queue again.

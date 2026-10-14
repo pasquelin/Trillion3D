@@ -29,7 +29,7 @@ function rig() {
     vis: { geometryBlocks: new Map() },
   } as unknown as WebgpuPagesCore
   const tables = {
-    ...{ nodeParts: undefined, worlds: undefined, tree: undefined, treeRoot: NO_INDEX },
+    ...{ views: undefined, treeRoot: NO_INDEX },
     ...{ placements: 2, worldPlacement: NO_INDEX, recordCount: 8 },
     cutLinks: [
       { pageBase: 0, pageCount: 1 },

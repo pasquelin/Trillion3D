@@ -1,12 +1,13 @@
 // The ray query's shipped WGSL run as JavaScript (`shaderRun`): a ray's filter admits the placements
 // its sorted list names, or every other one, as its include bit asks; the deformation index answers
 // each deformed page with its results' word and its row's base, and zeros for any other; the trace
-// binds eight storage buffers at most, its nodes in three parts, and reads the worlds and the
-// placement tree in the culling's two record tables.
+// reads the cut's nodes, frame words, worlds and placement tree in the culling's record tables, at
+// the culling's bindings, beside three storage buffers of its own whatever the world's size.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { rayQueryWgsl } from './rayQueryWgsl.ts'
+import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
+import { dagBindingOf } from '../../gpu/dag/shader/bindings.fixture.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
 
@@ -15,7 +16,7 @@ const query = new Array<number>(128).fill(0)
 const run = shaderRun<{
   rqAdmits(w: number, first: number, word: number): boolean
   deformedOf(page: number): number[]
-}>(rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } }), ['rqAdmits', 'deformedOf'], {
+}>(RAY_QUERY_WGSL, ['rqAdmits', 'deformedOf', 'deformSlot'], {
   params,
   query,
 })
@@ -52,15 +53,19 @@ test('the deformation index answers each deformed page, and zeros for any other'
   assert.deepEqual([...run.deformedOf(8)], [0, 0], 'a page nothing deformed')
 })
 
-test('the trace binds eight storage buffers at most, its nodes in three parts, whatever the ranges', () => {
-  const split = rayQueryWgsl({ nodes: { per: 4096, parts: 3 } }),
-    whole = rayQueryWgsl({ nodes: { per: Infinity, parts: 1 } })
-  assert.equal(split.match(/var<storage/g)?.length, 7)
-  assert.equal(whole.match(/var<storage/g)?.length, 5)
-  // The worlds and the tree are the culling's record tables, sampled where they lie: no member
-  // order or world is copied into a buffer of the query's.
-  for (const text of [split, whole]) {
-    assert.equal(text.match(/texture_2d_array<u32>/g)?.length, 2)
-    assert.ok(!/memberWord/.test(text), 'no copied member order')
-  }
+test("the trace reads the cut's record tables at the culling's bindings, whatever the world", () => {
+  // One text whatever the world's size: no node part, no range of frame words.
+  assert.equal(RAY_QUERY_WGSL.match(/var<storage/g)?.length, 3)
+  const tables = [
+    ...RAY_QUERY_WGSL.matchAll(/@group\(0\) @binding\((\d+)\) var (\w+):texture_2d_array<u32>/g),
+  ]
+  const bound = Object.fromEntries(tables.map(([, binding, name]) => [name, Number(binding)]))
+  const culling = dagBindingOf()
+  assert.deepEqual(bound, {
+    nodes: culling.nodes,
+    worlds: culling.worlds,
+    frames: culling.frames,
+    tree: culling.tree,
+  })
+  assert.ok(!/memberWord/.test(RAY_QUERY_WGSL), 'no copied member order')
 })

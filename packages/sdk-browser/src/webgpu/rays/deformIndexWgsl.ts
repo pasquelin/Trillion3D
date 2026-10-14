@@ -6,12 +6,11 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 
 /**
- * The ray query's parameters, one uniform slot a dispatch (`rayQuery.ts`): the rays and where their
- * records, their filter lists and their hits lie in the query's buffer; where the record table lies
- * in it; where the deformation index lies and its mask, and
- * the rows and the blended entries it is made over; the tree's top, none without a tree; the
- * placements the packing holds and the world DAG's; the range of placements this dispatch reads,
- * and whether it carries the hits an earlier range left.
+ * The ray query's parameters, one uniform its two kernels read (`rayQuery.ts`): the rays and where
+ * their records, their filter lists and their hits lie in the query's buffer; where the record
+ * table lies in it; where the deformation index lies and its mask, and the rows and the blended
+ * entries it is made over; the tree's top, none without a tree; the placements the packing holds
+ * and the world DAG's.
  */
 export const RAY_PARAMS = fieldLayout('RayParams', [
   ['rays', 'u32'],
@@ -26,9 +25,6 @@ export const RAY_PARAMS = fieldLayout('RayParams', [
   ['treeRoot', 'u32'],
   ['placements', 'u32'],
   ['worldPlacement', 'u32'],
-  ['rangeFirst', 'u32'],
-  ['rangeCount', 'u32'],
-  ['carry', 'u32'],
 ] as const)
 
 /** Words of a slot of the deformation index: the page plus one, its results' word, its row's

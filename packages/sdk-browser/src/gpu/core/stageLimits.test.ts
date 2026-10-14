@@ -1,9 +1,10 @@
 // Every program of the opaque resolve, the blends, the water pass, the reflections, the depth
-// pyramid and the ray query, and of the cut — its culling, the composition of the poses, the root boxes, the tree's
-// leaves and refit —, binds no more of a kind in one stage than WebGPU guarantees a device that
-// asks for nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the engine runs on
-// any machine at the default limits, whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
-// past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
+// pyramid and the ray query, and of the cut — its culling, the composition of the poses, the root
+// boxes, the tree's leaves and refit —, binds no more of a kind in one stage than WebGPU guarantees
+// a device that asks for nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the
+// engine runs on any machine at the default limits, whatever the world's size. The kit's device,
+// holding the defaults, refuses a pipeline layout past them (`tests/kit/gpu/limitRules.ts`); each
+// test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
