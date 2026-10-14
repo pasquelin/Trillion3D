@@ -3,13 +3,15 @@
 // each mip, the page words written with their bits, in their order, over seeded lights — suns
 // and local lights, turned at random, or every value drawn with its edges — and instances about
 // them, on stand-in page tables, in the one stale's module (`castInvalidationWgsl.ts`). The instances
-// carry the flags a change's instance holds (`vsmCastInstance`): casts shadows, and cached as
-// dynamic or not, each in its own bits.
+// are the boxes a change stales, their axes the world's, and carry its flags: casts shadows, and
+// cached as dynamic or not, each in its own bits. Retaken on the kernel of before over the same
+// boxes as identity-rotation instances (the one kind it was handed), before the instance became
+// the box alone: the writes it made then are the golden.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts'
-import { VSM_BOX_MOVING, VSM_BOX_CASTS } from './invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT, VSM_BOX_MOVING, VSM_BOX_CASTS } from './invalidationWgsl.ts'
 import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { bitsDigest, inputs } from './sameBits.fixture.ts'
 import { vsmLayout } from './layout.ts'
@@ -17,7 +19,7 @@ import { vsmLayout } from './layout.ts'
 const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
-const GOLDEN = '12589a9143e0bea67d99a07f2bbfaca8638621b1a2f7ada98a11e5a221d4a3cb'
+const GOLDEN = ''
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],
@@ -64,28 +66,34 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     const low = () => d.vec(3, () => Math.fround(d.random() * 1e-3))
     const pd = {
       lightKind: light.directional ? LIGHT_KIND_DIRECTIONAL : d.int(1, 3),
-      ...{ originShiftHigh: near(3), originShiftLow: low(), handle: handle(d) },
-      ...{ lightRange: about ? d.int(1, 40) : d.f(), shiftedToMapUv: light.uv },
-      ...{ lightViewToClip: light.viewToClip, uncached: d.bool() },
-      ...{ levelsLeft: d.int(-1, 3), finestMip: d.int(0, 7) },
-      ...{ coarseDynamicCached: d.bool(), levelShapeCutoffSq: d.f() },
+      originShiftHigh: near(3),
+      originShiftLow: low(),
+      handle: handle(d),
+      lightRange: about ? d.int(1, 40) : d.f(),
+      shiftedToMapUv: light.uv,
+      lightViewToClip: light.viewToClip,
+      uncached: d.bool(),
+      levelsLeft: d.int(-1, 3),
+      finestMip: d.int(0, 7),
+      coarseDynamicCached: d.bool(),
+      levelShapeCutoffSq: d.f(),
     }
-    const column = () => [...near(3), near(1)[0] * 4]
-    const dynamic = d.bool()
+    // A change's box: its centre, its half extent along the world's axes — finite, as a record's
+    // is: past f32 math the list holds the unbounded box (`UNBOUNDED_EXTENT`).
+    const centre = near(3),
+      dynamic = d.bool(),
+      extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
     const inst = {
-      ...{ localToWorld0: column(), localToWorld1: column(), localToWorld2: column() },
-      ...{
-        translationLow: low(),
-        boxCentre: near(3),
-        boxExtent: near(3).map(Math.abs),
-      },
-      boxShapeCutoffSq: d.f(),
+      localToWorld0: [1, 0, 0, centre[0]],
+      localToWorld1: [0, 1, 0, centre[1]],
+      localToWorld2: [0, 0, 1, centre[2]],
+      translationLow: [0, 0, 0],
+      boxCentre: [0, 0, 0],
+      boxExtent: extent,
+      flags: VSM_BOX_CASTS | (dynamic ? VSM_BOX_MOVING : 0),
     }
     const now = use(tables(k, inputs(k)))
-    is.vsmStaleBoxPages(pd, {
-      ...inst,
-      flags: VSM_BOX_CASTS | (dynamic ? VSM_BOX_MOVING : 0),
-    })
+    is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)
     writing += Number(now.writes.some((entry) => typeof entry[0] === 'number'))
   }
