@@ -21,7 +21,7 @@
  * the page moves the cells' parents (`sizing.ts`).
  */
 import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts'
-import { boxPointDistance } from '../../../math/src/geometry/box.ts'
+import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
 import {
   drawnView,
   frustumCornerDistance,

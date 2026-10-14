@@ -43,3 +43,30 @@ test('one write among ten thousand textures visits one slot', () => {
   assert.deepEqual(colour.set, [6790])
   textureJournals.close(journal)
 })
+
+// A still scene weighs no coverage rule: the host maps' rules are read again only where a reader
+// was filed again, or on a sync. Old code: every render weighed every host colour map's readers.
+test('a still scene weighs no host map’s coverage rule', () => {
+  let weighed = 0
+  const readers = { cutoff: () => (weighed++, 128), follow() {} }
+  const map = new Texture(null)
+  const colour = atlas([map]),
+    data = atlas([])
+  ;(colour.atlas.textures[1] as { source: unknown }).source = {
+    kind: 'host',
+    map,
+    coverage: readers,
+  }
+  const journal = openTextureJournal()
+  const surfaces = new Set<never>()
+  const follow = samplingHeaders(colour.atlas, data.atlas, journal, surfaces)
+  const copies = { refresh: () => true, reduce: () => true }
+  follow(true, new Set(), copies)
+  weighed = 0
+  for (let image = 0; image < 4; image++) follow(false, new Set(), copies)
+  assert.equal(weighed, 0, 'nothing filed: no rule weighed')
+  surfaces.add(undefined as never)
+  follow(false, new Set(), copies)
+  assert.equal(weighed, 1, 'a reader filed: its maps weighed once')
+  closeTextureJournal(journal)
+})

@@ -5,6 +5,7 @@ import type { TileKey } from './pageTable.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { createFileTails } from './fileTails.ts'
 import { FEEDBACK_EVERY } from './feedback.ts'
+import { tileId } from './ids.ts'
 
 /** A mesh's three maps as textures of the tile atlases (`cardMaps.ts`): the colour and coverage's
  *  slot in the colour atlas, the normal and depth's and the packed ORM's in the data atlas. */
@@ -22,6 +23,25 @@ export type CardOptions = { cards?: ReadonlyMap<number, CardTiles>; onCardsLande
 
 const NO_CARDS: ReadonlyMap<number, CardTiles> = new Map()
 
+/** What a mesh's cards hold of its maps (`ready`): the levels they were last asked at, whether
+ *  every tile of them resided, the pools of both atlases then, and the tiles pinned per map. */
+export type CardHold = {
+  from: number
+  to: number
+  ready: boolean
+  pools: [color: unknown, data: unknown]
+  held: [colour: Set<number>, normalDepth: Set<number>, orm: Set<number>]
+}
+
+/** A hold of nothing: no level asked yet. */
+export const createCardHold = (): CardHold => ({
+  from: 0,
+  to: -1,
+  ready: false,
+  pools: [undefined, undefined],
+  held: [new Set(), new Set(), new Set()],
+})
+
 /**
  * THE IMPOSTOR MAPS' RESIDENCY, in the one tile pool: each baked mesh's three maps are textures of
  * the atlases (`cardMaps.ts`) — colour and coverage in the colour atlas, normal and depth and the
@@ -31,15 +51,17 @@ const NO_CARDS: ReadonlyMap<number, CardTiles> = new Map()
  * hardware read of a whole chain, never a coarser stand-in, and until then its mesh keeps its
  * clusters (no image lost). A card not drawn posts no feedback: what it waits for, the CPU asks
  * (`requests.ts`, `fileTails.ts`), weighted by the pixels its nearest card covers as the feedback
- * would count them, one in `FEEDBACK_EVERY`. Every tile it needs that resides, the CPU stamps as
- * it asks (`stamp`), in the use words the pixels' stamp writes (`stampWgsl.ts`): a level its cards
- * need and no pixel reads — the card waiting, or drawn at levels it does not all read — is never a
- * victim, so a full pool cannot turn a card back to its clusters and again.
+ * would count them, one in `FEEDBACK_EVERY`. Every tile it needs that resides is pinned while its
+ * mesh holds it (`CardHold`, `WebgpuTileAtlas.pin`) — out of the queue as a tail is: a level its
+ * cards need and no pixel reads — the card waiting, or drawn at levels it does not all read — is
+ * never a victim, so a full pool cannot turn a card back to its clusters and again. The hold is let
+ * go when the levels asked move, the pools are replaced, or the mesh leaves the view (`release`).
  *
- * A card asks as the view reaches it: the CPU reacts to a change, never waits on the GPU. A level
- * landing or a tile served while a card waits breaks a held image (`landed`), so the card is
- * planned again. The tails are read through the sources' held levels and written on the device's
- * queue in `encoding`'s lossless lane (`fileTails.ts`).
+ * The CPU reacts to a change, never waits on the GPU: a hold whose levels all reside and whose ask
+ * stands costs one comparison an image; only a mesh that waits walks its tiles again, to ask what
+ * is missing. A level landing or a tile served while a card waits breaks a held image (`landed`),
+ * so the card is planned again. The tails are read through the sources' held levels and written on
+ * the device's queue in `encoding`'s lossless lane (`fileTails.ts`).
  */
 export function createCardTiles(
   streamer: {
@@ -54,36 +76,53 @@ export function createCardTiles(
 ) {
   const { color, data, encoding } = streamer,
     { levels, failed } = streamer.sources,
-    { ask } = streamer.requests
+    { ask: askTile } = streamer.requests
   const tails = createFileTails({ queue: streamer.device.queue, levels, encoding, failed })
   const key: TileKey = { slot: 0, level: 0, tx: 0, ty: 0 }
   /** A card found waiting since the last pass; one the last pass found. */
   let asked = false,
     waiting = false
-  /** Whether every tile of `slot` from level `from` to `to` resides and its tail is pinned; each
-   *  one missing asked at `weight`, none stopping the asks of the others. */
-  const mapReady = (
+  /** The atlas of map `m` of a mesh: its colour in the colour atlas, the others in the data. */
+  const atlasOf = (m: number) => (m === 0 ? color : data)
+  /** Whether every tile of `slot` from level `from` to `to` resides and its tail is pinned, each
+   *  one that resides pinned into `held`; each one missing asked at `weight`, none stopping the
+   *  asks of the others. */
+  const holdMap = (
+    held: Set<number>,
     atlas: WebgpuTileAtlas,
     slot: number,
-    from: number,
-    to: number,
+    { from, to }: CardAsk,
     weight: number,
   ) => {
     const { layout } = atlas.textures[slot]
-    let ready = tails.pinned(atlas, slot)
+    let ready = atlas.tailPinned(slot)
     if (!ready) tails.ask(atlas, slot)
     key.slot = slot
     for (let level = Math.max(0, from); level <= Math.min(to, layout.tail - 1); level++) {
       key.level = level
       for (key.ty = 0; key.ty < layout.down[level]; key.ty++)
         for (key.tx = 0; key.tx < layout.across[level]; key.tx++) {
-          // Needed and read by no pixel yet, or not all: stamped as read, never a victim.
-          if (atlas.stamp(key)) continue
-          ready = false
-          ask(atlas, key, weight)
+          const id = tileId(key)
+          if (held.has(id)) continue
+          // Needed, and maybe read by no pixel: pinned while held, never a victim.
+          if (atlas.pin(id, true)) held.add(id)
+          else {
+            ready = false
+            askTile(atlas, key, weight)
+          }
         }
     }
     return ready
+  }
+  /** Lets `hold`'s tiles go back to the queue. */
+  const release = (hold: CardHold) => {
+    if (hold.to < 0) return
+    hold.held.forEach((held, m) => {
+      for (const id of held) atlasOf(m).pin(id, false)
+      held.clear()
+    })
+    hold.to = -1
+    hold.ready = false
   }
   const unwatch = levels?.watch(() => waiting && landed())
   return {
@@ -93,17 +132,31 @@ export function createCardTiles(
     },
     /** `mesh`'s three map slots; none for a mesh the catalogue does not hold. */
     tilesOf: (mesh: number) => slots.get(mesh),
-    /** Whether the cards of `tiles` may be drawn for `ask`: every tile they read resides; what is
-     *  missing asked. */
-    ready(tiles: CardTiles, { from, to, pixels }: CardAsk) {
-      const weight = Math.max(1, ceilDiv(pixels, FEEDBACK_EVERY))
-      const colour = mapReady(color, tiles[0], from, to, weight),
-        normalDepth = mapReady(data, tiles[1], from, to, weight),
-        orm = mapReady(data, tiles[2], from, to, weight)
-      const ready = colour && normalDepth && orm
+    /** Whether the cards of `tiles` may be drawn for `ask`: every tile they read resides, held by
+     *  `hold`; what is missing asked. A hold whose levels all reside and whose ask and pools stand
+     *  answers at once. */
+    ready(tiles: CardTiles, ask: CardAsk, hold: CardHold) {
+      const moved =
+        hold.from !== ask.from ||
+        hold.to !== ask.to ||
+        hold.pools[0] !== color.pools ||
+        hold.pools[1] !== data.pools
+      if (!moved && hold.ready) return true
+      if (moved) release(hold)
+      hold.from = ask.from
+      hold.to = ask.to
+      hold.pools[0] = color.pools
+      hold.pools[1] = data.pools
+      const weight = Math.max(1, ceilDiv(ask.pixels, FEEDBACK_EVERY))
+      let ready = true
+      for (let m = 0; m < 3; m++)
+        ready = holdMap(hold.held[m], atlasOf(m), tiles[m], ask, weight) && ready
+      hold.ready = ready
       if (!ready) asked = true
       return ready
     },
+    /** `hold`'s tiles let go: its mesh left the view, or its cards went. */
+    release,
     /** A pass begins: the tails asked whose levels are held pinned (`pinAsked`); the cards
      *  that waited since the last pass told by `landed` when it brings them anything. */
     pass() {

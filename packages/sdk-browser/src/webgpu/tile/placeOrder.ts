@@ -14,15 +14,9 @@ type PlaceHeld = { readonly index: number; readonly generation: number }
 export function createPlaceOrder(held: (index: number) => PlaceHeld | undefined) {
   const eviction = createEviction<number, PlaceHeld>({ get: held })
   let keys = new Uint32Array(0)
-  /** The order `createEviction` follows: every listed place may leave (`old`), whatever cut the
-   *  frames draw (`open`). */
-  const order = {
-    count: 0,
-    old: 0,
-    arrivals: 0,
-    keyAt: (at: number) => keys[at],
-    open: () => true,
-  }
+  /** The order `createEviction` follows: every listed place may leave, whatever cut the frames
+   *  draw — its `old` and `open` unsaid. */
+  const order = { count: 0, arrivals: 0, keyAt: (at: number) => keys[at] }
   return {
     /** Evicts from now on in `queue` — its count, then its places, the first victim first —, cut
      *  when the pool had seen `arrivals` arrivals. */
@@ -30,7 +24,7 @@ export function createPlaceOrder(held: (index: number) => PlaceHeld | undefined)
       const count = Math.min(queue[0], queue.length - 1)
       if (keys.length < count) keys = new Uint32Array(count)
       keys.set(queue.subarray(1, 1 + count))
-      order.count = order.old = count
+      order.count = count
       order.arrivals = arrivals
       eviction.follow(order)
     },

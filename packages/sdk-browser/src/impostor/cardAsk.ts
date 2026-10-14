@@ -1,3 +1,4 @@
+import { boxPointDistance, boxPointReach } from '../../../math/src/geometry/boxDistance.ts'
 import type { CardSegment } from './cardSlots.ts'
 import type { CardAsk } from '../webgpu/tile/cardTiles.ts'
 
@@ -21,19 +22,8 @@ const ask: CardAsk = { from: 0, to: 0, pixels: 0 }
 export function cardAsk(segment: CardSegment, eye: ArrayLike<number>, focal: number) {
   const { box, radii } = segment,
     side = segment.entry.frameSide
-  let near = 0,
-    far = 0
-  for (let k = 0; k < 3; k++) {
-    const e = eye[k],
-      low = box[k],
-      high = box[k + 3]
-    const gap = e < low ? low - e : e > high ? e - high : 0,
-      reach = Math.max(Math.abs(e - low), Math.abs(e - high))
-    near += gap * gap
-    far += reach * reach
-  }
-  near = Math.sqrt(near)
-  far = Math.sqrt(far)
+  const near = boxPointDistance(box, 0, eye[0], eye[1], eye[2]),
+    far = boxPointReach(box, 0, eye[0], eye[1], eye[2])
   const level = (distance: number, radius: number) =>
     Math.log2((distance * side) / (2 * radius * focal))
   ask.from = Math.max(0, Math.floor(level(near, radii[1]) - LEVEL_SLACK))

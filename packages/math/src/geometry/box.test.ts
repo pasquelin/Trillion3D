@@ -7,7 +7,6 @@ import {
   boxEmpty,
   boxesOverlap,
   boxFromPoints,
-  boxPointDistance,
 } from './box.ts'
 
 test('boxCenter: the midpoint of each pair of bounds, at the offset', () => {
@@ -77,13 +76,4 @@ test('boxFromPoints: −0 sits below +0, a NaN makes its bounds NaN, no point le
   assert.deepEqual([out[0], out[3], out[2], out[5]], [1, 3, 2, 5])
   boxFromPoints(out, 0, [], 0, 0)
   assert.deepEqual([...out], [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
-})
-
-test('boxPointDistance: 0 inside, the gap past a face, the root of the gaps past a corner', () => {
-  const box = [0, 0, 0, 1, 1, 1]
-  assert.equal(boxPointDistance(box, 0, 0.5, 0.5, 0.5), 0)
-  assert.equal(boxPointDistance(box, 0, 3, 0.5, 0.5), 2)
-  // Gaps 2, 3, 6 past the corner (1, 1, 1): a quadruple, the root exact.
-  assert.equal(boxPointDistance(box, 0, 3, 4, 7), 7)
-  assert.equal(boxPointDistance(box, 0, -2, -3, -6), 7)
 })

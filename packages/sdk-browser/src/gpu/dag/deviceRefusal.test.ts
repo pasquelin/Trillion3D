@@ -8,7 +8,9 @@ import { cameraCutBuffers } from './bufferTable.ts'
 import { createGpuDagSelection, packDagSelection, type PackedDag } from './selection.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
-import { POOL_SORT_WORDS } from '../pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../pool/sort.ts'
+import { SELECTION_LIST_CAP } from './layout.ts'
+import { EVICTION_BURST } from './readoutWords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const LIMIT = 64 << 10
@@ -59,8 +61,9 @@ test('`work` holds no word per page: a binding past one list section holds the c
   const limits = { maxStorageBufferBindingSize: 12000 }
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(dag(), limits).rows
-  // Past the eviction sort's counts and places, a constant whatever the pages (`POOL_SORT_WORDS`).
-  const perPages = rows.work.size - 4 * POOL_SORT_WORDS
+  // Past the eviction sort's words and scratch, a constant whatever the pages (`POOL_SORT_WORDS`).
+  const sortWords = POOL_SORT_WORDS + poolScratchWords(SELECTION_LIST_CAP, EVICTION_BURST)
+  const perPages = rows.work.size - 4 * sortWords
   assert.ok(perPages < 1000, `\`work\` is ${perPages} bytes for a thousand pages`)
   assert.deepEqual(
     Object.keys(rows).filter((name) => name.startsWith('ranks')),

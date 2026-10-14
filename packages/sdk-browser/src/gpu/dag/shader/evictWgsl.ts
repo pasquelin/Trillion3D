@@ -1,6 +1,7 @@
 import { KEY_PAGE_BITS } from '../evict.ts'
 import { EVICT_IN_USE, OLD_STEP, POOL_RANKS, POOL_TIERS } from '../../pool/rank.ts'
-import { POOL_SORT_WGSL } from '../../pool/sortWgsl.ts'
+import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../pool/sortWgsl.ts'
+import { POOL_SORT_WORDS } from '../../pool/sort.ts'
 import { EVICTION_BURST } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
@@ -14,7 +15,14 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_EVICT_WGSL = wgslBlock(
   'DAG_EVICT_WGSL',
-  [POOL_SORT_WGSL],
+  [
+    POOL_SORT_WGSL,
+    poolSortWordsWgsl(
+      'work',
+      (i) => `poolSortAt(${i})`,
+      (i) => `poolSortAt(${POOL_SORT_WORDS}u+${i})`,
+    ),
+  ],
   `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
 /** Word \`k\` of the eviction queue in \`out.pages\`: 0 its count, 1 its old head's, \`HEAD+j\` its
  *  entry \`j\`. */
@@ -26,11 +34,8 @@ fn poolSlotAge(j:u32)->u32{return useClock()-atomicLoad(&work[lastUseAt(groupOfK
 fn poolSlotTier(j:u32)->u32{return keyWordOf(poolKey(j))>>${KEY_PAGE_BITS}u;}
 fn poolInUse()->u32{return ${EVICT_IN_USE}u;}
 fn poolBurst()->u32{return ${EVICTION_BURST}u;}
-/** The sort's words, behind the groups a cut raised (\`dagWorkLayout\`). */
+/** The sort's words then its scratch, behind the groups a cut raised (\`dagWorkLayout\`). */
 fn poolSortAt(i:u32)->u32{return raisedBase()+1u+raisedCap()+i;}
-fn poolCountAdd(i:u32,v:u32)->u32{return atomicAdd(&work[poolSortAt(i)],v);}
-fn poolCountLoad(i:u32)->u32{return atomicLoad(&work[poolSortAt(i)]);}
-fn poolCountStore(i:u32,v:u32){atomicStore(&work[poolSortAt(i)],v);}
 /** The queue's count, and its old head's: every key above the first rank of the view ahead's age
  *  step, placed first. */
 fn poolPlaced(total:u32){

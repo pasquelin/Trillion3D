@@ -67,11 +67,13 @@ export function adopt(places: Places, index: number, key: number, pin: boolean) 
   places.freeStale = true
 }
 
-/** `index` used by an asker that reads no pixel of it yet (a card waiting for its maps,
- *  `cardTiles.ts`): stamped as an arrival is — its use word written at the next flush's clock, in
- *  use for the frames after, and a queue cut before it never names it. */
-export function use(places: Places, index: number) {
-  places.arrived[taken(places, index)] = ++places.arrivals
+/** `index` pinned or unpinned by an asker that may read no pixel of it (a card's maps,
+ *  `cardTiles.ts`): pinned, unranked; unpinned, used as an arrival is — its use word written at the
+ *  next flush's clock. Either way a queue cut before it never names it. */
+export function pin(places: Places, index: number, pinned: boolean) {
+  if (places.pinned[taken(places, index)] === Number(pinned)) return
+  places.pinned[index] = Number(pinned)
+  places.arrived[index] = ++places.arrivals
   places.changed.mark(index)
 }
 

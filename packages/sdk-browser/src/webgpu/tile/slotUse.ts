@@ -1,16 +1,26 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { tileKeyOf } from './ids.ts'
 import type { WebgpuTilePool } from './pool.ts'
 
-/** Words before the places: each lane's first place, `PREVIEW_LAYOUT_NAMES` order, then the
- *  places of all lanes. */
-export const TILE_USE_HEADER = 4
+/** Words before the places: each lane's first place, `PREVIEW_LAYOUT_NAMES` order, padded to
+ *  four, then the places of all lanes. */
+export const TILE_USE_HEADER = alignUp(PREVIEW_LAYOUT_NAMES.length, 4)
 /** The tier of a free or pinned place: never ranked, never a victim. */
 export const TILE_UNRANKED = 0xffffffff
 /** Words of one place: the clock a pixel last read it, and its tier. */
 const PLACE_USE_WORDS = 2
+
+/** \`tilePlaceWord(base, index)\`: the first word of place \`index\` of the lane whose places start
+ *  at \`base\` — its clock, its tier the next —, as every kernel reading the words finds it. */
+export const TILE_PLACE_WORD_WGSL = wgslFn(
+  'tilePlaceWord',
+  [],
+  `fn tilePlaceWord(base:u32,index:u32)->u32{return ${TILE_USE_HEADER}u+${PLACE_USE_WORDS}u*(base+index);}`,
+)
 
 /** The buffer of an atlas's place words over `places` places: what `layout` creates, and what a
  *  probe asks the device for beside the pools' textures (`../residency/poolGrants.ts`). */
@@ -27,10 +37,10 @@ export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
  * level its tile carries, `TILE_UNRANKED` free or pinned. The pool's queue ranks them
  * (`evictSortWgsl.ts`).
  *
- * The CPU writes only the places a pool occupied, used or freed (`changed`): an arrival is used at
- * the clock it lands on, in use for the frames after it, and so is a tile an asker that reads no
- * pixel of it yet stamps (`WebgpuTilePool.use`, an impostor card's maps); a freed place is
- * unranked. Every other stamp is the GPU's. A lane pool replaced moves every base:
+ * The CPU writes only the places a pool occupied, pinned, unpinned or freed (`changed`): an arrival
+ * — or a tile an asker stops holding (`WebgpuTilePool.pin`, an impostor card's maps) — is used at
+ * the clock it lands on, in use for the frames after it; a freed or pinned place is unranked.
+ * Every other stamp is the GPU's. A lane pool replaced moves every base:
  * the buffer is made again, every occupied place written as an arrival.
  */
 export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {

@@ -19,6 +19,7 @@ function planned(ready: (ask: CardAsk) => boolean) {
   const state = createImpostorCards(impostorSection, {
     tilesOf: () => [1, 2, 3],
     ready: (_, ask) => (asks.push({ ...ask }), ready(ask)),
+    release: () => {},
   })
   const plan = (z: number) => planImpostorCards(state, roots, engineAt(z), VIEWPORT)
   return { fixture, roots, state, asks, plan }

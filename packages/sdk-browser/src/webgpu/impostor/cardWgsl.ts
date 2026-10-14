@@ -99,21 +99,38 @@ struct CardVary{
   vec4f(k.w,lod),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
   na,nb,nc,normalMatrix[0],normalMatrix[1],normalMatrix[2]);
 }
-/** The card's surface at this pixel, and its depth: the blended surface point, at the eye,
- *  projected; with the maps it read and the three taps, which its request names. A texel under the
- *  coverage cut is no surface: the pixel is discarded, in every stage alike. */
-struct CardPixel{blend:ImpBlend,depth:f32,maps:CardMaps,a:vec2f,b:vec2f,c:vec2f}
-fn cardPixel(in:CardVary)->CardPixel{
+/** The maps a card pixel reads, and its three taps: what both stages read at it. */
+struct CardTaps{maps:CardMaps,a:ImpTap,b:ImpTap,c:ImpTap}
+fn cardTaps(in:CardVary,c:Card)->CardTaps{
  let eye=in.eyeRadius.xyz;let radius=in.eyeRadius.w;let lod=in.weightsLod.w;let cell=in.cCell.z;
  let ray=normalize(in.point-eye);
- let c=cards[in.card];
  let m=CardMaps(colorSlot(u32(c.maps.x)),dataSlot(u32(c.maps.y)),dataSlot(u32(c.maps.z)));
  let ta=impTap(m,in.ab.xy,in.xa,in.na,eye,ray,radius,cell,lod);let tb=impTap(m,in.ab.zw,in.xb,in.nb,eye,ray,radius,cell,lod);
  let tc=impTap(m,in.cCell.xy,in.xc,in.nc,eye,ray,radius,cell,lod);
- let b=impBlend(m,ta,tb,tc,in.weightsLod.xyz,lod);
+ return CardTaps(m,ta,tb,tc);
+}
+/** The depth of the card's surface point \`point\` (object space, pivot-relative), at the eye,
+ *  projected. */
+fn cardDepth(c:Card,point:vec3f)->f32{
+ let clip=view.viewProj*vec4f(worldMatrix3(c.world)*(point+c.pivot.xyz)+cardOrigin(c),1.0);
+ return clip.z/clip.w;
+}
+/** The card's depth at this pixel, all the visibility stage writes: its coverage and its surface
+ *  point alone read, never its normal or ORM. A texel under the coverage cut is no surface: the
+ *  pixel is discarded, in every stage alike. */
+fn cardVisDepth(in:CardVary)->f32{
+ let c=cards[in.card];let t=cardTaps(in,c);let w=in.weightsLod.xyz;
+ if(impColours(t.maps,t.a,t.b,t.c,w,in.weightsLod.w).a<${CARD_COVERAGE_CUT}){discard;}
+ return cardDepth(c,impPoint(t.a,t.b,t.c,w));
+}
+/** The card's surface at this pixel, and its depth; with the maps it read and the three taps,
+ *  which its request names. Discarded under the coverage cut, as the visibility stage is. */
+struct CardPixel{blend:ImpBlend,depth:f32,maps:CardMaps,a:vec2f,b:vec2f,c:vec2f}
+fn cardPixel(in:CardVary)->CardPixel{
+ let c=cards[in.card];let t=cardTaps(in,c);
+ let b=impBlend(t.maps,t.a,t.b,t.c,in.weightsLod.xyz,in.weightsLod.w);
  if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
- let clip=view.viewProj*vec4f(worldMatrix3(c.world)*(b.point+c.pivot.xyz)+cardOrigin(c),1.0);
- return CardPixel(b,clip.z/clip.w,m,ta.uv,tb.uv,tc.uv);
+ return CardPixel(b,cardDepth(c,b.point),t.maps,t.a.uv,t.b.uv,t.c.uv);
 }
 /** The tile rank pick \`p\` of a card pixel names, plus one, or zero: map \`p.sel\` at the tap of frame
  *  \`p.along\`, at the level \`lod\` the read takes, or the next one the blend mixes in. */
@@ -143,13 +160,12 @@ fn cardRequest(px:CardPixel,pos:vec2f,lod:f32)->u32{
 fn cardId(slot:u32)->u32{return ${core.VIS_CARD_BASE}u|slot;}
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_fs(in:CardVary)->CardVis{
- let px=cardPixel(in);
- return CardVis(cardId(in.card),px.depth);
+ return CardVis(cardId(in.card),cardVisDepth(in));
 }
 struct CardVisHiz{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32}
 @fragment fn card_vis_hiz_fs(in:CardVary)->CardVisHiz{
- let px=cardPixel(in);
- return CardVisHiz(cardId(in.card),px.depth,px.depth);
+ let depth=cardVisDepth(in);
+ return CardVisHiz(cardId(in.card),depth,depth);
 }
 struct CardSurface{baseMetal:vec4f,normalRough:vec4f,emissiveAo:vec4f,flags:u32}
 /** The surface of this card's pixel, where this card was the nearest the visibility stage kept:

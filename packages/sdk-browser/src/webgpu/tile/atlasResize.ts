@@ -57,7 +57,7 @@ function moveTiles(
   const displaced: number[] = []
   for (const index of pool.occupied()) {
     const id = pool.keyOf(index)
-    if (index < next.tiles) next.adopt(index, id, tailSlotOf(id) !== undefined)
+    if (index < next.tiles) next.adopt(index, id, pool.pinnedOf(index))
     else displaced.push(index)
   }
   // Pinned first, then by the GPU's queue from its far end: a place it does not list — read of
@@ -85,11 +85,9 @@ function moveTiles(
       { texture: next.texture, origin: [...cellOrigin(place), place.layer] },
       [TILE_PITCH, TILE_PITCH, 1],
     )
+    resident.set(id, target)
     if (tail !== undefined) pages.setTail(tail, place, tap)
-    else {
-      resident.set(id, target)
-      pages.setTile(tileKeyOf(id), place)
-    }
+    else pages.setTile(tileKeyOf(id), place)
   }
   device.queue.submit([encoder.finish()])
   return evicted

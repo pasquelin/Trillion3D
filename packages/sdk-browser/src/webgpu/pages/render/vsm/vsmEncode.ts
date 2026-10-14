@@ -15,8 +15,8 @@ import {
   encodeVsmPageMapping,
   encodeVsmAfterRaster,
   encodeVsmPageCarry,
-  type VsmPageManagementFrame,
-} from '../../../../vsm/pageManagementPass.ts'
+} from '../../../../vsm/pageManagementEncode.ts'
+import type { VsmPageManagementFrame } from '../../../../vsm/pageManagementPass.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { encodeVsmInvalidations, invalidationOf } from '../../../../vsm/invalidationPass.ts'
 import { encodeCastInvalidation } from '../../../../vsm/castInvalidation.ts'

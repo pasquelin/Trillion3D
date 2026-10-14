@@ -8,8 +8,8 @@ import {
   encodeVsmPageCarry,
   encodeVsmAfterRaster,
   encodeVsmPageMapping,
-  vsmPmContextBytes,
-} from './pageManagementPass.ts'
+} from './pageManagementEncode.ts'
+import { vsmPmContextBytes } from './pageManagementPass.ts'
 import {
   VSM_PM_GROUP_PARAMS,
   VSM_PM_GROUP_PER_PAGE,

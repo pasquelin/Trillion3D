@@ -46,6 +46,9 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagRaiseParents',
     'poolCount',
     'poolPlace',
+    'poolGroups',
+    'poolOffsets',
+    'poolSpread',
     'poolScatter',
   ])
 })
@@ -56,9 +59,9 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   const { dispatches } = witness.read()
   // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
   // commit of the cut's mask, the request sort, the parents' raise and the eviction queue's pool
-  // sort (count, place, scatter): the cut rule decides each cluster once, in the mask, with no
+  // sort (its six stages, `../pool/sort.ts`): the cut rule decides each cluster once, in the mask, with no
   // round per primitive before it.
-  assert.equal(dispatches.length, 15)
+  assert.equal(dispatches.length, 18)
   const kernels = dispatches.map((l) => l.kernel)
   assert.ok(!kernels.includes('dagArgs') && !kernels.includes('dagDrawCount'))
   assert.equal(kernels[0], 'dagClearDrawn')

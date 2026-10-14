@@ -349,21 +349,6 @@ export function boxTransform(
   writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
-/** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face: the distance of the
- *  clamped point. */
-export function boxPointDistance(
-  box: ArrayLike<number>,
-  o: number,
-  x: number,
-  y: number,
-  z: number,
-) {
-  const dx = Math.max(box[o] - x, 0, x - box[o + 3]),
-    dy = Math.max(box[o + 1] - y, 0, y - box[o + 4]),
-    dz = Math.max(box[o + 2] - z, 0, z - box[o + 5])
-  return length3(dx, dy, dz)
-}
-
 /** The length of the diagonal of the box of bounds `min…max`, `length3(max − min)` axis by axis.
  *  No empty test: the caller decides what an empty box's diagonal is. */
 export const boundsDiagonal = (

@@ -83,6 +83,8 @@ test('a tile from a vanished layer is moved into a free slot â€” queues first â€
   pool.adopt(952, tileId({ slot: 0, level: 0, tx: 6, ty: 0 }))
   resident.set(tileId({ slot: 0, level: 0, tx: 6, ty: 0 }), 952)
   pool.follow(Uint32Array.from([2, 952, 5]), pool.arrivals)
+  // A card holds the tile that stays (`cardTiles.ts`): the new pool keeps it pinned.
+  pool.pin(5, true)
   const result = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages as never, resident)
   assert.equal(result.evicted, 0, 'three free places are enough')
   assert.equal(result.pool.resident, 4)
@@ -97,6 +99,8 @@ test('a tile from a vanished layer is moved into a free slot â€” queues first â€
   })
   assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 7, ty: 0 })), 1)
   assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 5, ty: 0 })), 5, 'not moved')
+  assert.equal(result.pool.pinnedOf(5), true, 'held, still pinned')
+  assert.equal(resident.get(tailId(1)), 0, 'the tail held by its key at its new place')
 })
 
 // Behaviour: a shrink tells each texture it evicts a tile of, for whoever reads it to

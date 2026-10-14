@@ -47,8 +47,10 @@ export class CoverageReaders {
    *  (docs/FORMAT.md, "Coverage-preserving alpha"): the lowest of its masked readers', each under
    *  its opacity, 0 — the median alone — once a reader blends; none when the chain does not weigh. */
   cutoff(texture: Texture) {
-    const readers = this.weighs(texture) ? this.readers.get(texture)! : undefined
-    return readers && Math.min(255, ...Array.from(readers.keys(), cutOf))
+    if (!this.weighs(texture)) return undefined
+    let cut = 255
+    for (const surface of this.readers.get(texture)!.keys()) cut = Math.min(cut, cutOf(surface))
+    return cut
   }
   /** Files `surface` under the maps it wears now, out of the ones it was filed under. */
   private file(surface: PageSurface) {

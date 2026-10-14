@@ -45,7 +45,11 @@ export const impostorSection: ImpostorSection = {
   ],
 }
 /** The hooks of a session whose card maps all reside: every card drawn as soon as it switches. */
-export const RESIDENT = { tilesOf: () => [1, 2, 3] as const, ready: () => true }
+export const RESIDENT = {
+  tilesOf: () => [1, 2, 3] as const,
+  ready: () => true,
+  release: () => {},
+}
 
 /** The DAG fixture's roots, each standing for `MESH`. */
 export function impostorScene() {

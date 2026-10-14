@@ -1,7 +1,8 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { POOL_SORT_WGSL } from '../../gpu/pool/sortWgsl.ts'
+import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../gpu/pool/sortWgsl.ts'
+import { POOL_SORT_WORDS } from '../../gpu/pool/sort.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
-import { TILE_UNRANKED, TILE_USE_HEADER } from './slotUse.ts'
+import { TILE_PLACE_WORD_WGSL, TILE_UNRANKED } from './slotUse.ts'
 
 /** The most victims a tile pool's queue names: more places than a pass serves before the next
  *  queue comes back. */
@@ -20,21 +21,25 @@ export const TILE_SORT_WGSL = wgslProgram(
 @group(0) @binding(1) var<storage,read_write> sortWords:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> queues:array<u32>;
 @group(0) @binding(3) var<uniform> sortUni:TileSortUni;
-fn placeWord(j:u32)->u32{return ${TILE_USE_HEADER}u+2u*(sortUni.base+j);}
 fn poolSlotCount()->u32{return sortUni.slots;}
 fn poolSlotAge(j:u32)->u32{
- let at=placeWord(j);
+ let at=tilePlaceWord(sortUni.base,j);
  if(placeUse[at+1u]==${TILE_UNRANKED}u){return 0u;}
  return sortUni.clock-min(placeUse[at],sortUni.clock);
 }
-fn poolSlotTier(j:u32)->u32{return placeUse[placeWord(j)+1u];}
+fn poolSlotTier(j:u32)->u32{return placeUse[tilePlaceWord(sortUni.base,j)+1u];}
 fn poolInUse()->u32{return ${EVICT_IN_USE}u;}
 fn poolBurst()->u32{return ${TILE_BURST}u;}
-fn poolCountAdd(i:u32,v:u32)->u32{return atomicAdd(&sortWords[i],v);}
-fn poolCountLoad(i:u32)->u32{return atomicLoad(&sortWords[i]);}
-fn poolCountStore(i:u32,v:u32){atomicStore(&sortWords[i],v);}
 fn poolPlaced(total:u32){queues[sortUni.queueAt]=min(total,${TILE_BURST}u);}
 fn poolEmit(at:u32,j:u32){queues[sortUni.queueAt+1u+at]=j;}
 `,
-  [POOL_SORT_WGSL],
+  [
+    POOL_SORT_WGSL,
+    TILE_PLACE_WORD_WGSL,
+    poolSortWordsWgsl(
+      'sortWords',
+      (i) => i,
+      (i) => `${POOL_SORT_WORDS}u+${i}`,
+    ),
+  ],
 )

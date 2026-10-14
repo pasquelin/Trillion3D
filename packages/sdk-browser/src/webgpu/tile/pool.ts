@@ -10,7 +10,7 @@ import {
 } from '../../texture/tiles.ts'
 import type { PoolLane } from '../../texture/blockFormats.ts'
 import type { ChangedRuns } from '../residency/ranges.ts'
-import { acquire, adopt, occupied, placesOf, release, taken, use } from './poolPlaces.ts'
+import { acquire, adopt, occupied, pin, placesOf, release, taken } from './poolPlaces.ts'
 import { createPlaceOrder } from './placeOrder.ts'
 
 /**
@@ -20,7 +20,8 @@ import { createPlaceOrder } from './placeOrder.ts'
  * which takes its places back through `adopt`.
  *
  * The pool does not know what a tile carries: it holds, per place, a KEY the caller confides to
- * it and whether it is pinned. A texture's tail is pinned at prepare; a streamed tile never is.
+ * it and whether it is pinned. A texture's tail is pinned for good; a streamed tile only while an
+ * asker that reads none of it holds it (`cardTiles.ts`).
  * Which place gives itself up is the GPU's word: each frame stamps the places its pixels read, and
  * the pool's queue, ranked on those stamps, is read back with the feedback (`placeOrder.ts`). The
  * places occupied or freed since the last flush are `changed`: their use words follow
@@ -40,8 +41,8 @@ export type WebgpuTilePool = {
   /** Occupied tiles, and their bytes. */
   readonly resident: number
   readonly residentBytes: number
-  /** Tiles that ever arrived or were used (`use`): the cut of a queue, a tile arrived or used
-   *  since never its victim. */
+  /** Tiles that ever arrived, were pinned or unpinned (`pin`): the cut of a queue, a tile arrived
+   *  or pinned since never its victim. */
   readonly arrivals: number
   /** Places occupied or freed since their use words were last written (`slotUse.ts`). */
   readonly changed: ChangedRuns
@@ -50,9 +51,9 @@ export type WebgpuTilePool = {
   /** Sets `key` at a precise free place — what a resized pool takes back from the old one. */
   adopt(index: number, key: number, pinned?: boolean): void
   release(index: number): void
-  /** Stamps `index` used as an arrival is (`poolPlaces.ts`): what the CPU asks of a tile no pixel
-   *  reads yet, in the same words the GPU stamps. */
-  use(index: number): void
+  /** Pins or unpins `index` (`poolPlaces.ts`): a tile an asker holds while it needs it, which no
+   *  pixel may read — a card's maps —, out of the queue as a tail is. */
+  pin(index: number, pinned: boolean): void
   keyOf(index: number): number
   pinnedOf(index: number): boolean
   /** Whether `index` is free. */
@@ -142,7 +143,7 @@ export function createWebgpuTilePool(
     acquire: (key, pin = false) => acquire(places, key, pin),
     adopt: (index, key, pin = false) => adopt(places, index, key, pin),
     release: (index) => release(places, index),
-    use: (index) => use(places, index),
+    pin: (index, pinned) => pin(places, index, pinned),
     keyOf: (index) => places.owner[taken(places, index)],
     pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
     freeAt: (index) => places.owner[index] === -1,

@@ -76,15 +76,23 @@ fn impTap(m:CardMaps,frame:vec2f,x:vec3f,n:vec3f,eye:vec3f,ray:vec3f,radius:f32,
  uv+=(d-0.5)*vec2f(dot(x,v),dot(y,v))/vn;
  return ImpTap((frame+clamp(uv,vec2f(0.0),vec2f(1.0)))*cell,h+(d-0.5)*2.0*radius*v/vn);
 }
+/** The colour and coverage blended at the three taps \`a\`, \`b\`, \`c\` of weights \`w\`: what the
+ *  visibility stage reads alone, and the surface stage within \`impBlend\` — one expression, so both
+ *  keep the same pixels. */
+fn impColours(m:CardMaps,a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f,lod:f32)->vec4f{
+ return w.x*impColour(m,a.uv,lod)+w.y*impColour(m,b.uv,lod)+w.z*impColour(m,c.uv,lod);
+}
+/** The blended surface point, whose projection is the fragment depth, so other objects intersect
+ *  the card where the mesh would. */
+fn impPoint(a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f)->vec3f{return w.x*a.point+w.y*b.point+w.z*c.point;}
 struct ImpBlend{colour:vec4f,normal:vec3f,orm:vec3f,point:vec3f}
 /** The blended card at the three taps \`a\`, \`b\`, \`c\` of weights \`w\`: colour, normal, ORM and the
- *  surface point, whose projection is the fragment depth, so other objects intersect the card where
- *  the mesh would. */
+ *  surface point. */
 fn impBlend(m:CardMaps,a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f,lod:f32)->ImpBlend{
- let colour=w.x*impColour(m,a.uv,lod)+w.y*impColour(m,b.uv,lod)+w.z*impColour(m,c.uv,lod);
+ let colour=impColours(m,a,b,c,w,lod);
  let packed=w.x*impNormalDepth(m,a.uv,lod).xyz+w.y*impNormalDepth(m,b.uv,lod).xyz+w.z*impNormalDepth(m,c.uv,lod).xyz;
  let orm=w.x*impOrm(m,a.uv,lod).xyz+w.y*impOrm(m,b.uv,lod).xyz+w.z*impOrm(m,c.uv,lod).xyz;
- return ImpBlend(colour,normalize(unitToSigned3(packed)),orm,w.x*a.point+w.y*b.point+w.z*c.point);
+ return ImpBlend(colour,normalize(unitToSigned3(packed)),orm,impPoint(a,b,c,w));
 }`,
   )
 

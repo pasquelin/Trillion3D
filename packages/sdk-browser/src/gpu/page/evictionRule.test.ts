@@ -29,8 +29,8 @@ function expectedVictim(
   accept: Accept,
   lower: boolean,
 ) {
-  if (!order?.open()) return 'eviction-queue-spent'
-  const end = lower ? order.old : order.count
+  if (!order || !(order.open?.() ?? true)) return 'eviction-queue-spent'
+  const end = lower ? (order.old ?? order.count) : order.count
   for (let rank = 0; rank < end; rank++) {
     const page = resident.get(order.keyAt(rank))
     if (page && page.generation <= order.arrivals && !pinned.has(page.key) && accept(page))
@@ -131,7 +131,7 @@ test('generated sequences: a page may leave with a victim exactly when the rule 
           page = resident.get(key)
         const may =
           rank >= 0 &&
-          rank < (lower ? order.old : order.count) &&
+          rank < (lower ? (order.old ?? order.count) : order.count) &&
           !!page &&
           page.generation <= order.arrivals &&
           !eviction.isPinned(key)

@@ -19,10 +19,11 @@ function createWebgpuImpostors(
   section: ImpostorSection,
 ) {
   const cards = createImpostorCards(section, {
-    // A mesh's maps in the one tile pool, ready once every tile its cards read resides, the
-    // missing ones asked (`../tile/cardTiles.ts`).
+    // A mesh's maps in the one tile pool, ready once every tile its cards read resides, pinned
+    // while its mesh is in view, the missing ones asked (`../tile/cardTiles.ts`).
     tilesOf: (mesh) => rt.vis.textures?.cards.tilesOf(mesh),
-    ready: (tiles, ask) => rt.vis.textures?.cards.ready(tiles, ask) ?? false,
+    ready: (tiles, ask, hold) => rt.vis.textures?.cards.ready(tiles, ask, hold) ?? false,
+    release: (hold) => rt.vis.textures?.cards.release(hold),
     // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
     moved: (rank, root) =>
       rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0)),
