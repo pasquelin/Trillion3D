@@ -19,7 +19,12 @@ const sizeAt = (entries: GPUBindGroupEntry[], binding: number) =>
   (entries.find((entry) => entry.binding === binding)?.resource as GPUBufferBinding).size
 
 test('every group that binds the visibility uniform spans the whole struct', () => {
-  const shared = { textures, sampler: {} as GPUSampler, uniform: buffer }
+  const shared = {
+    textures,
+    sampler: {} as GPUSampler,
+    uniform: buffer,
+    material: {} as GPUTextureView,
+  }
   const vis = visBindEntries({
     ...shared,
     cache: buffer,

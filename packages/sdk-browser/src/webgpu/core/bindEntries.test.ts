@@ -170,6 +170,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     uvs: buffer,
     textures: vis.textures,
     sampler: vis.mapsSampler,
+    material: view,
     pageRows: 1,
     maxTriangles: 3,
     idsView: view,
