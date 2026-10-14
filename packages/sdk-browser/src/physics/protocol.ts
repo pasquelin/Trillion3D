@@ -3,10 +3,8 @@ import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/ph
 import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import type { JoltThreadStart } from './joltThreads.ts'
 import type { CharacterReport } from './characterDriver.ts'
-import type {
-  CharacterInput,
-  CharacterSettings,
-} from '../../../sdk-core/src/collision/characterSettings.ts'
+import type { CharacterSettings } from '../../../sdk-core/src/collision/characterSettings.ts'
+import type { CharacterInput } from '../../../sdk-core/src/collision/characterDrive.ts'
 
 /** What the page tells the physics worker. */
 export type ToPhysics =
