@@ -10,6 +10,9 @@ import { blendSceneOf } from './plan.fixture.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import type { BlendGpuItem } from './state.ts'
 
+/** The sides a surface declares: front-only, back-only and double-sided items, each planned as
+ *  `sidesOf` plans it. */
+const SIDES = [G.FRONT_SIDE, G.BACK_SIDE, G.DOUBLE_SIDE]
 const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE, -Number.MAX_VALUE, 5e-324]
 
 /** A box near the frustum's planes around `eye`, a bound sometimes one ulp across, or a special
@@ -55,7 +58,7 @@ export function verdictScene(count: number, next: () => number, edges: boolean, 
   for (let i = 0; i < count; i++) {
     const transmissive = next() < 0.25
     items.push({
-      surface: surfaceOf(G.basicSurface({ side: Math.floor(next() * 3) })),
+      surface: surfaceOf(G.basicSurface({ side: SIDES[Math.floor(next() * 3)] })),
       matrix: new Matrix4().makeTranslation(next() * 50, 0, next() * 50),
       count: 3,
       transmissive,

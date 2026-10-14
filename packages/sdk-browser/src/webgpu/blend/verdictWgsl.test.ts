@@ -156,3 +156,10 @@ test('an eye past the bound, infinite or NaN: no plane rejects, every drawn box 
     assert.equal(gpu.rejected, 0)
   }
 })
+
+test('the scenes hold front-only, back-only and double-sided items, each planned by its side', () => {
+  const sides = new Set(
+    verdictScene(64, lcgRandom(13), false).blendState.blendGpu.map((item) => item.surface.side),
+  )
+  assert.deepEqual([...sides].sort(), ['back', 'double', 'front'])
+})
