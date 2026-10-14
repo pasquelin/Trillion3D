@@ -98,10 +98,10 @@ ${wideTraversal({
   answer: 'best',
   overflow: 'rtWork=RT_WORK;',
 })}
-/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record at a
- *  zero eye (\`rtWorldsWorldAtEye\`: its translation the exact one beside the matrix, rounded once to
- *  the single-precision value a host write holds; the matrix's own is no cut's); a blended copy's,
- *  the proxy's own, past the placements. */
+/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record —
+ *  its linear part (\`rtWorldsLinear\`) and the exact translation beside the matrix, rounded once to
+ *  the single-precision value a host write holds (\`rtWorldsTranslation\`; the matrix's own is no
+ *  cut's); a blended copy's, the proxy's own, past the placements. */
 fn rtWorldOf(w:u32)->mat4x4f{
  if(w>=rtProxy.instances){
   let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
@@ -110,7 +110,8 @@ fn rtWorldOf(w:u32)->mat4x4f{
    rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
    rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),1.0);
  }
- return rtWorldsWorldAtEye(w,vec4u(0u),vec4u(0u));
+ let l=rtWorldsLinear(w);
+ return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(rtWorldsTranslation(w),1.0));
 }
 /** Word \`k\` of instance \`w\`, read in its record (\`rtWorldsInstance\`). */
 fn rtInstanceWord(w:u32,k:u32)->u32{return rtWorldsInstance(w,0u)[k];}

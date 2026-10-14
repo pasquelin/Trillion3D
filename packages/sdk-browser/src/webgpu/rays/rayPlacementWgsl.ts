@@ -11,6 +11,7 @@ import {
   NODE_FIRST_PAGE,
   NODE_PAGE_COUNT,
 } from '../../gpu/dag/nodeLayout.ts'
+import { worldAtEyeWgsl } from '../../gpu/dag/shader/worldPoseWgsl.ts'
 import { MARK_WORD, PAGE_BASE_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from '../../gpu/dag/worlds.ts'
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
@@ -71,7 +72,15 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
  */
 export const RAY_PLACEMENT_WGSL = wgslBlock(
   'RAY_PLACEMENT_WGSL',
-  [RAY_TABLES_WGSL, RAY_NODES_WGSL, RAY_PAGE_WGSL, NO_INDEX, placementRay, worldMatrix3],
+  [
+    RAY_TABLES_WGSL,
+    worldAtEyeWgsl('worlds'),
+    RAY_NODES_WGSL,
+    RAY_PAGE_WGSL,
+    NO_INDEX,
+    placementRay,
+    worldMatrix3,
+  ],
   `${wgslConsts({
     RQ_ROOT_WORD: ROOT_WORD,
     RQ_SHIFT_WORD: RECORD_SHIFT_WORD,
