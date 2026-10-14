@@ -3,6 +3,9 @@ import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
+import { poolScratchWords } from '../pool/sortWords.ts'
+import { selectionListCap } from './layout.ts'
+import { EVICTION_BURST } from './readoutWords.ts'
 
 /** Words of each descent queue of a packing: two an entry, the node then the placement reading it
  *  (`shader/levelWgsl.ts`), for every entry it may hold (`PackedDag.entryCount`), one root slot a
@@ -35,8 +38,17 @@ export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) 
  *  The others each cut writes before it reads them. */
 export const JOURNAL_SECTION = 3
 
-/** The words of a `flags` of `shape` (`dagFlagsWords`). */
+/** The words of the sections of a `flags` of `shape` (`dagFlagsWords`). */
 export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWords, shape.candCap)
+
+/** Words of the eviction sort's scratch behind the sections (`shader/evictWgsl.ts`), for a cut of
+ *  `pageCount` pages: over its pool list's keys (`selectionListCap`) and the burst they can take,
+ *  no more than those keys — two words a staged key, two a group of `POOL_LANES` keys. Nothing
+ *  carries it from one sort to the next, nor from one `flags` to the one it grows into. */
+export function evictScratchWords(pageCount: number) {
+  const keys = selectionListCap(pageCount)
+  return poolScratchWords(keys, Math.min(EVICTION_BURST, keys))
+}
 
 /** The most one section of a `flags` holds on a device of `limits`: a queue's words, two an entry,
  *  and a list's entries, the live list's three words each, the widest (`shader/liveWgsl.ts`). A

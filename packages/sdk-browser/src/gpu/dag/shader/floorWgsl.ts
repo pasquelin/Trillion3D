@@ -61,10 +61,10 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
      *  `dagRaiseParents` walks up (`lastUseWgsl.ts`). */
     raised,
     /** The eviction sort's counts, places, boundary and total (`POOL_SORT_WORDS`, `evictWgsl.ts`):
-     *  zero at creation, the counts zeroed again by each sort; then its scratch over the pool
-     *  list's cap and the burst (`poolScratchWords`). */
+     *  zero at creation, the counts zeroed again by each sort. Its scratch lies in `flags`
+     *  (`evictScratchWords`, `../flagSections.ts`), a record table: no word of `work` follows it. */
     poolSort,
-    words: poolSort + POOL_SORT_WORDS + poolScratchWords(SELECTION_LIST_CAP, EVICTION_BURST),
+    words: poolSort + POOL_SORT_WORDS,
   }
 }
 
@@ -83,9 +83,7 @@ export const WORK_BLOCK_WORDS = 2 + (2 * WORKGROUP_THREADS) / 32
 
 import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../../pool/sortWords.ts'
-import { SELECTION_LIST_CAP } from '../layout.ts'
-import { EVICTION_BURST } from '../readoutWords.ts'
+import { POOL_SORT_WORDS } from '../../pool/sortWords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_INF } from './infDecl.ts'
 

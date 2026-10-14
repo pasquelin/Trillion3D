@@ -2,7 +2,7 @@ import type { RecordLayout } from '../core/recordLayout.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { CLUSTER_WORDS } from './layout.ts'
 import { NODE_TABLE } from './nodeTable.ts'
-import { flagShapeWords, type FlagShape } from './flagSections.ts'
+import { evictScratchWords, flagShapeWords, type FlagShape } from './flagSections.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
 
 /**
@@ -12,8 +12,9 @@ import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
  * load a texel (`layout.ts`, `CLUSTER_WORDS`); the nodes (`nodeTable.ts`); the cold words —
  * the working table, the residency bits, the cold records, the keys, the groups, the pool's list
  * and the world's links (`layout.ts`) —, `r32uint`, the host writing them a word at a time; and
- * the flags — the descent's queues and lists —, `r32uint`, which the kernels read and write in
- * place (the WGSL feature `readonly_and_readwrite_storage_textures`).
+ * the flags — the descent's queues and lists, then the eviction sort's scratch —, `r32uint`,
+ * which the kernels read and write in place (the WGSL feature
+ * `readonly_and_readwrite_storage_textures`).
  *
  * A row of clusters holds 2048, 6144 texels; a row of words 8192; a layer 1024 rows.
  */
@@ -38,14 +39,19 @@ export const FLAG_TABLE: RecordLayout = { ...COLD_TABLE, label: 'Trillion3D DAG 
 /** What makes a table's texture, `bytes` large: a cut's admission (`resources.ts`). */
 type Make = (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture
 
-/** The cut's flags laid out for `shape` (`flagSections.ts`), made by `make`: read and written in
- *  place by the kernels, its kept section copied into the next when its queues grow
- *  (`queueGrowth.ts`). */
-export const createFlagTable = (device: GPUDevice, shape: FlagShape, make?: Make) =>
+/** The cut's flags laid out for `shape` (`flagSections.ts`), then the eviction sort's scratch of a
+ *  cut of `pageCount` pages (`evictScratchWords`), made by `make`: read and written in place by the
+ *  kernels, its kept section copied into the next when its queues grow (`queueGrowth.ts`). */
+export const createFlagTable = (
+  device: GPUDevice,
+  shape: FlagShape,
+  pageCount: number,
+  make?: Make,
+) =>
   createRecordTexture(
     device,
     FLAG_TABLE,
-    flagShapeWords(shape),
+    flagShapeWords(shape) + evictScratchWords(pageCount),
     GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
     make,
   )
@@ -54,7 +60,7 @@ export const createFlagTable = (device: GPUDevice, shape: FlagShape, make?: Make
  *  laid it, and its flags laid out for `shape`. */
 export function createCutTables(
   device: GPUDevice,
-  packed: Pick<PackedDag, 'clusters' | 'nodes' | 'pageCones'>,
+  packed: Pick<PackedDag, 'clusters' | 'nodes' | 'pageCones' | 'pageCount'>,
   shape: FlagShape,
   make?: Make,
 ) {
@@ -69,6 +75,6 @@ export function createCutTables(
     clusters: table(CLUSTER_TABLE, 'Cluster', packed.clusters, CLUSTER_WORDS),
     nodes: table(NODE_TABLE, 'Node', packed.nodes, DAG_NODE_FLOATS),
     cold: table(COLD_TABLE, 'Word', packed.pageCones, 1),
-    flags: createFlagTable(device, shape, make),
+    flags: createFlagTable(device, shape, packed.pageCount, make),
   }
 }

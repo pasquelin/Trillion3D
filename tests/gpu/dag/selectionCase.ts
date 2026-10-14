@@ -150,7 +150,12 @@ export function bindCase(
   // (`cutTables.ts`).
   const tables = createCutTables(
     device,
-    { clusters: at.clusters, nodes: at.nodes, pageCones: new Float32Array(at.cold.buffer) },
+    {
+      clusters: at.clusters,
+      nodes: at.nodes,
+      pageCones: new Float32Array(at.cold.buffer),
+      pageCount: selection.packed.pageCount,
+    },
     at.flagShape,
   )
   // The worlds' table, as the engine's host writes it (`worldTable.ts`).

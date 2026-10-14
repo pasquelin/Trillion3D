@@ -47,7 +47,7 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   try {
     const { value, error } = await validationScope(
       device,
-      () => createFlagTable(device, shape, make),
+      () => createFlagTable(device, shape, resources.pageCount, make),
       'out-of-memory',
     )
     if (!error) flags = value

@@ -3,7 +3,12 @@
 // are one record table (`cutTables.ts`): its sections are the kernel's, word for word.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dagFlagShape, flagSectionStart, grownFlagShape } from './flagSections.ts'
+import {
+  dagFlagShape,
+  evictScratchWords,
+  flagSectionStart,
+  grownFlagShape,
+} from './flagSections.ts'
 import { QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 
@@ -42,4 +47,13 @@ test('a device holding the reach keeps it, and queue 0 never drops a placementâ€
   // A binding narrower than the roots: the queue keeps them, in its record table.
   const narrow = dagFlagShape(packed, { maxStorageBufferBindingSize: 2048 })
   assert.equal(narrow.queueWords, 1200)
+})
+
+test("the eviction sort's scratch follows the cut's pages, never the global cap", () => {
+  // Two words a staged key under the burst the pool's list can take, two a group of 256 keys
+  // (`poolScratchWords`, one group at least): no page, 2 * 1; three pages, 2 * 3 + 2 * 1; 1,800
+  // pages, 2 * 1024 + 2 * 8; the cap's
+  // 262,144 and past it, 2 * 1024 + 2 * 1024. The sort that sized it for the cap whatever the
+  // scene took 4,096 words for three pages.
+  assert.deepEqual([0, 3, 1800, 262144, 1 << 20].map(evictScratchWords), [2, 8, 2064, 4096, 4096])
 })
