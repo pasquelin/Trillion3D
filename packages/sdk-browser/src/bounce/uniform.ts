@@ -48,12 +48,10 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
     integers[5] = cascades.levels.length
     cascades.levels.forEach((level, index) => {
       const at = HEADER_WORDS + index * LEVEL_WORDS
+      // `originSpacing.w`: the cell's side (its `xyz` read by no shader, left at zero). `base.xyz`:
+      // the base cell.
       floats[at + 3] = level.spacing
-      for (let axis = 0; axis < 3; axis++) {
-        // `originSpacing.xyz`: world centre of the base cell. `base.xyz`: that cell.
-        floats[at + axis] = (level.base[axis] + 0.5) * level.spacing
-        floats[at + 4 + axis] = level.base[axis]
-      }
+      for (let axis = 0; axis < 3; axis++) floats[at + 4 + axis] = level.base[axis]
       // The cell's inverse side: a bounce point's cell of the world light grid.
       floats[at + 7] = 1 / level.spacing
     })
