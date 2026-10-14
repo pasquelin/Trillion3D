@@ -30,7 +30,7 @@ const RING_BUFFERS = 3
 
 /** What the session's engine holds for a batch, the queue's records over it: none while it opens,
  *  after a loss or a dispose. */
-function sourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | undefined {
+export function sourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | undefined {
   const { run, gpu, vis, layout, blendState } = rt
   const selection = run.gpuSelection,
     tables = selection?.cutTables(),
