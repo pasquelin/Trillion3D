@@ -33,9 +33,10 @@ const world = (x: number, y: number, z: number, s = 1): ImpostorRoot['world'] =>
   elements: [s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0, x, y, z, 1],
 })
 const IDENTITY_VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-const watched = (roots: ImpostorRoot[], baked: ImpostorSection | undefined = section) =>
+// The section is named at every call: a default would stand in for an absent (`undefined`) one.
+const watched = (roots: ImpostorRoot[], baked: ImpostorSection | undefined) =>
   readFromNothing(roots, baked, IDENTITY_VIEW, FOCAL)
-const switched = (roots: ImpostorRoot[], baked?: ImpostorSection) => [
+const switched = (roots: ImpostorRoot[], baked: ImpostorSection | undefined) => [
   ...watched(roots, baked).switched,
 ]
 
@@ -45,7 +46,7 @@ test('a far root switches, its radius the baked one; a near root and a refused o
     { mesh: 2, world: world(3, 0, -10) },
     { mesh: 9, world: world(0, 0, -200) },
   ]
-  const watch = watched(roots)
+  const watch = watched(roots, section)
   assert.deepEqual([...watch.switched], [1, 0, 0], 'only the far tree switches')
   assert.equal(watch.radiusOf(0), TREE.objectRadius)
 })
@@ -56,7 +57,7 @@ test('the switch is the CPU oracle over the baked numbers and the view', () => {
     [2, BUSH],
   ] as const) {
     const depth = impostorSwitchDepth(input, FOCAL)
-    const decide = (z: number) => switched([{ mesh, world: world(0, 0, -z) }])[0]
+    const decide = (z: number) => switched([{ mesh, world: world(0, 0, -z) }], section)[0]
     assert.equal(decide(depth - 1), 0, `mesh ${mesh} whole before z_s`)
     assert.equal(decide(depth + 1), 1, `mesh ${mesh} card after z_s`)
     // The boundary is a property of the mesh: no constant is shared between the two.
@@ -67,23 +68,25 @@ test('the switch is the CPU oracle over the baked numbers and the view', () => {
 })
 
 test('the largest world scale of the placement moves R and the switch with it', () => {
-  const [unity, scaled] = [1, 2].map((s) => watched([{ mesh: 1, world: world(0, 0, -300, s) }]))
+  const [unity, scaled] = [1, 2].map((s) =>
+    watched([{ mesh: 1, world: world(0, 0, -300, s) }], section),
+  )
   assert.equal(unity.radiusOf(0), TREE.objectRadius)
   assert.equal(scaled.radiusOf(0), 2 * TREE.objectRadius)
   // R doubled, the switch moves out: at one depth the scaled placement is still whole where the
   // unscaled one already switches.
-  const at = (s: number) => switched([{ mesh: 1, world: world(0, 0, -150, s) }])[0]
+  const at = (s: number) => switched([{ mesh: 1, world: world(0, 0, -150, s) }], section)[0]
   assert.deepEqual([at(1), at(2)], [1, 0])
 })
 
 test('a refused entry, an unknown mesh and an absent section switch nothing', () => {
   const far = world(0, 0, -500)
   const roots = [{ mesh: 9, world: far }, { mesh: 77, world: far }, { world: far }]
-  assert.deepEqual(switched(roots), [0, 0, 0])
+  assert.deepEqual(switched(roots, section), [0, 0, 0])
   assert.equal(impostorBakedByMesh(section).size, 2, 'refused entries stay out of the lookup')
   assert.equal(impostorBakedByMesh(undefined).size, 0)
   const tree = [{ mesh: 1, world: far }]
-  assert.deepEqual(switched(tree), [1])
+  assert.deepEqual(switched(tree, section), [1])
   // The far tree that switches above draws whole once its section is absent or empty.
   for (const absent of [undefined, { ...section, meshes: [] }])
     assert.deepEqual(switched([...tree, ...tree, ...tree], absent), [0, 0, 0])
@@ -91,7 +94,7 @@ test('a refused entry, an unknown mesh and an absent section switch nothing', ()
 
 test('a far hemi root switches, and incomplete switch data stays in geometry', () => {
   const roots = [{ mesh: 2, world: world(0, 0, -1000) }]
-  assert.deepEqual(switched(roots), [1])
+  assert.deepEqual(switched(roots, section), [1])
   const incomplete = { ...section, meshes: [{ ...section.meshes[1], coverage: 0 }] }
   assert.deepEqual(switched(roots, incomplete), [0])
 })
@@ -134,7 +137,7 @@ test('off the view axis a root switches only where one atlas texel stays within 
     q = 1,
     z = tree * Math.sqrt(Math.SQRT2) * (1 + 1e-9)
   const at = (x: number, depthAt: number) =>
-    switched([{ mesh: 1, world: world(x, 0, -depthAt) }])[0]
+    switched([{ mesh: 1, world: world(x, 0, -depthAt) }], section)[0]
   assert.deepEqual([at(q * z, z), at(q * z * (1 - 1e-6), z * (1 - 1e-6))], [1, 0])
   // Behind the eye, its mirror in front.
   assert.equal(at(q * z, -z), 1)
