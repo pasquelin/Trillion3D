@@ -53,6 +53,12 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
         for (const root of placements) visit(placement.baseOfRoot[root] + offset)
       return true
     },
+    /** Hands `visit` the least packed rank of each primitive page at `address`: one call a
+     *  primitive, whatever its placements — what a table kept per primitive follows. */
+    eachPrimitive(address: string, visit: (packed: number) => void) {
+      for (const { placements, offset } of byAddress.get(address) ?? [])
+        visit(placement.baseOfRoot[placements[0]] + offset)
+    },
     /** Hands `visit` the packed rank of every blended instance, primitive page by primitive page. */
     eachBlended(visit: (packed: number) => void) {
       for (const { placements, offset } of blended)

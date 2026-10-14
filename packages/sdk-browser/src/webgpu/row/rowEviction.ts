@@ -6,6 +6,7 @@ import { createRowMapGpu, type RowMapJournal } from './rowMapGpu.ts'
 import { createRowUseWordsGpu, type RowUseWords } from './rowWords.ts'
 import { createRowClosure } from './rowClosure.ts'
 import { createRowEvictSort } from './rowEvictSort.ts'
+import { ROW_FRAMES, rowFrameSlot } from './rowEvictSortWgsl.ts'
 
 /** What the GPU reads of the row cache (`slots.ts`): the page→row map and its journal
  *  (`pageState.ts`), the use words (`rowWords.ts`), the table's rows, and the host's frame; and
@@ -22,10 +23,6 @@ type RowsHost = {
   frame: () => number
   order(queue: Uint32Array | undefined, ranked: number, frame: number): void
 }
-
-/** Frames a cut's readback lands behind it at most, with room (`DAG_READBACK_SLOTS`): what the
- *  ring of frames whose closure could not run spans. */
-const FRAMES = 8
 
 /**
  * THE ROW CACHE ON A CUT (#1527): what the cut encodes for its rows after its own kernels
@@ -48,8 +45,8 @@ export function createRowEviction(host: RowsHost) {
       use = createRowUseWordsGpu(device, buffer),
       closure = createRowClosure(device, cut, (d, bytes, old) => cutTexture(cut, d, bytes, old)),
       sort = createRowEvictSort(device, buffer)
-    /** Per frame of the last `FRAMES`, the frame when its cut could not stamp. */
-    const unstamped = new Int32Array(FRAMES).fill(-1)
+    /** Per frame of the last `ROW_FRAMES`, the frame when its cut could not stamp. */
+    const unstamped = new Int32Array(ROW_FRAMES).fill(-1)
     /** Sends what the host wrote. */
     const upload = () => {
       map.upload()
@@ -79,18 +76,18 @@ export function createRowEviction(host: RowsHost) {
       encode(pass, read) {
         const frame = host.frame()
         try {
-          if (!stampAndRank(pass, read, frame)) unstamped[frame % FRAMES] = frame
+          if (!stampAndRank(pass, read, frame)) unstamped[rowFrameSlot(frame)] = frame
         } catch (error) {
           // A buffer the cut's share or the session's budget refused: no stamp this cut, so no
           // queue to trust. Any other error is the engine's: it surfaces.
           if (!cutRefused(error)) throw error
-          unstamped[frame % FRAMES] = frame
+          unstamped[rowFrameSlot(frame)] = frame
         }
       },
       landed(range, listCap, frame) {
         // A cut whose closure could not run ranks nothing to trust, whatever its readout holds.
-        const slot = ((frame % FRAMES) + FRAMES) % FRAMES
-        if (!range || unstamped[slot] === frame) return host.order(undefined, 0, frame)
+        if (!range || unstamped[rowFrameSlot(frame)] === frame)
+          return host.order(undefined, 0, frame)
         const at = rowQueueWord(listCap)
         if (range.byteLength < (at + SELECTION_HEADER_WORDS) * 4) return
         const head = new Uint32Array(range, at * 4, SELECTION_HEADER_WORDS)

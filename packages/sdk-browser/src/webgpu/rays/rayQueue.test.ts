@@ -178,3 +178,15 @@ test('a batch over the same buffers binds the groups the last one made: none mad
   assert.equal(gpu.bindGroups.length, made, 'its three groups held')
   queue.dispose()
 })
+
+test('a batch the device refuses answers none, never the hits an older batch left in its staging', async () => {
+  const mesh = new Object3D()
+  const root = { pages: [], placement: { rows: { sources: [mesh] }, index: 0 } }
+  const { gpu, queue } = rig(1, { kernel: traceDouble, selectionRoots: [root] })
+  assert.ok(await queue.cast(ray(0)), 'the first batch lands its hit in a staging buffer')
+  // The next batch's command buffer is refused: its copy never ran, its staging holds the old hit.
+  const pop = gpu.device.popErrorScope.bind(gpu.device)
+  gpu.device.popErrorScope = async () => (await pop(), { message: 'refused' } as GPUError)
+  assert.equal(await queue.cast(ray(0)), null, 'a refused batch answers no hit')
+  queue.dispose()
+})

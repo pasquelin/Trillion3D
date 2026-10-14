@@ -19,7 +19,7 @@ export function moveRank(
 ) {
   if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
   if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
-  noteTravel(s.travel.ranks, rank, s.poses.subarray(rank * 16, rank * 16 + 16), world)
+  noteTravel(s.travel.ranks, rank, s.poses, rank * 16, world)
   s.poses.set(world, rank * 16)
   s.lastMoved[rank] = s.frame
   if (s.moving[rank]) return MOVE_MOVING
@@ -62,7 +62,7 @@ export function moveLeadSlot(
   from: ArrayLike<number>,
   to: ArrayLike<number>,
 ) {
-  noteTravel(s.travel.slots, lead, from, to)
+  noteTravel(s.travel.slots, lead, from, 0, to)
   if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED
   s.leadMoved[lead] = s.frame
   if (s.leadMoving[lead]) return MOVE_MOVING

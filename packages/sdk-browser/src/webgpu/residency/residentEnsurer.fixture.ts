@@ -7,6 +7,7 @@ import { structureIndex } from '../../page/selection/structure.ts'
 import { createPageParents } from '../../page/selection/pageParents.ts'
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
 import { createPageAdmission } from './admission.ts'
+import { createShare } from './share.ts'
 import type { LowerList, LowerPassOptions } from './lowerTier.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { MAIN_THREAD_FRAME_MS } from '../../engine/common.ts'
@@ -143,7 +144,7 @@ export function lowerPassOptions(
     ...options,
     admit: createPageAdmission(options),
     budget: options.clock,
-    nextShare: async () => {},
+    share: createShare(options.clock, async () => {}),
     readAhead: undefined,
   }
 }

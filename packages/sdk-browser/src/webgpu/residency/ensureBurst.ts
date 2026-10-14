@@ -108,14 +108,11 @@ function needsAdmit(s: EnsureState, run: EnsureRun, rec: PageRec) {
 /** One page of the burst admitted (`needsAdmit` said so), unless the image no longer asks for it
  *  or the pool holds it once the share resumes; false once the pool is full. */
 async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: () => void) {
-  const { budget } = s
-  // The share: past it the burst resumes after a task, nothing dropped — the page read again
-  // against `wanted` and the pool, which a camera that moved in between may have changed. The clock
-  // runs again first: a frame that ran during an await stopped it.
-  budget.resume()
-  if (!budget.admits()) {
-    budget.pause()
-    await s.nextShare()
+  // The share (`share.ts`): past it the burst resumes after a task, nothing dropped — the page
+  // read again against `wanted` and the pool, which a camera that moved in between may have changed.
+  const shared = s.share()
+  if (shared) {
+    await shared
     run.cache = currentCache(s)
     if (!asked(s, rec) || run.cache.get(pageAddress(rec))) {
       run.missing--
@@ -128,7 +125,7 @@ async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: ()
       landed()
       run.missing--
     }
-    budget.spend()
+    s.budget.spend()
   } catch (error) {
     if (!String(error).includes('POOL_FULL')) throw error
     // Pool full of pages the image holds: the burst stops there, without dropping anything.

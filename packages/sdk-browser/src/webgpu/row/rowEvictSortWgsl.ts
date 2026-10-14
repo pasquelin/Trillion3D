@@ -12,6 +12,15 @@ import { ROW_PAGE, ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
  *  many frames after the GPU ranked it, and a row taken counts for the frame being drawn. */
 export const ROW_IN_USE = EVICT_IN_USE + DAG_READBACK_SLOTS
 
+/** Frames the host remembers a cut by, past the frames its readback lands behind it
+ *  (`DAG_READBACK_SLOTS`) with room: the one span of the rings the cut's eviction keeps of the cuts
+ *  that could not stamp (`rowEviction.ts`) and the rows' order of their arrivals (`rowOrder.ts`) —
+ *  a queue is trusted only while both still hold its frame. */
+export const ROW_FRAMES = 8
+
+/** Frame `frame`'s place in a ring of `ROW_FRAMES`, a negative frame included. */
+export const rowFrameSlot = (frame: number) => ((frame % ROW_FRAMES) + ROW_FRAMES) % ROW_FRAMES
+
 /**
  * THE ROWS' VICTIM QUEUE (#1527): the pool sort (`../../gpu/pool/sortWgsl.ts`) over the live rows
  * `[0, slots)`, each ranked on its age — the clock less its last use, raised by the cut's closure

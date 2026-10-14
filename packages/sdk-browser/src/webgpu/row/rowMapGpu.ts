@@ -1,5 +1,5 @@
 import { createChangedRuns } from '../residency/ranges.ts'
-import { writeRanges } from '../../gpu/dag/runWrites.ts'
+import { writeRanges, type RangeSource } from '../../gpu/dag/runWrites.ts'
 import { ROW_MAP_HEAD } from './rowMapWgsl.ts'
 import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
 
@@ -44,7 +44,10 @@ export function createRowMapGpu(
   make: BufferMaker,
 ) {
   let buffer: GPUBuffer | undefined,
-    slots = -1
+    /** The tables' word views and where each goes, made with the tables in `whole` — a new table
+     *  is a new array —: a frame's slots are sent through them, nothing allocated. */
+    keys: Int32Array | undefined,
+    sources: readonly RangeSource[] = []
   const target = (offset: number, data: ArrayBuffer, from: number, size: number) =>
     device.queue.writeBuffer(buffer!, offset, data, from, size)
   const whole = () => {
@@ -54,11 +57,14 @@ export function createRowMapGpu(
       usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     buffer = sizedBuffer(device, held, bytes, usage, 'Trillion3D DAG row map', make)
     device.queue.writeBuffer(buffer, 0, new Uint32Array([n]))
-    if (n) {
-      device.queue.writeBuffer(buffer, ROW_MAP_HEAD * 4, words(map.keys))
-      device.queue.writeBuffer(buffer, (ROW_MAP_HEAD + n) * 4, words(map.values))
-    }
-    slots = n
+    keys = map.keys
+    sources = [
+      { data: words(map.keys), sourceBase: 0, targetBase: ROW_MAP_HEAD, stride: 1 },
+      { data: words(map.values), sourceBase: 0, targetBase: ROW_MAP_HEAD + n, stride: 1 },
+    ]
+    if (n)
+      for (const { data, targetBase } of sources)
+        device.queue.writeBuffer(buffer, targetBase * 4, data)
     journal.rebuilt = false
     journal.slots.clear()
     return buffer !== held
@@ -66,19 +72,10 @@ export function createRowMapGpu(
   return {
     /** Sends what the map wrote since the last call; true when the buffer was made anew. */
     upload() {
-      if (journal.rebuilt || slots !== map.keys.length) return whole()
+      if (journal.rebuilt || keys !== map.keys) return whole()
       if (!journal.slots.count) return false
       const sorted = journal.slots.take()
-      for (const [table, base] of [
-        [map.keys, ROW_MAP_HEAD],
-        [map.values, ROW_MAP_HEAD + slots],
-      ] as const)
-        writeRanges(target, sorted, sorted.length, {
-          data: words(table),
-          sourceBase: 0,
-          targetBase: base,
-          stride: 1,
-        })
+      for (const source of sources) writeRanges(target, sorted, sorted.length, source)
       return false
     },
     /** The buffer the closure binds (`rowOfPage`), made at the first `upload`. */

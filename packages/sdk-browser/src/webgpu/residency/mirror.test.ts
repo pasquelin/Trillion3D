@@ -11,6 +11,8 @@ import { pageAddress } from '../row/pageSlots.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import type { PageRec } from '../../page/selection/types.ts'
+import { createPackedInstances } from '../row/instances.ts'
+import { postPackedBases } from '../../page/selection/placements.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
@@ -35,6 +37,7 @@ test('a key the pool takes is noted for each placement at its arrival, before an
           if (key === 'k') [0, 2].forEach((packed) => visit(packed))
           return key === 'k'
         },
+        eachPrimitive: () => {},
       },
     },
     getCache: () => cache,
@@ -52,6 +55,36 @@ test('a key the pool takes is noted for each placement at its arrival, before an
     ],
     'arrival, then departure',
   )
+})
+
+test('a key that moved is followed once per primitive page, by its least rank, whatever its placements', () => {
+  // Two primitives: `a` placed three times, `b` once; page `k` belongs to both.
+  const k = { url: 'k' } as PageRec,
+    a = [{ url: 'a0' } as PageRec, k],
+    b = [k]
+  const roots = [{ pages: a }, { pages: b }, { pages: a }, { pages: a }]
+  const instances = createPackedInstances(roots, postPackedBases(roots))
+  const keys = [pageAddress(k)]
+  const ranks: number[] = [],
+    primitives: number[] = []
+  const mirror = createWebgpuResidencyMirror({
+    table: { instances },
+    getCache: () => ({
+      drainResidencyChanges: (into: string[], slots: number[]) => (
+        into.push(...keys.splice(0)),
+        slots.push(4)
+      ),
+    }),
+    onOffsetChange: (page) => ranks.push(page),
+    onPrimitiveChange: (page) => primitives.push(page),
+  })
+  mirror.sync()
+  assert.deepEqual(
+    ranks.sort((x, y) => x - y),
+    [1, 2, 4, 6],
+    'every placement of the page',
+  )
+  assert.deepEqual(primitives, [1, 2], 'one call a primitive: its first placement')
 })
 
 /** Eight pages of one placement over a real page cache of `slots` slots, the row state reading its

@@ -21,8 +21,15 @@ export function createTravel() {
   return { ranks: movers(), slots: movers(), jumped: [] as number[] }
 }
 
-/** Mover `i` of `m` went from pose `from` to `to` (sixteen, column-major). */
-export function noteTravel(m: Movers, i: number, from: ArrayLike<number>, to: ArrayLike<number>) {
+/** Mover `i` of `m` went from pose `from` — its sixteen from `at`, column-major — to `to`: read in
+ *  place, no view made per move. */
+export function noteTravel(
+  m: Movers,
+  i: number,
+  from: ArrayLike<number>,
+  at: number,
+  to: ArrayLike<number>,
+) {
   if (i < 0) return
   if (i >= m.a.length) {
     m.a = resized(m.a, i + 1)
@@ -33,13 +40,13 @@ export function noteTravel(m: Movers, i: number, from: ArrayLike<number>, to: Ar
     dl = 0,
     ll = 0
   for (let k = 0; k < 3; k++) {
-    const d = to[12 + k] - from[12 + k]
+    const d = to[12 + k] - from[at + 12 + k]
     dt += d * d
-    tt += Math.abs(from[12 + k]) + Math.abs(to[12 + k])
+    tt += Math.abs(from[at + 12 + k]) + Math.abs(to[12 + k])
     for (let r = 0; r < 3; r++) {
-      const e = to[k * 4 + r] - from[k * 4 + r]
+      const e = to[k * 4 + r] - from[at + k * 4 + r]
       dl += e * e
-      ll += Math.abs(from[k * 4 + r]) + Math.abs(to[k * 4 + r])
+      ll += Math.abs(from[at + k * 4 + r]) + Math.abs(to[k * 4 + r])
     }
   }
   if (m.a[i] === 0 && m.b[i] === 0) m.list.push(i)

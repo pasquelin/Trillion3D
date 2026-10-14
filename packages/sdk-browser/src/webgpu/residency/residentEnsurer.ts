@@ -4,6 +4,7 @@ import { createSharePace } from '../../page/integration/frameBudget.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
 import { createLowerPass } from './lowerTier.ts'
+import { createShare } from './share.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { admitWanted, type EnsureOptions, type EnsureRun, type EnsureState } from './ensureBurst.ts'
 
@@ -14,15 +15,18 @@ export function createWebgpuResidentEnsurer(options: EnsureOptions) {
    *  `STREAMING_SHARES_PER_FRAME` of a visible page a frame. A share between two frames spends what
    *  the frame's stages left; a page whose frames do not come — nothing opens the clock — opens it. */
   const budget = options.clock
-  const nextShare = createSharePace(
-    (framed) => (framed ? budget.stage() : void budget.open()),
-    STREAMING_SHARES_PER_FRAME,
+  const share = createShare(
+    budget,
+    createSharePace(
+      (framed) => (framed ? budget.stage() : void budget.open()),
+      STREAMING_SHARES_PER_FRAME,
+    ),
   )
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
   const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch })
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
   const admit = createPageAdmission(options)
-  const parts = { ...options, budget, nextShare, readAhead, admit }
+  const parts = { ...options, budget, share, readAhead, admit }
   const state: EnsureState = { ...parts, lower: createLowerPass(parts) }
   /**
    * `cameraWaiting` says a camera cut queued behind this job: the caster tier gives way to it.

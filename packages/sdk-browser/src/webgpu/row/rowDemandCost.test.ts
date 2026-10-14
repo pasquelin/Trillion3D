@@ -28,8 +28,8 @@ function countedPages(count: number) {
   return { pages, counts }
 }
 
-/** A generated sequence of readbacks over `count` instances: a window of drawn, asked and ahead
- *  ids that slides by a tenth of itself each readback. */
+/** A generated sequence of readbacks over `count` instances: a window of asked and ahead ids that
+ *  slides by a tenth of itself each readback. */
 function readbacks(count: number, frames: number) {
   const width = Math.min(count >> 2, 4096),
     step = Math.floor(width / 10)
@@ -37,7 +37,6 @@ function readbacks(count: number, frames: number) {
     const from = (f * step) % (count - width + 1)
     const ids = (n: number, at: number) => Array.from({ length: n }, (_, i) => (at + i) % count)
     return {
-      drawablePageIds: ids(width, from),
       pageIds: ids(width >> 1, from + step),
       aheadPageIds: ids(width >> 2, from + 2 * step),
     }
@@ -73,7 +72,7 @@ test('per readback, the row table is read per change, never per id named', () =>
   let named = 0
   for (const cut of readbacks(count, 24)) {
     demand.follow(cut)
-    named += cut.drawablePageIds.length + cut.pageIds.length + cut.aheadPageIds.length
+    named += cut.pageIds.length + cut.aheadPageIds.length
   }
   // The row table is read for what entered or left the requests' closure alone, never per id named.
   assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
