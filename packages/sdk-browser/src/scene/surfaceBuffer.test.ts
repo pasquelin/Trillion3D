@@ -22,8 +22,8 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   const pyramid = Math.max(9, 3 * (4 + 1)) * 4 * 3
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 57 + 9 * 4 * 2 + pyramid + 8 + 16,
-    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0 (4 B/px in each of its two layers, the opaque depth and the front depth it folds in), then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
+    9 * 57 + 9 * 4 + pyramid + 8 + 16,
+    'no material depth: 24 B/px beside the surfaces; the Hi-Z pyramid as made: level 0 (4 B/px, the opaque depth; the front layer is a scene with transparents’ alone), then three layers of max(N, 3M) words (N = 9 at level 0, M = 4 + 1 in the coarser levels, odd levels at ceil dimensions); the 1×1 thin transmission and lobes',
   )
 })
 

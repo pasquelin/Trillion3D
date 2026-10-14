@@ -11,6 +11,7 @@ import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
 import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
+import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
 
@@ -66,6 +67,8 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
     reflectionBytes(width, height, sceneBlends(rt)) +
+    // The Hi-Z level 0's front layer, a scene's whose transparents write a front depth (`GpuHiz.front`).
+    (hiz && sceneBlends(rt) ? level0LayerBytes(width, height) : 0) +
     display * DISPLAY_BYTES
   )
 }

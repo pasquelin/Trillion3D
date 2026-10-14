@@ -16,6 +16,7 @@ import {
   HIZ_DEPTH_READERS,
 } from '../reflections/depthField.fixture.ts'
 import { CODE, constructors } from './pageWorld.fixture.ts'
+import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
@@ -23,7 +24,7 @@ const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
  *  world; it counts the cells of the pyramid it reads. */
 function caster(width: number, height: number, depth: (x: number, y: number) => number) {
   const field = depthField(width, height, depthImage(width, height, depth))
-  const token = { depth: {}, pyramid: {} }
+  const token = { depth: { layers: HIZ_DEPTH_LAYERS }, pyramid: {} }
   const counter = { loads: 0 }
   const run = shaderRun<{
     vsmScreenRayCast: (o: number[], d: number[], length: number, thickness: number) => number

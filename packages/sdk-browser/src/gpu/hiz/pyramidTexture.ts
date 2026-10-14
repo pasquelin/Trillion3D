@@ -99,33 +99,6 @@ fn hizNearest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i)
 fn hizWholeFarthest(i:u32)->f32{return bitcast<f32>(textureLoad(hizPyramid,hizTexel(i),hizSlice(i,${HIZ_WHOLE_FARTHEST}u),0).r);}`,
 )
 
-/** Words of the levels uniform (`HizLevels`): per level the first index of its nearest bound, its
- *  width and height, and the first index of its finished depth's farthest bound (`hizRoute`);
- *  then the count of levels. */
-export const HIZ_LEVELS_WORDS = HIZ_MAX_LEVELS * 4 + 4
-
-/** The levels uniform of a pyramid of `sizes` at `offsets` (`pyramidBytes`), its first
- *  `HIZ_MAX_LEVELS` built. */
-export function hizLevelWords(
-  sizes: Array<[number, number]>,
-  offsets: number[],
-  layout: { first: number; upper: number },
-) {
-  const words = new Uint32Array(HIZ_LEVELS_WORDS)
-  const count = Math.min(sizes.length, HIZ_MAX_LEVELS)
-  for (let level = 0; level < count; level++)
-    words.set(
-      [
-        hizRoute(offsets[level], level, HIZ_NEAREST, layout),
-        ...sizes[level],
-        hizRoute(offsets[level], level, HIZ_WHOLE_FARTHEST, layout),
-      ],
-      level * 4,
-    )
-  words[HIZ_MAX_LEVELS * 4] = count
-  return words
-}
-
 /** The layout entries of a depth reader (`hizDepthWgsl`) from `binding`, read by `visibility`. */
 export const hizDepthEntries = (binding: number, visibility: number): GPUBindGroupLayoutEntry[] => [
   computeTextureEntry(binding, 'unfilterable-float', '2d-array', visibility),
@@ -138,33 +111,40 @@ export const hizDepthEntries = (binding: number, visibility: number): GPUBindGro
 export const hizDepthBindEntries = (binding: number, depth: HizDepth): GPUBindGroupEntry[] =>
   sequentialEntries(depth.resources, binding)
 
-/** The layers of the level-0 texture (`HIZ_DEPTH_LAYERS` of them): the opaque depth, and the
- *  nearest transparent surface's (`reflections/frontDepth.ts`, a depth a pixel, zero for none). */
+/** The layers of the level-0 texture: the opaque depth and — only for a scene whose transparents
+ *  write a front depth (blends, water, transmission: `FrontDepth.wanted`) — the nearest transparent
+ *  surface's (`reflections/frontDepth.ts`, a depth a pixel, zero for none), made at the first ask
+ *  (`GpuHiz.front`). An opaque scene's level 0 is one layer: it pays no byte for transparents. */
 export const HIZ_OPAQUE_LAYER = 0
 export const HIZ_FRONT_LAYER = 1
+/** The layers of a level 0 that holds the front depth. */
 export const HIZ_DEPTH_LAYERS = 2
 
 /**
  * The front-over-opaque fold, written once for every reader (`hizDepthWgsl`, the Hi-Z build): at
- * pixel `p` of the level-0 texture `depth`, the opaque depth and the nearest transparent surface's,
- * its two layers, reverse-Z, so the larger. A pixel without a transparent surface reads the opaque
- * depth, bit for bit.
+ * pixel `p` of the level-0 texture `depth`, the opaque depth and, where it holds the front layer,
+ * the nearest transparent surface's, reverse-Z, so the larger. A level 0 of one layer, or a pixel
+ * without a transparent surface, reads the opaque depth, bit for bit; the layer count is the
+ * texture's (`textureNumLayers`), uniform over a dispatch: an opaque scene loads one texel.
  */
 export const HIZ_FOLD_WGSL = wgslBlock(
   'HIZ_FOLD_WGSL',
   [],
   `fn hizFold(depth:texture_2d_array<f32>,p:vec2i)->f32{
- return max(textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r,textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r);
+ let opaque=textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r;
+ if(textureNumLayers(depth)<=${HIZ_FRONT_LAYER}u){return opaque;}
+ return max(opaque,textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r);
 }
 fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i)->bool{
+ if(textureNumLayers(depth)<=${HIZ_FRONT_LAYER}u){return false;}
  return textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r>textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r;
 }`,
 )
 
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0 —
- * the depth the image drew, and in its second layer the nearest transparent surface's depth a pixel
- * (zero for none) —, the pyramid and its levels. `hizPlane` is a pixel's depth (the nearer of the opaque depth and
+ * the depth the image drew, and in its second layer, when it holds one, the nearest transparent
+ * surface's depth a pixel (zero for none) —, the pyramid and its levels. `hizPlane` is a pixel's depth (the nearer of the opaque depth and
  * the transparent one, which the nearest layer's bounds fold in the same way, `hizFold`) and its
  * plane's slopes in depth per pixel, and `hizFrontOver` whether that depth is a transparent
  * surface's (`hizFoldOver`), in front of the opaque one (a reader that takes only opaque surfaces for walls skips

@@ -132,6 +132,8 @@ export const builtins = {
     coords: number[],
     layer: number,
   ) => texture.load(coords, layer),
+  // The layers a bound array texture holds: its own (`layers`).
+  textureNumLayers: (texture: { layers: number }) => texture.layers,
   textureStore: (
     texture: { store(coords: number[], layer: number, value: number[]): void },
     coords: number[],
