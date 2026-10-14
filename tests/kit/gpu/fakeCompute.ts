@@ -13,6 +13,7 @@ import { boundResource, words, type BoundBuffer } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { poolSortReplayOf } from './fakePoolSorts.ts'
+import { noteCutSeeds, replayRowClosure, ROW_CLOSURE_KERNELS } from './fakeRowClosure.ts'
 import {
   DAG_SLOT,
   boundListCap,
@@ -66,6 +67,8 @@ export function simulateComputeDispatch(
   if (rowStage && computeBind?.entries) return rowStage(computeBind)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind)
     return simulateScatterGroups(computeBind.entries)
+  if (ROW_CLOSURE_KERNELS.has(computePipeline?.entryPoint ?? '') && computeBind)
+    return replayRowClosure(computeBind.entries)
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
@@ -125,6 +128,11 @@ export function simulateComputeDispatch(
     [...result.pageIds, ...(result.drawablePageIds ?? [])],
     result.aheadPageIds,
   )
+  noteCutSeeds(dag, words(byBinding.get(DAG_SLOT.views)!.data)[viewWord('frame')], {
+    drawn: result.drawablePageIds ?? [],
+    asked: result.pageIds,
+    ahead: result.aheadPageIds,
+  })
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
   const mask = writtenMask(byBinding.get(DAG_SLOT.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
