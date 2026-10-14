@@ -1,4 +1,5 @@
 import { validationScope } from '../core/errorScope.ts'
+import { behind } from '../core/behind.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
 import { createFlagTable } from './cutTables.ts'
@@ -110,24 +111,22 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
   state.growFlags = undefined
   state.growHeld = 0
   state.growing = true
-  state.pending = state.pending
-    .catch(() => {})
-    .then(async () => {
-      try {
-        // Every view's cut in hand dropped work or stood on the old queues: each cuts again.
-        if (flags && !(await growDagFlags(resources, flags, () => state.disposed)))
-          state.flagsFull = true
-        if (cap === resources.listCap && regions === swap.regions && held === resources.heldSlots)
-          return
-        if (await growDagList(resources, cap, regions, () => state.disposed, held)) return
-        if (cap > resources.listCap) state.listFull = true
-        if (regions > swap.regions) state.regionsFull = true
-      } finally {
-        state.growing = false
-        recutMain(swap, state)
-        if (flags) swap.cuts.forEach((_, v) => recutView(swap, v + 1))
-      }
-    })
+  void behind(state, async () => {
+    try {
+      // Every view's cut in hand dropped work or stood on the old queues: each cuts again.
+      if (flags && !(await growDagFlags(resources, flags, () => state.disposed)))
+        state.flagsFull = true
+      if (cap === resources.listCap && regions === swap.regions && held === resources.heldSlots)
+        return
+      if (await growDagList(resources, cap, regions, () => state.disposed, held)) return
+      if (cap > resources.listCap) state.listFull = true
+      if (regions > swap.regions) state.regionsFull = true
+    } finally {
+      state.growing = false
+      recutMain(swap, state)
+      if (flags) swap.cuts.forEach((_, v) => recutView(swap, v + 1))
+    }
+  })
 }
 
 /** True when `flags` or the list must grow, or `out` must hold the saved regions the views aside

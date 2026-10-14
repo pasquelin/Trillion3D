@@ -1,7 +1,7 @@
 import { createGpuPageCache } from '../../../gpu/page/pages.ts'
 import { grantedGeometryPool } from '../../residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
-import { geometryBudgetBeside } from '../io/memory.ts'
+import { geometryBudgetBeside } from '../io/besidePools.ts'
 import { throwIfStopped } from '../io/lost.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
 

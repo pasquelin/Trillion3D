@@ -12,7 +12,7 @@ import {
   pageTablesReport,
 } from '../prepare/textureCensus.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { textureBytesBeside } from './memory.ts'
+import { textureBytesBeside } from './besidePools.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
 import { prepareTexelTurn } from '../../tile/texelTurn.ts'
 import { queueTableGrowth } from '../prepare/growthQueue.ts'

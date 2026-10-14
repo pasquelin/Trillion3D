@@ -19,23 +19,19 @@ export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset:
   table.spans[entry * 4] = start
   table.spans[entry * 4 + 1] = count
   writeSpanDeformation(table.spans, entry, rt.layout.deformationOutputOf(page), count)
-  dirtySpans.add(entry)
+  dirtySpans.mark(entry)
 }
 
 /** Adjacent changed entries share one upload. Opaque arrivals and unchanged frames write nothing. */
 export function refreshTransparentSpans(rt: WebgpuPagesCore) {
   const { compaction, dirtySpans } = rt.blendState
-  if (!compaction || !dirtySpans.size) return
-  const entries = Array.from(dirtySpans).sort((a, b) => a - b)
-  for (let i = 0; i < entries.length;) {
-    const first = entries[i++]
-    let end = first + 1
-    while (i < entries.length && entries[i] === end) {
-      i++
-      end++
-    }
-    compaction.uploadSpans(first, end - first)
-    rt.timing.transparentSpanUploadBytes += (end - first) * 16
+  if (!compaction || !dirtySpans.count) return
+  const { count, pairs } = dirtySpans.runs()
+  for (let r = 0; r < count; r++) {
+    const first = pairs[r * 2],
+      entries = pairs[r * 2 + 1] - first + 1
+    compaction.uploadSpans(first, entries)
+    rt.timing.transparentSpanUploadBytes += entries * 16
   }
   dirtySpans.clear()
 }

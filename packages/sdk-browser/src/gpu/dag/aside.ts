@@ -21,6 +21,7 @@ import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
 import { coarsenTick } from './coarsening.ts'
 import { recutView } from './runtimeState.ts'
 import { encodeSwap } from './swapEncode.ts'
+import { settleOnce } from './settleOnce.ts'
 import { createAsideSlots, type AsideCopy, type AsideSlots } from './asideSlots.ts'
 
 /** What a view aside takes of the main cut: its owed copy (`dispatch.ts`, `copyOwed`), and the
@@ -180,15 +181,17 @@ function settleAside(
   undo: () => void,
   owed?: SelectionSubmission,
 ): SelectionSubmission {
-  let settled = false
-  return (submitted: boolean) => {
-    if (settled) return
-    settled = true
-    if (submitted) return void (owed?.(true), copied?.read())
-    if (copied) {
-      slots.ring.dropped(copied.target)
-      slots.settled(copied.copy)
-    }
-    undo()
-  }
+  return settleOnce(
+    () => {
+      if (copied) {
+        slots.ring.dropped(copied.target)
+        slots.settled(copied.copy)
+      }
+      undo()
+    },
+    () => {
+      owed?.(true)
+      copied?.read()
+    },
+  )
 }

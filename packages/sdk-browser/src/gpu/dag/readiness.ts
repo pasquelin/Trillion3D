@@ -4,6 +4,7 @@ import type { CullingLinks } from '../../page/cut/links.ts'
 import type { DagCutLinks, PackedDag } from './types.ts'
 import { DAG_NODE_FLOATS } from './types.ts'
 import { NODE_OPEN } from './nodeLayout.ts'
+import { createChangedRuns, type ChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
@@ -33,7 +34,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
     ...{ blank: new Map(), blankPages: new Map(), worlds: [] },
     // Sized for the packing's placements, the live ones and those a growth appends (`append`).
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
-    dirty: new Set(),
+    dirty: createChangedRuns(),
     ...{ heldCount: 0, pages: [], w: 0, hostBytes: 0 },
     onPage: (page: number) => r.pages.push(packed.cutLinks[r.w].pageBase + page),
     // A count equal to the shared node's is no placement's own: the table holds none for it.
@@ -98,7 +99,7 @@ type Readiness = {
   held: Uint8Array
   heldCount: number
   /** Placements `set` touched since the last settle. */
-  dirty: Set<number>
+  dirty: ChangedRuns
   pages: number[]
   /** The placement being settled, which `onPage` and `onNode` read. */
   w: number
@@ -146,7 +147,7 @@ function own(r: Readiness, at: number) {
 function settle(r: Readiness) {
   const { worlds, pages } = r
   pages.length = 0
-  for (const touched of r.dirty) {
+  for (const touched of r.dirty.take()) {
     const world = worlds[(r.w = touched)]
     r.hostBytes += world.settle(r.onPage, r.onNode)
     // Its last page left: it reads the shared state again, which holds the same values.
@@ -157,7 +158,6 @@ function settle(r: Readiness) {
       r.heldCount--
     }
   }
-  r.dirty.clear()
   uniqueSortedInPlace(pages)
   return { pages }
 }
@@ -165,7 +165,7 @@ function settle(r: Readiness) {
 function set(r: Readiness, page: number, value: boolean) {
   const at = rootOfPacked(r.pageIndex, page)
   if (!value && !r.held[at]) return
-  if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.add(at)
+  if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.mark(at)
 }
 
 function apply(r: Readiness, resident: PageResidency, changes: ResidencyChanges | undefined) {

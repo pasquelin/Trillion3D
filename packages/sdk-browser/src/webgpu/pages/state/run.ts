@@ -131,5 +131,5 @@ interface WebgpuFunding {
   cutAsked: number
   /** The geometry pool's renewals, one after the other, each drawn from the catalogue as it
    *  stands (`growWebgpuPagePool`). */
-  renewal: Promise<unknown>
+  pending: Promise<unknown>
 }

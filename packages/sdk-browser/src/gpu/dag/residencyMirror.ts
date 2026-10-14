@@ -21,6 +21,7 @@ import type { ResidencyChanges } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
+import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import type { PageResidency } from '../core/selection.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
@@ -47,7 +48,7 @@ function mirrorState(packed: WorldPacked) {
     objectOf: new Int32Array(packed.worldCount).fill(-1),
     /** Objects whose placement or cover moved since `update`; the pages whose flag moved, each
      *  once, as the row journal lists them (`webgpu/row/journal.ts`). */
-    dirty: new Set<number>(),
+    dirty: createChangedRuns(),
     changed: createDenseKeySet(),
     /** Whether each placement's cover is resident, read once per `update`. */
     covers: new Map<number, boolean>(),
@@ -86,7 +87,7 @@ function rowPage(m: Mirror, scene: PageResidency, page: number) {
   }
   if (!write(m, page, scene.flag(page) ? 1 : 0)) return
   const object = m.objectOf[rootOfPacked(m.pageIndex, page)]
-  if (object >= 0) m.dirty.add(object)
+  if (object >= 0) m.dirty.mark(object)
 }
 
 /** Placement `w` draws `object` now, or nothing (`-1`): what it drew before, and where `object`
@@ -96,14 +97,14 @@ function link(m: Mirror, w: number, object: number) {
   if (before === object) return
   if (before >= 0) {
     m.placementOf[before] = -1
-    m.dirty.add(before)
+    m.dirty.mark(before)
   }
   m.objectOf[w] = object
   if (object < 0) return
   const was = m.placementOf[object]
   if (was >= 0) m.objectOf[was] = -1
   m.placementOf[object] = w
-  m.dirty.add(object)
+  m.dirty.mark(object)
 }
 
 /** The object a placement's link names, or none. */
@@ -119,11 +120,10 @@ function update(m: Mirror, scene: PageResidency, changes?: ResidencyChanges) {
   }
   if (changes) for (let i = 0; i < changes.count; i++) rowPage(m, scene, changes.pages[i])
   else for (let page = 0; page < m.packed.pageCount; page++) rowPage(m, scene, page)
-  for (const object of m.dirty) {
+  for (const object of m.dirty.take()) {
     const w = m.placementOf[object]
     write(m, m.pageBase + m.clusterOf[object], w >= 0 && coverResident(m, w) ? 1 : 0)
   }
-  m.dirty.clear()
   m.covers.clear()
   sortPages(m.changed.list, m.changed.count)
   m.handed = true

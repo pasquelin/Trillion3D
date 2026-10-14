@@ -1,5 +1,6 @@
 import type { SelectionSubmission } from '../core/selection.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
+import { settleOnce } from './settleOnce.ts'
 import { viewWord } from './viewLayout.ts'
 import { swapRegionsWord } from './shader/swapWgsl.ts'
 import type { DagResources } from './resources.ts'
@@ -49,9 +50,5 @@ export function encodeSwap(
     device.queue.submit([encoder.finish()])
     return undefined
   }
-  let settled = false
-  return (submitted) => {
-    if (!settled && !submitted) undo()
-    settled = true
-  }
+  return settleOnce(undo)
 }

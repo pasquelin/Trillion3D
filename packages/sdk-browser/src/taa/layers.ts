@@ -1,4 +1,5 @@
-import { FILTER_FORMAT, texelBytes } from '../webgpu/blend/displayFilter.ts'
+import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { gradientOut } from './shadingHistoryWgsl.ts'
 import { computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
@@ -8,7 +9,7 @@ export type DisplayLayers = readonly [GPUTextureView, GPUTextureView]
 const HISTORY_PAIRS = 2
 /** Bytes per pixel of the layers' history at the display's size: both layers of each pair, in
  *  `FILTER_FORMAT`. */
-export const FILTER_HISTORY_BYTES_PER_PIXEL = HISTORY_PAIRS * 2 * texelBytes(FILTER_FORMAT)
+export const FILTER_HISTORY_BYTES_PER_PIXEL = HISTORY_PAIRS * 2 * texelBytesOf(FILTER_FORMAT)
 
 /** Their bindings in a `filtered` resolve, after the pass's own; per layer: value, now, history. */
 export const LAYER_BINDINGS = { filterNow: 10, filterHistory: 11, addNow: 12, addHistory: 13 }
@@ -92,7 +93,7 @@ export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsage
     written: false,
     get bytes() {
       return textures.reduce(
-        (sum, texture) => sum + texture.width * texture.height * texelBytes(FILTER_FORMAT),
+        (sum, texture) => sum + texture.width * texture.height * texelBytesOf(FILTER_FORMAT),
         0,
       )
     },

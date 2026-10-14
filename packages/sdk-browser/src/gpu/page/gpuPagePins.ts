@@ -1,5 +1,5 @@
 import type { GpuPageContext } from './types.ts'
-import { placesFor } from './load.ts'
+import { placesFor } from './loadPlace.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
   const { resident, eviction, check, reader } = context

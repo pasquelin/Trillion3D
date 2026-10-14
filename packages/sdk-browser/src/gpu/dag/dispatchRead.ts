@@ -3,7 +3,8 @@ import { levelCountsWord } from './readoutWords.ts'
 import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { readDagSlot } from './readbackSlot.ts'
-import { ReadbackRefused } from '../core/readbackRing.ts'
+import { unlessRefused } from '../core/readbackRing.ts'
+import { behind } from '../core/behind.ts'
 import { widerFlagShape } from './flagSections.ts'
 import type { MainCut } from './dispatch.ts'
 
@@ -50,18 +51,14 @@ export function readMain(cut: MainCut, { buffer, tag }: Copy) {
 /** The main ring's chain (`createReadbackRing`): each read runs behind the reads and growths in
  *  flight (`state.pending`), in the order the copies were submitted. */
 export function chainMain(read: () => Promise<void>, { cut: { state } }: MainCopy) {
-  state.pending = state.pending
-    .catch(() => {})
-    .then(async () => {
-      try {
-        await read()
-      } catch (error) {
-        // A mapping refused — a device lost says so on its own (`device.lost`) — reads nothing:
-        // the next dispatch copies the cut again. Any other error is the engine's: it surfaces.
-        state.readback = undefined
-        if (!(error instanceof ReadbackRefused)) throw error
-      }
-    })
+  void behind(state, () =>
+    read().catch((error: unknown) => {
+      // A mapping refused — a device lost says so on its own (`device.lost`) — reads nothing:
+      // the next dispatch copies the cut again. Any other error is the engine's: it surfaces.
+      state.readback = undefined
+      unlessRefused(error)
+    }),
+  )
 }
 
 /** A main readback mapped (the ring's `read`): parsed into the arrays of its turn, landed in the

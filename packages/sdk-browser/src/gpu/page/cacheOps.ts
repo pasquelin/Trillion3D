@@ -1,4 +1,5 @@
 import { evictResident } from './commit.ts'
+import { behind } from '../core/behind.ts'
 import { heldHomes } from './homes.ts'
 import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
@@ -6,12 +7,10 @@ import type { GpuPageContext } from './types.ts'
 /** Changes the pool size behind the loads in flight (`createGpuPageCache`, `resize`). */
 export function resizeBehind(context: GpuPageContext, slots: number, grown?: GrownPages) {
   const { state } = context
-  const operation = state.pending.then(() => {
+  return behind(state, () => {
     context.check()
     return resizeGpuPages(context, slots, grown)
   })
-  state.pending = operation.catch(() => {})
-  return operation
 }
 
 /** Evicts `key` unless it is absent or pinned; true when it left. */
@@ -75,6 +74,5 @@ export function disposePageCache(context: GpuPageContext) {
   context.abort.abort()
   resident.clear()
   context.eviction.clear()
-  state.pending = state.pending.catch(() => {}).then(() => context.buffer.destroy())
-  return state.pending
+  return behind(state, () => context.buffer.destroy())
 }

@@ -15,7 +15,7 @@ import {
 } from '../../../impostor/section.fixture.ts'
 import { field } from '../../../../../sdk-core/src/impostor/watch.fixture.ts'
 import type { ClusterRoot } from '../../../page/selection/types.ts'
-import { hostTableBytesOf } from './memory.ts'
+import { hostTableBytesOf } from './besidePools.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What a root holds at least in the tier's tables, in bytes. The watch: its verdict (1), the frame
