@@ -3,7 +3,9 @@
 // follows the sources added, never the placements held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { appendDagRoots, dagRootCounts, packDagSelection } from './pack.ts'
+import { packDagSelection } from './pack.ts'
+import { dagRootCounts } from './packCapacity.ts'
+import { appendDagRoots } from './packAppend.ts'
 import { scene, TABLES } from './packAppend.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'

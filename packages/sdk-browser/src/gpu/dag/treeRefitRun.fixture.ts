@@ -3,13 +3,8 @@
 // every node open), over the leaves the GPU writes from the packing as it stands (`leafBoxes`). The
 // tree's record table and the frame words are held in words (`treeTable.ts`, `frameTable.ts`).
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import {
-  refitLevels,
-  REACH_UNBOUNDED,
-  treeNodeCount,
-  TREE_SPAN,
-  type PlacementTree,
-} from './placementTree.ts'
+import { REACH_UNBOUNDED, treeNodeCount, TREE_SPAN, type PlacementTree } from './placementTree.ts'
+import { refitLevels } from './refitSchedule.ts'
 import { boxTransform, boxGrow } from '../../../../math/src/geometry/box.ts'
 
 import { fromHalf } from '../../../../math/src/float/half.ts'

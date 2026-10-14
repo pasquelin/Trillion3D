@@ -4,7 +4,7 @@
 // moved, a NaN never unmoved.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rootWorlds, rootWorldsMoved } from './pack.ts'
+import { rootWorlds, rootWorldsMoved } from './packWorlds.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import type { DagRoot } from './types.ts'
 

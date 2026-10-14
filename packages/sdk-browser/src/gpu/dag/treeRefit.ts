@@ -14,7 +14,8 @@
  * want of a binding.
  */
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
-import { refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
+import { treeNodeCount, type PlacementTree } from './placementTree.ts'
+import { refitLevels } from './refitSchedule.ts'
 import { REFIT_PARAM_WORDS, TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
 import type { PackedDag } from './types.ts'
 import { autoKernel } from '../core/computeStages.ts'

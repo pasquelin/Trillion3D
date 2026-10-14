@@ -1,5 +1,5 @@
 import { worldToRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
-import { rootWorlds } from './pack.ts'
+import { rootWorlds } from './packWorlds.ts'
 import type { PackedDag, DagRoot } from './types.ts'
 
 /** Each root's world brought to `origin` in single precision, the double subtraction first: the

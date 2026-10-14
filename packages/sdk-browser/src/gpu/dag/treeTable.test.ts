@@ -5,7 +5,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
-import { packDagSelection, appendDagRoots, dagRootCounts } from './pack.ts'
+import { packDagSelection } from './pack.ts'
+import { dagRootCounts } from './packCapacity.ts'
+import { appendDagRoots } from './packAppend.ts'
 
 import { treeNodeCount, TREE_SPAN } from './placementTree.ts'
 import { createTreeTable, TREE_TABLE } from './treeTable.ts'

@@ -17,7 +17,7 @@ import { disposeWebgpuPages } from '../webgpu/pages/io/metrics.ts'
 import { createPlacementRows } from './rows.ts'
 import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
 import { addWebgpuPlacements } from './webgpuAppend.ts'
-import { startGrownCut } from './webgpuGrowth.ts'
+import { startGrownCut } from './grownCutStart.ts'
 import { adoptGrownCut } from './webgpuGrownCut.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 

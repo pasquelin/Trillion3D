@@ -2,7 +2,7 @@
 // sent, their stretch the root boxes pass's (`../../placement/rootWorlds.ts`).
 import { writePrimitiveWords } from './worlds.ts'
 import type { DagResources } from './resources.ts'
-import { appendDagRoots, type DagAppended } from './pack.ts'
+import { appendDagRoots, type DagAppended } from './packAppend.ts'
 import { writeRanges, type RangeTarget } from './runWrites.ts'
 import {
   COLD_WORDS,

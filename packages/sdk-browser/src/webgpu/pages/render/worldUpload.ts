@@ -1,4 +1,4 @@
-import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/pack.ts'
+import { rootWorlds, rootWorldsMoved } from '../../../gpu/dag/packWorlds.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
 import { noteKeyRecord } from '../../blend/keyRecords.ts'

@@ -6,7 +6,7 @@
 import * as THREE from 'three'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
-import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/packWorlds.ts'
 import { changedWorlds } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
@@ -28,7 +28,7 @@ const listed = new Int32Array(ROOTS)
 const results = await measure({
   name: 'world step loops',
   fichier: [
-    'packages/sdk-browser/src/gpu/dag/pack.ts',
+    'packages/sdk-browser/src/gpu/dag/packWorlds.ts',
     'packages/sdk-browser/src/gpu/dag/worlds.ts',
   ],
   cas: [

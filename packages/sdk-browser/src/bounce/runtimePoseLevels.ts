@@ -3,7 +3,7 @@ import {
   PROXY_CHILD_WORDS,
   PROXY_NODE_WORDS,
 } from '../../../sdk-core/src/contracts/writtenFormats.ts'
-import { refitSchedule } from '../gpu/dag/placementTree.ts'
+import { refitSchedule } from '../gpu/dag/refitSchedule.ts'
 import { proxyChildCount } from '../../../sdk-core/src/scene/core/proxy.ts'
 
 /**

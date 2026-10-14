@@ -1,7 +1,7 @@
 // What the packing's append proofs share: five placements of one pyramid, and the tables a
 // packing is compared by.
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
-import { dagRootCounts, type DagCapacity } from './pack.ts'
+import { dagRootCounts, type DagCapacity } from './packCapacity.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import type { DagRoot } from './types.ts'
 

@@ -4,7 +4,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldScene } from './worldScene.fixture.ts'
-import { appendDagRoots, dagRootCounts, packDagSelection } from './pack.ts'
+import { packDagSelection } from './pack.ts'
+import { dagRootCounts } from './packCapacity.ts'
+import { appendDagRoots } from './packAppend.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 test('a packing of the world DAG keeps room: placements append in place, linked as the others', () => {

@@ -17,7 +17,7 @@ import { restartTaaOnLanding } from '../../../taa/landing.ts'
 import { frameStart } from '../../../frame/scheduling.ts'
 import { askFramePipelines } from '../../frame/framePipelines.ts'
 import { adoptGrownCut } from '../../../placement/webgpuGrownCut.ts'
-import { startGrownCut } from '../../../placement/webgpuGrowth.ts'
+import { startGrownCut } from '../../../placement/grownCutStart.ts'
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut, the engine's one cut (#1483), whichever view is drawn. */
