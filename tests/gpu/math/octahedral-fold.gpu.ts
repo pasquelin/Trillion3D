@@ -6,7 +6,8 @@
 // page normals' (`cluster/decodeWgsl.ts`) and the compiler's `oct_decode`: the lower half folded
 // per axis in one rounding, `1 − |other|` on its side. The lobes' unpack and the receiver's plane
 // decode take it too: their lower half, which added `−z` to each axis in a second rounding, moves
-// by a few ulps (class 1, no 8-bit pixel to move). A million directions of every octant, on and off
+// by at most `FEW_ULPS` per component against `develop`'s decode, and no component's 8-bit unorm
+// moves (class 1). A million directions of every octant, on and off
 // the axes, at lengths from 2^-8 to 2^7; a million lobe words; every 10-bit receiver cell and
 // impostor frame. The zero vector, which no caller encodes, is left out. Straight down on the
 // hemi-octahedron, where `develop` divided zero by zero, reads the zenith frame `(0, 0)`.
@@ -25,12 +26,25 @@ import {
 } from '../../../packages/math/src/wgsl/octahedral.ts'
 import { hashUnit } from '../../../packages/math/src/wgsl/sampling.ts'
 
-/** The encoders and the impostor decode as `develop` wrote them, each its own fold; the decode
- *  folded per axis, as the compiler's `oct_decode` writes it. */
+/** The codecs as `develop` wrote them, each its own fold; the decode folded per axis, as the
+ *  compiler's `oct_decode` writes it. */
 const DEVELOP_WGSL = `fn wasLobeEncode(n:vec3f)->u32{
  let p=n.xy/(abs(n.x)+abs(n.y)+abs(n.z));
  let s=select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0));
  return pack2x16snorm(select((1.0-abs(p.yx))*s,p,n.z>=0.0));
+}
+fn wasLobeDecode(word:u32)->vec3f{
+ let e=unpack2x16snorm(word);
+ var n=vec3f(e,1.0-abs(e.x)-abs(e.y));
+ let t=max(-n.z,0.0);
+ n=vec3f(n.xy+select(vec2f(t),vec2f(-t),n.xy>=vec2f(0.0)),n.z);
+ return normalize(n);
+}
+fn wasReceiverUnoct(p:vec2f)->vec3f{
+ var n=vec3f(p,1.0-abs(p.x)-abs(p.y));
+ let k=saturate(-n.z);
+ n=vec3f(n.xy+select(vec2f(k),vec2f(-k),n.xy>=vec2f(0.0)),n.z);
+ return normalize(n);
 }
 fn foldedPerAxis(e:vec2f)->vec3f{
  var x=e.x;var y=e.y;
@@ -67,14 +81,30 @@ fn wasImpOctEncode(d:vec3f,hemi:f32)->vec2f{
 
 const THREADS = 1 << 20
 
+/** The most a decode's component may move, in ulps, against `develop`'s second rounding. */
+const FEW_ULPS = 8
+
 /** Per thread: a direction (one of the 26 axis and diagonal ones first, then hashed ones), a lobe
- *  word, a receiver cell; each codec's differing results counted in its own counter. */
+ *  word, a receiver cell; each codec's differing results counted in its own counter, then the lobe
+ *  and receiver decodes against `develop`'s: the largest ulp distance of a component, and the
+ *  count of normals whose 8-bit unorm moved. */
 const SHADER = wgslProgram(
   `${DEVELOP_WGSL}
-@group(0) @binding(0) var<storage,read_write> differ:array<atomic<u32>,8>;
+@group(0) @binding(0) var<storage,read_write> differ:array<atomic<u32>,12>;
 fn same2(a:vec2f,b:vec2f)->bool{return all(bitcast<vec2u>(a)==bitcast<vec2u>(b));}
 fn same3(a:vec3f,b:vec3f)->bool{return all(bitcast<vec3u>(a)==bitcast<vec3u>(b));}
 fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
+fn ordered(x:f32)->i32{let b=bitcast<i32>(x);return select(b,-(b&0x7fffffff),b<0);}
+fn ulps(a:vec3f,b:vec3f)->u32{
+ var m=0u;
+ for(var c=0u;c<3u;c++){let d=ordered(a[c])-ordered(b[c]);m=max(m,u32(abs(d)));}
+ return m;
+}
+fn unorm8(n:vec3f)->u32{return pack4x8unorm(vec4f(n*0.5+0.5,0.0));}
+fn moved(k:u32,now:vec3f,was:vec3f){
+ atomicMax(&differ[k],ulps(now,was));
+ tally(k+2u,unorm8(now)==unorm8(was));
+}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
  var v=vec3f(hashUnit(i*3u),hashUnit(i*3u+1u),hashUnit(i*3u+2u))*2.0-1.0;
@@ -83,6 +113,8 @@ fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
  let q=vec2f(f32(i&1023u),f32((i>>10u)&1023u))/1023.0*2.0-1.0;
  tally(4u,same3(lobeOctDecode(word),foldedPerAxis(unpack2x16snorm(word))));
  tally(5u,same3(octDecode(q),foldedPerAxis(q)));
+ moved(8u,lobeOctDecode(word),wasLobeDecode(word));
+ moved(9u,octDecode(q),wasReceiverUnoct(q));
  let f=q*0.5+0.5;
  tally(6u,same3(octDecodeHemi(f,0.0),wasImpOctDecode(f,0.0)));
  tally(7u,same3(octDecodeHemi(f,1.0),wasImpOctDecode(f,1.0)));
@@ -99,7 +131,7 @@ fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
 )
 
 test('every octahedral caller returns, bit for bit, its own fold or the per-axis decode', async () => {
-  const { values, errors } = await computeOnDawn(SHADER, 32, THREADS / 64, { words: 'u32' })
+  const { values, errors } = await computeOnDawn(SHADER, 48, THREADS / 64, { words: 'u32' })
   assert.deepEqual(errors, [])
   const names = [
     'lobe encode',
@@ -115,4 +147,8 @@ test('every octahedral caller returns, bit for bit, its own fold or the per-axis
     Object.fromEntries(names.map((name, k) => [name, values[k]])),
     Object.fromEntries(names.map((name) => [name, 0])),
   )
+  const [lobeUlps, receiverUlps, lobeBytes, receiverBytes] = values.slice(8)
+  assert.ok(lobeUlps <= FEW_ULPS, `lobe decode moved ${lobeUlps} ulps from develop's`)
+  assert.ok(receiverUlps <= FEW_ULPS, `receiver decode moved ${receiverUlps} ulps from develop's`)
+  assert.deepEqual({ lobe: lobeBytes, receiver: receiverBytes }, { lobe: 0, receiver: 0 })
 })
