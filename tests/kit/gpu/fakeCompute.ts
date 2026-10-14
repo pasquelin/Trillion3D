@@ -11,7 +11,7 @@ import {
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { ROW_STAGES } from './fakeComputeRows.ts'
-import { words } from './fakeBuffers.ts'
+import { boundResource, boundWords, words, type BoundBuffer } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
@@ -49,7 +49,7 @@ const DAG_STAGES = new Set([
 
 export type ComputeBind = {
   /** A buffer's binding, or a view's — the worlds' table (`viewTexture`). */
-  entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>
+  entries: BoundBuffer[]
 }
 
 export function simulateComputeDispatch(
@@ -63,16 +63,14 @@ export function simulateComputeDispatch(
   const rows = ROW_STAGES[computePipeline?.entryPoint ?? '']
   if (rows && computeBind?.entries) return rows(computeBind)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
-    const byBinding = new Map(
-      computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
-    )
-    const uni = words(byBinding.get(1)!.data)
+    const { entries } = computeBind
+    const uni = boundWords(entries, 1)
     const count = uni[0],
       maxVertexCount = uni[1],
       slotCap = uni[2]
-    const itemInts = words(byBinding.get(0)!.data)
+    const itemInts = boundWords(entries, 0)
     const n = Math.min(count, slotCap)
-    const restInts = words(byBinding.get(7)!.data)
+    const restInts = boundWords(entries, 7)
     const restAt = (i: number) => (hasBit(restInts, i) ? 1 : 0)
     const items: DrawItem[] = []
     for (let i = 0; i < n; i++)
@@ -91,16 +89,15 @@ export function simulateComputeDispatch(
             })),
           )
         : items
-    const maskBytes = byBinding.get(6)?.data
-    const mask = maskBytes ? words(maskBytes) : undefined
+    const mask = entries.some((entry) => entry.binding === 6) ? boundWords(entries, 6) : undefined
     const filtered =
       uni[4] && mask
         ? source.filter((_, i) => maskBit(mask, uni[5], itemInts[i * DRAW_ITEM_U32 + 2]))
         : source
     const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
-    words(byBinding.get(5)!.data).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
-    words(byBinding.get(2)!.data).set(result.instances)
-    words(byBinding.get(3)!.data).set(indirectForDraw(result))
+    boundWords(entries, 5).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
+    boundWords(entries, 2).set(result.instances)
+    boundWords(entries, 3).set(indirectForDraw(result))
     return
   }
   const stage = computePipeline?.entryPoint
@@ -117,10 +114,8 @@ export function simulateComputeDispatch(
     throw new Error(`dag selection bind group requires ${slots} entries`)
   // A record table reads as its texture's words, laid as its buffer was (`gpu/dag/cutTables.ts`).
   const byBinding = new Map(computeBind.entries.map((e) => [e.binding, boundData(e.resource)]))
-  const bound = (binding: number) =>
-    computeBind.entries.find((e) => e.binding === binding)!.resource
-  const boundWorlds = bound(dagBindingOf().worlds),
-    boundFrames = bound(dagBindingOf().frames)
+  const boundWorlds = boundResource(computeBind.entries, dagBindingOf().worlds),
+    boundFrames = boundResource(computeBind.entries, dagBindingOf().frames)
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
   const dag = packed ?? packedFromBindings(byBinding, boundWorlds, boundFrames),
     listCap = boundListCap(byBinding)

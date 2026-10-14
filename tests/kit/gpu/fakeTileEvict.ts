@@ -1,5 +1,5 @@
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
-import { words } from './fakeBuffers.ts'
+import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
 import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
 import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
@@ -14,12 +14,10 @@ const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
   tilePlaceWord: (base: number, index: number) => number
 }>(TILE_PLACE_WORD_WGSL, ['tilePlaceWord'], {})
 
-type Bound = { binding: number; resource: { buffer: { data: Uint8Array } } }
-
 /** Whether a dispatch's group is a tile pool sort's (`webgpu/tile/evictSort.ts`): its four
  *  bindings — the places' words, the counts, the queues, the lane's uniform —, its counts the
  *  texture eviction's; the rows' sort binds four too (`webgpu/row/rowEvictSort.ts`). */
-export const isTileSort = (entries: readonly Bound[]) =>
+export const isTileSort = (entries: readonly BoundBuffer[]) =>
   entries.length === 4 &&
   /texture eviction/.test(
     (entries.find((e) => e.binding === 1)?.resource.buffer as { label?: string } | undefined)
@@ -32,12 +30,10 @@ export const isTileSort = (entries: readonly Bound[]) =>
  * its tier (`poolRank`), a free or pinned one never, the highest ranks first, at most a burst,
  * written at the uniform's queue word. `poolCount` and `poolPlace` leave nothing it does not redo.
  */
-export function fakeTileSort(entries: readonly Bound[], offsets: readonly number[] = [0]) {
-  const of = (binding: number) =>
-    words(entries.find((e) => e.binding === binding)!.resource.buffer.data)
-  const use = of(0),
-    queues = of(2),
-    uni = of(3).subarray(offsets[0] / 4)
+export function fakeTileSort(entries: readonly BoundBuffer[], offsets: readonly number[] = [0]) {
+  const use = boundWords(entries, 0),
+    queues = boundWords(entries, 2),
+    uni = boundWords(entries, 3).subarray(offsets[0] / 4)
   const [base, slots, clock, queueAt] = uni
   const rankOf = (j: number) => {
     const at = tilePlaceWordAt(base, j)

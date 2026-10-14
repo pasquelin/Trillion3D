@@ -9,6 +9,21 @@ export const words = (bytes: Uint8Array) =>
 export const floats = (bytes: Uint8Array) =>
   new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 
+/** An entry of a bind group as a fake dispatch reads it: a buffer's binding, or a view's. */
+export type BoundBuffer = { binding: number; resource: { buffer: { data: Uint8Array } } }
+
+/** The resource a bind group's `entries` bind at `binding`. */
+export const boundResource = (entries: readonly BoundBuffer[], binding: number) =>
+  entries.find((entry) => entry.binding === binding)!.resource
+
+/** The words of the buffer `entries` bind at `binding`, where they sit. */
+export const boundWords = (entries: readonly BoundBuffer[], binding: number) =>
+  words(boundResource(entries, binding).buffer.data)
+
+/** The floats of the buffer `entries` bind at `binding`, where they sit. */
+export const boundFloats = (entries: readonly BoundBuffer[], binding: number) =>
+  floats(boundResource(entries, binding).buffer.data)
+
 /**
  * The buffers of `fakeDevice()`, which map as on a real device: their bytes are the mapped range;
  * mapping a destroyed buffer is a validation error on the device (`OperationError`, counted by
