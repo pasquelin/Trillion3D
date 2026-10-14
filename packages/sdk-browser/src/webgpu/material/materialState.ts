@@ -1,5 +1,5 @@
 import type { RecordTexture } from '../../gpu/core/recordTexture.ts'
-import type { Span } from '../../../../math/src/sequence/span.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
@@ -58,11 +58,11 @@ export function createMaterialRecords(release: (entry: MaterialEntry) => void) {
     /** The records as the host last wrote them: what a write compares to tell a change, and the
      *  span an upload sends; never sent again when the texture grows. */
     ints: new Uint32Array(MATERIAL_RECORD_WORDS),
-    /** Ranks handed out so far (the table's height), the atlas slots' epoch, and the range of
-     *  records written since the last upload (`from > to`: none). */
+    /** Ranks handed out so far (the table's height), the atlas slots' epoch, and the records
+     *  written since the last upload, each once (`createChangedRuns`). */
     held: 0,
     epoch: 0,
-    written: { from: Infinity, to: -1 } as Span,
+    written: createChangedRuns(),
     /** The table's record texture, made at the first upload. */
     records: undefined as RecordTexture | undefined,
     /** A surface rewritten since the last `follow` changed what its rows or items read beside its

@@ -1,6 +1,5 @@
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { extendSpan } from '../../../../math/src/sequence/span.ts'
 import type { MaterialLayers } from '../row/pageRowMaterial.ts'
 import { writeMaterialRecord, type MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
@@ -44,13 +43,13 @@ export function writeEntry(
   if (entry.lobes >= 0) {
     const texel = lobeTexel(p, entry.lobes)
     if (writeLobeRecord(p.ints, texel * 4, mat, layers.dataLayer)) {
-      extendSpan(p.written, Math.floor(texel / MATERIAL_RECORD_TEXELS))
+      p.written.mark(Math.floor(texel / MATERIAL_RECORD_TEXELS))
       changed = true
     }
     lobes = texel + 1
   }
   if (writeMaterialRecord(p.ints, entry.rank * MATERIAL_RECORD_WORDS, mat, layers, lobes)) {
-    extendSpan(p.written, entry.rank)
+    p.written.mark(entry.rank)
     changed = true
   }
   return changed
