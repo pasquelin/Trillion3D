@@ -6,7 +6,7 @@ import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { reflectionLightViewWgsl, REFLECTION_GROUP } from './viewLayout.ts'
+import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
@@ -15,14 +15,10 @@ import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
 type Seen = { color: number[]; confidence: number }
 type Lobe = { R: V3; T: V3; bands: number[]; widths: number[]; tangents: number[] }
 type Cone = { short: number; long: number; level: number }
+/** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
+ *  as the run reads them, every other field four numbers. */
 type ReflectionView = {
-  viewProj: Mat
-  radianceViewProj: Mat
-  radiance: number[]
-  slab: number[]
-  traced: number[]
-  proxy: number[]
-  surroundings: number[]
+  [F in keyof typeof REFLECTION_VIEW_AT]: F extends 'viewProj' | 'radianceViewProj' ? Mat : number[]
 }
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
  *  depth's own) and the deferred lighting's (the pixel's world point, the eye, the drawn size). */
@@ -41,6 +37,8 @@ export function viewOf(
       slab: screenSlab([...m], size[1]),
       traced: [1, 0, 0, 0],
       proxy: [0, 0, 0, 0],
+      front: [0, 0, 0, 0],
+      temporal: [0, 0, 0, 0],
       surroundings: [0, 0, 0, 0],
     },
     view: {
