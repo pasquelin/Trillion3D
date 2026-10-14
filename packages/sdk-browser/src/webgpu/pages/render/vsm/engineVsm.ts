@@ -28,7 +28,8 @@ import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../
 import { releaseVsmRender } from '../../../../vsm/renderPass.ts'
 import { releaseVsmProjection } from '../../../../vsm/projectionPass.ts'
 import { releaseRowBins } from '../../../../vsm/rowBinsGpu.ts'
-import { releaseVsmTransmission, type VsmTransmission } from '../../../../vsm/transmissionPass.ts'
+import { releaseVsmTransmission } from '../../../../vsm/transmissionContext.ts'
+import type { VsmTransmission } from '../../../../vsm/transmissionMade.ts'
 import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
 import {

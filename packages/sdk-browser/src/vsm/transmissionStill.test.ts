@@ -5,7 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
-import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts'
+import { createVsmTransmission } from './transmissionMade.ts'
+import { encodeVsmTransmission } from './transmissionPass.ts'
 import { recordingRaster } from './recordingRaster.fixture.ts'
 
 function setup() {

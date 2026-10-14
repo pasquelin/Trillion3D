@@ -3,10 +3,8 @@
 // (`vsmGrant.ts`), and the projection's reserve each frame makes before any other shadow bytes.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
-import {
-  vsmTransmissionContextBytes,
-  vsmTransmissionFloorBytes,
-} from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext.ts'
+import { vsmTransmissionFloorBytes } from '../../../../vsm/transmissionBinPlan.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'

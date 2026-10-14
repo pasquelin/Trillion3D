@@ -2,13 +2,10 @@
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { encodeVsmRender, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
 import { vsmRenderViews } from '../../../../vsm/chunkParams.ts'
-import {
-  createVsmTransmission,
-  encodeVsmTransmission,
-  vsmTransmissionFits,
-  vsmTransmissionFloorBytes,
-  type VsmTransmission,
-} from '../../../../vsm/transmissionPass.ts'
+import { createVsmTransmission, type VsmTransmission } from '../../../../vsm/transmissionMade.ts'
+import { encodeVsmTransmission } from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionFits } from '../../../../vsm/transmissionCaps.ts'
+import { vsmTransmissionFloorBytes } from '../../../../vsm/transmissionBinPlan.ts'
 import type { VsmResources } from '../../../../vsm/resources.ts'
 import { VSM_PRESSURE_CALM_FRAMES } from '../../../../vsm/constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'

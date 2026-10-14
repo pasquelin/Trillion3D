@@ -8,7 +8,8 @@ import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import { createVsmResources } from './resources.ts'
-import { createVsmTransmission, encodeVsmTransmission } from './transmissionPass.ts'
+import { createVsmTransmission } from './transmissionMade.ts'
+import { encodeVsmTransmission } from './transmissionPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 
 test('a transmission frame encodes clear, bin and resolve under the device’s binding rules', () => {

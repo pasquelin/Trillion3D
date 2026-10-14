@@ -20,7 +20,7 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
     'vsm/castStale.ts',
     'vsm/pageManagementEncode.ts',
     'vsm/pageManagementPass.ts',
-    'vsm/transmissionPass.ts',
+    'vsm/transmissionMade.ts',
     'vsm/renderPipes.ts',
   ]
   const labels = new Set<string>()

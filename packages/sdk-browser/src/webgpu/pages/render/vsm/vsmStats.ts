@@ -8,7 +8,7 @@ import type { EngineVsm } from './engineVsm.ts'
 import { heldMaskBytes } from './vsmMask.ts'
 import { vsmProjectionHeldBytes } from '../../../../vsm/projectionPass.ts'
 import { vsmRenderContextBytes, type VsmRenderStats } from '../../../../vsm/renderPass.ts'
-import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionPass.ts'
+import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext.ts'
 
 /** The diagnostics of a set's last frame (`EngineVsm.stats`). */
 export interface VsmEngineStats {
