@@ -128,6 +128,7 @@ export const ensurerOptions = (
   traceDiagnostic: () => {},
   lowerTiers: () => [],
   bytesRevision: () => 0,
+  clock: createFrameBudget(MAIN_THREAD_FRAME_MS),
 })
 
 /** The lower pass's options over `cache`, as the ensurer builds them, `lowerTiers` its tiers: no
@@ -141,7 +142,7 @@ export function lowerPassOptions(
   return {
     ...options,
     admit: createPageAdmission(options),
-    budget: createFrameBudget(MAIN_THREAD_FRAME_MS),
+    budget: options.clock,
     nextShare: async () => {},
     readAhead: undefined,
   }

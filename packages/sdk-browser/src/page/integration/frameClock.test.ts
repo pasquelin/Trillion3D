@@ -73,3 +73,25 @@ test('a stopped clock stays stopped, and a running one keeps its time when resum
   clock.spend()
   assert.equal(clock.admits(), false, 'the paused time spent none, the share is gone')
 })
+
+test("a stage's own ceiling stops it before the frame's share, and the next stage starts afresh", () => {
+  let now = 0
+  const clock = createFrameBudget(4, () => now)
+  clock.open()
+  const capped = () => {
+    let pieces = 0
+    while (clock.admits()) {
+      now += 0.5
+      clock.spend()
+      pieces++
+    }
+    return pieces
+  }
+  clock.stage(1)
+  assert.equal(capped(), 2, 'the ceiling of 1 ms, half a ms each')
+  assert.equal(clock.stageMs(), 1)
+  clock.pause()
+  clock.stage()
+  assert.equal(capped(), 6, 'no ceiling: the 3 ms the share has left')
+  assert.equal(clock.stageMs(), 3)
+})

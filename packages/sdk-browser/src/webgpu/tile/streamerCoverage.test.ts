@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'
+import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { tileCatalogue } from './catalogue.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
@@ -41,6 +42,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
     encoding,
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs: Number.MAX_SAFE_INTEGER,
+    clock: createFrameBudget(Infinity),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: (slots) => void signalled.push(slots === -1 ? [-1] : [...slots]),
   })

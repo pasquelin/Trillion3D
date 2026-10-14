@@ -29,6 +29,7 @@ import type { WebgpuPagesSetup } from './prepare/setup.ts'
 import type { FeedbackAbState } from './diagnostic/feedbackAb.ts'
 import type { VisPage } from '../../visibility/types.ts'
 import type { PageLocations } from '../../page/selection/placements.ts'
+import { createFrameBudget, type FrameClock } from '../../page/integration/frameBudget.ts'
 
 export type RasterView = {
   pages: VisPage[]
@@ -47,6 +48,10 @@ export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>
  *  other groups do as they draw. */
 export interface WebgpuPagesRuntime {
   context: EngineContext
+  /** The session's one main-thread clock (`EngineContext.frameBudget`), which the rows, the texture
+   *  tiles and the residency queue spend as stages of its frame; an engine no frame drives has none
+   *  to share, and nothing bounds it: a clock of no ceiling. */
+  clock: FrameClock
   /** Opt-in, same-session frame-target measurement; absent from production sessions. */
   feedbackAB?: FeedbackAbState
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
@@ -133,6 +138,7 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
   }
   const core: WebgpuPagesCore = {
     context,
+    clock: context.frameBudget ?? createFrameBudget(Infinity),
     closer,
     signal,
     diag,

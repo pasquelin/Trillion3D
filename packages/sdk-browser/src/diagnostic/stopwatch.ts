@@ -1,7 +1,7 @@
 /**
  * The engine's CPU clock, the one every stopwatch reads: a step of the image, a job, a load or a
- * diagnostic takes `cpuNow()` when it starts and `msSince` of it when it ends. A host or a test
- * that hands its own clock (`createFrameBudget`, the tile streamer) keeps it.
+ * diagnostic takes `cpuNow()` when it starts and `msSince` of it when it ends; the frame's
+ * main-thread clock reads it too (`createFrameBudget`), unless a test hands its own.
  */
 
 /** Now on the CPU clock, ms. */

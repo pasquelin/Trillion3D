@@ -1,4 +1,5 @@
 import { nextFrame } from '../../frame/scheduling.ts'
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 
 /**
  * The main thread's budget, one definition for every stage that spends it (CONTRIBUTING.md
@@ -19,12 +20,17 @@ export type FrameBudget = { admits(): boolean; spend(): void }
 /** A budget with its clock: the frame that owns it opens it. */
 export type FrameClock = ReturnType<typeof createFrameBudget>
 
-/** `now` is the clock the budget is read on: `performance.now` unless a test drives it. */
-export function createFrameBudget(ms: number, now = () => performance.now()) {
+/** `now` is the clock the budget is read on: the engine's CPU clock unless a test drives it. */
+export function createFrameBudget(ms: number, now = cpuNow) {
   let started = 0,
     used = 0,
     spent = 0,
-    running = false
+    running = false,
+    /** Where the current stage began on the clock, and the ceiling of its own it may not pass. */
+    stageAt = 0,
+    ceiling = Infinity
+  /** What the clock counted since `open`, read once. */
+  const elapsed = () => used + (running ? now() - started : 0)
   const resume = () => {
     if (running) return
     started = now()
@@ -33,7 +39,8 @@ export function createFrameBudget(ms: number, now = () => performance.now()) {
   return {
     /** Starts the clock: every piece until the next `open` shares it. Returns the time it read. */
     open() {
-      spent = used = 0
+      spent = used = stageAt = 0
+      ceiling = Infinity
       running = true
       return (started = now())
     },
@@ -47,12 +54,21 @@ export function createFrameBudget(ms: number, now = () => performance.now()) {
     /** Runs the clock again; a running clock keeps the time it counts. */
     resume,
     /** A later stage of the frame on the same clock: it runs again and the stage's first piece is
-     *  admitted, whatever the stages before it spent. */
-    stage() {
+     *  admitted, whatever the stages before it spent. `ceilingMs` is the stage's own cap within the
+     *  frame's share (the host's texture-upload ceiling): it stops at whichever comes first. */
+    stage(ceilingMs = Infinity) {
       spent = 0
       resume()
+      stageAt = elapsed()
+      ceiling = ceilingMs
     },
-    admits: () => spent === 0 || used + (running ? now() - started : 0) < ms,
+    /** Ms the current stage has counted so far. */
+    stageMs: () => elapsed() - stageAt,
+    admits() {
+      if (spent === 0) return true
+      const at = elapsed()
+      return at < ms && at - stageAt < ceiling
+    },
     spend: () => void spent++,
   }
 }

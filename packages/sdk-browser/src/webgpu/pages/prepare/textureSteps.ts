@@ -82,7 +82,7 @@ export function tileStreamerFor(
       encoding,
       budgetBytes: rt.setup.textureBudget,
       budgetMs: rt.setup.textureUploadMs,
-      clock: rt.context.frameBudget,
+      clock: rt.clock,
       readLevel,
       onFailure: rt.diag.diagnosticFailure,
       cards,
