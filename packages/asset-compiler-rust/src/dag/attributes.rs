@@ -2,7 +2,7 @@
 //! simplification error, texture seams are protected, and a coarse corner keeps the normal of
 //! its own face.
 use super::clusters::{normalized_bits, position_key, weld_by};
-use super::quality::{face_normal, unit_normal};
+use super::quality::{face_normal, shading_normal, unit_normal};
 use crate::qem::Attribute;
 use trillion3d_math::vec3::dot;
 use trillion3d_page_codec::encode::Attribute as Carried;
@@ -105,7 +105,8 @@ pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bo
 /// those `source` uses, whose normal is closest to its triangle's face normal, and only among the
 /// copies a face of `source` turning the same way draws. Permissive mode merges the copies of a
 /// hard edge into one; the geometry and the texture are the same for every copy, so only the
-/// normal changes, and it is the one of the corner's own face.
+/// normal changes, and it is the one of the corner's own face. A face those copies shade from
+/// behind takes the three whose mean is nearest it instead (`nearest_shading`).
 ///
 /// Returns the corners no such copy exists for, welded by `weld_seam`: a coarse face whose
 /// corners only ever belonged to faces turned another way — the underside of a board its
@@ -155,6 +156,41 @@ pub fn own_normals(
                 None => foreign.push(key),
             }
         }
+        if shading(tri, normals, face) < 0.0 {
+            // Corners with no agreeing copy keep theirs; copies share their position's key.
+            let options = tri.map(|corner| {
+                let all = copies.get(&weld_seam[corner as usize]);
+                let own = all.map(|c| c.iter().copied().filter(|&v| agrees(v)).collect());
+                own.filter(|own: &Vec<u32>| !own.is_empty())
+                    .unwrap_or(vec![corner])
+            });
+            nearest_shading(tri, &options, normals, face);
+        }
     }
     foreign
+}
+
+/// Cosine between `face` and the normal the centre of `corners` is shaded with
+/// (`quality::shading_normal`); -2 without one.
+fn shading(corners: &[u32; 3], normals: &[f32], face: [f64; 3]) -> f64 {
+    shading_normal(corners, normals).map_or(-2.0, |n| dot(n, face))
+}
+
+/// Points a face shaded from behind — its centre's normal past 90° from it — at the copies, among
+/// `options` per corner, whose mean is nearest its face. The copy each corner prefers alone can
+/// turn that mean further away: a facade's chamfer its source already shaded from behind at 108°
+/// came out of a reduction at 135°, one corner on a copy 0.3° nearer the chamfer than the
+/// source's. Any other face keeps the copies its corners prefer.
+fn nearest_shading(tri: &mut [u32; 3], options: &[Vec<u32>; 3], normals: &[f32], face: [f64; 3]) {
+    let mut best = shading(tri, normals, face);
+    for &a in &options[0] {
+        for &b in &options[1] {
+            for &c in &options[2] {
+                let cosine = shading(&[a, b, c], normals, face);
+                if cosine > best {
+                    (*tri, best) = ([a, b, c], cosine);
+                }
+            }
+        }
+    }
 }
