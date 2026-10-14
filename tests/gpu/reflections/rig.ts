@@ -1,12 +1,9 @@
-// The engine side of the reflection proofs: a synthetic still frame — the surface flags and normals,
-// the base colour, the depth, the lit image, the physical lobes and the proxy of the scene
-// where it has them — laid in the engine's own inputs, then the engine's kernels run on it as an
-// image runs them: the depth pyramid the trace marches (`gpu/hiz`, as the visibility builds it),
-// the view uniform, the surroundings and the opaque trace (`reflections/frame.ts`), then the
-// radiance pyramid of the lit image, which becomes its level 0 as an image's does while the other
-// HDR target takes its turn (`adoptRadianceImage`): each image lays the lit image in the HDR
-// target of its turn, as an image's lighting draws it. Consecutive still images, whose reflection
-// targets are read back to the bit.
+// The engine side of the reflection proofs: a synthetic still frame (flags, normals, base colour,
+// depth, lit image, physical lobes, the scene's proxy) laid in the engine's own inputs, then the
+// engine's kernels run on it as an image runs them: the depth pyramid (`gpu/hiz`), the view uniform,
+// the surroundings and the opaque trace (`reflections/frame.ts`), then the radiance pyramid of the
+// lit image, adopted as the next image's level 0 (`adoptRadianceImage`). Consecutive still images,
+// whose reflection targets are read back to the bit.
 import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
@@ -24,7 +21,12 @@ import {
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/halfEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
-import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
+import {
+  BOUNCE_ATLAS_FORMAT,
+  PROBE_TEXELS,
+} from '../../../packages/sdk-browser/src/bounce/atlas.ts'
+import { standInTexture } from '../../../packages/sdk-browser/src/gpu/core/standInTexture.ts'
+import { arrayView } from '../../../packages/sdk-browser/src/gpu/core/textureViews.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import {
@@ -54,7 +56,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const base = texture('rgba16float', sampled)
   const flags = texture('r8uint', sampled)
   const normals = texture('rgba16float', sampled)
-  // The HDR target of the image's turn, the radiance pyramid's levels in its mips.
+  // The HDR target of the image's turn (the radiance pyramid's levels in its mips), lit each image.
   const hdr = device.createTexture(hdrTargetDescriptor(width, height))
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
   const lobes = texture('rgba32uint', sampled, frame.lobes ? [width, height] : [1, 1])
@@ -77,7 +79,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
   const reflection = createScreenReflection(device, width, height, true)
-  // The HDR target of the image's turn, and the lit image each image lays in it.
   const targets = { hdrTexture: hdr, hdrView: hdrAttachmentView(hdr), reflection }
   let lit = frame.radiance
   const inverse = new Float64Array(16)
@@ -104,7 +105,9 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const probes = emptyAtlas(device, 'reflection proof probes', PROBE_TEXELS)
+  const probes = standInTexture(device, 'reflection proof probes', BOUNCE_ATLAS_FORMAT, {
+    side: PROBE_TEXELS,
+  })
   const inputs = {
     base: base.createView(),
     flags: flags.createView(),
@@ -112,7 +115,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lobes: lobes.createView(),
     lights,
     bounceGrid,
-    probes: probes.createView({ dimension: '2d-array' }),
+    probes: arrayView(probes),
     ...rigProxy(device, frame.proxy?.faces),
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
