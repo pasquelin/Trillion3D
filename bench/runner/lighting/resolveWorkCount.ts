@@ -7,10 +7,8 @@
 //   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`) —,
 //   where the cell's list holds a shadowed light (`cellShadowed`).
 // - `shaded`: lights shaded in full (`declaredLight`): the list's `L`.
-// - `shadows`: shadow reads, the listed lights holding a slot that reach the pixel, each one mask
-//   byte of the projection.
-// - `demand`: the lights holding a slot that reach the pixel, each marked by the shadow demand pass
-//   (`vsm/markingWgsl.ts`).
+// - `reaching`: the listed lights holding a slot that reach the pixel: each is one shadow read, a
+//   mask byte of the projection, and one mark of the shadow demand pass (`vsm/markingWgsl.ts`).
 //
 //   node bench/runner/lighting/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
@@ -19,7 +17,7 @@ import { reaches, walkGrid } from './lightGridWalk.ts'
 import { ATRIUM_POSES, atriumCountArgs, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
 
-type Work = { setup: number; shaded: number; shadows: number; demand: number }
+type Work = { setup: number; shaded: number; reaching: number }
 
 /** Sums over the covered pixels of `view`; `slotted[rank]` whether a light holds a shadow slot. */
 export function countResolveWork(
@@ -28,15 +26,13 @@ export function countResolveWork(
   lights: Light[],
   slotted: boolean[],
 ) {
-  const work: Work = { setup: 0, shaded: 0, shadows: 0, demand: 0 }
+  const work: Work = { setup: 0, shaded: 0, reaching: 0 }
   let covered = 0
   walkGrid(view, depths, lights, (p, listed) => {
-    const reaching = listed.filter((rank) => slotted[rank] && reaches(p, lights[rank])).length
     covered++
     work.setup += +listed.some((rank) => slotted[rank])
     work.shaded += listed.length
-    work.shadows += reaching
-    work.demand += reaching
+    work.reaching += listed.filter((rank) => slotted[rank] && reaches(p, lights[rank])).length
   })
   return { covered, work }
 }

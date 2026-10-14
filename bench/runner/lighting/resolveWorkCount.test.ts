@@ -31,12 +31,11 @@ function reachingBruteForce(slotted: boolean[]) {
 test('every listed light is shaded, each reaching slot read once', () => {
   const slotted = lights.map((_, rank) => rank < 64)
   const { covered, work } = countResolveWork(view, depths, lights, slotted)
-  assert.ok(work.shaded > covered && work.shadows > 0)
-  assert.ok(work.shadows <= work.shaded)
+  assert.ok(work.shaded > covered && work.reaching > 0)
+  assert.ok(work.reaching <= work.shaded)
   // The grid lists every light that reaches a pixel of its cell: its counts are the brute force's.
   const reaching = reachingBruteForce(slotted)
-  assert.equal(work.shadows, reaching)
-  assert.equal(work.demand, reaching)
+  assert.equal(work.reaching, reaching)
   assert.ok(work.setup <= covered)
 })
 
@@ -47,5 +46,5 @@ test('with no shadow slot no pixel sets up a shadow read', () => {
     lights,
     lights.map(() => false),
   )
-  assert.equal(work.setup + work.shadows + work.demand, 0)
+  assert.equal(work.setup + work.reaching, 0)
 })

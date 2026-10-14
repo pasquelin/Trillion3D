@@ -95,14 +95,14 @@ export function frameBudget(
     row(
       'shadows',
       `shadow reads, ${MASK_TEXELS} mask texel`,
-      work.shadows,
-      texels(work.shadows * MASK_TEXELS),
+      work.reaching,
+      texels(work.reaching * MASK_TEXELS),
     ),
     row(
       'shadows',
       'demand: flags a pixel, setup and marks where a slot reaches',
       N,
-      texels(N + work.setup * (SETUP_TEXELS + 3) + work.demand * DEMAND_MARKS),
+      texels(N + work.setup * (SETUP_TEXELS + 3) + work.reaching * DEMAND_MARKS),
     ),
     row('antialiasing', `TAA texels, ${taa} a display pixel`, taa * N),
     row('present', 'HDR read, display write', 2 * N),
