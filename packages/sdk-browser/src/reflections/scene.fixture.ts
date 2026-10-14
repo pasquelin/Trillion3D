@@ -36,7 +36,6 @@ export function viewOf(
       radiance: [size[0], size[1], Math.ceil(Math.log2(Math.max(size[0], size[1]))), 0],
       slab: screenSlab([...m], size[1]),
       traced: [1, 0, 0, 0],
-      proxy: [0, 0, 0, 0],
       front: [0, 0, 0, 0],
       temporal: [0, 0, 0, 0],
       surroundings: [0, 0, 0, 0],
