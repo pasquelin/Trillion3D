@@ -12,6 +12,7 @@ import {
 import type { RecordLayout } from '../../../packages/sdk-browser/src/gpu/core/recordLayout.ts'
 import { words } from './fakeBuffers.ts'
 import type { FakeTexture } from './fakeRecords.ts'
+import { textureWords } from './fakeResources.ts'
 
 const bits = new Float64Array(1),
   halves = new Uint32Array(bits.buffer)
@@ -26,14 +27,7 @@ function double(held: Uint32Array, at: number) {
 export const viewTexture = (view: unknown) => (view as { texture: FakeTexture }).texture
 
 /** The words of the texture a bound view names, made at the first read: none before a write. */
-function viewWords(view: unknown) {
-  const texture = viewTexture(view),
-    words = texture.format === 'rgba32uint' ? 4 : 1
-  texture.words ??= new Uint32Array(
-    texture.width * texture.height * texture.depthOrArrayLayers * words,
-  )
-  return texture.words
-}
+const viewWords = (view: unknown) => textureWords(viewTexture(view))
 
 /** A bound resource's bytes: a buffer's, or the words of the texture a view names. */
 export const boundData = (resource: unknown) =>
@@ -56,7 +50,7 @@ export const recordWord = (view: unknown, layout: RecordLayout, field: string, r
 export function worldsAtEye(worlds: FakeTexture, views: Uint8Array, length: number) {
   const view = words(views),
     eye = [0, 1, 2].map((a) => double(view, viewWord('eye') + 2 * a)),
-    held = worlds.words ?? new Uint32Array(worlds.width * worlds.height * 4)
+    held = textureWords(worlds)
   const out = new Float32Array(length)
   for (let i = 0; i < length / 16; i++) {
     const matrix = recordWordAt(WORLD_TABLE, worlds, 'Matrix', i),
