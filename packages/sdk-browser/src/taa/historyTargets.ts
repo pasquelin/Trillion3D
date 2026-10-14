@@ -5,14 +5,14 @@ import {
   SHARE_FORMAT,
   resolveTargetUsage,
 } from './resolve.ts'
-import { texelBytes } from '../webgpu/blend/displayFilter.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
 /** Both ping-pong histories: colour, share/flicker gradient/still weight/count, full
  *  identity/depth, and the flicker measure (`shadingHistoryWgsl.ts`), each in its format. */
 export const TAA_HISTORY_BYTES_PER_PIXEL = HISTORY_FORMATS.reduce(
-  (bytes, format) => bytes + 2 * texelBytes(format),
+  (bytes, format) => bytes + 2 * texelBytesOf(format),
   0,
 )
 
