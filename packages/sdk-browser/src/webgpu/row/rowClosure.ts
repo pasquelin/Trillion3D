@@ -1,4 +1,8 @@
-import { createRecordTexture, type RecordTexture } from '../../gpu/core/recordTexture.ts'
+import {
+  createRecordTexture,
+  type RecordTexture,
+  type TextureMaker,
+} from '../../gpu/core/recordTexture.ts'
 import { STRUCTURE_TABLE, type StructureTable } from '../../gpu/dag/structureTable.ts'
 import { DAG_ARGS } from '../../gpu/dag/shader/armWgsl.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
@@ -6,7 +10,6 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
-import type { TextureMaker } from '../../gpu/dag/cutBuffers.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
 import { startedComputeStages } from '../../gpu/core/computeStages.ts'
 

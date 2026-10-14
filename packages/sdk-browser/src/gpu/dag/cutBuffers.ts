@@ -50,13 +50,6 @@ export const cutBytes = (cut: CutHeld) =>
   cut.textures.reduce((sum, texture) => sum + texture.bytes, 0) +
   (cut.readbacks?.bytes ?? 0)
 
-/** Makes a record texture's texture, `bytes` large, in place of `old` when it replaces one. */
-export type TextureMaker = (
-  descriptor: GPUTextureDescriptor,
-  bytes: number,
-  old?: GPUTexture,
-) => GPUTexture
-
 /**
  * THE ONE ADMISSION OF A RESOURCE OF A CUT'S OWN: `made`, `bytes` large and named `label`, built
  * by `build` within `cut`'s share beside what it holds (`cutBytes`) less the `freed` bytes its

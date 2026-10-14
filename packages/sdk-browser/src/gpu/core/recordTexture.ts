@@ -11,6 +11,13 @@ import {
   type RecordLayout,
 } from './recordLayout.ts'
 
+/** Makes a record texture's texture, `bytes` large, in place of `old` when it replaces one. */
+export type TextureMaker = (
+  descriptor: GPUTextureDescriptor,
+  bytes: number,
+  old?: GPUTexture,
+) => GPUTexture
+
 /**
  * A record table made on `device` for `records` records — none still a row's worth —: its texture
  * and the view every pass binds (`2d-array`, whatever its layers), and the writes of the host — a
@@ -31,15 +38,14 @@ export function createRecordTexture(
   layout: RecordLayout,
   records: number,
   usage: GPUTextureUsageFlags,
-  make: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture = (descriptor) =>
-    device.createTexture(descriptor),
+  make: TextureMaker = (descriptor) => device.createTexture(descriptor),
 ) {
   const bytes = texelBytes(layout.format)
-  /** The texture of `count` records, made by `make`. */
-  const made = (count: number) => {
+  /** The texture of `count` records, made by `make` in place of `old` when it replaces one. */
+  const made = (count: number, old?: GPUTexture) => {
     const size = recordExtent(layout, count),
       held = size[0] * size[1] * size[2] * bytes
-    const texture = make({ label: layout.label, size, format: layout.format, usage }, held)
+    const texture = make({ label: layout.label, size, format: layout.format, usage }, held, old)
     return { texture, size, held, view: arrayView(texture), capacity: heldRecords(layout, size) }
   }
   let table = made(records)
@@ -123,7 +129,7 @@ export function createRecordTexture(
       if (wanted <= table.capacity) return true
       const old = table
       try {
-        table = made(Math.max(wanted, 2 * old.capacity))
+        table = made(Math.max(wanted, 2 * old.capacity), old.texture)
       } catch {
         return false
       }

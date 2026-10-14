@@ -1,5 +1,4 @@
-import type { TextureMaker } from './cutBuffers.ts'
-import { createRecordTexture } from '../core/recordTexture.ts'
+import { createRecordTexture, type TextureMaker } from '../core/recordTexture.ts'
 import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'

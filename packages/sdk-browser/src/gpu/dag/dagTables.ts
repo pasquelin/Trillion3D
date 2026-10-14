@@ -9,7 +9,7 @@ import { createDagList } from './listCap.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
 import { createTreeTable } from './treeTable.ts'
 import { createCutTables } from './cutTables.ts'
-import type { TextureMaker } from './cutBuffers.ts'
+import type { TextureMaker } from '../core/recordTexture.ts'
 
 /** What makes the cut's buffers and its record tables' textures: its admission (`resources.ts`). */
 type CutMakers = {

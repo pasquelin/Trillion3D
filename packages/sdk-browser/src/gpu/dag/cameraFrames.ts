@@ -1,4 +1,3 @@
-import type { TextureMaker } from './cutBuffers.ts'
 import { createWorldOrigins } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
@@ -6,7 +5,11 @@ import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { writeRanges } from './runWrites.ts'
 import { createChangedRuns, type ChangedRuns } from '../../webgpu/residency/ranges.ts'
-import { createRecordTexture, type RecordTexture } from '../core/recordTexture.ts'
+import {
+  createRecordTexture,
+  type RecordTexture,
+  type TextureMaker,
+} from '../core/recordTexture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
 import { FRAME_TABLE } from './frameTable.ts'
 

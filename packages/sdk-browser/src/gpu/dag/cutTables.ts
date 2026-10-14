@@ -1,6 +1,5 @@
 import type { RecordLayout } from '../core/recordLayout.ts'
-import type { TextureMaker } from './cutBuffers.ts'
-import { createRecordTexture } from '../core/recordTexture.ts'
+import { createRecordTexture, type TextureMaker } from '../core/recordTexture.ts'
 import { CLUSTER_WORDS } from './layout.ts'
 import { NODE_TABLE } from './nodeTable.ts'
 import { evictScratchWords, flagShapeWords, type FlagShape } from './flagSections.ts'
