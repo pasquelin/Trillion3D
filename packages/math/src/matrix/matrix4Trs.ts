@@ -7,8 +7,6 @@ import { length3 } from '../vector/vector.ts'
  * recomposes the same world matrices.
  */
 
-export { composeMatrix4 } from './matrix4Compose.ts'
-
 /** The nine rotation terms of the last decomposition, stored by row: read immediately. */
 const rotation = new Float64Array(9)
 

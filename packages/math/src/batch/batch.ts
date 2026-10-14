@@ -13,26 +13,10 @@ import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
  * make them computed — measured at 6% of full product (`../matrix/matrix4.ts`). Sub-views are
  * constructed once per batch, as the hierarchy already holds `worldViews` on `world`.
  *
- * The kernels this file does not hold are grouped by subject in `mathBatch*.ts` and re-exported
- * here, so a host imports one name: the 200-line limit is what splits them, not their contract.
+ * The other batch kernels live by subject beside this file (`strides.ts`, `culling.ts`,
+ * `transforms.ts`, `points.ts`, `color.ts`, `../matrix/matrix4Compose.ts`); a host imports each from
+ * its own module, and the package entry (`../index.ts`) names them all.
  */
-
-export {
-  MATRIX_VALUES,
-  NORMAL_MATRIX_VALUES,
-  POSITION_VALUES,
-  QUATERNION_VALUES,
-  SPHERE_VALUES,
-} from './strides.ts'
-export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts'
-export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts'
-export { decomposeMatrix4Batch, invertMatrix4Batch, normalMatrix3Batch } from './transforms.ts'
-export {
-  transformDirectionsBatch,
-  transformPointsBatch,
-  transformPointsByMatricesBatch,
-} from './points.ts'
-export { linearToSrgbBatch, srgbToLinearBatch } from './color.ts'
 
 /**
  * Reduces `n` bounding boxes into `into` by progressive union: `into = into ∪ boxes[0] ∪ … ∪ boxes[n - 1]`.

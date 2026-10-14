@@ -53,8 +53,6 @@ export function normalMatrix3Batch(
   }
 }
 
-export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts'
-
 /**
  * Decomposes `n` 4×4 matrices into positions, quaternions and scales.
  *
