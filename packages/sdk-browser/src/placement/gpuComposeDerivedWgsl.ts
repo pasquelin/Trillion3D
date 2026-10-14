@@ -14,33 +14,15 @@
  * An affine world — its last row `(0, 0, 0, 1)`, as every product of the poses a node tree makes
  * is — takes the corners' divide by `w` as the CPU does: it is 1.
  */
+import { wgslDouble } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import {
-  dAdd,
-  dLess,
-  dMax,
-  dMin,
-  dMul,
-  dSqrt,
-  dSub,
-  splitDouble,
-} from '../../../math/src/wgsl/double.ts'
+import { dAdd, dLess, dMul, dSqrt, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
+import { affineAxis, dBoxTransform } from '../../../math/src/wgsl/doubleAffine.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { LOD_BIT, LOD_INPUT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { INPUT_LOD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
-
-/** `m[i]·x + m[4+i]·y + m[8+i]·z + m[12+i]`, summed left to right: the axis `i` of
- *  `transformAffinePoint`. */
-const AFFINE_WGSL = wgslBlock(
-  'AFFINE_WGSL',
-  [dAdd, dMul],
-  `
-fn affineAxis(w:array<vec2u,16>,i:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
- return dAdd(dAdd(dAdd(dMul(w[i],x),dMul(w[4u+i],y)),dMul(w[8u+i],z)),w[12u+i]);
-}`,
-)
 
 /** The eight corners of the box of bounds `lo` and `hi` at `world`, from word `out` of `corners`, as
  *  `pageCornersInto` derives them: corner `k` takes the maximum on `x` when bit 0 of `k` is set, on
@@ -48,7 +30,7 @@ fn affineAxis(w:array<vec2u,16>,i:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
  *  A row's (`composeCorners`) and a transparent entry's (`../webgpu/transparent/entryCorners.ts`). */
 export const BOX_CORNERS_WGSL = wgslBlock(
   'BOX_CORNERS_WGSL',
-  [splitDouble, AFFINE_WGSL],
+  [splitDouble, affineAxis],
   `
 fn writeCorners(out:u32,world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>){
  var p:array<vec2u,3>;
@@ -80,36 +62,17 @@ fn composeCorners(row:u32,world:array<vec2u,16>){
 }`,
 )
 
-/** The box of bounds `lo` and `hi` carried by `world`, its eight corners folded in `boxTransform`'s
- *  order: six doubles, an empty box left as it is. */
+/** The box of bounds `lo` and `hi` carried by `world` as `boxTransform` carries it
+ *  (`dBoxTransform`): six doubles, an empty box left as it is. */
 export const CARRIED_BOX_WGSL = wgslBlock(
   'CARRIED_BOX_WGSL',
-  [AFFINE_WGSL, dMin, dMax, dLess],
+  [dBoxTransform, dLess],
   `
 fn carriedBox(world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>)->array<vec2u,6>{
- var out:array<vec2u,6>;
- for(var a=0u;a<3u;a++){out[a]=lo[a];out[3u+a]=hi[a];}
- if(dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2])){return out;}
- var low:array<vec2u,3>;
- var high:array<vec2u,3>;
- var p:array<vec2u,3>;
- for(var axis=0u;axis<3u;axis++){
-  low[axis]=vec2u(0x7ff00000u,0u);
-  high[axis]=vec2u(0xfff00000u,0u);
- }
- for(var k=0u;k<8u;k++){
-  for(var axis=0u;axis<3u;axis++){
-   p[axis]=lo[axis];
-   if(((k>>axis)&1u)!=0u){p[axis]=hi[axis];}
-  }
-  for(var axis=0u;axis<3u;axis++){
-   let v=affineAxis(world,axis,p[0],p[1],p[2]);
-   low[axis]=dMin(low[axis],v);
-   high[axis]=dMax(high[axis],v);
-  }
- }
- for(var a=0u;a<3u;a++){out[a]=low[a];out[3u+a]=high[a];}
- return out;
+ var box:array<vec2u,6>;
+ for(var a=0u;a<3u;a++){box[a]=lo[a];box[3u+a]=hi[a];}
+ if(dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2])){return box;}
+ return dBoxTransform(box,world);
 }`,
 )
 
@@ -132,7 +95,7 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
  *  the world, the radii, the radius of the root's world box, the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
-  [splitDouble, AFFINE_WGSL, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
+  [splitDouble, affineAxis, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
   `
 fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
  for(var axis=0u;axis<3u;axis++){
@@ -153,7 +116,7 @@ fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
   let dy=dSub(rootBoxes[rank*6u+4u],b);
   let dz=dSub(rootBoxes[rank*6u+5u],c);
   let s=dAdd(dAdd(dMul(dx,dx),dMul(dy,dy)),dMul(dz,dz));
-  lods[o+18u]=toF32(dMul(dSqrt(s),vec2u(0x3fe00000u,0u)));
+  lods[o+18u]=toF32(dMul(dSqrt(s),${wgslDouble(0.5)}));
  }
  if((flags&${LOD_BIT.has}u)==0u){return;}
  let scale=maxStretchOf(world);

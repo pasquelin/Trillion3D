@@ -18,6 +18,7 @@
  * rounding of that root, a few units of the last place of a double, reaches the single-precision
  * word only where the value lies within them of a rounding boundary.
  */
+import { wgslDouble } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dDiv, dLess, dMul, dSqrt, dRsqrt, dSub } from '../../../math/src/wgsl/double.ts'
 import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
@@ -29,21 +30,21 @@ const CHEBYSHEV_WGSL = wgslBlock(
   [dAdd, dSub, dMul, dLess, fromF32, toF32],
   `fn chebyshevRoot(x:vec2u)->vec2u{
  let xf=bitcast<f32>(toF32(x));
- if(dLess(x,vec2u(0xbfe00000u,0u))){
+ if(dLess(x,${wgslDouble(-0.5)})){
   // Near −1 the root is 1/2 + u: 6u² + 4u³ = 1 + x, which the root's flat slope hides from the first form.
-  let y=dAdd(vec2u(0x3ff00000u,0u),x);
+  let y=dAdd(${wgslDouble(1)},x);
   let yf=max(bitcast<f32>(toF32(y)),0.0);
   var uf=sqrt(yf/6.0);
-  if(uf<=0.0){return vec2u(0x3fe00000u,0u);}
+  if(uf<=0.0){return ${wgslDouble(0.5)};}
   for(var i=0u;i<8u;i++){uf=uf-(4.0*uf*uf*uf+6.0*uf*uf-yf)/(12.0*uf*(uf+1.0));}
   let slope=fromF32(bitcast<u32>(1.0/(12.0*uf*(uf+1.0))));
   var u=fromF32(bitcast<u32>(uf));
   for(var i=0u;i<3u;i++){
    let u2=dMul(u,u);
-   let g=dSub(dAdd(dMul(vec2u(0x40100000u,0u),dMul(u2,u)),dMul(vec2u(0x40180000u,0u),u2)),y);
+   let g=dSub(dAdd(dMul(${wgslDouble(4)},dMul(u2,u)),dMul(${wgslDouble(6)},u2)),y);
    u=dSub(u,dMul(g,slope));
   }
-  return dAdd(vec2u(0x3fe00000u,0u),u);
+  return dAdd(${wgslDouble(0.5)},u);
  }
  var tf=0.9;
  for(var i=0u;i<8u;i++){tf=tf-(4.0*tf*tf*tf-3.0*tf-xf)/(12.0*tf*tf-3.0);}
@@ -51,7 +52,7 @@ const CHEBYSHEV_WGSL = wgslBlock(
  var t=fromF32(bitcast<u32>(tf));
  for(var i=0u;i<3u;i++){
   let t2=dMul(t,t);
-  let f=dSub(dSub(dMul(vec2u(0x40100000u,0u),dMul(t2,t)),dMul(vec2u(0x40080000u,0u),t)),x);
+  let f=dSub(dSub(dMul(${wgslDouble(4)},dMul(t2,t)),dMul(${wgslDouble(3)},t)),x);
   t=dSub(t,dMul(f,slope));
  }
  return t;
@@ -83,9 +84,9 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
  if(dLess(top,m11)){top=m11;}
  if(dLess(top,m22)){top=m22;}
  if(dIsZero(off)){return dSqrt(top);}
- let mean=dDiv(dAdd(dAdd(m00,m11),m22),vec2u(0x40080000u,0u));
+ let mean=dDiv(dAdd(dAdd(m00,m11),m22),${wgslDouble(3)});
  let d0=dSub(m00,mean);let d1=dSub(m11,mean);let d2=dSub(m22,mean);
- let spreadSquared=dDiv(dAdd(dAdd(dAdd(dMul(d0,d0),dMul(d1,d1)),dMul(d2,d2)),dMul(vec2u(0x40000000u,0u),off)),vec2u(0x40180000u,0u));
+ let spreadSquared=dDiv(dAdd(dAdd(dAdd(dMul(d0,d0),dMul(d1,d1)),dMul(d2,d2)),dMul(${wgslDouble(2)},off)),${wgslDouble(6)});
  if(dIsZero(spreadSquared)){
   if(dLess(mean,vec2u(0u,0u))){return vec2u(0u,0u);}
   return dSqrt(mean);
@@ -97,11 +98,11 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
  let determinant=dAdd(
   dSub(dMul(b00,dSub(dMul(b11,b22),dMul(b12,b12))),dMul(b01,dSub(dMul(b01,b22),dMul(b12,b02)))),
   dMul(b02,dSub(dMul(b01,b12),dMul(b11,b02))));
- var x=dMul(determinant,vec2u(0x3fe00000u,0u));
- if(dLess(x,vec2u(0xbff00000u,0u))){x=vec2u(0xbff00000u,0u);}
- if(dLess(vec2u(0x3ff00000u,0u),x)){x=vec2u(0x3ff00000u,0u);}
+ var x=dMul(determinant,${wgslDouble(0.5)});
+ if(dLess(x,${wgslDouble(-1)})){x=${wgslDouble(-1)};}
+ if(dLess(${wgslDouble(1)},x)){x=${wgslDouble(1)};}
  let t=chebyshevRoot(x);
- let value=dAdd(mean,dMul(dMul(vec2u(0x40000000u,0u),spread),t));
+ let value=dAdd(mean,dMul(dMul(${wgslDouble(2)},spread),t));
  if(dLess(value,vec2u(0u,0u))){return vec2u(0u,0u);}
  return dSqrt(value);
 }`,
