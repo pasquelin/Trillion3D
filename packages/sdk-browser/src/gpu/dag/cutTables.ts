@@ -72,4 +72,3 @@ export function createCutTables(
     flags: createFlagTable(device, shape, make),
   }
 }
-export type CutTables = ReturnType<typeof createCutTables>

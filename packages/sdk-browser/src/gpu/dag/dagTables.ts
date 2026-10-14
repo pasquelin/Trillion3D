@@ -11,7 +11,7 @@ import { createTreeTable } from './treeTable.ts'
 import { createCutTables } from './cutTables.ts'
 
 /** What makes the cut's buffers and its record tables' textures: its admission (`resources.ts`). */
-export type CutMakers = {
+type CutMakers = {
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer
   ownTexture: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture
 }

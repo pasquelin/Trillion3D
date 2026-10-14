@@ -26,7 +26,7 @@ function double(held: Uint32Array, at: number) {
 export const viewTexture = (view: unknown) => (view as { texture: FakeTexture }).texture
 
 /** The words of the texture a bound view names, made at the first read: none before a write. */
-export function viewWords(view: unknown) {
+function viewWords(view: unknown) {
   const texture = viewTexture(view),
     words = texture.format === 'rgba32uint' ? 4 : 1
   texture.words ??= new Uint32Array(
