@@ -9,8 +9,8 @@ import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 
 /**
- * THE ONE TABLE OF THE REFLECTIONS' GROUP 0, shared by the trace, the temporal accumulation and the
- * upsample (`traceHalf.ts`): the WGSL declarations, the layouts and the entries read their numbers here.
+ * THE ONE TABLE OF THE REFLECTIONS' GROUP 0, shared by the trace, the spatial reuse, the temporal
+ * accumulation and the upsample (`traceHalf.ts`): the WGSL declarations, the layouts and the entries read their numbers here.
  * A group serves one surface — the opaque one or the transparents' front one (`frontLayer.ts`) — and one
  * parity of the history's turn about (`halfEncode.ts`): its flags, normals and lobes (its depth is the
  * reflection group's), the lights (the upsample's weight reads their fitted table too), what the trace
@@ -31,13 +31,15 @@ export const REFLECTION_TRACE_BINDINGS = {
   proxyWorlds: 8,
   proxyTree: 9,
   traceOut: 10,
-  temporalIn: 11,
-  historyIn: 12,
-  historyOut: 13,
-  upsampleIn: 14,
-  base: 15,
-  target: 16,
-  frontTarget: 17,
+  spatialIn: 11,
+  spatialOut: 12,
+  temporalIn: 13,
+  historyIn: 14,
+  historyOut: 15,
+  upsampleIn: 16,
+  base: 17,
+  target: 18,
+  frontTarget: 19,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -57,7 +59,8 @@ const surface = () => [
   computeTextureEntry(B.lobes, 'uint'),
 ]
 
-/** The layouts of each kernel's group 0: the trace, the temporal accumulation, and the two upsamples. */
+/** The layouts of each kernel's group 0: the trace, the spatial reuse, the temporal accumulation, and
+ *  the two upsamples. */
 export const halfLayouts = (device: GPUDevice) => {
   const layout = (entries: GPUBindGroupLayoutEntry[]) =>
     device.createBindGroupLayout({ entries: [...surface(), ...entries] })
@@ -71,6 +74,10 @@ export const halfLayouts = (device: GPUDevice) => {
       computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
       computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
       computeStorageTextureEntry(B.traceOut, HALF_FORMAT),
+    ]),
+    spatial: layout([
+      computeTextureEntry(B.spatialIn, 'uint'),
+      computeStorageTextureEntry(B.spatialOut, HALF_FORMAT),
     ]),
     temporal: layout([
       computeTextureEntry(B.temporalIn, 'uint'),

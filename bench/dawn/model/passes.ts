@@ -141,16 +141,20 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_TRACE_PASS),
-    formula: `P/4 half texels traced, P/4·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps), ${K.HALF_BYTES} B a half texel written; accumulated, P/4·reflecting·${K.TEMPORAL_LOADS} loads, ${K.HALF_BYTES} B written; P pixels upsampled, P·reflecting·${K.UPSAMPLE_LOADS} loads, ${K.TRACE_BYTES} B written — 16 iterations on average, 35 at p99`,
+    formula: `P/4 half texels traced, P/4·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps), ${K.HALF_BYTES} B a half texel written; reused, P/4·reflecting·${K.SPATIAL_LOADS} loads; accumulated, P/4·reflecting·${K.TEMPORAL_LOADS} loads, ${K.HALF_BYTES} B written; P pixels upsampled, P·reflecting·${K.UPSAMPLE_LOADS} loads, ${K.TRACE_BYTES} B written — 16 iterations on average, 35 at p99`,
     work: (f) => ({
       texels:
         f.P +
         (f.P / 4) *
           f.reflecting *
-          (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS + K.TEMPORAL_LOADS) +
+          (K.TRACE_LOADS +
+            K.MARCH_ITERATIONS * K.MARCH_FETCHES +
+            K.HIT_LOADS +
+            K.SPATIAL_LOADS +
+            K.TEMPORAL_LOADS) +
         f.P * f.reflecting * K.UPSAMPLE_LOADS,
       filtered: (f.P / 4) * f.reflecting * K.HIT_TAPS,
-      bytes: 2 * K.HALF_BYTES * (f.P / 4) + K.TRACE_BYTES * f.P * f.reflecting,
+      bytes: 3 * K.HALF_BYTES * (f.P / 4) + K.TRACE_BYTES * f.P * f.reflecting,
       passes: 1,
     }),
     sources: [

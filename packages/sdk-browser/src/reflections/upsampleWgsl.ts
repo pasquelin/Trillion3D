@@ -41,30 +41,14 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 /** The radiance the surface \`layer\` reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
 fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
- let q=(vec2f(coord)+vec2f(0.5))*0.5-vec2f(0.5);
- let corner=vec2i(floor(q));
- let f=q-floor(q);
- let last=vec2i(textureDimensions(upsampleIn))-vec2i(1);
  let depth=reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));
- var sharp=Reflected(vec3f(0.0),vec3f(0.0));
- var near=sharp;
- var sharpWeight=0.0;
- var nearWeight=0.0;
- for(var k=0u;k<4u;k++){
-  let o=vec2u(k&1u,k>>1u);
-  let at=clamp(corner+vec2i(o),vec2i(0),last);
-  let t=textureLoad(upsampleIn,at,0);
-  if(historyCount(t)==0u){continue;}
-  let r=texelReflected(t);
-  let w=mix(1.0-f.x,f.x,f32(o.x))*mix(1.0-f.y,f.y,f32(o.y));
-  near.base+=w*r.base;near.coat+=w*r.coat;nearWeight+=w;
-  let apart=distance(vec2f(at*2+vec2i(1)),vec2f(coord)+vec2f(0.5));
-  let e=w*reflectionSameSurface(depth,N,V,historyDepth(t),historyNormal(t),apart);
-  sharp.base+=e*r.base;sharp.coat+=e*r.coat;sharpWeight+=e;
+ // A neighbour's centre lies within two pixels of the pixel's on each axis.
+ let g=historyGather(upsampleIn,(vec2f(coord)+vec2f(0.5))*0.5-vec2f(0.5),depth,N,V,2.0);
+ if(g.sharpWeight>REFLECTION_EPSILON){
+  return Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight);
  }
- if(sharpWeight>REFLECTION_EPSILON){return Reflected(sharp.base/sharpWeight,sharp.coat/sharpWeight);}
- let n=max(nearWeight,1e-30);
- return Reflected(near.base/n,near.coat/n);
+ let n=max(g.nearWeight,1e-30);
+ return Reflected(g.near.base/n,g.near.coat/n);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){

@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
-import { REFLECTION_CONE_WGSL } from './footprint.ts'
+import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
@@ -10,13 +10,13 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 
 /**
  * THE TEMPORAL ACCUMULATION of a surface's half grid (`temporalOpaque`, `temporalFront`): each texel
- * blends this image's fresh radiance (`temporalIn`, the trace's) with its history (`historyIn`, the
+ * blends this image's fresh radiance (`temporalIn`, the spatial reuse's) with its history (`historyIn`, the
  * last image's output), and writes the history the upsample reads and the next image blends with
  * (`historyOut`). Every texel takes a fresh ray every image: a history only ever weighs beside one.
  *
  * - REPROJECTION: the traced point `P` taken through the view-projection the last image was drawn with
  *   — the radiance pyramid's (`ReflectionView.radianceViewProj`), the one previous view of the engine —;
- *   a mirror-like lobe (its cone under a pixel over the screen march, `REFLECTION_STEP_CAP`) reprojects
+ *   a mirror's lobe (one the trace does not sample, `reflectionSampled`) reprojects
  *   its reflection's virtual point instead, `hit` behind the surface along the view (`reflectionHit`), a
  *   direction where the ray met nothing near, so that a reflection keeps its own parallax.
  * - REJECTION: the four history texels around the reprojected point, bilinear, each kept as far as it
@@ -39,7 +39,7 @@ export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   [
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TEXEL_WGSL,
-    REFLECTION_CONE_WGSL,
+    REFLECTION_SAMPLE_WGSL,
     LOBE_AXIS_WGSL,
     clipToFramebuffer,
   ],
@@ -58,29 +58,10 @@ fn temporalHistory(P:vec3f,N:vec3f,V:vec3f,aim:vec4f,offset:vec2f)->TemporalHist
  if(reflectionView.traced.x==0u||surface.w<=0.0||aimed.w<=0.0){return held;}
  let at=clipToFramebuffer(aimed,size).xy+offset;
  let apart=distance(at,clipToFramebuffer(surface,size).xy);
- let depth=reflectionLinearDepth(surface);
- let q=at*0.5-vec2f(0.5);
- let corner=vec2i(floor(q));
- let f=q-floor(q);
- let last=vec2i(textureDimensions(historyIn))-vec2i(1);
- var weight=0.0;
- for(var k=0u;k<4u;k++){
-  let o=vec2u(k&1u,k>>1u);
-  let tap=corner+vec2i(o);
-  if(any(tap<vec2i(0))||any(tap>last)){continue;}
-  let t=textureLoad(historyIn,tap,0);
-  if(historyCount(t)==0u){continue;}
-  let w=mix(1.0-f.x,f.x,f32(o.x))*mix(1.0-f.y,f.y,f32(o.y))
-   *reflectionSameSurface(depth,N,V,historyDepth(t),historyNormal(t),1.0+apart);
-  if(w<=0.0){continue;}
-  let r=texelReflected(t);
-  held.radiance.base+=w*r.base;held.radiance.coat+=w*r.coat;
-  held.count+=w*f32(historyCount(t));
-  weight+=w;
- }
- if(weight<REFLECTION_EPSILON){return TemporalHistory(Reflected(vec3f(0.0),vec3f(0.0)),0.0);}
- held.radiance.base/=weight;held.radiance.coat/=weight;held.count/=weight;
- return held;
+ let g=historyGather(historyIn,at*0.5-vec2f(0.5),reflectionLinearDepth(surface),N,V,1.0+apart);
+ if(g.sharpWeight<REFLECTION_EPSILON){return held;}
+ return TemporalHistory(
+  Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight),g.count/g.sharpWeight);
 }
 /** The history \`h\` held within mean ± \`REFLECTION_CLAMP\` deviations of the fresh texels around \`at\`. */
 fn temporalClamp(h:Reflected,at:vec2i)->Reflected{
@@ -120,7 +101,7 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let now=texelReflected(fresh);
  let hit=freshHit(fresh);
  var aim=vec4f(P,1.0);
- if(reflectionConeTangent(lobeAlpha(normal.a))*REFLECTION_STEP_CAP<1.0){
+ if(!reflectionSampled(lobeAlpha(normal.a))){
   aim=select(vec4f(P-V*hit,1.0),vec4f(-V,0.0),hit>=HALF_MAX);
  }
  let held=temporalHistory(P,N,V,aim,vec2f(at*2+vec2i(1))-vec2f(coord)-vec2f(0.5));

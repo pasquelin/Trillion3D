@@ -55,6 +55,8 @@ export const REFLECTION_COUNTS = {
   REFLECTION_HISTORY: 12,
   /** The widest spatial reuse, in half texels (`spatialWgsl.ts`): two bits of the fresh texel's word. */
   REFLECTION_REUSE_RADIUS: 3,
+  /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius. */
+  REFLECTION_REUSE_TAPS: 8,
   /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
   REFLECTION_SEQUENCE: 4096,
 } as const

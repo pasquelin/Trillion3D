@@ -28,7 +28,7 @@ export type TraceInputs = {
   proxyTree: GPUTextureView
 }
 
-const KERNELS = ['trace', 'temporal', 'upsample'] as const
+const KERNELS = ['trace', 'spatial', 'temporal', 'upsample'] as const
 type Kernel = (typeof KERNELS)[number]
 
 /** The reflections' kernels on their module (`REFLECTION_TRACE_SHADER`), each surface's, over the
@@ -44,6 +44,7 @@ export async function createTraceStages(
   const [opaque, front] = await Promise.all(
     (['Opaque', 'Front'] as const).map(async (side) => ({
       trace: await stage(layouts.trace, `trace${side}`),
+      spatial: await stage(layouts.spatial, `spatial${side}`),
       temporal: await stage(layouts.temporal, `temporal${side}`),
       upsample: await stage(
         side === 'Opaque' ? layouts.upsample : layouts.upsampleFront,
@@ -58,7 +59,7 @@ type TraceStages = Awaited<ReturnType<typeof createTraceStages>>
 /** Resources by their names in the table (`REFLECTION_TRACE_BINDINGS`). */
 type Named = Partial<Record<keyof typeof REFLECTION_TRACE_BINDINGS, GPUBindingResource>>
 
-/** A surface's groups: the trace's, and the temporal's and the upsample's of each parity. */
+/** A surface's groups, each kernel's for each parity of the history's turn about. */
 type SurfaceGroups = Record<Kernel, GPUBindGroup[]>
 
 /** A view's trace groups, none made yet, and the parity of its history's turn about. */
@@ -94,7 +95,9 @@ function surfaceGroups(
     })
   const lights = { buffer: inputs.lights }
   return {
-    trace: [
+    // The trace writes the grid that is not the history, the spatial reuse reads it into the scratch,
+    // the accumulation reads the scratch and the history into it again, which the upsample reads.
+    trace: [0, 1].map((p) =>
       group(layouts.trace, {
         lights,
         lightLists: { buffer: inputs.lightLists },
@@ -103,9 +106,12 @@ function surfaceGroups(
         proxy: { buffer: inputs.proxy },
         proxyWorlds: inputs.proxyWorlds,
         proxyTree: inputs.proxyTree,
-        traceOut: grids.scratch,
+        traceOut: grids.turn[p],
       }),
-    ],
+    ),
+    spatial: [0, 1].map((p) =>
+      group(layouts.spatial, { spatialIn: grids.turn[p], spatialOut: grids.scratch }),
+    ),
     temporal: [0, 1].map((p) =>
       group(layouts.temporal, {
         temporalIn: grids.scratch,
@@ -156,7 +162,8 @@ function traceGroups(reflection: TraceResources, stages: TraceStages, inputs: Tr
 
 /**
  * The reflections of the pixels of `size`, in the open compute `pass` (`traceHalf.ts`): the opaque
- * surface's half grid traced, accumulated and upsampled into the reflection target; with `front`, the
+ * surface's half grid traced, reused across neighbours, accumulated and upsampled into the reflection
+ * target; with `front`, the
  * image's front pass having written a reflecting surface, the front surface's the same way. `depthGroup`
  * is the reflection group over the depth pyramid. The history's parity turns every call.
  */
@@ -176,7 +183,7 @@ export function encodeReflectionTrace(
     for (const kernel of KERNELS) {
       const cells = kernel === 'upsample' ? 1 : 2
       pass.setPipeline(stages[side][kernel])
-      pass.setBindGroup(0, groups[side][kernel][kernel === 'trace' ? 0 : parity])
+      pass.setBindGroup(0, groups[side][kernel][parity])
       pass.dispatchWorkgroups(
         ceilDiv(ceilDiv(size[0], cells), REFLECTION_SIDE),
         ceilDiv(ceilDiv(size[1], cells), REFLECTION_SIDE),

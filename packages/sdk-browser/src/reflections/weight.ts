@@ -6,6 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
+import { REFLECTION_CENTRE_WGSL, REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
@@ -55,31 +56,39 @@ ${
  * (`Reflected`): the base lobe's, along the lobe the lights read (`reflectionLobe`: the long axis
  * `setLobes` left — its direction and αt where the material is anisotropic, a round lobe elsewhere),
  * and, where the surface carries a clear coat, the coat's own dielectric lobe on its normal and
- * roughness — a second `reflectedRadiance`, only where the coat is above zero. With `scene`, the
- * proxy's bindings, the chain holds the proxy's stage (`reflectedRadianceWgsl`); without, it has none.
+ * roughness, only where the coat is above zero; the base's hit stays the reflection's (`reflectionHit`).
+ * Each lobe is one `reflectionLobeRadiance`. With `scene`, the proxy's bindings — the reflections' trace
+ * alone —, the chain holds the proxy's stage (`reflectedRadianceWgsl`) and a glossy lobe is sampled by
+ * `u` (`sampleWgsl.ts`); without, a lobe is read along its centre, `u` unread, and the chain has no
+ * proxy's stage.
  */
 export const reflectionShareWgsl = (group: number, lobes: boolean, scene?: SceneBindings) =>
   wgslBlock(
     `reflectionShareWgsl(${group}, ${lobes}, ${scene ? sceneKey(scene) : 'none'})`,
-    [reflectedRadianceWgsl(group, scene), reflectionWeighWgsl(lobes), LOBE_AXIS_WGSL],
+    [
+      reflectedRadianceWgsl(group, scene),
+      scene ? REFLECTION_SAMPLE_WGSL : REFLECTION_CENTRE_WGSL,
+      reflectionWeighWgsl(lobes),
+      LOBE_AXIS_WGSL,
+    ],
     lobes
       ? `fn reflectionLobe(rough:f32)->vec4f{
  if(lobes.on){return vec4f(lobes.T,lobes.at);}
  return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
 }
-fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32)->Reflected{
- var traced=Reflected(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),vec3f(0.0));
+fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
+ var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
-  // The base lobe's hit is the reflection's (\`reflectionHit\`): the coat's ray leaves it as it found it.
   let hit=reflectionHit;
-  traced.coat=reflectedRadiance(P,lobes.coatN,V,lobes.coatRough,vec4f(0.0,0.0,0.0,lobeAlpha(lobes.coatRough)));
+  let alpha=lobeAlpha(lobes.coatRough);
+  traced.coat=reflectionLobeRadiance(P,lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
   reflectionHit=hit;
  }
  return traced;
 }`
       : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}
-fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32)->Reflected{
- return Reflected(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),vec3f(0.0));
+fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
+ return Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
 }`,
   )
 
@@ -119,7 +128,7 @@ fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Re
   let t=textureLoad(frontTraced,at,0);
   return Reflected(rtUnpackShared(t.x),rtUnpackShared(t.y));
  }
- return reflectionTrace(P,N,V,rough);
+ return reflectionTrace(P,N,V,rough,vec2f(0.0));
 }
 fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)->vec3f{
  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}
