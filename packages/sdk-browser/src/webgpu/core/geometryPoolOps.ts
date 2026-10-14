@@ -1,13 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts'
 import type { GeometryBlock } from '../row/pageRowMaterial.ts'
-import {
-  LAYOUT,
-  LISTS,
-  offsetOf,
-  poolFits,
-  poolFloats,
-  type PoolList,
-} from './geometryPoolLayout.ts'
+import { LISTS, poolFits, poolFloats, type PoolList } from './geometryPoolLayout.ts'
 import {
   copyPoolStores,
   createPoolBuffers,
@@ -17,29 +10,13 @@ import {
   type PoolStores,
 } from './geometryPoolStores.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
-import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
-import { writeFloatAtlas } from './floatAtlas.ts'
-import { UV1_FLOATS, writeUv1Tail } from './uv1Tail.ts'
+import { releaseScratch } from './geometryPoolScratch.ts'
+import { holds, put, weigh, type Pool } from './geometryPoolWrites.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 
 /** The lists of the normal atlas, written again at a growth. */
 const ATLAS_LISTS: readonly PoolList[] = ['normal', 'uv1']
-
-/** What the vertex pool's methods share (`geometryPool.ts`): its options, its blocks, the room
- *  used and held, the floats of each store, the stores. */
-export type Pool = {
-  device: GPUDevice
-  coloured: boolean
-  secondUv: boolean
-  tailFloats: number
-  grown: ((capacity: number) => void) | undefined
-  blocks: Map<HostAttributes, GeometryBlock>
-  used: number
-  size: number
-  floats: ReturnType<typeof poolFloats>
-  stores: ReturnType<typeof createPoolStores>
-}
 
 /** The lists a pool carries beside the positions and the normals (`poolFloats`). */
 type Carried = Pick<Pool, 'coloured' | 'secondUv'>
@@ -47,40 +24,6 @@ type Carried = Pick<Pool, 'coloured' | 'secondUv'>
 /** Floats of each store of a pool of `count` vertices. */
 const floatsOf = (p: Carried, count: number, tail: number) =>
   poolFloats(count, tail, p.coloured, p.secondUv)
-
-/** Writes `n` floats of the scratch at float `at` of list `name`'s store. */
-function upload(p: Pool, name: PoolList, at: number, n: number) {
-  const key = LAYOUT[name].buffer
-  if (key === 'concatNrm')
-    writeFloatAtlas(p.device.queue, p.stores.concatNrm, at, scratchFloats(), 0, n)
-  else p.device.queue.writeBuffer(p.stores[key], at * 4, scratchFloats(), 0, n)
-}
-
-/** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
-export const holds = (p: Pool, attributes: HostAttributes, name: PoolList) =>
-  (name !== 'color' || p.coloured) &&
-  (name !== 'uv1' || p.secondUv) &&
-  LAYOUT[name].parts.some(([source]) => attributes[source])
-
-/** Writes vertices `from` to `from + n - 1` of list `name` of `attributes` at pool vertex
- *  `vertex`: a second UV set at the normal atlas's tail (`uv1Tail.ts`). Returns its floats. */
-export function put(
-  p: Pool,
-  attributes: HostAttributes,
-  name: PoolList,
-  at: { vertex: number; from: number; n: number },
-) {
-  const written = fillScratch(attributes, name, at.from, at.n)
-  const { queue } = p.device
-  if (name === 'uv1')
-    writeUv1Tail(queue, p.stores.concatNrm, at.vertex, scratchFloats(), written / UV1_FLOATS)
-  else upload(p, name, offsetOf(name, p.size, at.vertex), written)
-  return written
-}
-
-/** The bytes `count` vertices of list `name` of `attributes` weigh in the pool, if it holds it. */
-const weigh = (p: Pool, attributes: HostAttributes, name: PoolList, count: number) =>
-  holds(p, attributes, name) ? count * LAYOUT[name].stride * 4 : 0
 
 /** The pool laid out for `size` vertices and a tail of `tail` floats, in place, carrying the lists
  *  of `carried` (the lists it holds, or more: `widen`): the buffers made over, what the held ones

@@ -38,10 +38,10 @@ export const poolFloats = (
 })
 
 /** Whether a device of `limits` holds the stores of `floats`: each buffer under the storage
- *  binding cap, the normals within the texture limits. */
+ *  binding cap, the normals within the guaranteed texture limits. */
 export const poolFits = (floats: Stores<number>, limits?: GPUSupportedLimits) =>
   BUFFERS.every((key) => floats[key] * 4 <= storageBufferCap(limits)) &&
-  floatAtlasFits(floats.concatNrm, limits)
+  floatAtlasFits(floats.concatNrm)
 
 /** The float of `name`'s store vertex `vertex` starts at, in a pool of `count` vertices: in the
  *  UVs' tail for a colour. */

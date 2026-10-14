@@ -13,16 +13,8 @@ import {
 import { createPoolStores, poolResources } from './geometryPoolStores.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
-import {
-  claim,
-  holds,
-  placeBlock,
-  poolBytesOf,
-  put,
-  reserveTail,
-  writeBlock,
-  type Pool,
-} from './geometryPoolOps.ts'
+import { claim, placeBlock, poolBytesOf, reserveTail, writeBlock } from './geometryPoolOps.ts'
+import { holds, put, type Pool } from './geometryPoolWrites.ts'
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no
@@ -126,7 +118,7 @@ function packPool(p: Pool, sourced: ReadonlyMap<HostAttributes, boolean>) {
   const { stores } = p
   for (const key of BUFFERS) device.queue.writeBuffer(stores[key], 0, arrays[key])
   const normals = arrays.concatNrm
-  writeFloatAtlas(device.queue, stores.concatNrm, 0, normals, 0, normals.length)
+  writeFloatAtlas(stores.concatNrm, 0, normals, 0, normals.length)
   for (const [attributes, block] of p.blocks)
     if (holds(p, attributes, 'uv1'))
       put(p, attributes, 'uv1', { vertex: block.vertexBase, from: 0, n: block.count })

@@ -28,12 +28,14 @@ function replay(writes: ReturnType<typeof fakeDevice>['textureWrites'], texels: 
 
 test('vertex k of the tail is at float T − 2(k + 1), the pairs kept whole', () => {
   const { device, textureWrites } = fakeDevice()
-  const atlas = createFloatAtlas(device, 'proof', 20)
-  assert.equal(uv1TailAt(atlas, 3, 2), 10)
-  writeUv1Tail(device.queue, atlas, 3, Float32Array.of(1, 2, 3, 4), 2)
-  const floats = replay(textureWrites, 20)
-  assert.deepEqual([...floats.subarray(20 - 2 * 4, 20 - 2 * 3)], [1, 2], 'vertex 3')
-  assert.deepEqual([...floats.subarray(20 - 2 * 5, 20 - 2 * 4)], [3, 4], 'vertex 4')
+  const atlas = createFloatAtlas(device, 'proof', 20),
+    T = atlas.capacity
+  assert.ok(T >= 20, 'the atlas holds the floats asked')
+  assert.equal(uv1TailAt(atlas, 3, 2), T - 10)
+  writeUv1Tail(atlas, 3, Float32Array.of(1, 2, 3, 4), 2)
+  const floats = replay(textureWrites, T)
+  assert.deepEqual([...floats.subarray(T - 2 * 4, T - 2 * 3)], [1, 2], 'vertex 3')
+  assert.deepEqual([...floats.subarray(T - 2 * 5, T - 2 * 4)], [3, 4], 'vertex 4')
 })
 
 /** A triangle with a second UV set. */
@@ -83,12 +85,16 @@ test('the pool writes a second UV set at its atlas tail, and is laid out wider f
   assert.ok(lastAtlasTexels(textures) >= 3 * 9, 'its atlas holds the normals and the tail')
 })
 
-test("a transparent's own atlas is written once, its second set at the tail", () => {
+test("a transparent's own atlas is written at its head and its tail alone, its second set at the tail", () => {
   const { device, textureWrites, textures } = fakeDevice()
   const attributes = secondSet()
   const gpu = { blendNormalBuffers: new Map(), vertexBytes: 0 } as unknown as WebgpuGpuState
   ensureBlendNormalAtlas(device, attributes, gpu)
   const texels = lastAtlasTexels(textures)
-  assert.equal(textureWrites.length, 1, 'one write, in the atlas order')
+  assert.deepEqual(
+    textureWrites.map(({ size }) => (size as number[])[0]),
+    [3 * 2],
+    'no normal: the three pairs alone, the floats before them never sent',
+  )
   assertSecondSetAtTail(textureWrites, texels)
 })
