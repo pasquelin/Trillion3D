@@ -44,12 +44,12 @@ export const cardTileLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
   { binding: SAMPLER, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
 ]
 
+/** The atlases the card pass's tile group is made over: their lane views and tables. */
+type CardAtlases = { color: WebgpuTileAtlas; data: WebgpuTileAtlas }
+
 /** The entries of the card pass's tile group over the atlases `color` and `data` as they stand —
  *  their lane views and tables — and the maps' sampler. */
-export const cardTileEntries = (
-  { color, data }: { color: WebgpuTileAtlas; data: WebgpuTileAtlas },
-  sampler: GPUSampler,
-) =>
+export const cardTileEntries = ({ color, data }: CardAtlases, sampler: GPUSampler) =>
   sequentialEntries([
     ...color.views,
     { buffer: color.pages.buffer },
@@ -57,3 +57,20 @@ export const cardTileEntries = (
     { buffer: data.pages.buffer },
     sampler,
   ])
+
+/** What the card pass's tile group binds of `atlases` and `sampler`, written into `next` in
+ *  `cardTileEntries`' order — the identity its group is made again on —: no array made for a group
+ *  that stays. */
+export function cardTileResources(
+  next: unknown[],
+  { color, data }: CardAtlases,
+  sampler: GPUSampler,
+) {
+  let at = 0
+  for (const view of color.views) next[at++] = view
+  next[at++] = color.pages.buffer
+  for (const view of data.views) next[at++] = view
+  next[at++] = data.pages.buffer
+  next[at++] = sampler
+  next.length = at
+}
