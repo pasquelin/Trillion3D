@@ -1,6 +1,6 @@
 /**
  * The motion pass of the linked placements (`composedMotionPass.ts`): once the temporal pass has
- * decided this image (`motionMode`, `composedMotion.ts`), each composed root's motion as
+ * decided this image (`motionMode`, `MOTION_*`), each composed root's motion as
  * `../taa/motion.ts` writes it, from the root's single-precision world — the worlds pass's double
  * world rounded as the row's words are (`toF32`) — and the one it held at the last accumulated
  * image (`previous`): a restart takes the world as reference with no motion; a compared image whose
@@ -10,7 +10,6 @@ import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
-import { MOTION_RESET, MOTION_SCAN } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
@@ -28,6 +27,12 @@ fn sameWord(a:u32,b:u32)->bool{
  return (a==b&&!isNanWord(a))||((a|b)&0x7fffffffu)==0u;
 }`,
 )
+
+/** What the temporal pass decided for the linked roots' motion this image (`encodeComposedMotion`):
+ *  a restart, an image whose poses are not compared, one whose poses are. */
+export const MOTION_RESET = 1,
+  MOTION_KEEP = 2,
+  MOTION_SCAN = 3
 
 /** The motion pass's entry point. */
 export const COMPOSE_MOTION_ENTRY = 'composeMotion'

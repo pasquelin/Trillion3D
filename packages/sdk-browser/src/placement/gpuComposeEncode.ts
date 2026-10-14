@@ -54,7 +54,7 @@ function encodeComposedWorlds(
 /** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds, before the cut kernel
  *  reads them, and the motion buffer the frame's motion pass writes (`composedMotionPass.ts`): a thread each of the composed roots, and nothing on a frame where nothing
  *  they read or write moved — no parent, no link, no host write of the cut's words, and their
- *  motion settled (`decideComposedMotion`). Into the roots' one compute pass `open`, opened by the
+ *  motion settled (`encodeComposedMotion`). Into the roots' one compute pass `open`, opened by the
  *  first that runs (`../gpu/core/lazyComputePass.ts`). Whether the worlds were composed anew: the
  *  root boxes pass derives the composed roots' boxes from them. */
 export function encodeComposedRoots(rt: WebgpuPagesRuntime, device: GPUDevice, open: OpenPass) {
