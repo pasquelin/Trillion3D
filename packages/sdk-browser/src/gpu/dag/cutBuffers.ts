@@ -20,12 +20,12 @@ export const cutRefused = (error: unknown) =>
   String(error).includes(PAST_SHARE) || budgetRefused(error)
 
 /**
- * The one way a resource of a cut's tables is made — `bytes` large, named `label` —, beside the
- * `held` bytes they hold: within the `share`, the session's budget asked first (`admit`), and made
- * tentatively on its ledger — a refusal never refuses the session: the cut keeps the tables it
- * holds (`listCap.ts`) (`ledgerTentative`).
+ * A resource of a cut's tables — `bytes` large, named `label` —, beside the `held` bytes they hold:
+ * within the `share`, the session's budget asked first (`admit`), and made tentatively on its
+ * ledger — a refusal never refuses the session: the cut keeps the tables it holds (`listCap.ts`)
+ * (`ledgerTentative`).
  */
-export function admitted<T>(
+function admitted<T>(
   device: GPUDevice,
   admit: CutAdmission,
   held: number,
@@ -38,18 +38,6 @@ export function admitted<T>(
   admit(bytes)
   return ledgerTentative(device, build)
 }
-
-/** A buffer of a cut's tables (`admitted`). */
-export const madeAsked = (
-  device: GPUDevice,
-  admit: CutAdmission,
-  held: number,
-  share: number,
-  descriptor: GPUBufferDescriptor,
-) =>
-  admitted(device, admit, held, share, { label: descriptor.label, bytes: descriptor.size }, () =>
-    device.createBuffer(descriptor),
-  )
 
 /** Bytes a ledger's labels give the cuts' tables (`CUT_LABEL`). */
 export const cutLedgerBytes = (byLabel: Readonly<Record<string, number>>) =>
@@ -69,15 +57,20 @@ export const cutBytes = (resources: {
   (resources.textures ?? []).reduce((sum, texture) => sum + texture.bytes, 0) +
   (resources.readbacks?.bytes ?? 0)
 
-/** What a cut holds that a resource of its own is admitted against (`cutBuffer`, `cutTexture`). */
-type CutHolder = {
-  buffers: GPUBuffer[]
-  textures: { texture: GPUTexture; bytes: number }[]
+/** What a cut holds that a resource of its own is admitted against: its buffers, its record
+ *  textures and its readback ring, and the bytes it keeps `aside` of them — a growth made beside
+ *  the tables it replaces counts what stays of them so (`listCap.ts`, `queueGrowth.ts`). */
+type CutHeld = {
+  buffers: readonly GPUBuffer[]
+  textures?: readonly { texture: GPUTexture; bytes: number }[]
   readbacks?: { readonly bytes: number }
+  aside?: number
   device: GPUDevice
   admit: CutAdmission
   share: number
 }
+/** A cut whose buffers a resource made joins (`cutBuffer`, `cutTexture`). */
+type CutHolder = CutHeld & { buffers: GPUBuffer[] }
 
 /** Makes a buffer, in place of `old` when it replaces one: a cut's (`cutBuffer`). */
 export type BufferMaker = (descriptor: GPUBufferDescriptor, old?: GPUBuffer) => GPUBuffer
@@ -88,11 +81,25 @@ export type TextureMaker = (
   old?: GPUTexture,
 ) => GPUTexture
 
-/** A buffer of `cut`'s own made after its tables (`admitted`): within its share, `old`'s bytes
- *  leaving it, held in `old`'s place among its buffers — its dispose destroys it. */
+/**
+ * THE ONE ADMISSION OF A RESOURCE OF A CUT'S OWN (`admitted`): `made`, built by `build`, within
+ * `cut`'s share beside what it holds, less the `freed` bytes of the one it replaces. Its buffers
+ * and textures (`cutBuffer`, `cutTexture`), at its setup (`resources.ts`), its growths
+ * (`listCap.ts`, `queueGrowth.ts`) and its readback ring (`mainReadbacks.ts`) all go through it.
+ */
+export const admitInto = <T>(
+  cut: CutHeld,
+  made: { label?: string; bytes: number },
+  build: () => T,
+  freed = 0,
+) =>
+  admitted(cut.device, cut.admit, cutBytes(cut) + (cut.aside ?? 0) - freed, cut.share, made, build)
+
+/** A buffer of `cut`'s own (`admitInto`), `old`'s bytes leaving it, held in `old`'s place among
+ *  its buffers — its dispose destroys it. */
 export function cutBuffer(cut: CutHolder, descriptor: GPUBufferDescriptor, old?: GPUBuffer) {
-  const held = cutBytes(cut) - (old?.size ?? 0)
-  const buffer = madeAsked(cut.device, cut.admit, held, cut.share, descriptor)
+  const made = { label: descriptor.label, bytes: descriptor.size }
+  const buffer = admitInto(cut, made, () => cut.device.createBuffer(descriptor), old?.size)
   const at = old ? cut.buffers.indexOf(old) : -1
   if (at >= 0) cut.buffers.splice(at, 1, buffer)
   else cut.buffers.push(buffer)
@@ -101,21 +108,15 @@ export function cutBuffer(cut: CutHolder, descriptor: GPUBufferDescriptor, old?:
 
 /** A texture of `cut`'s own, `bytes` large, made as `cutBuffer` makes a buffer. */
 export function cutTexture(
-  cut: CutHolder,
+  cut: CutHolder & { textures: { texture: GPUTexture; bytes: number }[] },
   descriptor: GPUTextureDescriptor,
   bytes: number,
   old?: GPUTexture,
 ) {
   const at = old ? cut.textures.findIndex((held) => held.texture === old) : -1
-  const held = cutBytes(cut) - (at >= 0 ? cut.textures[at].bytes : 0)
-  const texture = admitted(
-    cut.device,
-    cut.admit,
-    held,
-    cut.share,
-    { label: descriptor.label, bytes },
-    () => cut.device.createTexture(descriptor),
-  )
+  const made = { label: descriptor.label, bytes },
+    freed = at >= 0 ? cut.textures[at].bytes : 0
+  const texture = admitInto(cut, made, () => cut.device.createTexture(descriptor), freed)
   if (at >= 0) cut.textures.splice(at, 1, { texture, bytes })
   else cut.textures.push({ texture, bytes })
   return texture

@@ -17,8 +17,7 @@ import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
 import { refitLevels, treeNodeCount, type PlacementTree } from './placementTree.ts'
 import { REFIT_PARAM_WORDS, TREE_REFIT_WGSL } from './treeRefitWgsl.ts'
 import type { PackedDag } from './types.ts'
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-import { oncePerDevice } from '../core/oncePerDevice.ts'
+import { autoKernel } from '../core/computeStages.ts'
 import { sequentialEntries } from '../core/computeBindings.ts'
 import { createRefitLevels } from './treeRefitLevels.ts'
 
@@ -82,16 +81,7 @@ export function createTreeRefit(
 }
 
 /** The refit kernel of a device, made once. */
-const refitKernel = oncePerDevice((device: GPUDevice) =>
-  preparedComputePipeline(device, {
-    label: TREE_REFIT_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: TREE_REFIT_PASS, code: TREE_REFIT_WGSL }),
-      entryPoint: 'main',
-    },
-  }),
-)
+const refitKernel = autoKernel(TREE_REFIT_PASS, TREE_REFIT_WGSL, 'main')
 
 /** The pipeline's lists and parameters, made when the first pass runs: the tables' group once, and
  *  one group of the pass's own per level — the tree's depth is fixed. */

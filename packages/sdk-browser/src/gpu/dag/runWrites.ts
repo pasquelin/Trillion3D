@@ -48,11 +48,20 @@ function ruleFor(stride: number, count: number): RangeRule {
 }
 
 /**
+ * The `count` increasing indices of `sorted`, records of `stride` words, joined into ranges by the
+ * engine's one rule (`ruleFor`, `coalesceRanges`): `[first, last]` pairs in the returned scratch,
+ * which the next join overwrites; their count. What `writeRanges` sends, and what a writer that
+ * packs its records itself sends a run at a time (`../../placement/rootWorlds.ts`).
+ */
+export function joinedRanges(sorted: Int32Array, count: number, stride: number) {
+  return { runs: coalesceRanges(sorted, count, spans, ruleFor(stride, count)), spans }
+}
+
+/**
  * The one run writer of the engine's tables: the `count` increasing indices of `sorted` joined into
- * ranges (`ruleFor`, `coalesceRanges`), each sent as one write through `target` — the residency
- * bits, the placements' links, the cut's records, the worlds a call named and their exact
- * translations, the frame words, the placement tree's nodes and lists (`treeTable.ts`), the
- * impostor cards.
+ * ranges (`joinedRanges`), each sent as one write through `target` — the residency bits, the
+ * placements' links, the cut's records, the worlds a call named and their exact translations, the
+ * frame words, the placement tree's nodes and lists (`treeTable.ts`), the impostor cards.
  */
 export function writeRanges(
   target: RangeTarget,
@@ -60,7 +69,7 @@ export function writeRanges(
   count: number,
   { data, sourceBase, targetBase, stride }: RangeSource,
 ) {
-  const runs = coalesceRanges(sorted, count, spans, ruleFor(stride, count))
+  const { runs } = joinedRanges(sorted, count, stride)
   for (let r = 0; r < runs; r++) {
     const first = spans[r * 2],
       bytes = (spans[r * 2 + 1] - first + 1) * stride * 4,

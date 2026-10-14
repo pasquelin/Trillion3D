@@ -71,7 +71,7 @@ export function session() {
   const encoder = device.createCommandEncoder()
   const frame = () => {
     rt.run.frame++
-    encodeComposedRoots(rt, device, encoder)
+    encodeComposedRoots(rt, device, () => encoder)
     return revision
   }
   return {
