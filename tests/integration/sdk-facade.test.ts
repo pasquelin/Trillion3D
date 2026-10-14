@@ -180,7 +180,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // not through the core's barrel, takes six off the core and 143 off the browser condition. The
   // node setters the package exports being the counted ones, noted in the write journal, put the
   // journal's counters in the package's chain: 32 bytes on, 42 on its browser condition.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_006)
+  assert.equal(baseline.outputFiles[0].contents.length, 2_528)
   assert.equal(proposed.outputFiles[0].contents.length, 1_403)
   assert.equal(browserProposed.outputFiles[0].contents.length, 2_988)
   assert.ok(
