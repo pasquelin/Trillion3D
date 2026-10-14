@@ -49,6 +49,10 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'eac-rg11unorm': 16,
 }
 
+/** Bytes of one texel of `format`, as the device ledger counts it; 0 for a format outside the
+ *  table of uncompressed formats. */
+export const texelBytesOf = (format: GPUTextureFormat) => BYTES_PER_TEXEL[format] ?? 0
+
 /** Bytes of a texture, every mip level included; `null` on a format outside the table. */
 export function textureBytesOf(
   descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,

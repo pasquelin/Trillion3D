@@ -1,11 +1,11 @@
 import { arrayView } from './textureViews.ts'
+import { texelBytesOf } from './textureBytes.ts'
 import { grownByCopy } from './tableGrowth.ts'
 
 import {
   heldRecords,
   recordExtent,
   texelAt,
-  texelBytes,
   texelPieces,
   type PieceVisit,
   type RecordLayout,
@@ -40,7 +40,7 @@ export function createRecordTexture(
   usage: GPUTextureUsageFlags,
   make: TextureMaker = (descriptor) => device.createTexture(descriptor),
 ) {
-  const bytes = texelBytes(layout.format)
+  const bytes = texelBytesOf(layout.format)
   /** The texture of `count` records, made by `make` in place of `old` when it replaces one. */
   const made = (count: number, old?: GPUTexture) => {
     const size = recordExtent(layout, count),

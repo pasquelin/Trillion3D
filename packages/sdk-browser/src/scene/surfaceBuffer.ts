@@ -5,12 +5,12 @@ import { pyramidHeldBytes } from '../gpu/hiz/pyramid.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { RECEIVER_TARGET_BYTES } from '../visibility/shader/receiverTargetWgsl.ts'
-import { textureBytesOf } from '../gpu/core/textureBytes.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { DEPTH_FORMAT, DISPLAY_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from './targetFormats.ts'
 
-/** Bytes of one texel of each of `formats`, summed (`textureBytesOf`). */
-const texelBytesOf = (...formats: GPUTextureFormat[]) =>
-  formats.reduce((sum, format) => sum + textureBytesOf({ size: [1, 1], format })!, 0)
+/** Bytes of one texel of each of `formats`, summed (`texelBytesOf`). */
+const texelSum = (...formats: GPUTextureFormat[]) =>
+  formats.reduce((sum, format) => sum + texelBytesOf(format), 0)
 
 /** Version 1: opaque/masked material properties in linear space, before lighting.
  * No velocity or GI representation is claimed by this contract. The flags hold a model of 0 to 5
@@ -24,13 +24,13 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
 ]
 /** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
  *  the virtual shadow maps' projection (`../visibility/shader/receiverTargetWgsl.ts`). */
-export const SURFACE_BYTES_PER_PIXEL = texelBytesOf(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
+export const SURFACE_BYTES_PER_PIXEL = texelSum(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
 /** Bytes per pixel of the feedback target, made only while the pipelines write it
  *  (`../webgpu/pages/prepare/feedbackVariant.ts`). */
-export const FEEDBACK_BYTES = texelBytesOf(FEEDBACK_FORMAT)
+export const FEEDBACK_BYTES = texelSum(FEEDBACK_FORMAT)
 /** Bytes per pixel of the frame's targets beside the surfaces: the display colour, the depth, the
  *  visibility, the HDR colour and the texture feedback. */
-const FRAME_BYTES_PER_PIXEL = texelBytesOf(
+const FRAME_BYTES_PER_PIXEL = texelSum(
   DISPLAY_FORMAT,
   DEPTH_FORMAT,
   'r32uint',

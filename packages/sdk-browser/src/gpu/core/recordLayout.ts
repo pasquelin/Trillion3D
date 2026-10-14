@@ -26,9 +26,6 @@ export type RecordLayout = {
 const SIDE = 8192,
   LAYERS = 256
 
-/** Bytes of one texel of `format`. */
-export const texelBytes = (format: RecordLayout['format']) => (format === 'rgba32uint' ? 16 : 4)
-
 /** The first texel of field `field` in a row of `layout`; past the last field, the row's texels. */
 export function fieldStart(layout: RecordLayout, field?: string) {
   let start = 0

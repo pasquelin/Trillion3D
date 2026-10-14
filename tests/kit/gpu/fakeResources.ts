@@ -1,10 +1,7 @@
 // The creations of `fakeDevice()` beside its buffers (`fakeBuffers.ts`): a texture as the device
 // makes it, a pipeline's group layouts, and the refusal a test asks of an allocation.
 import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureExtent.ts'
-import {
-  texelBytes,
-  type RecordLayout,
-} from '../../../packages/sdk-browser/src/gpu/core/recordLayout.ts'
+import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'
 
@@ -23,9 +20,8 @@ export function refusing(refuse: FakeDeviceOptions['refuse'], scopes: Array<obje
 /** The 32-bit integer formats a texture keeps words of: the record tables'. */
 const RECORD_FORMATS = new Set<GPUTextureFormat>(['rgba32uint', 'r32uint'])
 
-/** Words a texel of `texture`'s record format holds (`texelBytes`). */
-const channelsOf = (texture: FakeTexture) =>
-  texelBytes(texture.format as RecordLayout['format']) / 4
+/** Words a texel of `texture`'s record format holds (`texelBytesOf`). */
+const channelsOf = (texture: FakeTexture) => texelBytesOf(texture.format) / 4
 
 /** The words of a record-format texture, made at the first use: zeros before a write. */
 export function textureWords(texture: FakeTexture) {

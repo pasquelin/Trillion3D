@@ -3,7 +3,7 @@ import { DISPLAY_VALUE_WGSL } from '../../lighting/toneMappingWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
-import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
@@ -22,11 +22,10 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 export const FILTER_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /** One where a filtering surface covers the pixel. */
 export const MASK_FORMAT: GPUTextureFormat = 'r8unorm'
-/** Bytes per pixel of one texel of `format`, as the device ledger counts it. */
-export const texelBytes = (format: GPUTextureFormat) => textureBytesOf({ size: [1, 1], format })!
 /** Bytes per pixel of the display layers (`createDisplayFilter`): the tint and the added value in
  *  `FILTER_FORMAT`, and the mask. */
-export const DISPLAY_LAYER_BYTES_PER_PIXEL = 2 * texelBytes(FILTER_FORMAT) + texelBytes(MASK_FORMAT)
+export const DISPLAY_LAYER_BYTES_PER_PIXEL =
+  2 * texelBytesOf(FILTER_FORMAT) + texelBytesOf(MASK_FORMAT)
 
 /** The tint's and added value's targets of a pass drawing a layer of `mode`. */
 export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
