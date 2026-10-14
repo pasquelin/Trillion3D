@@ -4,6 +4,7 @@ import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createPlacementMotion } from './motion.ts'
+import { destroyRetired } from '../gpu/core/frameRetire.ts'
 
 /** The writes of a device: byte offset → floats written. */
 const floats = (writes: FakeWrite[]) =>
@@ -66,4 +67,19 @@ test('a moved rotation anchors on the eye: translation is R·eye + t − eye', (
   writes.length = 0
   motion.update([2, 0, 0], true)
   assert.equal(writes.length, 0, 'after the reset, the current pose does not count as motion')
+})
+
+test('roots joining past the buffer grow it; the one replaced lives until the image is submitted', () => {
+  const { device, destroyed } = fakeDevice()
+  const roots = [translation(0, 0, 0)]
+  const motion = createPlacementMotion(device, roots)
+  const first = motion.buffer
+  while (motion.buffer === first) {
+    roots.push(translation(roots.length, 0, 0))
+    motion.grow()
+  }
+  // An encoder of this image may name the first buffer: retired, never destroyed at once.
+  assert.equal(destroyed.includes(first), false)
+  destroyRetired(device)
+  assert.equal(destroyed.includes(first), true)
 })

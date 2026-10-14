@@ -1,3 +1,5 @@
+import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+
 /**
  * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
  *
@@ -9,6 +11,21 @@
 export const VIS_TRIANGLE_BITS = 8
 
 export const VIS_TRIANGLE_MASK = (1 << VIS_TRIANGLE_BITS) - 1
+
+/** The page row identifier `id` names, as WGSL: its high bits minus one, the background's
+ *  wrapping past any table. Every pass decodes an identifier with it and `visTriangle`. */
+export const visPageIndex = wgslFn(
+  'visPageIndex',
+  [],
+  `fn visPageIndex(id:u32)->u32{return (id>>${VIS_TRIANGLE_BITS}u)-1u;}`,
+)
+
+/** The triangle of its page that identifier (or cached word) `id` names, as WGSL: its low bits. */
+export const visTriangle = wgslFn(
+  'visTriangle',
+  [],
+  `fn visTriangle(id:u32)->u32{return id&${VIS_TRIANGLE_MASK}u;}`,
+)
 
 /** Largest triangle count a page may carry; one more would collide with the next page's rows. */
 export const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1

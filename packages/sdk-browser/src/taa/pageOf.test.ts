@@ -1,11 +1,11 @@
 // The page record a pixel's identifier names is indexed once, by `pageOf`: the identity the
-// geometry history keeps and the dynamic test both come from that one read (`historyWgsl.ts`).
+// geometry history keeps and the dynamic test both come from that one read (`pageIdWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
-import { PAGE_OF_WGSL } from './historyWgsl.ts'
+import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
 import { taaShader } from './shaderWgsl.ts'
 import { taaUpscaleShader } from './upscaleWgsl.ts'
 import { taaBuiltins } from './taaBuiltins.fixture.ts'

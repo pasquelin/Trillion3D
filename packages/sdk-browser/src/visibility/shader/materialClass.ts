@@ -11,6 +11,7 @@ import {
 } from '../types.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { VIS_MAX_PAGE_TRIANGLES, visPageIndex } from '../visWords.ts'
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys addressable: one more bit than the highest feature. */
 export const MATERIAL_CLASS_KEYS = 16384
@@ -54,7 +55,7 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
  */
 export const MATERIAL_CLASS_WGSL = wgslBlock(
   'MATERIAL_CLASS_WGSL',
-  [],
+  [visPageIndex],
   `override CLASS_KEY:u32=0u;
 override SINGLE_CLASS:bool=false;
 ${Object.entries(CLASS_FEATURE)
@@ -64,7 +65,7 @@ ${Object.entries(CLASS_FEATURE)
  *  material tiles (\`materialTilesWgsl.ts\`) list a pixel under. */
 fn materialClassOf(id:u32)->u32{
  if(id==0u){return 0u;}
- let pageIndex=(id>>8u)-1u;
+ let pageIndex=visPageIndex(id);
  if(pageIndex>=uni.pageCount){return 0u;}
  return pages[pageIndex].materialClass+1u;
 }
@@ -74,8 +75,8 @@ fn materialClassOf(id:u32)->u32{
  *  Every resolve stage asks it before any write: storage writes are not attachments, nothing
  *  else keeps another class's pixels from them. */
 fn classAdmits(id:u32)->bool{
- if(id<256u){return false;}
- let pageIndex=(id>>8u)-1u;
+ if(id<${VIS_MAX_PAGE_TRIANGLES}u){return false;}
+ let pageIndex=visPageIndex(id);
  if(pageIndex>=uni.pageCount){return false;}
  return SINGLE_CLASS||pages[pageIndex].materialClass==CLASS_KEY;
 }`,

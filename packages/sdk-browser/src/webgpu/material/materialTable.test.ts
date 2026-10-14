@@ -115,7 +115,7 @@ test('a surface whose version and atlas held is not written again; a new one is'
   assert.equal(sentWords(textureWrites)[F.mapIndex], 2)
 })
 
-test('an upload sends the span of the records written since, not the whole table', () => {
+test('an upload sends the records written since, neighbours in one write, not the whole table', () => {
   const { device, textureWrites } = fakeDevice()
   const table = createMaterialTable()
   const l = layers()

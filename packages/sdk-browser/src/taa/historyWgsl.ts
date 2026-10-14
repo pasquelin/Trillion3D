@@ -1,6 +1,4 @@
 import * as layer from './layers.ts'
-import { NO_PAGE_ID } from './pageIdWgsl.ts'
-import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -45,24 +43,6 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  sum+=textureSampleLevel(history,historySampler,vec2f(t12.x,t3.y),0.0)*(w12.x*w3.y);
  let total=w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y;
  return max(sum/total,vec4f(0.0));
-}`,
-)
-
-/**
- * What a pixel takes of the page record its identifier names, which it reads once: the identity
- * the geometry history keeps it by — its placement plus one, none for the background — and whether
- * its geometry is dynamic: changing vertices with no tracked deformation cannot reuse placement
- * motion. The background (`id` 0) names no row: nothing is read, and it is neither.
- */
-export const PAGE_OF_WGSL = wgslBlock(
-  'PAGE_OF_WGSL',
-  [],
-  `
-struct TaaPage{identity:u32,animated:f32}
-fn pageOf(id:u32)->TaaPage{
- if(${NO_PAGE_ID}){return TaaPage(0u,0.0);}
- let page=pages[(id>>8u)-1u];
- return TaaPage(page.placement+1u,select(0.0,1.0,(page.flags&${FLAG_DYNAMIC}u)!=0u&&page.deformOutput==0u));
 }`,
 )
 

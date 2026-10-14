@@ -7,6 +7,7 @@ import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { extendSpan } from '../../../math/src/sequence/span.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { createDenseKeySet } from '../webgpu/cut/denseKeys.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 
 /** What a placement's motion asks of a root: its host world matrix. */
 export type MotionRoot = { world: MatrixElements }
@@ -35,24 +36,25 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
     for (let w = from; w < roots.length; w++) previous.set(roots[w].world.elements, w * 16)
   }
   /** One entry per root: those held keep their motion and pose, new ones start still. The arrays
-   *  and the buffer are a capacity (`resized`): roots joining in place write their own entries,
-   *  and the buffer is made over a logarithmic number of times. */
+   *  and the buffer are a capacity (`resized`, `sizedBuffer`): roots joining in place write their
+   *  own entries, and the buffer is made over a logarithmic number of times, the one it replaces
+   *  retired after the image that may name it. A buffer made anew is sent the whole mirror. */
   const size = () => {
     const kept = count
     count = Math.max(1, roots.length)
-    const next = resized(mirror, count * 16)
+    mirror = resized(mirror, count * 16)
     previous = resized(previous, count * 16)
-    for (let w = kept; w < count; w++) next.set(IDENTITY_MATRIX4, w * 16)
-    if (next !== mirror || !buffer) {
-      mirror = next
-      buffer?.destroy()
-      buffer = device.createBuffer({
-        label: 'Trillion3D TAA placement motion v1',
-        size: mirror.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      })
-      device.queue.writeBuffer(buffer, 0, mirror)
-    } else device.queue.writeBuffer(buffer, kept * 64, mirror, kept * 16, (count - kept) * 16)
+    for (let w = kept; w < count; w++) mirror.set(IDENTITY_MATRIX4, w * 16)
+    const held = buffer
+    buffer = sizedBuffer(
+      device,
+      held,
+      mirror.byteLength,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      'Trillion3D TAA placement motion v1',
+    )
+    if (buffer !== held) device.queue.writeBuffer(buffer, 0, mirror)
+    else device.queue.writeBuffer(buffer, kept * 64, mirror, kept * 16, (count - kept) * 16)
     rememberPoses(kept)
   }
   size()

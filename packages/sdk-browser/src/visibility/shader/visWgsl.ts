@@ -14,6 +14,8 @@ import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { FLAG_MASK } from '../types.ts'
+import { visTriangle } from '../visWords.ts'
 
 /** The vertex stage of the hardware raster: `hiz` also drops a page whose slot the Hi-Z test rejected
  *  (`HIZ_REJECTED_WGSL`), before a vertex reads a word of it. */
@@ -36,9 +38,9 @@ ${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out
  out.position=uni.viewProj*world;
  if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}
  if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}
- out.id=page.packedBase|((corner/3u)&0xffu);
+ out.id=page.packedBase|visTriangle(corner/3u);
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
- if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
+ if((page.flags&${FLAG_MASK}u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
  return out;
 }
 `
@@ -102,6 +104,7 @@ ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@l
       PAGE_GEOMETRY_WGSL,
       COMPUTE_TAKES_WGSL,
       NO_INDEX,
+      visTriangle,
       ...(diagnostic ? [diagnostic] : []),
     ],
   )

@@ -1,6 +1,11 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
-import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
+import {
+  VIS_MAX_PAGE_TRIANGLES,
+  VIS_TRIANGLE_BITS,
+  visPageIndex,
+  visTriangle,
+} from '../visWords.ts'
 import {
   FLAT_INDEX_WGSL,
   OPEN_SLICE_WGSL,
@@ -62,7 +67,7 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  let left=select(0u,tileIds[at-min(l.x,1u)],l.x>0u);
  let leftLeft=select(0u,tileIds[at-min(l.x,2u)],l.x>1u);
  let up=select(0u,tileIds[at-select(0u,${MARK_TILE}u,l.y>0u)],l.y>0u);
- markTriangle(rows,(id>>${VIS_TRIANGLE_BITS}u)-1u,id&0xffu,markKind(id,left,leftLeft,up));
+ markTriangle(rows,visPageIndex(id),visTriangle(id),markKind(id,left,leftLeft,up));
 }
 /**
  * Row \`row\`'s marks, read once: its frame composed when a pixel reads it, then the slots of its
@@ -109,6 +114,8 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
     ROW_FRAME_WGSL,
     bitWord,
     bitMask,
+    visPageIndex,
+    visTriangle,
   ],
 )
 
@@ -133,7 +140,7 @@ fn storeTriangle(at:u32,t:PixelTriangle){
  let slot=flatIndex(g,n,WORKGROUP_THREADS);
  if(slot>=shadeCache[SHADE_CACHE_END]){return;}
  let at=cachedTriangles(shadeCache[SHADE_CACHE_ROWS])+slot*TRIANGLE_WORDS;
- let row=shadeCache[at]>>${VIS_TRIANGLE_BITS}u;let tri=shadeCache[at]&0xffu;
+ let row=shadeCache[at]>>${VIS_TRIANGLE_BITS}u;let tri=visTriangle(shadeCache[at]);
  let page=pages[row];
  // A triangle past its page is marked, never read: its pixel shades nothing.
  if(tri*3u+2u>=page.indexCount){return;}
@@ -150,5 +157,6 @@ fn storeTriangle(at:u32,t:PixelTriangle){
     PAGE_GEOMETRY_WGSL,
     PIXEL_TRIANGLE_WGSL,
     CACHE_READ_WGSL,
+    visTriangle,
   ],
 )

@@ -10,7 +10,6 @@
 import { VIS_CARD_BASE } from '../../visibility/visWords.ts'
 import { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 import { focalPixels } from '../../../../math/src/projection/camera.ts'
-import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { cardTileEntries, cardTileLayoutEntries, cardTileWgsl } from '../tile/cardReads.ts'
 import { createCardHold } from '../tile/cardTiles.ts'
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
@@ -26,14 +25,13 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createChangedRuns } from '../residency/ranges.ts'
 import { writeRanges } from '../../gpu/dag/runWrites.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 
 export const impostorLent = {
   VIS_CARD_BASE,
   markCard,
   SPRITE_WGSL,
   focalPixels,
-  grownLength,
   cardTileEntries,
   cardTileLayoutEntries,
   cardTileWgsl,
@@ -53,5 +51,5 @@ export const impostorLent = {
   createChangedRuns,
   writeRanges,
   createWebgpuBindIdentity,
-  retire,
+  sizedBuffer,
 }

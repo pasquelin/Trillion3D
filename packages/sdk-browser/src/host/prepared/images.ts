@@ -11,16 +11,13 @@
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
-import { decodeRaw, imageElement } from '../../texture/decode.ts'
+import { decodeRaw, fetchDecoded, imageElement } from '../../texture/decode.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
-import { checked } from '../../cluster/checked.ts'
 import { log } from '../../diagnostic/log.ts'
 
 async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
   if (typeof createImageBitmap !== 'function') return imageElement(url)
-  const response = await checked(url, signal)
-  // Metered once accepted: a refused body is never read, so its length never joins the total.
-  return decodeRaw(await meter.read(response, url).blob())
+  return fetchDecoded(url, signal, meter)
 }
 
 /** A failed read of the document's binary, told apart from an image that cannot be decoded. */

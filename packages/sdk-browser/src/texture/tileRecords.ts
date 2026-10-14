@@ -4,7 +4,8 @@ import {
   PREVIEW_BLOCK_BYTES,
   PREVIEW_BLOCK_SIDE,
 } from '../../../sdk-core/src/texture/previewFormat.ts'
-import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
+import { TILE_SIZE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
+import { tileSpanEnd, tileSpanStart } from './tiles.ts'
 
 /**
  * Where a tile's blocks lie in a block level file (the compiler's `tile_records`):
@@ -15,8 +16,7 @@ import { TILE_BORDER, TILE_SIZE } from '../../../sdk-core/src/contracts/writtenF
 
 /** Blocks along one side of tile `t`'s record, for a level `texels` long on that side. */
 const span = (texels: number, t: number) =>
-  blocksAcross(Math.min(texels, (t + 1) * TILE_SIZE + TILE_BORDER)) -
-  Math.max(0, t * TILE_SIZE - TILE_BORDER) / PREVIEW_BLOCK_SIDE
+  blocksAcross(tileSpanEnd(texels, t)) - tileSpanStart(t) / PREVIEW_BLOCK_SIDE
 /** Blocks along one side of the records of tiles `0 … end - 1`; all of them by default. */
 function spans(texels: number, end = ceilDiv(texels, TILE_SIZE)) {
   let blocks = 0
