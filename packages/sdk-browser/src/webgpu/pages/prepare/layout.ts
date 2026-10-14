@@ -11,6 +11,7 @@ import type { WebgpuPagesSetup } from './setup.ts'
 import { postPackedBases } from '../../../page/selection/placements.ts'
 import { createPackedPages, createPageCatalogue } from '../../../page/selection/catalogue.ts'
 import { createPackedInstances } from '../../row/instances.ts'
+import type { NodeIndex } from '../render/movedNode.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
 
@@ -121,6 +122,8 @@ export function createWebgpuPagesLayout(
   return {
     transparentRoots,
     selectionRoots,
+    /** The roots' index by node, made at its first read (`../render/movedNode.ts`). */
+    rootIndex: undefined as NodeIndex | undefined,
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,

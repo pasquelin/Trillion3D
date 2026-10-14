@@ -22,13 +22,6 @@ export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(
   root.placement?.rows.sources?.[root.placement.index] ??
   undefined
 
-/** What names the roots of `roots` changed (`rootSource`), as their rows' owners re-seat: each
- *  reader of an index by node rebuilds it at its next read (`../webgpu/pages/render/movedNode.ts`). */
-const sourceRevisions = new WeakMap<readonly object[], number>()
-export const sourceRevision = (roots: readonly object[]) => sourceRevisions.get(roots) ?? 0
-export const sourcesMoved = (roots: readonly object[]) =>
-  void sourceRevisions.set(roots, sourceRevision(roots) + 1)
-
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 

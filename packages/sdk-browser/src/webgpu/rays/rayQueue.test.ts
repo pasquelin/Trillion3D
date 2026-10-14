@@ -160,7 +160,7 @@ test('a cast answers the mesh whose instance row places the placement the trace 
   assert.deepEqual(hit.point.toArray(), [0, 0, -3])
   assert.deepEqual(hit.normal.toArray(), [0, 0, 1])
   assert.equal(hit.face, 1, `page 0, triangle 1 (${VIS_TRIANGLE_BITS} bits a page)`)
-  const roots = [root] as unknown as Parameters<typeof rayFilterRanks>[0]
-  assert.deepEqual(rayFilterRanks(roots, { objects: [mesh] }), { ranks: [0], include: true })
+  const layout = { selectionRoots: [root] } as unknown as Parameters<typeof rayFilterRanks>[0]
+  assert.deepEqual(rayFilterRanks(layout, { objects: [mesh] }), { ranks: [0], include: true })
   queue.dispose()
 })

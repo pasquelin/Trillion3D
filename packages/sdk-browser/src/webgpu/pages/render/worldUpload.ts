@@ -104,13 +104,14 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
  *  (`appendUnder`) — one under two listed twice, its second read leaving it as the first —:
  *  what a flip reads, none other. */
 function underFlipped(rt: WebgpuPagesRuntime, flipped: readonly Object3D[]) {
-  const roots = rt.layout.selectionRoots,
-    blend = rt.blendState.blendGpu
+  const { blendState } = rt,
+    blend = blendState.blendGpu,
+    blendIndex = (blendState.blendIndex ??= { revision: 0 })
   let rootCount = 0,
     blendCount = 0
   for (const node of flipped) {
-    rootCount = appendRootsUnder(roots, node, flippedRoots, rootCount)
-    blendCount = appendUnder(blend, blendSource, node, flippedBlend, blendCount)
+    rootCount = appendRootsUnder(rt.layout, node, flippedRoots, rootCount)
+    blendCount = appendUnder(blend, blendSource, node, flippedBlend, blendCount, blendIndex)
   }
   under.roots.count = rootCount
   under.seeThrough.count = blendCount

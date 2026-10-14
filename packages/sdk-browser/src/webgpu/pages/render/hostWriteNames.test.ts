@@ -38,17 +38,17 @@ test('a hide reaches every root under the node, one a growth added in place incl
 })
 
 test('a slot freed and taken by another node names nothing of the old node’s root', () => {
-  const { holder, meshes, roots } = scene(20)
+  const { holder, meshes, rt } = scene(20)
   const gone = meshes[4]
   // The roots' index is built before the node goes, as a session holds it.
   const named: number[] = []
-  assert.equal(appendRootsUnder(roots, gone, named, 0), 1)
+  assert.equal(appendRootsUnder(rt.layout, gone, named, 0), 1)
   assert.deepEqual(named, [4], 'its root')
   gone.destroy()
   const other = new G.Group()
   holder.add(other)
   assert.equal(other.index, gone.index, 'the slot taken again')
-  assert.equal(appendRootsUnder(roots, other, [], 0), 0, 'none of the old root')
+  assert.equal(appendRootsUnder(rt.layout, other, [], 0), 0, 'none of the old root')
 })
 
 test('a hide reads the see-through draws under the node alone, at 10² as at 10⁴', () => {

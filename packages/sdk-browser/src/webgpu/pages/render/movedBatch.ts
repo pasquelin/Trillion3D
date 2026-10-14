@@ -38,7 +38,7 @@ export function noteMoved(rt: WebgpuPagesRuntime, nodes: ReadonlySet<Object3D>) 
     roots = rt.layout.selectionRoots
   for (const node of nodes) {
     if (chainShown(node, scene, nodes) === null) continue
-    movedCount = appendRootsUnder(roots, node, movedList, movedCount)
+    movedCount = appendRootsUnder(rt.layout, node, movedList, movedCount)
     nodeCount++
   }
 }

@@ -18,6 +18,7 @@ import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { createBlendOrderState } from './orderState.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { FloatAtlas } from '../core/floatAtlas.ts'
+import type { NodeIndex } from '../pages/render/movedNode.ts'
 
 export type BlendGpuItem = {
   /** Whole-copy static inputs and computed outputs in the existing float pool. */
@@ -84,6 +85,8 @@ export function createWebgpuBlendState() {
   const visibleBlend: BlendGpuItem[] = []
   const state = {
     blendGpu,
+    /** The draws' index by node, made at its first read (`../pages/render/movedNode.ts`). */
+    blendIndex: undefined as NodeIndex | undefined,
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),

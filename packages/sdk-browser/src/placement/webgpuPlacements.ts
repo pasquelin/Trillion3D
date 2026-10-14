@@ -61,6 +61,7 @@ export function updateWebgpuPlacements(
       return move
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank], rank),
+    layout,
   )
   // Whether the blend pass draws these rows, asked once and only when needed.
   let blended: boolean | undefined

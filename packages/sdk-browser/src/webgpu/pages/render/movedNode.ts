@@ -1,5 +1,5 @@
 import type { ClusterRoot } from '../../../page/selection/types.ts'
-import { rootSource, sourceRevision } from '../../../placement/hidden.ts'
+import { rootSource } from '../../../placement/hidden.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import {
@@ -10,24 +10,27 @@ import { nextInSubtree } from '../../../../../sdk-core/src/world/transform-tree/
 
 type Roots = readonly ClusterRoot<PageRec>[]
 
-/** The entries of one list by their source node's slot in `tree`: the node and the entries' ranks.
- *  Built once per list, and again when it grew in place or its sources moved — a row re-seated
- *  on another mesh (`sourceRevision`). */
+/** The entries of one list by their source node's slot in `tree`: the node and the entries' ranks,
+ *  taken at the list's length and at its sources' revision. */
 type BySlot = {
   tree: TransformTree
   length: number
   revision: number
   slots: Map<number, { node: Object3D; ranks: number[] }>
 }
-const bySlotOf = new WeakMap<readonly unknown[], BySlot>()
+
+/** A list's index by node, held by the list's owner (the layout's roots, the blend state's draws):
+ *  built at its first read, again when the list grew in place or its sources moved — `revision`,
+ *  raised when a row is re-seated on another mesh (`../../../placement/update.ts`). */
+export type NodeIndex = { revision: number; held?: BySlot }
 
 function bySlot<E>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
   tree: TransformTree,
+  index: NodeIndex,
 ) {
-  const held = bySlotOf.get(entries)
-  const revision = sourceRevision(entries)
+  const { held, revision } = index
   if (held?.tree === tree && held.length === entries.length && held.revision === revision)
     return held.slots
   const slots: BySlot['slots'] = new Map()
@@ -38,7 +41,7 @@ function bySlot<E>(
     if (at?.node === node) at.ranks.push(i)
     else slots.set(node.index, { node, ranks: [i] })
   }
-  bySlotOf.set(entries, { tree, length: entries.length, revision, slots })
+  index.held = { tree, length: entries.length, revision, slots }
   return slots
 }
 
@@ -47,7 +50,7 @@ function bySlot<E>(
  * its slot of the page's tree — each once, in the walk's order —, written into `out` from
  * `at` on; returns where they end. A slot freed since, or whose node was destroyed and its slot
  * taken by another, holds none of the old node's entries. `out` is never truncated: it keeps its
- * storage and grows only past its length.
+ * storage and grows only past its length. `index` is the list's index by node, its owner's.
  */
 export function appendUnder<E>(
   entries: readonly E[],
@@ -55,11 +58,12 @@ export function appendUnder<E>(
   node: Object3D,
   out: number[],
   at: number,
+  index: NodeIndex,
 ) {
   const tree = Object3D._treeOf(node),
     slot = node.index
   if (!(tree.flags[slot] & NODE_ALIVE)) return at
-  const slots = bySlot(entries, sourceOf, tree)
+  const slots = bySlot(entries, sourceOf, tree, index)
   let count = at
   for (let j = slot; j >= 0; j = nextInSubtree(tree, j, slot)) {
     const held = slots.get(j)
@@ -68,6 +72,16 @@ export function appendUnder<E>(
   return count
 }
 
-/** `appendUnder` over the selection roots. */
-export const appendRootsUnder = (roots: Roots, node: Object3D, out: number[], at: number) =>
-  appendUnder(roots, rootSource, node, out, at)
+/** The roots a layout holds, and their index by node, made at its first read. */
+export type RootsOwner = { readonly selectionRoots: Roots; rootIndex?: NodeIndex }
+
+/** `appendUnder` over the selection roots of `layout`, by the node each draws (`rootSource`). */
+export const appendRootsUnder = (layout: RootsOwner, node: Object3D, out: number[], at: number) =>
+  appendUnder(
+    layout.selectionRoots,
+    rootSource,
+    node,
+    out,
+    at,
+    (layout.rootIndex ??= { revision: 0 }),
+  )

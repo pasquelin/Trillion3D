@@ -162,7 +162,7 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     /** The nearest drawn triangle `ray` meets within `reach`, of the objects `filter` lets it meet:
      *  a promise its batch's landing settles. */
     cast(ray: Ray, filter?: RayFilter, reach = RAY_REACH_MAX): Promise<Intersection | null> {
-      const { ranks, include } = rayFilterRanks(rt.layout.selectionRoots, filter)
+      const { ranks, include } = rayFilterRanks(rt.layout, filter)
       if (include && !ranks.length) return Promise.resolve(null)
       const { origin: o, direction: d } = ray
       return new Promise((settle) => {

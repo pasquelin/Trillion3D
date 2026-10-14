@@ -2,7 +2,7 @@ import type { ClusterRoot } from '../page/selection/types.ts'
 import { worldMoved } from '../page/selection/rootWorld.ts'
 import type { PlacementRows } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
-import { sourcesMoved } from './hidden.ts'
+import type { NodeIndex } from '../webgpu/pages/render/movedNode.ts'
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
@@ -57,7 +57,8 @@ export const forgetRowRoots = (roots: readonly object[]) => {
  * casting is not made a moving caster for it. `follow` names each root that reads a written row:
  * the rows pass derives its rows again, and they stale the shadow pages they left and entered
  * (`rowCastWgsl.ts`). A row of the range left where it stands — a pose written again unchanged, a
- * row between two written ones — moves nothing. Returns whether a drawn root moved, was shown or
+ * row between two written ones — moves nothing. A row re-seated on another mesh raises the
+ * revision of `owner`'s index of the roots by node (`../webgpu/pages/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
  * hidden, or turned to cast or not: a still scene pays nothing downstream.
  */
 export function followPlacementRows<T>(
@@ -68,6 +69,7 @@ export function followPlacementRows<T>(
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   posed?: (rank: number, world: ArrayLike<number>) => number,
   follow?: (rank: number) => void,
+  owner?: { rootIndex?: NodeIndex },
 ) {
   const list = rowRoots(roots, rows)
   let any = false
@@ -76,11 +78,12 @@ export function followPlacementRows<T>(
     const entry = list[index]
     if (!entry) continue
     const { root, rank } = entry
-    // A row re-seated on another mesh renames its root (`rootSource`): indexes by node follow.
-    const owner = rows.sources?.[index] ?? null
-    if (entry.owner !== owner) {
-      entry.owner = owner
-      sourcesMoved(roots)
+    // A row re-seated on another mesh renames its root (`rootSource`): the roots' index by node,
+    // their owner's, is built again at its next read.
+    const seated = rows.sources?.[index] ?? null
+    if (entry.owner !== seated) {
+      entry.owner = seated
+      if (owner?.rootIndex) owner.rootIndex.revision++
     }
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked,

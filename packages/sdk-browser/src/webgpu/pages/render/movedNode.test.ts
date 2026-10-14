@@ -19,12 +19,16 @@ test('a row re-seated on another mesh is named by the new one, never the old', (
   const roots = [
     { pages: [], placement: { rows, index: 0 }, world: { elements: new Float64Array(16) } },
   ] as unknown as ClusterRoot<PageRec>[]
-  const under = (node: Object3D) => appendRootsUnder(roots, node, [], 0)
-  followPlacementRows(roots, rows, 0, 0)
+  // The layout that holds the roots, and their index by node.
+  const layout = { selectionRoots: roots }
+  const under = (node: Object3D) => appendRootsUnder(layout, node, [], 0)
+  const follow = () =>
+    followPlacementRows(roots, rows, 0, 0, undefined, undefined, undefined, layout)
+  follow()
   assert.equal(under(first), 1, 'the row names its owner')
   // The owner re-seats the row on another mesh and writes it: the engine follows the write.
   owners[0] = second
-  followPlacementRows(roots, rows, 0, 0)
+  follow()
   assert.equal(under(second), 1, 'the new owner names the root')
   assert.equal(under(first), 0, 'the old owner names nothing')
 })
