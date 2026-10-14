@@ -32,7 +32,6 @@ test('every probe vector has a texel of its own, read back bit for bit where it 
     probes,
     probesOut: probes,
     bounce,
-    PROBE_VECTORS: PROBE_TEXELS,
   })
   const vectors: [Vec, number][] = []
   for (let level = 0; level < levels; level++)

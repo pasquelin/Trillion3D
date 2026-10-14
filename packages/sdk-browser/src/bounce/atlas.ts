@@ -1,5 +1,6 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { computeStorageTextureEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
@@ -37,12 +38,15 @@ export const atlasEntry = (binding: number, out = false) =>
     ? computeStorageTextureEntry(binding, BOUNCE_ATLAS_FORMAT, 'write-only', '2d-array')
     : computeTextureEntry(binding, 'unfilterable-float', '2d-array')
 
-/** Vector `k` of the probe whose first texel is `probe` — column, row, layer (`probeAddress`,
- *  `gridWgsl.ts`) —: the texel `k` columns further on its row, read with no division. */
+/** The texel of vector `k` of the probe whose first texel is `probe` — column, row, layer
+ *  (`probeAddress`, `gridWgsl.ts`) —: `k` columns further on its row, with no division; the one
+ *  address its reads (`probeAt`), the update's stores and the snapshot's copies take. */
 export const PROBE_AT_WGSL = wgslBlock(
   'PROBE_AT_WGSL',
   [],
-  `fn probeAt(probe:vec3u,k:u32)->vec4f{
- return textureLoad(probes,vec2u(probe.x+k,probe.y),probe.z,0);
+  `${wgslConsts({ PROBE_TEXELS })}
+fn probeTexel(probe:vec3u,k:u32)->vec2u{return vec2u(probe.x+k,probe.y);}
+fn probeAt(probe:vec3u,k:u32)->vec4f{
+ return textureLoad(probes,probeTexel(probe,k),probe.z,0);
 }`,
 )

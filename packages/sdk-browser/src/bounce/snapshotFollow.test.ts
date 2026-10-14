@@ -69,19 +69,19 @@ test('the update stores only the texels of the queued probe the follow-up copies
   assert.ok(
     start >= 0 && queued.includes('fn queuedProbe(') && BOUNCE_SNAPSHOT_SHADER.includes(queued),
   )
-  assert.match(BOUNCE_SNAPSHOT_SHADER, /let entry=id\.x\/PROBE_VECTORS;/)
+  assert.match(BOUNCE_SNAPSHOT_SHADER, /let entry=id\.x\/PROBE_TEXELS;/)
   assert.match(BOUNCE_SNAPSHOT_SHADER, /let queued=queuedProbe\(entry\);/)
   const body = BOUNCE_PROBE_SHADER.split('fn updateProbes(')[1]
   // The probe it writes is the queue's, by the same function the follow-up calls.
   assert.match(body, /let queued=queuedProbe\(group\.x\);\n if\(!queued\.valid\)\{return;\}/)
   assert.match(body, /let probe=queued\.probe;/)
-  // Its stores: vectors 0 to 8, then the two distance vectors — all below `PROBE_VECTORS`.
+  // Its stores: vectors 0 to 8, then the two distance vectors — all below `PROBE_TEXELS`.
   const stores = [...body.matchAll(/probeStore\(probe,(\w+),/g)].map((m) => m[1])
   assert.deepEqual(stores, ['k', 'PROBE_DISTANCE_POSITIVE', 'PROBE_DISTANCE_NEGATIVE'])
   assert.match(body, /for\(var k=0u;k<9u;k\+\+\)\{\n {2}let kept=/)
   const constants = wgslConstants(BOUNCE_PROBE_SHADER) as Record<string, number>
   assert.deepEqual(
-    [constants.PROBE_DISTANCE_POSITIVE, constants.PROBE_DISTANCE_NEGATIVE, constants.PROBE_VECTORS],
+    [constants.PROBE_DISTANCE_POSITIVE, constants.PROBE_DISTANCE_NEGATIVE, constants.PROBE_TEXELS],
     [9, 10, PROBE_TEXELS],
   )
   assert.equal(PROBE_TEXELS, 11)

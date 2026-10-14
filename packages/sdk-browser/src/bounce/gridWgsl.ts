@@ -1,5 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
-import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { PROBE_AT_WGSL } from './atlas.ts'
 import { BOUNCE_GRID, BOUNCE_LEVEL } from './uniform.ts'
 import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
@@ -26,10 +26,7 @@ export const BOUNCE_GRID_HEAD_WGSL = wgslBlock(
   `
 ${BOUNCE_LEVEL.wgsl}
 ${BOUNCE_GRID.wgsl}
-${wgslConsts({
-  PROBE_VECTORS: PROBE_FLOATS / 4,
-  CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels,
-})}
+${wgslConsts({ CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels })}
 /** The w lanes that carry a probe's state, slot by slot. */
 const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
@@ -52,7 +49,7 @@ fn probeWrap(cell:vec3i)->vec3u{
  * fell, with neither a division nor a remainder.
  */
 fn probeAddress(level:u32,wrapped:vec3u)->vec3u{
- return vec3u(wrapped.x*PROBE_VECTORS,wrapped.y+bounce.counts.x*wrapped.z,level);
+ return vec3u(wrapped.x*PROBE_TEXELS,wrapped.y+bounce.counts.x*wrapped.z,level);
 }
 /** A probe's first texel: its level, then its cell stored toroidally. */
 fn probeOf(level:u32,cell:vec3i)->vec3u{return probeAddress(level,probeWrap(cell));}

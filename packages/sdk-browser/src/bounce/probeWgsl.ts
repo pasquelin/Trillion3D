@@ -51,7 +51,7 @@ const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 /** Writes vector \`k\` of the probe whose first texel is \`probe\`, where \`probeAt\` reads it (\`atlas.ts\`). */
 fn probeStore(probe:vec3u,k:u32,value:vec4f){
- textureStore(probesOut,vec2u(probe.x+k,probe.y),probe.z,value);
+ textureStore(probesOut,probeTexel(probe,k),probe.z,value);
 }
 @compute @workgroup_size(PROBE_THREADS)
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -156,7 +156,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
 
 /**
  * The snapshot's follow-up, in the bounce pass after the update: every texel the update may have
- * written — the `PROBE_VECTORS` texels of each probe its queue names — copied from the probes'
+ * written — the `PROBE_TEXELS` texels of each probe its queue names — copied from the probes'
  * atlas to the snapshot, one thread per texel. The two atlases were equal before the update
  * (zeroed together, cleared together), so they are equal after it, and the next update reads its
  * frozen grid without the copy of the whole atlas each image paid. A probe the update
@@ -170,11 +170,11 @@ export const BOUNCE_SNAPSHOT_SHADER = wgslProgram(
 @group(0) @binding(${SNAPSHOT_BINDINGS.snapshot}) var snapshotOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
- let entry=id.x/PROBE_VECTORS;
+ let entry=id.x/PROBE_TEXELS;
  if(entry>=bounce.frame.y||bounce.counts.w==0u){return;}
  let queued=queuedProbe(entry);
  if(!queued.valid){return;}
- let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
+ let at=probeTexel(queued.probe,id.x%PROBE_TEXELS);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
 }`,
   [BOUNCE_GRID_HEAD_WGSL, QUEUED_PROBE_WGSL, WORKGROUP_THREADS_WGSL],
