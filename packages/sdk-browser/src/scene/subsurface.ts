@@ -1,5 +1,5 @@
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
-import { surfacesOfRows } from '../page/rowSurfaces.ts'
+import { someRowSurface } from '../page/rowSurfaces.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
@@ -15,12 +15,14 @@ export const SUBSURFACE_TARGET = loadOnlyTarget(
   SUBSURFACE_FORMAT,
   'subsurfaceColor',
 )
-/** Whether `surface` is a thin sheet that transmits: double-sided, its subsurface colour not black —
+/** Whether `surface` is a thin sheet that transmits: its subsurface colour not black — the record
+ *  keeps that colour on a lit double-sided surface alone (`sheet`, `../page/surfaceRecord.ts`) —,
  *  what the thin transmission target is made for (`wantsSubsurface`). */
-export const isSubsurfaceSheet = (surface: Pick<VisMaterial, 'side' | 'subsurfaceColor'>) =>
-  surface.side === 'double' && !!surface.subsurfaceColor?.some((component) => component > 0)
+export const isSubsurfaceSheet = (surface: Pick<VisMaterial, 'subsurfaceColor'>) =>
+  !!surface.subsurfaceColor?.some((component) => component > 0)
 
-/** Whether a row's surface is a thin sheet that transmits (`isSubsurfaceSheet`): the target is made. */
-export function wantsSubsurface(rt: WebgpuPagesRuntime) {
-  return surfacesOfRows(rt.layout.rows).some(isSubsurfaceSheet)
-}
+const sheetRows = someRowSurface(isSubsurfaceSheet)
+
+/** Whether a row's surface is a thin sheet that transmits (`isSubsurfaceSheet`): the target is made.
+ *  O(1) while the rows and their materials hold (`someRowSurface`). */
+export const wantsSubsurface = (rt: WebgpuPagesRuntime) => sheetRows(rt.layout.rows)
