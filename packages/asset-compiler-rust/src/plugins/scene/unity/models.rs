@@ -127,7 +127,7 @@ fn unit_meters(manifest: &Value) -> f64 {
 /// What the model's driver could not yield also belongs to the scene that cites it: its codes
 /// come up under their own name — two models missing the same thing add up — and its notes take
 /// the model's name, otherwise one would not know which they speak of.
-fn carry_report(manifest: &Value, name: &str, scene: &mut Scene) {
+fn carry_report(manifest: &Value, name: &str, scene: &mut SceneTables) {
     if let Some(unsupported) = manifest["unsupported"].as_object() {
         for (code, count) in unsupported {
             if let Some(count) = count.as_u64() {

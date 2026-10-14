@@ -18,7 +18,7 @@
 //! `UsdUVTexture` textures, `defaultPrim`, `metersPerUnit` and `upAxis`.
 //! **What it counts in the report without yielding**: see the `usd-*` constants of `world.rs`.
 use super::*;
-use crate::import::SceneTables as Scene;
+use crate::import::SceneTables;
 use crate::CompilerError;
 use openusd::{sdf, usd};
 use serde_json::json;

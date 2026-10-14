@@ -14,7 +14,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     (request.progress)(
         json!({"phase":"import-source","step":"scan","plugin":NAME,"layers":stage.layer_count()}),
     );
-    let mut scene = Scene::new(plugin);
+    let mut scene = SceneTables::new(plugin);
     scene.read_file(
         &file.file_name().unwrap_or_default().to_string_lossy(),
         usize::try_from(fs::metadata(file)?.len()).unwrap_or(usize::MAX),
@@ -42,7 +42,12 @@ fn open(file: &Path) -> Result<usd::Stage> {
 }
 
 /// Walks the composed scene and fills the tables.
-fn traverse(scene: &mut Scene, stage: &usd::Stage, images: &Path, request: &SceneRequest<'_>) {
+fn traverse(
+    scene: &mut SceneTables,
+    stage: &usd::Stage,
+    images: &Path,
+    request: &SceneRequest<'_>,
+) {
     let mut world = World {
         stage,
         scene,

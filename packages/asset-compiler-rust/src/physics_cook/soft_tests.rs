@@ -4,7 +4,7 @@
 use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
 use super::stage_physics;
 use super::tests::assert_golden;
-use super::{soft_settings, SOFT_VERTEX_WORDS as W};
+use super::{soft_settings, SOFT_VERTEX_WORDS};
 use crate::compiler_coplanar::DepthLayerScene;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,11 +36,17 @@ fn declared(kind: &'static str, pins: &[f64]) -> SoftDeclared {
 #[test]
 fn a_cloth_cooks_to_the_golden_settings() {
     let words = include_str!("../../../physics-jolt-wasm/src/layout.h");
-    assert!(words.contains(&format!("SOFT_VERTEX_WORDS = {W};")));
+    assert!(words.contains(&format!("SOFT_VERTEX_WORDS = {SOFT_VERTEX_WORDS};")));
     let (pos, triangles) = cloth();
     let pinned = declared("cloth", &[6.0, 8.0]);
     let record = soft_record(&pos, Some(&triangles), [1.0; 3], &pinned).unwrap();
-    let masses: Vec<f32> = record.vertices.iter().skip(3).step_by(W).copied().collect();
+    let masses: Vec<f32> = record
+        .vertices
+        .iter()
+        .skip(3)
+        .step_by(SOFT_VERTEX_WORDS)
+        .copied()
+        .collect();
     let total: f32 = masses.iter().sum();
     assert!(
         (masses[6], masses[8]) == (0.0, 0.0) && masses[4] > masses[0],
@@ -60,7 +66,13 @@ fn a_cloth_cooks_to_the_golden_settings() {
 fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
     let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0., 0.];
     let rope = soft_record(&seam, None, [2.0, 1.0, 1.0], &declared("rope", &[0.0])).unwrap();
-    let masses: Vec<f32> = rope.vertices.iter().skip(3).step_by(W).copied().collect();
+    let masses: Vec<f32> = rope
+        .vertices
+        .iter()
+        .skip(3)
+        .step_by(SOFT_VERTEX_WORDS)
+        .copied()
+        .collect();
     // Three vertices: the seam's two are one.
     assert_eq!(
         masses,
@@ -72,7 +84,15 @@ fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
         ..declared("rope", &[])
     };
     let spread = soft_record(&seam, None, [1.0; 3], &heavy).unwrap();
-    assert_eq!(spread.vertices.iter().skip(3).step_by(W).sum::<f32>(), 3.0);
+    assert_eq!(
+        spread
+            .vertices
+            .iter()
+            .skip(3)
+            .step_by(SOFT_VERTEX_WORDS)
+            .sum::<f32>(),
+        3.0
+    );
     let pin = soft_record(&seam, None, [1.0; 3], &declared("rope", &[4.0]));
     assert_eq!(
         pin.err().unwrap(),

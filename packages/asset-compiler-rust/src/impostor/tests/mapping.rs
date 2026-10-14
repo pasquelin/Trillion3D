@@ -1,6 +1,6 @@
 use crate::impostor::eligibility::FRAMES;
 use crate::impostor::octahedron::{cell_weights, frame_direction};
-use trillion3d_math::octahedral::{octahedral_decode as decode, octahedral_encode as encode};
+use trillion3d_math::octahedral::{octahedral_decode, octahedral_encode};
 
 // Behaviour: on every lattice vertex of both mappings, direction → uv → direction comes back
 // within 1e-6, the lower half of the full octahedron and the hemi's horizon included.
@@ -10,8 +10,8 @@ fn both_mappings_round_trip_on_the_lattice() {
         for n in [FRAMES, 2, 3, 16] {
             for (i, j) in (0..n).flat_map(|i| (0..n).map(move |j| (i, j))) {
                 let d = frame_direction((i, j), n, hemi);
-                let uv = encode(d, hemi);
-                let back = decode(uv.map(|x| x * 0.5 + 0.5), hemi);
+                let uv = octahedral_encode(d, hemi);
+                let back = octahedral_decode(uv.map(|x| x * 0.5 + 0.5), hemi);
                 let gap = (0..3).map(|k| (back[k] - d[k]).abs()).fold(0.0, f64::max);
                 assert!(
                     gap <= 1e-6,

@@ -8,7 +8,12 @@ use super::*;
 
 /// Copies the model's tables into the scene. `prefix` is the path of the model's directory,
 /// relative to the served directory: the model's images are named there.
-pub(super) fn merge(gltf: &Value, buffers: &[Vec<u8>], prefix: &str, scene: &mut Scene) -> Parts {
+pub(super) fn merge(
+    gltf: &Value,
+    buffers: &[Vec<u8>],
+    prefix: &str,
+    scene: &mut SceneTables,
+) -> Parts {
     let views = merge_views(gltf, buffers, scene);
     let accessors = merge_table(
         gltf,
@@ -47,7 +52,7 @@ pub(super) fn index(value: &Value, map: &[usize]) -> Option<usize> {
     map.get(value.as_u64()? as usize).copied()
 }
 
-fn merge_views(gltf: &Value, buffers: &[Vec<u8>], scene: &mut Scene) -> Vec<usize> {
+fn merge_views(gltf: &Value, buffers: &[Vec<u8>], scene: &mut SceneTables) -> Vec<usize> {
     let mut map = Vec::new();
     for view in array(gltf, "bufferViews") {
         let buffer = view["buffer"].as_u64().unwrap_or(0) as usize;
@@ -90,7 +95,12 @@ fn merge_table(
 
 /// Model images, their URIs brought back to the served directory. The prefix is the path of the
 /// model's directory: that is where its images are named, not at the scene root.
-fn merge_images(gltf: &Value, prefix: &str, views: &[usize], scene: &mut Scene) -> Vec<usize> {
+fn merge_images(
+    gltf: &Value,
+    prefix: &str,
+    views: &[usize],
+    scene: &mut SceneTables,
+) -> Vec<usize> {
     merge_table(
         gltf,
         "images",
@@ -113,7 +123,7 @@ fn merge_meshes(
     gltf: &Value,
     accessors: &[usize],
     materials: &[usize],
-    scene: &mut Scene,
+    scene: &mut SceneTables,
 ) -> Parts {
     let rules = [
         Rule::members("attributes", accessors),

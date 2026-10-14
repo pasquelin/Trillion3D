@@ -11,7 +11,7 @@ use super::clusters::position_key;
 use super::*;
 use crate::qem::solve::SolvedRegion;
 use trillion3d_math::vec3::unit;
-use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 /// The region after the solve, over its `n` source vertices then its placed ones.
@@ -144,7 +144,7 @@ impl Local<'_> {
         }
         let carried = input.attributes.carried.iter().zip(&placed.carried);
         let set = |flag| carried.clone().filter(move |(a, _)| a.flag == flag);
-        let uv_set = |(a, values): (&&Carried, &Vec<f32>)| {
+        let uv_set = |(a, values): (&&Attribute, &Vec<f32>)| {
             let mut uvs = Vec::with_capacity((self.n + self.origin.len()) * 2);
             for &v in self.remap {
                 uvs.extend_from_slice(&a.values[v as usize * 2..][..2]);

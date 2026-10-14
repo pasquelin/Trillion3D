@@ -3,8 +3,7 @@
 //! beyond that grid is refused.
 
 use crate::geometry_page_quant::{primitive_exponent, primitive_uv_exponent};
-use trillion3d_page_codec as codec;
-use trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2 as TILE;
+use trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::FLAG_COLOR;
@@ -23,32 +22,37 @@ fn a_constant_colour_costs_no_bits_and_the_primitive_grid_follows_the_finest_err
         .len();
     let tinted = encode(&[0, 1, 2], &positions, &[&colour], -8, UV_EXPONENT).expect("tinted");
     assert_eq!(tinted.bytes.len(), plain);
-    let page = codec::decode(&tinted.bytes, 1 << 20).expect("decode");
+    let page = trillion3d_page_codec::decode(&tinted.bytes, 1 << 20).expect("decode");
     assert_eq!(
         page.attribute(4),
         Some(&[0.5, 0.25, 1.0, 1.0].repeat(3)[..])
     );
     // A primitive one unit wide: 2^-16 by extent; an error of 2^-15 asks for 2^-18, the finer.
     assert_eq!(
-        primitive_exponent(&positions, [0.5f64].into_iter(), false, TILE),
+        primitive_exponent(&positions, [0.5f64].into_iter(), false, TILE_EXTENT_LOG2),
         -16
     );
     assert_eq!(
-        primitive_exponent(&positions, [0.0, 2f64.powi(-15)].into_iter(), false, TILE),
+        primitive_exponent(
+            &positions,
+            [0.0, 2f64.powi(-15)].into_iter(),
+            false,
+            TILE_EXTENT_LOG2
+        ),
         -18
     );
     assert_eq!(
-        primitive_exponent(&[0.0; 3], [].into_iter(), false, TILE),
+        primitive_exponent(&[0.0; 3], [].into_iter(), false, TILE_EXTENT_LOG2),
         -16
     );
     // Blended, whatever its errors, the finest grid a page holds: 2^23 steps across it;
     // its texture coordinates, two units wide, take 2^-22, an opaque one's the format's 2^-14.
     assert_eq!(
-        primitive_exponent(&positions, [0.5f64].into_iter(), true, TILE),
+        primitive_exponent(&positions, [0.5f64].into_iter(), true, TILE_EXTENT_LOG2),
         -23
     );
     let uv = Attribute {
-        flag: codec::FLAG_UV,
+        flag: trillion3d_page_codec::FLAG_UV,
         width: 2,
         values: vec![0.0, 0.0, 2.0, 0.5, 1.0, 1.0],
     };
@@ -75,7 +79,7 @@ fn vertices_on_the_same_grid_cells_are_kept_once() {
     ];
     let encoded = encode(&[0, 1, 3, 0, 2, 3], &positions, &[], -4, UV_EXPONENT).expect("encode");
     assert_eq!(encoded.header.vertex_count, 3);
-    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
+    let page = trillion3d_page_codec::decode(&encoded.bytes, 1 << 20).expect("decode");
     assert_eq!(page.indices(), [0, 1, 2, 0, 1, 2]);
     assert_eq!(page.attribute(0).expect("position")[3..6], [1.0, 0.0, 0.0]);
 }
@@ -85,13 +89,13 @@ fn every_page_of_a_primitive_shares_its_exponent_and_a_page_beyond_the_grid_is_r
     // A primitive 1000 units wide whose DAG asks for a 2^-33 grid: the extent bounds it at
     // 2^-13 (2^22 steps), so its widest page still fits, on the primitive's own exponent.
     let corners = [0.0, 0.0, 0.0, 1000.0, 0.0, 0.0, 0.0, 1000.0, 0.0];
-    let exponent = primitive_exponent(&corners, [1e-9f64].into_iter(), false, TILE);
+    let exponent = primitive_exponent(&corners, [1e-9f64].into_iter(), false, TILE_EXTENT_LOG2);
     assert_eq!(exponent, -13);
     let near = [0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.5, 0.0];
     for page in [&corners, &near] {
         let encoded =
             encode(&[0, 1, 2], page, &[], exponent, UV_EXPONENT).expect("page on the grid");
-        let header = codec::Header::parse(&encoded.bytes, 1 << 20).expect("header");
+        let header = trillion3d_page_codec::Header::parse(&encoded.bytes, 1 << 20).expect("header");
         assert_eq!(header.position.exponent, exponent);
     }
     // A page wider than 2^24 steps of the grid it was given is refused, never re-gridded.
@@ -103,7 +107,7 @@ fn every_page_of_a_primitive_shares_its_exponent_and_a_page_beyond_the_grid_is_r
         "PAGE_ATTRIBUTE_RANGE"
     );
     let beyond = [-f32::MAX, 0.0, 0.0, f32::MAX, 0.0, 0.0, 0.0, 0.0, 0.0];
-    let grid = primitive_exponent(&beyond, [].into_iter(), false, TILE);
+    let grid = primitive_exponent(&beyond, [].into_iter(), false, TILE_EXTENT_LOG2);
     assert_eq!(
         encode(&[0, 1, 2], &beyond, &[], grid, UV_EXPONENT)
             .unwrap_err()

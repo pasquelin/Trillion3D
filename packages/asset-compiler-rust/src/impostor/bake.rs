@@ -3,9 +3,9 @@
 use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
 use rayon::prelude::*;
-use trillion3d_math::scalar::{byte_to_unit, mean as scalar_mean, unit_to_byte};
+use trillion3d_math::scalar::{byte_to_unit, unit_to_byte};
 use trillion3d_math::vec3::{add, normalized_or, scale};
-use trillion3d_math::vecn::mean as mean_of;
+use trillion3d_math::{scalar, vecn};
 
 /// Rotated-grid subsamples of a texel, in texel units.
 const SUBSAMPLES: [[f64; 2]; 4] = [
@@ -39,12 +39,12 @@ fn resolve(hits: &[Sample], radius: f64) -> [[u8; 4]; 3] {
     if hits.is_empty() {
         return [[0; 4]; 3];
     }
-    let mean = |f: &dyn Fn(&Sample) -> [f64; 3]| mean_of(hits.iter().map(f));
+    let mean = |f: &dyn Fn(&Sample) -> [f64; 3]| vecn::mean(hits.iter().map(f));
     let colour = mean(&|h| h.colour).map(|c| crate::texture_preview::linear_to_srgb(c as f32));
     let normal =
         normalized_or(mean(&|h| h.normal), [0.0, 1.0, 0.0]).map(|n| unit_to_byte(n * 0.5 + 0.5));
     // `D = ½ + height / 2R`, the height `2R − distance` above the frame plane.
-    let distance = scalar_mean(hits.iter().map(|h| h.distance));
+    let distance = scalar::mean(hits.iter().map(|h| h.distance));
     let depth = unit_to_byte(1.5 - distance / (2.0 * radius));
     let orm = mean(&|h| h.orm).map(unit_to_byte);
     [

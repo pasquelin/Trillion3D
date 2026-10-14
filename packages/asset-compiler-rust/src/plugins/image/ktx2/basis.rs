@@ -12,7 +12,7 @@
 //! start here.
 use super::header::Surface;
 use super::{DATA_TRUNCATED, TOO_LARGE, TRANSCODE_FAILED};
-use crate::plugins::image::blocks as shared;
+use crate::plugins::image::blocks;
 use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use basisu::{DecodeFlags, TargetFormat, Transcoder};
@@ -35,5 +35,5 @@ pub(super) fn decode(
     let rgba = texture
         .transcode(0, TargetFormat::Rgba32, DecodeFlags::NONE)
         .map_err(|_| TRANSCODE_FAILED)?;
-    shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
+    blocks::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }

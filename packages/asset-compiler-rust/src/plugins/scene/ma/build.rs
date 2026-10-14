@@ -17,7 +17,7 @@ const MAX_DEPTH: usize = 256;
 pub(super) struct World<'a> {
     pub(super) document: &'a Document,
     pub(super) graph: &'a Graph,
-    pub(super) scene: &'a mut Scene,
+    pub(super) scene: &'a mut SceneTables,
     /// Directory against which relative image URIs resolve, `scene::image_root`.
     pub(super) images: &'a Path,
     /// Children of each document node, by parent rank.
@@ -44,7 +44,7 @@ impl World<'_> {
 pub(super) fn scene(
     document: &Document,
     graph: &Graph,
-    scene: &mut Scene,
+    scene: &mut SceneTables,
     request: &SceneRequest<'_>,
 ) {
     let images = crate::plugins::scene::image_root(request.source);

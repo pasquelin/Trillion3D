@@ -6,8 +6,8 @@ use super::charts::vertex_islands;
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
-use crate::qem::Attribute;
-use trillion3d_page_codec::encode::Attribute as Carried;
+use crate::qem;
+use trillion3d_page_codec::encode::Attribute;
 
 /// One entry per vertex of the level for each question the welds answer; the source's first,
 /// then every vertex a solved reduction placed.
@@ -74,8 +74,8 @@ impl<'a> Welds<'a> {
     pub fn input<'b>(
         &'b self,
         positions: &'b [f32],
-        carried: &'b [&'b Carried],
-        weighted: &'b [Attribute<'b>],
+        carried: &'b [&'b Attribute],
+        weighted: &'b [qem::Attribute<'b>],
         locks: &'b [bool],
         normal_bound: f64,
     ) -> GroupReductionInput<'b> {

@@ -18,7 +18,7 @@
 //! change neither geometry nor rendering, packed metal/smoothness maps and textures outside
 //! the registry.
 use super::*;
-use crate::import::{f32_bytes, normalise, SceneTables as Scene};
+use crate::import::{f32_bytes, normalise, SceneTables};
 use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
@@ -109,7 +109,7 @@ impl ScenePlugin for Unity {
 /// What a walk has at hand: the scene under construction, the project index, and enough to ask
 /// the registry for a model.
 struct World<'a> {
-    scene: &'a mut Scene,
+    scene: &'a mut SceneTables,
     project: &'a Project,
     cache: &'a Path,
     cancelled: &'a AtomicBool,

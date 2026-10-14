@@ -1,7 +1,6 @@
 //! Shared decoder refusals, on pages the encoder would never write, and encoder refusals on
 //! attributes no page may carry.
 
-use trillion3d_page_codec as codec;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::HEADER_BYTES;
@@ -14,14 +13,14 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
     let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8, UV_EXPONENT)
         .expect("encode")
         .bytes;
-    assert!(codec::decode(&good, 1 << 20).is_ok());
+    assert!(trillion3d_page_codec::decode(&good, 1 << 20).is_ok());
     // An index past the vertex count, forged in the corner stream after the one-word block table:
     // a base of zero, two bits per corner.
     let mut forged = good.clone();
     forged[HEADER_BYTES + 4] = 0b11_01_00;
     assert_eq!(
-        codec::decode(&forged, 1 << 20).unwrap_err(),
-        codec::PageError::Index
+        trillion3d_page_codec::decode(&forged, 1 << 20).unwrap_err(),
+        trillion3d_page_codec::PageError::Index
     );
     // The widest field on the coarsest grid, from the largest minimum: still a finite float, so
     // no page needs a nonfinite refusal and the decoder has none. Three corners on one cell make
@@ -35,19 +34,19 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
     extreme[20] = 24;
     extreme[23] = 64;
     extreme.extend([0xFFu8; 4]);
-    let page = codec::decode(&extreme, 1 << 20).expect("finite");
+    let page = trillion3d_page_codec::decode(&extreme, 1 << 20).expect("finite");
     assert!(page
         .attribute(0)
         .expect("position")
         .iter()
         .all(|v| v.is_finite()));
     assert_eq!(
-        codec::decode(&good[..good.len() - 1], 1 << 20).unwrap_err(),
-        codec::PageError::Bounds
+        trillion3d_page_codec::decode(&good[..good.len() - 1], 1 << 20).unwrap_err(),
+        trillion3d_page_codec::PageError::Bounds
     );
     assert_eq!(
-        codec::decode(&good, 8).unwrap_err(),
-        codec::PageError::Bounds
+        trillion3d_page_codec::decode(&good, 8).unwrap_err(),
+        trillion3d_page_codec::PageError::Bounds
     );
 }
 

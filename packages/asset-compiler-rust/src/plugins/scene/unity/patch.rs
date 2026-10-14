@@ -163,7 +163,7 @@ impl Changes {
 
     /// What the instance changed, and what it asked that this driver does not yield: the total,
     /// then the detail by property, so a gap is seen and numbered.
-    pub(super) fn report(&self, scene: &mut Scene) {
+    pub(super) fn report(&self, scene: &mut SceneTables) {
         scene.count("prefabOverridesApplied", self.applied);
         scene.count(
             "prefabOverridesIgnored",

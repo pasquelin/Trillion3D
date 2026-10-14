@@ -36,7 +36,7 @@ struct Properties<'a> {
 pub(super) fn material_json(
     body: &Yaml,
     name: &str,
-    scene: &mut Scene,
+    scene: &mut SceneTables,
     project: &Project,
     table: &mut Textures,
 ) -> Value {
@@ -84,7 +84,7 @@ pub(super) fn material_json(
 fn emission(
     properties: &Properties<'_>,
     out: &mut Value,
-    scene: &mut Scene,
+    scene: &mut SceneTables,
     project: &Project,
     table: &mut Textures,
 ) {
@@ -122,7 +122,7 @@ fn emission(
 /// a cutout: `MASK` would make its pixels opaque or absent, and a transparency converted to
 /// masking is an image loss. The then unyielded cutout is counted, and its threshold is not
 /// written — glTF only reads `alphaCutoff` under `MASK`.
-fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut Scene) {
+fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut SceneTables) {
     let mode = properties.float(&["_Mode"], 0.0);
     let surface = properties.float(&SURFACE, 0.0);
     let clipped = properties.float(&ALPHA_CLIP, 0.0) >= 0.5 || mode == 1.0;
@@ -162,7 +162,7 @@ impl Properties<'_> {
     fn texture(
         &self,
         names: &[&str],
-        scene: &mut Scene,
+        scene: &mut SceneTables,
         project: &Project,
         table: &mut Textures,
     ) -> Option<usize> {

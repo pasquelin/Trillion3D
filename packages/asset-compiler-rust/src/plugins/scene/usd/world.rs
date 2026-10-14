@@ -94,7 +94,7 @@ pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
 /// where image URIs resolve.
 pub(super) struct World<'a> {
     pub(super) stage: &'a usd::Stage,
-    pub(super) scene: &'a mut Scene,
+    pub(super) scene: &'a mut SceneTables,
     /// Directory against which relative image URIs resolve, `scene::image_root`.
     pub(super) images: &'a Path,
     /// The same directory in its canonical form: composition resolves asset paths under that

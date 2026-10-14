@@ -82,7 +82,7 @@ fn a_wrapped_file_past_the_budget_is_refused_with_the_bytes_it_needs() {
 #[test]
 fn a_block_index_past_the_budget_is_refused_by_name() {
     let bytes = legacy_file(2.5);
-    let blocks = BlendFile::open(&bytes, BUDGET)
+    let blocks = BlendFile::open(&bytes, RAM_BUDGET)
         .expect("the file")
         .blocks
         .len();
@@ -101,7 +101,9 @@ fn a_block_index_past_the_budget_is_refused_by_name() {
 
 /// What the fixture holds once open, read in place: its block index.
 fn indexed(plain: &[u8]) -> usize {
-    BlendFile::open(plain, BUDGET).expect("the fixture").held()
+    BlendFile::open(plain, RAM_BUDGET)
+        .expect("the fixture")
+        .held()
 }
 
 /// Where the fixture's packed PNG starts and ends, in its unpacked bytes.

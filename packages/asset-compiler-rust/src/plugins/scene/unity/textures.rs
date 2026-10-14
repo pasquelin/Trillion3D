@@ -30,7 +30,7 @@ impl Textures {
     pub(super) fn texture(
         &mut self,
         reference: &Ref,
-        scene: &mut Scene,
+        scene: &mut SceneTables,
         project: &Project,
     ) -> Option<usize> {
         let guid = reference.guid.as_ref()?;
@@ -41,7 +41,7 @@ impl Textures {
     }
 }
 
-fn resolve(guid: &str, scene: &mut Scene, project: &Project) -> Option<usize> {
+fn resolve(guid: &str, scene: &mut SceneTables, project: &Project) -> Option<usize> {
     let Some(asset) = project.asset(guid) else {
         scene.report.add("unity-texture-missing");
         return None;
@@ -72,7 +72,7 @@ fn resolve(guid: &str, scene: &mut Scene, project: &Project) -> Option<usize> {
 
 /// Sampler the `.meta`'s `TextureImporter` declares. A missing setting keeps the editor
 /// default; a value glTF does not carry is counted by name and the axis repeats.
-fn sampler(asset: &Path, name: &str, scene: &mut Scene) -> usize {
+fn sampler(asset: &Path, name: &str, scene: &mut SceneTables) -> usize {
     let read = meta::document(&meta_of(asset));
     let importer = &read["TextureImporter"];
     // `sRGBTexture: 0` declares a data texture. The intermediate scene carries no per-texture
@@ -91,7 +91,7 @@ fn sampler(asset: &Path, name: &str, scene: &mut Scene) -> usize {
 
 /// Wrap of an axis: the setting specific to the axis, otherwise the common setting. Unity
 /// writes `-1` on an axis to say “like the common setting”; that is not a mode, we move on.
-fn wrap(importer: &Yaml, keys: &[&str], scene: &mut Scene) -> u32 {
+fn wrap(importer: &Yaml, keys: &[&str], scene: &mut SceneTables) -> u32 {
     match setting(importer, keys) {
         None => REPEAT,
         Some(mode) => match WRAPS.get(mode) {
@@ -105,7 +105,7 @@ fn wrap(importer: &Yaml, keys: &[&str], scene: &mut Scene) -> u32 {
 }
 
 /// Declared filtering, or the one glTF applies by default.
-fn filter(importer: &Yaml, scene: &mut Scene) -> [u32; 2] {
+fn filter(importer: &Yaml, scene: &mut SceneTables) -> [u32; 2] {
     let default = FILTERS[FILTERS.len() - 1];
     match setting(importer, &["filterMode"]) {
         None => default,

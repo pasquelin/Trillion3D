@@ -4,7 +4,7 @@ use super::attributes::key;
 use super::placed::Local;
 use super::welds::{Columns, Welds};
 use super::{DagAttributes, GroupReduction, GroupReductionInput};
-use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::hash::WordMap;
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
@@ -13,7 +13,7 @@ use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 #[derive(Debug)]
 pub struct Grown {
     pub positions: Vec<f32>,
-    pub carried: Vec<Carried>,
+    pub carried: Vec<Attribute>,
     /// Per placed vertex, the source vertex it was solved from, through every level between.
     pub origin: Vec<u32>,
 }
@@ -23,7 +23,7 @@ impl Grown {
         grown: &'a Option<Grown>,
         positions: &'a [f32],
         attributes: DagAttributes<'a>,
-    ) -> (&'a [f32], Vec<&'a Carried>) {
+    ) -> (&'a [f32], Vec<&'a Attribute>) {
         match grown {
             Some(grown) => (&grown.positions, grown.carried.iter().collect()),
             None => (positions, attributes.carried.to_vec()),
@@ -94,7 +94,7 @@ impl Local<'_> {
         let carried = input.attributes.carried;
         let weighed = input.attributes.weighed();
         // Where each carried attribute sits in a solved row: the simplifier's order.
-        let offset = |a: &Carried| {
+        let offset = |a: &Attribute| {
             let at = weighed.iter().position(|&w| std::ptr::eq(w, a))?;
             Some(weighed[..at].iter().map(|w| w.width).sum::<usize>())
         };

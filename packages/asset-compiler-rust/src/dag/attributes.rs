@@ -3,9 +3,9 @@
 //! its own face.
 use super::clusters::{normalized_bits, position_key, weld_by};
 use super::quality::{face_normal, unit_normal};
-use crate::qem::Attribute;
+use crate::qem;
 use trillion3d_math::vec3::dot;
-use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::hash::WordMap;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
@@ -20,7 +20,7 @@ pub const UV_WEIGHT: f32 = 1.0;
 /// for what the pages draw, and a texture set no material reads never holds a group.
 #[derive(Clone, Copy, Default)]
 pub struct DagAttributes<'a> {
-    pub carried: &'a [&'a Carried],
+    pub carried: &'a [&'a Attribute],
 }
 impl<'a> DagAttributes<'a> {
     fn values(&self, flag: u32) -> impl Iterator<Item = &'a [f32]> {
@@ -39,14 +39,14 @@ impl<'a> DagAttributes<'a> {
     }
     /// The carried attributes the simplifier weighs, in its order: normals first, then every
     /// texture set.
-    pub(super) fn weighed(&self) -> Vec<&'a Carried> {
+    pub(super) fn weighed(&self) -> Vec<&'a Attribute> {
         let with = |flag| self.carried.iter().copied().filter(move |a| a.flag == flag);
         let normals = with(FLAG_NORMAL).take(1);
         normals.chain(with(FLAG_UV)).chain(with(FLAG_UV1)).collect()
     }
     /// The attributes the simplifier weighs, in `weighed`'s order.
-    pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
-        let attribute = |a: &'a Carried| Attribute {
+    pub(super) fn weighted(&self) -> Vec<qem::Attribute<'a>> {
+        let attribute = |a: &'a Attribute| qem::Attribute {
             values: &a.values,
             width: a.width,
             weight: if a.flag == FLAG_NORMAL {
@@ -62,7 +62,7 @@ impl<'a> DagAttributes<'a> {
 /// Canonical vertex per position and every carried attribute: copies a page cannot tell apart are
 /// one vertex, so an unindexed mesh reduces as the indexed one it draws the same as. Nothing is
 /// lost: coarse levels point at a copy identical in everything the page stores.
-pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
+pub fn weld_exact(positions: &[f32], carried: &[&Attribute], indices: &[u32]) -> Vec<u32> {
     let values = || carried.iter().map(|a| (&a.values[..], a.width));
     weld_by(positions.len() / 3, indices, |id| {
         key(positions, id as usize, values())

@@ -20,7 +20,7 @@ pub(super) struct Parts {
 /// translation, rotation and scale — composed with those of its parents. A model whose hierarchy
 /// does not compose (index out of table, node with two parents, endless tree) is poured without
 /// a transform, and the fact is counted rather than guessed.
-pub(super) fn model_matrices(gltf: &Value, scene: &mut Scene) -> Vec<Mat4> {
+pub(super) fn model_matrices(gltf: &Value, scene: &mut SceneTables) -> Vec<Mat4> {
     match crate::compiler_world::world_matrices(gltf) {
         Ok(matrices) => matrices,
         Err(_) => {

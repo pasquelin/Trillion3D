@@ -57,7 +57,7 @@ impl Structure {
     }
 
     /// A zero count is not written: the report names only what happened.
-    pub(super) fn report(&self, scene: &mut Scene) {
+    pub(super) fn report(&self, scene: &mut SceneTables) {
         if !self.removed.is_empty() {
             scene.count("componentsRemoved", self.removed.len());
         }

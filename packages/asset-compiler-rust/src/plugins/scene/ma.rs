@@ -28,7 +28,7 @@
 //!
 //! **What it counts on the report without returning it**: see the `ma-*` constants of `report.rs`.
 use super::*;
-use crate::import::{Report, SceneTables as Scene};
+use crate::import::{Report, SceneTables};
 use crate::CompilerError;
 use serde_json::json;
 use std::{collections::HashMap, fs, sync::atomic::Ordering, time::Instant};

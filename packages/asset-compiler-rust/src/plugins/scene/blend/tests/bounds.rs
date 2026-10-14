@@ -68,7 +68,7 @@ fn a_hostile_sdna_is_refused_by_name_never_by_panic() {
 #[test]
 fn a_view_never_reads_past_the_end_of_its_block() {
     let bytes = file(&sdna(&["value"], 1), 0);
-    let read = BlendFile::open(&bytes, BUDGET).expect("a minimal file");
+    let read = BlendFile::open(&bytes, RAM_BUDGET).expect("a minimal file");
     let block = read.of(*b"DATA").next().expect("the data block");
     let view = read.view(block).expect("its view");
     assert_eq!(

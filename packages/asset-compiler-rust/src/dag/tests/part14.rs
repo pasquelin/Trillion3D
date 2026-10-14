@@ -2,7 +2,7 @@
 //! (`texture.rs`).
 use super::*;
 use texture::texture_deviation_above;
-use trillion3d_page_codec::encode::Attribute as Carried;
+use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::FLAG_UV;
 
 /// A flat 2 m brick of 3 x 3 vertices at `(x, 0, z)`, its texture the unit square, the centre's
@@ -27,7 +27,7 @@ fn deviation(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32]) -> f64 {
 }
 
 fn deviation_above(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32], floor: f64) -> f64 {
-    let uvs = Carried {
+    let uvs = Attribute {
         flag: FLAG_UV,
         width: 2,
         values: mesh.1.clone(),
@@ -108,7 +108,7 @@ fn every_group_publishes_at_least_its_texture_deviation() {
         .iter()
         .flat_map(|p| [p[0] / 48.0 + (p[1] * 0.4).sin() * 0.02, p[1] / 48.0])
         .collect();
-    let carried = Carried {
+    let carried = Attribute {
         flag: FLAG_UV,
         width: 2,
         values: uvs.clone(),

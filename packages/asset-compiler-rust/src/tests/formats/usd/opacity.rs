@@ -6,7 +6,7 @@
 //! than written. On a one-pixel RGBA image `[0, 255, 0, 255]`, `outputs:r` is
 //! zero — the face vanishes — and `outputs:a` is one — it stays full: two
 //! opposite scenes, and the compiler must not yield a single one.
-use super::material::{compile as compile_layer, layer, pbr, texture, unsupported};
+use super::material::{compile, layer, pbr, texture, unsupported};
 use super::*;
 
 /// Layer of a quad whose base colour comes from `T` and opacity from `T`'s named channel.
@@ -15,7 +15,7 @@ fn carried_by(channel: &str) -> GoldenRun {
         "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity.connect = </Root/M/T.{channel}>"
     );
     let tag = format!("opacite-canal-{}", &channel["outputs:".len()..]);
-    compile_layer(
+    compile(
         &tag,
         &layer(&inputs, &texture("T", "checker.png", "")),
         &["checker.png"],

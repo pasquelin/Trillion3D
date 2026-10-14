@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use trillion3d_math::aabb::{aabb_of, diagonal};
-use trillion3d_math::random::splitmix_draw as draw;
+use trillion3d_math::random::splitmix_draw;
 use trillion3d_math::vec3::{dot, length, point, sub};
 use trillion3d_math::vecn::weighted_mean;
 
@@ -56,8 +56,8 @@ pub(super) fn pieces(
     // A seed is a random mean of four corners: inside a convex mesh, whatever its shape.
     for _ in 0..ATTEMPTS {
         let picks: [(f64, [f64; 3]); 4] = std::array::from_fn(|_| {
-            let w = draw(&mut state);
-            let at = draw(&mut state) * corners.len() as f64;
+            let w = splitmix_draw(&mut state);
+            let at = splitmix_draw(&mut state) * corners.len() as f64;
             (w, corners[at as usize])
         });
         let seed = weighted_mean(picks.map(|(_, p)| p), picks.map(|(w, _)| w));

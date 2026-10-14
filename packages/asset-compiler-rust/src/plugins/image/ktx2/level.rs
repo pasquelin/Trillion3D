@@ -8,7 +8,7 @@
 use super::format::{self, Layout};
 use super::header::{self, Surface};
 use super::{DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
-use crate::plugins::image::blocks as shared;
+use crate::plugins::image::blocks;
 use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use std::borrow::Cow;
@@ -27,14 +27,14 @@ pub(super) fn decode(
     let (width, height) = (width as usize, height as usize);
     let rgba = match layout {
         Layout::Blocks { bytes, decode } => {
-            shared::to_rgba8(decode, bytes, &level, width, height, DATA_TRUNCATED)?
+            blocks::to_rgba8(decode, bytes, &level, width, height, DATA_TRUNCATED)?
         }
         Layout::Rgba8 => level
             .get(..width * height * 4)
             .ok_or(DATA_TRUNCATED)?
             .to_vec(),
     };
-    shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
+    blocks::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 
 /// The level's bytes once its supercompression is undone. Without supercompression, they are

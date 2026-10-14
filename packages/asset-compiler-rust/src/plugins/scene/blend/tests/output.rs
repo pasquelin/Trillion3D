@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 /// Compiles these bytes through the driver in a throwaway directory, and yields the glTF and the
 /// manifest it wrote — the manifest carries the counts and the report codes.
 pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
-    let (root, directory) = converted(bytes, tag, BUDGET);
+    let (root, directory) = converted(bytes, tag, RAM_BUDGET);
     let directory = directory.expect("conversion");
     let read = |name: &str| -> Value {
         serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)

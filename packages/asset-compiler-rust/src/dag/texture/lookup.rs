@@ -1,7 +1,7 @@
 //! The live triangles of one texture set, binned by texture island and texture cell, and the
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
 use trillion3d_math::triangle::barycentric_weights;
-use trillion3d_math::vec2::{barycentric, double_area, length as length2};
+use trillion3d_math::vec2::{barycentric, double_area};
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_math::vecn::weighted_sum;
 use trillion3d_page_codec::hash::WordMap;
@@ -165,7 +165,7 @@ impl<'a> Lookup<'a> {
             0.0
         } else {
             let on = weighted_sum([a, b, c], weights);
-            length2([at[0] - on[0], at[1] - on[1]])
+            trillion3d_math::vec2::length([at[0] - on[0], at[1] - on[1]])
         };
         if miss > best.0 {
             return;

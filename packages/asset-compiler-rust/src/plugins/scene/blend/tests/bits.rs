@@ -19,7 +19,7 @@ fn digest(bits: impl IntoIterator<Item = u32>) -> String {
 fn posed() -> Vec<u8> {
     let mut bytes = surgery::with_sharp_edges(false);
     let writes = {
-        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
+        let file = BlendFile::open(&bytes, RAM_BUDGET).expect("the fixture");
         let objects: Vec<u64> = file.of(*b"OB\0\0").map(|block| block.old).collect();
         assert!(objects.len() >= 4, "three cubes and their empty");
         let floats = |values: &[f32]| values.iter().flat_map(|v| v.to_le_bytes()).collect();
@@ -51,7 +51,7 @@ fn posed() -> Vec<u8> {
 
 /// Every node matrix, then every normal the driver wrote, as single-float bits.
 fn written_bits(bytes: &[u8]) -> Vec<u32> {
-    let (root, directory) = output::converted(bytes, "bits-poses", BUDGET);
+    let (root, directory) = output::converted(bytes, "bits-poses", RAM_BUDGET);
     let directory = directory.expect("conversion");
     let gltf: Value =
         serde_json::from_slice(&fs::read(directory.join("model.gltf")).expect("gltf"))

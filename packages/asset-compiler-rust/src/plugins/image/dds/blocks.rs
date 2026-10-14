@@ -8,7 +8,7 @@
 use super::codec::{Layout, Order};
 use super::header::Surface;
 use super::{DATA_TRUNCATED, TOO_LARGE};
-use crate::plugins::image::blocks as shared;
+use crate::plugins::image::blocks;
 use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 
@@ -27,7 +27,7 @@ pub(super) fn decode(
     let level = &bytes[surface.data..];
     let (width, height) = (surface.width as usize, surface.height as usize);
     let rgba = match surface.codec.layout() {
-        Layout::Blocks { bytes, decode } => shared::to_rgba8(
+        Layout::Blocks { bytes, decode } => blocks::to_rgba8(
             decode,
             usize::from(bytes),
             level,
@@ -37,7 +37,7 @@ pub(super) fn decode(
         )?,
         Layout::Pixels(order) => from_pixels(order, level, width * height)?,
     };
-    shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
+    blocks::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 
 /// An uncompressed surface, four bytes per pixel. In `Rgba` the bytes are already the contract's;

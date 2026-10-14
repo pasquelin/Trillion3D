@@ -19,7 +19,7 @@ pub(super) fn wrapped() -> Vec<u8> {
 
 /// The bytes of the CC0 fixture, unpacked from their Zstandard wrapping.
 pub(super) fn fixture() -> Vec<u8> {
-    envelope::unwrap(&wrapped(), BUDGET)
+    envelope::unwrap(&wrapped(), RAM_BUDGET)
         .expect("the fixture wrapping")
         .into_owned()
 }
@@ -132,7 +132,7 @@ fn tree<'a>(file: &'a BlendFile<'a>, material: &str) -> At<'a> {
 pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     let mut bytes = fixture();
     let (mut data, sdna, at, end) = {
-        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
+        let file = BlendFile::open(&bytes, RAM_BUDGET).expect("the fixture");
         let old = named(&file, "OBSharedMesh_0");
         let block = block(&file, old).expect("its block");
         let data = bytes[block.start..block.start + block.len].to_vec();
@@ -158,7 +158,7 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
 pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
     let mut bytes = fixture();
     let (name_at, domain_at, width, values_at, count) = {
-        let file = BlendFile::open(&bytes, BUDGET).expect("the fixture");
+        let file = BlendFile::open(&bytes, RAM_BUDGET).expect("the fixture");
         let mesh = file
             .of(*b"ME\0\0")
             .next()

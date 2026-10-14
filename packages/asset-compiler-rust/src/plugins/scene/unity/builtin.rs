@@ -27,7 +27,7 @@ impl Builtins {
         &mut self,
         file_id: i64,
         material: Option<usize>,
-        scene: &mut Scene,
+        scene: &mut SceneTables,
     ) -> Option<usize> {
         if file_id != CUBE {
             scene.report.add("unity-builtin-mesh-unsupported");
@@ -56,7 +56,7 @@ const FACES: [([f32; 3], [f32; 3], [f32; 3]); 6] = [
     ([0.0, 0.0, -1.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
 ];
 
-fn cube(material: Option<usize>, scene: &mut Scene) -> usize {
+fn cube(material: Option<usize>, scene: &mut SceneTables) -> usize {
     let (mut positions, mut normals, mut uvs, mut indices) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     for (normal, u, v) in FACES {
@@ -109,7 +109,12 @@ fn cube(material: Option<usize>, scene: &mut Scene) -> usize {
     scene.meshes.len() - 1
 }
 
-fn accessor(scene: &mut Scene, bytes: &[u8], mut fields: Value, target: Option<u32>) -> usize {
+fn accessor(
+    scene: &mut SceneTables,
+    bytes: &[u8],
+    mut fields: Value,
+    target: Option<u32>,
+) -> usize {
     let view = scene.bin.view(bytes, target);
     fields["bufferView"] = json!(view);
     scene.accessors.push(fields);

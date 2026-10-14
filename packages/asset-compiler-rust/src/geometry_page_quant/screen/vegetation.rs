@@ -3,7 +3,7 @@ use super::meshes::{gaussian, normalize, uniform, Mesh, V};
 use crate::tests::random::Xorshift;
 use std::f64::consts::TAU;
 use trillion3d_math::scalar::lerp;
-use trillion3d_math::vec3::{add, cross, length, scale as scaled, sub};
+use trillion3d_math::vec3::{add, cross, length, scale, sub};
 
 /// A tree: a tapered trunk, 40 branches (smooth cylinders) and 15,000 leaf cards, each a quad
 /// of two triangles on its own, at random orientations.
@@ -18,19 +18,19 @@ pub(super) fn vegetation() -> Mesh {
         let d = [a.cos() * el.cos(), el.sin(), a.sin() * el.cos()];
         let l = uniform(&mut rng, 1.5, 3.5);
         let p0 = [0.0, y, 0.0];
-        cylinder(&mut mesh, p0, add(p0, scaled(d, l)), (0.08, 0.02), (10, 8));
+        cylinder(&mut mesh, p0, add(p0, scale(d, l)), (0.08, 0.02), (10, 8));
         tips.push((p0, d, l));
     }
     for _ in 0..15_000 {
         let (p0, d, l) = tips[rng.below(tips.len())];
         let jitter = [0; 3].map(|_| gaussian(&mut rng) * 0.35);
-        let c = add(add(p0, scaled(d, l * uniform(&mut rng, 0.3, 1.0))), jitter);
+        let c = add(add(p0, scale(d, l * uniform(&mut rng, 0.3, 1.0))), jitter);
         let u = normalize([0; 3].map(|_| gaussian(&mut rng)));
         let v = normalize(cross(u, [0; 3].map(|_| gaussian(&mut rng))));
         let s = uniform(&mut rng, 0.12, 0.22);
-        let (u, v) = (scaled(u, s), scaled(v, s));
-        let o = add(c, scaled(add(u, v), -0.5));
-        let v = scaled(v, 1.4);
+        let (u, v) = (scale(u, s), scale(v, s));
+        let o = add(c, scale(add(u, v), -0.5));
+        let v = scale(v, 1.4);
         mesh.quad(o, u, v, normalize(cross(u, v)), 1.0 / s);
     }
     mesh
@@ -40,18 +40,18 @@ pub(super) fn vegetation() -> Mesh {
 fn cylinder(mesh: &mut Mesh, p0: V, p1: V, (r0, r1): (f64, f64), (segments, rings): (u32, u32)) {
     let axis = sub(p1, p0);
     let l = length(axis);
-    let axis = scaled(axis, 1.0 / l);
+    let axis = scale(axis, 1.0 / l);
     let t = normalize(cross(axis, [0.3, 1.0, 0.2]));
     let bt = cross(axis, t);
     let base = (mesh.positions.len() / 3) as u32;
     for i in 0..=rings {
         let s = f64::from(i) / f64::from(rings);
-        let (centre, r) = (add(p0, scaled(axis, l * s)), lerp(r0, r1, s));
+        let (centre, r) = (add(p0, scale(axis, l * s)), lerp(r0, r1, s));
         for j in 0..=segments {
             let a = TAU * f64::from(j) / f64::from(segments);
-            let n = add(scaled(t, a.cos()), scaled(bt, a.sin()));
+            let n = add(scale(t, a.cos()), scale(bt, a.sin()));
             mesh.vertex(
-                add(centre, scaled(n, r)),
+                add(centre, scale(n, r)),
                 n,
                 [f64::from(j) / f64::from(segments), s * l],
             );

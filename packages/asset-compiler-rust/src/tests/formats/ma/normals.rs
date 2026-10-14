@@ -3,7 +3,7 @@
 //! continuity breaks —, `.n`, when present, decides instead.
 use super::driver::{close, compile_ma, normals};
 
-use crate::tests::fixtures::{ROOF_LEFT as LEFT, ROOF_RIGHT as RIGHT};
+use crate::tests::fixtures::{ROOF_LEFT, ROOF_RIGHT};
 
 /// Roof of two quads sharing ridge edge `.ed[1]`, hard or soft. Both
 /// slopes same area: average at ridge exactly vertical.
@@ -39,8 +39,8 @@ fn a_soft_edge_carries_the_shading_from_one_face_to_the_next() {
             "the ridge averages both slopes: {written:?}"
         );
     }
-    assert!(close(written[0], LEFT), "{written:?}");
-    assert!(close(written[4], RIGHT), "{written:?}");
+    assert!(close(written[0], ROOF_LEFT), "{written:?}");
+    assert!(close(written[4], ROOF_RIGHT), "{written:?}");
     assert_eq!(manifest["unsupported"]["ma-normals-computed"], 1);
 }
 
@@ -55,7 +55,7 @@ fn a_hard_edge_splits_the_shading_of_the_two_faces_it_separates() {
     let written = normals(&run, &gltf, part);
     assert_eq!(written.len(), 8, "the ridge is split: two extra vertices");
     for rank in 0..4 {
-        assert!(close(written[rank], LEFT), "{written:?}");
-        assert!(close(written[rank + 4], RIGHT), "{written:?}");
+        assert!(close(written[rank], ROOF_LEFT), "{written:?}");
+        assert!(close(written[rank + 4], ROOF_RIGHT), "{written:?}");
     }
 }

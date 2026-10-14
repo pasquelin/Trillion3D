@@ -3,7 +3,7 @@
 //! their triangles (none for a rope), their masses from the scaled area — a rope's length — each
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
-use super::SOFT_VERTEX_WORDS as W;
+use super::SOFT_VERTEX_WORDS;
 use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
 use trillion3d_math::triangle::triangle_area;
@@ -93,7 +93,7 @@ pub(super) fn soft_record(
     let measure = spread_mass(&mut vertices, &indices, scale)?;
     let density = if rope { LINEAR_DENSITY } else { AREAL_DENSITY };
     let factor = d.mass.map_or(density, |mass| mass / measure);
-    for mass in vertices.iter_mut().skip(3).step_by(W) {
+    for mass in vertices.iter_mut().skip(3).step_by(SOFT_VERTEX_WORDS) {
         *mass = (*mass as f64 * factor) as f32;
     }
     let mut pressure = 0.0;
@@ -114,7 +114,7 @@ pub(super) fn soft_record(
                 "A soft body's pin {pin} names no vertex of its {count}."
             ));
         }
-        vertices[map[pin as usize] as usize * W + 3] = 0.0;
+        vertices[map[pin as usize] as usize * SOFT_VERTEX_WORDS + 3] = 0.0;
     }
     Ok(SoftRecord {
         vertices,
@@ -126,18 +126,20 @@ pub(super) fn soft_record(
 /// Adds to each vertex's mass word the scaled area (no triangle: length) it holds (`spreadMass`);
 /// returns the whole.
 fn spread_mass(vertices: &mut [f32], indices: &[u32], s: [f64; 3]) -> Result<f64, String> {
-    let at =
-        |v: &[f32], i: usize| -> [f64; 3] { std::array::from_fn(|k| v[i * W + k] as f64 * s[k]) };
+    let at = |v: &[f32], i: usize| -> [f64; 3] {
+        std::array::from_fn(|k| v[i * SOFT_VERTEX_WORDS + k] as f64 * s[k])
+    };
     let d = |v: &[f32], a: usize, b: usize| sub(at(v, b), at(v, a));
     let share = |v: &mut [f32], corners: &[usize], amount: f64| {
         for &i in corners {
-            v[i * W + 3] = (v[i * W + 3] as f64 + amount / corners.len() as f64) as f32;
+            v[i * SOFT_VERTEX_WORDS + 3] =
+                (v[i * SOFT_VERTEX_WORDS + 3] as f64 + amount / corners.len() as f64) as f32;
         }
         amount
     };
     let mut whole = 0.0;
     if indices.is_empty() {
-        for i in 1..vertices.len() / W {
+        for i in 1..vertices.len() / SOFT_VERTEX_WORDS {
             let amount = length(d(vertices, i - 1, i));
             whole += share(vertices, &[i - 1, i], amount);
         }

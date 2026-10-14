@@ -5,12 +5,12 @@ use crate::compiler_types::Binary;
 use std::fs;
 
 use crate::tests::directories::scratch;
-use crate::tests::fixtures::encode_glb as glb;
+use crate::tests::fixtures::encode_glb;
 
 #[test]
 fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
     let g = json!({"buffers":[{"byteLength":4}],"bufferViews":[],"meshes":[],"nodes":[]});
-    let source = glb(&g, &[1, 2, 3, 4]);
+    let source = encode_glb(&g, &[1, 2, 3, 4]);
     let dir = scratch("glb", "map");
     fs::write(dir.join("one.glb"), &source).expect("source");
     let cancelled = std::sync::atomic::AtomicBool::new(false);
@@ -37,7 +37,7 @@ fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
 #[test]
 fn borrowed_glb_parts_preserve_owned_parser_and_length_refusal() {
     let g = json!({"buffers":[{"byteLength":4}]});
-    let bytes = glb(&g, &[5, 6, 7, 8]);
+    let bytes = encode_glb(&g, &[5, 6, 7, 8]);
     let (borrowed, range) = parse_glb_parts(&bytes).expect("borrowed parse");
     let (owned, bin) = parse_glb(&bytes).expect("owned parse");
     assert_eq!(borrowed, owned);
@@ -59,7 +59,7 @@ fn multiple_buffers_still_pack_and_validate_embedded_length() {
     let g = json!({"buffers":[{"byteLength":4},{"uri":"next.bin","byteLength":4}]});
     let dir = scratch("glb", "pack");
     fs::write(dir.join("next.bin"), [5, 6, 7, 8]).expect("sidecar");
-    let source = glb(&g, &[1, 2, 3, 4]);
+    let source = encode_glb(&g, &[1, 2, 3, 4]);
     fs::write(dir.join("many.glb"), &source).expect("source");
     let map = map_source(&dir.join("many.glb")).expect("map");
     let (_, range) = parse_glb_parts(&map).expect("parse");

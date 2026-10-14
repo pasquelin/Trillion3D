@@ -48,7 +48,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     (request.progress)(
         json!({"phase":"import-source","step":"scan","plugin":NAME,"metaFiles":project.meta_files}),
     );
-    let mut scene = Scene::new(plugin);
+    let mut scene = SceneTables::new(plugin);
     {
         let mut world = World {
             scene: &mut scene,

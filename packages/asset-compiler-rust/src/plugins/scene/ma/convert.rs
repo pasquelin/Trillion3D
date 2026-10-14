@@ -16,7 +16,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let digest = crate::hash(&source);
     let mut document = document::read(&text(file, source)?)?;
     let graph = shading::resolve(&mut document);
-    let mut scene = Scene::new(plugin);
+    let mut scene = SceneTables::new(plugin);
     scene.read_file(
         &file.file_name().unwrap_or_default().to_string_lossy(),
         bytes,

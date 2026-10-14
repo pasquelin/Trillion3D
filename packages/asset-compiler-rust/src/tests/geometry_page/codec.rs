@@ -3,7 +3,6 @@
 //! vertices that quantize alike kept once.
 
 use trillion3d_math::random::xorshift32;
-use trillion3d_page_codec as codec;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 use trillion3d_page_codec::bits::pow2;
 use trillion3d_page_codec::encode::{encode, Attribute};
@@ -56,7 +55,7 @@ fn distance(a: &[f32], b: &[f32]) -> f64 {
 
 /// Every decoded vertex against the source vertex its triangle names, within the declared error.
 pub(crate) fn verify(
-    page: &codec::DecodedPage,
+    page: &trillion3d_page_codec::DecodedPage,
     indices: &[u32],
     positions: &[f32],
     attrs: &[Attribute],
@@ -70,7 +69,7 @@ pub(crate) fn verify(
         assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= f64::from(error));
         for attribute in attrs {
             // Ranks follow the page's fixed attribute order, present or not.
-            let rank = 1 + codec::OPTIONAL
+            let rank = 1 + trillion3d_page_codec::OPTIONAL
                 .iter()
                 .position(|(bit, _)| *bit == attribute.flag)
                 .expect("a page attribute");
@@ -121,7 +120,7 @@ fn round_trip(vertices: usize, seed: u32) {
     let attrs = attributes(vertices, &mut state);
     let carried: Vec<&Attribute> = attrs.iter().collect();
     let encoded = encode(&indices, &positions, &carried, -9, UV_EXPONENT).expect("encode");
-    let page = codec::decode(&encoded.bytes, 64 << 20).expect("decode");
+    let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20).expect("decode");
     let header = &encoded.header;
     assert_eq!(page.flags, header.flags);
     assert_eq!(page.vertex_count, header.vertex_count);
@@ -164,11 +163,11 @@ fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {
         .collect();
     let encoded = encode(&indices, &positions, &[], -4, UV_EXPONENT).expect("encode");
     let fixed_bits = indices.len() * 7;
-    let corner_bits = codec::Layout::of(&encoded.header).position[0] * 32;
+    let corner_bits = trillion3d_page_codec::Layout::of(&encoded.header).position[0] * 32;
     assert!(
         corner_bits * 10 < fixed_bits * 8,
         "{corner_bits} of {fixed_bits} bits"
     );
-    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
+    let page = trillion3d_page_codec::decode(&encoded.bytes, 1 << 20).expect("decode");
     verify(&page, &indices, &positions, &[], 0.0);
 }

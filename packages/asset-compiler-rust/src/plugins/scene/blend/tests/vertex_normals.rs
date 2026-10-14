@@ -34,7 +34,7 @@ fn close(left: [f32; 3], right: [f32; 3]) -> bool {
 }
 
 /// The slope of a roof side, of length one: it is the flat normal of each face of the roof.
-use crate::tests::fixtures::{ROOF_LEFT as LEFT, ROOF_RIGHT as RIGHT};
+use crate::tests::fixtures::{ROOF_LEFT, ROOF_RIGHT};
 
 // Behaviour: a sharp face keeps its own normal on each of its corners; two smooth faces that
 // share a soft edge average theirs on the corners of that edge.
@@ -43,8 +43,8 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     let flat = computed_normals(&roof(vec![true, true], Vec::new())).normals;
     assert_eq!(flat.len(), 24);
     for rank in 0..4 {
-        assert!(close(corner(&flat, rank), LEFT), "{flat:?}");
-        assert!(close(corner(&flat, rank + 4), RIGHT), "{flat:?}");
+        assert!(close(corner(&flat, rank), ROOF_LEFT), "{flat:?}");
+        assert!(close(corner(&flat, rank + 4), ROOF_RIGHT), "{flat:?}");
     }
     let smooth = computed_normals(&roof(vec![false, false], Vec::new())).normals;
     // The four ridge corners — `v2` and `v3` in each of the two faces — average the two slopes:
@@ -54,10 +54,10 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     }
     // The eaves only touch one slope: they keep its grade.
     for rank in [0, 3] {
-        assert!(close(corner(&smooth, rank), LEFT), "{smooth:?}");
+        assert!(close(corner(&smooth, rank), ROOF_LEFT), "{smooth:?}");
     }
     for rank in [5, 6] {
-        assert!(close(corner(&smooth, rank), RIGHT), "{smooth:?}");
+        assert!(close(corner(&smooth, rank), ROOF_RIGHT), "{smooth:?}");
     }
 }
 
@@ -73,12 +73,12 @@ fn a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() {
     let shaded = computed_normals(&roof(vec![false, false], hard));
     for rank in 0..4 {
         assert!(
-            close(corner(&shaded.normals, rank), LEFT),
+            close(corner(&shaded.normals, rank), ROOF_LEFT),
             "the left slope keeps its grade: {:?}",
             shaded.normals
         );
         assert!(
-            close(corner(&shaded.normals, rank + 4), RIGHT),
+            close(corner(&shaded.normals, rank + 4), ROOF_RIGHT),
             "the right slope keeps its own: {:?}",
             shaded.normals
         );
