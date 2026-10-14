@@ -68,6 +68,7 @@ export function session() {
     localWords: new Uint32Array(0),
     rows: { whole: false, ranks: new Int32Array(0), count: 0 },
     roots: { whole: false, ranks: new Int32Array(0), count: 0 },
+    pass: undefined,
   }
   const encoder = device.createCommandEncoder(),
     pass = new LazyComputePass('Trillion3D compose roots')
