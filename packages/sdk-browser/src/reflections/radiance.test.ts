@@ -4,36 +4,19 @@
 // the image's energy — and folds the drawn image, its coverage held within one, into its hash.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakePyramid, image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
-import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
-
-/** The frame's HDR target, its three levels the pyramid's (`hdrTargetDescriptor`). */
-const HDR = { mipLevelCount: 3, createView: () => ({}) }
+import {
+  fakePyramid,
+  image,
+  radianceKernels,
+  recordedBuild,
+  type Image,
+} from './radianceKernels.fixture.ts'
 
 /** The workgroups the shipped build dispatches for the first two levels of an image of `size`: the
  *  dispatch of `encodeRadiancePyramid` over a pyramid of three levels, recorded. */
 function firstDispatch(size: [number, number]) {
-  const dispatched: number[][] = []
-  const pass = {
-    setPipeline() {},
-    setBindGroup() {},
-    dispatchWorkgroups: (...groups: number[]) => dispatched.push(groups),
-  }
-  const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
-  const pipelines = {} as Parameters<typeof encodeRadiancePyramid>[3]
-  const pyramid = fakePyramid(3, size[0], size[1])
-  const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
-  encodeRadiancePyramid(
-    pass as unknown as GPUComputePassEncoder,
-    device,
-    pyramid,
-    pipelines,
-    inputs,
-    size,
-    new Float64Array(16),
-  )
   // The roll is one workgroup; the first dispatch follows it.
-  return dispatched[1]
+  return recordedBuild(fakePyramid(3, size[0], size[1]))(size).dispatches[1]
 }
 
 const sum = (img: Image) => img.texels.reduce((s, t) => s.map((v, c) => v + t[c]), [0, 0, 0, 0])
@@ -141,28 +124,18 @@ test('a still image after a moving one hashes the image before it into the very 
 /** The first dispatch's pipeline the build picks for each image of `images` (a drawn size and a
  *  view-projection's first element), in turn. */
 function firstPipelines(images: [number, number, number][]) {
-  const picked: unknown[] = []
-  const pipelines = {
+  const build = recordedBuild(fakePyramid(3, 64, 64), undefined, {
     rollPipeline: 'roll',
     firstPipeline: 'moving',
     firstHashedPipeline: 'hashed',
     firstBothPipeline: 'both',
     downPipeline: 'down',
-  } as unknown as Parameters<typeof encodeRadiancePyramid>[3]
-  const pass = {
-    setPipeline: (pipeline: unknown) => void picked.push(pipeline),
-    setBindGroup() {},
-    dispatchWorkgroups() {},
-  } as unknown as GPUComputePassEncoder
-  const pyramid = fakePyramid(3, 64, 64)
-  const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
-  const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
+  })
   return images.map(([width, height, m]) => {
-    picked.length = 0
     const viewProjection = new Float64Array(16)
     viewProjection[0] = m
-    encodeRadiancePyramid(pass, device, pyramid, pipelines, inputs, [width, height], viewProjection)
-    return picked.find((p) => p !== 'roll' && p !== 'down')
+    const { pipelines } = build([width, height], viewProjection)
+    return pipelines.find((p) => p !== 'roll' && p !== 'down')
   })
 }
 

@@ -3,8 +3,7 @@
 // and the reflection group binds the pyramid as one texture, no level texture beside it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
-import { fakePyramid } from './radianceKernels.fixture.ts'
+import { fakePyramid, recordedBuild } from './radianceKernels.fixture.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
@@ -18,19 +17,7 @@ test("the build reads and writes the levels of the frame's HDR target, mip by mi
       return view
     },
   }
-  const groups: GPUBindGroupEntry[][] = []
-  const device = {
-    createBindGroup: ({ entries }: GPUBindGroupDescriptor) => void groups.push([...entries]),
-  } as unknown as GPUDevice
-  const pyramid = fakePyramid(5, 64, 64, 'previous')
-  const pass = {
-    setPipeline() {},
-    setBindGroup() {},
-    dispatchWorkgroups() {},
-  } as unknown as GPUComputePassEncoder
-  const inputs = { texture: hdr, view: {}, hash: {} } as unknown as RadianceInputs
-  const pipelines = {} as Parameters<typeof encodeRadiancePyramid>[3]
-  encodeRadiancePyramid(pass, device, pyramid, pipelines, inputs, [64, 64], new Float64Array(16))
+  const { groups } = recordedBuild(fakePyramid(5, 64, 64, 'previous'), hdr)([64, 64])
   const levelsOf = (entries: GPUBindGroupEntry[]) =>
     entries.slice(0, 3).map(({ resource }) => (resource as unknown as { level: number }).level)
   // The first dispatch: level 0, the lit image, read; levels 1 and 2 written. Then 2 → 3, 4.

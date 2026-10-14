@@ -6,7 +6,7 @@ import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { heldImage } from './radiance.ts'
-import type { encodeRadiancePyramid } from './radianceBuild.ts'
+import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 
 /** A radiance pyramid of `levels` over `width × height` as `encodeRadiancePyramid` reads it: its
  *  level 0 the view `view`, no image held, no group built. */
@@ -19,6 +19,53 @@ export const fakePyramid = (levels: number, width: number, height: number, view:
     held: heldImage(),
     build: { identity: createWebgpuBindIdentity(2), slots: [] },
   }) as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+
+/** What a recorded build saw: the pipelines it set, the workgroups it dispatched and the entries
+ *  of the groups it made, in order. */
+export type BuildRecord = {
+  pipelines: unknown[]
+  dispatches: number[][]
+  groups: GPUBindGroupEntry[][]
+}
+
+/**
+ * The shipped build (`encodeRadiancePyramid`) of `pyramid` over stand-ins, recorded: a pass and a
+ * device that only remember what they are given, the frame's HDR target `hdr` (by default one of
+ * the pyramid's levels whose views are blank), the pipelines `pipelines` (none by default). Each
+ * `build` of an image of `size` seen through `viewProjection` returns its own record.
+ */
+export function recordedBuild(
+  pyramid: Parameters<typeof encodeRadiancePyramid>[2],
+  hdr: unknown = { mipLevelCount: pyramid.levels, createView: () => ({}) },
+  pipelines: unknown = {},
+) {
+  let record: BuildRecord
+  const pass = {
+    setPipeline: (pipeline: unknown) => void record.pipelines.push(pipeline),
+    setBindGroup() {},
+    dispatchWorkgroups: (...groups: number[]) => void record.dispatches.push(groups),
+  } as unknown as GPUComputePassEncoder
+  const device = {
+    createBindGroup: ({ entries }: GPUBindGroupDescriptor) => (
+      record.groups.push([...entries]),
+      {}
+    ),
+  } as unknown as GPUDevice
+  const inputs = { texture: hdr, view: {}, hash: {} } as unknown as RadianceInputs
+  return (size: [number, number], viewProjection = new Float64Array(16)) => {
+    record = { pipelines: [], dispatches: [], groups: [] }
+    encodeRadiancePyramid(
+      pass,
+      device,
+      pyramid,
+      pipelines as Parameters<typeof encodeRadiancePyramid>[3],
+      inputs,
+      size,
+      viewProjection,
+    )
+    return record
+  }
+}
 
 export type Image = { width: number; height: number; texels: number[][] }
 export const image = (
