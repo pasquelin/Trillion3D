@@ -1,8 +1,8 @@
 import { textureLevelUrl, type TextureLevelFormat } from '../../../sdk-core/src/texture/levelUrl.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
-import { checked, ONE_REQUEST } from '../cluster/checked.ts'
+import { ONE_REQUEST } from '../cluster/checked.ts'
 import type { PageCache } from '../streaming/pageCache.ts'
-import { decodeRaw } from './decode.ts'
+import { fetchDecoded } from './decode.ts'
 import { rgbaBytes } from './imageExtent.ts'
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
@@ -80,8 +80,7 @@ export function createTextureLevelReader(
       })
       return new Uint8Array(bytes)
     }
-    const response = await checked(url, signal, ONE_REQUEST)
-    return decodeRaw(await response.blob())
+    return fetchDecoded(url, signal, undefined, ONE_REQUEST)
   }
   return Object.assign(read, { store: cache, key })
 }
