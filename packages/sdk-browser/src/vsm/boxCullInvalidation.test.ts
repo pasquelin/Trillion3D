@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts'
-import { UNBOUNDED_EXTENT, VSM_BOX_MOVING, VSM_BOX_CASTS } from './invalidationWgsl.ts'
+import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { bitsDigest, inputs } from './sameBits.fixture.ts'
 import { vsmLayout } from './layout.ts'
@@ -53,7 +53,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     ],
     logged(INVALIDATION),
   )
-  const { LIGHT_KIND_DIRECTIONAL } = wgslConstants(INVALIDATION)
+  const { LIGHT_KIND_DIRECTIONAL, VSM_BOX_CASTS, VSM_BOX_MOVING } = wgslConstants(INVALIDATION)
   let writing = 0
   const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {

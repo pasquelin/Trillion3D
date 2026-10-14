@@ -33,8 +33,8 @@ export const UNBOUNDED_EXTENT = 1e15
 
 /** Instance flags, the two the host knows of a box: it casts shadows (a valid instance), and it is
  *  cached as dynamic (the engine's box moving), else as static. */
-export const VSM_BOX_CASTS = 1 << 0
-export const VSM_BOX_MOVING = 1 << 1
+const VSM_BOX_CASTS = 1 << 0
+const VSM_BOX_MOVING = 1 << 1
 
 /** Group 0: the previous frame's VSM state */
 export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [

@@ -100,7 +100,7 @@ export function regrowEngineVsm(
  * cache and the passes' state kept, the groups that bound the old tables made again. Made whole
  * or not at all (`constructGpuResources`); false when `options` asks no more than held.
  */
-export function growEngineVsmTables(
+function growEngineVsmTables(
   device: GPUDevice,
   vsm: EngineVsm,
   options: VsmResourceOptions,

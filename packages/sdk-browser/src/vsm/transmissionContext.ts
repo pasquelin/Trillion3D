@@ -52,7 +52,7 @@ export interface VsmTransmissionContext extends VsmChunkKernels {
 }
 
 /** The groups of the clear, the number, the place and the resolve of one transmission. */
-export interface TransmissionGroups {
+interface TransmissionGroups {
   trans: VsmTransmission
   /** The clear's group of the VSM tables, by the frame's tables it binds. */
   clear0: VsmPerFrameSet<GPUBindGroup>
