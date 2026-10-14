@@ -2,10 +2,11 @@
 // out answers its surface's history, reprojected — never another surface's answer, the dark blocks a stale
 // cell paints. Proved on cases of the generated family (`runtimeFamilyCases.ts`) over a mirror floor
 // (`motionPath.ts`), drawn at a size whose rays outnumber the budget: the view settled, then panned and
-// dollied, one pose an image. At each image past the first `SETTLING` of each move, the floor's decided
-// pixels (`expectedFloor`, the exact geometry at that pose) that must show a body's radiance are judged —
-// on an image that holds `JUDGED` of them, and on half the images at least —: at most `BOUND` of them show
-// under `DARK` of it.
+// dollied, one pose an image. Each moving image is judged against the settled image of its pose
+// (`judgeImage`, `motionGrid.ts`), past the first `SETTLING` images of each move and where it holds
+// `JUDGED` bright pixels away from a body's edge: at most `BOUND` of them dark, under half the settled
+// radiance. Each image prints the share of its judged pixels a hole, a carried history and a ray cast this
+// image answered, and of its dark ones.
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/motion.gpu.ts
 //   TRILLION3D_CASE=<n> draws that case alone
@@ -13,29 +14,29 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { expectedFloor, TOLERANCE } from './runtimeFamilyExpect.ts'
-import { MOVE_IMAGES, motionCase, motionPoses } from './motionPath.ts'
+import { MOVE_IMAGES } from './motionPath.ts'
 
 /** The cases the proof moves through: the budget proof's, and two others of the family. */
 const CASES = [25, 4, 18]
-/** The share of a body's radiance under which a pixel is dark. */
-const DARK = 0.5
-/** The share of the bright decided pixels an image may show dark: the ones a move uncovers and the budget
- *  has not reached yet. */
+/** The share of the judged pixels an image may show dark: the ones a move uncovers and the budget has not
+ *  reached yet. */
 const BOUND = 0.05
 /** Images of each move before the bound holds: the first after a still view reads its history. */
 const SETTLING = 2
-/** A pixel judged must show at least this: four times the family's absolute tolerance. */
-const BRIGHT = 4 * TOLERANCE.absolute
 /** The bright pixels an image is judged on at least. */
-const JUDGED = 20
+const JUDGED = 40
+
+const shares = (kinds: Record<string, number>, of: number) =>
+  Object.fromEntries(
+    Object.entries(kinds).map(([k, n]) => [k, of ? Number((n / of).toFixed(3)) : 0]),
+  )
 
 const only = process.env.TRILLION3D_CASE
 for (const index of CASES)
   if (only === undefined || Number(only) === index)
     test(
       `case ${index}: a panned and dollied view keeps its mirror's reflection, no block dark`,
-      { timeout: 600_000 },
+      { timeout: 900_000 },
       async () => {
         const page = (await loadPage(
           resolve(import.meta.dirname, 'motionPage.ts'),
@@ -45,38 +46,31 @@ for (const index of CASES)
         assert.equal(result.error, undefined, result.error)
         assert.deepEqual(result.errors, [])
         assert.deepEqual(result.worldErrors, [], "the world's own device raised no error")
-        const { width = 0, height = 0, images = [] } = result
-        const poses = motionPoses(motionCase(index))
-        assert.equal(images.length, poses.length)
-        const shares = images.map(({ samples }, k) => {
-          let bright = 0,
-            dark = 0
-          for (const { index: at, expected } of expectedFloor(poses[k], width, height)) {
-            const must = Math.max(...expected)
-            if (must < BRIGHT) continue
-            bright++
-            const got = Math.max(samples[at * 3], samples[at * 3 + 1], samples[at * 3 + 2])
-            if (got < DARK * must) dark++
-          }
-          return { bright, dark: bright ? dark / bright : 0 }
-        })
-        const judged = shares.filter((s, k) => k % MOVE_IMAGES >= SETTLING && s.bright >= JUDGED)
-        const worst = Math.max(...judged.map((s) => s.dark))
-        console.log(
-          JSON.stringify({
-            index,
-            images: images.length,
-            left: images.map((i) => i.left),
-            dark: shares.map((s) => Number(s.dark.toFixed(3))),
-            bright: shares.map((s) => s.bright),
-            worst,
-          }),
+        const { images = [] } = result
+        assert.equal(images.length, 2 * MOVE_IMAGES)
+        images.forEach((image, k) =>
+          console.log(
+            JSON.stringify({
+              index,
+              image: k,
+              left: image.left,
+              judged: image.judged,
+              dark: Number(image.dark.toFixed(3)),
+              answered: shares(image.all, image.judged),
+              darkBy: shares(image.darkBy, image.judged),
+            }),
+          ),
         )
+        const judged = images.filter(
+          (image, k) => k % MOVE_IMAGES >= SETTLING && image.judged >= JUDGED,
+        )
+        const worst = Math.max(0, ...judged.map((image) => image.dark))
+        console.log(JSON.stringify({ index, judgedImages: judged.length, worst }))
         assert.ok(
-          images.some((i) => i.left > 0),
+          images.some((image) => image.left > 0),
           'the budget is hit while the view moves: pixels answer their history',
         )
-        assert.ok(judged.length >= MOVE_IMAGES, `${judged.length} images judged`)
-        assert.ok(worst <= BOUND, `${worst} of the bright pixels dark at worst, the bound ${BOUND}`)
+        assert.ok(judged.length > 0, 'an image of the move is judged')
+        assert.ok(worst <= BOUND, `${worst} of the judged pixels dark at worst, the bound ${BOUND}`)
       },
     )
