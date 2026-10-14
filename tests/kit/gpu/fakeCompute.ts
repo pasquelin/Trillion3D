@@ -58,9 +58,10 @@ export function simulateComputeDispatch(
   packed?: PackedDag,
   offsets?: readonly number[],
   groups?: number,
+  rows?: number,
 ) {
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
-  if (transparent && computeBind) return transparent(computeBind, offsets, groups)
+  if (transparent && computeBind) return transparent(computeBind, offsets, groups, rows)
   const rows = ROW_STAGES[computePipeline?.entryPoint ?? '']
   if (rows && computeBind?.entries) return rows(computeBind)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind)

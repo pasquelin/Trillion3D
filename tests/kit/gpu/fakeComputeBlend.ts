@@ -21,17 +21,26 @@ import { runVerdict } from '../../../packages/sdk-browser/src/webgpu/blend/verdi
 import { VERDICT_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/verdictWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { boundWords, vectors } from './fakeBuffers.ts'
+import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 
-/** The compaction's three entry points, by the uniform field that counts their threads. */
-const COMPACT_THREADS: Record<string, 'groupCount' | 'itemCount' | 'entryCount'> = {
-  countTransparentGroups: 'groupCount',
-  prefixTransparentItems: 'itemCount',
-  scatterTransparentGroups: 'entryCount',
-}
+/** The compaction's three entry points. */
+const COMPACT_ENTRIES = [
+  'countTransparentGroups',
+  'prefixTransparentItems',
+  'scatterTransparentGroups',
+]
 
 /** Runs a dispatch of the transparent compaction (`TRANSPARENT_COMPACT_SHADER`): its shipped WGSL
- *  over the words the dispatch binds, one thread for each the uniform counts. */
-function simulateTransparentCompaction(bind: ComputeBind, entry: string) {
+ *  over the words the dispatch binds, every thread of the `groups` × `rows` workgroups the host
+ *  dispatched, the shader's own bound leaving those past its count — a host that sizes a dispatch
+ *  short leaves work undone here too. */
+function simulateTransparentCompaction(
+  bind: ComputeBind,
+  entry: string,
+  groups: number | undefined,
+  rows = 1,
+) {
+  if (groups === undefined) throw new Error('the transparent compaction is dispatched direct')
   const at = (binding: number) => boundWords(bind.entries, binding)
   const words = at(1)
   const uni = {
@@ -56,7 +65,9 @@ function simulateTransparentCompaction(bind: ComputeBind, entry: string) {
       occluded: at(8),
     },
   )
-  for (let i = 0; i < uni[COMPACT_THREADS[entry]]; i++) kernel[entry]([i, 0, 0], [1, 1, 1])
+  const width = groups * WORKGROUP_THREADS
+  for (let i = 0; i < width * rows; i++)
+    kernel[entry]([i % width, Math.floor(i / width), 0], [groups, rows, 1])
 }
 
 /**
@@ -132,11 +143,12 @@ function simulateBlendVerdict(bind: ComputeBind) {
 }
 
 /** The transparent kernels the double runs, by entry point: every dispatch of the compaction, the
- *  verdict and the order — at the workgroups its dispatch asked —; the expansion's last, once
- *  everything it reads is there. */
+ *  verdict and the order — the compaction and the order at the workgroups its dispatch asked —;
+ *  the expansion's last, once everything it reads is there. */
 export const TRANSPARENT_STAGES: Record<
   string,
-  ((bind: ComputeBind, offsets?: readonly number[], groups?: number) => void) | undefined
+  | ((bind: ComputeBind, offsets?: readonly number[], groups?: number, rows?: number) => void)
+  | undefined
 > = {
   judgeBlendItems: simulateBlendVerdict,
   sortBlendBlocks: (bind, offsets, groups) => simulateBlendOrder(bind, offsets, 0, groups),
@@ -144,5 +156,6 @@ export const TRANSPARENT_STAGES: Record<
   placeBlendSlots: (bind, offsets, groups) => simulateBlendOrder(bind, offsets, 2, groups),
   writeBlendRuns: simulateBlendExpansion,
 }
-for (const entry of Object.keys(COMPACT_THREADS))
-  TRANSPARENT_STAGES[entry] = (bind) => simulateTransparentCompaction(bind, entry)
+for (const entry of COMPACT_ENTRIES)
+  TRANSPARENT_STAGES[entry] = (bind, _offsets, groups, rows) =>
+    simulateTransparentCompaction(bind, entry, groups, rows)
