@@ -61,7 +61,7 @@ export function treeLeaves(rt: WebgpuPagesRuntime): TreeLeaves {
     ready: () => !!rt.rootWorlds?.worlds && !rt.rootWorlds.whole,
     encode(encoder, { members, nodes, frames }, { ranks, count, whole }) {
       const device = rt.gpu.device,
-        roots = rt.rootWorlds?.sent ?? 0
+        roots = rt.rootWorlds?.held ?? 0
       if (!device || !roots) return
       const composed = whole ? 0 : (rt.compose?.rankList.set.count ?? 0),
         listed = whole ? roots : count

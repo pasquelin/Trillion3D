@@ -38,7 +38,9 @@ function createRootWorlds() {
     boxes: undefined as GPUBuffer | undefined,
     locals: undefined as GPUBuffer | undefined,
     /** Roots the tables hold; the session's roots sent so far, one past them is new; and the roots
-     *  sent in all, those the running cut took in place included (`cutRoots`). */
+     *  sent in all, those the running cut took in place included (`cutRoots`): the one count every
+     *  pass over the roots runs over — the rows, the root boxes, the tree's leaves, the transparent
+     *  entries —, so a root taken in place has its leaf and stretch on the frame the cut takes it. */
     capacity: 0,
     sent: 0,
     held: 0,

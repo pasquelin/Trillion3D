@@ -130,9 +130,9 @@ export function encodeEntryCorners(
   encoder: GPUCommandEncoder,
   { held, capacity }: { held: EntryCorners; capacity: number },
 ) {
-  const worlds = rt.rootWorlds?.worlds,
+  const roots = rt.rootWorlds,
     listed = held.all ? capacity : held.count
-  if (!listed || !worlds || !held.inputs) return
+  if (!listed || !roots?.worlds || !held.inputs) return
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   held.absent ??= device.createBuffer({ label: 'Trillion3D no entry list', size: 16, usage })
   if (!held.all) {
@@ -145,7 +145,7 @@ export function encodeEntryCorners(
     )
     device.queue.writeBuffer(held.list, 0, held.targets, 0, held.count)
   }
-  writePassParams(device, held.params, rt.layout.selectionRoots.length, listed, held.all ? 1 : 0)
+  writePassParams(device, held.params, roots.held, listed, held.all ? 1 : 0)
   const pipeline = entryKernel(device).get()
   held.group.identity.entries[0] ??= sequentialEntries([
     liveBuffer(() => held.params.buffer),

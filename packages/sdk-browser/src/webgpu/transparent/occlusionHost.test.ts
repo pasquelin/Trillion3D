@@ -66,7 +66,7 @@ function runtime() {
     },
     gpu: { device },
     run: { gpuComputeDispatches: 0, movedWorlds: createChangedRuns() },
-    rootWorlds: { worlds, moved: createChangedRuns() },
+    rootWorlds: { worlds, held: roots.length, moved: createChangedRuns() },
   } as unknown as WebgpuPagesRuntime
   /** What the corners buffer holds, and what the oracle gives at the roots' worlds. */
   const held = () => [...new Uint32Array((corners as unknown as { data: Uint8Array }).data.buffer)]

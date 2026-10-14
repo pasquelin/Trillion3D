@@ -68,8 +68,15 @@ function dispatch(
     (gpu.frame[1] ? PART_CORNERS : 0) |
     (gpu.frame[2] ? PART_LODS : 0) |
     (castsBound(rt) ? PART_CASTS : 0)
-  const roots = rt.layout.selectionRoots.length
-  writePassParams(device, gpu.params[g], roots, parts, listed, all ? 1 : 0, emitAll ? 1 : 0)
+  writePassParams(
+    device,
+    gpu.params[g],
+    rt.rootWorlds!.held,
+    parts,
+    listed,
+    all ? 1 : 0,
+    emitAll ? 1 : 0,
+  )
   const held = gpu.groups[g]
   held.identity.entries[0] ??= rowEntries(rt, gpu, g)
   composeGroup(device, held, pipeline)
