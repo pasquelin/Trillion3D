@@ -1,6 +1,6 @@
 import {
-  COMPUTE,
   computeBufferEntry,
+  computeStorageTextureEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../core/computeBindings.ts'
@@ -14,11 +14,7 @@ import { HIZ_FORMAT } from './pyramidTexture.ts'
  */
 export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] {
   return [
-    {
-      binding: 0,
-      visibility: COMPUTE,
-      storageTexture: { access: 'read-write', format: HIZ_FORMAT, viewDimension: '2d-array' },
-    },
+    computeStorageTextureEntry(0, HIZ_FORMAT, 'read-write', '2d-array'),
     computeTextureEntry(1, 'unfilterable-float', '2d-array'),
     computeUniformEntry(2, { hasDynamicOffset: true, minBindingSize: uniformBytes }),
     computeBufferEntry(3, 'read-only-storage'),
