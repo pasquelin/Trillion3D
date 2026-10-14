@@ -16,6 +16,8 @@ import { writeRowLod } from '../webgpu/shadow/rowLodWords.fixture.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
+import { LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
+import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 import type { PageRec } from '../page/selection/types.ts'
@@ -180,4 +182,8 @@ test('a box with a bound not finite is carried as the CPU carries it: every boun
     assert.ok(cpu.every(Number.isNaN), `the CPU's box, ${local}`)
     assert.deepEqual(roots.rootBoxes.slice(0, 6).map(doubleOf), cpu, `${local}`)
   }
+})
+
+test('the detail words name the rounding they call, whatever the stretch below them calls', () => {
+  assert.ok(LOD_WGSL.deps.includes(toF32), 'toF32 is a dependency of its own, not a borrowed one')
 })
