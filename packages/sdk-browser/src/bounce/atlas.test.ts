@@ -27,12 +27,16 @@ test('every probe vector has a texel of its own, read back bit for bit where it 
   // Every texel unwritten (NaN) until a vector is stored there.
   const probes = simulatedAtlas(probeAtlasExtent(side, levels), () => NaN)
   const bounce = { counts: [side, levels, side ** 3, 1] }
-  const run = shaderRun<Probe>(BOUNCE_PROBE_SHADER, ['probeAddress', 'probeAt', 'probeStore'], {
-    ...ATLAS_CALLS,
-    probes,
-    probesOut: probes,
-    bounce,
-  })
+  const run = shaderRun<Probe>(
+    BOUNCE_PROBE_SHADER,
+    ['probeAddress', 'probeAt', 'probeStore', 'probeTexel'],
+    {
+      ...ATLAS_CALLS,
+      probes,
+      probesOut: probes,
+      bounce,
+    },
+  )
   const vectors: [Vec, number][] = []
   for (let level = 0; level < levels; level++)
     for (let z = 0; z < side; z++)

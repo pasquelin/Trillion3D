@@ -36,7 +36,7 @@ test('after the follow-up, the snapshot is the probes, word for word', () => {
     }))
     const run = shaderRun<{ followSnapshot: (id: number[]) => void }>(
       BOUNCE_SNAPSHOT_SHADER,
-      ['followSnapshot'],
+      ['followSnapshot', 'probeTexel'],
       {
         ...wgslConstants(BOUNCE_SNAPSHOT_SHADER),
         bounce: {
