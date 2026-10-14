@@ -2,7 +2,9 @@
 // and the paint order through their shipped WGSL (`shaderRun`), dispatch by dispatch; expansion of
 // the sorted plan through its oracle (`expandCpu.fixture.ts`), at its last dispatch — its packet
 // count and running sum scan each workgroup in workgroup memory with a barrier inside the scan's
-// loop (`laneScan`), which a run of one thread after the other cannot interleave.
+// loop (`laneScan`), which a run of one thread after the other cannot interleave. The compaction's
+// count and scatter call the scan once, its value known before and only the lane's own prefix read
+// after: the lanes of a workgroup run in order, the scan their running sum.
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../../packages/sdk-browser/src/webgpu/transparent/shader.ts'
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
@@ -33,7 +35,9 @@ const COMPACT_ENTRIES = [
 /** Runs a dispatch of the transparent compaction (`TRANSPARENT_COMPACT_SHADER`): its shipped WGSL
  *  over the words the dispatch binds, every thread of the `groups` × `rows` workgroups the host
  *  dispatched, the shader's own bound leaving those past its count — a host that sizes a dispatch
- *  short leaves work undone here too. */
+ *  short leaves work undone here too. The count and the scatter run a workgroup's lanes in order,
+ *  the engine's lane scan (`../../../packages/sdk-browser/src/gpu/core/laneScanWgsl.ts`) their
+ *  running sum, restarted each workgroup. */
 function simulateTransparentCompaction(
   bind: ComputeBind,
   entry: string,
@@ -50,10 +54,13 @@ function simulateTransparentCompaction(
     selectionOffset: words[3],
     vertexCount: words[4],
   }
-  const kernel = shaderRun<Record<string, (id: number[], n: number[]) => void>>(
+  const laneSums: number[] = []
+  const kernel = shaderRun<Record<string, (id: number[], n: number[], lane?: number) => void>>(
     TRANSPARENT_COMPACT_SHADER,
-    [entry, 'selected', 'maskSelects', 'flatIndex'],
+    [entry, 'keptInGroup', 'selected', 'maskSelects', 'flatIndex'],
     {
+      laneScan: (lane: number, value: number) =>
+        (laneSums[lane] = ((lane > 0 ? laneSums[lane - 1] : 0) + value) >>> 0),
       entries: at(0),
       uni,
       selectionMask: at(2),
@@ -65,9 +72,15 @@ function simulateTransparentCompaction(
       occluded: at(8),
     },
   )
-  const width = groups * WORKGROUP_THREADS
-  for (let i = 0; i < width * rows; i++)
-    kernel[entry]([i % width, Math.floor(i / width), 0], [groups, rows, 1])
+  const n = [groups, rows, 1]
+  if (entry === 'prefixTransparentItems') {
+    const width = groups * WORKGROUP_THREADS
+    for (let i = 0; i < width * rows; i++) kernel[entry]([i % width, Math.floor(i / width), 0], n)
+    return
+  }
+  for (let wg = 0; wg < groups * rows; wg++)
+    for (let lane = 0; lane < WORKGROUP_THREADS; lane++)
+      kernel[entry]([wg % groups, Math.floor(wg / groups), 0], n, lane)
 }
 
 /**
