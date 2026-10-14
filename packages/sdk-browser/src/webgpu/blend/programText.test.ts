@@ -13,9 +13,9 @@ import { blendShader } from './shader.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
-const VERTEX = '855c1d53819473b8c1ef44b9271e1ed420878a2c6bd62af05a1b3ebc9ded0f7e'
-const BLEND = '8ea50fd6a2128460aafa409247d3df3f4eab6e32cabd7d6cb6524631e1a9a4a3'
-const WATER = 'a8577a79a7e0a7f5640219aba0eda127605d512bde22ce88dce495494b4c8a82'
+const VERTEX = '5613dcfc76bec563f186e85be8a71f5c7e655bef9ccf991838040f82d4988328'
+const BLEND = 'a45612d0e66509ce7c5d668647689d0885a720b42de87b944d7c2778ff7a7484'
+const WATER = '9ed4c3a7d9347fcf6b38c43fea82554fe4e072c1df3028aa29b0719eec5da0b7'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
