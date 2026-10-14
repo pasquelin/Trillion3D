@@ -1,30 +1,23 @@
-// An engine whose every `frameSettled` condition is true, for the held-frame tests.
-import { createFrameGateCore } from '../../frame/gateCore.ts'
-import { HOLD_SIGNATURE_VALUES } from './signature.ts'
-import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts'
-import { createScaleControl } from '../../frame/scaleControl.ts'
+// The settled engine (`settledRt`), its last complete frame drawn: what the held-frame metric tests
+// read.
+import { settledRt } from './hold.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { WebgpuTimingState } from '../pages/state/timing.ts'
+import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
 
-/** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
- *  lot: that is what hold must not republish. */
+/** An engine whose every `frameSettled` condition is true (`settledRt`), whose last two frames
+ *  matched and whose last complete frame drew a lot, its steps and passes timed: that is what hold
+ *  must not republish. Its presenter encodes the present. */
 export function heldFrame() {
-  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES)
-  gate.hold.keep(gate.revisions)
-  gate.hold.keep(gate.revisions)
-  const run = {
-    gate,
-    frameHeld: false,
+  const rt = settledRt(),
+    { run, gpu } = rt
+  run.gate.hold.keep(run.gate.revisions)
+  run.gate.hold.keep(run.gate.revisions)
+  Object.assign(run, {
     frame: 5,
-    lost: false,
     desired: [],
     drawn: [],
-    gpuMetricsReady: true,
-    cutHeld: true,
-    overBudget: false,
-    coverageBudgetLimited: false,
-    noOccluderHistory: false,
-    deferredDrops: new Set(),
     imageRevision: 3,
     gpuDrawCalls: 42,
     blendDrawCalls: 7,
@@ -36,69 +29,23 @@ export function heldFrame() {
     frustumRejected: 29987,
     lodLevel: 2,
     blendFrustumRejected: 11,
-  }
-  const timing = {
-    frameEncoder: undefined,
-    lastGpuPassMs: {
-      frame: 4,
-      totalMs: 9,
-      passes: [] as { name: string; gpuMs: number | null }[],
-      truncated: false,
-    },
-    lastGpuFrameMs: 9,
-    lastGpuHostGapMs: 2,
-    lastSubmitMs: 8,
-    profiler: { row: new Float64Array(CPU_STEP_NAMES.length).fill(7) },
-    rowFilled: false,
-    cpuSample: { version: 1 },
-    partitionCounts: {},
-  }
-  // The main view drawn: its share of the GPU group is the runtime's (`viewGpu`).
-  const main = {}
-  const rt = {
-    run,
-    views: { active: main, main },
-    timing,
-    context: {},
-    scale: createScaleControl(undefined),
-    gpu: {
-      presenter: { present: () => {}, holds: () => false },
-      displayTexture: {},
-      targetSize: [4, 4],
-      allocatedSize: [4, 4],
-      displaySize: [4, 4],
-      cache: undefined,
-      vertexBytes: 0,
-      positionBuffers: new Map(),
-    },
-    vis: { gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
-    capture: { capturing: false, capturePending: undefined },
-    setup: { geometryPool: { slots: 0 }, texturePool: {} },
-    services: {
-      bootstrapState: { ready: true },
-      residencySets: { keepCount: 0 },
-      residency: { busy: false },
-      // Count of cut pages still waiting for their bytes, held by the difference.
-      cutPending: { count: 0 },
-    },
-    layout: {
-      rows: {
-        rowsChanged: false,
-        dirtyCount: 0,
-        rowsEpoch: 1,
-        tableEpoch: 1,
-        rowsDenied: 0,
-      },
-    },
-    lights: {
-      changes: { deferred: () => false },
-      memory: { bias: 0, events: [] },
-    },
-    bounce: { probes: undefined },
-    blendState: { visibleBlend: [], blendGpu: [] },
-    // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
-    diag: { traceEnabled: false },
-  } as unknown as WebgpuPagesRuntime
+  })
+  const timing = rt.timing as WebgpuTimingState & { lastGpuPassMs: GpuPassTimings }
+  timing.lastGpuPassMs = { frame: 4, totalMs: 9, passes: [], truncated: false }
+  Object.assign(timing, { lastGpuFrameMs: 9, lastGpuHostGapMs: 2, lastSubmitMs: 8 })
+  timing.profiler.row.fill(7)
+  timing.cpuSample = { version: 1 }
+  Object.assign(gpu, {
+    presenter: { present: () => {}, holds: () => false },
+    displayTexture: {},
+    cache: undefined,
+    vertexBytes: 0,
+    positionBuffers: new Map(),
+  })
+  Object.assign(rt, { setup: { geometryPool: { slots: 0 }, texturePool: {} } })
+  Object.assign(rt.services, { residencySets: { keepCount: 0 } })
+  Object.assign(rt.lights, { memory: { bias: 0, events: [] } })
+  Object.assign(rt.blendState, { visibleBlend: [] })
   const { device } = fakeDevice()
-  return { rt, run, timing, device }
+  return { rt: rt as WebgpuPagesRuntime, run, timing, device }
 }
