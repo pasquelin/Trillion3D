@@ -100,14 +100,22 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
 export const HIZ_HIDDEN_WGSL = wgslBlock(
   'HIZ_HIDDEN_WGSL',
   [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL, HIZ_READ_WGSL],
-  `fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
- let x0=max(rect.x,0);let y0=max(rect.y,0);
- let x1=min(rect.z,i32(uni.width)-1);let y1=min(rect.w,i32(uni.height)-1);
- if(x1<x0||y1<y0){return false;}
- let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
- if(pick.y==0u){return false;}
- let l=pick.x;let c=pick.z;
- return pyramidHides(x0>>l,y0>>l,x1>>l,y1>>l,
+  `struct HizRectPick{rect:vec4i,level:u32,coarse:u32,found:bool,}
+/** Rectangle \`rect\` clipped to the viewport, the mip that covers it and its coarse pre-test's
+ *  (\`hizLevelFor\`); not found when the clipped rectangle is empty or no mip covers it. Every
+ *  reader of a box's pyramid rectangle — the inline test below, the compacted pass's packing —
+ *  calls it, so their rectangles cannot diverge. */
+fn hizRectPick(rect:vec4i)->HizRectPick{
+ let r=vec4i(max(rect.x,0),max(rect.y,0),min(rect.z,i32(uni.width)-1),min(rect.w,i32(uni.height)-1));
+ if(r.z<r.x||r.w<r.y){return HizRectPick(r,0u,0u,false);}
+ let pick=hizLevelFor(r,uni.levels);
+ return HizRectPick(r,pick.x,pick.z,pick.y!=0u);
+}
+fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
+ let p=hizRectPick(rect);
+ if(!p.found){return false;}
+ let l=p.level;let c=p.coarse;
+ return pyramidHides(p.rect.x>>l,p.rect.y>>l,p.rect.z>>l,p.rect.w>>l,
   uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,
   uni.levelOffset[c>>2u][c&3u],uni.levelWidth[c>>2u][c&3u],c-l);
 }
