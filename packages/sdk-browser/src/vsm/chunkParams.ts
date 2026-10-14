@@ -10,7 +10,7 @@ import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { VSM_MIPS } from './constants.ts'
 import { VSM_RENDER_PARAMS, VSM_RENDER_VIEW_DIRECTIONAL } from './renderCullWgsl.ts'
-import type { VsmBoundLight, VsmChunk } from './rowPageBound.ts'
+import type { VsmBoundLight } from './rowPageBound.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view
  *  draws). */
@@ -63,14 +63,17 @@ export function vsmRenderViews(lights: readonly VsmBoundLight[], views: number[]
   return { views, viewMips }
 }
 
-/** What sizes the chunks of a raster over caster rows. */
-interface VsmRenderChunking {
+/** What sizes the chunks of a raster over caster rows: `chunks` chunks of `chunkRows` rows over
+ *  `rowCount` rows and `viewCount` views, each chunk's lists holding `cmds` commands and `pairs`
+ *  pages. Decided by its pass (`renderPass.ts`, `transmissionBinPlan.ts`), handed to
+ *  `vsmWriteChunkParams`. */
+export interface VsmRenderChunking {
   rowCount: number
   viewCount: number
   chunks: number
   chunkRows: number
-  cmdCapacity: number
-  pairCapacity: number
+  cmds: number
+  pairs: number
 }
 
 /** An image of parameter slots, its words seen as floats and as integers. */
@@ -125,54 +128,33 @@ function vsmRenderParams(
     u[o + at.chunkFirst] = c * chunkRows
     u[o + at.chunkRows] = chunkRows
     u[o + at.chunkCount] = chunks
-    u[o + at.cmdCapacity] = chunking.cmdCapacity
-    u[o + at.pairCapacity] = chunking.pairCapacity
-    u[o + at.pad] = 1 // `pad`: unread, kept at its old value (`planUploads.test.ts` pins the bytes).
+    u[o + at.cmdCapacity] = chunking.cmds
+    u[o + at.pairCapacity] = chunking.pairs
   }
 }
 
 // The frame's scratch of the raster and the transmission's draw (one after the other, never
-// nested): their views and parameter slots, and their chunking, rewritten each frame (what reaches
-// a buffer is what `writeChanged` holds for it, per buffer).
+// nested): their views and parameter slots, rewritten each frame (what reaches a buffer is what
+// `writeChanged` holds for it, per buffer).
 let viewWords = new Uint32Array(0)
 const paramsImage: VsmRenderParamsImage = {
   f: new Float32Array(0),
   u: new Uint32Array(0),
 }
-/** What sizes this frame's chunks: `vsmSetChunking` sets it, `vsmWriteChunkParams` sends it. */
-const vsmChunking: VsmRenderChunking = {
-  rowCount: 0,
-  viewCount: 0,
-  chunks: 0,
-  chunkRows: 0,
-  cmdCapacity: 0,
-  pairCapacity: 0,
-}
-
-/** Sets `vsmChunking`: `chunks` chunks of `chunkRows` rows over `rowCount` rows and `viewCount`
- *  views, the lists as big as `chosen` holds. */
-export function vsmSetChunking(
-  counts: Pick<VsmRenderChunking, 'rowCount' | 'viewCount' | 'chunks' | 'chunkRows'>,
-  chosen: VsmChunk,
-) {
-  Object.assign(vsmChunking, counts)
-  vsmChunking.cmdCapacity = chosen.cmds(counts.chunkRows)
-  vsmChunking.pairCapacity = chosen.pairs(counts.chunkRows)
-}
-
-/** The parameter slots of `vsmChunking`, laid in `slots`, and the views `views` up to their
+/** The parameter slots of `chunking`, laid in `slots`, and the views `views` up to their
  *  buffers: each slot's words where they changed alone (`writeChangedSlots`). */
 export function vsmWriteChunkParams(
   device: GPUDevice,
   camera: VsmRenderCamera,
+  chunking: VsmRenderChunking,
   paramsBuffer: GPUBuffer,
   viewsBuffer: GPUBuffer,
   views: readonly number[],
   slots: UniformSlots,
 ) {
-  const { chunks } = vsmChunking
+  const { chunks } = chunking
   vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
-  vsmRenderParams(camera, vsmChunking, paramsImage, slots)
+  vsmRenderParams(camera, chunking, paramsImage, slots)
   writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
   viewWords = resized(viewWords, views.length)
   for (let k = 0; k < views.length; k++) viewWords[k] = views[k]

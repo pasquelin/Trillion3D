@@ -67,65 +67,62 @@ export function encodeVsmChunkCommands(
 }
 
 /**
- * Whether what a chunk pass's groups bind moved since they were made — the scene's rows and the
- * lists (the first 11 words of `identity`, the raster's and the transmission's draw's), then the
- * `extra` words of its own the pass wrote after them —: `identity` holds them after.
+ * Whether what a chunk pass's groups bind moved since they were made: the scene's rows, the lists
+ * `b`, and the `own` object whose buffers the pass's own groups bind, none changing while it lives
+ * (the transmission's). `identity` compares them alone, and holds them after.
  */
 export function vsmSceneRowsMoved(
   identity: WebgpuBindIdentity,
   scene: VsmRenderScene,
   b: Record<VsmListName, GPUBuffer>,
-  extra = 0,
+  own?: object,
 ) {
-  const bound = identity.next
-  bound[0] = scene.pageTable
-  bound[1] = scene.spheres
-  bound[2] = scene.mobility
-  bound[3] = scene.rowLods
-  bound[4] = b.params
-  bound[5] = b.views
-  bound[6] = b.candidates
-  bound[7] = b.counts
-  bound[8] = b.cmds
-  bound[9] = b.pairs
-  bound[10] = b.args
-  bound.length = 11 + extra
+  const next = identity.next
+  next[0] = scene.pageTable
+  next[1] = scene.spheres
+  next[2] = scene.mobility
+  next[3] = scene.rowLods
+  next[4] = b.params
+  next[5] = b.views
+  next[6] = b.candidates
+  next[7] = b.counts
+  next[8] = b.cmds
+  next[9] = b.pairs
+  next[10] = b.args
+  next[11] = own
+  next.length = own ? 12 : 11
   return identity.moved()
 }
 
-/** The groups of a chunk pass over the scene's rows and the lists `bound` names
- *  (`vsmSceneRowsMoved`): the candidates' — `extra` after its counts —, the cull's, the expand's
- *  and the arguments'; with the parameters' window and the lists the pass's own groups bind. */
+/** The groups of a chunk pass over the scene's rows and the lists `b`: the candidates' — `extra`
+ *  after its counts —, the cull's, the expand's and the arguments'; with the parameters' window
+ *  and the lists the pass's own groups bind. */
 export function vsmChunkListGroups(
   device: GPUDevice,
   kernels: VsmChunkKernels,
   candidatesLayout: GPUBindGroupLayout,
-  bound: readonly unknown[],
+  scene: VsmRenderScene,
+  b: Record<VsmListName, GPUBuffer>,
   extra: readonly GPUBuffer[] = [],
 ) {
-  const [
-    pageTable,
-    spheres,
-    mobility,
-    rowLods,
-    paramsBuffer,
-    views,
-    candidates,
-    counts,
-    cmds,
-    pairs,
-    args,
-  ] = bound as GPUBuffer[]
-  const params = { buffer: paramsBuffer, size: VSM_RENDER_PARAMS_BYTES }
+  const { views, candidates, counts, cmds, pairs, args } = b
+  const params = { buffer: b.params, size: VSM_RENDER_PARAMS_BYTES }
   const group = (layout: GPUBindGroupLayout, buffers: (GPUBuffer | typeof params)[]) =>
     vsmBufferGroup(device, layout, buffers)
+  const { pageTable, spheres, mobility, rowLods } = scene
   return {
     params,
     counts,
     pairs,
     cand: group(candidatesLayout, [
-      ...[params, pageTable, spheres, mobility],
-      ...[rowLods, candidates, counts, ...extra],
+      params,
+      pageTable,
+      spheres,
+      mobility,
+      rowLods,
+      candidates,
+      counts,
+      ...extra,
     ]),
     cull1: group(kernels.cull.groups[1], [params, views, candidates, counts, cmds]),
     expand1: group(kernels.expand.groups[1], [params, cmds, counts, pairs]),
