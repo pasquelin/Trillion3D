@@ -2,9 +2,9 @@
 // buffer, so the lighting with bounce and the shadow demand, which recompute the receiver offset
 // from them, hold the eight storage buffers WebGPU guarantees. Defects these tests catch: a normal
 // written where the passes do not read it (the offset then leaves another normal than the
-// resolve's), a growth that leaves the normals behind, an atlas padded past its last row, and a pool
-// that holds fewer vertices than develop's three buffers did under the same
-// `maxStorageBufferBindingSize`.
+// resolve's), a growth that leaves the normals behind, an atlas that weighs more than the buffer
+// did (the memory budgets would move), and a pool that holds fewer vertices than develop's three
+// buffers did under the same `maxStorageBufferBindingSize`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -19,20 +19,12 @@ import { createVertexPool } from './geometryPool.ts'
 import { poolFits, poolFloats } from './geometryPoolLayout.ts'
 import { createFloatAtlas, type FloatAtlas } from './floatAtlas.ts'
 
-/** The atlas's row width and rows a layer: the portable texture side. */
+/** The atlas's row width bound and rows a layer: the portable texture side. */
 const FLOAT_ATLAS_ROWS = GUARANTEED_SIDE,
   FLOAT_ATLAS_WIDTH = GUARANTEED_SIDE
-/** The atlas a device makes for `floats` floats: its texture's width, rows and layers, its floats
- *  and its bytes. */
-function floatAtlasOf(floats: number, limits?: Partial<GPUSupportedLimits>) {
-  const atlas = createFloatAtlas(fakeDevice(limits ? { limits } : {}).device, 'extent', floats)
-  const texture = atlas.texture
-  return {
-    extent: [texture.width, texture.height, texture.depthOrArrayLayers],
-    capacity: atlas.capacity,
-    bytes: atlas.bytes,
-  }
-}
+/** Width, rows and layers of the atlas the pool makes for `floats` floats. */
+const floatAtlasExtent = (floats: number) =>
+  createFloatAtlas(fakeDevice().device, 'extent', floats).extent
 import { uvBufferFloats } from './vertexColors.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 
@@ -78,7 +70,7 @@ function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width:
 
 /** Checks that the shared text reads, at `base`, the triangle's normals and tangents bit for bit. */
 function assertNormals(gpu: ReturnType<typeof fakeDevice>, atlas: FloatAtlas, base: number) {
-  const scope = replayAtlas(gpu, atlas.texture, atlas.texture.width)
+  const scope = replayAtlas(gpu, atlas.texture, atlas.extent[0])
   const run = shaderRun<Vertex>(normalAtlasWgsl(0), ['normalAt', 'vertN', 'vertT'], scope)
   const host = triangle()
   for (let v = 0; v < 3; v++) {
@@ -113,30 +105,30 @@ test('a growth writes every placed normal again into the wider atlas, and frees 
   assert.ok(freed(), "the narrower atlas freed after the frame's submit")
 })
 
-test('the normal atlas pads under one row of floats, and its bytes are its texture’s', () => {
+test('the normal atlas weighs the bytes the normal buffer did: the budgets it funds see no change', () => {
   for (const vertices of [1, 3, 1000, 1171, 10_000, 65_536, 4_793_490]) {
-    const { extent, capacity, bytes } = floatAtlasOf(vertices * 7)
-    const [width, rows, layers] = extent
-    assert.equal(capacity, width * rows * layers, `${vertices} vertices: every texel a float`)
-    assert.ok(
-      capacity >= vertices * 7 && capacity - vertices * 7 < width,
-      `${vertices}: a row's pad`,
-    )
-    assert.equal(bytes, capacity * 4)
+    const [width, rows, layers] = floatAtlasExtent(vertices * 7)
+    assert.equal(width * rows * layers, vertices * 7, `${vertices} vertices: no padding`)
     assert.ok(width <= FLOAT_ATLAS_WIDTH && rows <= FLOAT_ATLAS_ROWS, `${vertices}: within 2D`)
   }
 })
 
-// Behaviour: a float's place is the table's shifts, the same on every device, so the shader reads
-// it with no division whatever the side the device grants.
-test('the atlas is laid the same on a device that grants a wider side', () => {
+// Behaviour: the row width is the device's granted side, WebGPU's guaranteed one when it names none;
+// a count no row count divides fills its rows evenly, under one float of padding a row.
+test('a device that grants a wider side holds the floats in fewer rows, never padded', () => {
   const prime = 16_381
-  assert.deepEqual(floatAtlasOf(prime).extent, [FLOAT_ATLAS_WIDTH, 2, 1])
-  assert.deepEqual(floatAtlasOf(prime, { maxTextureDimension2D: 2 * FLOAT_ATLAS_WIDTH }).extent, [
-    FLOAT_ATLAS_WIDTH,
-    2,
-    1,
-  ])
+  const extent = (maxTextureDimension2D?: number) =>
+    createFloatAtlas(
+      fakeDevice(maxTextureDimension2D ? { limits: { maxTextureDimension2D } } : {}).device,
+      'extent',
+      prime,
+    ).extent
+  assert.deepEqual(
+    extent(),
+    [(prime + 1) / 2, 2, 1],
+    'the guaranteed side: two rows, one float pad',
+  )
+  assert.deepEqual(extent(2 * FLOAT_ATLAS_WIDTH), [prime, 1, 1], 'the granted side holds it whole')
 })
 
 test('under the same maxStorageBufferBindingSize, the pool holds at least the vertices develop held', () => {

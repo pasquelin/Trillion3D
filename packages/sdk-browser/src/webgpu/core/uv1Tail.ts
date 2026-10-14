@@ -12,15 +12,18 @@ import { writeFloatAtlas, type FloatAtlas } from './floatAtlas.ts'
  */
 export const UV1_FLOATS = 2
 
-/** The float the tail of vertices `vertex` to `vertex + n - 1` starts at: the last one's, counted
- *  back from the atlas's texels (`capacity`), where the tail ends. A writer that builds the atlas
- *  whole puts vertex `k`'s pair at `uv1TailAt(atlas, k, 1)`. */
+/** The atlas's texels: where the tail ends. */
+export const atlasTexels = ({ extent }: FloatAtlas) => extent[0] * extent[1] * extent[2]
+
+/** The float the tail of vertices `vertex` to `vertex + n - 1` starts at: the last one's. A writer
+ *  that builds the atlas whole puts vertex `k`'s pair at `uv1TailAt(atlas, k, 1)`. */
 export const uv1TailAt = (atlas: FloatAtlas, vertex: number, n: number) =>
-  atlas.capacity - UV1_FLOATS * (vertex + n)
+  atlasTexels(atlas) - UV1_FLOATS * (vertex + n)
 
 /** Writes `n` second-UV pairs of `data`, in vertex order, as the tail of vertices from `vertex`:
  *  their order reversed in place, then sent at `uv1TailAt`. */
 export function writeUv1Tail(
+  queue: GPUQueue,
   atlas: FloatAtlas,
   vertex: number,
   data: Float32Array<ArrayBuffer>,
@@ -34,5 +37,5 @@ export function writeUv1Tail(
       data[a] = data[b]
       data[b] = kept
     }
-  writeFloatAtlas(atlas, uv1TailAt(atlas, vertex, n), data, 0, n * UV1_FLOATS)
+  writeFloatAtlas(queue, atlas, uv1TailAt(atlas, vertex, n), data, 0, n * UV1_FLOATS)
 }

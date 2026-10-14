@@ -6,7 +6,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * with `textureLoad` and written by their compute passes as storage textures — like a surface
  * cache atlas —, not storage buffers: the deferred lighting holds its storage buffers
  * within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit. A surface cache
- * texel `i` sits at `(i % width, i / width)`, row by row; a probe at its column, row and layer
+ * texel `i` sits at `(i % width, i / width)`, row by row, in the extent every one-layer atlas
+ * takes (`atlasExtent`, `floatAtlas.ts`); a probe at its column, row and layer
  * (`probeAtlasExtent`); no entry is ever dropped: a size the device cannot hold is refused before
  * anything is made (`limits.ts`).
  */

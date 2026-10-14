@@ -1,11 +1,9 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { textureLimits } from './textureLimits.ts'
 
 /**
  * THE RECORD TEXTURES: the engine's one home for a table of records that grows with the world — the
- * culling's worlds, and every table a pass reads by placement, or a list of floats
- * (`../../webgpu/core/floatAtlas.ts`) — in a `uint` or `r32float` texture read with `textureLoad`,
- * whatever its size. A storage binding holds 128 MiB on a guaranteed device and a
+ * culling's worlds, and every table a pass reads by placement — in a `uint` texture read with
+ * `textureLoad`, whatever its size. A storage binding holds 128 MiB on a guaranteed device and a
  * stage binds eight of them; a sampled texture binds through one of the sixteen sampled slots a stage
  * holds, and addresses 8192 × 8192 × 256 texels: 2³⁴, 256 GiB of `rgba32uint`. The material records
  * (`../../webgpu/material/materialTable.ts`) are the first table laid so; this module lays any.
@@ -17,20 +15,16 @@ import { textureLimits } from './textureLimits.ts'
  */
 export type RecordLayout = {
   label: string
-  format: 'rgba32uint' | 'r32uint' | 'r32float'
+  format: 'rgba32uint' | 'r32uint'
   /** Texels of each field of a record, by name, in their order along a row. */
   fields: Readonly<Record<string, number>>
   rowShift: number
   layerShift: number
 }
 
-/** WebGPU's guaranteed side of a 2D texture and layers of an array: a table is laid the same on
- *  every device. */
-const { side: SIDE, layers: LAYERS } = textureLimits()
-
-/** The most records a table of `layout` holds on a guaranteed device: every layer, whole. */
-export const mostRecords = (layout: RecordLayout) =>
-  LAYERS * 2 ** (layout.layerShift + layout.rowShift)
+/** WebGPU's guaranteed side of a 2D texture and layers of an array. */
+const SIDE = 8192,
+  LAYERS = 256
 
 /** Bytes of one texel of `format`. */
 export const texelBytes = (format: RecordLayout['format']) => (format === 'rgba32uint' ? 16 : 4)

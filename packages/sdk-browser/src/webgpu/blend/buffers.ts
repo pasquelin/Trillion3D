@@ -2,7 +2,7 @@ import type { HostAttribute, HostAttributes } from '../../host/resources.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts'
 import { createFloatAtlas, writeFloatAtlas, type FloatAtlas } from '../core/floatAtlas.ts'
-import { uv1TailAt } from '../core/uv1Tail.ts'
+import { atlasTexels, uv1TailAt } from '../core/uv1Tail.ts'
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -79,7 +79,7 @@ export function ensureBlendNormalAtlas(
       pairs = uv1?.count ?? 0
     atlas = createFloatAtlas(device, 'Trillion3D transparent normals', count * 7 + pairs * 2)
     // One array in the atlas's order, the normals at its head, the second set at its tail.
-    const data = new Float32Array(atlas.capacity)
+    const data = new Float32Array(atlasTexels(atlas))
     for (let i = 0; normal && i < count; i++) {
       data[i * 7] = normal.getX(i)
       data[i * 7 + 1] = normal.getY(i)
@@ -96,11 +96,7 @@ export function ensureBlendNormalAtlas(
       data[at] = uv1.getX(i)
       data[at + 1] = uv1.getY(i)
     }
-    // The normals at the head, the second set at the tail: the floats between are the new
-    // texture's zeros already.
-    writeFloatAtlas(atlas, 0, data, 0, count * 7)
-    const tail = uv1TailAt(atlas, pairs - 1, 1)
-    writeFloatAtlas(atlas, tail, data, tail, data.length - tail)
+    writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length)
     gpu.vertexBytes += atlas.bytes
   }
   gpu.blendNormalBuffers.set(attributes, atlas)
