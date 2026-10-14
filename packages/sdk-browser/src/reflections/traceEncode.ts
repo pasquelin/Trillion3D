@@ -3,7 +3,8 @@ import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { BEGIN_BINDINGS, TRACE_BINDINGS } from './traceBindings.ts'
-import type { createTraceStages, TraceTiles } from './trace.ts'
+import type { createTraceStages } from './trace.ts'
+import type { TraceTiles } from './traceTiles.ts'
 
 /** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
  *  resident proxy, the deferred lighting's view. */
@@ -24,6 +25,8 @@ export type TraceInputs = {
   proxyWorlds: GPUTextureView
   /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
   proxyTree: GPUTextureView
+  /** The store of the run-time proxy's answers, or its stand-in (`proxyStore.ts`). */
+  store: GPUTextureView
 }
 
 /** The groups of a trace: the trace's, the classification's and the frame state's. */
@@ -61,6 +64,7 @@ function traceGroups(
     inputs.proxy,
     inputs.proxyWorlds,
     inputs.proxyTree,
+    inputs.store,
     inputs.lightLists,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
@@ -76,6 +80,7 @@ function traceGroups(
         bounceGrid: { buffer: inputs.bounceGrid },
         probes: inputs.probes,
         list: { buffer: tiles.list },
+        store: inputs.store,
         base: inputs.base,
         lightLists: { buffer: inputs.lightLists },
         proxy: { buffer: inputs.proxy },

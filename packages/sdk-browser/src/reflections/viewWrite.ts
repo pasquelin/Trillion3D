@@ -6,6 +6,9 @@ import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 
+/** The proxy rays' budget of a frame that names none: the trace's counter word whole. */
+const UNBOUNDED_UNITS = 0xffffffff
+
 /** What an image tells its reflection view (`createReflectionViewWriter`). */
 export type ReflectionFrame = {
   /** The render view-projection the depth was drawn with, jitter included. */
@@ -16,6 +19,10 @@ export type ReflectionFrame = {
   depthDrawn: boolean
   /** The resident proxy's certified error, in metres: zero without a proxy. */
   proxyError: number
+  /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
+  epoch?: number
+  /** The work units this frame's proxy rays may spend (`ProxyBudget.units`); unbounded when absent. */
+  proxyUnits?: number
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
@@ -26,7 +33,7 @@ export type ReflectionFrame = {
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced, the resident proxy's error and the surroundings. The words that differ from those it
+ * is traced, the resident proxy's error, its epoch and units, and the surroundings. The words that differ from those it
  * sent go up (`writeChanged`): a still view writes once, and nothing in it is a frame index or a
  * seed. Nothing is allocated by a call.
  */
@@ -34,6 +41,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
   const staged = new Float32Array(REFLECTION_VIEW_WORDS)
   const words = new Uint32Array(staged.buffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
+  const runtime = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.runtime * 4, 4)
   const inverse = new Float64Array(16)
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
@@ -54,6 +62,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[2] = frame.size[1]
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
+    runtime[0] = frame.epoch ?? 0
+    runtime[1] = frame.proxyUnits ?? UNBOUNDED_UNITS
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

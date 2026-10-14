@@ -1,12 +1,13 @@
 import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
-import type { SceneBindings } from '../bounce/sceneBindings.ts'
-import { storageEntry } from './bindings.ts'
+import type { RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
+import { storageEntry, storeEntry } from './bindings.ts'
 
 /**
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counter, the proxy's buffer and instances, the
+ * (`work`), the trace's list with the frame's counters, the store of the run-time proxy's answers,
+ * the proxy's buffer and instances, the
  * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
  * lists the proxy hits walk.
  */
@@ -20,6 +21,7 @@ export const TRACE_BINDINGS = {
   probes: 6,
   work: 7,
   list: 8,
+  store: 9,
   base: 10,
   proxy: 11,
   proxyWorlds: 12,
@@ -27,12 +29,14 @@ export const TRACE_BINDINGS = {
   lightLists: 17,
 } as const
 
-/** The bindings of the proxy in the trace's group 0 (`bounce/runtimeRadianceWgsl.ts`), the table's. */
-export const RUNTIME_BINDINGS: SceneBindings = {
+/** The bindings of the proxy in the trace's group 0 (`bounce/runtimeAnswerWgsl.ts`), the table's. */
+export const RUNTIME_BINDINGS: RuntimeBindings = {
   group: 0,
   proxy: TRACE_BINDINGS.proxy,
   worlds: TRACE_BINDINGS.proxyWorlds,
   tree: TRACE_BINDINGS.proxyTree,
+  list: TRACE_BINDINGS.list,
+  store: TRACE_BINDINGS.store,
 }
 
 /** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */
@@ -51,6 +55,7 @@ export function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.bounceGrid, 'uniform'),
         computeTextureEntry(TRACE_BINDINGS.probes, 'unfilterable-float', '2d-array'),
         computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
+        storeEntry(TRACE_BINDINGS.store),
         computeTextureEntry(TRACE_BINDINGS.base, 'unfilterable-float'),
         computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),

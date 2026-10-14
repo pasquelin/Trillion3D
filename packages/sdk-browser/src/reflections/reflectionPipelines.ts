@@ -12,7 +12,8 @@ import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { FRONT_BOX_SHADER, FRONT_SHADER, frontBoxLayout, frontLayout } from './frontDepthWgsl.ts'
 import { radianceLayouts } from './radiance.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
-import { BEGIN_SHADER, TRACE_SHADER, createTraceStages } from './trace.ts'
+import { TRACE_SHADER, createTraceStages } from './trace.ts'
+import { BEGIN_SHADER } from './traceTiles.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_IMAGE_BINDING,

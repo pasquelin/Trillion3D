@@ -1,6 +1,5 @@
-// Every ray of the run-time proxy is cast in its frame: the opaque trace keeps no answer from one image to
-// the next, no frame budget cuts a ray, and nothing counts its work in the kernel — what it costs is the
-// frame's GPU duration, which the proxy budget observes. The shipped WGSL run as JavaScript.
+// The run-time proxy's rays, the shipped WGSL run as JavaScript: a ray answers what it meets and binds nothing
+// writable; the opaque trace's budget and store are `rtAnswer`'s (`runtimeAnswer.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
@@ -11,31 +10,14 @@ import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 
 const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
 
-test('the trace binds no store of answers, reads no frame budget and counts no work', () => {
-  for (const gone of [
-    'rtStore',
-    'rtAnswer',
-    'RT_FRAME_WORK',
-    'reflectionView.runtime',
-    'RT_LEFT',
-    'rtShare',
-    'rtSpentHere',
-    'rtGroupSpent',
-    // A placement's instance is read once, whole, never a texel load a word.
-    'rtInstanceWord',
-  ])
-    assert.ok(!TRACE_SHADER.includes(gone), gone)
-  assert.ok(TRACE_SHADER.includes('let seen=rtRadiance('), 'the proxy stage casts its ray')
-})
-
-test('the proxy’s rays bind nothing writable: the trace declares its own list, one ray function', () => {
+test('the proxy’s rays bind nothing writable, and read a placement’s instance whole', () => {
   const rays = wgslModule(runtimeRadianceWgsl({ group: 0, proxy: 12, worlds: 13, tree: 14 }))
   assert.ok(!rays.includes('read_write'), 'the rays write no binding')
-  assert.ok(!TRACE_SHADER.includes('rtCast'), 'no second entry beside rtRadiance')
+  assert.ok(!TRACE_SHADER.includes('rtInstanceWord'), 'never a texel load a word')
   assert.ok(TRACE_SHADER.includes('var<storage,read_write> traceList:array<atomic<u32>>'))
 })
 
-test('every ray is cast and answers what it meets', () => {
+test('a ray answers what it meets, a second of the same pixel as well', () => {
   const run = runOver(lit())
   const seen = run.rtRadiance(origin, ahead, 1000, 0.01)
   // The clear coat's lobe, a second ray of the same pixel: cast as well, never left unanswered.
