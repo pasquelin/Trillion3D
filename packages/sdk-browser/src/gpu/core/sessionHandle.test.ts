@@ -110,9 +110,9 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   assert.equal(byLabel['page table'], 8)
   assert.equal(
     byLabel['Trillion3D texture mips uniforms'],
-    // Three aligned blocks, held grown to the next power of two (`heldBuffers.grow`).
-    1024,
-    'one aligned uniform per level, held at a power of two',
+    // Three aligned blocks, made at the size they ask (`heldBuffers.grow`, `sizedBuffer.ts`).
+    768,
+    'one aligned uniform per level',
   )
   assert.deepEqual(Object.keys(caches.snapshot().byLabel), [
     'Trillion3D texture mips uniforms',

@@ -1,5 +1,6 @@
-// A chain's levels reduce on the device without waiting for it: held uniforms grown by powers of
-// two, one pipeline a rule, sRGB levels read decoded, one labelled pass, views and groups made once.
+// A chain's levels reduce on the device without waiting for it: held uniforms grown twice their
+// size at least, one pipeline a rule, sRGB levels read decoded, one labelled pass, views and groups
+// made once.
 import test from 'node:test'
 import { destroyRetired } from '../gpu/core/frameRetire.ts'
 import assert from 'node:assert/strict'
@@ -22,9 +23,10 @@ test('reduction submits without waiting for the device and keeps its buffers', (
   )
 })
 
-// A batch outgrowing the held uniforms grows them to the next power of two, the outgrown buffer
-// retired: destroyed after the frame's submit (`frameRetire.ts`), as the work it encoded may read it.
-test('uniforms take a block a level, at the alignment, grown by powers of two', async () => {
+// A batch outgrowing the held uniforms grows them to twice their size at least (`sizedBuffer.ts`),
+// the outgrown buffer retired: destroyed after the frame's submit (`frameRetire.ts`), as the work
+// it encoded may read it.
+test('uniforms take a block a level, at the alignment, grown twice their size at least', async () => {
   const { device, texture, buffers, writes, destroyed } = scratch()
   oneChain(device, texture, 'rgba8unorm', false)
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256)
@@ -36,8 +38,8 @@ test('uniforms take a block a level, at the alignment, grown by powers of two', 
   const uniforms = buffers.filter(({ label }) => label === 'Trillion3D texture mips uniforms')
   assert.deepEqual(
     uniforms.map(({ size }) => size),
-    [1024, 2048],
-    '3 then 5 blocks of 256 bytes',
+    [768, 1536],
+    '3 blocks of 256 bytes, then twice them for 5',
   )
   assert.equal(destroyed.includes(uniforms[0]), false, 'kept while the queue may read it')
   destroyRetired(device)
