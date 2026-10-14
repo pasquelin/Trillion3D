@@ -1,4 +1,6 @@
 import { fieldLayout } from '../core/fieldLayout.ts'
+import type { SelectionUniforms } from '../core/selection.ts'
+import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 
 /**
  * One view's uniform block, described once.
@@ -83,3 +85,19 @@ export type FieldName = (typeof VIEW_FIELDS)[number][0]
 
 /** The WGSL struct the kernels bind, built from the same table the host writes against. */
 export const VIEW_UNIFORM_STRUCT = LAYOUT.wgsl
+
+/** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
+ *  planes and view ahead, block 0 says it is there. */
+export function writeAheadBlock(
+  target: Float32Array,
+  ints: Uint32Array,
+  uniforms: SelectionUniforms,
+) {
+  const ahead = uniforms.ahead,
+    at = AHEAD_VIEW * VIEW_BLOCK_WORDS
+  if (!ahead || target.length < at + VIEW_BLOCK_WORDS) return
+  target.copyWithin(at, 0, VIEW_BLOCK_WORDS)
+  target.set(ahead.planes, at + viewWord('planes'))
+  target.set(ahead.view, at + viewWord('view'))
+  ints[viewWord('ahead')] = 1
+}

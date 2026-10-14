@@ -8,14 +8,17 @@ import {
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
 } from './layout.ts'
-import { SELECTION_HEADER_WORDS, evictionWord } from './readoutWords.ts'
+import {
+  SELECTION_HEADER_WORDS,
+  evictionWord,
+  readCountedList,
+  readLevelCounts,
+} from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../core/selection.ts'
-import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { WORK_DROPPED } from './shader/viewsWgsl.ts'
-import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
+import { viewWord, writeAheadBlock } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagQueueWords } from './flagSections.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -51,18 +54,6 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   evict: [],
   levels: new Uint32Array(ADMISSION_BUCKETS),
 })
-
-/** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
- *  planes and view ahead, block 0 says it is there. */
-function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: SelectionUniforms) {
-  const ahead = uniforms.ahead,
-    at = AHEAD_VIEW * VIEW_BLOCK_WORDS
-  if (!ahead || target.length < at + VIEW_BLOCK_WORDS) return
-  target.copyWithin(at, 0, VIEW_BLOCK_WORDS)
-  target.set(ahead.planes, at + viewWord('planes'))
-  target.set(ahead.view, at + viewWord('view'))
-  ints[viewWord('ahead')] = 1
-}
 
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). Every word is written through
@@ -203,21 +194,4 @@ export function parseDagOutput(
     result.evictOld = Math.min(evict.length, ints[evictAt + 1] ?? 0)
   }
   return result
-}
-
-/** The admission counts at word `at` (`levelCountsWord`) into `into`, or none when the sample does
- *  not hold them. */
-function readLevelCounts(ints: Uint32Array, at: number, into: Uint32Array) {
-  if (ints.length < at + ADMISSION_BUCKETS) return undefined
-  into.set(ints.subarray(at, at + ADMISSION_BUCKETS))
-  return into
-}
-
-/** A list the GPU wrote behind a header at word `at`: its count, bounded by what the readback
- *  holds, then its ranks, copied into `into`. */
-function readCountedList(ints: Uint32Array, at: number, into: number[]) {
-  const count = clamp(ints.length - at - SELECTION_HEADER_WORDS, 0, ints[at] ?? 0)
-  for (let i = 0; i < count; i++) into[i] = ints[at + SELECTION_HEADER_WORDS + i]
-  into.length = count
-  return into
 }

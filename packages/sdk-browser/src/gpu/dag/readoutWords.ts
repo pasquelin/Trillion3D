@@ -1,4 +1,5 @@
 import { ADMISSION_BUCKETS } from './request.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /**
  * Readout header, in words, in front of each of its two halves.
@@ -53,3 +54,20 @@ const rowQueueWords = (listCap: number) => SELECTION_HEADER_WORDS + rowBurst(lis
  *  what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
 export const stagedRequestsWord = (listCap: number) =>
   rowQueueWord(listCap) + rowQueueWords(listCap)
+
+/** The admission counts at word `at` (`levelCountsWord`) into `into`, or none when the sample does
+ *  not hold them. */
+export function readLevelCounts(ints: Uint32Array, at: number, into: Uint32Array) {
+  if (ints.length < at + ADMISSION_BUCKETS) return undefined
+  into.set(ints.subarray(at, at + ADMISSION_BUCKETS))
+  return into
+}
+
+/** A list the GPU wrote behind a header at word `at`: its count, bounded by what the readback
+ *  holds, then its ranks, copied into `into`. */
+export function readCountedList(ints: Uint32Array, at: number, into: number[]) {
+  const count = clamp(ints.length - at - SELECTION_HEADER_WORDS, 0, ints[at] ?? 0)
+  for (let i = 0; i < count; i++) into[i] = ints[at + SELECTION_HEADER_WORDS + i]
+  into.length = count
+  return into
+}
