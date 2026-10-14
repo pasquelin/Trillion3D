@@ -30,14 +30,6 @@ export function sendWords(
   return buffer
 }
 
-/** Where `writeBufferRuns` sends its runs, set for each call: no writer is made a send. */
-const runTarget = {
-  device: undefined as GPUDevice | undefined,
-  buffer: undefined as unknown as GPUBuffer,
-}
-const writeRun = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-  runTarget.device!.queue.writeBuffer(runTarget.buffer, offset, data, from, size)
-
 /** The `count` increasing indices of `sorted`, records of `stride` words of `words`, sent into
  *  `buffer` at the same places in the engine's one run writer's runs (`writeRanges`). */
 export function writeBufferRuns(
@@ -48,10 +40,9 @@ export function writeBufferRuns(
   words: Uint32Array,
   stride: number,
 ) {
-  runTarget.device = device
-  runTarget.buffer = buffer
-  writeRanges(writeRun, sorted, count, { data: words, sourceBase: 0, targetBase: 0, stride })
-  runTarget.device = undefined
+  const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
+    device.queue.writeBuffer(buffer, offset, data, from, size)
+  writeRanges(into, sorted, count, { data: words, sourceBase: 0, targetBase: 0, stride })
 }
 
 /** `held`'s group bound into `pass`, its pipeline set, a thread each of `listed` entries. */
