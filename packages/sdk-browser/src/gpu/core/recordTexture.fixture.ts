@@ -4,9 +4,10 @@
 // loads (`textureLoad`, `../../texture/shaderRun.fixture.ts`).
 import { fieldStart, recordExtent, texelAt, type RecordLayout } from './recordLayout.ts'
 import { textureExtent } from './textureExtent.ts'
+import { texelBytesOf } from './textureBytes.ts'
 
-/** Words a texel of `layout` holds. */
-const channels = (layout: RecordLayout) => (layout.format === 'rgba32uint' ? 4 : 1)
+/** Words a texel of `layout` holds: its bytes (`texelBytesOf`) over a word's. */
+const channels = (layout: RecordLayout) => texelBytesOf(layout.format) / 4
 
 /** The extent `records` records of `layout` take: the engine's (`recordExtent`). */
 export function recordExtentOf(layout: RecordLayout, records: number) {

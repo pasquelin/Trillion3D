@@ -1,4 +1,4 @@
-import { textureBytesOf } from './textureBytes.ts'
+import { texelBytesOf } from './textureBytes.ts'
 
 /**
  * A target a fragment stage reads by load alone — the subsurface, the lobes —, bound as a read-only storage texture: `textureLoad` returns the stored values
@@ -10,8 +10,8 @@ import { textureBytesOf } from './textureBytes.ts'
  * (`WEBGPU_REQUIRED_WGSL_FEATURES`).
  */
 export function loadOnlyTarget(binding: number, format: GPUTextureFormat, name: string) {
-  /** Bytes of one texel of its format (`textureBytesOf`). */
-  const texelBytes = textureBytesOf({ size: [1, 1], format }) ?? 0
+  /** Bytes of one texel of its format. */
+  const texelBytes = texelBytesOf(format)
   return {
     texelBytes,
     /** Bytes of the target of a `width` × `height` frame: a texel per pixel when `wanted`, a 1×1

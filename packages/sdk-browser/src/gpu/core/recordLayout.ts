@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { GUARANTEED_SIDE, PORTABLE_TEXTURE_LAYERS } from './textureLimits.ts'
 
 /**
  * THE RECORD TEXTURES: the engine's one home for a table of records that grows with the world — the
@@ -22,13 +23,6 @@ export type RecordLayout = {
   layerShift: number
 }
 
-/** WebGPU's guaranteed side of a 2D texture and layers of an array. */
-const SIDE = 8192,
-  LAYERS = 256
-
-/** Bytes of one texel of `format`. */
-export const texelBytes = (format: RecordLayout['format']) => (format === 'rgba32uint' ? 16 : 4)
-
 /** The first texel of field `field` in a row of `layout`; past the last field, the row's texels. */
 export function fieldStart(layout: RecordLayout, field?: string) {
   let start = 0
@@ -47,7 +41,7 @@ export function recordExtent(layout: RecordLayout, records: number): [number, nu
     rows = Math.max(1, ceilDiv(records, 1 << layout.rowShift)),
     perLayer = 1 << layout.layerShift
   const layers = ceilDiv(rows, perLayer)
-  if (width > SIDE || perLayer > SIDE || layers > LAYERS)
+  if (width > GUARANTEED_SIDE || perLayer > GUARANTEED_SIDE || layers > PORTABLE_TEXTURE_LAYERS)
     throw new Error(`GPU_RECORD_TABLE_PAST_TEXTURE: ${layout.label}, ${records} records`)
   return layers === 1 ? [width, rows, 1] : [width, perLayer, layers]
 }

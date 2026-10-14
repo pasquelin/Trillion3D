@@ -32,6 +32,10 @@ const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   rgba32float: 16,
   rgba32uint: 16,
 }
+/** Bytes of one texel of an uncompressed `format`, the one table's (`BYTES_PER_TEXEL`); 0 for a
+ *  format outside it. */
+export const texelBytesOf = (format: GPUTextureFormat) => BYTES_PER_TEXEL[format] ?? 0
+
 /** Bytes per 4×4 block of the compressed formats: what T5 will allocate. */
 const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc1-rgba-unorm': 8,
