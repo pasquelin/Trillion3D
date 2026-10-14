@@ -35,7 +35,7 @@ import type { VsmClipmap } from './clipmap.ts'
 import { answer, createScratch, type BoundFrame, type Scratch } from './rowBoundMeasure.ts'
 import { lampKeysOf } from './rowBinsKeys.ts'
 import { boundLights } from './rowBinsParams.ts'
-import { sunAxes } from './rowBinsSuns.ts'
+import { frameSuns, sameSuns } from './rowBinsSuns.ts'
 import { createRowBins, type RowBins, type RowBinsLanded } from './rowBinsRecord.ts'
 
 /** The rows' spheres as the bound reads them: the GPU's (`lights.spheres`), and what changed in
@@ -87,18 +87,8 @@ export const createVsmRowBound = (): VsmRowBound => ({
   scratch: createScratch(),
 })
 
-const axes = new Float64Array(6)
 /** What the frame adds to the histogram (`BoundFrame`), rewritten by each bound. */
 const frame: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carried: false }
-/** Whether `landed` binned this frame's suns, in order, along the axes they hold now. */
-function sunsHold(landed: RowBinsLanded, suns: readonly VsmClipmap[]) {
-  if (landed.suns.length !== suns.length) return false
-  return suns.every(
-    (clipmap, s) =>
-      landed.suns[s].clipmap === clipmap &&
-      sameValues(sunAxes(clipmap.lightViewRotation, axes), landed.suns[s].axes),
-  )
-}
 
 /**
  * The chunk of rows `[first, end)` of `spheres`, `candidates` of them drawn, under this frame's
@@ -120,7 +110,7 @@ export function vsmBoundChunk(
   bins.pays = range.candidates > worst.rows
   const landed = bins.landed
   if (!landed || landed.spheres !== spheres || landed.first !== range.first) return undefined
-  if (!sunsHold(landed, lit.suns)) return undefined
+  if (!sameSuns(landed.suns, lit.suns, frameSuns(lit.suns), false)) return undefined
   const keys = lit.maps.length ? lampKeysOf(bins, lit.maps) : undefined
   const lamps = !!keys && !!landed.lampKeys && sameValues(keys, landed.lampKeys)
   if (!lit.suns.length && !lamps) return undefined

@@ -14,11 +14,11 @@ import { FLOAT32_STEP, SQRT3 } from '../../../math/src/constants.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import { BIN_SPAN, E_BINS, rangeCuts } from './rowBins.ts'
-import { sameAsk, splitRef, sunAxes } from './rowBinsSuns.ts'
+import { frameSuns, sameAsk, splitRef } from './rowBinsSuns.ts'
 import { AT_CONE, AT_POSITION, AT_RANGE, AT_SPREAD, KEY, lampKeysOf } from './rowBinsKeys.ts'
-import type { RowBins, RowBinsTag } from './rowBinsRecord.ts'
+import type { BinnedSun, RowBins, RowBinsScene, RowBinsTag } from './rowBinsRecord.ts'
 import { JOINT_WORDS, ROW_BINS_HEAD, ROW_BINS_LAMP, ROW_BINS_SHAPE } from './rowBinsWgsl.ts'
-import type { VsmBoundLight, VsmRowSpheres } from './rowPageBound.ts'
+import type { VsmBoundLight } from './rowPageBound.ts'
 
 /** Suns a histogram bins at most: past them, the bound keeps the worst case. */
 const MAX_SUNS = 4
@@ -84,13 +84,13 @@ export function boundLights(lights: readonly VsmBoundLight[]) {
 }
 
 /**
- * The histogram of rows `[first, end)` of `spheres` this frame asks under `lights`: its tag and its
+ * The histogram of rows `[first, end)` of `scene` this frame asks under `lights`: its tag and its
  * parameters' words (valid until the next ask), or undefined when it would bound nothing — too many
- * suns, no sun nor lamp to bin — or would bin what the last one encoded did (`bins.asked`).
+ * suns, no sun nor lamp to bin — or would bin what the last one submitted did (`bins.asked`).
  */
 export function rowBinsRequest(
   bins: RowBins,
-  spheres: VsmRowSpheres,
+  scene: RowBinsScene,
   range: { first: number; end: number },
   lights: readonly VsmBoundLight[],
 ) {
@@ -102,9 +102,10 @@ export function rowBinsRequest(
   const suns = frame.suns.length,
     lamps = keys ? keys.length / KEY : 0
   if (!suns && !lamps) return
-  const { motion } = spheres,
-    margin = f32Up(recentTravel(motion, 2 * bins.latency + 1))
-  if (sameAsk(bins.asked, spheres, range, margin, keys, frame.suns)) return
+  const { motion } = scene.rowSpheres,
+    margin = f32Up(recentTravel(motion, 2 * bins.latency + 1)),
+    values = frameSuns(frame.suns)
+  if (sameAsk(bins.asked, scene, range, margin, keys, frame.suns, values)) return
   const size = ROW_BINS_HEAD + suns * ROW_BINS_SHAPE + lamps * ROW_BINS_LAMP
   if (words.length < size) {
     words = resized(words, size)
@@ -118,15 +119,13 @@ export function rowBinsRequest(
   floats[4] = margin
   words[5] = jointAt
   words[6] = words[7] = 0
-  const binned = frame.suns.map((clipmap, s) => {
-    const sun = {
-      clipmap,
-      axes: sunAxes(clipmap.lightViewRotation, new Float64Array(6)),
-      ref: splitRef(clipmap.eyeWorld, new Float32Array(6)),
-    }
+  // The suns as `sameAsk` read them, copied: the tag outlives the ask.
+  const binned: BinnedSun[] = []
+  for (let s = 0; s < suns; s++) {
+    const sun = { clipmap: frame.suns[s], axes: values[s].axes.slice(), ref: values[s].ref.slice() }
     shape(ROW_BINS_HEAD + s * ROW_BINS_SHAPE, sun.axes, sun.ref, SUN)
-    return sun
-  })
+    binned.push(sun)
+  }
   const lampsAt = ROW_BINS_HEAD + suns * ROW_BINS_SHAPE
   for (let l = 0; l < lamps; l++) {
     const key = keys!.subarray(l * KEY, (l + 1) * KEY),
@@ -141,7 +140,9 @@ export function rowBinsRequest(
   }
   const tag: RowBinsTag = {
     seq: ++bins.seq,
-    spheres,
+    spheres: scene.rowSpheres,
+    sphereBuffer: scene.spheres,
+    mobility: scene.mobility,
     first: range.first,
     end: range.end,
     derived: motion.derived,

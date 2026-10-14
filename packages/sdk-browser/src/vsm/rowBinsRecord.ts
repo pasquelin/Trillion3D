@@ -11,16 +11,27 @@ import type { VsmRowSpheres } from './rowPageBound.ts'
 
 /** A sun as a histogram binned it: its clipmap, its light-space x and y, and the reference point,
  *  split as the spheres are (high f32, low f32). */
-interface BinnedSun {
+export interface BinnedSun {
   clipmap: VsmClipmap
   axes: Float64Array
   ref: Float32Array
+}
+
+/** What a histogram reads of the frame: the rows' spheres and mobility words, and what changed in
+ *  the spheres (`VsmRowSpheres`). */
+export interface RowBinsScene {
+  spheres: GPUBuffer
+  mobility: GPUBuffer
+  rowSpheres: VsmRowSpheres
 }
 
 /** What a histogram was asked with. */
 export interface RowBinsTag {
   seq: number
   spheres: VsmRowSpheres
+  /** The buffers it binned: the spheres', the mobility words'. */
+  sphereBuffer: GPUBuffer
+  mobility: GPUBuffer
   /** The rows `[first, end)` it binned. */
   first: number
   end: number
@@ -44,13 +55,14 @@ export interface RowBinsLanded extends RowBinsTag {
   movingRows: number
 }
 
-/** A bound's histograms: the last one's number, the last encoded, the last landed, the commits one
+/** A bound's histograms: the last one's number, the last submitted, the last landed, the commits one
  *  took to land, and whether the lamps' bins pay (more rows than the worst case's chunk); the lamps'
  *  signature, as last read, their keys, and the keys found unable to beat the worst case. */
 export function createRowBins() {
   return {
     seq: 0,
-    /** The last histogram encoded (`encodeRowBins`): an ask of the same inputs is not made again. */
+    /** The last histogram submitted (`rowBinsSubmitted`): an ask of the same inputs is not made
+     *  again. */
     asked: undefined as RowBinsTag | undefined,
     landed: undefined as RowBinsLanded | undefined,
     /** The landed histogram last read: its latency is taken when another is. */

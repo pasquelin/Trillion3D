@@ -9,7 +9,11 @@ import { commitMotion } from '../../../packages/sdk-browser/src/gpu/shadow/rowMo
 import { createVsmClipmap } from '../../../packages/sdk-browser/src/vsm/clipmap.ts'
 import { PROJECTION, VIEW } from '../../../packages/sdk-browser/src/vsm/clipmap.fixture.ts'
 import { rowBinTables } from '../../../packages/sdk-browser/src/vsm/rowBins.ts'
-import { binRows, topSums } from '../../../packages/sdk-browser/src/vsm/rowBins.fixture.ts'
+import {
+  binRows,
+  onBuffers,
+  topSums,
+} from '../../../packages/sdk-browser/src/vsm/rowBins.fixture.ts'
 import { rowBinsRequest } from '../../../packages/sdk-browser/src/vsm/rowBinsParams.ts'
 import { landRowBins } from '../../../packages/sdk-browser/src/vsm/rowBinsRecord.ts'
 import { ROW_BINS_WGSL } from '../../../packages/sdk-browser/src/vsm/rowBinsWgsl.ts'
@@ -109,7 +113,7 @@ export async function runRowBins() {
   for (let f = 0; f < 10; f++) commitMotion(rows.spheres.motion, 0, 1.5)
   const bound = createVsmRowBound()
   vsmBoundChunk(bound, rows.spheres, range, lights, worst)
-  const request = rowBinsRequest(bound.bins, rows.spheres, range, lights)!
+  const request = rowBinsRequest(bound.bins, onBuffers(rows), range, lights)!
   const { tag, params } = request,
     bytes = tag.words * 4
   const oracle = binRows(params, rows, tag.words)
