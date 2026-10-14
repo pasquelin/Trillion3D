@@ -169,5 +169,5 @@ export function finishVirtualShadowFrame(
         }
       : null,
   )
-  // The buffers themselves swap in `keepVsmFrame` (pageManagementPass.ts), called after.
+  // The buffers themselves swap in `keepVsmFrame` (pageManagementEncode.ts), called after.
 }

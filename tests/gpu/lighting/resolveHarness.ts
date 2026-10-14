@@ -3,7 +3,7 @@
  * each thread shades one sample through `contractLighting` — the function the deferred program
  * calls per pixel —, on the cell whose record starts the list buffer, with the resolve's own
  * bindings on the engine's numbers, and writes the f32 sum's bits. Only the entry points are the
- * proofs' (`narrow-resolve.gpu.ts`, `moving-exact.gpu.ts`).
+ * proofs' (`narrow-resolve.gpu.ts`, `lobes-resolve.gpu.ts`).
  */
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'

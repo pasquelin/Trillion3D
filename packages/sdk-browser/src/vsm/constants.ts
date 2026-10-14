@@ -183,7 +183,7 @@ export function vsmWriteDepthFromDeviceZ(
 /**
  * The greatest f32 below 1: 1 − 2^-24, an f32 significand having 24 bits, written as the decimal a
  * shader reads back to it exactly. A sun level's caster in front of its near plane is flattened onto
- * that depth (`renderRasterWgsl.ts`, `transmissionWgsl.ts`); the square-to-disk map centres the
+ * that depth (`renderRasterWgsl.ts`, read by `transmissionRecordWgsl.ts`); the square-to-disk map centres the
  * unit square on it (`traceWgsl.ts`).
  */
 export const VSM_F32_BELOW_ONE = 0.99999994

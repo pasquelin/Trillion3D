@@ -20,7 +20,7 @@ const VSM_INF = wgslConst('INF', [FLOAT32_MAX], 'const INF:f32=FLOAT32_MAX;')
  * What a candidates kernel reads of the caster rows — group 0: 0 params (uniform, dynamic), 1 page
  * table rows (`pages`), 2 row spheres, 3 row mobility words, 4 row levels of detail, 5
  * candidates (rw), 6 counters (rw atomic) — and the main view's pixels of a row's error: the
- * opaque rows' (`vsmRenderCandidatesWgsl`) and the blended rows' (`transmissionWgsl.ts`).
+ * opaque rows' (`vsmRenderCandidatesWgsl`) and the blended rows' (`transmissionClearWgsl.ts`).
  */
 export const VSM_RENDER_ROWS_WGSL = wgslBlock(
   'VSM_RENDER_ROWS_WGSL',
@@ -72,7 +72,7 @@ fn vsmRenderAppendCandidate(row:u32,page:PageInfo,objectKnown:bool){
 )
 
 /** A candidates kernel: one thread a caster row, the opaque rows' (\`vsmRenderCandidates\`) or, with
- *  \`blend\`, the blended rows' of the frame's range (\`frame\`, \`transmissionWgsl.ts\`). */
+ *  \`blend\`, the blended rows' of the frame's range (\`frame\`, \`transmissionClearWgsl.ts\`). */
 export const vsmCandidatesKernel = (name: string, blend: boolean) => `
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${name}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let i=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
