@@ -7,13 +7,12 @@ import {
   pipelinesByMode,
   stageDescriptors,
   type BlendModePipelines,
-  type ModePipelines,
 } from './stagePipelines.ts'
 import { BLEND_MODES } from '../../scene/materialBlending.ts'
 import { createRoutedPipelines } from './routedPipelines.ts'
 import { createReach, type Reach } from './reach.ts'
 import { filtersDisplay } from './equations.ts'
-import { prepareDisplayProgram } from './displayFilterProgram.ts'
+import { blendCatchUp } from './blendCatchUp.ts'
 import type { WaterPass } from '../water/waterPass.ts'
 import { families } from '../../host/families.ts'
 import {
@@ -61,7 +60,6 @@ type BlendProgramSetup = {
   programs: () => ForwardVariants<BlendProgram>
 }
 type ForwardVariants<P> = Awaited<ReturnType<typeof createForwardVariants<P>>>
-type RoutedPipelines = ReturnType<typeof createRoutedPipelines>
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
  *  that transmits. Both light with the code the scene's lights need, as the opaque
@@ -193,31 +191,4 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     },
   }
   return { module, pipelines }
-}
-
-/** Compiles, off the frame, what is reached and not made yet; a program built later, or a reach
- *  that grows, calls it again. The mask pass is one set's, whatever the share; the display layers
- *  are no part of a diagnostic variant (`beginDisplayFilter`). */
-function blendCatchUp(
-  device: GPUDevice,
-  reach: Reach,
-  sets: { perMode: ModePipelines; routed: RoutedPipelines }[],
-  maskSet: RoutedPipelines,
-  diagnostic: boolean,
-) {
-  return async () => {
-    const { modes, shares } = reach.state
-    const filtered = reach.state.filtered && !diagnostic
-    const list = [...modes]
-    await Promise.all([
-      filtered && prepareDisplayProgram(device),
-      ...[...shares].map((withShare) => {
-        const { perMode, routed } = sets[+withShare]
-        return Promise.all([
-          perMode.precompile(list),
-          filtered && (routed === maskSet ? routed : routed.filtered).precompile(list),
-        ])
-      }),
-    ])
-  }
 }
