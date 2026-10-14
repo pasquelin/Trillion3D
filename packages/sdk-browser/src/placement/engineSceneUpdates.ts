@@ -1,6 +1,7 @@
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts'
 import type { PlacementRows } from './rows.ts'
+import type { PlacementLink } from './gpuCompose.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
@@ -73,7 +74,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   composePlacements(
     parent: object,
     world: ArrayLike<number>,
-    links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
+    links: readonly PlacementLink[],
     whole: boolean,
   ): void
   /** The cut's uniforms while it packs the world DAG of `roots` (`GpuSelection.packsWorld`), which a

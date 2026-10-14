@@ -16,6 +16,7 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { PlacementOf, PlacementRows } from './rows.ts'
 import { rootRankOfRow } from './update.ts'
 import { composeOnRead, plainAgain } from './composeOnRead.ts'
+import type { PlacementLink } from './gpuCompose.ts'
 
 /** A row held by its parent's slot, composed for its readers. */
 type RowReader = {
@@ -47,7 +48,7 @@ export function holdReaders(
   readers: Readers,
   slot: number,
   parent: object,
-  links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
+  links: readonly PlacementLink[],
 ) {
   let held = readers.get(slot)
   if (!held) readers.set(slot, (held = []))
