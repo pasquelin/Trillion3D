@@ -10,8 +10,8 @@ export interface VsmConsumerBindings {
   uniforms: number
   pool: number
 }
-/** The opaque resolve's and the water composite's numbers (the records', atlas, sampler and
- *  translucent depth). */
+/** The opaque resolve's and the water composite's numbers: the page table, the projection data,
+ *  the uniforms and the pool. */
 export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   pageTable: DEFERRED_BINDINGS.pageTable,
   projectionData: DEFERRED_BINDINGS.projectionData,
