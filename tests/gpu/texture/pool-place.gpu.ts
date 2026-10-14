@@ -23,9 +23,9 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 /** The atlas reads' place decode and pool tap, taken from the shipped text itself. */
 function poolLines() {
   const wanted =
-    /^(const (TEXEL_PITCH|TEXEL_BORDER|POOL_SUBTEXEL|POOL_STEP):.*|struct TileTap\{.*|fn (poolAxis|poolTap|placeOrigin|placeLayer)\(.*)$/gm
+    /^(const (TEXEL_PITCH|TEXEL_BORDER|POOL_SUBTEXEL|POOL_STEP):.*|struct TileTap\{.*|fn (poolAxis|poolTap|placeFields|placeOrigin|placeLayer)\(.*)$/gm
   const lines = POOL_PLACE_WGSL.text.match(wanted) ?? []
-  assert.equal(lines.length, 9, `the pool text no longer declares its place decode:\n${lines}`)
+  assert.equal(lines.length, 10, `the pool text no longer declares its place decode:\n${lines}`)
   return lines.join('\n')
 }
 

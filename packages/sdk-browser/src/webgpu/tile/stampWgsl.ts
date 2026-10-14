@@ -1,23 +1,18 @@
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import {
-  MAX_LEVELS,
-  PLACE_AXIS_BITS,
-  PLACE_LAYER_BITS,
-  TILES_PER_LAYER,
-  TILES_PER_ROW,
-} from '../../texture/tiles.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
+import { MAX_LEVELS, TILES_PER_LAYER, TILES_PER_ROW } from '../../texture/tiles.ts'
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts'
-import { TILE_USE_HEADER } from './slotUse.ts'
+import { TILE_PLACE_WORD_WGSL } from './slotUse.ts'
+import { POOL_PLACE_WGSL } from './poolPlaceWgsl.ts'
 
-const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
-  LAYER_MASK = (1 << PLACE_LAYER_BITS) - 1
-
-/** The pool index of the place a served entry names (`entryIndex`, `../../texture/tiles.ts`). */
+/** The pool index of the place a served entry names (`entryIndex`, `../../texture/tiles.ts`), off
+ *  the one place decoder (`placeFields`). */
 const TILE_ENTRY_INDEX_WGSL = wgslFn(
   'tileEntryIndex',
-  [],
+  [POOL_PLACE_WGSL],
   `fn tileEntryIndex(word:u32)->u32{
- return ((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u)*${TILES_PER_LAYER}u+((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u)*${TILES_PER_ROW}u+(word&${AXIS_MASK}u);
+ let place=placeFields(word);
+ return place.z*${TILES_PER_LAYER}u+place.y*${TILES_PER_ROW}u+place.x;
 }`,
 )
 
@@ -32,7 +27,7 @@ const TILE_ENTRY_INDEX_WGSL = wgslFn(
 const stampWgsl = (k: 'color' | 'data') =>
   wgslFn(
     `${k}StampUse`,
-    [TILE_ENTRY_INDEX_WGSL],
+    [TILE_ENTRY_INDEX_WGSL, TILE_PLACE_WORD_WGSL],
     `fn ${k}StampUse(entry:u32,clock:u32){
  let at=${k}Pages[2]+entry;let slots=${k}Pages[1];
  if(slots==0u||at>=arrayLength(&${k}Pages)){return;}
@@ -45,8 +40,8 @@ const stampWgsl = (k: 'color' | 'data') =>
   let mid=(lo+hi)/2u;
   if(${k}Pages[levels+mid*${MAX_LEVELS}u]<=at){lo=mid;}else{hi=mid;}
  }
- let lane=min(${k}Pages[${PAGE_HEADER_WORDS}u+lo*${PAGE_SLOT_WORDS}u+3u]>>24u,2u);
- let place=${TILE_USE_HEADER}u+2u*(atomicLoad(&${k}Use[lane])+tileEntryIndex(word));
+ let lane=min(${k}Pages[${PAGE_HEADER_WORDS}u+lo*${PAGE_SLOT_WORDS}u+3u]>>24u,${PREVIEW_LAYOUT_NAMES.length - 1}u);
+ let place=tilePlaceWord(atomicLoad(&${k}Use[lane]),tileEntryIndex(word));
  if(place<arrayLength(&${k}Use)){atomicMax(&${k}Use[place],clock);}
 }`,
   )

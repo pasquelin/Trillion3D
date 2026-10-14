@@ -41,6 +41,8 @@ struct TileTap{uv:vec2f,layer:i32,}
 fn poolAxis(origin:f32,texel:f32)->f32{return (origin*POOL_SUBTEXEL+floor(texel*POOL_SUBTEXEL))*POOL_STEP;}
 fn poolTap(origin:vec2f,texel:vec2f,layer:i32)->TileTap{return TileTap(vec2f(poolAxis(origin.x,texel.x),poolAxis(origin.y,texel.y)),layer);}
 fn tailOffset(rank:u32)->f32{return f32((${TILE_SIZE}u-(${TILE_SIZE}u>>rank)+3u)&~3u);}
-fn placeOrigin(word:u32)->vec2f{return vec2f(f32(word&${AXIS_MASK}u),f32((word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u))*TEXEL_PITCH+TEXEL_BORDER;}
-fn placeLayer(word:u32)->i32{return i32((word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}`,
+/** The one decoder of a place in a table word (\`packPlace\`): its column, row and layer. */
+fn placeFields(word:u32)->vec3u{return vec3u(word&${AXIS_MASK}u,(word>>${PLACE_AXIS_BITS}u)&${AXIS_MASK}u,(word>>${2 * PLACE_AXIS_BITS}u)&${LAYER_MASK}u);}
+fn placeOrigin(word:u32)->vec2f{return vec2f(placeFields(word).xy)*TEXEL_PITCH+TEXEL_BORDER;}
+fn placeLayer(word:u32)->i32{return i32(placeFields(word).z);}`,
 )
