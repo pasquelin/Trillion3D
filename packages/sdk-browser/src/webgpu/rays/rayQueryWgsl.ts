@@ -54,7 +54,7 @@ fn rqAnswer(k:u32,best:RqHit){
  let at=params.hitWord+k*RQ_HIT_WORDS;
  query[at+${RAY_HIT.at.flags}u]=select(0u,RQ_FOUND,best.found)|select(0u,RQ_CUT,rqCut);
  if(!best.found){return;}
- let normal=unitOrZero(invTranspose3Apply(invTranspose3Prep(rqLinear(best.placement)),best.normal));
+ let normal=unitOrZero(invTranspose3Apply(invTranspose3Prep(worldsLinear(best.placement)),best.normal));
  query[at+${RAY_HIT.at.placement}u]=best.placement;
  query[at+${RAY_HIT.at.page}u]=best.page;
  query[at+${RAY_HIT.at.triangle}u]=best.triangle;

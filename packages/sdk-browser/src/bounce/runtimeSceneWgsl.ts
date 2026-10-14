@@ -1,6 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
@@ -46,7 +45,6 @@ export const runtimeSceneWgsl = (scene: SceneBindings) =>
       WIDE_TRAVERSAL_WGSL,
       NO_INDEX,
       PLACEMENT_TREE_WALK_WGSL,
-      toF32,
       placementRay,
       worldMatrix3,
       transformHalfExtent,
@@ -100,11 +98,10 @@ ${wideTraversal({
   answer: 'best',
   overflow: 'rtWork=RT_WORK;',
 })}
-/** A double's words, high then low, as the single-precision value a host write of a world holds. */
-fn rtOrigin(t:vec2u)->f32{return bitcast<f32>(toF32(t));}
-/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record
- *  (\`rtWorldsMatrix\`), its translation the exact one beside the matrix (\`rtWorldsOrigin\`; the matrix's
- *  own is no cut's); a blended copy's, the proxy's own, past the placements. */
+/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record at a
+ *  zero eye (\`rtWorldsWorldAtEye\`: its translation the exact one beside the matrix, rounded once to
+ *  the single-precision value a host write holds; the matrix's own is no cut's); a blended copy's,
+ *  the proxy's own, past the placements. */
 fn rtWorldOf(w:u32)->mat4x4f{
  if(w>=rtProxy.instances){
   let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
@@ -113,13 +110,7 @@ fn rtWorldOf(w:u32)->mat4x4f{
    rtFloat(at+8u),rtFloat(at+9u),rtFloat(at+10u),0.0,
    rtFloat(at+12u),rtFloat(at+13u),rtFloat(at+14u),1.0);
  }
- let c0=bitcast<vec4f>(rtWorldsMatrix(w,0u));
- let c1=bitcast<vec4f>(rtWorldsMatrix(w,1u));
- let c2=bitcast<vec4f>(rtWorldsMatrix(w,2u));
- let o0=rtWorldsOrigin(w,0u);
- let o1=rtWorldsOrigin(w,1u);
- return mat4x4f(c0.x,c0.y,c0.z,0.0,c1.x,c1.y,c1.z,0.0,c2.x,c2.y,c2.z,0.0,
-  rtOrigin(o0.xy),rtOrigin(o0.zw),rtOrigin(o1.xy),1.0);
+ return rtWorldsWorldAtEye(w,vec4u(0u),vec4u(0u));
 }
 /** Word \`k\` of instance \`w\`, read in its record (\`rtWorldsInstance\`). */
 fn rtInstanceWord(w:u32,k:u32)->u32{return rtWorldsInstance(w,0u)[k];}
