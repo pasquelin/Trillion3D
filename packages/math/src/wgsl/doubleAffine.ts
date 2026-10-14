@@ -26,8 +26,8 @@ export const affineAxis = wgslFn(
  *  two entry points (`dBoxTransform`, `dBoxAffine`): an affine world takes the same words in
  *  both. THE BOX IS NON-EMPTY AND ITS BOUNDS FINITE, its caller's guard: `boxTransform` returns an
  *  empty box as it is and takes an infinite bound down its projective path (`unitW`), neither of
- *  which this text tests — the water's enclosure guards both, a carried root's box
- *  (`carriedBox`) its emptiness. */
+ *  which this text tests — the water's enclosure and a carried root's box (`carriedBox`) guard
+ *  both. */
 function boxTransformText(name: string, projective: boolean) {
   // Whether `m` is affine, and each corner divided by its `w` when it is not.
   const affine = `

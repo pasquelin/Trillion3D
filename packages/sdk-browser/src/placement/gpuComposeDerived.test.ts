@@ -51,7 +51,10 @@ const derived = shaderRun<{
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
 const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
   ROOT_BOXES_WGSL,
-  [...DOUBLE_HELPERS, 'affineAxis', 'dLess', 'dIsZero', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
+  [
+    ...DOUBLE_HELPERS,
+    ...['affineAxis', 'dLess', 'dIsZero', 'dIsFinite', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
+  ],
   roots,
 )
 
@@ -145,4 +148,26 @@ test('the corners, the detail and the world box a world derives are the CPU form
     )
   }
   assert.ok(withBox > FAMILY / 2, 'the family holds roots with a world box')
+})
+
+test('a box with a bound not finite is carried as the CPU carries it: every bound NaN', () => {
+  const next = lcgRandom(7)
+  for (const local of [
+    [-Infinity, -1, -1, 1, 1, 1],
+    [-1, -1, -1, 1, Infinity, 1],
+    [-1, NaN, -1, 1, 1, 1],
+  ]) {
+    const world = generated(next, 10)
+    const root = {
+      world: { elements: world },
+      localBox: Float64Array.from(local),
+      worldBox: new Float64Array(6),
+    }
+    roots.rootInputs.splice(0, 7, ...[...local, 1].map((v) => pair(v)))
+    roots.rootBoxes.length = 0
+    boxes.composeBox(0, 0, Array.from(world, pair))
+    const cpu = [...rootWorldBox(root as never)!]
+    assert.ok(cpu.every(Number.isNaN), `the CPU's box, ${local}`)
+    assert.deepEqual(roots.rootBoxes.slice(0, 6).map(doubleOf), cpu, `${local}`)
+  }
 })
