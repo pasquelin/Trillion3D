@@ -1,9 +1,4 @@
-import {
-  computeBufferEntry,
-  computeTextureEntry,
-  namedEntries,
-} from '../gpu/core/computeBindings.ts'
-import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import {
   FLAT_INDEX_WGSL,
   OPEN_SLICE_WGSL,
@@ -20,51 +15,14 @@ import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
-import { storageEntry } from './bindings.ts'
 import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from './viewLayout.ts'
 import { reflectionShareWgsl } from './weight.ts'
-import type { RuntimeBindings } from '../bounce/runtimeTraceWgsl.ts'
 import { TRACE_LIST, TRACE_LIST_FIRST } from '../bounce/runtimeLayout.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
-
-/**
- * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
- * declarations, the layouts and the entries read their numbers here. The surface targets, the
- * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counters, the proxy's buffer and instances, the
- * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
- * lists the proxy hits walk.
- */
-const TRACE_BINDINGS = {
-  flags: 0,
-  normals: 1,
-  target: 2,
-  lights: 3,
-  lobes: 4,
-  bounceGrid: 5,
-  probes: 6,
-  work: 7,
-  list: 8,
-  base: 10,
-  proxy: 11,
-  proxyWorlds: 12,
-  proxyTree: 13,
-  lightLists: 17,
-} as const
-
-/** The bindings of the proxy in the trace's group 0 (`runtimeTraceWgsl.ts`), the table's. */
-const RUNTIME_BINDINGS: RuntimeBindings = {
-  group: 0,
-  proxy: TRACE_BINDINGS.proxy,
-  worlds: TRACE_BINDINGS.proxyWorlds,
-  tree: TRACE_BINDINGS.proxyTree,
-  list: TRACE_BINDINGS.list,
-}
-
-/** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */
-const BEGIN_BINDINGS = { work: 2, list: 4 } as const
+import { BEGIN_BINDINGS, RUNTIME_BINDINGS, TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
+import type { TraceGroups } from './traceEncode.ts'
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -165,42 +123,6 @@ fn reflectionBegin(){
 /** Bytes of the indirect arguments: the workgroups along x and y, 1, then the count of tiles. */
 export const TRACE_ARGS_BYTES = 16
 
-/** The trace's bind group 0 and the frame state's layouts. */
-function traceLayouts(device: GPUDevice) {
-  return {
-    traceLayout: device.createBindGroupLayout({
-      entries: [
-        computeTextureEntry(TRACE_BINDINGS.flags, 'uint'),
-        computeTextureEntry(TRACE_BINDINGS.normals, 'unfilterable-float'),
-        storageEntry(TRACE_BINDINGS.target),
-        computeBufferEntry(TRACE_BINDINGS.lights, 'read-only-storage'),
-        computeTextureEntry(TRACE_BINDINGS.lobes, 'uint'),
-        computeBufferEntry(TRACE_BINDINGS.bounceGrid, 'uniform'),
-        computeTextureEntry(TRACE_BINDINGS.probes, 'unfilterable-float', '2d-array'),
-        computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
-        computeTextureEntry(TRACE_BINDINGS.base, 'unfilterable-float'),
-        computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
-        computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
-        computeTextureEntry(TRACE_BINDINGS.proxyWorlds, 'uint', '2d-array'),
-        computeTextureEntry(TRACE_BINDINGS.proxyTree, 'uint', '2d-array'),
-      ],
-    }),
-    classifyLayout: device.createBindGroupLayout({
-      entries: [
-        computeTextureEntry(TRACE_BINDINGS.flags, 'uint'),
-        computeBufferEntry(TRACE_BINDINGS.work, 'storage'),
-        computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
-      ],
-    }),
-    beginLayout: device.createBindGroupLayout({
-      entries: [
-        computeBufferEntry(BEGIN_BINDINGS.work, 'storage'),
-        computeBufferEntry(BEGIN_BINDINGS.list, 'storage'),
-      ],
-    }),
-  }
-}
-
 /** The trace's kernels on the shaders' modules: the frame state, the tile classification and the
  *  trace, over the reflection group's layout `groupLayout` (`reflectionLayout`). The rows of the
  *  indirect dispatch are cut at the device's limit. */
@@ -254,131 +176,10 @@ export const createTraceTiles = (device: GPUDevice, width: number, height: numbe
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   }),
 })
-type TraceTiles = ReturnType<typeof createTraceTiles>
+export type TraceTiles = ReturnType<typeof createTraceTiles>
 
 /** A view's trace groups, none made yet: made at the first trace (`traceGroups`). */
 export const createTraceGroups = () => ({
   identity: createWebgpuBindIdentity(),
   groups: undefined as TraceGroups | undefined,
 })
-
-/** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
- *  resident proxy, the deferred lighting's view. */
-export type TraceInputs = {
-  base: GPUTextureView
-  flags: GPUTextureView
-  normals: GPUTextureView
-  lobes: GPUTextureView
-  lights: GPUBuffer
-  /** The light grid's buffer, whose world lists the proxy hits walk (`bounceLightSlice`). */
-  lightLists: GPUBuffer
-  bounceGrid: GPUBuffer
-  probes: GPUTextureView
-  /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
-  proxy: GPUBuffer
-  /** The culling's records, the worlds the proxy places its meshes by and its instances
-   *  (`gpu/dag/worldTable.ts`), or the stand-in. */
-  proxyWorlds: GPUTextureView
-  /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
-  proxyTree: GPUTextureView
-}
-
-/** The groups of a trace: the trace's, the classification's and the frame state's. */
-type TraceGroups = { trace: GPUBindGroup; classify: GPUBindGroup; begin: GPUBindGroup }
-
-/** What a view's trace holds: the target it writes, its view uniform, its tile list, and its groups
- *  under the identity of the resources they name (`createWebgpuBindIdentity`). */
-type TraceResources = {
-  device: GPUDevice
-  targetView: GPUTextureView
-  uniform: GPUBuffer
-  tiles: TraceTiles
-  trace: { identity: WebgpuBindIdentity; groups?: TraceGroups }
-}
-
-/** The bind groups of `reflection`'s trace over `inputs`, made again when a resource they name is
- *  not the one they were made over. */
-function traceGroups(
-  reflection: TraceResources,
-  stages: Awaited<ReturnType<typeof createTraceStages>>,
-  inputs: TraceInputs,
-) {
-  const { device, targetView, tiles, trace } = reflection
-  const { next } = trace.identity
-  next.length = 0
-  next.push(
-    stages,
-    inputs.base,
-    inputs.flags,
-    inputs.normals,
-    inputs.lobes,
-    inputs.lights,
-    inputs.bounceGrid,
-    inputs.probes,
-    inputs.proxy,
-    inputs.proxyWorlds,
-    inputs.proxyTree,
-    inputs.lightLists,
-  )
-  if (!trace.identity.moved() && trace.groups) return trace.groups
-  return (trace.groups = {
-    trace: device.createBindGroup({
-      layout: stages.traceLayout,
-      entries: namedEntries(TRACE_BINDINGS, {
-        flags: inputs.flags,
-        normals: inputs.normals,
-        target: targetView,
-        lights: { buffer: inputs.lights },
-        lobes: inputs.lobes,
-        bounceGrid: { buffer: inputs.bounceGrid },
-        probes: inputs.probes,
-        list: { buffer: tiles.list },
-        base: inputs.base,
-        lightLists: { buffer: inputs.lightLists },
-        proxy: { buffer: inputs.proxy },
-        proxyWorlds: inputs.proxyWorlds,
-        proxyTree: inputs.proxyTree,
-      }),
-    }),
-    classify: device.createBindGroup({
-      layout: stages.classifyLayout,
-      entries: namedEntries(TRACE_BINDINGS, {
-        flags: inputs.flags,
-        work: { buffer: tiles.args },
-        list: { buffer: tiles.list },
-      }),
-    }),
-    begin: device.createBindGroup({
-      layout: stages.beginLayout,
-      entries: namedEntries(BEGIN_BINDINGS, {
-        work: { buffer: tiles.args },
-        list: { buffer: tiles.list },
-      }),
-    }),
-  })
-}
-
-/**
- * The frame state, the tile classification and the opaque trace, over the pixels of `size`, in the
- * open compute `pass`: `depthGroup` is the reflection group over the depth pyramid.
- */
-export function encodeReflectionTrace(
-  pass: GPUComputePassEncoder,
-  reflection: TraceResources,
-  stages: Awaited<ReturnType<typeof createTraceStages>>,
-  inputs: TraceInputs,
-  depthGroup: GPUBindGroup,
-  size: readonly [number, number],
-) {
-  const groups = traceGroups(reflection, stages, inputs)
-  pass.setPipeline(stages.beginPipeline)
-  pass.setBindGroup(0, groups.begin)
-  pass.dispatchWorkgroups(1)
-  pass.setPipeline(stages.classifyPipeline)
-  pass.setBindGroup(0, groups.classify)
-  pass.setBindGroup(1, depthGroup)
-  pass.dispatchWorkgroups(ceilDiv(size[0], REFLECTION_SIDE), ceilDiv(size[1], REFLECTION_SIDE))
-  pass.setPipeline(stages.tracePipeline)
-  pass.setBindGroup(0, groups.trace)
-  pass.dispatchWorkgroupsIndirect(reflection.tiles.args, 0)
-}

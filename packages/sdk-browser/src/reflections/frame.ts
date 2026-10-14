@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { encodeFrontDepth } from './frontDepth.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
-import { encodeReflectionTrace, type TraceInputs } from './trace.ts'
+import { encodeReflectionTrace, type TraceInputs } from './traceEncode.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 import {
