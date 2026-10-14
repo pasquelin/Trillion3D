@@ -119,7 +119,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let asleep=buried||travelled>reach*BOUNCE_SKY;
  let usable=select(1.0,0.0,buried);
  // Monte-Carlo estimator over the whole sphere: 4π divided by the count of the rays that answered.
- let scale=12.5663706/answered;
+ let scale=2.0*TWO_PI/answered;
  let updates=select(0.0,probeAt(probe,0u).w,held);
  let previous=select(vec3f(0.0),probeAt(probe,0u).xyz,held);
  let fresh=sums[0]*scale;
