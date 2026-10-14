@@ -85,3 +85,41 @@ test("a parent's move composes no reader's row: the product waits for a read, on
   assert.deepEqual(Array.from(item.matrix.elements), product(turn(1.2), local(1)))
   assert.deepEqual(row(), product(turn(1.2), local(1)), 'read once: composed at the last world')
 })
+
+test('a reader row linked to a new parent follows it alone, whatever the old parent does next', () => {
+  const { rt } = session()
+  const extra = createPlacementRows(2),
+    a = {},
+    b = {}
+  const item = { placement: { rows: extra, index: 0 }, matrix: placementWorld(extra, 0) }
+  rt.blendState.blendGpu.push(item as never)
+  composeWebgpuPlacements(rt, a, turn(0.2), [{ rows: extra, index: 0, local: local(3) }], true)
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.2), local(3)))
+  // The host links the row to B first, then frees A: the row follows B, never A.
+  composeWebgpuPlacements(rt, b, turn(0.7), [{ rows: extra, index: 0, local: local(4) }], false)
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.7), local(4)))
+  composeWebgpuPlacements(rt, a, turn(0.9), [], true)
+  composeWebgpuPlacements(rt, b, turn(1.1), [], false)
+  assert.deepEqual(Array.from(item.matrix.elements), product(turn(1.1), local(4)))
+  const held = [...rt.compose!.readers.values()].flat()
+  assert.deepEqual(
+    held.map(({ parent }) => parent === b),
+    [true],
+  )
+})
+
+test('two views of one row, each its own array, both read the row composed', () => {
+  const { rt } = session()
+  const extra = createPlacementRows(2),
+    parent = {}
+  const first = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
+  const second = {
+    placement: { rows: extra, index: 1 },
+    matrix: { elements: new Float64Array(16) },
+  }
+  rt.blendState.blendGpu.push(first as never, second as never)
+  composeWebgpuPlacements(rt, parent, turn(0.4), [{ rows: extra, index: 1, local: local(2) }], true)
+  composeWebgpuPlacements(rt, parent, turn(0.8), [], false)
+  assert.deepEqual(Array.from(first.matrix.elements), product(turn(0.8), local(2)))
+  assert.deepEqual(Array.from(second.matrix.elements), product(turn(0.8), local(2)))
+})
