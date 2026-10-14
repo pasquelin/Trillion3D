@@ -1,22 +1,29 @@
 // A material the page created, assigned to a drawable: its records point to it and every
-// row is written again off it, in the variant the drawable's geometry asks for; what the open laid
+// row names its record, in the variant the drawable's geometry asks for; what the open laid
 // out for its forward pass is refused by name before any write.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { FLAG_HAS_COLOR, PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
+import {
+  FLAG_HAS_COLOR,
+  MATERIAL_RANK_MASK,
+  PAGE_INFO_STRIDE,
+  ROW_WORDS,
+} from '../../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
+import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
 
-/** The quad opened on WebGPU, its material API, and what its drawn rows say: colour, flags. */
+/** The quad opened on WebGPU, its material API, and what its drawn rows say: the colour of the
+ *  record each names, as the material table last sent it up, and their flags. */
 function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => {}) {
   installGpuGlobals()
   const fixture = quadScene(),
-    { device, buffers } = fakeDevice(BACKEND)
+    { device, buffers, textureWrites } = fakeDevice(BACKEND)
   edit(fixture)
   const backend = webgpuPagesEngine({
     ...fixture,
@@ -34,13 +41,22 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     await backend.flush()
     backend.render(camera())
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
-    const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
-    const ints = new Uint32Array(floats.buffer, floats.byteOffset, floats.length)
+    const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
     const bases = Array.from({ length: table.size / PAGE_INFO_STRIDE }, (_, row) => row * ROW_WORDS)
     const drawn = bases.filter((base) => ints[base + PAGE_INFO.at.indexCount] > 0)
     assert.ok(drawn.length, 'the quad has rows')
+    const sent = textureWrites.findLast(
+      ({ destination }) =>
+        (destination.texture as { label?: string }).label === 'Trillion3D material records',
+    )!
+    const records = new Float32Array(sent.data.buffer as ArrayBuffer)
+    const colour = (base: number) => {
+      const rank = ints[base + PAGE_INFO.at.material] & MATERIAL_RANK_MASK,
+        at = rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.baseColor
+      return [...records.subarray(at, at + 3)].join()
+    }
     return {
-      colours: new Set(drawn.map((base) => [...floats.subarray(base + 16, base + 19)].join())),
+      colours: new Set(drawn.map(colour)),
       coloured: drawn.every((base) => (ints[base + PAGE_INFO.at.flags] & FLAG_HAS_COLOR) !== 0),
     }
   }
