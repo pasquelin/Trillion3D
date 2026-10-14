@@ -56,7 +56,7 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  let pixels=clusterPixels(cluster,e,stretch,focal);
  if(!selects(pixels,thresholdOf(w))){return;}
  // Asked for, it counts as used a little before now (\`stampAhead\`): kept after the old pages.
- if(emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax))){stampAhead(r);}
+ if(emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax))){stampAhead(r);markSeed(ROW_SEED_AHEAD);}
 }
 `,
 )
