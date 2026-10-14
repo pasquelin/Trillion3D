@@ -69,6 +69,10 @@ function mipChain(width: number, height: number, mips: number) {
   return { offsets, words }
 }
 
+/** Full maps a page-table row holds: half a row's width over a map's level-0 pages, a power of two;
+ *  one extra entry of the last row holds the single-page maps. */
+export const VSM_TABLES_PER_ROW = VSM_TABLE_ROW_WIDTH / 2 / VSM_LEVEL0_PAGES
+
 /** Pure sizing; no device needed: the pool binds in windows every device holds
  *  (`poolWindowSizes`). */
 export function vsmLayout(options: VsmResourceOptions): VsmLayout {
@@ -84,9 +88,9 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     physicalPagesY * VSM_PAGE_TEXELS,
   ]
 
-  // The page table: (maxDim/2)/128 tables per row, one extra entry for the single-page block.
+  // The page table: `VSM_TABLES_PER_ROW` tables a row, one extra entry for the single-page block.
   const maxFull = Math.max(0, options.fullMapCapacity)
-  const entriesPerRow = Math.floor(maxDim / 2 / VSM_LEVEL0_PAGES)
+  const entriesPerRow = VSM_TABLES_PER_ROW
   if (!isPow2(entriesPerRow)) throw new Error('VSM: page table row must be a power of two tables')
   const pageTableRows = ceilDiv(maxFull + 1, entriesPerRow)
   const pageTableSize: [number, number] = [

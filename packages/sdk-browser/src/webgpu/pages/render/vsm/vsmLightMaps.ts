@@ -5,22 +5,17 @@ import { alignUp } from '../../../../../../math/src/scalar/integers.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { vsmShadowed } from '../../../../vsm/seenLights.ts'
 import {
-  VSM_LEVEL0_PAGES,
   VSM_MIPS,
   VSM_SUN_COARSEST_LEVEL,
   VSM_SUN_FINEST_LEVEL,
-  VSM_TABLE_ROW_WIDTH,
 } from '../../../../vsm/constants.ts'
-import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
+import { VSM_TABLES_PER_ROW, type VsmResourceOptions } from '../../../../vsm/layout.ts'
 
 /** Directional clipmap levels a sun takes. */
 const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
-/** Full maps per page-table row, as the layout lays them (`vsmLayout`): half a row's width over a
- *  map's level-0 pages. */
-const TABLES_PER_ROW = VSM_TABLE_ROW_WIDTH / 2 / VSM_LEVEL0_PAGES
 /** Room for `maps` full maps, rounded up to whole page-table rows (the last entry of the last row
  *  holds the single-page maps). */
-export const wholeTableRows = (maps: number) => alignUp(maps + 1, TABLES_PER_ROW) - 1
+export const wholeTableRows = (maps: number) => alignUp(maps + 1, VSM_TABLES_PER_ROW) - 1
 
 /** The full maps one light takes when it casts: a clipmap's levels for a sun, six faces for a
  *  point, one for a spot. */
