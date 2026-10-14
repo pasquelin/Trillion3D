@@ -34,6 +34,8 @@ const FUNCTIONS = [
   'rtTreeWord',
   'rtTreeMember',
   'rtTreeCorner',
+  'rtTreeLow',
+  'rtTreeHigh',
   'rtBlocked',
   'rtLit',
   'rtProbeRay',
