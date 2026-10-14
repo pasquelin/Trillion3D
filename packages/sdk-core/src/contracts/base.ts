@@ -6,7 +6,6 @@ export const SDK_VERSION = '1.0.0'
  *  11 carries no second, self-contained scene beside the pages, nor its manifest field (#1483).
  *  Earlier formats are refused by their number rather than half-read. */
 export const FORMAT_VERSION = 11
-export { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from './writtenFormats.ts'
 /** Outer cache format required for clustered BLEND (8 before the manifest was paged, 10 before
  *  format 11); source manifests keep their own format. */
 export const CLUSTERED_BLEND_FORMAT_VERSION = 12

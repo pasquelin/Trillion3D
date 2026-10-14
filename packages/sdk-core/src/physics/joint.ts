@@ -2,14 +2,6 @@ import { createListeners } from '../runtime/listeners.ts'
 import type { Object3D } from '../world/object/object3d.ts'
 import type { JointKind, JointMotor, JointOptions } from './jointOptions.ts'
 
-export type {
-  JointKind,
-  JointLimits,
-  JointMotor,
-  JointOptions,
-  SixDofAxis,
-} from './jointOptions.ts'
-
 /** The options each kind has, past `anchor`, `anchorB`, `axis` and `breakForce`. */
 const ALL = ['limits', 'spring', 'motor'] as const
 type Tuning =

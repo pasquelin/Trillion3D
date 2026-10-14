@@ -18,8 +18,6 @@ import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
 import { validateSceneLight } from './validate.ts'
 import { createLightKinds } from './kinds.ts'
 
-export { LIGHT_FIELD } from './fields.ts'
-
 /** The lights of a scene as the GPU reads them, packed and kept up to date. */
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>
 

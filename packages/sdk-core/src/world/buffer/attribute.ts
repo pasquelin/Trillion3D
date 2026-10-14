@@ -7,8 +7,6 @@ import type { PageAttribute } from '../../page/pageInput.ts'
 import { VertexElements, type BufferTypedArray } from './elements.ts'
 import { defer, load, notLoaded, type PendingNumbers } from './pending.ts'
 
-export type { BufferTypedArray } from './elements.ts'
-
 /** A copy of `source`'s numbers into an attribute owning them: every vertex, or those `order`
  *  lists, in `source`'s type and normalisation. */
 export function ownAttribute(source: VertexAttribute, order?: ArrayLike<number>) {

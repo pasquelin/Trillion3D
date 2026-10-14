@@ -94,7 +94,29 @@ export {
 export { maxStretch, coneRejects } from '../../math/src/projection/projectionOracles.ts'
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
 export * from '../../math/src/index.ts'
-export * from './world/transform-tree/index.ts'
+export { NODE_AUTO_UPDATE } from './world/transform-tree/nodeFlags.ts'
+export {
+  addTransformNode,
+  createTransformTree,
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+  setNodePosition,
+  setNodeQuaternion,
+  setNodeScale,
+  type TransformTree,
+} from './world/transform-tree/transformTree.ts'
+export { removeTransformNode, reparentTransformNode } from './world/transform-tree/structure.ts'
+export {
+  markNodeWorldNeedsUpdate,
+  updateNodeMatrixWorld,
+  updateNodeWorldMatrix,
+} from './world/transform-tree/update.ts'
+export {
+  nodeWorldDirection,
+  nodeWorldPosition,
+  nodeWorldQuaternion,
+} from './world/transform-tree/read.ts'
+export { lookAtNode } from './world/transform-tree/lookAt.ts'
 export { SceneNode } from './scene/core/node.ts'
 export { type SceneNodeOptions, SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'
 
@@ -152,4 +174,15 @@ export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
 export type { Counts } from './manifest/binaryLayout.ts'
 export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts'
 export type { WorldRoots, WorldRootsBundle, WorldRootsPage } from './manifest/worldRoots.ts'
-export * from './llm/index.ts'
+export * from './llm/types.ts'
+export { EXPLORER_OPTIONS_SCHEMA } from './llm/explorerOptionsSchema.ts'
+export { COMPILER_OPTIONS_SCHEMA } from './llm/compilerOptionsSchema.ts'
+export { TRILLION3D_RUNTIME_TOOLS } from './llm/runtimeToolsSchema.ts'
+export {
+  getTrillion3dTools,
+  toAnthropicTool,
+  toGeminiTool,
+  toMcpTool,
+  toOpenAiTool,
+} from './llm/toolDefinitions.ts'
+export { TRILLION3D_SYSTEM_PROMPT, getTrillion3dLlmPrompt } from './llm/systemPrompt.ts'

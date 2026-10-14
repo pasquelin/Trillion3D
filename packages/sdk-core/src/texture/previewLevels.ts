@@ -13,8 +13,6 @@ import { PREVIEW_BASE } from '../contracts/writtenFormats.ts'
 import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from './previewFormat.ts'
 import { ceilDiv, floorLog2, mipSize } from '../../../math/src/scalar/integers.ts'
 
-export { PREVIEW_BASE }
-
 /** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {
   return [mipSize(width, level), mipSize(height, level)]

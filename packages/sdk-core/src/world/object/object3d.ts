@@ -11,7 +11,6 @@ import { Quaternion } from '../math/quaternion.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import type { Box3 } from '../math/box3.ts'
 import type { SceneLink } from './sceneLink.ts'
-export type { SceneLink } from './sceneLink.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),

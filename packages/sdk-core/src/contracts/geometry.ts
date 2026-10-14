@@ -9,7 +9,6 @@ import type {
 } from '../page/contracts.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
 import type { SoftBodyType } from '../physics/soft.ts'
-export type { TexturePreview }
 
 /** One cluster of a compiled model: a small piece of triangles the engine loads on its own. */
 export interface Page {

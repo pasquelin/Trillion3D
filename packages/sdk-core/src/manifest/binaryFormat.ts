@@ -16,17 +16,10 @@
  * Columns are fixed by version: their order, element type and stride are the format. Reading one
  * is `new Float64Array(buffer, offset, length/8)`, so decoding costs no parse at all.
  */
-export {
-  MANIFEST_BINARY_HEADER_WORDS,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-} from '../contracts/writtenFormats.ts'
 /** The codec geometry pages are written with. */
 export const GEOMETRY_PAGE_CODEC = 'quantized'
 
 import { PREVIEW_WORDS } from '../texture/previewFormat.ts'
-export * from '../texture/previewFormat.ts'
-export * from './binaryPageWords.ts'
 
 export const COLUMN_NAMES = [
   'pageBounds',

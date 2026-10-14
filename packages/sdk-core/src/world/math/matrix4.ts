@@ -21,7 +21,6 @@ const ORIGIN = [0, 0, 0],
   UNIT = [1, 1, 1]
 
 /** The 3×3 matrix, beside this one since the scene layer first read both from here. */
-export { Matrix3 } from './matrix3.ts'
 
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {

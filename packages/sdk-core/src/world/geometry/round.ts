@@ -3,12 +3,12 @@ import {
   copyScaledVector3,
   dotVector3,
   signedAngleVector3,
+  circlePoint,
 } from '../../../../math/src/vector/vector.ts'
 import { subtract, cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { GeometryBuilder, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
-import { circlePoint } from '../../../../math/src/vector/vector.ts'
 
 type V3 = [number, number, number]
 
@@ -166,9 +166,8 @@ function sweep(
   const tangents = points.map((_, i) => {
     const a = points[Math.max(0, i - 1)],
       c = points[Math.min(count, i + 1)]
-    const t =
-      closed && (i === 0 || i === count) ? subtract(points[1], points[count - 1]) : subtract(c, a)
-    return unit(t)
+    const ends = closed && (i === 0 || i === count)
+    return unit(ends ? subtract(points[1], points[count - 1]) : subtract(c, a))
   })
   // The first normal is any direction across the first tangent; each next one is the previous
   // turned by the least rotation that carries one tangent onto the next.

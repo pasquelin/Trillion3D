@@ -12,8 +12,12 @@ import {
   setNodeScale,
 } from './transformTree.ts'
 import { updateTransformTree } from './pass.ts'
-import { removeTransformNode, releaseTransformNode, reparentTransformNode } from './structure.ts'
-import { setNodeWorldLazy } from './structure.ts'
+import {
+  removeTransformNode,
+  releaseTransformNode,
+  reparentTransformNode,
+  setNodeWorldLazy,
+} from './structure.ts'
 import { updateNodeWorldMatrix } from './update.ts'
 
 /** The pose of node `k` of a family, pseudo-random and the same for every tree that asks. */

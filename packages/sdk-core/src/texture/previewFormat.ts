@@ -1,9 +1,8 @@
 /**
  * The progressive texture levels section of the binary sidecar — the entry words, the atlases,
  * the block families and their layouts —, beside `../manifest/binaryFormat.ts`, which owns the
- * columns and re-exports this.
+ * columns.
  */
-export { TEXTURE_PREVIEW_VERSION } from '../contracts/writtenFormats.ts'
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,

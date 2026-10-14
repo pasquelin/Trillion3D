@@ -9,7 +9,6 @@ import {
   NODE_TRS_DIRTY,
 } from './nodeFlags.ts'
 
-export * from './nodeFlags.ts'
 import { reserve } from './storage.ts'
 
 /**

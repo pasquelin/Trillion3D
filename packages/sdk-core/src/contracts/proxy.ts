@@ -12,17 +12,6 @@
  * others: the same traversal bound covers four times more tree than a binary tree.
  */
 
-export {
-  PROXY_CHILD_WORDS,
-  PROXY_CHILDREN,
-  PROXY_NODE_FLOATS,
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-  SCENE_PROXY_HEADER_WORDS,
-  SCENE_PROXY_MAGIC,
-  SCENE_PROXY_VERSION,
-} from './writtenFormats.ts'
-
 /** What poses a deformed placement's proxy from its rest shape: for each corner of the proxy's triangles, in
  *  triangle order and corner order, the vertex it was built from keeps its skin and its morph deltas
  *  (`world/page/runtimeDeform.ts`). A corner is `CORNER_INFLUENCES` joint ranks, as many weights, then the

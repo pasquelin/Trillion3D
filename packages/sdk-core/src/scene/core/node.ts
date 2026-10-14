@@ -19,8 +19,6 @@ import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError
 import type { SceneNodeOptions, SceneState } from './nodeContracts.ts'
 import type { SceneRoot } from './root.ts'
 
-export type { SceneNodeOptions } from './nodeContracts.ts'
-
 /** A stable handle into one engine-owned transform hierarchy. */
 export class SceneNode {
   /** Children in insertion order; `children` hands out a frozen copy, remade after a change. */

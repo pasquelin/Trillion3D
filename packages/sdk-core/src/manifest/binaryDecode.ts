@@ -3,6 +3,18 @@ import type { GeometryPageDescriptor } from '../page/contracts.ts'
 import { decodeCulling, decodeStreams, decodeStructure } from './binaryDecodeParts.ts'
 import { decodeTexturePreviews } from './binaryPreview.ts'
 import * as format from './binaryFormat.ts'
+import {
+  FLAG_ROLE,
+  FLAG_COARSE,
+  FLAG_GEOMETRY,
+  FLAG_CLUSTER_ERROR,
+  FLAG_PARENT_ERROR,
+  FLAG_PARENT_ERROR_FINITE,
+  FLAG_PARENT_SPHERE,
+  FLAG_PARENT_SPHERE_SET,
+  FLAG_GROUP,
+  FLAG_SOURCE,
+} from './binaryPageWords.ts'
 import { readManifestColumns } from './binaryRead.ts'
 import type { SlimClusterManifest } from './binaryTypes.ts'
 /** Turns a binary manifest back into the full manifest a runtime reads. */
@@ -48,8 +60,8 @@ export function decodeManifestBinary(
         min: [bounds[page * 6], bounds[page * 6 + 1], bounds[page * 6 + 2]],
         max: [bounds[page * 6 + 3], bounds[page * 6 + 4], bounds[page * 6 + 5]],
       }
-      if (flags & format.FLAG_ROLE) item.role = flags & format.FLAG_COARSE ? 'coarse' : 'exact'
-      if (flags & format.FLAG_GEOMETRY) {
+      if (flags & FLAG_ROLE) item.role = flags & FLAG_COARSE ? 'coarse' : 'exact'
+      if (flags & FLAG_GEOMETRY) {
         const geometrySha = geometryShaText.substring(page * 64, page * 64 + 64)
         item.geometry = {
           url: geometryPrefix + geometrySha + geometrySuffix,
@@ -63,7 +75,7 @@ export function decodeManifestBinary(
       }
       if (ints[base + format.INT_START] >= 0) item.start = ints[base + format.INT_START]
       if (ints[base + format.INT_LEVEL] >= 0) item.level = ints[base + format.INT_LEVEL]
-      if (flags & format.FLAG_CLUSTER_ERROR) {
+      if (flags & FLAG_CLUSTER_ERROR) {
         item.lodError = error[page * 2]
         item.sphere = [
           sphere[page * 4],
@@ -72,11 +84,11 @@ export function decodeManifestBinary(
           sphere[page * 4 + 3],
         ]
       }
-      if (flags & format.FLAG_PARENT_ERROR)
-        item.parentError = flags & format.FLAG_PARENT_ERROR_FINITE ? error[page * 2 + 1] : null
-      if (flags & format.FLAG_PARENT_SPHERE)
+      if (flags & FLAG_PARENT_ERROR)
+        item.parentError = flags & FLAG_PARENT_ERROR_FINITE ? error[page * 2 + 1] : null
+      if (flags & FLAG_PARENT_SPHERE)
         item.parentSphere =
-          flags & format.FLAG_PARENT_SPHERE_SET
+          flags & FLAG_PARENT_SPHERE_SET
             ? [
                 parentSphere[page * 4],
                 parentSphere[page * 4 + 1],
@@ -84,9 +96,9 @@ export function decodeManifestBinary(
                 parentSphere[page * 4 + 3],
               ]
             : null
-      if (flags & format.FLAG_GROUP)
+      if (flags & FLAG_GROUP)
         item.group = ints[base + format.INT_GROUP] >= 0 ? ints[base + format.INT_GROUP] : null
-      if (flags & format.FLAG_SOURCE)
+      if (flags & FLAG_SOURCE)
         item.source = ints[base + format.INT_SOURCE] >= 0 ? ints[base + format.INT_SOURCE] : null
       if (ints[base + format.INT_STREAM] >= 0) {
         item.stream = ints[base + format.INT_STREAM]

@@ -1,6 +1,6 @@
 import { EngineError } from '../contracts/cache.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
-import * as format from './binaryFormat.ts'
+import { previewAtlasName, previewAtlasOf } from '../texture/previewFormat.ts'
 import { levelBlockBytes, type previewGeometry } from '../texture/previewLevels.ts'
 
 // The rules of one texture-preview entry that the reader (`binaryPreview.ts`) and the writer share.
@@ -24,13 +24,13 @@ export function checkEntryHeader(
   firstLevel: number,
 ) {
   const { texture, atlas, width, height, bakedLevels } = header
-  if (format.previewAtlasName(atlas) === undefined)
+  if (previewAtlasName(atlas) === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown atlas', {
       entry,
       atlas,
     })
   // Keyed by the atlas that samples the chain: one colour entry per texture, plain or coverage.
-  const key = texture * 2 + format.previewAtlasOf(atlas)
+  const key = texture * 2 + previewAtlasOf(atlas)
   if (!Number.isInteger(texture) || key <= previous)
     throw new EngineError(
       'INVALID_CACHE',

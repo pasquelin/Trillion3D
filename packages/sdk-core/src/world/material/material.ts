@@ -1,6 +1,5 @@
 import type { PhysicsMaterialPreset } from '../../physics/options.ts'
 import type { MaterialParameters } from './materialParameters.ts'
-export type { MaterialParameters } from './materialParameters.ts'
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { listen, unlisten } from '../observed.ts'
