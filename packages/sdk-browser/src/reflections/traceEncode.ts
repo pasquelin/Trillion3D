@@ -76,6 +76,7 @@ function traceGroups(
         bounceGrid: { buffer: inputs.bounceGrid },
         probes: inputs.probes,
         list: { buffer: tiles.list },
+        count: { buffer: tiles.args },
         base: inputs.base,
         lightLists: { buffer: inputs.lightLists },
         proxy: { buffer: inputs.proxy },
@@ -93,10 +94,7 @@ function traceGroups(
     }),
     begin: device.createBindGroup({
       layout: stages.beginLayout,
-      entries: namedEntries(BEGIN_BINDINGS, {
-        work: { buffer: tiles.args },
-        list: { buffer: tiles.list },
-      }),
+      entries: namedEntries(BEGIN_BINDINGS, { work: { buffer: tiles.args } }),
     }),
   })
 }

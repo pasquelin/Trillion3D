@@ -9,7 +9,8 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { BEGIN_SHADER } from './trace.ts'
+import { BEGIN_SHADER, TRACE_SHADER, traceListBytes } from './trace.ts'
+import { REFLECTION_SIDE } from './constants.ts'
 import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
@@ -115,18 +116,21 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
 })
 
-test('the frame state restarts the tile list', () => {
-  const work = [7, 0, 0, 0]
-  // The trace's list of the frame before (its count, then two tiles): every ray was cast in its
-  // frame, so nothing carries over.
-  const traceList = [9, 7, 3]
+test('the frame state restarts the tile count, the one the trace reads', () => {
+  const work = [7, 0, 0, 5]
   const run = shaderRun<{ reflectionBegin: () => void }>(BEGIN_SHADER, ['reflectionBegin'], {
     work,
-    traceList,
   })
   run.reflectionBegin()
   // The tile list starts empty: its indirect arguments, one row of nothing, then 1, and the count.
   assert.deepEqual(work, [0, 1, 1, 0])
-  // The count starts again; the entries past it are written before any read.
-  assert.deepEqual(traceList, [0, 7, 3], 'the count restarts')
+  // One count of the listed tiles: the rank the classification adds to, which the trace reads
+  // read-only as its bound; the list holds tiles alone, from its first word.
+  assert.doesNotMatch(TRACE_SHADER, /atomicMax/)
+  assert.match(TRACE_SHADER, /atomicStore\(&traceList\[rank\]/)
+  assert.match(TRACE_SHADER, /if\(rank>=traceCount\[3u\]\)\{return;\}/)
+  assert.equal(
+    traceListBytes(32, 16),
+    4 * Math.ceil(32 / REFLECTION_SIDE) * Math.ceil(16 / REFLECTION_SIDE),
+  )
 })

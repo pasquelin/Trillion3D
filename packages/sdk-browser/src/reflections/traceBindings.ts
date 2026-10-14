@@ -6,7 +6,7 @@ import { storageEntry } from './bindings.ts'
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counter, the proxy's buffer and instances, the
+ * (`work`), read-only too as the trace's count (`count`), the trace's list, the proxy's buffer and instances, the
  * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
  * lists the proxy hits walk.
  */
@@ -20,6 +20,8 @@ export const TRACE_BINDINGS = {
   probes: 6,
   work: 7,
   list: 8,
+  /** The indirect arguments again, read-only: the trace's bound (`traceCount`). */
+  count: 9,
   base: 10,
   proxy: 11,
   proxyWorlds: 12,
@@ -35,8 +37,8 @@ export const RUNTIME_BINDINGS: SceneBindings = {
   tree: TRACE_BINDINGS.proxyTree,
 }
 
-/** The frame state's group (`BEGIN_SHADER`): the indirect arguments and the trace's list. */
-export const BEGIN_BINDINGS = { work: 2, list: 4 } as const
+/** The frame state's group (`BEGIN_SHADER`): the indirect arguments. */
+export const BEGIN_BINDINGS = { work: 2 } as const
 
 /** The trace's bind group 0 and the frame state's layouts. */
 export function traceLayouts(device: GPUDevice) {
@@ -51,6 +53,7 @@ export function traceLayouts(device: GPUDevice) {
         computeBufferEntry(TRACE_BINDINGS.bounceGrid, 'uniform'),
         computeTextureEntry(TRACE_BINDINGS.probes, 'unfilterable-float', '2d-array'),
         computeBufferEntry(TRACE_BINDINGS.list, 'storage'),
+        computeBufferEntry(TRACE_BINDINGS.count, 'read-only-storage'),
         computeTextureEntry(TRACE_BINDINGS.base, 'unfilterable-float'),
         computeBufferEntry(TRACE_BINDINGS.lightLists, 'read-only-storage'),
         computeBufferEntry(TRACE_BINDINGS.proxy, 'read-only-storage'),
@@ -66,10 +69,7 @@ export function traceLayouts(device: GPUDevice) {
       ],
     }),
     beginLayout: device.createBindGroupLayout({
-      entries: [
-        computeBufferEntry(BEGIN_BINDINGS.work, 'storage'),
-        computeBufferEntry(BEGIN_BINDINGS.list, 'storage'),
-      ],
+      entries: [computeBufferEntry(BEGIN_BINDINGS.work, 'storage')],
     }),
   }
 }

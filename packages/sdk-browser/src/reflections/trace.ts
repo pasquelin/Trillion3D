@@ -23,13 +23,10 @@ import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { BEGIN_BINDINGS, RUNTIME_BINDINGS, TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
 import type { TraceGroups } from './traceEncode.ts'
 
-/**
- * THE FRAME'S COUNTER OF THE REFLECTION TRACE, in its list: the tiles the classification listed
- * (`count`), then the list itself from `TRACE_LIST_FIRST`. The classification writes it; the trace
- * reads it through the same atomic declaration, so binds it writable.
- */
-const TRACE_LIST = { count: 0 } as const
-const TRACE_LIST_FIRST = 1
+/** The word of the indirect arguments (`work`) holding the count of listed tiles: the rank the
+ *  classification gives each tile it lists, and the bound the trace reads, read-only beside the
+ *  dispatch that takes its rows from the same buffer — both read usages. */
+const TRACE_COUNT_WORD = 3
 
 /**
  * The opaque surfaces' reflection, in the compute pass of the image: where a tile of
@@ -56,6 +53,7 @@ export const TRACE_SHADER = wgslProgram(
 @group(0) @binding(${TRACE_BINDINGS.probes}) var probes:texture_2d_array<f32>;
 @group(0) @binding(${TRACE_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 @group(0) @binding(${TRACE_BINDINGS.list}) var<storage,read_write> traceList:array<atomic<u32>>;
+@group(0) @binding(${TRACE_BINDINGS.count}) var<storage,read> traceCount:array<u32>;
 @group(0) @binding(${TRACE_BINDINGS.base}) var traceBase:texture_2d<f32>;
 @group(0) @binding(${TRACE_BINDINGS.lightLists}) var<storage,read> tileLights:array<u32>;
 var<workgroup> reflecting:atomic<u32>;
@@ -64,9 +62,8 @@ fn classifyReflections(@builtin(global_invocation_id) id:vec3u,@builtin(workgrou
  if(all(vec2f(id.xy)<view.viewport.xy)&&surfaceReflects(textureLoad(traceFlags,vec2i(id.xy),0).r)){atomicOr(&reflecting,1u);}
  workgroupBarrier();
  if(lane==0u&&atomicLoad(&reflecting)!=0u){
-  let rank=atomicAdd(&work[3],1u);
-  atomicStore(&traceList[${TRACE_LIST_FIRST}u+rank],wg.x|(wg.y<<16u));
-  atomicMax(&traceList[${TRACE_LIST.count}u],rank+1u);
+  let rank=atomicAdd(&work[${TRACE_COUNT_WORD}u],1u);
+  atomicStore(&traceList[rank],wg.x|(wg.y<<16u));
   openSlice(0u,rank);
  }
 }
@@ -76,9 +73,8 @@ fn traceReflections(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) row
 }
 /** The pixel \`lid\` of the listed tile of rank \`rank\`, traced. */
 fn tracePixel(rank:u32,lid:vec2u){
- let count=atomicLoad(&traceList[${TRACE_LIST.count}u]);
- if(rank>=count){return;}
- let tile=atomicLoad(&traceList[${TRACE_LIST_FIRST}u+rank]);
+ if(rank>=traceCount[${TRACE_COUNT_WORD}u]){return;}
+ let tile=atomicLoad(&traceList[rank]);
  let id=vec2u(tile&65535u,tile>>16u)*${REFLECTION_SIDE}u+lid;
  if(any(vec2f(id)>=view.viewport.xy)){return;}
  let coord=vec2i(id);
@@ -110,18 +106,16 @@ fn tracePixel(rank:u32,lid:vec2u){
 )
 
 /**
- * The frame's reflection state, one thread: the tile list emptied, its indirect arguments set
- * (`TRACE_SHADER`).
+ * The frame's reflection state, one thread: its indirect arguments set, the count of listed tiles
+ * at zero (`TRACE_SHADER`); the list's words past the count are written before any read.
  * The radiance around the scene (`surroundings`) is the CPU's, written with the view
  * (`createSurroundings`, `../lighting/toneUnmap.ts`).
  */
 export const BEGIN_SHADER = wgslProgram(
   `@group(0) @binding(${BEGIN_BINDINGS.work}) var<storage,read_write> work:array<u32>;
-@group(0) @binding(${BEGIN_BINDINGS.list}) var<storage,read_write> traceList:array<u32>;
 @compute @workgroup_size(1)
 fn reflectionBegin(){
- work[0]=0u;work[1]=1u;work[2]=1u;work[3]=0u;
- traceList[${TRACE_LIST.count}u]=0u;
+ work[0]=0u;work[1]=1u;work[2]=1u;work[${TRACE_COUNT_WORD}u]=0u;
 }`,
   [],
 )
@@ -161,17 +155,19 @@ export async function createTraceStages(
   }
 }
 
-/** Bytes of the list of a view at `width × height`: its counter, then a tile a word. */
+/** Bytes of the list of a view at `width × height`: a tile a word, its count in the indirect
+ *  arguments (`TRACE_COUNT_WORD`). */
 export const traceListBytes = (width: number, height: number) =>
-  TRACE_LIST_FIRST * 4 + ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
+  ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
 
-/** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), and the list the classification
- *  writes and the trace reads, with the frame's counter (`TRACE_LIST`). */
+/** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), whose last word counts the
+ *  listed tiles, and the list the classification writes and the trace reads. */
 export const createTraceTiles = (device: GPUDevice, width: number, height: number) => ({
   args: device.createBuffer({
     label: 'Trillion3D reflection tile count',
     size: TRACE_ARGS_BYTES,
-    // Its count is copied to the settle sample (`settle.ts`).
+    // Its count is copied to the settle sample (`settle.ts`) and read by the trace beside its
+    // dispatch (`traceCount`).
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_SRC,
   }),
   // Apart from the indirect arguments: the trace dispatches on those, and a dispatch cannot bind its
