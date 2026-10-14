@@ -135,6 +135,6 @@ export function vsmChunkRows(
 ): VsmChunk {
   return (
     vsmBoundChunk(bound, spheres, range, lights, worst) ||
-    vsmWorstChunk(worst.rows, worst.cmdsPerRow, worst.pages)
+    vsmWorstChunk(bound.worst, worst.rows, worst.cmdsPerRow, worst.pages)
   )
 }

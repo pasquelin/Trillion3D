@@ -59,12 +59,35 @@ export interface VsmChunk {
   pairs: (k: number) => number
 }
 
-/** The worst case: `rows` a chunk, every row `cmdsPerRow` commands and every one of `pages`. */
-export const vsmWorstChunk = (rows: number, cmdsPerRow: number, pages: number): VsmChunk => ({
-  rows,
-  cmds: (k) => k * cmdsPerRow,
-  pairs: (k) => k * pages,
-})
+/** The worst case as a chunk: `rows` a chunk, every row `cmdsPerRow` commands and every one of
+ *  `pages`; its two bounds made once, reading the numbers each frame rewrites (`vsmWorstChunk`). */
+export interface VsmWorstChunk extends VsmChunk {
+  cmdsPerRow: number
+  pages: number
+}
+export function createWorstChunk(): VsmWorstChunk {
+  const chunk: VsmWorstChunk = {
+    rows: 0,
+    cmdsPerRow: 0,
+    pages: 0,
+    cmds: (k) => k * chunk.cmdsPerRow,
+    pairs: (k) => k * chunk.pages,
+  }
+  return chunk
+}
+
+/** `chunk` rewritten as the worst case of `rows` a chunk, `cmdsPerRow` commands and `pages`. */
+export function vsmWorstChunk(
+  chunk: VsmWorstChunk,
+  rows: number,
+  cmdsPerRow: number,
+  pages: number,
+) {
+  chunk.rows = rows
+  chunk.cmdsPerRow = cmdsPerRow
+  chunk.pages = pages
+  return chunk
+}
 
 /** The worst case of a pass: rows a chunk, commands a row, pages, and the most pairs and commands
  *  a chunk's lists hold (`cap` ≥ rows · pages ≥ rows · commands). */
@@ -76,15 +99,18 @@ export interface VsmWorst {
 }
 
 /** A pass's bound: its histograms (`rowBinsRecord.ts`), its last answer and what it was measured
- *  from, and what `answer` reuses so a frame allocates nothing. */
+ *  from, what `answer` reuses so a frame allocates nothing, and the worst case it answers when the
+ *  histograms cannot speak (`vsmChunkRows`), rewritten in place. */
 export interface VsmRowBound {
   bins: RowBins
   held?: { chunk: VsmChunk; key: Float64Array }
   scratch: Scratch
+  worst: VsmWorstChunk
 }
 export const createVsmRowBound = (): VsmRowBound => ({
   bins: createRowBins(),
   scratch: createScratch(),
+  worst: createWorstChunk(),
 })
 
 /** `worst`'s numbers, in `RowBins.hopelessUnder`'s order, rewritten by each read. */

@@ -27,7 +27,7 @@ test('the rows a chunk takes halve until their lists grow within the room', () =
   const r = roomy(0)
   const rows = (room: number, buffers = {}) => {
     r.admit(room)
-    return vsmChunkRowsWithin(r.fake.device, buffers, 64, sizes).rows
+    return vsmChunkRowsWithin(r.fake.device, buffers, 64, sizes, { rows: 0, limited: false }).rows
   }
   assert.equal(rows(1e12), 64)
   // 64 rows ask 256 KiB + 64 KiB; 32 rows half that.
@@ -36,7 +36,7 @@ test('the rows a chunk takes halve until their lists grow within the room', () =
   assert.equal(rows(4096 + 1024), 1)
   assert.equal(rows(4096 + 1024 - 1), 0, 'not one row')
   // A list already as large asks nothing; one grown asks its whole new size, the one it replaces
-  // living until the frame's submit (`sizedBuffer`) — it was once counted as freed first.
+  // living until the frame's submit (`sizedBuffer`).
   r.box.limit = 1e12
   const held = {
     pairs: r.fake.device.createBuffer({ size: 256 * 1024, usage: GPUBufferUsage.STORAGE }),
