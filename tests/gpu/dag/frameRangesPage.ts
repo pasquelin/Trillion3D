@@ -38,7 +38,8 @@ const poses = Array.from({ length: PLACEMENTS }, (_, k) =>
 )
 
 /** The cut at each threshold of `pixelErrors`, whole and on the narrow device, what the engine's
- *  device check says of the narrow device, and the storage buffers its cut's stage binds. */
+ *  device check says of the narrow device, the storage buffers the cut's stage declares and the
+ *  narrow device's limit on them. */
 export async function cutWholeAndSplit(pixelErrors: number[]) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('WebGPU must be available')
@@ -61,10 +62,10 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     // Every page resident: the cut draws every page it wants.
     residentAll(resources)
     const cuts = []
+    // The tables as the cut laid them on this device (`cutTablesAt`), as the engine writes them.
+    const at = cutTablesAt(resources)
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
-      // The tables as the cut laid them on this device (`cutTablesAt`), as the engine writes them.
-      const at = cutTablesAt(resources)
       writeDagUniforms(
         block,
         packed,
@@ -92,17 +93,18 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
         selectedTriangles: result.selectedTriangles,
       })
     }
-    const storage = dagBindEntries().filter((entry) => entry.buffer?.type === 'storage').length
     for (const buffer of resources.buffers) buffer.destroy()
     for (const { texture } of resources.textures) texture.destroy()
-    return { storage, cuts }
+    return cuts
   }
   const whole = await cut(device)
   const split = refusal ? undefined : await cut(lying)
-  const storageBindings = device.limits.maxStorageBuffersPerShaderStage
+  const storage = dagBindEntries().filter((entry) => entry.buffer?.type === 'storage').length
+  const storageBindings = lying.limits.maxStorageBuffersPerShaderStage
   const info = await gpu.fermer()
   return {
     adapter: info.court,
+    storage,
     storageBindings,
     refusal,
     errors,
