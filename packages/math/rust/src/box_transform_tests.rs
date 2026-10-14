@@ -1,5 +1,5 @@
 use super::*;
-use crate::golden::HOSTILE_F64 as HOSTILE;
+use crate::golden::HOSTILE_F64;
 use crate::random::xorshift64;
 
 #[test]
@@ -7,7 +7,7 @@ fn the_affine_sums_are_the_corner_walk_s_bits() {
     let mut state = crate::GOLDEN;
     let mut draw = || xorshift64(&mut state);
     let value = |draw: &mut dyn FnMut() -> u64| match draw() % 4 {
-        0 => HOSTILE[(draw() % 16) as usize],
+        0 => HOSTILE_F64[(draw() % 16) as usize],
         1 => [0.0, -0.0][(draw() % 2) as usize],
         _ => (draw() >> 11) as f64 / (1u64 << 53) as f64 * 200.0 - 100.0,
     };
