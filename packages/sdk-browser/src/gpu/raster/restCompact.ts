@@ -1,23 +1,15 @@
 import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
-import { REST_COMPACT_SHADER } from './restCompactWgsl.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { cleanupFailedHiz } from '../hiz/pipelines.ts'
-import { shaderFailed } from '../core/shaderModule.ts'
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import {
-  bufferEntries,
-  computeBufferEntries,
-  computeBufferEntry,
-  sequentialEntries,
-} from '../core/computeBindings.ts'
+import { bufferEntries, sequentialEntries } from '../core/computeBindings.ts'
+import { restPipelines, workBuffer, workWords } from './restCompactBuild.ts'
 import {
   createWebgpuBindIdentity,
   type WebgpuBindIdentity,
 } from '../../webgpu/core/bindIdentity.ts'
-import { buildComputeStages } from '../core/computeStages.ts'
 
 export type GpuRestCompact = {
   /**
@@ -113,47 +105,6 @@ type RestState = NonNullable<Awaited<ReturnType<typeof restPipelines>>> & {
   argsGroup: GPUBindGroup | undefined
 }
 
-/** The four stages of the compaction and their layouts; undefined when the module fails. */
-async function restPipelines(device: GPUDevice) {
-  const layout = device.createBindGroupLayout({
-    entries: computeBufferEntries([
-      'storage',
-      'storage',
-      'read-only-storage',
-      'read-only-storage',
-      'read-only-storage',
-      'storage',
-      'uniform',
-    ]),
-  })
-  const module = device.createShaderModule({ code: REST_COMPACT_SHADER })
-  if (await shaderFailed(module)) return undefined
-  // The argument kernel's group 0 is its own: the dispatches it feeds replace it, for an arguments
-  // buffer bound as storage in the dispatch that reads it is refused.
-  const argsLayout = device.createBindGroupLayout({
-    entries: [
-      computeBufferEntry(6, 'uniform'),
-      computeBufferEntry(7, 'read-only-storage'),
-      computeBufferEntry(8, 'storage'),
-    ],
-  })
-  const [stages, argsPipeline] = await Promise.all([
-    buildComputeStages(device, [layout], module, ['restCount', 'restScan', 'restScatter']),
-    buildComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [argsLayout] }),
-      compute: { module, entryPoint: 'restArgs' },
-    }),
-  ])
-  return {
-    layout,
-    argsLayout,
-    argsPipeline,
-    countPipeline: stages.restCount,
-    scanPipeline: stages.restScan,
-    scatterPipeline: stages.restScatter,
-  }
-}
-
 function restCompactOps(c: RestState): GpuRestCompact {
   return {
     encode: (open, restSlots, rows, pages) => encodeRest(c, open, restSlots, rows, pages),
@@ -243,14 +194,3 @@ function encodeRest(
   pass.dispatchWorkgroupsIndirect(c.tileArgs, 0)
   return true
 }
-
-/** Words of the work buffer: the instance list's copy, then each tested slot's count and tiles. */
-const workWords = (copyWords: number, restSlots: number, rows: number) =>
-  copyWords + restSlots * (1 + ceilDiv(rows, WORKGROUP_THREADS))
-
-const workBuffer = (device: GPUDevice, words: number) =>
-  device.createBuffer({
-    label: 'Trillion3D rest compaction work',
-    size: words * 4,
-    usage: GPUBufferUsage.STORAGE,
-  })
