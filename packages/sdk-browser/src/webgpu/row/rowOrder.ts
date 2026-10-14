@@ -4,8 +4,8 @@ import type { RowWords } from './rowWords.ts'
 
 /** Frames the arrivals are remembered for: past the frames a readback lands behind its cut. */
 const FRAMES = 8
-/** Frames without a queue of the GPU after which a request no row serves is denied, the table
- *  growing by it: no cut ranked one — a still camera, a view drawn aside, a closure compiling. */
+/** Frames a request no row serves waits for the queue it asked a cut for: past them, no cut ranks
+ *  one — a view drawn aside, a closure compiling — and it is denied, the table growing by it. */
 const STALE = 2 * ROW_IN_USE
 
 const NONE = new Uint32Array(0)
@@ -18,9 +18,10 @@ const NONE = new Uint32Array(0)
  * (`rowWords.ts`) past the arrivals the rows had when that cut ran (`noteFrame`). A readback that
  * brings no queue to trust closes the order in hand. No clock and no sweep on the host.
  *
- * A request no free row serves waits for the next queue, which a cut asked again ranks (`ask`),
- * unless the GPU found nothing more to give — every other row in use — or no queue came for
- * `STALE` frames: then it is denied, and the table grows by it (`denies`).
+ * A request no free row serves waits for the next queue, which it asks a cut for (`ask`) — a still
+ * camera cuts no more —, unless the GPU found nothing more to give — every other row in use — or
+ * no queue came `STALE` frames after the ask: then it is denied, and the table grows by it
+ * (`denies`).
  */
 export function createRowOrder(
   rowOf: (page: number) => number,
@@ -34,6 +35,7 @@ export function createRowOrder(
   })
   const arrivals = new Float64Array(FRAMES).fill(-1),
     at = new Float64Array(FRAMES).fill(-1)
+  /** The frame of the last queue followed, and of the ask no queue answered since. */
   let lastQueue = -Infinity,
     asked = -Infinity
   return {
@@ -55,12 +57,13 @@ export function createRowOrder(
     /** Whether a request no free row serves at frame `now` is denied — the table grows by it —
      *  rather than waiting for the next queue, which is asked for then. */
     denies(now: number) {
-      if (order.exhausted() || now - lastQueue > STALE) return true
-      if (now - asked >= ROW_IN_USE) {
+      if (order.exhausted()) return true
+      if (lastQueue >= asked) {
         asked = now
         ask()
+        return false
       }
-      return false
+      return now - asked > STALE
     },
     /** Every row given back at once, a new table: no order holds. */
     reset() {
