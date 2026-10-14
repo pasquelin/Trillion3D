@@ -40,12 +40,3 @@ export const PROBE_AT_WGSL = wgslBlock(
  return textureLoad(probes,vec2u(probe.x+k,probe.y),probe.z,0);
 }`,
 )
-
-/** A zeroed atlas one row of `width` texels long: what a pass binds while bounce is off. */
-export const emptyAtlas = (device: GPUDevice, label: string, width = 1) =>
-  device.createTexture({
-    label,
-    size: [width, 1, 1],
-    format: BOUNCE_ATLAS_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
