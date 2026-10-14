@@ -34,8 +34,7 @@ let listedRoots = new Uint8Array(0)
  * turn, never again (`chainShown`). The work follows the nodes written, never the scene's roots.
  */
 export function noteMoved(rt: WebgpuPagesRuntime, nodes: ReadonlySet<Object3D>) {
-  const scene = rt.setup.source,
-    roots = rt.layout.selectionRoots
+  const scene = rt.setup.source
   for (const node of nodes) {
     if (chainShown(node, scene, nodes) === null) continue
     movedCount = appendRootsUnder(rt.layout, node, movedList, movedCount)
