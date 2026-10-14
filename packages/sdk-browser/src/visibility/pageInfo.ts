@@ -31,7 +31,7 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   // The row's diagnostic word: one on a coarse row (`levelDiagnostic`), which the level-of-detail
   // view reads, or its screen-error ratio while that view is drawn
   // (`../webgpu/pages/render/rowDiagnostic.ts`).
-  ['pad1', 'f32'],
+  ['diagnostic', 'f32'],
   ['depthBias', 'u32'],
   // The line's placement, and the resolve class key (`shader/materialClass.ts`).
   ['placement', 'u32'],
@@ -46,6 +46,6 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['material', 'u32'],
 ] as const)
 
-/** A row's diagnostic word (`PAGE_INFO.at.pad1`) outside the screen-error view: one on a coarse
+/** A row's diagnostic word (`PAGE_INFO.at.diagnostic`) outside the screen-error view: one on a coarse
  *  row (`PageRec.role`), which the level-of-detail view reads. */
 export const levelDiagnostic = (rec: { role?: string }) => (rec.role === 'coarse' ? 1 : 0)

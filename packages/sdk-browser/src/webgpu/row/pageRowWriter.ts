@@ -131,7 +131,7 @@ function writeRow(
   )
   ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
-  floats[base + PAGE_INFO.at.pad1] = levelDiagnostic(rec)
+  floats[base + PAGE_INFO.at.diagnostic] = levelDiagnostic(rec)
   // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
   // layer 0, one calculation source for the hardware path and the software raster alike.
   ints[base + PAGE_INFO.at.depthBias] = depthLayerUnits(rec.depthLayer)

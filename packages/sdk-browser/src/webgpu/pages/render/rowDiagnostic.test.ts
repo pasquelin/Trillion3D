@@ -35,7 +35,7 @@ test('the screen-error view writes each row’s own word, then gives the rows th
     setup: { viewport: [640, 360] },
   } as unknown as WebgpuPagesRuntime
   const cam = {} as EngineCamera
-  const word = (row: number) => floats[row * ROW_WORDS + PAGE_INFO.at.pad1]
+  const word = (row: number) => floats[row * ROW_WORDS + PAGE_INFO.at.diagnostic]
   writeRowDiagnostics(rt, cam)
   assert.equal(word(0), 0, 'its ratio, in its own word')
   assert.ok(
