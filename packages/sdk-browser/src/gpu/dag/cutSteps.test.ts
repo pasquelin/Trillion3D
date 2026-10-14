@@ -10,6 +10,7 @@ import { packDagSelection } from './pack.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 
 /** `device` with a queue that never moves: its submitted work, and every mapping, never settle. */
@@ -27,6 +28,7 @@ test('a cut is made on a queue that never moves, each sub-step named as it begin
   const notes: string[] = []
   let timed: { took: { step: string }[] } | undefined
   const made = createGpuDagSelection(stalledQueue(mockDagDevice(dag).device), dag, {
+    roots: hostStretches(dag),
     progress: (note) => notes.push(note),
     timed: (steps) => (timed = steps),
   })

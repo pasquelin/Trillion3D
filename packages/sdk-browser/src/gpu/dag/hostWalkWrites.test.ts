@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection, dagRootCounts } from './pack.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
 import { FRAME_TABLE } from './frameTable.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -20,7 +21,9 @@ test('a host walk that turned one placement sends its world alone, no stretch', 
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 2 * roots.length }
   const packed = packDagSelection(roots, capacity)
   const gpu = fakeDevice({ ...BACKEND, packed })
-  const selection = (await createGpuDagSelection(gpu.device, packed))!
+  const selection = (await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  }))!
   const next = packed.worlds.slice()
   // Placement 70 scaled twice along x: its stretch moves with it, on the GPU.
   next[70 * 16] *= 2

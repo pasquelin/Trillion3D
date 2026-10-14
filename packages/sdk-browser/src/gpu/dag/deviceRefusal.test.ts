@@ -10,6 +10,7 @@ import { packDagSelection } from './pack.ts'
 import type { PackedDag } from './types.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { POOL_SORT_WORDS } from '../pool/sortWords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
@@ -88,7 +89,9 @@ test('the host is told why, and no buffer is made', async () => {
   const [root] = packed(dagFixture()).roots
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 64, maxBufferSize: 1 << 20 } })
   const refusals: unknown[] = []
-  const selection = await createGpuDagSelection(fake.device, packDagSelection([root]), {
+  const dag = packDagSelection([root])
+  const selection = await createGpuDagSelection(fake.device, dag, {
+    roots: hostStretches(dag),
     onRefused: (reason, details) => refusals.push({ reason, ...details }),
   })
   assert.equal(selection, undefined)

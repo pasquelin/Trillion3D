@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
@@ -15,7 +16,9 @@ test('a named pose sends its world and its translation alone, each where its rec
   const roots = placementField(40, 6),
     packed = packDagSelection(roots)
   const gpu = fakeDevice({ ...BACKEND, packed })
-  const selection = await createGpuDagSelection(gpu.device, packed)
+  const selection = await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  })
   assert.ok(selection)
   const worlds = packed.worlds.slice()
   /** The texels of the worlds' table the writes since `from` sent: their first, their count. */
