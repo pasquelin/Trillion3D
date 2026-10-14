@@ -48,7 +48,7 @@ pub(super) struct Surface {
 
 /// The sixty-four-bit word at this offset: the level index only counts in 64 bits.
 fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
-    let long = u64::from_le_bytes(bytes[at..at + 8].try_into().map_err(|_| DATA_TRUNCATED)?);
+    let long = crate::le::u64_at(bytes, at).ok_or(DATA_TRUNCATED)?;
     usize::try_from(long).map_err(|_| DATA_TRUNCATED)
 }
 

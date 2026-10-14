@@ -18,6 +18,7 @@
 //! the file's size costs no heap. Only a gzip or Zstandard wrapping is unpacked, under the job's
 //! RAM budget.
 use super::*;
+use crate::le::{u32_at, u64_at};
 use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.
@@ -132,8 +133,9 @@ fn walk(bytes: &[u8], shape: &envelope::Shape, room: usize) -> Result<Vec<Block>
     loop {
         let fields = bytes.get(at..at + header).ok_or_else(truncated)?;
         let code: [u8; 4] = fields[..4].try_into().map_err(|_| truncated())?;
-        let word = |from: usize| u32::from_le_bytes(fields[from..from + 4].try_into().unwrap());
-        let wide = |from: usize| u64::from_le_bytes(fields[from..from + 8].try_into().unwrap());
+        // Every offset lies inside the `header` bytes just checked: a zero is never read.
+        let word = |from: usize| u32_at(fields, from).unwrap_or(0);
+        let wide = |from: usize| u64_at(fields, from).unwrap_or(0);
         let (sdna, old, len, count) = if shape.wide {
             (word(4), wide(8), wide(16), wide(24))
         } else {

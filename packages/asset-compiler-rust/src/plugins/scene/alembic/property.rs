@@ -8,8 +8,9 @@
 //! A **compound** property contains other properties; a **scalar** and an **array** carry
 //! samples, one per child for the first, two — values then dimensions — for the second. Each
 //! sample opens on sixteen key bytes the writer left there.
-use super::archive::{Archive, Cursor, META_INLINE};
+use super::archive::{text, Archive, META_INLINE};
 use super::ogawa::{invalid, is_data};
+use crate::le::Cursor;
 use crate::Result;
 
 /// The sixteen key bytes that precede the values of every sample.
@@ -148,11 +149,11 @@ fn read_header(archive: &Archive, cursor: &mut Cursor<'_>) -> Option<Property> {
         }
     }
     let size = sized(cursor, hint)?;
-    let name = cursor.text(size)?;
+    let name = text(cursor, size)?;
     let rank = ((info >> 20) & 0xff) as usize;
     let meta = if rank == META_INLINE {
         let size = sized(cursor, hint)?;
-        cursor.text(size)?
+        text(cursor, size)?
     } else {
         archive.meta(rank)
     };
@@ -171,7 +172,7 @@ fn read_header(archive: &Archive, cursor: &mut Cursor<'_>) -> Option<Property> {
 fn sized(cursor: &mut Cursor<'_>, hint: u32) -> Option<u32> {
     match hint {
         0 => cursor.u8().map(u32::from),
-        1 => cursor.u16(),
+        1 => cursor.u16().map(u32::from),
         2 => cursor.u32(),
         _ => None,
     }

@@ -7,6 +7,7 @@
 //! table; that is what names the schema — `AbcGeom_Xform`, `AbcGeom_PolyMesh`, `AbcGeom_FaceSet`
 //! — and therefore what the object is.
 use super::ogawa::{invalid, is_data, Ogawa};
+use crate::le::Cursor;
 use crate::Result;
 use std::path::Path;
 
@@ -31,42 +32,11 @@ pub(super) struct Object {
     pub(super) group: Vec<u64>,
 }
 
-/// A bounded cursor on a header block: it yields `None` instead of walking off the block.
-pub(super) struct Cursor<'a> {
-    bytes: &'a [u8],
-    at: usize,
-}
-
-impl<'a> Cursor<'a> {
-    pub(super) fn new(bytes: &'a [u8]) -> Self {
-        Cursor { bytes, at: 0 }
-    }
-    pub(super) fn done(&self) -> bool {
-        self.at >= self.bytes.len()
-    }
-    pub(super) fn u8(&mut self) -> Option<u8> {
-        let value = *self.bytes.get(self.at)?;
-        self.at += 1;
-        Some(value)
-    }
-    pub(super) fn u16(&mut self) -> Option<u32> {
-        let slice = self.bytes.get(self.at..self.at + 2)?;
-        self.at += 2;
-        Some(u32::from(u16::from_le_bytes(slice.try_into().ok()?)))
-    }
-    pub(super) fn u32(&mut self) -> Option<u32> {
-        let slice = self.bytes.get(self.at..self.at + 4)?;
-        self.at += 4;
-        Some(u32::from_le_bytes(slice.try_into().ok()?))
-    }
-    /// The next `length` bytes, read as text. An unreadable byte becomes the replacement
-    /// character: a badly encoded name does not fail a whole scene.
-    pub(super) fn text(&mut self, length: u32) -> Option<String> {
-        let length = usize::try_from(length).ok()?;
-        let slice = self.bytes.get(self.at..self.at.checked_add(length)?)?;
-        self.at += length;
-        Some(String::from_utf8_lossy(slice).into_owned())
-    }
+/// The next `length` bytes of `cursor`, read as text. An unreadable byte becomes the replacement
+/// character: a badly encoded name does not fail a whole scene.
+pub(super) fn text(cursor: &mut Cursor<'_>, length: u32) -> Option<String> {
+    let slice = cursor.take(usize::try_from(length).ok()?)?;
+    Some(String::from_utf8_lossy(slice).into_owned())
 }
 
 impl Archive {
@@ -141,11 +111,11 @@ impl Archive {
         while !cursor.done() {
             let header = (|| {
                 let size = cursor.u32()?;
-                let name = cursor.text(size)?;
+                let name = text(&mut cursor, size)?;
                 let rank = usize::from(cursor.u8()?);
                 let meta = if rank == META_INLINE {
                     let size = cursor.u32()?;
-                    cursor.text(size)?
+                    text(&mut cursor, size)?
                 } else {
                     self.meta(rank)
                 };
@@ -164,10 +134,10 @@ fn indexed_metas(block: &[u8]) -> Vec<String> {
     let mut cursor = Cursor::new(block);
     while !cursor.done() {
         let Some(size) = cursor.u8() else { break };
-        let Some(text) = cursor.text(u32::from(size)) else {
+        let Some(meta) = text(&mut cursor, u32::from(size)) else {
             break;
         };
-        out.push(text);
+        out.push(meta);
     }
     out
 }

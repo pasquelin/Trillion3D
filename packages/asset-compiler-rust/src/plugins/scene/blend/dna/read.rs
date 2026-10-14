@@ -4,6 +4,7 @@
 //! carries, and no product of dimensions or sizes is stored without being checked. A file that
 //! lies about any of them is refused under `blend-dna-invalid`, never by a panic.
 use super::{Field, Layout, POINTER};
+use crate::le::Cursor;
 use crate::plugins::scene::blend::{refused, CompilerError, Result};
 use std::collections::HashMap;
 
@@ -15,71 +16,63 @@ fn invalid() -> CompilerError {
 }
 
 /// A section tag, read where it must be.
-pub(super) fn tag(bytes: &[u8], at: &mut usize, expected: &[u8; 4]) -> Result<()> {
-    let found = bytes.get(*at..*at + 4).ok_or_else(invalid)?;
-    if found != expected {
+pub(super) fn tag(cursor: &mut Cursor<'_>, expected: &[u8; 4]) -> Result<()> {
+    if cursor.take(4).ok_or_else(invalid)? != expected {
         return Err(invalid());
     }
-    *at += 4;
     Ok(())
+}
+
+/// The next sixteen-bit field, as a count or an index.
+pub(super) fn half(cursor: &mut Cursor<'_>) -> Result<usize> {
+    cursor.u16().map(usize::from).ok_or_else(invalid)
 }
 
 /// The count of a section, bounded by what the block can still carry: each entry weighs at least
 /// `unit` bytes, so a count that does not fit in the rest of the block is a lie.
-pub(super) fn count(bytes: &[u8], at: &mut usize, unit: usize) -> Result<usize> {
-    let total = u32::from_le_bytes(word(bytes, at)?) as usize;
-    let room = bytes.len().saturating_sub(*at);
+pub(super) fn count(cursor: &mut Cursor<'_>, unit: usize) -> Result<usize> {
+    let total = cursor.u32().ok_or_else(invalid)? as usize;
+    let room = cursor.rest().len();
     match total.checked_mul(unit) {
         Some(needed) if needed <= room => Ok(total),
         _ => Err(invalid()),
     }
 }
 
-pub(super) fn word<const N: usize>(bytes: &[u8], at: &mut usize) -> Result<[u8; N]> {
-    let found: [u8; N] = bytes
-        .get(*at..*at + N)
-        .ok_or_else(invalid)?
-        .try_into()
-        .map_err(|_| invalid())?;
-    *at += N;
-    Ok(found)
-}
-
 /// A string section: its tag, its count, then the strings, all aligned on four.
-pub(super) fn strings(bytes: &[u8], at: &mut usize, label: &[u8; 4]) -> Result<Vec<String>> {
-    tag(bytes, at, label)?;
+pub(super) fn strings(cursor: &mut Cursor<'_>, label: &[u8; 4]) -> Result<Vec<String>> {
+    tag(cursor, label)?;
     // A string weighs at least its terminating zero: the count therefore fits in the rest of the block.
-    let total = count(bytes, at, 1)?;
+    let total = count(cursor, 1)?;
     let mut out = Vec::with_capacity(total);
     for _ in 0..total {
-        let rest = bytes.get(*at..).ok_or_else(invalid)?;
-        let end = rest
+        let end = cursor
+            .rest()
             .iter()
             .position(|byte| *byte == 0)
             .ok_or_else(invalid)?;
-        out.push(String::from_utf8_lossy(&rest[..end]).into_owned());
-        *at += end + 1;
+        let text = cursor.take(end + 1).ok_or_else(invalid)?;
+        out.push(String::from_utf8_lossy(&text[..end]).into_owned());
     }
-    *at = at.next_multiple_of(4);
+    cursor.align(4);
     Ok(out)
 }
 
 /// A structure and its fields: offsets accumulate in declared order, a pointer always weighing
 /// the file's pointer size, an array the product of its dimensions.
 pub(super) fn layout(
-    bytes: &[u8],
-    at: &mut usize,
+    cursor: &mut Cursor<'_>,
     names: &[String],
     types: &[String],
     lengths: &[usize],
 ) -> Result<Layout> {
-    let kind = u16::from_le_bytes(word(bytes, at)?) as usize;
-    let total = u16::from_le_bytes(word(bytes, at)?) as usize;
+    let kind = half(cursor)?;
+    let total = half(cursor)?;
     let mut fields = HashMap::with_capacity(total);
     let mut offset = 0;
     for _ in 0..total {
-        let kind = u16::from_le_bytes(word(bytes, at)?) as usize;
-        let name = u16::from_le_bytes(word(bytes, at)?) as usize;
+        let kind = half(cursor)?;
+        let name = half(cursor)?;
         let name = names.get(name).ok_or_else(invalid)?;
         let pointer = name.contains('*');
         let unit = if pointer {

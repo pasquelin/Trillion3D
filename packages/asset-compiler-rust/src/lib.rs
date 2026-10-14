@@ -11,6 +11,7 @@ mod gltf_codes;
 pub mod import;
 mod impostor;
 mod join;
+mod le;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;

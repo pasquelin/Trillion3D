@@ -176,9 +176,5 @@ impl Scene<'_> {
 
 /// The pointer of rank `rank` in a pointer block.
 fn pointer_at(bytes: &[u8], rank: usize) -> u64 {
-    bytes
-        .get(rank * POINTER..rank * POINTER + POINTER)
-        .map_or(0, |word| {
-            u64::from_le_bytes(word.try_into().unwrap_or_default())
-        })
+    crate::le::u64_at(bytes, rank * POINTER).unwrap_or(0)
 }

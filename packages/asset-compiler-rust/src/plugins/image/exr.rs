@@ -33,7 +33,7 @@ pub(super) struct Exr;
 const MAGIC: &[u8] = &[0x76, 0x2f, 0x31, 0x01];
 /// Version field, four bytes just after the magic number: a version number in the low byte,
 /// flags above it.
-const VERSION_FIELD: std::ops::Range<usize> = 4..8;
+const VERSION_FIELD: usize = 4;
 /// Flag "the file contains at least one part that is not a flat image", i.e. deep data.
 const FLAG_DEEP: u32 = 0x0800;
 /// Flag "the file contains several parts".
@@ -97,11 +97,7 @@ impl ImageDecoder for Exr {
 /// layer that comes out. Both flags are read without the crate: four bytes of the specification,
 /// and a deep or multi-part file is named before any other read.
 fn subset(bytes: &[u8], max_alloc: u64) -> std::result::Result<(u32, u32), &'static str> {
-    let field: [u8; 4] = bytes
-        .get(VERSION_FIELD)
-        .and_then(|field| field.try_into().ok())
-        .ok_or(HEADER_INVALID)?;
-    let flags = u32::from_le_bytes(field);
+    let flags = crate::le::u32_at(bytes, VERSION_FIELD).ok_or(HEADER_INVALID)?;
     if flags & FLAG_DEEP != 0 {
         return Err(DEEP);
     }

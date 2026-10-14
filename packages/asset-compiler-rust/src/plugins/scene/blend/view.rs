@@ -92,7 +92,7 @@ impl<'a> At<'a> {
         if !field.pointer || bytes.len() < POINTER {
             return 0;
         }
-        u64::from_le_bytes(bytes[..POINTER].try_into().unwrap_or_default())
+        crate::le::u64_at(bytes, 0).unwrap_or(0)
     }
     /// A string written in place in a character array, or in the block a `char *` designates,
     /// without its terminating zero.

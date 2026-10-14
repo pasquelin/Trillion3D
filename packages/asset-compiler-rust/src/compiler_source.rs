@@ -2,6 +2,7 @@
 //! scene driver produces and which only the compiler consumes. Driver choice lives
 //! in `plugins`.
 use super::*;
+use crate::le::u32_at;
 
 #[cfg(test)]
 mod tests;
@@ -19,18 +20,20 @@ pub(super) fn parse_glb_parts(bytes: &[u8]) -> Result<(Value, std::ops::Range<us
     if bytes.len() < 12 {
         return Err(invalid("GLB too short"));
     }
-    let magic = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+    // The twelve header bytes are there; a chunk header is read only while eight bytes remain.
+    let word = |at: usize| u32_at(bytes, at).unwrap_or(0);
+    let magic = word(0);
     if magic != 0x4654_6C67 {
         return Err(invalid("Not a GLB"));
     }
-    let version = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+    let version = word(4);
     if version != 2 {
         return Err(CompilerError::new(
             "UNSUPPORTED_FORMAT",
             "Only GLB version 2 is supported",
         ));
     }
-    let length = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+    let length = word(8) as usize;
     if length != bytes.len() {
         return Err(invalid("GLB length mismatch"));
     }
@@ -38,8 +41,8 @@ pub(super) fn parse_glb_parts(bytes: &[u8]) -> Result<(Value, std::ops::Range<us
     let mut json = None;
     let mut bin = None;
     while offset + 8 <= bytes.len() {
-        let chunk_len = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize;
-        let chunk_type = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
+        let chunk_len = word(offset) as usize;
+        let chunk_type = word(offset + 4);
         offset += 8;
         let end = offset
             .checked_add(chunk_len)

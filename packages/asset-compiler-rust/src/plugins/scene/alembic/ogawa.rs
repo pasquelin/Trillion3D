@@ -49,10 +49,9 @@ pub(super) fn is_data(child: u64) -> bool {
     child & DATA_BIT != 0
 }
 
+/// The 64-bit field at the file offset `at`.
 fn read_u64(bytes: &[u8], at: u64) -> Option<u64> {
-    let at = usize::try_from(at).ok()?;
-    let slice = bytes.get(at..at.checked_add(8)?)?;
-    Some(u64::from_le_bytes(slice.try_into().ok()?))
+    crate::le::u64_at(bytes, usize::try_from(at).ok()?)
 }
 
 impl Ogawa {

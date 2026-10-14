@@ -12,7 +12,8 @@ use super::*;
 
 mod read;
 
-use read::{count, layout, strings, tag, word};
+use crate::le::Cursor;
+use read::{count, half, layout, strings, tag};
 
 /// Pointer size, that of the only files this reader opens.
 pub(super) const POINTER: usize = 8;
@@ -41,23 +42,23 @@ pub(super) struct Dna {
 
 impl Dna {
     pub(super) fn read(bytes: &[u8]) -> Result<Dna> {
-        let mut at = 0;
-        tag(bytes, &mut at, b"SDNA")?;
-        let names = strings(bytes, &mut at, b"NAME")?;
-        let types = strings(bytes, &mut at, b"TYPE")?;
-        tag(bytes, &mut at, b"TLEN")?;
+        let mut cursor = Cursor::new(bytes);
+        tag(&mut cursor, b"SDNA")?;
+        let names = strings(&mut cursor, b"NAME")?;
+        let types = strings(&mut cursor, b"TYPE")?;
+        tag(&mut cursor, b"TLEN")?;
         let mut lengths = Vec::with_capacity(types.len());
         for _ in 0..types.len() {
-            lengths.push(u16::from_le_bytes(word(bytes, &mut at)?) as usize);
+            lengths.push(half(&mut cursor)?);
         }
-        at = at.next_multiple_of(4);
-        tag(bytes, &mut at, b"STRC")?;
+        cursor.align(4);
+        tag(&mut cursor, b"STRC")?;
         // A structure weighs at least its type and its field count: the count is bounded by what
         // the block still carries, and nothing is reserved before that is trusted.
-        let total = count(bytes, &mut at, 4)?;
+        let total = count(&mut cursor, 4)?;
         let mut structs = Vec::with_capacity(total);
         for _ in 0..total {
-            structs.push(layout(bytes, &mut at, &names, &types, &lengths)?);
+            structs.push(layout(&mut cursor, &names, &types, &lengths)?);
         }
         let by_name = structs
             .iter()

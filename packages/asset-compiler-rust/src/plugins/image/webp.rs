@@ -13,6 +13,7 @@
 //! `docs/COMPILER.md` § "Input formats".
 use super::crate_image::{self, ANIMATED};
 use super::{ImageDecoded, ImageDecoder, Plugin};
+use crate::le::u32_at;
 
 pub(super) static WEBP: Webp = Webp;
 pub(super) struct Webp;
@@ -73,12 +74,10 @@ fn admitted(bytes: &[u8]) -> std::result::Result<(), &'static str> {
     }
     let mut offset = HEADER_BYTES;
     while offset + CHUNK_HEADER_BYTES <= bytes.len() {
-        let size = u32::from_le_bytes([
-            bytes[offset + 4],
-            bytes[offset + 5],
-            bytes[offset + 6],
-            bytes[offset + 7],
-        ]) as usize;
+        let Some(size) = u32_at(bytes, offset + 4) else {
+            break;
+        };
+        let size = size as usize;
         match &bytes[offset..offset + 4] {
             b"VP8L" => return Ok(()),
             b"VP8 " => return Err(LOSSY),
@@ -102,9 +101,8 @@ fn admitted(bytes: &[u8]) -> std::result::Result<(), &'static str> {
 /// Size announced by the RIFF header against the bytes actually there. A file shorter than
 /// what it declares is truncated: saying so here avoids handing the decoder a cut stream.
 fn container_is_whole(bytes: &[u8]) -> bool {
-    let Some(declared) = bytes.get(4..8) else {
+    let Some(declared) = u32_at(bytes, 4) else {
         return false;
     };
-    let declared = u32::from_le_bytes([declared[0], declared[1], declared[2], declared[3]]);
     bytes.len() as u64 >= u64::from(declared) + 8
 }
