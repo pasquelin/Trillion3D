@@ -80,7 +80,7 @@ export function regrowEngineVsm(
       const made = madeSet(rt, device, list, { ...options, poolPages: grown })
       made.regrowFrame = vsm.regrowFrame
       destroyEngineVsm(vsm)
-      sayPool(rt, grown, pages, () => ({}))
+      sayPool(rt, grown, pages)
       return (lights.vsm = made)
     } catch {
       return vsm
