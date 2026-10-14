@@ -18,7 +18,6 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     size: Math.max(1, rootCount) * 4,
     usage: storage,
   })
-  const noMotion = device.createBuffer({ label: 'Trillion3D no motion', size: 64, usage: storage })
   const previous = device.createBuffer({
     label: 'Trillion3D composed previous worlds',
     size: Math.max(1, rootCount) * 64,
@@ -36,28 +35,24 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     /** The roots pass's parameters and the worlds pass's (`passParams`). */
     rootParams: passParams('Trillion3D compose params'),
     worldParams: passParams('Trillion3D compose world params'),
-    noMotion,
     previous,
     motionMode,
     /** The composed roots and their rows as the passes read them (`sendList`). */
     rankList: undefined as GPUBuffer | undefined,
     rowList: undefined as GPUBuffer | undefined,
-    /** The roots pass's group, and the worlds pass's. */
+    /** The roots pass's group, the worlds pass's and the motion pass's. */
     rootGroup: heldGroup(),
     worldsGroup: heldGroup(),
-    /** What the groups' entries read live (`liveBuffer`), written at each pass's start: the cut's
-     *  worlds — the one table the roots are written into — and the motion the roots bind. */
-    frame: {
-      worlds: undefined as GPUTextureView | undefined,
-      motion: undefined as GPUBuffer | undefined,
-    },
+    motionGroup: heldGroup(),
+    /** What the roots group's entries read live (`liveBuffer`), written at the pass's start: the
+     *  cut's worlds, the one table the roots are written into. */
+    frame: { worlds: undefined as GPUTextureView | undefined },
     dispose() {
       locals.destroy()
       parentOf.destroy()
       this.parents?.destroy()
       this.rootParams.buffer?.destroy()
       this.worldParams.buffer?.destroy()
-      noMotion.destroy()
       previous.destroy()
       motionMode.destroy()
       this.rankList?.destroy()

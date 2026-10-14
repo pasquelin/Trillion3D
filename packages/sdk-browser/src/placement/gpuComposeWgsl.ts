@@ -13,12 +13,9 @@
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { dAdd, dMul } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
-import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
-import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
-import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
@@ -72,40 +69,19 @@ export const COMPOSE_WORLDS_WGSL = wgslProgram(
 )
 
 /**
- * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
- * they hold): both zeros of either sign, or the same bits unless a NaN.
- */
-const SAME_WORD_WGSL = wgslBlock(
-  'SAME_WORD_WGSL',
-  [isNanWord],
-  `
-fn sameWord(a:u32,b:u32)->bool{
- return (a==b&&!isNanWord(a))||((a|b)&0x7fffffffu)==0u;
-}`,
-)
-
-/**
  * One thread per root a parent composes (`ranks`, the composition's dense list of them): its
- * composed world as the worlds pass wrote it, into
- * the root's record of the cut's worlds (`../gpu/dag/worldTable.ts`), written whole — its matrix as
- * the host writes it, its exact translation beside it, as the host's is (`worldOrigins.ts`), which
- * each cut reads at its own eye —, and,
- * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
- * it from the root's single-precision world — the row's words — and the one it held at the last
- * accumulated image (`previous`): a restart takes the world as reference with no motion; a
- * compared image whose world differs writes `previous · current⁻¹` and takes it; any other
- * writes identity.
+ * composed world as the worlds pass wrote it, into the root's record of the cut's worlds
+ * (`../gpu/dag/worldTable.ts`), written whole — its matrix as the host writes it, its exact
+ * translation beside it, as the host's is (`worldOrigins.ts`), which each cut reads at its own eye.
+ * The motion follows in the image's own command buffer, once the temporal pass has decided it
+ * (`composedMotionPass.ts`).
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
-struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
+  `struct Params{rootCount:u32,listed:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
-@group(0) @binding(4) var<storage,read_write> motion:array<u32>;
-@group(0) @binding(5) var<uniform> motionMode:MotionMode;
-@group(0) @binding(6) var<storage,read_write> previous:array<u32>;
-@group(0) @binding(7) var<storage,read> ranks:array<u32>;
+@group(0) @binding(4) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  let rank=ranks[j];
@@ -124,30 +100,12 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  for(var t=0u;t<4u;t++){worldsMatrixStore(rank,t,vec4u(world[t*4u],world[t*4u+1u],world[t*4u+2u],world[t*4u+3u]));}
  worldsOriginStore(rank,0u,vec4u(origin[0],origin[1],origin[2],origin[3]));
  worldsOriginStore(rank,1u,vec4u(origin[4],origin[5],0u,0u));
- let mode=motionMode.mode;
- if(mode==${MOTION_SKIP}u){return;}
- var held:array<u32,${MATRIX_VALUES}>;
- var same=true;
- for(var k=0u;k<${MATRIX_VALUES}u;k++){
-  held[k]=previous[rank*${MATRIX_VALUES}u+k];
-  same=same&&sameWord(held[k],world[k]);
- }
- var words=array<u32,16>(0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u);
- if(mode==${MOTION_SCAN}u&&!same){
-  words=motionWords(held,world,array<vec2u,3>(motionMode.eyeX,motionMode.eyeY,motionMode.eyeZ));
- }
- if(mode==${MOTION_RESET}u||(mode==${MOTION_SCAN}u&&!same)){
-  for(var k=0u;k<${MATRIX_VALUES}u;k++){previous[rank*${MATRIX_VALUES}u+k]=world[k];}
- }
- for(var k=0u;k<${MATRIX_VALUES}u;k++){motion[rank*${MATRIX_VALUES}u+k]=words[k];}
 }`,
   [
     toF32,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     NO_INDEX,
-    SAME_WORD_WGSL,
-    MOTION_WGSL,
     worldTableWgsl('worlds', { group: 0, binding: COMPOSE_WORLDS_BINDING, access: 'write' }),
   ],
 )

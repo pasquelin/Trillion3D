@@ -7,7 +7,11 @@ import assert from 'node:assert/strict'
 import { composeWebgpuPlacements } from './gpuCompose.ts'
 import { askComposedPlacements } from './gpuComposeFrame.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
-import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
+import { MOTION_SCAN } from './composedMotion.ts'
+import { encodeComposedMotion } from './composedMotionPass.ts'
+import { COMPOSE_MOTION_ENTRY } from './composedMotionWgsl.ts'
+import { COMPOSE_ROOTS_WGSL } from './gpuComposeWgsl.ts'
+import { COMPOSE_MOTION_PASS } from '../stage/passLabels.ts'
 import { session, turn } from './composeSession.fixture.ts'
 
 test("a parent's turn advances the cut's world revision on the frame it moved, and only then", () => {
@@ -55,8 +59,8 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   frame()
   assert.deepEqual(
     compiled,
-    { sync: 0, async: 2 },
-    'the worlds and roots kernels, off the frame, once',
+    { sync: 0, async: 3 },
+    'the worlds, roots and motion kernels, off the frame, once',
   )
 })
 
@@ -82,7 +86,7 @@ test('the compose passes make their groups once, then only when a buffer one nam
   assert.equal(image(), made + 2)
 })
 
-test("the linked roots' motion waits for the temporal pass's decision, written before the image leaves", () => {
+test("the linked roots' motion is decided before the image's motion pass reads it, never in the roots' command buffer", () => {
   const { rt, rows, frame, device, writes } = session()
   const motionBuffer = device.createBuffer({
     size: 128,
@@ -106,17 +110,34 @@ test("the linked roots' motion waits for the temporal pass's decision, written b
     writes
       .filter((write) => label(write) === 'Trillion3D composed motion mode')
       .map((write) => (write.data as Uint32Array)[0])
-  assert.deepEqual(modes(), [MOTION_SKIP], 'encoded with no motion until the decision')
-  decideComposedMotion(rt, device, [1, 2, 3], MOTION_SCAN)
+  assert.deepEqual(modes(), [], 'the roots pass, submitted before the decision, reads no mode')
+  assert.equal(COMPOSE_ROOTS_WGSL.includes('motionMode'), false)
+  // The image's encoder, recording each pass's label and the entry point it dispatches.
+  const encoded: string[] = []
+  const image = {
+    beginComputePass: (descriptor: GPUComputePassDescriptor) => {
+      encoded.push(descriptor.label!)
+      let entry = ''
+      return {
+        setPipeline: (pipeline: { entryPoint: string }) => void (entry = pipeline.entryPoint),
+        setBindGroup() {},
+        dispatchWorkgroups: () => void encoded.push(entry),
+        end() {},
+      }
+    },
+  } as unknown as GPUCommandEncoder
+  encodeComposedMotion(rt, device, image, [1, 2, 3], true, true)
+  assert.deepEqual(modes(), [MOTION_SCAN], 'the decision, before the image is submitted')
   assert.deepEqual(
-    modes(),
-    [MOTION_SKIP, MOTION_SCAN],
-    'the decision overwrites it, in queue order',
+    encoded,
+    [COMPOSE_MOTION_PASS, COMPOSE_MOTION_ENTRY],
+    "the motion, in the image's command buffer",
   )
-  // A motion buffer the pass did not bind is never decided for.
+  // A motion buffer the roots pass did not bind is never decided nor written.
   ;(rt.gpu as { temporal: { motion: { buffer: unknown } } }).temporal.motion.buffer = {}
-  decideComposedMotion(rt, device, [1, 2, 3], MOTION_SCAN)
-  assert.equal(modes().length, 2)
+  encodeComposedMotion(rt, device, image, [1, 2, 3], true, true)
+  assert.equal(modes().length, 1)
+  assert.equal(encoded.length, 2)
 })
 
 test('a whole link set sent again keeps the motion pose of the roots it already held', () => {

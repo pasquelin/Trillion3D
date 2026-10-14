@@ -12,13 +12,15 @@ import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from '.
 import { sendList } from './composedRows.ts'
 import type { ComposeState } from './gpuComposeState.ts'
 import { createComposeGpu } from './gpuComposeGpu.ts'
+import { COMPOSE_MOTION_ENTRY, COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
 
-/** The worlds' and the roots' kernels, once a device, compiled off the thread: asked at a frame's
+/** The worlds', the roots' and the motion's kernels, once a device, compiled off the thread: asked at a frame's
  *  entry once a parent holds a link (`askComposedPlacements`), the frames held until they landed,
  *  so the frame that composes binds them compiled. */
 export const composeKernels = {
   roots: autoKernel('Trillion3D compose roots', COMPOSE_ROOTS_WGSL, 'main'),
   worlds: autoKernel('Trillion3D compose worlds', COMPOSE_WORLDS_WGSL, COMPOSE_WORLDS_ENTRY),
+  motion: autoKernel('Trillion3D compose motion', COMPOSE_MOTION_WGSL, COMPOSE_MOTION_ENTRY),
 }
 
 /** Asks the kernels the next frame binds once a parent holds a link
@@ -27,6 +29,7 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   if (!rt.compose?.parentIds.size) return
   composeKernels.roots(device).ask()
   composeKernels.worlds(device).ask()
+  composeKernels.motion(device).ask()
 }
 
 /** Parent matrices for this frame, each world in doubles, packed when one was set since they last
