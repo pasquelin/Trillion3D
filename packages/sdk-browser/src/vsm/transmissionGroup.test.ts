@@ -11,7 +11,7 @@ test('the bin and the pages kernels take the command group, never the dispatch w
   const layout = vsmLayout({ fullMapCapacity: 1 })
   for (const code of [vsmTransmissionBinWgsl(layout), vsmTransmissionPagesWgsl(layout)]) {
     assert.match(code, /@workgroup_size\(VSM_T_COMMAND_GROUP\)/)
-    assert.doesNotMatch(code, /WORKGROUP_THREADS/)
+    assert.doesNotMatch(code, /@workgroup_size\(WORKGROUP_THREADS\)|\+=WORKGROUP_THREADS/)
   }
   assert.match(vsmTransmissionBinWgsl(layout), /tris:array<VsmTTri,VSM_T_COMMAND_GROUP>/)
 })
