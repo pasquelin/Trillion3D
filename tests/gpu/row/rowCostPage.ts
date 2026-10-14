@@ -23,9 +23,12 @@ interface Sweep {
 }
 
 /** A scene whose instances hold `rows` rows at least — three in four hold one
- *  (`closureScene`) —, a full table of them, each row's words its page's. */
+ *  (`closureScene`): the copies one copy's rows ask, one more while short —, a full table of them,
+ *  each row's words its page's. */
 function rowScene(rows: number) {
-  const scene = closureScene(ceilDiv(rows, 90) + 1)
+  let copies = ceilDiv(rows, closureScene(1).count),
+    scene = closureScene(copies)
+  while (scene.count < rows) scene = closureScene(++copies)
   const words = createRowUseWords()
   words.fit(scene.count)
   scene.rows.forEach((page, value) => words.assign(value - 1, page, 0))
