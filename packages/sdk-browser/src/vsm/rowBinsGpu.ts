@@ -30,6 +30,10 @@ const IN_FLIGHT = 3
 /** The kernel, once a device, compiled off the thread. */
 const kernel = autoKernel(LABEL, ROW_BINS_WGSL, 'main')
 
+/** The kernel compiled off the thread before the first lit frame, with the other shadow pipelines
+ *  (`prepareVsmPipelines`): no frame compiles it. */
+export const prepareRowBins = (device: GPUDevice) => kernel(device).prepare()
+
 /** The joint bins' tables (`rowBinTables`) on `device`. */
 function createTables(device: GPUDevice) {
   const words = rowBinTables()

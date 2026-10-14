@@ -21,6 +21,7 @@ import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
 import { vsmFirstSetLayout } from './vsmBeside.ts'
+import { prepareRowBins } from '../../../../vsm/rowBinsGpu.ts'
 
 const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
 
@@ -64,8 +65,8 @@ export function castingLights(rt: WebgpuPagesRuntime) {
  * The shadow maps' pipelines for the set the scene's casting lights are first granted
  * (`vsmFirstSetLayout`: their maps at the full pool), described here and compiled off the thread
  * before the first frame (`prepareShadowPipelines` awaits the compiles returned): every compute
- * pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page group and
- * the projection's twin. That frame compiles none of them unless the budget grants a smaller pool,
+ * pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page group,
+ * the projection's twin and the row bins' kernel (`prepareRowBins`). That frame compiles none of them unless the budget grants a smaller pool,
  * or other lights a larger set. Nothing while no light casts.
  */
 export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -93,6 +94,7 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ...pipes.map((pipe) => pipe?.prepared.prepare()),
     vsmRasterPipe(device, layout, pageLayout).prepared.prepare(),
     vsmProjectionTwin(device, layout).prepare(),
+    prepareRowBins(device),
   ].filter((compile): compile is Promise<void> => compile !== undefined)
 }
 
