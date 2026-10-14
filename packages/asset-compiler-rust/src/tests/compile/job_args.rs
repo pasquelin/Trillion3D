@@ -7,6 +7,17 @@ fn parse(line: &[&str]) -> std::result::Result<Options, String> {
     parse_compiler_args(&line, Arc::new(AtomicBool::new(false)))
 }
 
+/// A batch job read from `job` under a batch's defaults, under a fresh cancellation flag.
+fn read_job(job: &Value) -> std::result::Result<Options, String> {
+    let defaults = JobDefaults {
+        scope: SCOPES[1],
+        threads: DEFAULT_THREADS,
+        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
+    };
+    let flag = Arc::new(AtomicBool::new(false));
+    job_options(job.as_object().expect("object"), &defaults, flag)
+}
+
 #[test]
 fn parse_accepts_five_to_eight_args() {
     let five = parse(&["s", "c", "slice", "12", "/assets/"]).expect("five");
@@ -42,23 +53,10 @@ fn parse_accepts_five_to_eight_args() {
 // single job has always had.
 #[test]
 fn command_line_and_batch_job_read_alike() {
-    let cancelled = Arc::new(AtomicBool::new(false));
-    let line: Vec<String> = ["s", "c", "full", "12", "4", "128", "/a/", "qem-endpoints"]
-        .map(String::from)
-        .to_vec();
-    let positional = parse_compiler_args(&line, cancelled.clone()).expect("line");
+    let positional =
+        parse(&["s", "c", "full", "12", "4", "128", "/a/", "qem-endpoints"]).expect("line");
     let job = json!({"source":"s","cache":"c","scope":"full","triangleBudget":12,"threads":4,"ramBudgetMb":128,"resourceBaseUrl":"/a/","simplification":"qem-endpoints"});
-    let defaults = JobDefaults {
-        scope: "full",
-        threads: DEFAULT_THREADS,
-        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
-    };
-    let batch = job_options(
-        job.as_object().expect("object"),
-        &defaults,
-        cancelled.clone(),
-    )
-    .expect("batch");
+    let batch = read_job(&job).expect("batch");
     let read = |o: &Options| {
         (
             o.source.clone(),
@@ -78,64 +76,38 @@ fn command_line_and_batch_job_read_alike() {
 // would otherwise cook at `DEFAULT_TRIANGLE_BUDGET` unannounced.
 #[test]
 fn an_unknown_job_field_is_refused_by_name() {
-    let cancelled = Arc::new(AtomicBool::new(false));
-    let defaults = JobDefaults {
-        scope: "full",
-        threads: DEFAULT_THREADS,
-        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
-    };
     let old = json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","triangles":12});
-    let refused = job_options(
-        old.as_object().expect("object"),
-        &defaults,
-        cancelled.clone(),
-    )
-    .err()
-    .expect("refused");
+    let refused = read_job(&old).err().expect("refused");
     assert!(refused.contains("triangles"), "{refused}");
     let named =
         json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","texturesFormat":"none"});
-    job_options(named.as_object().expect("object"), &defaults, cancelled).expect("named");
+    read_job(&named).expect("named");
 }
 // Behaviour: a text field holding another type is refused by name, never read as absent: a
 // `simplification` of `true` or a `scope` of `1` would otherwise cook at the default unannounced.
 #[test]
 fn a_mistyped_text_field_is_refused_by_name() {
-    let defaults = JobDefaults {
-        scope: "full",
-        threads: DEFAULT_THREADS,
-        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
-    };
-    let read = |job: Value| {
-        let flag = Arc::new(AtomicBool::new(false));
-        job_options(job.as_object().expect("object"), &defaults, flag)
-    };
     for field in [
         job_field::SIMPLIFICATION,
         job_field::SCOPE,
         "texturesFormat",
-        "id",
+        ID_FIELD,
     ] {
         let mut job = json!({"source":"s","cache":"c","resourceBaseUrl":"/a/"});
         job[field] = json!(true);
-        let refused = read(job).err().expect("refused");
+        let refused = read_job(&job).err().expect("refused");
         assert!(refused.contains(field), "{refused}");
     }
-    read(json!({"source":"s","cache":"c","resourceBaseUrl":"/a/","scope":null})).expect("null");
+    read_job(&json!({"source":"s","cache":"c","resourceBaseUrl":"/a/","scope":null}))
+        .expect("null");
 }
 // Behaviour: a cook writes every block family unless told otherwise — each device then streams
 // the blocks it samples, PNG the last fallback —, one family by name, or none.
 #[test]
 fn every_block_family_is_cooked_by_default() {
     use crate::texture_preview::BlockFormat;
-    let args = |extra: &[&str]| -> Vec<String> {
-        let mut args: Vec<String> = ["s", "c", "slice", "12", "/a/"].map(String::from).to_vec();
-        args.extend(extra.iter().map(|arg| arg.to_string()));
-        args
-    };
     let formats = |extra: &[&str]| {
-        parse_compiler_args(&args(extra), Arc::new(AtomicBool::new(false)))
-            .map(|o| o.texture_formats)
+        parse(&[&["s", "c", "slice", "12", "/a/"][..], extra].concat()).map(|o| o.texture_formats)
     };
     assert_eq!(formats(&[]), Ok(BlockFormat::ALL.to_vec()));
     assert_eq!(
@@ -149,9 +121,7 @@ fn every_block_family_is_cooked_by_default() {
 // form leaves out in brackets where the line takes it — spelled from the forms the reader reads.
 #[test]
 fn a_count_no_form_takes_is_refused_with_the_usage() {
-    let usage = parse_compiler_args(&["s".into()], Arc::new(AtomicBool::new(false)))
-        .err()
-        .expect("one value is no form");
+    let usage = parse(&["s"]).err().expect("one value is no form");
     let line = format!(
         "trillion3d-compiler source cache {} triangleBudget [threads ramBudgetMb] resourceBaseUrl [{}] ",
         SCOPES.join("|"),
@@ -164,14 +134,8 @@ fn a_count_no_form_takes_is_refused_with_the_usage() {
 #[test]
 fn one_refusal_names_each_missing_value_and_every_choice() {
     use crate::texture_preview::BlockFormat;
-    let flag = Arc::new(AtomicBool::new(false));
     let job = json!({"source":"s","cache":"c"});
-    let defaults = JobDefaults {
-        scope: "full",
-        threads: DEFAULT_THREADS,
-        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
-    };
-    let read = job_options(job.as_object().expect("object"), &defaults, flag).expect("read");
+    let read = read_job(&job).expect("read");
     let refusal = validate_compile_options(&read).expect_err("no resource base");
     assert!(refusal.message.contains(job_field::RESOURCE_BASE_URL));
     let refused = parse(&["s", "c", "slice", "12", "/a/", "--textures-format=both"]);

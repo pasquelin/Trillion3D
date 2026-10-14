@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use trillion3d_compiler::{
     compiler_budget::{batch_share, fit_workers},
     job_field, job_options, positive, JobDefaults, Options, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS,
+    ID_FIELD, SCOPES,
 };
 
 /// Identity of a destination, whether it already exists or not. `canonicalize`
@@ -70,8 +71,9 @@ pub(super) fn parse_batch(
     // Announced concurrency is admitted only if the total can carry it: a share
     // never goes below a job's floor, so it is the worker count that yields.
     let (workers, ram_budget_mb) = batch_share(workers, ram_total)?;
+    // A batch job that names no scope cooks the full one.
     let defaults = JobDefaults {
-        scope: "full",
+        scope: SCOPES[1],
         threads,
         ram_budget_mb,
     };
@@ -86,7 +88,7 @@ pub(super) fn parse_batch(
     let mut seen = std::collections::HashSet::new();
     let mut caches = std::collections::HashMap::new();
     for (i, job) in jobs.iter().enumerate() {
-        let id = job.get("id").and_then(Value::as_str).unwrap_or("");
+        let id = job.get(ID_FIELD).and_then(Value::as_str).unwrap_or("");
         let id = if id.is_empty() {
             format!("job-{i}")
         } else {

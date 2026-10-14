@@ -57,7 +57,7 @@ pub struct JobDefaults {
 }
 
 /// Batch file field naming a job, read by `parse_batch`.
-const ID_FIELD: &str = "id";
+pub const ID_FIELD: &str = "id";
 
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
 /// command line's values keyed by `JOB_FIELDS`. A key outside `JOB_FIELDS`, `id` and
