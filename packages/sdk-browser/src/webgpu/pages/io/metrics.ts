@@ -14,6 +14,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { vsmFrameMetrics } from '../render/vsm/vsmStats.ts'
 import { destroyEngineVsm } from '../render/vsm/engineVsm.ts'
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
+import { transparentCounts } from '../state/transparentCounts.ts'
 
 /** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
 export function vertexBytesOf(
@@ -29,12 +30,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
 }
 
 function frameMetricsOf(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, timing, blendState, services, lights } = rt,
+  const { run, gpu, vis, timing, services, lights } = rt,
     { geometryPool } = rt.setup
   const stats = gpu.cache?.stats()
   const vertexBytes = vertexBytesOf(gpu, vis)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   const pending = !run.gpuMetricsReady
+  const blend = transparentCounts(rt)
   const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
   // What the occlusion test dropped: the GPU's last sampled counts; `null` when it counted nothing,
   // never an unmeasured 0.
@@ -62,10 +64,10 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     cutCoarsening: run.gpuSelection?.coarsen ?? null,
     submittedTriangles: pending ? null : run.submittedTriangles,
     totalSubmittedTriangles: pending ? null : run.submittedTriangles,
-    transparentMeshes: blendState.visibleBlend.length,
-    transparentFrustumRejected: run.blendFrustumRejected,
-    transparentDrawCalls: run.blendDrawCalls,
-    transparentSubmittedTriangles: run.blendSubmittedTriangles,
+    transparentMeshes: blend.visibleMeshes,
+    transparentFrustumRejected: blend.frustumRejected,
+    transparentDrawCalls: blend.drawCalls,
+    transparentSubmittedTriangles: blend.submittedTriangles,
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,

@@ -5,6 +5,7 @@ import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'
 import { addressFlag } from '../host/addressFlag.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { transparentCounts } from '../webgpu/pages/state/transparentCounts.ts'
 import { log } from '../diagnostic/log.ts'
 
 /** Opt-in audit, no per-frame trace: add `trillion3dFrameAudit=1` to the host URL. */
@@ -37,7 +38,8 @@ const viewPose = (cam: EngineCamera) => ({
  * selection changes. */
 export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   if (!frameCostAuditEnabled()) return undefined
-  const { blendState, run, timing } = rt
+  const { blendState, run, timing } = rt,
+    blend = transparentCounts(rt)
   return {
     selection: 'gpu',
     // The published pose is the engine camera’s, which frame entry has just copied:
@@ -45,13 +47,13 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     camera: run.lastCamera && viewPose(run.gate.cam),
     resolution: [...rt.gpu.targetSize],
     pixelError: run.diagnosticPixelError,
-    transparentCandidates: blendState.blendGpu.length,
-    transparentListed: blendState.visibleBlend.length,
-    transparentEncodedDraws: run.blendDrawCalls,
+    transparentCandidates: blend.candidates,
+    transparentListed: blend.visibleMeshes,
+    transparentEncodedDraws: blend.drawCalls,
     transparentPrepareMs: timing.transparentPrepareMs,
     transparentDrawMs: timing.transparentDrawMs,
     transparentSpanUploadBytes: timing.transparentSpanUploadBytes,
-    listedOutsideFrustum: run.blendFrustumRejected,
+    listedOutsideFrustum: blend.frustumRejected,
     gpuEmptyDraws: null,
     pagedItems: blendState.table?.pagedItems.length ?? 0,
     compactionEntriesWithPadding: blendState.table?.length ?? 0,

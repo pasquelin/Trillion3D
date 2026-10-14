@@ -95,7 +95,7 @@ export function heldFrame() {
       memory: { bias: 0, events: [] },
     },
     bounce: { probes: undefined },
-    blendState: { visibleBlend: [] },
+    blendState: { visibleBlend: [], blendGpu: [] },
     // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
     diag: { traceEnabled: false },
   } as unknown as WebgpuPagesRuntime
