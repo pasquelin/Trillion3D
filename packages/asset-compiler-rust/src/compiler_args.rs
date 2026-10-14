@@ -89,19 +89,44 @@ pub fn job_options(
     })
 }
 
-/// The command line's usage, spelled from `JOB_FIELDS`.
+/// The fields each form of the command line leaves out, the full form first: a short form
+/// leaves out `simplification`, then `threads` and `ramBudgetMb` too (`abi.rs`).
+const SHORT_FORMS: [&[&str]; 3] = [
+    &[],
+    &[job_field::SIMPLIFICATION],
+    &[
+        job_field::THREADS,
+        job_field::RAM_BUDGET_MB,
+        job_field::SIMPLIFICATION,
+    ],
+];
+
+/// The command line's usage, spelled from `JOB_FIELDS` and `SHORT_FORMS`: the fields in order,
+/// a run of fields the same short form first leaves out in one pair of brackets.
 fn usage() -> String {
-    let word = |field: &&str| match *field {
+    let word = |field: &str| match field {
         job_field::SCOPE => SCOPES.join("|"),
-        job_field::THREADS => format!("[{field}"),
-        job_field::RAM_BUDGET_MB => format!("{field}]"),
-        job_field::SIMPLIFICATION => format!("[{}]", SIMPLIFICATIONS.join("|")),
+        job_field::SIMPLIFICATION => SIMPLIFICATIONS.join("|"),
         _ => field.to_string(),
     };
-    let fields: Vec<String> = JOB_FIELDS.iter().map(word).collect();
+    let mut runs: Vec<(Option<usize>, Vec<String>)> = Vec::new();
+    for field in JOB_FIELDS {
+        let form = SHORT_FORMS.iter().position(|out| out.contains(&field));
+        match runs.last_mut() {
+            Some((at, words)) if form.is_some() && *at == form => words.push(word(field)),
+            _ => runs.push((form, vec![word(field)])),
+        }
+    }
+    let line: Vec<String> = runs
+        .into_iter()
+        .map(|(form, words)| match form {
+            Some(_) => format!("[{}]", words.join(" ")),
+            None => words.join(" "),
+        })
+        .collect();
     format!(
         "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}all|bc7|astc|etc2|none]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
-        fields.join(" "),
+        line.join(" "),
         job_field::SOURCE
     )
 }
@@ -115,16 +140,10 @@ pub fn parse_compiler_args(
         .iter()
         .cloned()
         .partition(|arg| arg.starts_with(TEXTURE_FORMAT_OPTION));
-    let left_out: &[&str] = match args.len() {
-        8 => &[],
-        7 => &[job_field::SIMPLIFICATION],
-        5 => &[
-            job_field::THREADS,
-            job_field::RAM_BUDGET_MB,
-            job_field::SIMPLIFICATION,
-        ],
-        _ => return Err(usage()),
-    };
+    let left_out = SHORT_FORMS
+        .iter()
+        .find(|out| out.len() + args.len() == JOB_FIELDS.len())
+        .ok_or_else(usage)?;
     let mut job: Map<String, Value> = JOB_FIELDS
         .iter()
         .filter(|field| !left_out.contains(*field))

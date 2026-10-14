@@ -145,3 +145,17 @@ fn every_block_family_is_cooked_by_default() {
     assert_eq!(formats(&["--textures-format=none"]), Ok(Vec::new()));
     assert!(formats(&["--textures-format=both"]).is_err());
 }
+// Behaviour: a count of values no form takes is refused with the usage, each run of fields a short
+// form leaves out in brackets where the line takes it — spelled from the forms the reader reads.
+#[test]
+fn a_count_no_form_takes_is_refused_with_the_usage() {
+    let usage = parse_compiler_args(&["s".into()], Arc::new(AtomicBool::new(false)))
+        .err()
+        .expect("one value is no form");
+    let line = format!(
+        "trillion3d-compiler source cache {} triangleBudget [threads ramBudgetMb] resourceBaseUrl [{}] ",
+        SCOPES.join("|"),
+        SIMPLIFICATIONS.join("|")
+    );
+    assert!(usage.contains(&line), "{usage}");
+}
