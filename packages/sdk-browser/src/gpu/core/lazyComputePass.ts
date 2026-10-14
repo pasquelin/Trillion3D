@@ -11,26 +11,32 @@ export type OpenPass = { readonly pass: GPUComputePassEncoder }
 export class LazyComputePass implements OpenPass {
   private readonly descriptor: GPUComputePassDescriptor
   private encoder: GPUCommandEncoder | undefined
+  private make: (() => GPUCommandEncoder) | undefined
   private open: GPUComputePassEncoder | undefined
 
   constructor(label: string) {
     this.descriptor = { label }
   }
 
-  /** The frame's pass on `encoder`, not open yet. */
-  begin(encoder: GPUCommandEncoder) {
-    this.encoder = encoder
+  /** The frame's pass on `encoder` — or on the one `encoder` makes when a module opens the pass:
+   *  a frame whose modules all have nothing to do then makes no command buffer —, not open yet. */
+  begin(encoder: GPUCommandEncoder | (() => GPUCommandEncoder)) {
+    const lazy = typeof encoder === 'function'
+    this.encoder = lazy ? undefined : encoder
+    this.make = lazy ? encoder : undefined
     this.open = undefined
     return this
   }
 
   get pass() {
-    return (this.open ??= this.encoder!.beginComputePass(this.descriptor))
+    return (this.open ??= (this.encoder ??= this.make!()).beginComputePass(this.descriptor))
   }
 
-  /** Ends the pass if a module opened it. */
+  /** Ends the pass if a module opened it: the encoder it was opened on, none when none did. */
   end() {
+    const opened = this.open && this.encoder
     this.open?.end()
-    this.open = this.encoder = undefined
+    this.open = this.encoder = this.make = undefined
+    return opened
   }
 }

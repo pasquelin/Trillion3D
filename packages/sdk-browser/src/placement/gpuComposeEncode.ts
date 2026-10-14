@@ -1,41 +1,31 @@
 /**
  * THE COMPOSITION'S PASSES (`gpuCompose.ts`): the worlds pass, then the roots pass, in the roots'
- * command buffer that goes before every cut (`rootPasses.ts`): what they write is on the GPU before
- * the root boxes, the tree's leaves, the cut and the rows read it.
+ * one compute pass, whose command buffer goes before every cut (`rootPasses.ts`): what they write
+ * is on the GPU before the root boxes, the tree's leaves, the cut and the rows read it.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { COMPOSE_ROOTS_PASS } from '../stage/passLabels.ts'
 import { MOTION_SKIP } from './composedMotion.ts'
 import { composeGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
 import { composeKernels, frameParents } from './gpuComposeFrame.ts'
 import { writePassParams } from '../gpu/core/passParams.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
-import type { ComposeState } from './gpuComposeState.ts'
+import type { OpenPass } from '../gpu/core/lazyComputePass.ts'
 import { rootEntries, worldEntries } from './gpuComposeEntries.ts'
 
-/** What both passes run over, read once a frame (`encodeComposedRoots`): the composition, its GPU
- *  tables, the composed roots listed and the compute pass, opened by the first that runs. */
-type Composing = {
-  rt: WebgpuPagesRuntime
-  device: GPUDevice
-  state: ComposeState
-  gpu: ComposeGpu
-  listed: number
-  pass: () => GPUComputePassEncoder
-}
-
-/** `pipeline` over `held`'s group, a thread a listed root, into the composition's pass. */
+/** `pipeline` over `held`'s group, a thread each of the `listed` roots, into the roots' pass. */
 function dispatchListed(
-  { rt, listed, pass }: Composing,
+  rt: WebgpuPagesRuntime,
+  open: OpenPass,
   pipeline: GPUComputePipeline,
   held: HeldGroup,
+  listed: number,
 ) {
-  const encoder = pass()
-  encoder.setPipeline(pipeline)
-  encoder.setBindGroup(0, held.group!)
-  dispatchRows(encoder, ceilDiv(listed, WORKGROUP_THREADS))
+  const pass = open.pass
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, held.group!)
+  dispatchRows(pass, ceilDiv(listed, WORKGROUP_THREADS))
   rt.run.gpuComputeDispatches++
 }
 
@@ -45,8 +35,14 @@ function dispatchListed(
  * table they write was made anew: what the roots pass and the rows pass read next. Whether it was
  * encoded.
  */
-function encodeComposedWorlds(c: Composing) {
-  const { rt, device, state, gpu, listed } = c,
+function encodeComposedWorlds(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  open: OpenPass,
+  gpu: ComposeGpu,
+  listed: number,
+) {
+  const state = rt.compose!,
     pipeline = composeKernels.worlds(device).get(),
     held = gpu.worldsGroup
   writePassParams(device, gpu.worldParams, state.roots, listed)
@@ -56,44 +52,36 @@ function encodeComposedWorlds(c: Composing) {
   state.ranAt.worlds = state.composedAt
   // A table made anew holds no composed world: the rows pass derives every row of them again.
   state.ranAt.rows = bound ? -1 : state.ranAt.rows
-  dispatchListed(c, pipeline, held)
+  dispatchListed(rt, open, pipeline, held, listed)
   return true
 }
 
 /** The linked roots' worlds (`encodeComposedWorlds`), then their cut worlds and motion, before the
  *  cut kernel reads them: a thread each of the composed roots, and nothing on a frame where nothing
  *  they read or write moved — no parent, no link, no host write of the cut's words, and their
- *  motion settled (`decideComposedMotion`). One compute pass, opened by the first that runs, in
- *  the command buffer `encoder` makes at its first call. Returns what it encoded: nothing (0), a
- *  pass (`ENCODED`), the worlds composed anew too (`COMPOSED`), which the root boxes pass derives
- *  the composed roots' boxes from. */
-export function encodeComposedRoots(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: () => GPUCommandEncoder,
-) {
+ *  motion settled (`decideComposedMotion`). Into the roots' one compute pass `open`, opened by the
+ *  first that runs (`../gpu/core/lazyComputePass.ts`). Whether the worlds were composed anew: the
+ *  root boxes pass derives the composed roots' boxes from them. */
+export function encodeComposedRoots(rt: WebgpuPagesRuntime, device: GPUDevice, open: OpenPass) {
   const state = rt.compose,
     gpu = frameParents(rt, device),
     listed = state?.rankList.set.count ?? 0
   // The worlds both read are the roots' double worlds (`rootWorlds.ts`), sent with the frame's rows.
-  if (!state || !gpu?.parents || !gpu.rankList || !rt.rootWorlds?.worlds || !listed) return 0
-  let open: GPUComputePassEncoder | undefined
-  const pass = () => (open ??= encoder().beginComputePass({ label: COMPOSE_ROOTS_PASS }))
-  const c: Composing = { rt, device, state, gpu, listed, pass }
-  const composed = encodeComposedWorlds(c)
-  encodeRootsPass(c)
-  if (!open) return 0
-  open.end()
-  return composed ? ENCODED | COMPOSED : ENCODED
+  if (!state || !gpu?.parents || !gpu.rankList || !rt.rootWorlds?.worlds || !listed) return false
+  const composed = encodeComposedWorlds(rt, device, open, gpu, listed)
+  encodeRootsPass(rt, device, open, gpu, listed)
+  return composed
 }
 
-/** What `encodeComposedRoots` encoded: a pass, and the worlds composed anew. */
-const ENCODED = 1
-export const COMPOSED = 2
-
 /** The roots pass (`COMPOSE_ROOTS_WGSL`) into the cut's worlds. */
-function encodeRootsPass(c: Composing) {
-  const { rt, device, state, gpu, listed } = c,
+function encodeRootsPass(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  open: OpenPass,
+  gpu: ComposeGpu,
+  listed: number,
+) {
+  const state = rt.compose!,
     selection = rt.run.gpuSelection
   if (!selection) return
   // The worlds this pass writes are the ones the cut kernel reads next: no CPU world changed, so
@@ -135,5 +123,5 @@ function encodeRootsPass(c: Composing) {
   state.motionBound = motionBuffer
   state.motionMode[0] = MOTION_SKIP
   device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
-  dispatchListed(c, pipeline, held)
+  dispatchListed(rt, open, pipeline, held, listed)
 }

@@ -14,6 +14,7 @@ import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { ROOT_BOXES_PASS } from '../stage/passLabels.ts'
+import type { OpenPass } from '../gpu/core/lazyComputePass.ts'
 import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
 import { PASS_PARAM_BYTES, passParams, writePassParams } from '../gpu/core/passParams.ts'
 import { takeMoved } from './rootMoves.ts'
@@ -78,7 +79,9 @@ function dispatch(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   pass: GPUComputePassEncoder,
-  { g, listed, whole }: { g: number; listed: number; whole: boolean },
+  g: number,
+  listed: number,
+  whole: boolean,
 ) {
   const gpu = rt.rootBoxes!,
     pipeline = rootBoxesKernel(device).get(),
@@ -93,18 +96,19 @@ function dispatch(
 }
 
 /**
- * The world boxes and stretches of the roots whose world moved, into the command buffer `encoder`
- * makes, their stretches into
- * `frames`, the cut's frame words: the roots a send moved or made — those a cut took in place
- * before they join included (`rootWorlds.ts`) —, or every root, then the composed roots when the
- * compose worlds pass `composed` them anew (a dispatch over every root holds them already). Nothing
- * while the cut or the worlds are not made — the roots wait for the pass, kept in their list.
+ * The world boxes and stretches of the roots whose world moved, into the roots' one compute pass
+ * `open` (`rootPasses.ts`), their stretches into `frames`, the cut's frame words: the roots a send
+ * moved or made — those a cut took in place before they join included (`rootWorlds.ts`) —, or
+ * every root, then the composed roots when the compose worlds pass `composed` them anew (a
+ * dispatch over every root holds them already). Nothing while the cut or the worlds are not made —
+ * the roots wait for the pass, kept in their list.
  */
 export function encodeRootBoxes(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  encoder: () => GPUCommandEncoder,
-  { composed, frames }: { composed: boolean; frames: GPUTextureView | undefined },
+  open: OpenPass,
+  composed: boolean,
+  frames: GPUTextureView | undefined,
 ) {
   const held = rt.rootWorlds
   if (!held?.worlds || !frames) return
@@ -115,10 +119,7 @@ export function encodeRootBoxes(
   const gpu = (rt.rootBoxes ??= createRootBoxesGpu(device))
   if (named?.length) sendList(device, gpu, named)
   gpu.frames = frames
-  const pass = encoder().beginComputePass({ label: ROOT_BOXES_PASS })
-  if (listed) dispatch(rt, device, pass, { g: 0, listed, whole: !named })
-  if (named && listedComposed)
-    dispatch(rt, device, pass, { g: 1, listed: listedComposed, whole: false })
-  pass.end()
+  if (listed) dispatch(rt, device, open.pass, 0, listed, !named)
+  if (named && listedComposed) dispatch(rt, device, open.pass, 1, listedComposed, false)
   gpu.frames = undefined
 }

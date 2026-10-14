@@ -2,6 +2,7 @@
 // counts the world revisions it is told of, its device records what it is asked.
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { encodeComposedRoots } from './gpuComposeEncode.ts'
+import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import { createPlacementRows } from './rows.ts'
 import { composeRuntime } from './composeRuntime.fixture.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
@@ -68,10 +69,12 @@ export function session() {
     rows: { whole: false, ranks: new Int32Array(0), count: 0 },
     roots: { whole: false, ranks: new Int32Array(0), count: 0 },
   }
-  const encoder = device.createCommandEncoder()
+  const encoder = device.createCommandEncoder(),
+    pass = new LazyComputePass('Trillion3D compose roots')
   const frame = () => {
     rt.run.frame++
-    encodeComposedRoots(rt, device, () => encoder)
+    encodeComposedRoots(rt, device, pass.begin(encoder))
+    pass.end()
     return revision
   }
   return {
