@@ -76,6 +76,8 @@ function passMoves(rt: WebgpuPagesRuntime, announce: boolean) {
   for (let k = 0; k < count; k++) {
     const i = ranks[k],
       root = roots[i]
+    // A row root moves with its row, which its owner writes (`followPlacementRows`).
+    if (root.placement) continue
     moveRootRows(rt, root, i)
     // A node moved: each root under it moved, at the pose it now reads; its first move takes it
     // out of the static slice (`../../shadow/mobility.ts`), which its rows' change then stales.

@@ -1,7 +1,7 @@
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { createReadbackRing, type ReadbackRing } from '../../gpu/core/readbackRing.ts'
-import { drawnNode } from '../../placement/hidden.ts'
+import { rootSource } from '../../placement/hidden.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import type { Intersection, RayFilter } from '../../world/query/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -69,11 +69,11 @@ function packBatch(asks: readonly Ask[]) {
 }
 
 /** The intersection a hit names, in the world's doubles: the node that drew the placement met — the
- *  mesh the page added, or the one owning the row that places it (`drawnNode`) —, the point
+ *  mesh the page added, or the one owning the row that places it (`rootSource`) —, the point
  *  `origin + distance · direction`. A hit no node draws answers none. */
 function intersectionOf(rt: WebgpuPagesRuntime, ask: Ask, hit: ReturnType<typeof readHit>) {
   const root = hit && rt.layout.selectionRoots[hit.placement]
-  const object = root && drawnNode(root)
+  const object = root && rootSource(root)
   if (!hit || !object) return null
   const [o, d, t] = [ask.origin, ask.direction, hit.distance]
   return {

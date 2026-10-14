@@ -1,17 +1,16 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterRoot } from '../../page/selection/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { appendUnder } from '../pages/render/movedNode.ts'
-import { drawnNode } from '../../placement/hidden.ts'
+import { appendRootsUnder } from '../pages/render/movedNode.ts'
 import type { RayFilter } from '../../world/query/types.ts'
 
 /** The placement ranks under `nodes`, each once, increasing: the roots whose source node lies in a
- *  subtree of them (`appendUnder`, by the node each draws: `drawnNode`), read in the scene's own
- *  tree, O(subtree). */
+ *  subtree of them (`appendRootsUnder`, by the node each draws: `rootSource`), read in the scene's
+ *  own tree, O(subtree). */
 function ranksUnder(roots: readonly ClusterRoot<PageRec>[], nodes: readonly Object3D[]) {
   const out: number[] = []
   let at = 0
-  for (const node of nodes) at = appendUnder(roots, drawnNode, node, out, at)
+  for (const node of nodes) at = appendRootsUnder(roots, node, out, at)
   out.length = at
   out.sort((a, b) => a - b)
   let kept = 0

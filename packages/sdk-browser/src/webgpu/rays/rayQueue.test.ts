@@ -149,7 +149,7 @@ const traceDouble = (entry: string, bind: unknown) => {
 
 test('a cast answers the mesh whose instance row places the placement the trace met', async () => {
   // A world's batch and a loaded model's meshes are placed by rows: the root's pages name no node,
-  // its row's owner is the mesh (`drawnNode`) — the one a hit names and a filter lists.
+  // its row's owner is the mesh (`rootSource`) — the one a hit names and a filter lists.
   const mesh = new Object3D()
   const root = { pages: [], placement: { rows: { sources: [mesh] }, index: 0 } }
   const { queue } = rig(1, { kernel: traceDouble, selectionRoots: [root] })

@@ -2,14 +2,16 @@ import type { ClusterRoot } from '../page/selection/types.ts'
 import { worldMoved } from '../page/selection/rootWorld.ts'
 import type { PlacementRows } from './rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
+import { sourcesMoved } from './hidden.ts'
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
   MOVE_MOVING = 1,
   MOVE_PROMOTED = 2
 
-/** A root that reads a row, and its rank among the roots the cut walks. */
-type RowRoot<T> = { root: ClusterRoot<T>; rank: number }
+/** A root that reads a row, its rank among the roots the cut walks, and the owner its row had at
+ *  the last follow (`PlacementRows.sources`). */
+type RowRoot<T> = { root: ClusterRoot<T>; rank: number; owner?: object | null }
 
 /** The roots of each instance buffer, by row: built once per root list, which a session keeps. */
 const indexes = new WeakMap<readonly object[], Map<PlacementRows, RowRoot<unknown>[]>>()
@@ -74,6 +76,12 @@ export function followPlacementRows<T>(
     const entry = list[index]
     if (!entry) continue
     const { root, rank } = entry
+    // A row re-seated on another mesh renames its root (`rootSource`): indexes by node follow.
+    const owner = rows.sources?.[index] ?? null
+    if (entry.owner !== owner) {
+      entry.owner = owner
+      sourcesMoved(roots)
+    }
     const parked = rows.live[index] === 0 || !!root.hidden,
       flipped = parked !== !!root.parked,
       cast = markShadowless(root, rows.shadowless[index] === 1)

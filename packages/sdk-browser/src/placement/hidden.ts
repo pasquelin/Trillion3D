@@ -11,17 +11,23 @@ export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 /** True when `entry` is not drawn: its source node is hidden, or its row parked. */
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
-/** The node a root comes from: its first page's mesh. */
-export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(root: ClusterRoot<T>) =>
-  root.pages[0]?.drawSource?.node
-
-/** The scene node a root draws: its first page's mesh (`rootSource`), or, for a root an instance
- *  row places — a world's batch, a loaded model's mesh —, the mesh that row belongs to
- *  (`PlacementRows.sources`). What a ray's hit and a ray's filter name (`../webgpu/rays/`). */
-export const drawnNode = <T extends { drawSource?: { node?: Object3D } }>(
+/** The scene node a root draws, the one resolver of it: its first page's mesh, or, for a root an
+ *  instance row places — a world's batch, a loaded model's mesh —, the mesh that row belongs to
+ *  (`PlacementRows.sources`). The readers the row itself follows — its pose, its flag, its shadow
+ *  bit, written by its owner (`followPlacementRows`) — pass row roots by (`root.placement`). */
+export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(
   root: ClusterRoot<T>,
 ): Object3D | undefined =>
-  rootSource(root) ?? root.placement?.rows.sources?.[root.placement.index] ?? undefined
+  root.pages[0]?.drawSource?.node ??
+  root.placement?.rows.sources?.[root.placement.index] ??
+  undefined
+
+/** What names the roots of `roots` changed (`rootSource`), as their rows' owners re-seat: each
+ *  reader of an index by node rebuilds it at its next read (`../webgpu/pages/render/movedNode.ts`). */
+const sourceRevisions = new WeakMap<readonly object[], number>()
+export const sourceRevision = (roots: readonly object[]) => sourceRevisions.get(roots) ?? 0
+export const sourcesMoved = (roots: readonly object[]) =>
+  void sourceRevisions.set(roots, sourceRevision(roots) + 1)
 
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
@@ -85,7 +91,8 @@ export function followHostVisibility<
 ) {
   followHidden(
     roots,
-    rootSource,
+    // A row root is hidden as its row is: its owner writes the row's flag (`followPlacementRows`).
+    (root) => (root.placement ? undefined : rootSource(root)),
     (root, rank) => {
       const parked = !!root.hidden || rowParked(root.placement)
       if (parked === !!root.parked) return
