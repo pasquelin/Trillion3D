@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { placementField } from './placementTree.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection, dagRootCounts } from './pack.ts'
+import { hostStretches } from './hostStretches.fixture.ts'
 
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -19,7 +20,9 @@ test('an append sends the worlds it added, not the room’s', async () => {
   const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 2 * roots.length }
   const packed = packDagSelection(roots.slice(0, 1200), capacity)
   const gpu = fakeDevice({ ...BACKEND, packed })
-  const selection = (await createGpuDagSelection(gpu.device, packed))!
+  const selection = (await createGpuDagSelection(gpu.device, packed, {
+    roots: hostStretches(packed),
+  }))!
   const before = gpu.textureWrites.length
   assert.equal(selection.appendRoots(roots.slice(1200)), true)
   const into = (label: string) =>

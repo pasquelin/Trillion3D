@@ -58,13 +58,16 @@ export function createRowMapGpu(
     buffer = sizedBuffer(device, held, bytes, usage, 'Trillion3D DAG row map', make)
     device.queue.writeBuffer(buffer, 0, new Uint32Array([n]))
     keys = map.keys
+    const keyWords = words(map.keys),
+      valueWords = words(map.values)
     sources = [
-      { data: words(map.keys), sourceBase: 0, targetBase: ROW_MAP_HEAD, stride: 1 },
-      { data: words(map.values), sourceBase: 0, targetBase: ROW_MAP_HEAD + n, stride: 1 },
+      { data: keyWords, sourceBase: 0, targetBase: ROW_MAP_HEAD, stride: 1 },
+      { data: valueWords, sourceBase: 0, targetBase: ROW_MAP_HEAD + n, stride: 1 },
     ]
-    if (n)
-      for (const { data, targetBase } of sources)
-        device.queue.writeBuffer(buffer, targetBase * 4, data)
+    if (n) {
+      device.queue.writeBuffer(buffer, ROW_MAP_HEAD * 4, keyWords)
+      device.queue.writeBuffer(buffer, (ROW_MAP_HEAD + n) * 4, valueWords)
+    }
     journal.rebuilt = false
     journal.slots.clear()
     return buffer !== held

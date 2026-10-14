@@ -62,8 +62,8 @@ export function simulateComputeDispatch(
 ) {
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
   if (transparent && computeBind) return transparent(computeBind, offsets, groups, rows)
-  const rows = ROW_STAGES[computePipeline?.entryPoint ?? '']
-  if (rows && computeBind?.entries) return rows(computeBind)
+  const rowStage = ROW_STAGES[computePipeline?.entryPoint ?? '']
+  if (rowStage && computeBind?.entries) return rowStage(computeBind)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind)
     return simulateScatterGroups(computeBind.entries)
   const stage = computePipeline?.entryPoint

@@ -17,7 +17,7 @@ export function evictionWorld(copies: number, leaves = 64, gap = 8) {
   const placed = placedRuleDag(copies, -spacing, leaves, (roots) =>
     roots.map((root) => ({
       ...root,
-      culling: { ...root.culling, nodes: Float64Array.from(root.culling.nodes) },
+      culling: { ...root.culling!, nodes: Float64Array.from(root.culling!.nodes) },
     })),
   )
   const { dag, roots, packed, placement } = placed

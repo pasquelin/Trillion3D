@@ -22,7 +22,7 @@ import {
   hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
-import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/trace.ts'
+import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
