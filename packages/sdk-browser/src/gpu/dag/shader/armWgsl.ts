@@ -42,6 +42,9 @@ export const DAG_ARGS = {
   restore: 60,
   /** The descent queues', one record each (`levelWgsl.ts`, `queueGroups`). */
   queues: [72, 84, 96],
+  /** The pool sort's per-group stages (`../../pool/sort.ts`): armed by the host, which writes the
+   *  pool's list and its count in the queue's order (`../poolList.ts`), never by `dagArm`. */
+  pool: 108,
 } as const
-/** `args` as made: nine records, each one deep. */
-export const DAG_ARGS_INITIAL = new Uint32Array(27).map((_, at) => (at % 3 === 2 ? 1 : 0))
+/** `args` as made: ten records, each one deep, none of them a workgroup yet. */
+export const DAG_ARGS_INITIAL = new Uint32Array(30).map((_, at) => (at % 3 === 2 ? 1 : 0))

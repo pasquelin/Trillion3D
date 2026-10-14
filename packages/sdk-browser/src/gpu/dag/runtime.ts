@@ -1,6 +1,6 @@
 import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
-import { createDagPoolList } from './poolList.ts'
+import { createDagPoolList, poolSortArming } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
 import { followRows, growthAsked } from './queueGrowth.ts'
 import { createDifferenceChain } from './differenceChain.ts'
@@ -38,6 +38,7 @@ export function createDagRuntime(
   const { packed } = resources
   const state = createDagRuntimeState()
   const chain = createDifferenceChain()
+  const armPool = poolSortArming(resources.device, resources.dispatchArgs)
   const run: DagRun = {
     linkMoved: undefined,
     resources,
@@ -46,7 +47,7 @@ export function createDagRuntime(
     // The cut rule's residency, derived from the pool's and uploaded by difference.
     uploadResidency: createDagResidencyUpload(resources),
     ...createDagDispatch(resources, state, chain),
-    poolList: createDagPoolList(packed, resources.cold, poolHeld),
+    poolList: createDagPoolList(packed, resources.cold, poolHeld, armPool),
     // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
     // before #1333, and the rows' flags go up as they are.
     mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),

@@ -3,7 +3,6 @@ import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts
 import { DAG_ARGS } from './shader/armWgsl.ts'
 import { encodeDifference } from './encodeDifference.ts'
 import { encodePoolSort } from '../pool/sort.ts'
-import { selectionListCap } from './layout.ts'
 import { BLOCK_MASK_WORDS } from './shader/floorWgsl.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
@@ -143,8 +142,9 @@ function encodeOnce(
   pass.dispatchWorkgroups(1)
   pass.setPipeline(raisePipeline)
   pass.dispatchWorkgroups(1)
-  // A thread a slot of the pool's list, whose entries the list cap bounds (`../poolList.ts`).
-  encodePoolSort(pass, evictSort, selectionListCap(resources.pageCount), width)
+  // A thread a slot of the pool's list, its group stages armed for the list's own count
+  // (`../poolList.ts`, `poolSortArming`).
+  encodePoolSort(pass, evictSort, 0, width, dispatchArgs, DAG_ARGS.pool)
   // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
   // (`../../webgpu/row/rowEviction.ts`): the cut's group back after them.
   if (resources.rowPass) {

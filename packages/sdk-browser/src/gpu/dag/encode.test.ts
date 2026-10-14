@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
-import { witnessEncoder, cutResources, LIVE, CAND, DRAWN, QUEUE } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, LIVE, CAND, DRAWN, QUEUE, POOL } from './encode.fixture.ts'
 
 test('a frame opens one command, whatever the depth', () => {
   // What the GPU pays between two kernels is counted in COMMANDS, not threads: each compute pass
@@ -89,17 +89,17 @@ test('the camera cut sorts its requests once, then lists its evictions over the 
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
-  // The pool sort runs over the list's 4096 slots in sixteen groups of 256, its ranks, offsets and
-  // staged slots in one workgroup: no group walks more than its own slots, whatever the pool
+  // The pool sort's group stages run over the list's own count, armed by the host with the list
+  // (`poolSortArming`), never over its cap; its ranks, offsets and staged slots in one workgroup
   // (`../pool/sortWgsl.ts`).
   assert.deepEqual(dispatches.slice(-8), [
     { kernel: 'dagSortRequests', groups: 1 },
     { kernel: 'dagRaiseParents', groups: 1 },
-    { kernel: 'poolCount', groups: 16 },
+    { kernel: 'poolCount', groups: 'indirect', list: POOL },
     { kernel: 'poolPlace', groups: 1 },
-    { kernel: 'poolGroups', groups: 16 },
+    { kernel: 'poolGroups', groups: 'indirect', list: POOL },
     { kernel: 'poolOffsets', groups: 1 },
-    { kernel: 'poolSpread', groups: 16 },
+    { kernel: 'poolSpread', groups: 'indirect', list: POOL },
     { kernel: 'poolScatter', groups: 1 },
   ])
   assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)

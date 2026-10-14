@@ -35,18 +35,23 @@ export const POOL_LANES_WGSL = wgslConst('POOL_LANES', [], wgslConsts({ POOL_LAN
 /**
  * A pool's victim queue on `pass`, its bind group already set, each stage's pipeline read off
  * `pipelineOf`: over the `slots` the pool may hold — those past its count leave at once —, the
- * stages a group of slots runs in rows of `width` workgroups, the others in one workgroup.
+ * stages a group of slots runs in rows of `width` workgroups, the others in one workgroup. With
+ * `args`, the group stages dispatch from its record at `offset`, armed for the pool's own count
+ * (`../dag/poolList.ts`, `poolSortArming`): no workgroup past it.
  */
 export function encodePoolSort(
   pass: GPUComputePassEncoder,
   pipelineOf: (stage: PoolSortStage) => GPUComputePipeline,
   slots: number,
   width: number,
+  args?: GPUBuffer,
+  offset = 0,
 ) {
   const groups = workgroupCount(slots, POOL_LANES)
   for (const stage of POOL_SORT_STAGES) {
     pass.setPipeline(pipelineOf(stage))
     if (ONE_WORKGROUP.has(stage)) pass.dispatchWorkgroups(1)
+    else if (args) pass.dispatchWorkgroupsIndirect(args, offset)
     else dispatchRows(pass, groups, 1, width)
   }
 }

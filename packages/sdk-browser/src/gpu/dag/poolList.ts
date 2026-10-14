@@ -4,6 +4,27 @@ import { canonicalPage } from './evict.ts'
 import type { PackedDag } from './types.ts'
 import type { RangeTarget } from './runWrites.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid, groupWidth } from '../dispatch/grid.ts'
+import { POOL_LANES } from '../pool/sortWords.ts'
+import { DAG_ARGS } from './shader/armWgsl.ts'
+
+/**
+ * What arms the pool sort's per-group stages for the `count` slots the list holds (`DAG_ARGS.pool`):
+ * in rows of the device's width, written in the queue's order with the list's count — the GPU's
+ * dispatch covers what its count holds, whatever the list does before the submit, and no workgroup
+ * past it, where a dispatch over the list's cap ran thousands for nothing.
+ */
+export function poolSortArming(device: GPUDevice, args: GPUBuffer) {
+  const width = groupWidth(device.limits),
+    record = new Uint32Array(2)
+  return (count: number) => {
+    const [x, y] = dispatchGrid(workgroupCount(count, POOL_LANES), width)
+    record[0] = x
+    record[1] = y
+    device.queue.writeBuffer(args, DAG_ARGS.pool, record)
+  }
+}
 
 /**
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
@@ -16,7 +37,9 @@ export function createDagPoolList(
   cold: RangeTarget,
   /** The pages a pool already holds, for a cut made beside it (a growth in place): listed at once,
    *  in one write. */
-  held?: (page: number) => boolean,
+  held: ((page: number) => boolean) | undefined,
+  /** Arms the pool sort for the count the list holds, at each write of it (`poolSortArming`). */
+  arm: (count: number) => void,
 ) {
   const { buffer, byteOffset, length } = packed.pageCones,
     words = new Uint32Array(buffer, byteOffset, length),
@@ -41,6 +64,7 @@ export function createDagPoolList(
     words[base + at] = moved
     write(base + at)
     write(base)
+    if (writes) arm(words[base])
     return true
   }
   if (held) {
@@ -53,6 +77,7 @@ export function createDagPoolList(
     for (const page of canonical) if (held(page)) note(page, true)
     writes = true
     write(base, words[base] + 1)
+    arm(words[base])
   }
   return { note, entries: entry }
 }

@@ -85,10 +85,12 @@ test('a cut made beside a pool lists its held pages by asking the keys, never ev
   const roots = world(60, 3, { sphere: 0, url: 0, parentError: 0 })
   const packed = packDagSelection(roots)
   const asked: number[] = []
+  const armed: number[] = []
   const list = createDagPoolList(
     packed,
     () => {},
     (page) => (asked.push(page), true),
+    (count) => armed.push(count),
   )
   assert.ok(asked.length <= packed.keyCount, `${asked.length} asked for ${packed.keyCount} keys`)
   assert.ok(asked.length < packed.pageCount / 10)
@@ -97,4 +99,5 @@ test('a cut made beside a pool lists its held pages by asking the keys, never ev
     packed.keyCount,
     'every key is listed once, at its canonical page',
   )
+  assert.deepEqual(armed, [packed.keyCount], 'the sort armed once, for the list written whole')
 })
