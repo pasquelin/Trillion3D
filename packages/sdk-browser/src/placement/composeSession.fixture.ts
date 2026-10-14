@@ -59,6 +59,7 @@ export function session() {
     locals: device.createBuffer({ label: 'Trillion3D root local boxes', size: 2 * 56, usage }),
     capacity: 2,
     sent: 2,
+    held: 2,
     moved: createChangedRuns(),
     whole: false,
     epoch: 1,
