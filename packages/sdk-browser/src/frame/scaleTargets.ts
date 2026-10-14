@@ -3,7 +3,9 @@
 export const SECOND_MS = 1000
 /** What the render-scale control and its targets share (`scaleControl.ts`): the refresh
  *  assumed before the display's is measured, and an interval long enough to be a pause (a hidden
- *  page), not a frame. */
+ *  page), not a frame. Longer than the refresh clock's pause (`PAUSE_MS`, `refreshClock.ts`), which
+ *  bounds the intervals the vsync grid is read on: a frame of 100 to 500 ms on an overloaded device
+ *  says nothing of the grid, yet is a miss the scale must answer. */
 export const FALLBACK_REFRESH_MS = SECOND_MS / 60,
   INTERVAL_PAUSE_MS = 500
 /** What the controller reads: the share of the budget they aim at, the display frames a sample is
