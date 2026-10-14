@@ -10,7 +10,6 @@
 //! children and outputs) lies in a `u32` pool after the records, a record naming its first word
 //! and its length.
 use super::*;
-use sha2::{Digest, Sha256};
 
 pub(crate) const TABLE_MAGIC: &[u8; 4] = b"WRTB";
 pub(crate) const DAG_MAGIC: &[u8; 4] = b"WRTD";
@@ -136,11 +135,6 @@ pub(super) struct Top {
     pub pinned_bytes: usize,
 }
 
-/// The SHA-256 of `bytes`, its 32 bytes.
-pub(super) fn digest(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(bytes).into()
-}
-
 /// `world-roots.table` of the world's `bundles`, `pages` and `cells` over `payload`: an 80-byte
 /// header (magic, version, budget, pinned bundles, pinned bytes, the five counts, the binary's
 /// length as two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages
@@ -166,7 +160,7 @@ pub(super) fn encode_table(
     let length = payload.len() as u64;
     r.word(length as u32);
     r.word((length >> 32) as u32);
-    r.out.extend(digest(payload));
+    r.out.extend(digest_bytes(payload));
     for bundle in bundles {
         r.word(bundle.offset as u32);
         r.word((bundle.offset as u64 >> 32) as u32);

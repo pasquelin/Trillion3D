@@ -137,7 +137,7 @@ fn the_table_and_its_dag_are_fixed_size_records_and_their_pools() {
     );
     assert_eq!(
         file[48..80],
-        records::digest(&cooked.payload),
+        digest_bytes(&cooked.payload),
         "its digest, as bytes"
     );
     let sizes = 80 + counts[0] * 56 + counts[1] * 24 + counts[2] * 16 + counts[3] * 24;

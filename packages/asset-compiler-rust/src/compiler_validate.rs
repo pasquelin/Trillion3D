@@ -40,8 +40,12 @@ pub(super) fn item<'a>(items: &'a [Value], id: usize, field: &str) -> Result<&'a
 pub(super) fn hex_of(digest: impl AsRef<[u8]>) -> String {
     digest.as_ref().iter().map(|b| format!("{b:02x}")).collect()
 }
+/// The SHA-256 of `b`, its 32 bytes: the one digest of bytes, raw or spelt by `hash`.
+pub(super) fn digest_bytes(b: &[u8]) -> [u8; 32] {
+    Sha256::digest(b).into()
+}
 pub(super) fn hash(b: &[u8]) -> String {
-    hex_of(Sha256::digest(b))
+    hex_of(digest_bytes(b))
 }
 pub(super) fn hash_file(p: &Path) -> Result<String> {
     Ok(hash_file_read(p)?.0)
