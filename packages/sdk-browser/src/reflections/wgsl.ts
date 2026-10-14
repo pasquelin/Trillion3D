@@ -4,10 +4,9 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionRayWgsl } from './ray.ts'
-import { reflectionProxyWgsl } from './proxy.ts'
+import { proxyKey, reflectionProxyWgsl, type ProxyBindings } from './proxy.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
-import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -30,8 +29,10 @@ import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
  * Every confidence is continuous in what it reads, there is no hit or miss: a stage whose share
  * of the radiance is left under `REFLECTION_EPSILON` is not evaluated. Nothing of the chain reads a
  * count of images, a seed or a history of its own, so two images of a still view give the same
- * bits, the run-time proxy's stage included: every one of its rays is cast in its frame
- * (`bounce/runtimeRadianceWgsl.ts`).
+ * bits — but the run-time proxy's stage, in the opaque trace alone (`reflectionProxyWgsl`): its
+ * frame has a budget, and the rays it leaves out go on in the next images from the answer they last got
+ * (`bounce/runtimeAnswerWgsl.ts`, `proxyStore.ts`); a still view reaches the same bits once none
+ * is left, which is what its settling waits for (`settle.ts`).
  *
  * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;
  * - `footprint.ts`: the cone of the lobe, the footprint it reads of the radiance pyramid
@@ -102,9 +103,9 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  * α along it (`w`; the roughness's α on a round lobe, `lobeAlpha`): the material's anisotropic GGX
  * parameters (`reflectionLobeOf`).
  */
-export const reflectedRadianceWgsl = (group: number, runtime: SceneBindings) =>
+export const reflectedRadianceWgsl = (group: number, runtime: ProxyBindings) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${sceneKey(runtime)})`,
+    `reflectedRadianceWgsl(${group}, ${proxyKey(runtime)})`,
     [
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group, runtime),

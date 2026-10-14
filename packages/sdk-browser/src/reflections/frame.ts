@@ -52,6 +52,15 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     environmentExposure(environment),
     environmentCurve(environment),
   )
+  // The run-time proxy's answers are of an epoch: it moves with the view, the lights, the poses and the proxy.
+  frame.epoch = reflection.store.follow(
+    rt.lights.store.epoch,
+    run.gpuSelection?.proxy()?.writes ?? 0,
+    run.gpuSelection?.worldRevision ?? 0,
+    // The camera's own view: the jitter moves the render matrix every image, and an epoch that followed it
+    // would restart the budget for ever.
+    gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
+  )
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 
@@ -126,6 +135,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.proxy = proxy?.buffer ?? deferred.placeholders.runtime
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
     inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
+    inputs.store = reflection.store.view ?? deferred.placeholders.runtimeStore
     const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(open.pass, reflection, stages, inputs, group, gpu.targetSize)
   }
@@ -157,7 +167,12 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection.settle.verified,
   )
   pass.end()
-  reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.hashed)
+  reflection.settle.image(
+    encoder,
+    reflection.tiles.args,
+    reflection.tiles.list,
+    reflection.radiance.hashed,
+  )
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

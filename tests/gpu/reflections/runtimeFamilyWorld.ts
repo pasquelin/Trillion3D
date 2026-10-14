@@ -13,6 +13,9 @@ import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+import { latestMade } from '../kit/worldErrors.ts'
 
 /** A linear colour: an array is read as it is, never as the sRGB a hex string names. */
 const linear = (c: Rgb): [number, number, number] => [c[0], c[1], c[2]]
@@ -130,4 +133,13 @@ export function familyWorld(canvas: HTMLCanvasElement, c: FamilyCase) {
         )
     })
   return { world, moved }
+}
+
+/** The trace's counters in the world's newest tile list (`TRACE_LIST`): the work the frame spent and the
+ *  workgroups it left a pixel in, read on `device`; none before the world made a list. */
+export async function traceCounters(device: GPUDevice, made: Map<string, GPUBuffer>) {
+  const list = latestMade(made, (label) => label.startsWith('Trillion3D reflection tile list'))
+  if (!list) return undefined
+  const words = (await readGpuBuffer(device, list, (TRACE_LIST.cursor + 1) * 4))!
+  return { spent: words[TRACE_LIST.spent], left: words[TRACE_LIST.left] }
 }

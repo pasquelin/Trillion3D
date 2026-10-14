@@ -3,9 +3,10 @@ import { clamp, clampLowWins, lerp } from '../../../math/src/scalar/reals.ts'
 
 /**
  * THE ONE BUDGET OF THE PROXY'S RAYS, a GPU duration, never a ray count: the reflections' rays and the
- * bounce probes' share `budgetMs` of every frame, the reflections first — what the screen shows, every
- * ray of them cast in its frame, its cost reported, never cut —, the probes the rest, which converge over
- * frames by design.
+ * bounce probes' share `budgetMs` of every frame, the reflections first — what the screen shows, a
+ * frame's rays bounded by the trace's own work budget (`FRAME_WORK`, `bounce/runtimeLayout.ts`), the
+ * rays it leaves out answered in the frames after —, the probes the rest, which converge over frames by
+ * design.
  *
  * Closed on the device's own measures, never one machine's constant: the probes take `budgetMs` less
  * what the reflection trace's pass took, never past their own part of it (`probeShare`) — a scene

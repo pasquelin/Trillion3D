@@ -6,8 +6,11 @@ import { REFLECTION_FORMAT } from './constants.ts'
 import { createFrontDepth, frontBytes } from './frontDepth.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
-import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes, createTraceGroups } from './trace.ts'
+import { createTraceGroups } from './trace.ts'
+import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes } from './traceTiles.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
+import { createProxyStore } from './proxyStore.ts'
+import { storeBytes } from '../bounce/runtimeLayout.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_GROUP,
@@ -22,9 +25,10 @@ import { reflectionLayout } from './reflectionPipelines.ts'
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
  *  after it in the mips of both targets (`radianceBytes`) —, its tile list, its uniform, its radiance
- *  hash and the front depth (`frontBytes`, which `blends` sizes); the depth it marches is the Hi-Z's,
- *  its front depth folded in. */
-export function reflectionBytes(width: number, height: number, blends: boolean) {
+ *  hash, the front depth (`frontBytes`, which `blends` sizes) and, while a placement wears a proxy
+ *  (`store`), the run-time proxy's answers (`proxyStore.ts`); the depth it marches is the Hi-Z's, its
+ *  front depth folded in. */
+export function reflectionBytes(width: number, height: number, blends: boolean, store = false) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
     radianceBytes(width, height) +
@@ -32,7 +36,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
     traceListBytes(width, height) +
     TRACE_ARGS_BYTES +
     REFLECTION_VIEW_BYTES +
-    SETTLE_BYTES
+    SETTLE_BYTES +
+    (store ? storeBytes(width, height) : 0)
   )
 }
 
@@ -40,14 +45,15 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
  * A view's reflection at `width × height`: the target the opaque trace writes, the radiance
  * pyramid of its last lit image (`radiance`, which holds the image it was made of: the next image
  * reprojects its hits with its view-projection), the tile list of the trace, the view uniform and
- * its writer. `blends`, whether the scene
- * has any, sizes the front depth (`createFrontDepth`).
+ * its writer. `blends`, whether the scene has any, sizes the front depth (`createFrontDepth`);
+ * `store`, whether a placement wears a proxy, makes the store of its answers (`createProxyStore`).
  */
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
   height: number,
   blends: boolean,
+  store = false,
 ) {
   // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
   // no frame copies it.
@@ -66,6 +72,7 @@ export function createScreenReflection(
   const tiles = createTraceTiles(device, width, height)
   const settle = createRadianceSettle(device)
   const front = createFrontDepth(device, width, height, blends)
+  const answers = createProxyStore(device, width, height, store)
   return {
     device,
     target,
@@ -74,6 +81,8 @@ export function createScreenReflection(
     tiles,
     uniform,
     settle,
+    /** The run-time proxy's answers, kept from image to image (`proxyStore.ts`). */
+    store: answers,
     front,
     writeView: createReflectionViewWriter(device, uniform),
     /** The reflection group over the depth it was bound with (`GpuHiz.depth`), the lit image the
@@ -92,6 +101,7 @@ export function createScreenReflection(
       tiles.list.destroy()
       uniform.destroy()
       settle.dispose()
+      answers.dispose()
       front.dispose()
     },
   }

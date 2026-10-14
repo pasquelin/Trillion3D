@@ -76,7 +76,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
   uploadSceneLights(device, { store, buffer: lights, uploadedEpoch: -1 } as WebgpuLightState)
-  const reflection = createScreenReflection(device, width, height, true)
+  const reflection = createScreenReflection(device, width, height, true, !!frame.proxy)
+  const { tiles } = reflection
   // The HDR target of the image's turn, and the lit image each image lays in it.
   const targets = { hdrTexture: hdr, hdrView: hdrAttachmentView(hdr), reflection }
   let lit = frame.radiance
@@ -113,7 +114,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lights,
     bounceGrid,
     probes: probes.createView({ dimension: '2d-array' }),
-    ...rigProxy(device, frame.proxy?.faces),
+    ...rigProxy(device, reflection, frame.proxy?.faces),
     lightLists: device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE }),
   }
   return {
@@ -154,7 +155,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           frame.viewProjection,
         )
         build.end()
-        reflection.settle.image(encoder, reflection.tiles.args, reflection.radiance.held.still)
+        reflection.settle.image(encoder, tiles.args, tiles.list, reflection.radiance.held.still)
       }
       device.queue.submit([encoder.finish()])
       reflection.settle.submitted()
