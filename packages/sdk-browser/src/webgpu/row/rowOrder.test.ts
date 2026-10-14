@@ -4,13 +4,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRowOrder } from './rowOrder.ts'
-import { createRowWords } from './rowWords.ts'
+import { createRowUseWords } from './rowWords.ts'
 import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
 
 /** A table of rows whose pages the test sets, its words, and an order over them. */
 function table() {
   const rowOf = new Map<number, number>(),
-    words = createRowWords()
+    words = createRowUseWords()
   words.fit(16)
   let asks = 0
   const order = createRowOrder(

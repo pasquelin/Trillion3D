@@ -6,7 +6,7 @@ import { rowHasGeometry } from './pageRow.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-import { createRowWords } from './rowWords.ts'
+import { createRowUseWords } from './rowWords.ts'
 import { createRowOrder } from './rowOrder.ts'
 import { createRowDemand } from './rowDemand.ts'
 import type { InstanceClosure } from './rowDemandState.ts'
@@ -41,7 +41,7 @@ export function createWebgpuRowSlots(
   askOrder?: () => void,
 ) {
   const { recordOf } = createPageCatalogue(packedPages)
-  const words = createRowWords()
+  const words = createRowUseWords()
   const drawsRow = (page: number) => {
     const rec = recordOf(page)!
     return !rec.transparent && rowHasGeometry(rec)

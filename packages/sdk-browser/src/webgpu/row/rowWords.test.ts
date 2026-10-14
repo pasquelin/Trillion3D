@@ -3,17 +3,17 @@
 // on the others stand; a move keeps its row's generation and counts as used now.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRowWords, ROW_PAGE, ROW_USE, ROW_USE_WORDS, ROW_WALK } from './rowWords.ts'
+import { createRowUseWords, ROW_PAGE, ROW_USE, ROW_USE_WORDS, ROW_WALK } from './rowWords.ts'
 
 /** The rows each flush sends, as `[first, last]` row pairs. */
-function sent(words: ReturnType<typeof createRowWords>, count: number) {
+function sent(words: ReturnType<typeof createRowUseWords>, count: number) {
   const runs: number[][] = []
   words.flush(count, (row, data) => void runs.push([row, row + data.length / ROW_USE_WORDS - 1]))
   return runs
 }
 
 test('only the rows written are sent, each run once, nothing between', () => {
-  const words = createRowWords()
+  const words = createRowUseWords()
   words.fit(16)
   assert.deepEqual(sent(words, 0), [], 'an empty table sends nothing')
   words.assign(2, 20, 0)
@@ -27,7 +27,7 @@ test('only the rows written are sent, each run once, nothing between', () => {
 })
 
 test('a move carries its generation and its page, used now and never walked', () => {
-  const words = createRowWords()
+  const words = createRowUseWords()
   words.fit(8)
   sent(words, 0)
   words.assign(5, 50, 0)
@@ -42,7 +42,7 @@ test('a move carries its generation and its page, used now and never walked', ()
 })
 
 test('a table grown sends every live row whole, each used now', () => {
-  const words = createRowWords()
+  const words = createRowUseWords()
   words.fit(4)
   words.assign(0, 1, 0)
   sent(words, 1)

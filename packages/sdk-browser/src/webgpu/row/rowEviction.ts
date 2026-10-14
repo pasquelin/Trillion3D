@@ -3,7 +3,7 @@ import { structuresOf } from '../../gpu/dag/structureTable.ts'
 import { SELECTION_HEADER_WORDS, rowBurst, rowQueueWord } from '../../gpu/dag/readoutWords.ts'
 import { cutBuffer, cutRefused, cutTexture } from '../../gpu/dag/cutBuffers.ts'
 import { createRowMapGpu, type RowMapJournal } from './rowMapGpu.ts'
-import { createRowWordsGpu, type RowWords } from './rowWords.ts'
+import { createRowUseWordsGpu, type RowUseWords } from './rowWords.ts'
 import { createRowClosure } from './rowClosure.ts'
 import { createRowEvictSort } from './rowEvictSort.ts'
 
@@ -17,7 +17,7 @@ type RowsHost = {
     tables: { readonly keys: Int32Array<ArrayBuffer>; readonly values: Int32Array<ArrayBuffer> }
     journal: RowMapJournal
   }
-  words: RowWords
+  words: RowUseWords
   table: { readonly blendFirst: number; readonly packedCount: number }
   frame: () => number
   order(queue: Uint32Array | undefined, ranked: number, frame: number): void
@@ -43,7 +43,7 @@ export function createRowEviction(host: RowsHost) {
     // Each buffer and texture the cut's own, admitted within its share (`cutBuffer`).
     const buffer = (d: GPUBufferDescriptor, old?: GPUBuffer) => cutBuffer(cut, d, old)
     const map = createRowMapGpu(device, host.map.tables, host.map.journal, buffer),
-      use = createRowWordsGpu(device, buffer),
+      use = createRowUseWordsGpu(device, buffer),
       closure = createRowClosure(device, cut, (d, bytes, old) => cutTexture(cut, d, bytes, old)),
       sort = createRowEvictSort(device, buffer)
     /** Per frame of the last `FRAMES`, whether its cut ranked a queue on its own stamps, or could
