@@ -4,11 +4,8 @@ import { DAG_ARGS } from '../../gpu/dag/shader/armWgsl.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
-import {
-  preparedComputePipeline,
-  preparedPipelines,
-  started,
-} from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
+import { startedComputeStages } from '../../lighting/deferred/startedStages.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import type { TextureMaker } from '../../gpu/dag/cutBuffers.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
@@ -61,14 +58,13 @@ export function createRowClosure(
       ROW_STACK: shape.stack,
       ROW_STACK_WORDS: shape.words,
     }
-    return ROW_CLOSURE_STAGES.map((entryPoint) =>
-      started(
-        preparedComputePipeline(device, {
-          label: `Trillion3D row closure ${entryPoint}`,
-          layout: pipelineLayout,
-          compute: { module: dag.module, entryPoint, constants },
-        }),
-      ),
+    return startedComputeStages(
+      device,
+      'Trillion3D row closure',
+      pipelineLayout,
+      dag.module,
+      ROW_CLOSURE_STAGES,
+      constants,
     )
   })
   let structures: RecordTexture | undefined,
@@ -104,7 +100,7 @@ export function createRowClosure(
       const shape = closureShape(table.stackBound)
       if (!shape || !flush(table)) return false
       const stages = pipelines.of(shape.stack)
-      if (!stages.every((stage) => stage.ready)) return false
+      if (!stages.ready) return false
       bound.next[0] = rows.map
       bound.next[1] = rows.use
       bound.next[2] = structures!.view
@@ -118,9 +114,9 @@ export function createRowClosure(
           ],
         })
       pass.setBindGroup(1, group)
-      pass.setPipeline(stages[0].get())
+      pass.setPipeline(stages.pipelineOf('rowCloseAsked'))
       pass.dispatchWorkgroupsIndirect(args, DAG_ARGS.cand)
-      pass.setPipeline(stages[1].get())
+      pass.setPipeline(stages.pipelineOf('rowCloseDrawn'))
       pass.dispatchWorkgroupsIndirect(args, DAG_ARGS.live)
       return true
     },

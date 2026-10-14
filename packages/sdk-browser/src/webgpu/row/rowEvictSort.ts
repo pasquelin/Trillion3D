@@ -1,9 +1,5 @@
-import { encodePoolSort, POOL_SORT_STAGES, type PoolSortStage } from '../../gpu/pool/sort.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../../gpu/pool/sortWords.ts'
-import { groupWidth } from '../../gpu/dispatch/grid.ts'
+import { createPoolSortKit, poolSortBytes } from '../../gpu/pool/sortKit.ts'
 import { ROW_BURST } from '../../gpu/dag/readoutWords.ts'
-import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { ROW_SORT_WGSL } from './rowEvictSortWgsl.ts'
 import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
@@ -24,34 +20,8 @@ export function createRowEvictSort(
   /** Makes its buffers, the counts in place of those they outgrew: the cut's (`cutBuffer`). */
   make: BufferMaker,
 ) {
-  const layout = device.createBindGroupLayout({
-    entries: [
-      computeBufferEntry(0, 'read-only-storage'),
-      computeBufferEntry(1, 'storage'),
-      computeBufferEntry(2, 'storage'),
-      computeUniformEntry(3),
-    ],
-  })
-  const module = device.createShaderModule({
-    label: 'Trillion3D row eviction',
-    code: ROW_SORT_WGSL,
-  })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const stages = new Map(
-    POOL_SORT_STAGES.map((entryPoint) => [
-      entryPoint,
-      started(
-        preparedComputePipeline(device, {
-          label: `Trillion3D row eviction ${entryPoint}`,
-          layout: pipelineLayout,
-          compute: { module, entryPoint },
-        }),
-      ),
-    ]),
-  )
-  const pipelineOf = (stage: PoolSortStage) => stages.get(stage)!.get()
+  const kit = createPoolSortKit(device, 'Trillion3D row eviction', ROW_SORT_WGSL)
   const words = new Uint32Array(UNIFORM_WORDS),
-    width = groupWidth(device.limits),
     bound = createWebgpuBindIdentity()
   let counts: GPUBuffer | undefined, uniform: GPUBuffer | undefined, group: GPUBindGroup | undefined
   return {
@@ -70,8 +40,8 @@ export function createRowEvictSort(
         burst: number
       },
     ) {
-      if (![...stages.values()].every((stage) => stage.ready)) return false
-      const bytes = (POOL_SORT_WORDS + poolScratchWords(Math.max(1, at.slots), ROW_BURST)) * 4
+      if (!kit.ready) return false
+      const bytes = poolSortBytes(Math.max(1, at.slots), ROW_BURST)
       if (!counts || counts.size < bytes) {
         const old = counts
         counts = make(
@@ -97,18 +67,9 @@ export function createRowEvictSort(
       bound.next[0] = at.use
       bound.next[1] = counts
       bound.next[2] = at.out
-      if (bound.moved() || !group)
-        group = device.createBindGroup({
-          layout,
-          entries: [
-            { binding: 0, resource: { buffer: at.use } },
-            { binding: 1, resource: { buffer: counts } },
-            { binding: 2, resource: { buffer: at.out } },
-            { binding: 3, resource: { buffer: uniform } },
-          ],
-        })
+      if (bound.moved() || !group) group = kit.group(at.use, counts, at.out, uniform)
       pass.setBindGroup(0, group)
-      encodePoolSort(pass, pipelineOf, at.slots, width)
+      kit.encode(pass, at.slots)
       return true
     },
   }

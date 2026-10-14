@@ -1,14 +1,10 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
-import { encodePoolSort, POOL_SORT_STAGES, type PoolSortStage } from '../../gpu/pool/sort.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../../gpu/pool/sortWords.ts'
+import { createPoolSortKit, poolSortBytes } from '../../gpu/pool/sortKit.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
-import { groupWidth } from '../../gpu/dispatch/grid.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { uniformSlots } from '../../residency/pools.ts'
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_EVICTION_PASS } from '../../stage/passLabels.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
-import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { POOL_MAX_LAYERS, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { TILE_BURST, TILE_SORT_WGSL } from './evictSortWgsl.ts'
 import { createQueueCuts, TILE_QUEUES, TILE_QUEUE_WORDS, type TileQueueCut } from './queueCut.ts'
@@ -29,34 +25,11 @@ const UNIFORM_WORDS = 4
  * read less than then. Pipelines compiled off the frame.
  */
 export function createTileEvictions(device: GPUDevice) {
-  const layout = device.createBindGroupLayout({
-    entries: [
-      computeBufferEntry(0, 'read-only-storage'),
-      computeBufferEntry(1, 'storage'),
-      computeBufferEntry(2, 'storage'),
-      computeUniformEntry(3, { hasDynamicOffset: true, minBindingSize: UNIFORM_WORDS * 4 }),
-    ],
-  })
-  const module = device.createShaderModule({ label: TEXTURE_EVICTION_PASS, code: TILE_SORT_WGSL })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const stages = new Map(
-    POOL_SORT_STAGES.map((entryPoint) => [
-      entryPoint,
-      started(
-        preparedComputePipeline(device, {
-          label: `Trillion3D texture eviction ${entryPoint}`,
-          layout: pipelineLayout,
-          compute: { module, entryPoint },
-        }),
-      ),
-    ]),
-  )
-  const pipelineOf = (stage: PoolSortStage) => stages.get(stage)!.get()
+  const kit = createPoolSortKit(device, TEXTURE_EVICTION_PASS, TILE_SORT_WGSL, UNIFORM_WORDS * 4)
   const buffer = (label: string, size: number, usage: number) =>
     device.createBuffer({ label: `Trillion3D texture eviction ${label}`, size, usage })
   // The sort's words, then its scratch over the most places a lane pool holds.
-  const sortBytes =
-    (POOL_SORT_WORDS + poolScratchWords(POOL_MAX_LAYERS * TILES_PER_LAYER, TILE_BURST)) * 4
+  const sortBytes = poolSortBytes(POOL_MAX_LAYERS * TILES_PER_LAYER, TILE_BURST)
   const sortWords = buffer('counts', sortBytes, GPUBufferUsage.STORAGE)
   const cuts = createQueueCuts((bytes) =>
     buffer('queues', bytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC),
@@ -66,7 +39,6 @@ export function createTileEvictions(device: GPUDevice) {
   const words = new Uint32Array(slots.bytes / 4)
   const bound = [createWebgpuBindIdentity(), createWebgpuBindIdentity()]
   const groups: GPUBindGroup[] = []
-  const width = groupWidth(device.limits)
   /** Per queue: the clock and the pool's arrivals at its last cut. */
   const cutClock = new Uint32Array(TILE_QUEUES),
     cutArrivals = new Uint32Array(TILE_QUEUES)
@@ -75,16 +47,7 @@ export function createTileEvictions(device: GPUDevice) {
   /** The group of atlas `a`, rebuilt when its places' words moved. */
   const groupOf = (a: number, use: GPUBuffer) => {
     bound[a].next[0] = use
-    if (bound[a].moved())
-      groups[a] = device.createBindGroup({
-        layout,
-        entries: [
-          { binding: 0, resource: { buffer: use } },
-          { binding: 1, resource: { buffer: sortWords } },
-          { binding: 2, resource: { buffer: cuts.buffer } },
-          { binding: 3, resource: { buffer: uniform, size: UNIFORM_WORDS * 4 } },
-        ],
-      })
+    if (bound[a].moved()) groups[a] = kit.group(use, sortWords, cuts.buffer, uniform)
     return groups[a]
   }
   return {
@@ -130,7 +93,7 @@ export function createTileEvictions(device: GPUDevice) {
         if (!pool) continue
         const { slotUse } = atlases[Math.floor(q / lanes)]
         pass.setBindGroup(0, groupOf(Math.floor(q / lanes), slotUse.buffer), slots.offset(q))
-        encodePoolSort(pass, pipelineOf, pool.tiles, width)
+        kit.encode(pass, pool.tiles)
       }
       pass.end()
       cuts.turn()
