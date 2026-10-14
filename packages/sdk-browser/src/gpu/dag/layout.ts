@@ -36,7 +36,6 @@ import { lastTrue } from '../../../../math/src/scalar/search.ts'
 export {
   SELECTION_HEADER_WORDS,
   evictionWord,
-  EVICTION_BURST,
   differenceWord,
   levelCountsWord,
 } from './readoutWords.ts'
