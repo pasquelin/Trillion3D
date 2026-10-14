@@ -29,8 +29,15 @@ function hostMeshes(count: number, at: (k: number) => [number, number]) {
     const [x, z] = at(k)
     const pages = [
       {
-        ...{ url: `box${k}`, level: 0, lodError: 0, sphere: [0, 0.5, 0, 0.6], triangles: 12 },
-        ...{ parentError: null, parentSphere: null, min: [-0.05, 0, -0.05], max: [0.05, 1, 0.05] },
+        url: `box${k}`,
+        level: 0,
+        lodError: 0,
+        sphere: [0, 0.5, 0, 0.6],
+        triangles: 12,
+        parentError: null,
+        parentSphere: null,
+        min: [-0.05, 0, -0.05],
+        max: [0.05, 1, 0.05],
       },
     ]
     const elements = Float64Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, z, 1)

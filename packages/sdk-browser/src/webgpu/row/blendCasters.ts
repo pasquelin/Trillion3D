@@ -35,15 +35,23 @@ export function createBlendCasterRows(
   writePageRow: PageRowWriter,
   onCoverageChange: (rec: PageRec, page: number) => void = () => {},
 ) {
+  // A packed rank back to its record: the one catalogue accessor (`../../page/selection/catalogue.ts`).
+  const { recordOf, outputOf } = createPageCatalogue(packedPages)
   const c: Casters = {
-    ...{ rows, writePageRow, onCoverageChange },
-    /** A packed rank back to its record: the one catalogue accessor
-     *  (`../../page/selection/catalogue.ts`). */
-    ...createPageCatalogue(packedPages),
-    ...{ first: -1, free: new Int32Array(0), freeCount: 0, short: 0 },
-    ...{ coverage: new Float32Array(0), transmissive: new Uint8Array(0) },
+    rows,
+    writePageRow,
+    onCoverageChange,
+    recordOf,
+    outputOf,
+    first: -1,
+    free: new Int32Array(0),
+    freeCount: 0,
+    short: 0,
+    coverage: new Float32Array(0),
+    transmissive: new Uint8Array(0),
     waiting: createSparseInts(),
-    ...{ table: undefined, epoch: -1 },
+    table: undefined,
+    epoch: -1,
     pages: [],
   }
   seat(c)

@@ -35,8 +35,12 @@ test("a row write reads its surface's slots once a version and a census, not onc
   const table = createMaterialTable()
   const write = createPageRowWriter(
     {
-      ...{ mapLayer, dataLayer, geometryBlocks: new Map() },
-      ...{ asIsShown: false, emissiveAoShown: false, materialTable: table },
+      mapLayer,
+      dataLayer,
+      geometryBlocks: new Map(),
+      asIsShown: false,
+      emissiveAoShown: false,
+      materialTable: table,
     },
     () => {},
     [{ world: new Matrix4() }],

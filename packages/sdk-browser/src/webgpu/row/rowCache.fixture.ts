@@ -24,7 +24,10 @@ export const MIRROR = { sync: () => {}, dirty: true }
 export function closeAlone(): InstanceClosure {
   const counts = new Map<number, number>()
   const delta = {
-    ...{ entered: new Int32Array(0), exited: new Int32Array(0), enteredCount: 0, exitedCount: 0 },
+    entered: new Int32Array(0),
+    exited: new Int32Array(0),
+    enteredCount: 0,
+    exitedCount: 0,
     has: (id: number) => (counts.get(id) ?? 0) > 0,
   }
   const apply = (cut: IdDelta) => {
@@ -42,10 +45,10 @@ export function closeAlone(): InstanceClosure {
       counts.set(id, n)
       if (!n) exited.push(id)
     }
-    Object.assign(delta, {
-      ...{ entered: Int32Array.from(entered), exited: Int32Array.from(exited) },
-      ...{ enteredCount: entered.length, exitedCount: exited.length },
-    })
+    delta.entered = Int32Array.from(entered)
+    delta.exited = Int32Array.from(exited)
+    delta.enteredCount = entered.length
+    delta.exitedCount = exited.length
   }
   return { apply, delta, hostBytes: 0 } as unknown as InstanceClosure
 }

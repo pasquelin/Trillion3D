@@ -34,7 +34,11 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
   const metadata = {
     primitives: [
       {
-        ...{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages: [page], structure },
+        mesh: 0,
+        primitive: 0,
+        pass: 'exact-clusters',
+        pages: [page],
+        structure,
         culling: manifestCulling([page]),
       },
     ],

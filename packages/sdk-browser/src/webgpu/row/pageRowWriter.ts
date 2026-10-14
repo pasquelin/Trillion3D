@@ -69,7 +69,11 @@ export function createPageRowWriter(
   outputOf: (packed: number) => DeformationOutput | undefined = () => undefined,
 ) {
   const w: RowWriter = {
-    ...{ resources, markRowDirty, roots, rootRank, outputOf },
+    resources,
+    markRowDirty,
+    roots,
+    rootRank,
+    outputOf,
     constants: createPageRowConstants(),
     block: emptyGeometryBlock(),
   }
