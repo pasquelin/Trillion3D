@@ -14,7 +14,7 @@
 use super::cancel;
 use std::sync::atomic::AtomicBool;
 use trillion3d_math::triangle::newell_step;
-use trillion3d_math::vec3::normalize_finite_f32;
+use trillion3d_math::vec3::{normalize_finite_f32, point_checked};
 
 mod weld;
 
@@ -117,11 +117,10 @@ impl Surface<'_> {
         Some(normal)
     }
 
-    /// Position of a corner's vertex, or the origin when the table does not carry it.
+    /// Position of a corner's vertex, or the origin when the table does not carry it: back in
+    /// `f32` from `point_checked`'s exact `f64`.
     fn point(&self, corner: usize) -> [f32; 3] {
-        let at = self.corners[corner] as usize * 3;
-        self.positions
-            .get(at..at + 3)
-            .map_or([0.0; 3], |found| [found[0], found[1], found[2]])
+        point_checked(self.positions, self.corners[corner])
+            .map_or([0.0; 3], |p| p.map(|v| v as f32))
     }
 }

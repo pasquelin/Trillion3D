@@ -7,6 +7,7 @@ use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
 use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec3::point_checked;
 use trillion3d_page_codec::proxy::bvh;
 
 fn bad(message: impl Into<String>) -> CompilerError {
@@ -67,11 +68,9 @@ fn place_primitive(
         return Err(bad("an index count is not a multiple of three"));
     }
     for index in &indices {
-        let base = *index as usize * 3;
-        let point = points
-            .get(base..base + 3)
+        let point = point_checked(&points, *index)
             .ok_or_else(|| bad("an index points outside POSITION"))?;
-        let placed = transform_point(matrix, [point[0] as f64, point[1] as f64, point[2] as f64]);
+        let placed = transform_point(matrix, point);
         world.triangles.push(placed[0] as f32);
         world.triangles.push(placed[1] as f32);
         world.triangles.push(placed[2] as f32);

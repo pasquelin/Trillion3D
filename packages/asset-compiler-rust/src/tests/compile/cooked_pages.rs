@@ -9,6 +9,7 @@
 use super::silhouette::page_indices;
 use super::*;
 use std::collections::HashSet;
+use trillion3d_math::vec3::point_checked;
 
 type Point = [f64; 3];
 
@@ -51,13 +52,6 @@ fn decode_page(objects: &Path, page: &Value) -> std::result::Result<Decoded, Str
     })
 }
 
-/// Source vertex `s` of `positions`, flat `xyz`, or `None` past their end.
-fn source_point(positions: &[f32], s: u32) -> Option<Point> {
-    let at = s as usize * 3;
-    let p = positions.get(at..at + 3)?;
-    Some(std::array::from_fn(|a| f64::from(p[a])))
-}
-
 /// The defects of one cooked primitive against its source `positions`, flat `xyz`, one line each;
 /// empty when every page is sound.
 pub(in crate::tests) fn cooked_page_defects(
@@ -89,7 +83,7 @@ pub(in crate::tests) fn cooked_page_defects(
             .collect();
         let slack = |p: Point| 2.0 * d.error + 1e-5 * p.iter().map(|v| v.abs()).fold(1.0, f64::max);
         for (&s, &p) in d.source.iter().zip(&d.corners) {
-            let Some(expected) = source_point(positions, s) else {
+            let Some(expected) = point_checked(positions, s) else {
                 defects.push(format!("page {id}: vertex {s} is past the source"));
                 continue;
             };
@@ -139,7 +133,7 @@ fn coarse_defects(
             .collect();
         let points: Vec<Point> = vertices
             .iter()
-            .filter_map(|&s| source_point(positions, s))
+            .filter_map(|&s| point_checked(positions, s))
             .collect();
         let longest = children
             .iter()
