@@ -37,7 +37,8 @@ const POSE_ROUNDS = 4
  * refuses, it does not spin on itself.
  *
  * Nothing is released here: a tile stays resident until the pool, full, yields the least looked-at
- * — the GPU queue's rule (`placeOrder.ts`). A barrier that released what the last image had not named would let a
+ * — the GPU queue's rule (`../../gpu/pool/slotOrder.ts`). A barrier that released what the last
+ * image had not named would let a
  * request that wavers from one image to the next — three tiles of a pane, named one image in seven
  * — entered and left on every capture, changed the resource revision and kept the image from
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
