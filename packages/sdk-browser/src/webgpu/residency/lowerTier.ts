@@ -113,7 +113,8 @@ export type LowerPassOptions = {
   lowerTiers: () => readonly LowerList[]
   admit: ReturnType<typeof createPageAdmission>
   budget: FrameClock
-  nextShare: () => Promise<void>
+  /** The share step (`share.ts`): the next share to await once the clock's share is spent. */
+  share: () => Promise<void> | undefined
   readAhead: ReturnType<typeof createAdmissionReads> | undefined
 }
 type LowerPass = LowerPassOptions & { skips: (rec: PageRec) => boolean }
@@ -166,10 +167,9 @@ async function loadLowerTiers(
   // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
   // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
   for (let i = 0; i < lower.length && spare > 0; i++) {
-    budget.resume()
-    if (!budget.admits()) {
-      budget.pause()
-      await pass.nextShare()
+    const shared = pass.share()
+    if (shared) {
+      await shared
       if (cameraWaiting()) return
     }
     const rec = lower[i],
