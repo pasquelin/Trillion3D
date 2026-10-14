@@ -6,7 +6,8 @@ import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
 import { dBoxTransform } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
-import { FLUSH, ROUND, ROUNDING_GAMMA } from './precision.ts'
+import { ROUND } from './precision.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
 
 /** The doubles the water rectangle computes with, the CPU's constants bit for bit
  *  (`precision.ts`). */
@@ -27,14 +28,14 @@ const D_THICKNESS_GUARD=${wgslDouble(1 + 16 * ROUND)};`,
 )
 
 /**
- * THE ENCLOSURE OF A BINARY32 TRANSFORM, IN EMULATED DOUBLES (`math/src/wgsl/double.ts`): the CPU's
- * `widenBox`, `boxTransform` (`dBoxTransform`) and `encloseTransform` (`precision.ts`,
- * `math/src/geometry/box.ts`),
- * operation for operation — the same products, the same sums left to right, `Math.min` and
- * `Math.max` with their NaN (`dMathMin`) —, so each bound is the CPU's to the bit. A box is six
- * doubles, its minima then its maxima. An enclosure the CPU refuses returns a box whose first
- * bound is a NaN, which a successful one never holds (its bounds are finite); the error it adds to
- * each nominal coordinate is left in `encloseError`, as the CPU leaves it in its scratch.
+ * THE ENCLOSURE OF A BINARY32 TRANSFORM, IN EMULATED DOUBLES (`math/src/wgsl/double.ts`, why
+ * doubles: `rectWgsl.ts`): the CPU's `widenBox`, `boxTransform` (`dBoxTransform`) and
+ * `encloseTransform` (`precision.ts`, `math/src/geometry/box.ts`), operation for operation — the
+ * same products, the same sums left to right, `Math.min` and `Math.max` with their NaN
+ * (`dMathMin`) —, so each bound is the CPU's to the bit. A box is six doubles, its minima then its
+ * maxima. An enclosure the CPU refuses returns a box whose first bound is a NaN, which a successful
+ * one never holds (its bounds are finite); the error it adds to each nominal coordinate is left in
+ * `encloseError`, as the CPU leaves it in its scratch.
  */
 export const WATER_ENCLOSE_WGSL = wgslBlock(
   'WATER_ENCLOSE_WGSL',

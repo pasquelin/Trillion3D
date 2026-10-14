@@ -2,6 +2,7 @@ import { sortSeedsFarToNear } from './sortPlan.ts'
 import { assignOwnSlots } from './runs.ts'
 import { eyeKey } from './eyeKey.ts'
 import { FRAME_HEAD } from './frameHead.ts'
+import { writeFramePlanes } from './framePlanes.ts'
 import type { WebgpuBlendState } from './state.ts'
 
 /**
@@ -25,10 +26,11 @@ import type { WebgpuBlendState } from './state.ts'
  */
 
 /**
- * The frame data the kernels read (`frameLayout`, `frameHead.ts`): the eye, the frustum planes and
- * the item count the verdict tests (`verdictWgsl.ts`), each own item's key — a NaN as the GPU's one
- * NaN pattern, all ones —, then each pass's own seeds in paint order and their slots. The water
- * pass writes its own words of the head (`../water/frameWords.ts`).
+ * The frame data the kernels read (`frameLayout`, `frameHead.ts`): the eye, the frustum planes
+ * brought to it in single precision (`framePlanes.ts`) and the item count the verdict tests, each
+ * own item's key — a NaN as the GPU's one NaN pattern, all ones —, then each pass's own seeds in
+ * paint order and their slots. The water pass writes its own words of the head
+ * (`../water/frameWords.ts`).
  */
 function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const { frameDoubles: doubles, frameWords: words, frameLayout: layout } = blendState
@@ -36,7 +38,7 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   doubles[1] = eye[1]
   doubles[2] = eye[2]
   doubles[3] = 0
-  doubles.set(blendState.blendPlanes, FRAME_HEAD.planes / 2)
+  writeFramePlanes(words, blendState.blendPlanes, eye)
   words[FRAME_HEAD.items] = blendState.blendGpu.length
   const own = blendState.ownItems,
     keys = blendState.orderKeys,

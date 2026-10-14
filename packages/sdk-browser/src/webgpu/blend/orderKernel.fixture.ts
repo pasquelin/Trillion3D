@@ -1,12 +1,11 @@
 // The order kernel run in JavaScript (`shaderRun`) on generated scenes, its block dispatch replayed
 // barrier by barrier, against the CPU model: what `orderWgsl.test.ts` and `slots.test.ts` read.
-import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { BLEND_ORDER_SHADER, ORDER_UNI, SORT_BLOCK } from './orderWgsl.ts'
+import { ORDER_UNI } from './orderWgsl.ts'
+import { orderKernelOf, runOrderDispatch } from './orderRun.fixture.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import { orderBlendPasses } from './order.ts'
 import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
@@ -17,21 +16,6 @@ import { planWords, RUN_WORDS } from './planLayout.ts'
 import { createWebgpuBlendState, type BlendGpuItem, type WebgpuBlendState } from './state.ts'
 import type { TransparentTable } from '../transparent/table.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-
-type Vec = number[]
-type Kernel = {
-  itemKey(item: number): Vec
-  sortLoad(p: number): Vec
-  sortStore(p: number, v: Vec): void
-  blockPair(t: number, j: number, k: number, base: number): void
-  sortBlendStep(lid: Vec, wid: Vec, n: Vec): void
-  placeBlendSlots(id: Vec, n: Vec): void
-}
-
-/** Every function the kernel declares, read from its text. */
-const NAMES = [...BLEND_ORDER_SHADER.matchAll(/\bfn (\w+)\(/g)].map((match) => match[1])
-/** Threads of a block or step dispatch: one per compare-exchange. */
-const THREADS = SORT_BLOCK / 2
 
 /** The GPU buffers of one scene as plain arrays, and the kernel's functions over them. */
 export function gpuOf(blendState: WebgpuBlendState) {
@@ -44,46 +28,21 @@ export function gpuOf(blendState: WebgpuBlendState) {
     plan,
     keyed: Array.from(writeKeyRecords(blendState)),
     frame: Array.from(blendState.frameWords.subarray(0, blendState.frameLayout.words)),
-    sorted: [] as Vec[],
+    sorted: [] as number[][],
     placed: [] as number[],
-    held: [] as Vec[],
+    held: [] as number[][],
   }
-  return { scope, kernel: shaderRun<Kernel>(BLEND_ORDER_SHADER, NAMES, scope) }
+  return { scope, kernel: orderKernelOf(scope) }
 }
 
-/** Replays the dispatches of one pass's order, a block dispatch barrier by barrier. */
+/** Replays the dispatches of one pass's order, each at the workgroups its step encodes. */
 function runOrder(blendState: WebgpuBlendState, pass: number, gpu: ReturnType<typeof gpuOf>) {
   const { scope, kernel } = gpu,
     words = blendState.orderStepWords
   for (const step of blendState.orderSteps[pass]) {
     for (const [name, rank] of Object.entries(ORDER_UNI))
       scope.uni[name] = words[(step.uniform * blendState.uniformStride) / 4 + rank]
-    const { uni } = scope
-    if (step.entry === 1) {
-      for (let group = 0; group < step.groups; group++)
-        for (let t = 0; t < THREADS; t++)
-          kernel.sortBlendStep([t, 0, 0], [group, 0, 0], [step.groups, 1, 1])
-      continue
-    }
-    if (step.entry === 2) {
-      for (let r = 0; r < step.groups * WORKGROUP_THREADS; r++)
-        kernel.placeBlendSlots([r, 0, 0], [step.groups, 1, 1])
-      continue
-    }
-    for (let group = 0; group < step.groups; group++) {
-      const base = group * SORT_BLOCK
-      for (let t = 0; t < THREADS; t++) {
-        scope.held[t] = kernel.sortLoad(base + t)
-        scope.held[t + THREADS] = kernel.sortLoad(base + t + THREADS)
-      }
-      for (let k = uni.stageFrom; k <= uni.stageTo; k <<= 1)
-        for (let j = Math.min(k >> 1, THREADS); j > 0; j >>= 1)
-          for (let t = 0; t < THREADS; t++) kernel.blockPair(t, j, k, base)
-      for (let t = 0; t < THREADS; t++) {
-        kernel.sortStore(base + t, scope.held[t])
-        kernel.sortStore(base + t + THREADS, scope.held[t + THREADS])
-      }
-    }
+    runOrderDispatch(kernel, scope, step.entry, step.groups)
   }
   const region = blendState.planRegions[pass],
     entries = blendState.seeds[pass].length

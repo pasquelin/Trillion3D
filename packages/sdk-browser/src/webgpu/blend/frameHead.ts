@@ -4,26 +4,30 @@ import { EXPAND_PASSES } from './planLayout.ts'
 
 /**
  * THE HEAD OF THE FRAME DATA, the words an image sends the transparent kernels before the own
- * entries' keys and seeds (`order.ts`): the eye (four doubles), the frustum planes (24 doubles, as
- * `frustumExcludesBox` reads them), what the water rectangle projects with (`../water/frameWords.ts`:
- * the jittered projection and its inverse in single precision, the view in doubles, the near plane,
- * the target's size and the view's form), the item count the verdict walks and the water items
- * the rectangle walks.
+ * entries' keys and seeds (`order.ts`): the eye (four doubles), the frustum planes brought to the
+ * eye in single precision and their forward-corner words (`framePlanes.ts`, what the verdict tests
+ * with), what the water rectangle projects with (`../water/frameWords.ts`: the jittered projection
+ * and its inverse in single precision, the view in doubles, the near plane, the target's size and
+ * the view's form), the item count the verdict walks and the water items the rectangle walks.
  */
 export const FRAME_HEAD = {
   eye: 0,
   planes: 8,
-  projection: 56,
-  inverse: 72,
-  view: 88,
-  near: 120,
-  width: 122,
-  height: 123,
-  viewForm: 124,
-  items: 125,
-  waters: 126,
-  words: 128,
+  sides: 32,
+  projection: 38,
+  inverse: 54,
+  view: 70,
+  near: 102,
+  width: 104,
+  height: 105,
+  viewForm: 106,
+  items: 107,
+  waters: 108,
+  words: 110,
 } as const
+/** A plane's forward-corner word (`FRAME_HEAD.sides`): bits 0 to 2 its double normal's positive
+ *  axes, this one set when the plane enters the single-precision test (`framePlanes.ts`). */
+export const PLANE_USABLE = 8
 /** The view's fourth row is `0, 0, 0, 1`: a corner's view depth is not divided. */
 export const VIEW_AFFINE = 1
 
@@ -37,7 +41,9 @@ export const FRAME_HEAD_WGSL = wgslBlock(
   'FRAME_HEAD_WGSL',
   [],
   `${wgslConsts({
+    FRAME_EYE: FRAME_HEAD.eye,
     FRAME_PLANES: FRAME_HEAD.planes,
+    FRAME_SIDES: FRAME_HEAD.sides,
     FRAME_PROJECTION: FRAME_HEAD.projection,
     FRAME_INVERSE: FRAME_HEAD.inverse,
     FRAME_VIEW: FRAME_HEAD.view,
@@ -48,6 +54,7 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     FRAME_ITEMS: FRAME_HEAD.items,
     FRAME_WATERS: FRAME_HEAD.waters,
     VIEW_AFFINE,
+    PLANE_USABLE,
   })}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}`,
 )

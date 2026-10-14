@@ -34,8 +34,13 @@ export const createHizPipelines = oncePerDevice((device) =>
       stage('testHizArgs', [layout, argsLayout]),
     ])
     return {
-      ...{ layout, pagesLayout, argsLayout },
-      ...{ buildPipeline, nearestPipeline, testPipeline, argsPipeline },
+      layout,
+      pagesLayout,
+      argsLayout,
+      buildPipeline,
+      nearestPipeline,
+      testPipeline,
+      argsPipeline,
     }
   }),
 )

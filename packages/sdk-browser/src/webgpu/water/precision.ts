@@ -1,11 +1,10 @@
 import { FLOAT32_MAX, FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
 
-// Eight binary32 unit roundoffs cover WGSL division's allowed error as well as separate
-// multiply/add evaluation. Products/sums accumulate by gamma(n), not a fixed world-space epsilon.
+/** Four float32 steps at 1: WGSL division's allowed error on a divided coordinate. Products and
+ *  sums accumulate by `ROUNDING_GAMMA`, not a fixed world-space epsilon. */
 export const ROUND = 4 * FLOAT32_STEP
-export const ROUNDING_GAMMA = (8 * ROUND) / (1 - 8 * ROUND)
-export const FLUSH = 8 * 2 ** -126
 
 /** Include conversion, arithmetic and permitted subnormal flushing in a coordinate interval. */
 export function widenBox(box: Float64Array, distance = 0) {
