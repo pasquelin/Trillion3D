@@ -44,7 +44,7 @@ export const tileUseBuffer = (kind: 'color' | 'data', places: number) => ({
  * — or a tile an asker stops holding (`WebgpuTilePool.pin`, an impostor card's maps) — is used at
  * the clock it lands on, in use for the frames after it; a freed or pinned place is unranked.
  * Every other stamp is the GPU's. A lane pool replaced moves every base:
- * the buffer is made again, every occupied place written as an arrival.
+ * the buffer is made again, every occupied place written as an arrival, every free one unranked.
  */
 export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
   let buffer: GPUBuffer | undefined
@@ -87,7 +87,7 @@ export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
     /** First place of lane `lane` in the words. */
     base: (lane: number) => bases[lane],
     /** The lanes' pools, `PREVIEW_LAYOUT_NAMES` order, none where a lane has no pool: a new
-     *  buffer at their places, the old one retired, every occupied place marked for `flush`. */
+     *  buffer at their places, the old one retired, every place marked for `flush`. */
     layout(next: readonly (WebgpuTilePool | undefined)[]) {
       pools = next
       let places = 0
@@ -98,8 +98,10 @@ export function createTileSlotUse(device: GPUDevice, kind: 'color' | 'data') {
       if (buffer) retire(device, buffer)
       buffer = device.createBuffer(tileUseBuffer(kind, places))
       device.queue.writeBuffer(buffer, 0, bases)
+      // Every place, free ones included: a zero word reads as the oldest clock at tier 0, the
+      // first victim the sort would rank (`evictSortWgsl.ts`); a free place is `TILE_UNRANKED`.
       for (const pool of next)
-        if (pool) for (const index of pool.occupied()) pool.changed.mark(index)
+        if (pool) for (let index = 0; index < pool.tiles; index++) pool.changed.mark(index)
     },
     /** Sends the places each pool changed, arrivals used at `clock`. */
     flush(clock: number) {
