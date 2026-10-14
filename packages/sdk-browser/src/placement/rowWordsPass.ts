@@ -9,8 +9,7 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import {
@@ -36,16 +35,7 @@ import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
 import { askNamedCasts, encodeNamedCasts } from '../webgpu/shadow/namedCasts.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */
-const rowsKernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: COMPOSE_ROWS_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: COMPOSE_ROWS_PASS, code: DERIVE_ROWS_WGSL }),
-      entryPoint: DERIVE_ROWS_ENTRY,
-    },
-  }),
-)
+const rowsKernel = autoKernel(COMPOSE_ROWS_PASS, DERIVE_ROWS_WGSL, DERIVE_ROWS_ENTRY)
 
 /** Asks the rows kernel and the named rows' (`namedCasts.ts`) at a frame's entry once the table
  *  holds a row (`../webgpu/frame/framePipelines.ts`). */

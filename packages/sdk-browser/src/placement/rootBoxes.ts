@@ -9,9 +9,8 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { ROOT_BOXES_PASS } from '../stage/passLabels.ts'
@@ -21,16 +20,7 @@ import { takeMovedRoots } from './rootMoves.ts'
 import { ROOT_BOXES_ENTRY, ROOT_BOXES_FRAMES_BINDING, ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 
 /** The pass's kernel, once a device, compiled off the thread (`askRootPasses`). */
-export const rootBoxesKernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: ROOT_BOXES_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: ROOT_BOXES_PASS, code: ROOT_BOXES_WGSL }),
-      entryPoint: ROOT_BOXES_ENTRY,
-    },
-  }),
-)
+export const rootBoxesKernel = autoKernel(ROOT_BOXES_PASS, ROOT_BOXES_WGSL, ROOT_BOXES_ENTRY)
 
 function createRootBoxesGpu(device: GPUDevice) {
   return {

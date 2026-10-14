@@ -9,10 +9,9 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { TreeLeaves } from '../gpu/dag/treeFollow.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { TREE_LEAVES_PASS } from '../stage/passLabels.ts'
@@ -25,16 +24,7 @@ import {
 } from './treeLeavesWgsl.ts'
 
 /** The leaves kernel, made once a device. */
-export const leafKernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: TREE_LEAVES_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: TREE_LEAVES_PASS, code: TREE_LEAVES_WGSL }),
-      entryPoint: 'main',
-    },
-  }),
-)
+export const leafKernel = autoKernel(TREE_LEAVES_PASS, TREE_LEAVES_WGSL, 'main')
 
 function createTreeLeavesGpu(device: GPUDevice) {
   return {

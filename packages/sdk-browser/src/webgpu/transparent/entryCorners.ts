@@ -10,8 +10,7 @@ import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { autoKernel } from '../../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { liveBuffer } from '../core/liveEntries.ts'
 import { COMPOSE_ROWS_PASS } from '../../stage/passLabels.ts'
@@ -30,16 +29,7 @@ const ENTRY_WORDS = ENTRY_INPUT_DOUBLES * 2
 const RUN_ENTRIES = 1024
 
 /** The entries kernel, once a device, compiled off the thread (`askEntryCorners`). */
-const entryKernel = oncePerDevice((device) =>
-  preparedComputePipeline(device, {
-    label: COMPOSE_ROWS_PASS,
-    layout: 'auto',
-    compute: {
-      module: device.createShaderModule({ label: COMPOSE_ROWS_PASS, code: ENTRY_CORNERS_WGSL }),
-      entryPoint: ENTRY_CORNERS_ENTRY,
-    },
-  }),
-)
+const entryKernel = autoKernel(COMPOSE_ROWS_PASS, ENTRY_CORNERS_WGSL, ENTRY_CORNERS_ENTRY)
 
 /** Asks the entries kernel at a frame's entry once the scene holds a transparent table. */
 export function askEntryCorners(rt: WebgpuPagesRuntime, device: GPUDevice) {
