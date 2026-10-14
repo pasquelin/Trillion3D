@@ -3,6 +3,7 @@ import type { Geometry } from '../geometry/geometry.ts'
 import type { Material } from '../material/material.ts'
 import { Mesh } from './mesh.ts'
 import type { Object3D } from './object3d.ts'
+import { release } from '../../runtime/releasable.ts'
 
 /**
  * A mesh drawn at several placements in one submission: one matrix per placement in
@@ -40,7 +41,6 @@ export class InstancedMesh<M extends object = Material> extends Mesh<M> {
   readonly released = new Set<() => void>()
   /** Gives the matrices back; the geometry and the surface are released by their owners. */
   dispose() {
-    for (const hook of this.released) hook()
-    this.released.clear()
+    release(this.released)
   }
 }

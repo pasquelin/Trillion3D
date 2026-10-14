@@ -120,7 +120,7 @@ export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
  *  (`VisMaterial`), the raster facts (`SurfaceFacts`) and its release (`Releasable`). */
 export type { PageSurface, SurfaceFacts, SurfaceFamily } from './page/surface.ts'
 export type { VisMaterial } from './visibility/materialType.ts'
-export type { Releasable } from './host/graph/resource.ts'
+export type { Releasable } from '../../sdk-core/src/runtime/releasable.ts'
 export { declareSurface } from './page/surfaceRecord.ts'
 export type { SurfaceDeclaration } from './page/surfaceDeclaration.ts'
 export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'

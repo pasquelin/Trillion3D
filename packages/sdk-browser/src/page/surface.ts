@@ -15,7 +15,7 @@
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
-import type { Releasable } from '../host/graph/resource.ts'
+import type { Releasable } from '../../../sdk-core/src/runtime/releasable.ts'
 import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 import { declareSurface } from './surfaceRecord.ts'
