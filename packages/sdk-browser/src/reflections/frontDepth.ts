@@ -23,7 +23,7 @@ import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 /**
  * THE TRANSPARENTS' FRONT DEPTH: what lets the one reflection chain meet a blended surface. A ray
  * marches the depth pyramid, which holds the opaque surfaces; the nearest transparent surface of a
- * pixel joins that depth (the front layer of the Hi-Z's level 0, `GpuHiz.frontView`, which this
+ * pixel joins that depth (the front layer of the Hi-Z's level 0, `GpuHiz.front`, which this
  * module writes and the nearest build folds in, `hizFrontAt`), so that the same march, the same
  * pyramid and the same radiance — the lit image with its transparents, which the radiance pyramid
  * already reads — answer a pane as they answer a wall. No second pass, march or pyramid.
@@ -328,7 +328,7 @@ export function createFrontDepth(
     /** The rectangle the scatter's uniform is given (`writeChanged`). */
     scattered: new Uint32Array(4),
     carried,
-    /** The front layer it last folded into (`GpuHiz.frontView`): another is cleared first. */
+    /** The front layer it last folded into (`GpuHiz.front`): another is cleared first. */
     target: undefined as GPUTextureView | undefined,
     fresh: false,
     held: false,
