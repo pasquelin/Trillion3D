@@ -18,6 +18,7 @@ import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
 import { waterQuadWgsl } from './quadWgsl.ts'
 import { BLEND_ITEM_WGSL } from '../blend/items.ts'
+import { VOLUME } from '../transparent/transmission.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid — then the transparents' front radiance, and what only water reads: the frozen backdrop, the
@@ -102,7 +103,7 @@ export const waterCompositeShader = (
     trace: CONTRACT_TRACE_BINDINGS,
   }
   return wgslProgram(
-    `struct Volume{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,item:u32,}
+    `${VOLUME.wgsl}
 @group(0) @binding(${WATER_BINDINGS.items}) var<storage,read> items:array<BlendItem>;
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;

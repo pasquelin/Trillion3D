@@ -7,6 +7,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /** The volume's terms as its surface's record holds them (`writeVolumeTerms`: `transmission`, the
  *  refraction ratio 1 / ior, `thickness`, Fresnel's f0, then aligned the law's constant `k`), the
@@ -15,9 +16,16 @@ import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
  *  encloses: one record per transmissive item, read by water rank in a storage buffer — the water
  *  composite's fragment stage holds the sixteen sampled textures WebGPU guarantees, which the
  *  material table would pass. The per-volume terms are computed once, in f64, by the record's own
- *  writer, not per pixel in f32. The record is the WGSL `Volume`, aligned to sixteen bytes. */
-export const VOLUME_WORDS = 12
-export const VOLUME_ITEM = 8
+ *  writer, not per pixel in f32. One table (`fieldLayout`) the writer's words and the WGSL
+ *  `Volume` are both drawn from, the marks word `attenuation.w`. */
+export const VOLUME = fieldLayout('Volume', [
+  ['transmission', 'f32'],
+  ['eta', 'f32'],
+  ['thickness', 'f32'],
+  ['f0', 'f32'],
+  ['attenuation', 'vec4f'],
+  ['item', 'u32'],
+] as const)
 /** The marks word's bits, a small integer in a float: the surface takes no fog, and it carries an
  *  anisotropic or clear-coat lobe, whose texel the water composite reads
  *  (`../water/waterLobesWgsl.ts`). */
@@ -99,11 +107,12 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   blendState.blendGpu.forEach((item, index) => {
     const rank = waterRankOf(item.flags)
     if (!rank) return
-    const base = (rank - 1) * VOLUME_WORDS,
+    const base = (rank - 1) * VOLUME.words,
       mat = item.surface
     writeVolumeTerms(packed, base, mat)
-    packed[base + 7] = (mat.fog === false ? VOLUME_FOG_FREE : 0) | (item.lobed ? VOLUME_LOBED : 0)
-    words[base + VOLUME_ITEM] = index
+    packed[base + VOLUME.at.attenuation + 3] =
+      (mat.fog === false ? VOLUME_FOG_FREE : 0) | (item.lobed ? VOLUME_LOBED : 0)
+    words[base + VOLUME.at.item] = index
   })
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed)
 }
@@ -113,10 +122,10 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
  *  one retired; the records are written again with the scene (`writeVolumeRecords`). */
 export function growVolumes(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
-    packed = resized(blendState.volumePacked, blendState.transmissive * VOLUME_WORDS)
+    packed = resized(blendState.volumePacked, blendState.transmissive * VOLUME.words)
   if (packed === blendState.volumePacked) return
   blendState.volumePacked = packed
-  gpu.volumeBuffer = volumeBuffer(device, gpu.volumeBuffer, packed.length / VOLUME_WORDS)
+  gpu.volumeBuffer = volumeBuffer(device, gpu.volumeBuffer, packed.length / VOLUME.words)
 }
 
 /** `held` where it holds `transmissive` volumes, else one grown to hold them. */
@@ -124,7 +133,7 @@ const volumeBuffer = (device: GPUDevice, held: GPUBuffer | undefined, transmissi
   sizedBuffer(
     device,
     held,
-    Math.max(1, transmissive) * VOLUME_WORDS * 4,
+    Math.max(1, transmissive) * VOLUME.words * 4,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     'Trillion3D transmissive volumes',
   )

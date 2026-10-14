@@ -10,7 +10,7 @@ import { KEYED_WGSL } from '../blend/keyLayout.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
 import { BLEND_ITEM_WORDS, BLEND_ITEM_WORLD } from '../blend/items.ts'
-import { VOLUME_ITEM, VOLUME_WORDS } from '../transparent/transmission.ts'
+import { VOLUME } from '../transparent/transmission.ts'
 import { D_ONE, D_TWO, D_ZERO } from '../../../../math/src/wgsl/doubleConstants.ts'
 import {
   dEncloseTransform,
@@ -51,7 +51,7 @@ export function waterRectBindEntries(): GPUBindGroupLayoutEntry[] {
  * projected (`projectWgsl.ts`); its backdrop's, the screen-space depth box the composite
  * reconstructs from, enclosed under the inverse projection, widened by the declared thickness taken
  * to the world by the pose's stretch bound (`dStretchBound`) and projected again; its item rank is
- * its volume's (`VOLUME_ITEM`). An item whose geometry may not crop — no local box, a paged or line
+ * its volume's (`VOLUME.at.item`). An item whose geometry may not crop — no local box, a paged or line
  * or sprite surface, a non-finite world box, a non-affine pose — or whose enclosure is refused
  * covers the full target. Each bound folds into the verdict's unions with one `atomicMax` (minima
  * stored complemented): the union does not depend on the threads' order, and is the CPU's walk's.
@@ -109,7 +109,7 @@ fn waterCrops(rank:u32,item:u32,pose:array<vec2u,16>)->bool{
 /** Water item \`rank\` (zero-based) folded into the surface and backdrop unions. */
 fn includeWaterItem(rank:u32){
  let base=rank*WATER_ITEM_WORDS;
- let item=volumes[rank*${VOLUME_WORDS}u+${VOLUME_ITEM}u];
+ let item=volumes[rank*${VOLUME.words}u+${VOLUME.at.item}u];
  var pose:array<vec2u,16>;
  for(var k=0u;k<16u;k++){pose[k]=fromF32(items[item*${BLEND_ITEM_WORDS}u+${BLEND_ITEM_WORLD}u+k]);}
  var local:array<vec2u,6>;
@@ -127,7 +127,7 @@ fn includeWaterItem(rank:u32){
   return;
  }
  waterFold(VERDICT_SURFACE,rect);
- let thickness=fromF32(volumes[rank*${VOLUME_WORDS}u+2u]);
+ let thickness=fromF32(volumes[rank*${VOLUME.words}u+${VOLUME.at.thickness}u]);
  if(!dIsFinite(thickness)){
   waterFull(VERDICT_BACKDROP);
   return;

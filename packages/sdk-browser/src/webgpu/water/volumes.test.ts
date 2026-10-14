@@ -1,11 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  waterRankOf,
-  writeVolumeRecords,
-  VOLUME_ITEM,
-  VOLUME_WORDS,
-} from '../transparent/transmission.ts'
+import { waterRankOf, writeVolumeRecords, VOLUME } from '../transparent/transmission.ts'
 import { FLAG_TRANSMISSIVE } from '../../visibility/types.ts'
 import { device, prepared } from './pass.fixture.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -34,7 +29,7 @@ test("the material's glTF volume reaches the composite at the item's water rank,
   const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime
   writeVolumeRecords(rt, device)
   const volume = blendState.volumePacked
-  assert.equal(volume.length, VOLUME_WORDS, 'one record: the transmissive item, at rank zero')
+  assert.equal(volume.length, VOLUME.words, 'one record: the transmissive item, at rank zero')
   // The per-volume terms, once on the CPU: 1 / ior, Fresnel's f0, and k = log2(c) / d.
   const rounded = (value: number) => Math.round(value * 1e4) / 1e4
   const [ior, distance] = [1.33, 6]
@@ -47,5 +42,5 @@ test("the material's glTF volume reaches the composite at the item's water rank,
     [0.35, 0.72, 0.68].map((c) => rounded(Math.log2(c) / distance)),
   )
   // The item whose pose takes its thickness to the world: the second of the three copies.
-  assert.equal(new Uint32Array(volume.buffer)[VOLUME_ITEM], 1)
+  assert.equal(new Uint32Array(volume.buffer)[VOLUME.at.item], 1)
 })

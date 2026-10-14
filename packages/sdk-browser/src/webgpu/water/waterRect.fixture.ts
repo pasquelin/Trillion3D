@@ -11,7 +11,7 @@ import type { HostBox } from '../../host/resources.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
-import { VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
+import { VOLUME, waterRankOf } from '../transparent/transmission.ts'
 import { encloseTransform, ROUND, widenBox } from '../../../../math/src/geometry/boxEnclosure.ts'
 
 function createWaterBounds() {
@@ -138,7 +138,7 @@ function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Ar
     return
   }
   union(b.surface, b.rect)
-  const thickness = volumes[(waterRankOf(item.flags) - 1) * VOLUME_WORDS + 2]
+  const thickness = volumes[(waterRankOf(item.flags) - 1) * VOLUME.words + VOLUME.at.thickness]
   if (!Number.isFinite(thickness)) {
     full(b, b.backdrop)
     return

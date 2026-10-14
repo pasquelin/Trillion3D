@@ -10,7 +10,7 @@ import type { WebgpuBlendState } from '../blend/state.ts'
  * doubles of its geometry's local box — grown by its deformation's reach when deformed
  * (`deformLocal`), what its deformed vertices stay in —, then whether its rectangle may crop the
  * pass at all — a local box known, its own triangles (a paged surface keeps full coverage), no
- * line or sprite surface. Its item rank is its volume's (`VOLUME_ITEM`), its world box and pose
+ * line or sprite surface. Its item rank is its volume's (`VOLUME.at.item`), its world box and pose
  * the key record's and the item record's, read where they are.
  */
 export const WATER_ITEM_WORDS = 14

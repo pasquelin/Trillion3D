@@ -6,7 +6,7 @@ import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { voidStaleBlendGroups } from '../blend/identity.ts'
 import { blendLightResources } from '../blend/lighting.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
-import { VOLUME_WORDS } from '../transparent/transmission.ts'
+import { VOLUME } from '../transparent/transmission.ts'
 import { refreshBlendPlan } from '../blend/plan.ts'
 import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
@@ -106,7 +106,7 @@ export function prepared() {
   blendState.expand = { buffers: { verdict } } as never
   blendState.waterBound = true
   blendState.visibleBlend.push(...blendState.blendGpu)
-  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
+  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME.words)
   // The indirect arguments the draws read, as the kit's indirect draws do.
   blendState.argsBuffer = device.createBuffer({
     size: 4096,

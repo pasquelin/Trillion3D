@@ -7,7 +7,7 @@ import { prepareWebgpuBlend } from '../../blend/prepare.ts'
 import { createTransparentTable } from '../../transparent/table.ts'
 import { prepareBlendResources } from '../../blend/resources.ts'
 import { createTransparentCompaction } from '../../transparent/compact.ts'
-import { VOLUME_WORDS, createVolumeBuffer } from '../../transparent/transmission.ts'
+import { VOLUME, createVolumeBuffer } from '../../transparent/transmission.ts'
 import { prepareGpuCut } from './cut.ts'
 import { grantFrameTargets } from './targetGrant.ts'
 import { throwIfStopped } from '../io/lost.ts'
@@ -48,7 +48,7 @@ export async function prepareGeometryAndBlend(
   })
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0, 0, 0]))
   blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene)
-  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
+  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME.words)
   gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.transmissive)
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu)

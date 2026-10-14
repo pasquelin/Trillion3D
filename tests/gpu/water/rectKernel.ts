@@ -33,8 +33,7 @@ import { writeWaterItems } from '../../../packages/sdk-browser/src/webgpu/water/
 import { writeWaterFrame } from '../../../packages/sdk-browser/src/webgpu/water/frameWords.ts'
 import { waterRectCpu } from '../../../packages/sdk-browser/src/webgpu/water/waterRect.fixture.ts'
 import {
-  VOLUME_ITEM,
-  VOLUME_WORDS,
+  VOLUME,
   waterRankOf,
 } from '../../../packages/sdk-browser/src/webgpu/transparent/transmission.ts'
 import { device, prepared } from '../../../packages/sdk-browser/src/webgpu/water/pass.fixture.ts'
@@ -95,11 +94,11 @@ function gpuRect(state: WebgpuBlendState, waterDraws: Uint32Array) {
 /** Volumes of no declared thickness for `state`'s transmissive items, each naming its item's rank
  *  in the item records as `writeVolumeRecords` names it. */
 export function blankVolumes(state: WebgpuBlendState) {
-  state.volumePacked = new Float32Array(VOLUME_WORDS * Math.max(1, state.transmissive))
+  state.volumePacked = new Float32Array(VOLUME.words * Math.max(1, state.transmissive))
   const words = new Uint32Array(state.volumePacked.buffer)
   state.blendGpu.forEach((item, index) => {
     const rank = waterRankOf(item.flags)
-    if (rank) words[(rank - 1) * VOLUME_WORDS + VOLUME_ITEM] = index
+    if (rank) words[(rank - 1) * VOLUME.words + VOLUME.at.item] = index
   })
 }
 
