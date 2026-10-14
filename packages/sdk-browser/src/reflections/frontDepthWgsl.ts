@@ -5,6 +5,7 @@ import {
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
@@ -96,11 +97,11 @@ fn frontBox(){
  let low=min(now.xy,last.xy);let high=max(now.zw,last.zw);
  let span=select(vec2u(0u),high-low,all(high>low));
  box[${BOX.union}u]=low.x;box[${BOX.union + 1}u]=low.y;box[${BOX.union + 2}u]=high.x;box[${BOX.union + 3}u]=high.y;
- args[0]=(span.x+${REFLECTION_SIDE - 1}u)/${REFLECTION_SIDE}u;args[1]=(span.y+${REFLECTION_SIDE - 1}u)/${REFLECTION_SIDE}u;args[2]=1u;
+ args[0]=ceilDiv(span.x,${REFLECTION_SIDE}u);args[1]=ceilDiv(span.y,${REFLECTION_SIDE}u);args[2]=1u;
  box[${BOX.last}u]=now.x;box[${BOX.last + 1}u]=now.y;box[${BOX.last + 2}u]=now.z;box[${BOX.last + 3}u]=now.w;
  box[${BOX.now}u]=0xffffffffu;box[${BOX.now + 1}u]=0xffffffffu;box[${BOX.now + 2}u]=0u;box[${BOX.now + 3}u]=0u;
 }`,
-  [],
+  [ceilDivWgsl],
 )
 
 /** The scatter's and the fold's layout: the reflection's view, the last image's front depth, the

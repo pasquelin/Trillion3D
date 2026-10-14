@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
 import type { VsmLayout } from './layout.ts'
 import { ARGS_WGSL, VSM_TRANSMISSION_PAGE_GROUP, frameWgsl } from './transmissionShared.ts'
 
@@ -23,7 +24,7 @@ fn vsmTRecordsOf(key:u32)->u32{
 }
 @compute @workgroup_size(${VSM_TRANSMISSION_PAGE_GROUP}) fn vsmTransmissionNumber(@builtin(local_invocation_index) lane:u32){
  let dirty=min(atomicLoad(&build[VSM_TC_DIRTY]),VSM_T_KEY_COUNT);
- let per=(dirty+${VSM_TRANSMISSION_PAGE_GROUP - 1}u)/${VSM_TRANSMISSION_PAGE_GROUP}u;
+ let per=ceilDiv(dirty,${VSM_TRANSMISSION_PAGE_GROUP}u);
  let lo=min(lane*per,dirty);let hi=min(lo+per,dirty);
  var own=vec2u(0u);
  for(var i=lo;i<hi;i++){
@@ -51,13 +52,13 @@ fn vsmTRecordsOf(key:u32)->u32{
  if(lane==${VSM_TRANSMISSION_PAGE_GROUP - 1}u){
   let total=sums[lane];
   atomicStore(&build[VSM_TC_SLICES],total.x);
-  vsmTArgs(0u,(total.y+${VSM_TRANSMISSION_PAGE_GROUP - 1}u)/${VSM_TRANSMISSION_PAGE_GROUP}u);
+  vsmTArgs(0u,ceilDiv(total.y,${VSM_TRANSMISSION_PAGE_GROUP}u));
   vsmTArgs(3u,total.x);
-  vsmTArgs(6u,(dirty+${VSM_TRANSMISSION_PAGE_GROUP - 1}u)/${VSM_TRANSMISSION_PAGE_GROUP}u);
+  vsmTArgs(6u,ceilDiv(dirty,${VSM_TRANSMISSION_PAGE_GROUP}u));
  }
 }
 `,
-    [frameWgsl(layout), ARGS_WGSL],
+    [frameWgsl(layout), ARGS_WGSL, ceilDivWgsl],
   )
 
 /** `vsmTransmissionPlace`, a thread a record: its index in the order, at its slice's first place
