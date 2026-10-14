@@ -62,8 +62,8 @@ export const castInvalidationWgsl = (layout: VsmLayout) =>
   vsmInvalidationProgram(
     layout,
     /* wgsl */ `
-struct VsmCastParams{mapCount:u32,boxCount:u32,pad0:u32,pad1:u32,}
-struct VsmCastBox{centre:vec3f,flags:u32,low:vec3f,pad0:u32,extent:vec3f,pad1:u32,}
+struct VsmCastParams{mapCount:u32,boxCount:u32,_pad0:u32,_pad1:u32,}
+struct VsmCastBox{centre:vec3f,flags:u32,low:vec3f,_pad0:u32,extent:vec3f,_pad1:u32,}
 @group(1) @binding(0) var<uniform> vsmCast:VsmCastParams;
 @group(1) @binding(1) var<storage,read> vsmCastMaps:array<u32>;
 @group(1) @binding(2) var<storage,read> vsmCasts:array<vec4f>;
@@ -111,7 +111,7 @@ export const CAST_ARGS_ENTRY = 'vsmCastArgs'
  *  list's records, then the CPU's boxes —, in rows (`groupGrid`). */
 export const CAST_ARGS_WGSL = wgslProgram(
   /* wgsl */ `
-struct Params{mapCount:u32,boxCount:u32,pad0:u32,pad1:u32,}
+struct Params{mapCount:u32,boxCount:u32,_pad0:u32,_pad1:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> casts:array<vec4u>;
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
