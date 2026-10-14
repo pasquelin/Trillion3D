@@ -2,7 +2,7 @@ import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
-import { copyPages } from './copyRanks.ts'
+import { copyRanks } from './copyRanks.ts'
 import { hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -49,7 +49,7 @@ export function applyClaimed(
   // records are rewritten in the order of `ids`, at ranks the list already reaches: a record
   // array written past its end holds holes, every read of it after that paid.
   if (pages) {
-    copyPages(held.before, pages)
+    copyRanks(held.before, pages)
     if (pages.length) while (pages.length < count) pages.push(pages[0])
   }
   // The ranks no claim reached, in `entered` until the entries' ids replace them; a repeat of a
