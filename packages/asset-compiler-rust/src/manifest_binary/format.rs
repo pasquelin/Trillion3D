@@ -20,7 +20,7 @@ impl Column {
     pub(super) fn i32(&mut self, value: i32) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
-    pub(super) fn u32(&mut self, value: u32) {
+    pub(crate) fn u32(&mut self, value: u32) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
     /// A digest is stored as its 64 ASCII hexadecimal characters: one decode for the whole column,
@@ -35,7 +35,7 @@ impl Column {
         Ok(())
     }
     /// Bytes already in column format, copied as is.
-    pub(super) fn raw(&mut self, value: &[u8]) {
+    pub(crate) fn raw(&mut self, value: &[u8]) {
         self.bytes.extend_from_slice(value);
     }
     pub(super) fn zeros(&mut self, count: usize) {

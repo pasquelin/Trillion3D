@@ -30,8 +30,7 @@ fn page_facts(r: &mut Records, page: Option<&Encoded>) -> Result<()> {
         r.word(index(value)?);
     }
     let error = header.quantization_error;
-    r.out
-        .extend(if error.is_finite() { error } else { 0.0 }.to_le_bytes());
+    r.out.f64(if error.is_finite() { error } else { 0.0 });
     Ok(())
 }
 
@@ -95,7 +94,7 @@ pub(super) fn encode_dag(
 ) -> Result<Vec<u8>> {
     let world = placed.0;
     let mut r = Records::default();
-    r.out.extend(DAG_MAGIC);
+    r.out.raw(DAG_MAGIC);
     for value in [
         WORLD_ROOTS_VERSION,
         world.clusters.len() as u32,
@@ -118,9 +117,7 @@ pub(super) fn encode_dag(
     }
     // Written as they are: a ceiling of -1 marks a subtree holding a root.
     for node in &world.culling {
-        node.flat()
-            .into_iter()
-            .for_each(|value| r.out.extend(value.to_le_bytes()));
+        node.flat().into_iter().for_each(|value| r.out.f64(value));
     }
     Ok(r.end(16))
 }
