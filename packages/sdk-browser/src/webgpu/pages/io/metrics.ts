@@ -160,7 +160,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.bounce.probes = undefined
   rt.lights.spheres?.buffer.destroy()
   rt.lights.casts?.buffer.destroy()
-  rt.lights.casts?.named.buffer?.destroy()
   rt.lights.casts = undefined
   rt.compose?.gpu?.dispose()
   disposeRowWords(rt)

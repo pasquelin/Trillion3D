@@ -57,11 +57,7 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
  */
 export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, alpha?: AlphaChange) {
   if (alpha) {
-    shadowsFollowSurfaces(
-      rt.lights,
-      rt.layout.rows,
-      new Set(alpha.surfaces as readonly PageSurface[]),
-    )
+    shadowsFollowSurfaces(rt, rt.layout.rows, new Set(alpha.surfaces as readonly PageSurface[]))
     rt.layout.rows.tableEpoch++
     rt.vis.shadeCensus?.moved()
   }

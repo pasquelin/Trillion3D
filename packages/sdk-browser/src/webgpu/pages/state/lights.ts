@@ -17,6 +17,7 @@ import type { MobilitySource } from '../../shadow/bounds.ts'
 import type { VsmFrameLight } from '../../../vsm/frameSetup.ts'
 import type { clusterSpheres } from '../../shadow/rowBuffers.ts'
 import type { CastChanges } from '../../shadow/castChanges.ts'
+import type { RowWords } from '../../../placement/rowWords.ts'
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts'
 
 /** Direct lighting: the light store (the host's too), tile lists, and what the virtual shadow maps
@@ -89,13 +90,16 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
 
 /**
  * True while the shadows can still change what the image shows: a representation change held for
- * the camera to rest, rows named for a shadow change the GPU has not staled yet
- * (`../../shadow/namedCasts.ts`), or the virtual shadow maps still drawing, by their own state
+ * the camera to rest, rows named for a shadow change the rows pass has not staled yet (`stales`,
+ * `../../../placement/rowTargets.ts`), or the virtual shadow maps still drawing, by their own state
  * (`vsmSettle.ts`). A scene without a shadow light, or an unlit view, waits for no map.
  */
-export function shadowsUnsettled(lights: WebgpuLightState) {
+export function shadowsUnsettled(
+  lights: WebgpuLightState,
+  rowWords: Pick<RowWords, 'stales'> | undefined,
+) {
   const { changes, store, vsm } = lights
-  if (changes.deferred() || !!lights.casts?.named.count) return true
+  if (changes.deferred() || !!rowWords?.stales) return true
   // The virtual shadow maps: pages drawn, invalidated or uncached since the last count read back,
   // the budget feedback moving the resolution, the transmission pool short (`vsmSettle.ts`).
   return (

@@ -34,14 +34,21 @@ const CAST_GROWTH = 1 + 2 ** -20
  *  (`2⁻²³` of it at most), four times over. */
 const CAST_DRIFT = 2 ** -21
 
-/** `castCode(row)`, `castRow(row, was, worldSame, has)`: the row's cast state from its mobility word,
- *  and its change appended from its words before (`was`, its sphere and state). */
+/** `rowSphere(row)`, the eight floats of a row's sphere; `castCode(row)`, the row's cast state from
+ *  its mobility word, and `castState(code)`, its bits; `castRow(row, was, worldSame, has)`, its
+ *  change appended from its words before (`was`, its sphere and state); `staleRow(row)`, the box of
+ *  its sphere as it stands appended. */
 export const ROW_CAST_WGSL = wgslBlock(
   'ROW_CAST_WGSL',
   [CAST_EMIT_WGSL],
   `
 const CAST_GROWTH:f32=${wgslF32(CAST_GROWTH)};
 const CAST_DRIFT:f32=${wgslF32(CAST_DRIFT)};
+fn rowSphere(row:u32)->array<f32,8>{
+ var s:array<f32,8>;
+ for(var k=0u;k<8u;k++){s[k]=spheres[row*8u+k];}
+ return s;
+}
 fn castCode(row:u32)->f32{
  var word=0u;
  if(row<arrayLength(&mobility)){word=mobility[row];}
@@ -49,6 +56,7 @@ fn castCode(row:u32)->f32{
  let shadowless=select(0u,2u,(word&${MOBILITY_SHADOWLESS}u)!=0u);
  return f32(1u+moving+shadowless);
 }
+fn castState(code:f32)->u32{return u32(code)-1u;}
 fn emitSphere(s:array<f32,8>,moving:bool){
  let centre=vec3f(s[0],s[1],s[2]);
  let far=abs(centre);
@@ -56,22 +64,28 @@ fn emitSphere(s:array<f32,8>,moving:bool){
  emitCast(centre,(s[3]+length(vec3f(s[4],s[5],s[6])))*CAST_GROWTH+reach*CAST_DRIFT,moving);
 }
 fn castRow(row:u32,was:array<f32,8>,worldSame:bool,has:bool){
- let before=u32(was[7]);
- if(before==0u){return;}
+ if(was[7]==0.0){return;}
  var now:array<f32,8>;
  var sphereSame=has;
  if(has){
-  for(var k=0u;k<8u;k++){
-   now[k]=spheres[row*8u+k];
-   if(k<7u&&now[k]!=was[k]){sphereSame=false;}
-  }
+  now=rowSphere(row);
+  for(var k=0u;k<7u;k++){if(now[k]!=was[k]){sphereSame=false;}}
  }
  if(worldSame&&sphereSame&&now[7]==was[7]){return;}
- let old=before-1u;
- let after=max(u32(now[7]),1u)-1u;
+ let old=castState(was[7]);
+ let after=castState(max(now[7],1.0));
  let moving=has&&(old&after&1u)!=0u;
  let left=(old&2u)==0u;
  if(left){emitSphere(was,moving);}
  if(has&&(after&2u)==0u&&!(left&&sphereSame)){emitSphere(now,moving);}
+}
+fn staleRow(row:u32){
+ let s=rowSphere(row);
+ let now=castState(castCode(row));
+ var was=now;
+ if(s[7]!=0.0){was=castState(s[7]);}
+ if((was&now&2u)!=0u){return;}
+ emitSphere(s,(was&now&1u)!=0u);
+}
 }`,
 )
