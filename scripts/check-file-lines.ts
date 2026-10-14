@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { gitPaths as readGitPaths } from './git-paths.ts'
+import { gitPaths } from './git-paths.ts'
 import { isTestModule, unitOf } from './repository-files.ts'
 
 export const MAX_LINES = 200
@@ -42,8 +42,8 @@ export function nulSeparated(args: string[]): string[] {
     : [...args.slice(0, separator), '-z', ...args.slice(separator)]
 }
 
-function gitPaths(args: string[]): Promise<string[]> {
-  return readGitPaths(nulSeparated(args))
+function nulPaths(args: string[]): Promise<string[]> {
+  return gitPaths(nulSeparated(args))
 }
 
 export function lineCount(source: string): number {
@@ -69,17 +69,17 @@ export function lineLimitViolations(
 
 async function main(): Promise<void> {
   const changedOnly = process.argv.includes('--changed')
-  const paths = new Set(await gitPaths(['ls-files', '-co', '--exclude-standard']))
+  const paths = new Set(await nulPaths(['ls-files', '-co', '--exclude-standard']))
   const changed = new Set(
     changedOnly
       ? [
-          ...(await gitPaths([
+          ...(await nulPaths([
             'diff',
             '--name-only',
             process.env.TRILLION3D_BASE_REF ?? 'develop',
             '--',
           ])),
-          ...(await gitPaths(['ls-files', '--others', '--exclude-standard'])),
+          ...(await nulPaths(['ls-files', '--others', '--exclude-standard'])),
         ]
       : [...paths],
   )

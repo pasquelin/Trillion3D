@@ -4,7 +4,7 @@
 import {
   PAGE_INTEGRATION_PROTOCOL,
   type PageIntegrationRequest,
-} from '../../packages/sdk-core/src/index.ts'
+} from '../../packages/sdk-core/src/page/integrationContracts.ts'
 import {
   PAGE_TASK_PROTOCOL,
   type PageTaskRequest,

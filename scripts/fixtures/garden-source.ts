@@ -1,7 +1,8 @@
 /** Original procedural learning scene. No downloaded geometry, textures or engine assets. */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { geometry, type Geometry } from '../../packages/sdk-core/src/world/geometry/index.ts'
+import { geometry } from '../../packages/sdk-core/src/world/geometry/index.ts'
+import type { Geometry } from '../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { crossVector3 } from '../../packages/math/src/vector/vector.ts'
 import { hypot3 } from '../../packages/math/src/float/hypot.ts'
 

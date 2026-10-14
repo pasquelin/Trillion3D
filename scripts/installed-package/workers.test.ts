@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PAGE_INTEGRATION_PROTOCOL } from '../../packages/sdk-core/src/index.ts'
+import { PAGE_INTEGRATION_PROTOCOL } from '../../packages/sdk-core/src/page/integrationContracts.ts'
 import { PAGE_TASK_PROTOCOL } from '../../packages/sdk-core/src/page/taskContracts.ts'
 import { installedWorkerRequests, runInstalledWorkers } from './workers.ts'
 
