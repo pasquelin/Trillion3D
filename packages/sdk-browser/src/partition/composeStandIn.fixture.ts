@@ -19,7 +19,7 @@ export function composeStandIn(update?: (rows: PlacementRows, from: number, to: 
   ) => {
     const slot = slots.get(parent) ?? slots.set(parent, slots.size).get(parent)!
     if (whole) readers.delete(slot)
-    holdReaders(readers, slot, parent, links, whole)
+    holdReaders(readers, slot, parent, links)
     const held = readers.get(slot) ?? [],
       before = held.map(({ rows, index }) => rows.matrices.slice(index * 16, index * 16 + 16))
     const parentWorld = Float64Array.from(world)
