@@ -8,6 +8,7 @@ import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/b
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { reflect, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
 import { rigFrameOf } from './rigFrame.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
@@ -29,18 +30,16 @@ export const SPHERES = {
   sky: 1,
 }
 
+/** A sphere's two crossings, written by each cast. */
+const span = new Float64Array(2)
 /** What the ray `o + d·t` (t > `from`) meets first: a sphere (its index), the floor (-2) or the sky
  *  (-1), and the distance. */
 function castSpheres(o: V3, d: V3, from = 0) {
   let t = Infinity,
     index = -1
   SPHERES.centres.forEach((c, k) => {
-    const oc = subtract(o, c),
-      b = dotVector3(oc, d),
-      disc = b * b - (dotVector3(oc, oc) - SPHERES.radius ** 2)
-    if (disc < 0) return
-    const root = Math.sqrt(disc)
-    for (const at of [-b - root, -b + root])
+    if (!raySphere(span, o, d, c, SPHERES.radius)) return
+    for (const at of span)
       if (at > from) {
         if (at < t) {
           t = at

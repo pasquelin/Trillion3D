@@ -3,6 +3,7 @@
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { reflect } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { rayRectangle } from '../../../packages/math/src/geometry/rayShapes.ts'
 
 export const WIDTH = 256,
   HEIGHT = 192
@@ -17,16 +18,12 @@ export const rayOf = (x: number, y: number) => eye.ray(x + 0.5, y + 0.5)
 /** The point where the ray `o + t·d` crosses the square pane of `pane` (centre, half-side, yaw), and
  *  its distance `t`: the pane's plane and the pane's extent; `undefined` when it misses. */
 export function crossing(o: V3, d: V3, { at, half, yaw }: { at: V3; half: number; yaw: number }) {
-  const n: V3 = [Math.sin(yaw), 0, Math.cos(yaw)]
-  const along = d[0] * n[0] + d[2] * n[2]
-  if (Math.abs(along) < 1e-6) return undefined
-  const t = ((at[0] - o[0]) * n[0] + (at[2] - o[2]) * n[2]) / along
-  if (t <= 0) return undefined
+  const n: V3 = [Math.sin(yaw), 0, Math.cos(yaw)],
+    right: V3 = [Math.cos(yaw), 0, -Math.sin(yaw)]
+  const t = rayRectangle(o, d, at, n, right, [0, 1, 0], half, half)
+  if (!(t > 0)) return undefined
   const p: V3 = [o[0] + d[0] * t, o[1] + d[1] * t, o[2] + d[2] * t]
-  const right: V3 = [Math.cos(yaw), 0, -Math.sin(yaw)]
-  const u = (p[0] - at[0]) * right[0] + (p[2] - at[2]) * right[2]
-  const v = p[1] - at[1]
-  return Math.abs(u) <= half && Math.abs(v) <= half ? { t, p } : undefined
+  return { t, p }
 }
 
 /** The pixel (top row first, as an index, −1 off the image) where the world point `p` shows. */

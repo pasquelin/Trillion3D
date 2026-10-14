@@ -7,6 +7,7 @@
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { add, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
+import { rayRectangle, raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
 import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
@@ -46,11 +47,13 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
     return [(-qb - root) / (2 * qa), (-qb + root) / (2 * qa)]
   }
   if (s.kind === 'sphere' || s.kind === 'morph') {
-    // An ellipsoid: the axes a, a(1 + 0.6 w), a; a sphere at weight zero.
+    // An ellipsoid: the axes a, a(1 + 0.6 w), a; a sphere at weight zero — the unit sphere in its
+    // scaled frame.
     const k: Vec = [1 / a, 1 / (a * (1 + 0.6 * s.weight)), 1 / a]
     const p: Vec = [lo[0] * k[0], lo[1] * k[1], lo[2] * k[2]],
       q: Vec = [ld[0] * k[0], ld[1] * k[1], ld[2] * k[2]]
-    hits.push(...quadratic(dotVector3(q, q), 2 * dotVector3(p, q), dotVector3(p, p) - 1))
+    const span = new Float64Array(2)
+    if (raySphere(span, p, q, [0, 0, 0], 1)) hits.push(...span)
   } else if (s.kind === 'box') {
     const span = new Float64Array([-Infinity, Infinity])
     if (
@@ -79,11 +82,14 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
       if (Math.abs(ld[1]) > 1e-12 && (lo[0] + t * ld[0]) ** 2 + (lo[2] + t * ld[2]) ** 2 <= a * a)
         hits.push(t)
     }
-  } else if (s.kind === 'quad' || s.kind === 'disc') {
+  } else if (s.kind === 'quad') {
+    // The rectangle in the shape's plane y = 0, a along x and b along z.
+    const t = rayRectangle(lo, ld, [0, 0, 0], [0, 1, 0], [1, 0, 0], [0, 0, 1], a, b)
+    if (!Number.isNaN(t)) hits.push(t)
+  } else if (s.kind === 'disc') {
     const t = -lo[1] / ld[1]
     const [x, z] = [lo[0] + t * ld[0], lo[2] + t * ld[2]]
-    const inside = s.kind === 'quad' ? Math.abs(x) <= a && Math.abs(z) <= b : x * x + z * z <= a * a
-    if (Math.abs(ld[1]) > 1e-12 && inside) hits.push(t)
+    if (Math.abs(ld[1]) > 1e-12 && x * x + z * z <= a * a) hits.push(t)
   } else {
     // The torus about y: its implicit function along the ray, sampled across the bounding sphere and
     // bisected where it changes sign.
