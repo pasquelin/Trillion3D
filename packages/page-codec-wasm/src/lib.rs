@@ -28,7 +28,6 @@ mod header_parse;
 mod held;
 mod page_error;
 pub use page_error::PageError;
-pub mod math;
 pub mod min_ball;
 pub mod normal_cone;
 mod positions;

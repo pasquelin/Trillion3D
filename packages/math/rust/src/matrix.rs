@@ -1,5 +1,5 @@
 //! `multiplyMatrix4` in f64, to the bits of `packages/math/src/matrix/matrix4.ts` (why
-//! the bits are JavaScript's: `packages/page-codec-wasm/src/math.rs`). Column `j` of the product is
+//! the bits are JavaScript's: `packages/page-codec-wasm/src/wasm_math.rs`). Column `j` of the product is
 //! `((A₀·b₀ + A₁·b₁) + A₂·b₂) + A₃·b₃`, `Aₖ` the k-th column of `a` and `bₖ` the k-th float of
 //! column `j` of `b`. The same product in `f32` or `f64` (`multiply_matrix4`) is the compiler's,
 //! with the translation, scaling and glTF node composition its scene drivers build matrices from.

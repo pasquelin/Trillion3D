@@ -6,9 +6,19 @@
 //! calculation path — both sides read and write the same memory. A reservation may grow linear
 //! memory and invalidate every view: that is the only moment it happens, and the JavaScript loader
 //! rebuilds its views there and nowhere else.
+//!
+//! The batches (`trillion3d_math::box_transform::box_transform_batch`,
+//! `trillion3d_math::matrix::multiply_matrix4_batch`) give the bits of their JavaScript
+//! counterparts in `packages/math/` (`boxTransform`, `multiplyMatrix4`), term by term, parentheses
+//! included. Equality is structural, not hoped for. WebAssembly has no fused multiply-add
+//! instruction: neither the base set nor `simd128` carries one, and `relaxed-simd`, the only
+//! extension that has one, is refused then verified by `scripts/build-wasm.ts`. Its f64 arithmetic
+//! is IEEE-754, correctly rounded, exactly that of JavaScript numbers. And rustc never enables
+//! floating-point reassociation: it has no equivalent of `-ffast-math`, so `lto`, `opt-level` and
+//! automatic vectorisation can only reorder independent lanes, never reassociate a sum.
+//! JavaScript's `Math.min`, `Math.max` and `Math.hypot` are those of `trillion3d_math::js`.
 
-use crate::math::box_transform_batch;
-use trillion3d_math::box_transform::BOX_VALUES;
+use trillion3d_math::box_transform::{box_transform_batch, BOX_VALUES};
 use trillion3d_math::matrix::{multiply_matrix4_batch, MATRIX_VALUES};
 
 /// Version of this ABI's contract. The loader refuses a module that does not return the one it expects.

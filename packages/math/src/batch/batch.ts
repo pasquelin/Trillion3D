@@ -3,7 +3,7 @@ import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
  * entry, no allocation. Boxes moved by their matrices and matrix products in batches are the
- * WebAssembly kernels' alone (`packages/page-codec-wasm/src/math.rs`, over `packages/math/rust`'s
+ * WebAssembly kernels' alone (`packages/page-codec-wasm/src/wasm_math.rs`, over `packages/math/rust`'s
  * `matrix.rs` and `box_transform.rs`), which the engine's lots run
  * (`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`): no JavaScript loop beside them,
  * a union of moved boxes included — the lot moves them, `boxUnionBatch` unites its output.
