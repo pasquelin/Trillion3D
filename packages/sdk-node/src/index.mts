@@ -46,10 +46,10 @@ export type {
 } from './compiler/contracts.ts'
 import {
   DEFAULT_RAM_BUDGET_MB,
+  DEFAULT_SIMPLIFICATION,
   DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
   JOB_FIELDS,
-  SIMPLIFICATIONS,
   type JobField,
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
@@ -82,7 +82,7 @@ export async function prepare(
     threads: String(options.threads ?? DEFAULT_THREADS),
     ramBudgetMb: String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
     resourceBaseUrl: options.resourceBaseUrl,
-    simplification: options.simplification ?? SIMPLIFICATIONS[0],
+    simplification: options.simplification ?? DEFAULT_SIMPLIFICATION,
   }
   const args = JOB_FIELDS.map((field) => job[field])
   const pointer = await runCompiler<CompilationPointer | CompilerRefusal>(

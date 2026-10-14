@@ -15,8 +15,11 @@ export const MAX_THREADS = 64
 export const DEFAULT_RAM_BUDGET_MB = 256
 /** The least memory one job needs to decode the smallest scene, in MB. */
 export const MIN_RAM_BUDGET_MB = 64
-/** How meshes may be simplified; the first, `'none'`, is the default. */
-export const SIMPLIFICATIONS = ['none', 'qem-endpoints'] as const
+/** How meshes are simplified when nothing is named: not at all. A plain constant, so a bundle
+ *  that reads none of the job's schema keeps none of it (a member read of the list would). */
+export const DEFAULT_SIMPLIFICATION = 'none'
+/** How meshes may be simplified; the first is the default (`DEFAULT_SIMPLIFICATION`). */
+export const SIMPLIFICATIONS = [DEFAULT_SIMPLIFICATION, 'qem-endpoints'] as const
 /** How meshes are simplified, one of `SIMPLIFICATIONS`. */
 export type Simplification = (typeof SIMPLIFICATIONS)[number]
 /**
