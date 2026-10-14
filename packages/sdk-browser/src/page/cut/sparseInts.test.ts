@@ -40,3 +40,33 @@ test('storage follows the entries: none before the first, none after the last', 
   map.clear()
   assert.ok(map.byteLength > 0 && map.size === 0, 'a cleared scratch map keeps its storage')
 })
+
+test("a copy following the journal holds the map's tables through growth, removal and clear", () => {
+  const copy = { keys: new Int32Array(0), values: new Int32Array(0) }
+  const map: ReturnType<typeof createSparseInts> = createSparseInts({
+    onSlot(at) {
+      copy.keys[at] = map.keys[at]
+      copy.values[at] = map.values[at]
+    },
+    onRebuild() {
+      copy.keys = map.keys.slice()
+      copy.values = map.values.slice()
+    },
+  })
+  const next = lcgRandom(11)
+  let rebuilt = 0
+  for (let step = 0; step < 20000; step++) {
+    const key = next() < 0.5 ? Math.floor(next() * 64) : Math.floor(next() * 1e6)
+    const roll = next()
+    if (roll < 0.45) map.add(key, 1)
+    else if (roll < 0.9) map.set(key, 0)
+    else if (roll < 0.9005) {
+      map.clear()
+      rebuilt++
+    } else map.set(key, step + 1)
+    assert.equal(copy.keys.length, map.keys.length, `step ${step}`)
+  }
+  assert.ok(rebuilt > 0, 'the replay crossed a clear')
+  assert.deepEqual(copy.keys, map.keys)
+  assert.deepEqual(copy.values, map.values)
+})

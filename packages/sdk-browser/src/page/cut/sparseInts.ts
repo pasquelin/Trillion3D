@@ -9,15 +9,31 @@ import { grownLength } from '../../../../math/src/sequence/resized.ts'
  * tombstone ever lengthens a probe. The table doubles past half full and never holds storage
  * before its first entry. Emptied, it keeps a small table — a set that swings between empty and a
  * few members allocates nothing — and releases a large one, so a burst never stays paid for.
+ * A map made with a journal names each slot it writes, and each rebuild of its tables, so a copy
+ * of them elsewhere — the GPU's page→row map (`../../webgpu/row/rowMapGpu.ts`) — follows them by
+ * what changed alone; a map without one pays a test.
  */
 const EMPTY = -1
 const MIN_SLOTS = 16
 
-export function createSparseInts() {
-  const t: Table = { keys: new Int32Array(0), values: new Int32Array(0), size: 0 }
+/** What a map tells a reader that holds a copy of its two tables (`keys`, `values`): each slot it
+ *  writes — a set, an entry shifted back —, and each time the tables are replaced or emptied whole
+ *  (growth, release, clear), after which the copy is taken again whole. */
+type SparseJournal = { onSlot(at: number): void; onRebuild(): void }
+
+export function createSparseInts(journal?: SparseJournal) {
+  const t: Table = { keys: new Int32Array(0), values: new Int32Array(0), size: 0, journal }
   const map = {
     get size() {
       return t.size
+    },
+    /** The two tables as they stand, open-addressed on `mixWord` with linear probing, `-1` an
+     *  empty key: what a journal's reader copies, never written but by the map. */
+    get keys() {
+      return t.keys
+    },
+    get values() {
+      return t.values
     },
     /** Bytes of the two tables: what the map holds now, never what the catalogue could. */
     get byteLength() {
@@ -50,13 +66,21 @@ export function createSparseInts() {
       t.keys.fill(EMPTY)
       t.values.fill(0)
       t.size = 0
+      t.journal?.onRebuild()
     },
   }
   return map
 }
 
-/** The two tables of a map and how many entries it holds. */
-type Table = { keys: Int32Array; values: Int32Array; size: number }
+/** The two tables of a map, how many entries it holds, and who is told of its writes. */
+type Table = { keys: Int32Array; values: Int32Array; size: number; journal?: SparseJournal }
+
+/** Slot `at` of `t` holds `key` and `value` now: its reader told. */
+function write(t: Table, at: number, key: number, value: number) {
+  t.keys[at] = key
+  t.values[at] = value
+  t.journal?.onSlot(at)
+}
 
 const home = (t: Table, key: number) => mixWord(key) & (t.keys.length - 1)
 
@@ -79,6 +103,7 @@ function allocate(t: Table, slots: number) {
       keys[at] = oldKeys[i]
       values[at] = oldValues[i]
     }
+  t.journal?.onRebuild()
 }
 
 /** Removes slot `at` and pulls back the entries its hole would cut off from their home. */
@@ -91,14 +116,12 @@ function removeAt(t: Table, at: number) {
     const want = home(t, keys[next])
     // The entry at `next` may move into the hole when its home is not strictly between them.
     if (((next - want) & mask) >= ((next - hole) & mask)) {
-      keys[hole] = keys[next]
-      values[hole] = values[next]
+      write(t, hole, keys[next], values[next])
       hole = next
     }
     next = (next + 1) & mask
   }
-  keys[hole] = EMPTY
-  values[hole] = 0
+  write(t, hole, EMPTY, 0)
   if (--t.size === 0 && keys.length > MIN_SLOTS) release(t)
 }
 
@@ -106,6 +129,7 @@ function release(t: Table) {
   t.keys = new Int32Array(0)
   t.values = new Int32Array(0)
   t.size = 0
+  t.journal?.onRebuild()
 }
 
 /** The slot `key` sits in, or the free slot it goes to, the table grown for it first. */
@@ -125,12 +149,11 @@ function setKey(t: Table, key: number, value: number) {
   if (t.keys[at] === key) {
     const previous = t.values[at]
     if (value === 0) removeAt(t, at)
-    else t.values[at] = value
+    else write(t, at, key, value)
     return previous
   }
   if (value === 0) return 0
-  t.keys[at] = key
-  t.values[at] = value
+  write(t, at, key, value)
   t.size++
   return 0
 }
@@ -139,13 +162,12 @@ function setKey(t: Table, key: number, value: number) {
 function addKey(t: Table, key: number, delta: number) {
   const at = slotFor(t, key)
   if (t.keys[at] !== key) {
-    t.keys[at] = key
-    t.values[at] = delta
+    write(t, at, key, delta)
     t.size++
     return delta
   }
   const next = t.values[at] + delta
   if (next === 0) removeAt(t, at)
-  else t.values[at] = next
+  else write(t, at, key, next)
   return next
 }
