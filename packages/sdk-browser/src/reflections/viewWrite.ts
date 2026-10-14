@@ -16,8 +16,9 @@ export type ReflectionFrame = {
   depthDrawn: boolean
   /** The resident proxy's certified error, in metres: zero without a proxy. */
   proxyError: number
-  /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
-  epoch?: number
+  /** The run-time proxy's words (`proxyStore.ts`, `follow`): the epoch its answers are stamped with, the
+   *  sets of its store read and written, and how they are read. */
+  runtime?: ArrayLike<number>
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
@@ -28,7 +29,7 @@ export type ReflectionFrame = {
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced, the resident proxy's error, its epoch and the surroundings. The words that differ from those it
+ * is traced, the resident proxy's error, its run-time words and the surroundings. The words that differ from those it
  * sent go up (`writeChanged`): a still view writes once, and nothing in it is a frame index or a
  * seed. Nothing is allocated by a call.
  */
@@ -57,7 +58,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[2] = frame.size[1]
     traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
-    runtime[0] = frame.epoch ?? 0
+    if (frame.runtime) runtime.set(frame.runtime)
+    else runtime.fill(0)
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

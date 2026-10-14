@@ -19,7 +19,7 @@ test('the last glass is cleared once by the front depth when the glass comes bac
     uniform: device.createBuffer({ size: 512, usage: GPUBufferUsage.UNIFORM }),
     front: createFrontDepth(device, 8, 8, blends),
     radiance: { held: { size: [8, 8] }, levels: 1 },
-    store: { follow: () => 0 },
+    store: { follow: () => new Uint32Array(4) },
     writeView() {},
   })
   const lightView = { uniform: device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM }) }

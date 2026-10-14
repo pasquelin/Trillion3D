@@ -1,4 +1,4 @@
-import { STORE_LAYERS, storeBytes } from '../bounce/runtimeLayout.ts'
+import { STORE_LAYERS, STORE_MODE, STORE_SET_LAYERS, storeBytes } from '../bounce/runtimeLayout.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -31,37 +31,74 @@ export function createProxyStore(
   }
   if (wanted) ensure()
   const camera = new Float64Array(16)
+  const drawn = [0, 0]
+  const runtime = new Uint32Array(4)
   let epoch = 0,
     lights = NaN,
     proxy = NaN,
     worlds = NaN
+  // The camera's moves, the count of them the set the trace reads was written at, and that set.
+  let moves = 0,
+    placed = 0,
+    read = 0
+  // Whether an image traced since the radiance pyramid's last build, and whether the image the
+  // pyramid holds is the one that wrote the set the trace reads: its view is the set's.
+  let tracing = false,
+    held = false
   return {
     /**
-     * The epoch of this image's answers: one more than the last image's when an input of the answers moved
-     * — the lights' revision (`lightsRevision`), the proxy's writes (`ProxyResources.writes`), the cut's
-     * worlds (`GpuSelection.worldRevision`) — or the camera's own
-     * view-projection did — never the render matrix's jitter, which moves every image, and never the lit
-     * image, which the screen's own reflections change image after image without changing an answer.
-     * Idempotent within an image; nothing allocated.
+     * The run-time words of this image's view (`ReflectionView.runtime`): the epoch of its answers —
+     * one more than the last image's when an input of the answers moved: the lights' revision
+     * (`lightsRevision`), the proxy's writes (`ProxyResources.writes`), the cut's worlds
+     * (`GpuSelection.worldRevision`) —, or the camera did: its own view-projection, never the render
+     * matrix's jitter, which moves every image, or its drawn `size` —, never the lit image, which the
+     * screen's own reflections change image after image without changing an answer; then the first
+     * layers of the set the trace reads and of the set it writes, and how it reads (`STORE_MODE`): in
+     * place while the camera has not moved since the set was written, else reprojected when the
+     * radiance pyramid holds the image that wrote it, else without a history. Idempotent within an
+     * image; nothing allocated.
      */
     follow(
       lightsRevision: number,
       proxyWrites: number,
       worldRevision: number,
       viewProjection: ArrayLike<number>,
+      size: readonly [number, number],
     ) {
-      if (
-        lightsRevision !== lights ||
-        proxyWrites !== proxy ||
-        worldRevision !== worlds ||
-        !sameElements(camera, viewProjection)
-      )
+      const moved =
+        !sameElements(camera, viewProjection) || size[0] !== drawn[0] || size[1] !== drawn[1]
+      if (moved || lightsRevision !== lights || proxyWrites !== proxy || worldRevision !== worlds)
         epoch++
+      if (moved) moves++
       lights = lightsRevision
       proxy = proxyWrites
       worlds = worldRevision
       copyMatrix4(camera, viewProjection)
-      return epoch
+      drawn[0] = size[0]
+      drawn[1] = size[1]
+      const still = moves === placed
+      runtime[0] = epoch
+      runtime[1] = read * STORE_SET_LAYERS
+      runtime[2] = (still ? read : 1 - read) * STORE_SET_LAYERS
+      runtime[3] = still
+        ? STORE_MODE.inPlace
+        : held && !tracing
+          ? STORE_MODE.reproject
+          : STORE_MODE.unknown
+      return runtime
+    },
+    /** The trace was encoded over the words `follow` gave: a moved camera's set written is the one
+     *  the next image reads. */
+    traced() {
+      if (moves !== placed) read = 1 - read
+      placed = moves
+      tracing = true
+    },
+    /** The radiance pyramid was built from this image: the view it holds is the last trace's set's
+     *  if this image traced. */
+    built() {
+      held = tracing
+      tracing = false
     },
     /** The store the trace reads and writes, if the view holds one. */
     get view() {
