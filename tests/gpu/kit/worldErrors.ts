@@ -3,12 +3,24 @@
 // is made; the proof asserts the list is empty.
 import { hookAfter, type Proto } from '../../../bench/dawn/hook.ts'
 
+/** What the devices granted since a call of `listenToWorldDevices` raise and make. */
+type WorldSink = {
+  errors: string[]
+  made: Map<string, GPUBuffer>
+  textures: Map<string, GPUTexture>
+}
+
+/** The sink the next granted device fills; the hook is installed once a process. */
+let current: WorldSink | undefined
+
 /** Listens on every device the page's WebGPU grants from now on; the errors it raises fill the list, and
- *  the buffers and textures it makes are kept by label (`made`, `textures`), for a proof that reads one. */
+ *  the buffers and textures it makes are kept by label (`made`, `textures`), for a proof that reads one.
+ *  The page's WebGPU is hooked once a process: a family proof draws every case in one process, and each
+ *  case's call gives the devices granted from then on a sink of their own, the earlier ones keeping theirs. */
 export function listenToWorldDevices() {
-  const errors: string[] = [],
-    made = new Map<string, GPUBuffer>(),
-    textures = new Map<string, GPUTexture>()
+  const hooked = current !== undefined
+  current = { errors: [], made: new Map(), textures: new Map() }
+  if (hooked) return current
   const gpu = navigator.gpu
   const requestAdapter = gpu.requestAdapter.bind(gpu)
   gpu.requestAdapter = async (...args) => {
@@ -17,20 +29,21 @@ export function listenToWorldDevices() {
     const requestDevice = adapter.requestDevice.bind(adapter)
     adapter.requestDevice = async (...options) => {
       const device = await requestDevice(...options)
-      device.addEventListener('uncapturederror', (event) => errors.push(event.error.message))
+      const sink = current!
+      device.addEventListener('uncapturederror', (event) => sink.errors.push(event.error.message))
       const keep =
         <T>(into: Map<string, T>) =>
         (_device: object, [descriptor]: never[], resource: unknown) => {
           const label = (descriptor as GPUObjectDescriptorBase).label
           if (label) into.set(label, resource as T)
         }
-      hookAfter(device as unknown as Proto, 'createBuffer', keep(made))
-      hookAfter(device as unknown as Proto, 'createTexture', keep(textures))
+      hookAfter(device as unknown as Proto, 'createBuffer', keep(sink.made))
+      hookAfter(device as unknown as Proto, 'createTexture', keep(sink.textures))
       return device
     }
     return adapter
   }
-  return { errors, made, textures }
+  return current
 }
 
 /** The newest resource of `made` (a list `listenToWorldDevices` keeps) whose label passes `test`. */
