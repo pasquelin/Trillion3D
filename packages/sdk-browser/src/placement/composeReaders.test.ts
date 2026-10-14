@@ -56,8 +56,13 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   // blended copy reads stays composed for that copy too (`linkedRanks`): the other leaves this
   // module.
   const roots = rt.layout.selectionRoots as unknown as object[]
-  roots.push({ placement: { rows: pending, index: 0 }, world: placementWorld(pending, 0) })
-  roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1) })
+  // Each root carries its pages, as every root a growth brings does (`ClusterRoot.pages`).
+  roots.push({
+    placement: { rows: pending, index: 0 },
+    world: placementWorld(pending, 0),
+    pages: [],
+  })
+  roots.push({ placement: { rows: extra, index: 1 }, world: placementWorld(extra, 1), pages: [] })
   forgetRowRoots(roots as never)
   adoptRootedReaders(rt)
   assert.deepEqual([...rt.compose!.parentOf].slice(0, 4), [0, NO_INDEX, 0, 0])

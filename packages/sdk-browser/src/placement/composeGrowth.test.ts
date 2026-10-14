@@ -32,6 +32,7 @@ test('a growth keeps every link; a shortened list unlinks them all', () => {
     roots.push({
       placement: { rows: own, index: 0 },
       world: { elements: new Float32Array(turn(k)) },
+      pages: [],
     })
     // As a growth adopts its roots (`webgpuGrownCut.ts`): the rows' index is built again.
     forgetRowRoots(roots)
