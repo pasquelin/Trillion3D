@@ -1,30 +1,12 @@
 use super::*;
-use crate::texture_preview::BlockFormat;
 use serde_json::Map;
+use texture_formats::{
+    texture_format_choices, texture_formats, ALL_TEXTURE_FORMATS, TEXTURES_FORMAT_FIELD,
+    TEXTURE_FORMAT_OPTION,
+};
 
-/// `--textures-format=` values: every family by default — each device then streams the blocks it
-/// samples, and PNG is the last fallback —, one family when a cook targets one platform, or none.
-const TEXTURE_FORMAT_OPTION: &str = "--textures-format=";
+mod texture_formats;
 
-/// The values `--textures-format=` takes: `all`, each family's name (`BlockFormat::ALL`), `none`.
-fn texture_format_choices() -> Vec<&'static str> {
-    let families = BlockFormat::ALL.map(BlockFormat::name);
-    [&["all"][..], &families, &["none"]].concat()
-}
-
-fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, String> {
-    let choices = texture_format_choices().join(" or ");
-    match value {
-        "all" => Ok(BlockFormat::ALL.to_vec()),
-        "none" => Ok(Vec::new()),
-        name => BlockFormat::named(name)
-            .map(|format| vec![format])
-            .ok_or(format!("textures-format must be {choices}")),
-    }
-}
-
-/// Batch file field of `--textures-format=`, read by the same job reader.
-const TEXTURES_FORMAT_FIELD: &str = "texturesFormat";
 /// Job fields the command line gives as numbers.
 const NUMBER_FIELDS: [&str; 3] = [
     job_field::TRIANGLE_BUDGET,
@@ -97,7 +79,9 @@ pub fn job_options(
         simplification: text(job_field::SIMPLIFICATION)
             .unwrap_or(SIMPLIFICATIONS[0])
             .to_string(),
-        texture_formats: texture_formats(text(TEXTURES_FORMAT_FIELD).unwrap_or("all"))?,
+        texture_formats: texture_formats(
+            text(TEXTURES_FORMAT_FIELD).unwrap_or(ALL_TEXTURE_FORMATS),
+        )?,
         cancelled,
     })
 }
