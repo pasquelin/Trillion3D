@@ -71,7 +71,7 @@ export function castingLights(rt: WebgpuPagesRuntime) {
 export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const pageLayout = rt.lights.pageLayout
   if (!castingLights(rt) || !pageLayout) return []
-  const layout = vsmFirstSetLayout(device, frameLights(rt, 'reserve'))
+  const layout = vsmFirstSetLayout(frameLights(rt, 'reserve'))
   const marking = vsmMarkingPipes(device, layout),
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)

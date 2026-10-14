@@ -84,7 +84,7 @@ export function bytesBeside(
 
 /** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
  *  want at every physical page. */
-export const vsmFirstSetLayout = (device: GPUDevice, lights: readonly VsmFrameLight[]) =>
+export const vsmFirstSetLayout = (lights: readonly VsmFrameLight[]) =>
   vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights)))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
@@ -95,7 +95,7 @@ export function vsmSetBytes(
   device: GPUDevice,
   lights: readonly VsmFrameLight[],
 ) {
-  const layout = vsmFirstSetLayout(device, lights)
+  const layout = vsmFirstSetLayout(lights)
   return (
     vsmResourceBytes(layout) + bytesBeside(rt, device, lights, layout, heldBeside(undefined), false)
   )
