@@ -14,7 +14,12 @@ import {
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
-/** A bound record table: the view at its binding (`dagBindingOf().worlds`, `.frames`). */
+
+/** The binding of each table of the selection kernel's group 0, read once off the production
+ *  entries (`dagBindingOf`). */
+export const DAG_SLOT = dagBindingOf()
+
+/** A bound record table: the view at its binding (`DAG_SLOT.worlds`, `.frames`). */
 type View = Parameters<typeof viewTexture>[0]
 
 /** Word `k` of placement `w`'s frame words in the bound frame table `frames`, as the kernels read
@@ -45,7 +50,7 @@ export function readDagUniforms(data: Uint8Array) {
 
 /** The list cap the kernels read, from the camera's uniform block (`listCap.ts`). */
 export const boundListCap = (byBinding: Bound) =>
-  words(byBinding.get(dagBindingOf().views)!.data)[viewWord('listCap')]
+  words(byBinding.get(DAG_SLOT.views)!.data)[viewWord('listCap')]
 
 /**
  * The DAG a cut's bound buffers hold, for a device no test handed one (`fakeDevice({ packed })`):
@@ -59,7 +64,7 @@ export function packedFromBindings(
   worlds: View,
   frames: View,
 ): PackedDag & { frameStretch: Float32Array } {
-  const views = words(byBinding.get(dagBindingOf().views)!.data)
+  const views = words(byBinding.get(DAG_SLOT.views)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
     worldCount = views[viewWord('worldCount')]
@@ -77,14 +82,10 @@ export function packedFromBindings(
   const pageIndex = indexOfRanks(ranks, worldCount)
   return {
     kind: 'dag',
-    clusters: floats(byBinding.get(dagBindingOf().clusters)!.data),
-    nodes: floats(byBinding.get(dagBindingOf().nodes)!.data),
-    pageCones: floats(byBinding.get(dagBindingOf().cold)!.data),
-    worlds: worldsAtEye(
-      viewTexture(worlds),
-      byBinding.get(dagBindingOf().views)!.data,
-      worldCount * 16,
-    ),
+    clusters: floats(byBinding.get(DAG_SLOT.clusters)!.data),
+    nodes: floats(byBinding.get(DAG_SLOT.nodes)!.data),
+    pageCones: floats(byBinding.get(DAG_SLOT.cold)!.data),
+    worlds: worldsAtEye(viewTexture(worlds), byBinding.get(DAG_SLOT.views)!.data, worldCount * 16),
     // The stretch the cut reads, its own field (`frameTable.ts`).
     frameStretch: new Float32Array(
       Uint32Array.from({ length: worldCount }, (_, w) =>
