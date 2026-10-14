@@ -24,7 +24,7 @@ import { INSTANCE, INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'
 import { createProxyCopies } from './proxyCopies.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
-import { createProxyState, type ProxyResources } from './proxyState.ts'
+import { createProxyState, type ProxySource } from './proxyState.ts'
 
 /** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
  *  drawn (`BlendCopy`). */
@@ -44,7 +44,7 @@ export type PoseHost = {
   revision: number
 }
 
-export function createProxyInstances(resources: ProxyResources) {
+export function createProxyInstances(resources: ProxySource) {
   const state = createProxyState(resources),
     { slots, held, arena, posed, boxes, write, writeInstances, header, markOf } = state,
     copies = createProxyCopies(state)
