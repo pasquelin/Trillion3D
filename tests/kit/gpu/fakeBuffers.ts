@@ -9,6 +9,23 @@ export const words = (bytes: Uint8Array) =>
 export const floats = (bytes: Uint8Array) =>
   new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
 
+/** A buffer's words as the vectors of `width` words a shader reads (`vec2u` doubles, `vec4u`
+ *  records): reads and writes go to the words where they sit. */
+export const vectors = (width: number, held: Uint32Array) =>
+  new Proxy([] as number[][], {
+    get(_, key) {
+      if (key === 'length') return Math.floor(held.length / width)
+      const at = typeof key === 'string' ? Number(key) : NaN
+      return Number.isInteger(at)
+        ? Array.from(held.subarray(at * width, at * width + width))
+        : undefined
+    },
+    set(_, key, value: number[]) {
+      held.set(value, Number(key) * width)
+      return true
+    },
+  })
+
 /** An entry of a bind group as a fake dispatch reads it: a buffer's binding, or a view's. */
 export type BoundBuffer = { binding: number; resource: { buffer: { data: Uint8Array } } }
 

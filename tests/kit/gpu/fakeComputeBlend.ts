@@ -1,55 +1,70 @@
-// The transparent kernels a fake device replays: compaction of the paged items, the frustum
-// verdict, the paint order, then expansion of the sorted plan, each through the CPU oracle the
-// shader implements.
-import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts'
+// The transparent kernels a fake device runs: compaction of the paged items, the frustum verdict
+// and the paint order through their shipped WGSL (`shaderRun`), dispatch by dispatch; expansion of
+// the sorted plan through its oracle (`expandCpu.fixture.ts`), at its last dispatch — its packet
+// count and running sum scan each workgroup in workgroup memory with a barrier inside the scan's
+// loop (`laneScan`), which a run of one thread after the other cannot interleave.
+import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { TRANSPARENT_COMPACT_SHADER } from '../../../packages/sdk-browser/src/webgpu/transparent/shader.ts'
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
 import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
-import { maskBit } from './globals.ts'
 import {
+  BLEND_ORDER_ENTRIES,
   ORDER_BINDING,
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
 import {
-  KEY_DRAWN,
-  KEY_HAS_BOX,
-  KEY_RECORD_WORDS,
-  KEY_WORD,
-} from '../../../packages/sdk-browser/src/webgpu/blend/keyLayout.ts'
-import { FRAME_HEAD } from '../../../packages/sdk-browser/src/webgpu/blend/frameHead.ts'
-import { VERDICT } from '../../../packages/sdk-browser/src/webgpu/blend/verdictLayout.ts'
+  orderGroups,
+  orderKernelOf,
+  runOrderDispatch,
+} from '../../../packages/sdk-browser/src/webgpu/blend/orderRun.fixture.ts'
+import { runVerdict } from '../../../packages/sdk-browser/src/webgpu/blend/verdictRun.fixture.ts'
 import { VERDICT_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/verdictWgsl.ts'
-import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
-import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
-import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
-import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
-import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
 import type { ComputeBind } from './fakeCompute.ts'
-import { boundWords } from './fakeBuffers.ts'
-import { NO_INDEX } from '../../../packages/math/src/constants.ts'
-import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { boundWords, vectors } from './fakeBuffers.ts'
 
-/** Replays the transparent compaction: the same oracle the shader implements. */
-function simulateTransparentCompaction(bind: ComputeBind) {
-  const uni = boundWords(bind.entries, 1)
-  const mask = boundWords(bind.entries, 2)
-  const result = evaluateTransparentCompaction({
-    entries: boundWords(bind.entries, 0),
-    itemRanges: boundWords(bind.entries, 7),
-    entryCount: uni[0],
-    itemCount: uni[2],
-    vertexCount: uni[4],
-    selected: (cluster) => maskBit(mask, uni[3], cluster),
-  })
-  boundWords(bind.entries, 5).set(result.instances.subarray(0, uni[0]))
-  boundWords(bind.entries, 6).set(result.indirect)
+/** The compaction's three entry points, by the uniform field that counts their threads. */
+const COMPACT_THREADS: Record<string, 'groupCount' | 'itemCount' | 'entryCount'> = {
+  countTransparentGroups: 'groupCount',
+  prefixTransparentItems: 'itemCount',
+  scatterTransparentGroups: 'entryCount',
+}
+
+/** Runs a dispatch of the transparent compaction (`TRANSPARENT_COMPACT_SHADER`): its shipped WGSL
+ *  over the words the dispatch binds, one thread for each the uniform counts. */
+function simulateTransparentCompaction(bind: ComputeBind, entry: string) {
+  const at = (binding: number) => boundWords(bind.entries, binding)
+  const words = at(1)
+  const uni = {
+    entryCount: words[0],
+    groupCount: words[1],
+    itemCount: words[2],
+    selectionOffset: words[3],
+    vertexCount: words[4],
+  }
+  const kernel = shaderRun<Record<string, (id: number[], n: number[]) => void>>(
+    TRANSPARENT_COMPACT_SHADER,
+    [entry, 'selected', 'maskSelects', 'flatIndex'],
+    {
+      entries: at(0),
+      uni,
+      selectionMask: at(2),
+      groupCounts: at(3),
+      groupOffsets: at(4),
+      instances: at(5),
+      indirect: at(6),
+      itemRanges: at(7),
+      occluded: at(8),
+    },
+  )
+  for (let i = 0; i < uni[COMPACT_THREADS[entry]]; i++) kernel[entry]([i, 0, 0], [1, 1, 1])
 }
 
 /**
  * Replays expansion of the sorted plan: the oracle of `BLEND_EXPAND_SHADER`
- * (`webgpu/blend/expandCpu.fixture.ts`). The double replays it at the last of the four kernels, when
- * every input the GPU would read is there.
+ * (`webgpu/blend/expandCpu.fixture.ts`). The double replays it at the last of the four kernels,
+ * when every input the GPU would read is there.
  */
 function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
   const uni = boundWords(bind.entries, EXPAND_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
@@ -77,117 +92,62 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
   })
 }
 
-const cell = new Float64Array(1),
-  cellWords = new Uint32Array(cell.buffer)
-/** The double whose bits sit at `at`, low word first: the GPU's NaN, all ones, reads as a NaN. */
-const doubleAt = (source: Uint32Array, at: number) => (
-  (cellWords[0] = source[at]),
-  (cellWords[1] = source[at + 1]),
-  cell[0]
-)
-/** A key record's box, then its centre (or its origin) relative to the eye. */
-const keyBox = new Float64Array(6),
-  keyGap = new Float64Array(3)
-
-/**
- * Replays the order of one pass at its last dispatch (`placeBlendSlots`), when the plan, key
- * records and frame data it reads are there: every seed keyed as `itemKey` keys it — the CPU's
- * doubles, which the kernel's emulated ones equal to the bit (`orderWgsl.test.ts`) —, ranked by
- * `precedes`, its sorted entries, places and slot runs written where the kernel writes them.
- */
-function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
-  const uni = boundWords(bind.entries, ORDER_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
-  const plan = boundWords(bind.entries, ORDER_BINDING.plan),
-    keyed = boundWords(bind.entries, ORDER_BINDING.keyed),
-    frame = boundWords(bind.entries, ORDER_BINDING.frame),
-    placed = boundWords(bind.entries, ORDER_BINDING.placed)
-  const entries = uni[ORDER_UNI.entryCount],
-    seeds = plan.subarray(uni[ORDER_UNI.seedBase], uni[ORDER_UNI.seedBase] + entries)
-  const eye = [0, 2, 4].map((at) => doubleAt(frame, at))
-  const keyOf = (seed: number) => {
-    const at = (seeds[seed] >>> PLAN_SHIFT) * KEY_RECORD_WORDS,
-      own = keyed[at + KEY_WORD.own]
-    if (own !== NO_INDEX) return doubleAt(frame, uni[ORDER_UNI.ownKeyBase] + own * 2)
-    const box = (keyed[at + KEY_WORD.flags] & KEY_HAS_BOX) !== 0
-    for (let i = 0; i < (box ? 6 : 3); i++) keyBox[i] = doubleAt(keyed, at + i * 2)
-    if (box) boxCenterFrom(keyGap, 0, keyBox, 0, eye[0], eye[1], eye[2])
-    else for (let axis = 0; axis < 3; axis++) keyGap[axis] = keyBox[axis] - eye[axis]
-    let key = 0
-    for (const gap of keyGap) key += gap * gap
-    return key
+/** Runs a dispatch of the paint order (`BLEND_ORDER_SHADER`), entry point `entry` of
+ *  `BLEND_ORDER_ENTRIES`: its shipped WGSL (`runOrderDispatch`) over the words the dispatch binds,
+ *  under the uniform at its dynamic offset, at the workgroups the host encodes for it. */
+function simulateBlendOrder(
+  bind: ComputeBind,
+  offsets: readonly number[] | undefined,
+  entry: number,
+) {
+  const at = (binding: number) => boundWords(bind.entries, binding)
+  const words = at(ORDER_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
+  const uni: Record<string, number> = {}
+  for (const [name, rank] of Object.entries(ORDER_UNI)) uni[name] = words[rank]
+  const scope = {
+    uni,
+    plan: at(ORDER_BINDING.plan),
+    keyed: at(ORDER_BINDING.keyed),
+    frame: at(ORDER_BINDING.frame),
+    sorted: vectors(4, at(ORDER_BINDING.sorted)),
+    placed: at(ORDER_BINDING.placed),
+    held: [] as number[][],
   }
-  const keys = Array.from(seeds, (_, seed) => keyOf(seed))
-  const order = Array.from(seeds.keys()).sort((a, b) =>
-    precedes(keys[a], a, keys[b], b) ? 1 : precedes(keys[b], b, keys[a], a) ? -1 : 0,
-  )
-  order.forEach((seed, at) => {
-    plan[uni[ORDER_UNI.orderBase] + at] = seeds[seed]
-    placed[seed] = at
-  })
-  const own = (base: number) => frame.subarray(uni[base], uni[base] + uni[ORDER_UNI.ownCount])
-  placeBlendSlots(
-    plan.subarray(uni[ORDER_UNI.runsBase]),
-    placed,
-    { seeds: own(ORDER_UNI.ownSeedBase), slots: own(ORDER_UNI.ownSlotBase) },
-    entries,
-    uni[ORDER_UNI.gaps] !== 0,
-  )
+  runOrderDispatch(orderKernelOf(scope), scope, entry, orderGroups(uni, entry))
 }
 
-/** The frame's planes and an item's box, read from the frame and its key record. */
-const planes = new Float64Array(24),
-  itemBox = new Float64Array(6)
-
-/**
- * Replays the frustum verdict (`judgeBlendItems`, `verdictWgsl.ts`) on the words it reads: a drawn
- * item kept unless unpaged with a box the frustum excludes (`frustumExcludesBox`, the exact doubles,
- * which the kernel's single-precision test equals off its rounding margin, `verdictWgsl.test.ts`),
- * its counts and each water rank's word written where the kernel writes them.
- */
+/** Runs the frustum verdict (`judgeBlendItems`): its shipped WGSL (`runVerdict`) over the words
+ *  the dispatch binds, every workgroup the frame's item count asks. */
 function simulateBlendVerdict(bind: ComputeBind) {
   const at = (binding: number) => boundWords(bind.entries, binding)
-  const keyed = at(VERDICT_BINDING.keyed),
-    draws = at(VERDICT_BINDING.draws),
-    counts = at(VERDICT_BINDING.counts),
-    frame = at(VERDICT_BINDING.frame),
-    keep = at(VERDICT_BINDING.keep),
-    verdict = at(VERDICT_BINDING.verdict)
-  for (let k = 0; k < 24; k++) planes[k] = doubleAt(frame, FRAME_HEAD.planes + 2 * k)
-  const items = frame[FRAME_HEAD.items]
-  keep.fill(0, 0, ceilDiv(items, 32))
-  for (let item = 0; item < items; item++) {
-    const record = item * KEY_RECORD_WORDS,
-      flags = keyed[record + KEY_WORD.flags],
-      water = keyed[record + KEY_WORD.water],
-      paged = draws[item * 4] !== NO_INDEX
-    const waterWord = VERDICT.waterDraws + water - 1
-    if (!(flags & KEY_DRAWN)) {
-      if (water) verdict[waterWord] = 0
-      continue
-    }
-    for (let k = 0; k < 6; k++) itemBox[k] = doubleAt(keyed, record + 2 * k)
-    const [x0, y0, z0, x1, y1, z1] = itemBox
-    const excluded =
-      (flags & KEY_HAS_BOX) !== 0 &&
-      (!paged || water !== 0) &&
-      frustumExcludesBox(planes, x0, y0, z0, x1, y1, z1)
-    const held = paged ? counts[draws[item * 4] * 4 + 1] !== 0 : !excluded
-    if (paged || !excluded) keep[item >>> 5] |= 1 << (item & 31)
-    if (!held) verdict[VERDICT.rejected]++
-    if (!water) continue
-    if (!excluded) verdict[VERDICT.inView]++
-    verdict[waterWord] = held ? 1 : 0
-  }
+  runVerdict({
+    keyed: at(VERDICT_BINDING.keyed),
+    draws: at(VERDICT_BINDING.draws),
+    counts: at(VERDICT_BINDING.counts),
+    frame: at(VERDICT_BINDING.frame),
+    keep: at(VERDICT_BINDING.keep),
+    verdict: at(VERDICT_BINDING.verdict),
+  })
 }
 
-/** The transparent kernels the double replays, by the entry point of their last dispatch: each
- *  replay runs once everything that kernel reads is there. */
+/** The transparent kernels the double runs, by entry point: every dispatch of the compaction, the
+ *  verdict and the order; the expansion's last, once everything it reads is there. */
 export const TRANSPARENT_STAGES: Record<
   string,
   ((bind: ComputeBind, offsets?: readonly number[]) => void) | undefined
 > = {
-  scatterTransparentGroups: simulateTransparentCompaction,
+  ...Object.fromEntries(
+    Object.keys(COMPACT_THREADS).map((entry) => [
+      entry,
+      (bind: ComputeBind) => simulateTransparentCompaction(bind, entry),
+    ]),
+  ),
   judgeBlendItems: simulateBlendVerdict,
-  placeBlendSlots: simulateBlendOrder,
+  ...Object.fromEntries(
+    BLEND_ORDER_ENTRIES.map((name, entry) => [
+      name,
+      (bind: ComputeBind, offsets?: readonly number[]) => simulateBlendOrder(bind, offsets, entry),
+    ]),
+  ),
   writeBlendRuns: simulateBlendExpansion,
 }

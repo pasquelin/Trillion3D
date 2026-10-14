@@ -1,6 +1,6 @@
-// The rows pass, the compose worlds pass and the root boxes pass a fake device replays: the shipped WGSL itself, run in
-// JavaScript (`shaderRun`), over the buffers the dispatch binds — every word a row's world decides
-// is then the GPU's, as a session on a device writes it.
+// The rows pass, the compose worlds pass, the root boxes pass and the entries pass a fake device
+// runs: the shipped WGSL itself, run in JavaScript (`shaderRun`), over the buffers the dispatch
+// binds — every word a row's world decides is then the GPU's, as a session on a device writes it.
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import {
   DERIVE_ROWS_ENTRY,
@@ -26,24 +26,7 @@ import {
   ENTRY_CORNERS_WGSL,
 } from '../../../packages/sdk-browser/src/webgpu/transparent/entryCornersWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
-import { boundFloats, boundResource, boundWords } from './fakeBuffers.ts'
-
-/** A buffer's words as the doubles the shader reads, each a pair of words: reads and writes go to
- *  the words where they sit. */
-const pairs = (held: Uint32Array) =>
-  new Proxy([] as number[][], {
-    get(_, key) {
-      if (key === 'length') return held.length >> 1
-      const at = typeof key === 'string' ? Number(key) : NaN
-      return Number.isInteger(at) ? [held[at * 2], held[at * 2 + 1]] : undefined
-    },
-    set(_, key, value: number[]) {
-      const at = Number(key)
-      held[at * 2] = value[0]
-      held[at * 2 + 1] = value[1]
-      return true
-    },
-  })
+import { boundFloats, boundResource, boundWords, vectors } from './fakeBuffers.ts'
 
 const arrayLength = (ref: { get(): { length: number } }) => ref.get().length
 
@@ -77,11 +60,11 @@ function simulateDeriveRows(bind: ComputeBind) {
     {
       arrayLength,
       params: { rootCount, parts, listed, all, emitAll },
-      rootWorlds: pairs(boundWords(bind.entries, 1)),
+      rootWorlds: vectors(2, boundWords(bind.entries, 1)),
       table: boundWords(bind.entries, 2),
       spheres: boundFloats(bind.entries, 3),
-      inputs: pairs(boundWords(bind.entries, 4)),
-      rootBoxes: pairs(boundWords(bind.entries, 5)),
+      inputs: vectors(2, boundWords(bind.entries, 4)),
+      rootBoxes: vectors(2, boundWords(bind.entries, 5)),
       corners: boundWords(bind.entries, 6),
       lods: boundWords(bind.entries, 7),
       mobility: boundWords(bind.entries, 9),
@@ -100,13 +83,13 @@ function simulateDeriveRows(bind: ComputeBind) {
  *  composes, its world. */
 function simulateComposeWorlds(bind: ComputeBind) {
   const [rootCount, listed] = boundWords(bind.entries, 0)
-  const rootWorlds = pairs(boundWords(bind.entries, 4))
+  const rootWorlds = vectors(2, boundWords(bind.entries, 4))
   const run = shaderRun<{ composed(parentAt: number, localAt: number, k: number): number[] }>(
     COMPOSE_WORLDS_WGSL,
     [...WORLD_HELPERS, 'composed'],
     {
-      locals: pairs(boundWords(bind.entries, 1)),
-      parents: pairs(boundWords(bind.entries, 3)),
+      locals: vectors(2, boundWords(bind.entries, 1)),
+      parents: vectors(2, boundWords(bind.entries, 3)),
     },
   )
   const parentOf = boundWords(bind.entries, 2),
@@ -132,9 +115,9 @@ function simulateRootBoxes(bind: ComputeBind) {
       ...['framesStretchStore', 'framesSetStretch', 'deriveRoot'],
     ],
     {
-      rootWorlds: pairs(boundWords(bind.entries, 1)),
-      rootInputs: pairs(boundWords(bind.entries, 2)),
-      rootBoxes: pairs(boundWords(bind.entries, 3)),
+      rootWorlds: vectors(2, boundWords(bind.entries, 1)),
+      rootInputs: vectors(2, boundWords(bind.entries, 2)),
+      rootBoxes: vectors(2, boundWords(bind.entries, 3)),
       frames: viewTexels(boundResource(bind.entries, ROOT_BOXES_FRAMES_BINDING)),
     },
   )
@@ -155,8 +138,8 @@ function simulateEntryCorners(bind: ComputeBind) {
     {
       arrayLength,
       params: { rootCount, listed, all },
-      rootWorlds: pairs(boundWords(bind.entries, 1)),
-      entryInputs: pairs(boundWords(bind.entries, 2)),
+      rootWorlds: vectors(2, boundWords(bind.entries, 1)),
+      entryInputs: vectors(2, boundWords(bind.entries, 2)),
       corners: boundWords(bind.entries, 3),
     },
   )
