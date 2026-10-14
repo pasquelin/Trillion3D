@@ -11,6 +11,7 @@ import { directLightResources } from '../prepare/contractLight.ts'
 import { voidStaleBlendGroups } from '../../blend/identity.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { transparentCounts } from '../state/transparentCounts.ts'
 
 /** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
 const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam.eye : undefined)
@@ -100,11 +101,7 @@ export function encodeBlend(
       () => ({
         frame: run.frame,
         submission: run.imageRevision,
-        candidates: blendState.blendGpu.length,
-        visibleMeshes: blendState.visibleBlend.length,
-        frustumRejected: run.blendFrustumRejected,
-        drawCalls: run.blendDrawCalls,
-        submittedTriangles: run.blendSubmittedTriangles,
+        ...transparentCounts(rt),
         transmissiveMeshes: blendState.transmissive,
         encodeMs: timing.transparentEncodeMs,
         passes: blendState.seeds[1].length ? 2 : 1,
