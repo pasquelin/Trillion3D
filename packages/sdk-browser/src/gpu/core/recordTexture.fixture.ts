@@ -2,23 +2,21 @@
 // words, laid as WebGPU lays a texture's — layer after layer, row after row, texel after texel —,
 // what the kit's device keeps of a written table (`tests/kit/gpu`) and what a shader run in JavaScript
 // loads (`textureLoad`, `../../texture/shaderRun.fixture.ts`).
-import { fieldStart, type RecordLayout } from './recordLayout.ts'
+import { fieldStart, recordExtent, texelAt, type RecordLayout } from './recordLayout.ts'
 import { textureExtent } from './textureExtent.ts'
 
 /** Words a texel of `layout` holds. */
 const channels = (layout: RecordLayout) => (layout.format === 'rgba32uint' ? 4 : 1)
 
-/** The extent `records` records of `layout` take, as the engine makes it. */
+/** The extent `records` records of `layout` take: the engine's (`recordExtent`). */
 export function recordExtentOf(layout: RecordLayout, records: number) {
-  const width = fieldStart(layout),
-    per = 1 << layout.rowShift,
-    perLayer = 1 << layout.layerShift,
-    rows = Math.max(1, Math.ceil(records / per))
-  return { width, height: Math.min(rows, perLayer), layers: Math.ceil(rows / perLayer) }
+  const [width, height, layers] = recordExtent(layout, records)
+  return { width, height, layers }
 }
 
 /** The first word of texel `k` of field `field` of record `r`, in a texture of `height` rows a
- *  layer and `width` texels a row. */
+ *  layer and `width` texels a row: the engine's texel (`texelAt`), a record's texels along its
+ *  field's line after the record before. */
 export function recordWordAt(
   layout: RecordLayout,
   { width, height }: { width: number; height: number },
@@ -26,10 +24,7 @@ export function recordWordAt(
   r: number,
   k = 0,
 ) {
-  const row = r >> layout.rowShift,
-    y = row & ((1 << layout.layerShift) - 1),
-    layer = row >> layout.layerShift,
-    x = fieldStart(layout, field) + (r & ((1 << layout.rowShift) - 1)) * layout.fields[field] + k
+  const [x, y, layer] = texelAt(layout, field, r * layout.fields[field] + k).origin
   return ((layer * height + y) * width + x) * channels(layout)
 }
 
