@@ -8,9 +8,7 @@ import { quadScene, camera } from './testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
-
-/** The blend item record's word naming its surface's record (`BlendItem.material`). */
-const ITEM_MATERIAL = 22
+import { BLEND_ITEM_SHIPPED } from '../blend/itemLayout.fixture.ts'
 
 /** The words of the buffer `label` names, after the frames of a line surface 2.5 CSS pixels wide
  *  at a pixel ratio of 2, and the record of rank `rank` (`MATERIAL_RECORD`) as the material table
@@ -69,7 +67,7 @@ test('the rasters, the resolve and the blend pass read the host pixel ratio', as
   assert.equal(words('Trillion3D resolve uniform')[18], 2, 'ShadeUni.pixelRatio')
   const blend = await frameWords(true)
   assert.equal(blend.words('Trillion3D blend view uniform')[31], 2, 'BlendView.pixelRatio')
-  const item = blend.record('Trillion3D blend item records', ITEM_MATERIAL)
+  const item = blend.record('Trillion3D blend item records', BLEND_ITEM_SHIPPED.at.material)
   assert.equal(item[MATERIAL_RECORD.at.lineWidth], 2.5, "the item's record: Material.lineWidth")
 })
 
@@ -88,7 +86,7 @@ test('a dashed line writes its dash and gap where every WebGPU path reads them',
     assert.equal((flags & FLAG_MASK) !== 0, dashed, 'the cutout reads it')
     assert.equal(own[at.cut], dashed ? 0 : 1, 'no alpha threshold beside the gaps')
     const blend = await frameWords(true, dashed)
-    const item = blend.record('Trillion3D blend item records', ITEM_MATERIAL)
+    const item = blend.record('Trillion3D blend item records', BLEND_ITEM_SHIPPED.at.material)
     assert.deepEqual([...item.subarray(at.dash, at.dash + 2)], dash)
   }
 })

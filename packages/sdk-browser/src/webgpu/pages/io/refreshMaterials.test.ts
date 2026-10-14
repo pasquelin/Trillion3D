@@ -13,6 +13,7 @@ import {
   ROW_WORDS,
 } from '../../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
+import { BLEND_ITEM_SHIPPED } from '../../blend/itemLayout.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -43,10 +44,12 @@ test('a blended surface rewritten in place reaches its record at the values refr
     maxResidentPages: 2,
     viewport: [32, 32],
   })
-  /** The colour and opacity of the record the item names (its material word, its 23rd). */
+  /** The colour and opacity of the record the item names (its material word, `BlendItem.material`). */
   const rgba = () => {
     const last = writes.filter((w) => w.buffer.label === 'Trillion3D blend item records').at(-1)!
-    const rank = new Uint32Array(writtenBytes(last).slice().buffer)[22] & MATERIAL_RANK_MASK
+    const rank =
+      new Uint32Array(writtenBytes(last).slice().buffer)[BLEND_ITEM_SHIPPED.at.material] &
+      MATERIAL_RANK_MASK
     const words = new Float32Array(lastRecords(textureWrites).data.buffer as ArrayBuffer),
       at = rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.baseColor
     return [...words.subarray(at, at + 3), words[at + 3]]

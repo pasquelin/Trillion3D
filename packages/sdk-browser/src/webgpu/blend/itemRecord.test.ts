@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BLEND_ITEM_WGSL, BLEND_ITEM_WORDS } from './items.ts'
-import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { BLEND_ITEM_SHIPPED } from './itemLayout.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the item record table yields the shipped struct and its WGSL offsets', () => {
@@ -17,11 +17,7 @@ test('the item record table yields the shipped struct and its WGSL offsets', () 
   )
   assert.equal(BLEND_ITEM_WORDS, 24)
   // The shipped struct's fields, laid out again by the one table rule the writer's words come from.
-  const fields = Array.from(
-    wgslSource(BLEND_ITEM_WGSL).matchAll(/(\w+):(\w+),/g),
-    ([, name, type]) => [name, type] as [string, Parameters<typeof fieldLayout>[1][number][1]],
-  )
-  const layout = fieldLayout('BlendItem', fields)
+  const layout = BLEND_ITEM_SHIPPED
   assert.equal(layout.wgsl, wgslSource(BLEND_ITEM_WGSL))
   assert.equal(layout.words, BLEND_ITEM_WORDS)
   const ITEM = layout.at
