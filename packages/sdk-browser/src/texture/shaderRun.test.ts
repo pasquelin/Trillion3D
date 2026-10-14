@@ -20,3 +20,20 @@ test('a component is assigned in place, a value held by two names is two values'
   assert.deepEqual(f(s), [5, 7, 2, 15])
   assert.deepEqual(s, { x: 9 })
 })
+
+test('a program run again is compiled once, called with its new scope', () => {
+  const text = 'fn scaled(x:f32)->f32{return x*k;}'
+  let made = 0
+  const original = globalThis.Function
+  globalThis.Function = new Proxy(original, {
+    construct: (target, args) => (made++, Reflect.construct(target, args)),
+  })
+  try {
+    const one = shaderRun<{ scaled: (x: number) => number }>(text, ['scaled'], { k: 2 })
+    const two = shaderRun<{ scaled: (x: number) => number }>(text, ['scaled'], { k: 3 })
+    assert.deepEqual([one.scaled(2), two.scaled(2)], [4, 6])
+    assert.equal(made, 1, 'one translation, one compilation')
+  } finally {
+    globalThis.Function = original
+  }
+})
