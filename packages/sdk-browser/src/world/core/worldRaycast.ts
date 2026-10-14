@@ -6,12 +6,7 @@ import type { Engine } from '../../engine/types.ts'
 import type { Intersection } from '../query/types.ts'
 import { helperRoots } from './helperMark.ts'
 import { drawnAspect } from './worldCamera.ts'
-import {
-  asksPhysics,
-  physicsRaycast,
-  type PhysicsIntersection,
-  type PhysicsRaycastOptions,
-} from '../../physics/raycast.ts'
+import { asksPhysics, physicsRaycast, type PhysicsRaycastOptions } from '../../physics/raycast.ts'
 import type { PhysicsSession } from '../../physics/session/session.ts'
 
 /** A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`. */
@@ -89,5 +84,5 @@ export const createWorldRaycast = (
         maxDistance?: number
         ignore?: Object3D
       },
-    ): Promise<PhysicsIntersection | null>
+    ): Promise<(Intersection & { material: number }) | null>
   }

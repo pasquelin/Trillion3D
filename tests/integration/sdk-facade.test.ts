@@ -59,7 +59,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 711 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 710 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -84,8 +84,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
   // the table texture carries are named, beside the one table of their engine filters
   // (TABLE_FILTERS); the bounce budget is the proxy's (ProxyBudget). The material kinds' default
-  // exponent and index of refraction are engine values, never public.
-  assert.equal(inventory.exports.length, 711)
+  // exponent and index of refraction are engine values, never public. No standalone CPU `raycast`
+  // stands beside `world.raycast`, which the GPU ray query answers; its `Intersection` stays public.
+  assert.equal(inventory.exports.length, 710)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
