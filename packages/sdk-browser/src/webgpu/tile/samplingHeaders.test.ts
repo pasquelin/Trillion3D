@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { samplingHeaders } from './samplingHeaders.ts'
 import type { WebgpuTileAtlas } from './atlas.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { closeTextureJournal, openTextureJournal } from '../../../../sdk-core/src/texture/writes.ts'
+import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
 
 /** An atlas of `records`, after its fill slot, counting the headers it is asked to write. */
 function atlas(records: Texture[]) {
@@ -25,7 +25,7 @@ test('one write among ten thousand textures visits one slot', () => {
   const records = Array.from({ length: 10_000 }, () => new Texture(null))
   const colour = atlas(records),
     data = atlas([])
-  const journal = openTextureJournal()
+  const journal = textureJournals.open()
   const follow = samplingHeaders(colour.atlas, data.atlas, journal, new Set())
   follow(true)
   assert.equal(colour.set.length, 10_000, 'the first follow writes every header once')
@@ -41,5 +41,5 @@ test('one write among ten thousand textures visits one slot', () => {
   follow(false)
   assert.equal(visits, 1, 'one record written: one slot visited')
   assert.deepEqual(colour.set, [6790])
-  closeTextureJournal(journal)
+  textureJournals.close(journal)
 })

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceFrontOnly, surfaceOf, surfaceSide } from './surface.ts'
 import { copySurface, declareSurface, redeclareSurface } from './surfaceRecord.ts'
-import { closeSurfaceJournal, openSurfaceJournal, surfaceWritten } from './surfaceWrites.ts'
+import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts'
 import { BIN_BACK, BIN_NONE } from '../gpu/draw/draw.ts'
 import type { PageRec } from './selection/selection.ts'
@@ -34,13 +34,13 @@ test('the side answers what the record holds now, with no reread in between', ()
 
 test('a redeclared record is filled in place, its version moved and its write journaled', () => {
   const material = G.standardSurface({ roughness: 0.9 })
-  const journal = openSurfaceJournal()
+  const journal = surfaceJournals.open()
   redeclareSurface(material, { family: 'standard', roughness: 0.1 })
   assert.equal(material.roughness, 0.1, 'the same object holds the new value')
   assert.equal(material.version, 1)
   assert.deepEqual([...journal], [material], 'the write lands in every open journal')
   journal.clear()
-  closeSurfaceJournal(journal)
+  surfaceJournals.close(journal)
   surfaceWritten(material)
   assert.equal(journal.size, 0, 'a closed journal hears nothing')
   assert.equal(material.version, 2)
@@ -48,10 +48,10 @@ test('a redeclared record is filled in place, its version moved and its write jo
 
 test('one write among ten thousand surfaces is the one record a journal holds', () => {
   const surfaces = Array.from({ length: 10_000 }, () => declareSurface({ family: 'basic' }))
-  const journal = openSurfaceJournal()
+  const journal = surfaceJournals.open()
   surfaceWritten(surfaces[4321])
   assert.deepEqual([...journal], [surfaces[4321]], 'a consumer visits one record, not 10⁴')
-  closeSurfaceJournal(journal)
+  surfaceJournals.close(journal)
 })
 
 test('a copy is a record of its own: a write on it never reaches the original', () => {

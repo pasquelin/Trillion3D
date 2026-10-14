@@ -3,7 +3,7 @@ import { listen, unlisten } from '../observed.ts'
 import { createListeners } from '../../runtime/listeners.ts'
 import type { ColorSpace, Filter, Wrap } from '../constants/index.ts'
 import type { Texture as TextureRecord } from '../../texture/contract.ts'
-import { textureWritten } from '../../texture/writes.ts'
+import { textureJournals } from '../../texture/writes.ts'
 import { composeUvTransform } from './uvTransform.ts'
 
 let nextTexture = 1
@@ -131,7 +131,7 @@ export class Texture implements TextureRecord {
     if (counter === 'placement')
       composeUvTransform(this.transform, this.offset, this.repeat, this.rotation)
     this[counter]++
-    textureWritten(this.record)
+    textureJournals.written(this.record)
     this._listeners.emit()
   }
   /** A new texture showing the same picture with the same settings. */

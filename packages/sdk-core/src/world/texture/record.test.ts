@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Texture } from './texture.ts'
-import { closeTextureJournal, openTextureJournal } from '../../texture/writes.ts'
+import { textureJournals } from '../../texture/writes.ts'
 
 /** The general composition, about a pivot (`cx`, `cy`), as nine numbers column by column: the
  *  oracle a texture's own transform is held to, at a pivot of zero. */
@@ -40,21 +40,21 @@ test('a placement write composes the transform to the bit of the pivoted composi
 
 test('a write lands the record its holders hold in every open journal, once', () => {
   const texture = new Texture(null)
-  const journal = openTextureJournal()
+  const journal = textureJournals.open()
   texture.repeat.set(2, 2)
   texture.wrap = 'repeat'
   texture.needsUpdate = true
   assert.deepEqual([...journal], [texture], 'the proxy, not its target')
   journal.clear()
-  closeTextureJournal(journal)
+  textureJournals.close(journal)
   texture.rotation = 1
   assert.equal(journal.size, 0, 'a closed journal hears nothing')
 })
 
 test('one write among ten thousand textures journals one record', () => {
   const textures = Array.from({ length: 10_000 }, () => new Texture(null))
-  const journal = openTextureJournal()
+  const journal = textureJournals.open()
   textures[4321].offset.x = 0.5
   assert.deepEqual([...journal], [textures[4321]])
-  closeTextureJournal(journal)
+  textureJournals.close(journal)
 })

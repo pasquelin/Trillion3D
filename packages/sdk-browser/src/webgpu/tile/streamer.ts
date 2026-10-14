@@ -11,8 +11,8 @@ import { createTileRequests } from './requests.ts'
 import { createTileGrowth } from './growth.ts'
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts'
 import { createCardTiles, type CardOptions } from './cardTiles.ts'
-import { closeTextureJournal, openTextureJournal } from '../../../../sdk-core/src/texture/writes.ts'
-import { closeSurfaceJournal, openSurfaceJournal } from '../../page/surfaceWrites.ts'
+import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
+import { surfaceJournals } from '../../page/surfaceWrites.ts'
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -94,8 +94,8 @@ export function createWebgpuTileStreamer(options: {
   const published = createTilePublish(device, feedback, atlases)
   const flushAll = () => atlases.forEach((atlas) => atlas.flush(device))
   // The texture and surface records written since the last render; closed at `destroy`.
-  const journal = openTextureJournal(),
-    surfaces = openSurfaceJournal()
+  const journal = textureJournals.open(),
+    surfaces = surfaceJournals.open()
   const followHeaders = samplingHeaders(color, data, journal, surfaces)
   return {
     color,
@@ -202,8 +202,8 @@ export function createWebgpuTileStreamer(options: {
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       cards.dispose()
-      closeTextureJournal(journal)
-      closeSurfaceJournal(surfaces)
+      textureJournals.close(journal)
+      surfaceJournals.close(surfaces)
       sources.destroy()
       published.destroy()
       feedback.destroy()
