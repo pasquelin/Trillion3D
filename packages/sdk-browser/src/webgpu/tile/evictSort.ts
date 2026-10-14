@@ -1,42 +1,36 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
-import { encodePoolSort, POOL_SORT_STAGES, POOL_SORT_WORDS } from '../../gpu/pool/sort.ts'
+import {
+  encodePoolSort,
+  POOL_SORT_STAGES,
+  POOL_SORT_WORDS,
+  poolScratchWords,
+  type PoolSortStage,
+} from '../../gpu/pool/sort.ts'
+import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { groupWidth } from '../../gpu/dispatch/grid.ts'
+import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
+import { uniformSlots } from '../../residency/pools.ts'
 import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
 import { TEXTURE_EVICTION_PASS } from '../../stage/passLabels.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
+import { POOL_MAX_LAYERS, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { TILE_BURST, TILE_SORT_WGSL } from './evictSortWgsl.ts'
+import { createQueueCuts, TILE_QUEUES, TILE_QUEUE_WORDS, type TileQueueCut } from './queueCut.ts'
 import type { TileSlotUse } from './slotUse.ts'
-import type { WebgpuTilePool } from './pool.ts'
 
-/** Words of one lane's queue: its count, then its places. */
-const TILE_QUEUE_WORDS = 1 + TILE_BURST
-/** Queues the sort fills: a lane of each of the two atlases. */
-const TILE_QUEUES = 2 * PREVIEW_LAYOUT_NAMES.length
-/** Bytes between two lanes' uniforms: WebGPU's dynamic offset alignment. */
-const UNIFORM_STRIDE = 256
-/** Cut records in turn: more than the feedback readbacks in flight (`feedback.ts`). */
-const CUTS = 4
-
-/** The queues a frame cut, carried by the feedback readback that copies `buffer`'s `bytes`
- *  (`feedback.ts`): `read` hands each lane sorted its queue. */
-export type TileQueueCut = {
-  readonly buffer: GPUBuffer
-  readonly bytes: number
-  read(words: Uint32Array): void
-}
-
-type Cut = TileQueueCut & {
-  pools: (WebgpuTilePool | undefined)[]
-  arrivals: Uint32Array
-}
+/** Words of a lane's uniform: its first place, its places, the clock, its queue's first word. */
+const UNIFORM_WORDS = 4
 
 /**
  * THE TILE POOLS' VICTIM QUEUES (#1527): after the feedback reduction stamped the places its pixels
  * read (`stampWgsl.ts`), each lane pool short of a burst of free places is ranked on the GPU
  * (`evictSortWgsl.ts`), its queue copied back with the feedback list, and followed by the pool when
  * it lands (`placeOrder.ts`) with the arrivals it had at the cut. A pool with a burst free asks
- * none: its next arrivals take free places. Pipelines compiled off the frame.
+ * none: its next arrivals take free places. Nor does a pool whose queue holds victims, none of its
+ * places arrived, pinned or unpinned since its last cut, and no pixel stamped since — or its cut is
+ * younger than a use protects (`EVICT_IN_USE`): its queue names what a new one would, or a place
+ * read less than then. Pipelines compiled off the frame.
  */
 export function createTileEvictions(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
@@ -44,59 +38,44 @@ export function createTileEvictions(device: GPUDevice) {
       computeBufferEntry(0, 'read-only-storage'),
       computeBufferEntry(1, 'storage'),
       computeBufferEntry(2, 'storage'),
-      computeUniformEntry(3, { hasDynamicOffset: true, minBindingSize: 16 }),
+      computeUniformEntry(3, { hasDynamicOffset: true, minBindingSize: UNIFORM_WORDS * 4 }),
     ],
   })
-  const module = device.createShaderModule({
-    label: TEXTURE_EVICTION_PASS,
-    code: TILE_SORT_WGSL,
-  })
+  const module = device.createShaderModule({ label: TEXTURE_EVICTION_PASS, code: TILE_SORT_WGSL })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const [count, place, scatter] = POOL_SORT_STAGES.map((entryPoint) =>
-    started(
-      preparedComputePipeline(device, {
-        label: `Trillion3D texture eviction ${entryPoint}`,
-        layout: pipelineLayout,
-        compute: { module, entryPoint },
-      }),
-    ),
+  const stages = new Map(
+    POOL_SORT_STAGES.map((entryPoint) => [
+      entryPoint,
+      started(
+        preparedComputePipeline(device, {
+          label: `Trillion3D texture eviction ${entryPoint}`,
+          layout: pipelineLayout,
+          compute: { module, entryPoint },
+        }),
+      ),
+    ]),
   )
+  const pipelineOf = (stage: PoolSortStage) => stages.get(stage)!.get()
   const buffer = (label: string, size: number, usage: number) =>
     device.createBuffer({ label: `Trillion3D texture eviction ${label}`, size, usage })
-  const sortWords = buffer('counts', POOL_SORT_WORDS * 4, GPUBufferUsage.STORAGE)
-  const queues = buffer(
-    'queues',
-    TILE_QUEUES * TILE_QUEUE_WORDS * 4,
-    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  // The sort's words, then its scratch over the most places a lane pool holds.
+  const sortBytes =
+    (POOL_SORT_WORDS + poolScratchWords(POOL_MAX_LAYERS * TILES_PER_LAYER, TILE_BURST)) * 4
+  const sortWords = buffer('counts', sortBytes, GPUBufferUsage.STORAGE)
+  const cuts = createQueueCuts((bytes) =>
+    buffer('queues', bytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC),
   )
-  const uniform = buffer(
-    'uniforms',
-    TILE_QUEUES * UNIFORM_STRIDE,
-    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  )
-  const words = new Uint32Array((TILE_QUEUES * UNIFORM_STRIDE) / 4)
+  const slots = uniformSlots(device.limits, TILE_QUEUES, UNIFORM_WORDS)
+  const uniform = buffer('uniforms', slots.bytes, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+  const words = new Uint32Array(slots.bytes / 4)
   const bound = [createWebgpuBindIdentity(), createWebgpuBindIdentity()]
   const groups: GPUBindGroup[] = []
   const width = groupWidth(device.limits)
-  const cut = (): Cut => {
-    const made: Cut = {
-      buffer: queues,
-      bytes: TILE_QUEUES * TILE_QUEUE_WORDS * 4,
-      pools: new Array(TILE_QUEUES).fill(undefined),
-      arrivals: new Uint32Array(TILE_QUEUES),
-      read(queueWords) {
-        made.pools.forEach((pool, q) =>
-          pool?.follow(
-            queueWords.subarray(q * TILE_QUEUE_WORDS, (q + 1) * TILE_QUEUE_WORDS),
-            made.arrivals[q],
-          ),
-        )
-      },
-    }
-    return made
-  }
-  const cuts = Array.from({ length: CUTS }, cut)
-  let turn = 0
+  /** Per queue: the clock and the pool's arrivals at its last cut. */
+  const cutClock = new Uint32Array(TILE_QUEUES),
+    cutArrivals = new Uint32Array(TILE_QUEUES)
+  /** Whether a pixel stamped since each queue's last cut. */
+  const stampedSince = new Uint8Array(TILE_QUEUES)
   /** The group of atlas `a`, rebuilt when its places' words moved. */
   const groupOf = (a: number, use: GPUBuffer) => {
     bound[a].next[0] = use
@@ -106,57 +85,64 @@ export function createTileEvictions(device: GPUDevice) {
         entries: [
           { binding: 0, resource: { buffer: use } },
           { binding: 1, resource: { buffer: sortWords } },
-          { binding: 2, resource: { buffer: queues } },
-          { binding: 3, resource: { buffer: uniform, size: 16 } },
+          { binding: 2, resource: { buffer: cuts.buffer } },
+          { binding: 3, resource: { buffer: uniform, size: UNIFORM_WORDS * 4 } },
         ],
       })
     return groups[a]
   }
   return {
-    /** Ranks every lane pool of `atlases` short of a burst of free places, at `clock`; the cut to
-     *  carry back, none when no pool asked. */
+    /** Ranks every lane pool of `atlases` short of a burst of free places whose queue may have
+     *  moved, at `clock`, `stamped` when a pixel stamped this image; the cut to carry back, none
+     *  when no pool asked. */
     encode(
       encoder: GPUCommandEncoder,
       atlases: readonly { slotUse: TileSlotUse }[],
       clock: number,
+      stamped: boolean,
     ): TileQueueCut | undefined {
-      const record = cuts[turn]
+      const record = cuts.next()
+      const lanes = PREVIEW_LAYOUT_NAMES.length
       let sorted = 0
-      atlases.forEach(({ slotUse }, a) =>
-        slotUse.pools.forEach((pool, lane) => {
-          const q = a * PREVIEW_LAYOUT_NAMES.length + lane
-          record.pools[q] = undefined
-          if (!pool || pool.tiles - pool.resident >= TILE_BURST) return
-          record.pools[q] = pool
-          record.arrivals[q] = pool.arrivals
-          const at = (q * UNIFORM_STRIDE) / 4
-          words[at] = slotUse.base(lane)
-          words[at + 1] = pool.tiles
-          words[at + 2] = clock
-          words[at + 3] = q * TILE_QUEUE_WORDS
-          sorted++
-        }),
-      )
+      for (let q = 0; q < TILE_QUEUES; q++) {
+        if (stamped) stampedSince[q] = 1
+        const { slotUse } = atlases[Math.floor(q / lanes)] ?? {},
+          pool = slotUse?.pools[q % lanes]
+        record.pools[q] = undefined
+        if (!slotUse || !pool || pool.tiles - pool.resident >= TILE_BURST) continue
+        const held =
+          pool.victims() > 0 &&
+          pool.arrivals === cutArrivals[q] &&
+          (!stampedSince[q] || clock - cutClock[q] < EVICT_IN_USE)
+        if (held) continue
+        record.pools[q] = pool
+        record.arrivals[q] = cutArrivals[q] = pool.arrivals
+        cutClock[q] = clock
+        stampedSince[q] = 0
+        const at = q * slots.strideWords
+        words[at] = slotUse.base(q % lanes)
+        words[at + 1] = pool.tiles
+        words[at + 2] = clock
+        words[at + 3] = q * TILE_QUEUE_WORDS
+        sorted++
+      }
       if (!sorted) return undefined
-      device.queue.writeBuffer(uniform, 0, words)
-      const pipelines = { count: count.get(), place: place.get(), scatter: scatter.get() }
+      writeChangedSlots(device, uniform, words, slots)
       const pass = encoder.beginComputePass({ label: TEXTURE_EVICTION_PASS })
-      atlases.forEach(({ slotUse }, a) =>
-        slotUse.pools.forEach((_, lane) => {
-          const q = a * PREVIEW_LAYOUT_NAMES.length + lane,
-            pool = record.pools[q]
-          if (!pool) return
-          pass.setBindGroup(0, groupOf(a, slotUse.buffer), [q * UNIFORM_STRIDE])
-          encodePoolSort(pass, pipelines, pool.tiles, width)
-        }),
-      )
+      for (let q = 0; q < TILE_QUEUES; q++) {
+        const pool = record.pools[q]
+        if (!pool) continue
+        const { slotUse } = atlases[Math.floor(q / lanes)]
+        pass.setBindGroup(0, groupOf(Math.floor(q / lanes), slotUse.buffer), slots.offset(q))
+        encodePoolSort(pass, pipelineOf, pool.tiles, width)
+      }
       pass.end()
-      turn = (turn + 1) % CUTS
+      cuts.turn()
       return record
     },
     destroy() {
       sortWords.destroy()
-      queues.destroy()
+      cuts.buffer.destroy()
       uniform.destroy()
     },
   }

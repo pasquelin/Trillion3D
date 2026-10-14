@@ -49,7 +49,7 @@ function scene() {
       const at = TILE_USE_HEADER + 2 * (use[read.lane] + read.index)
       use[at] = Math.max(use[at], now.clock)
     }
-    const cut = evictions.encode(device.createCommandEncoder(), [atlas], now.clock)
+    const cut = evictions.encode(device.createCommandEncoder(), [atlas], now.clock, true)
     cut?.read(words((cut.buffer as unknown as { data: Uint8Array }).data))
     now.clock++
   }

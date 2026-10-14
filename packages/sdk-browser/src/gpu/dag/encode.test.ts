@@ -89,14 +89,18 @@ test('the camera cut sorts its requests once, then lists its evictions over the 
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
-  // The pool sort runs a thread a slot of the list's 4096, in sixteen groups of 256: no group
-  // walks more than its own slots, whatever the pool (`../pool/sortWgsl.ts`).
-  assert.deepEqual(dispatches.slice(-5), [
+  // The pool sort runs over the list's 4096 slots in sixteen groups of 256, its ranks, offsets and
+  // staged slots in one workgroup: no group walks more than its own slots, whatever the pool
+  // (`../pool/sortWgsl.ts`).
+  assert.deepEqual(dispatches.slice(-8), [
     { kernel: 'dagSortRequests', groups: 1 },
     { kernel: 'dagRaiseParents', groups: 1 },
     { kernel: 'poolCount', groups: 16 },
     { kernel: 'poolPlace', groups: 1 },
-    { kernel: 'poolScatter', groups: 16 },
+    { kernel: 'poolGroups', groups: 16 },
+    { kernel: 'poolOffsets', groups: 1 },
+    { kernel: 'poolSpread', groups: 16 },
+    { kernel: 'poolScatter', groups: 1 },
   ])
   assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)
 })

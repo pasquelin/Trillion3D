@@ -1,5 +1,5 @@
-// The shadow pool's free pages (`freePagesWgsl.ts`): the shipped pool sort — its three stages,
-// workgroup by workgroup — run over a made-up pool, then the grant's pops. A page wanted this
+// The shadow pool's free pages (`freePagesWgsl.ts`): the shipped pool sort — its stages, workgroup
+// by workgroup (`sortRun.fixture.ts`) — run over a made-up pool, then the grant's pops. A page wanted this
 // frame is never taken; an empty page goes first; then the page wanted longest ago by age step,
 // the finer level first within a step — where the age order of before took the older page.
 import test from 'node:test'
@@ -9,35 +9,30 @@ import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { POOL_RANKS } from '../gpu/pool/rank.ts'
-import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sort.ts'
+import { runPoolSort } from '../gpu/pool/sortRun.fixture.ts'
 
 const CODE = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 })).poolCount.code
-const LANES = 256
-const HOST = ['poolSlotCount', 'poolSlotAge', 'poolSlotTier', 'poolInUse', 'poolBurst']
-const WORDS = ['poolCountAdd', 'poolCountLoad', 'poolCountStore', 'poolPlaced', 'poolEmit']
-const FREE = ['pmPop', 'pmFreeCount', 'pmFreeAt']
+/** The shadow pool's side of the sort: its ranks, its words and its free pages. */
+const HOST = [
+  ...['poolSlotRank', 'poolRank', 'bitLength', 'poolSlotCount', 'poolSlotAge', 'poolSlotTier'],
+  ...['poolInUse', 'poolBurst', 'poolPlaced', 'poolEmit', 'poolCountAdd', 'poolCountLoad'],
+  ...['poolCountStore', 'poolScratchLoad', 'poolScratchStore', 'pmFreeCount', 'pmFreeAt'],
+]
 
 type Page = { flags: number; lastWantedStamp: number; mapId: number; mipLevel: number }
-type Run = {
-  poolCount: (id: number[], n: number[], lane: number) => void
-  poolPlace: () => void
-  poolScatter: (id: number[], n: number[]) => void
-  pmPop: () => number
-  pmFreeCount: () => number
-}
-const BARRIER = Symbol('barrier')
+type Free = { pmPop: () => number; pmFreeCount: () => number }
 
 /** The pages `pmPop` hands out after one sort of `pages` at `frame`, in order, and the free count
  *  the feedback reads before them. */
-function popAll(pages: Page[], frame: number, mapLevels: number[]) {
-  const freePages = new Array<number>(POOL_SORT_WORDS + 1 + pages.length).fill(0)
-  const poolLocal = new Array<number>(POOL_RANKS).fill(0)
+function popAll(pages: Page[], frame: number, mapLevels: number[], seed = 1) {
+  const words = POOL_SORT_WORDS + 1 + pages.length + poolScratchWords(pages.length, pages.length)
+  const freePages = new Array<number>(words).fill(0)
   const scope = {
     vsm: { poolPages: pages.length, frameStamp: frame },
     vsmPoolPageInfo: pages,
     vsmProjectionData: mapLevels.map((mapLevel) => ({ mapLevel })),
     vsmFreePages: freePages,
-    poolLocal,
     atomicSub: (p: { get(): number; set(v: number): void }, v: number) => {
       const old = p.get()
       p.set(old - v)
@@ -45,39 +40,12 @@ function popAll(pages: Page[], frame: number, mapLevels: number[]) {
     },
     bitcast_i32: (x: number) => x | 0,
   }
-  const names = ['poolCount', 'poolPlace', 'poolScatter', 'poolSlotRank', 'poolRank', 'flatIndex']
-  const all = [...names, 'bitLength', ...HOST, ...WORDS, ...FREE]
-  // The count's halves either side of its barrier: every lane's local count, then every lane's
-  // flush of the group's counts, a lane counting nothing.
-  const counting = shaderRun<Run>(CODE, all, {
-    ...scope,
-    workgroupBarrier() {
-      throw BARRIER
-    },
-  })
-  const flushing = shaderRun<Run>(
-    CODE,
-    all.filter((name) => name !== 'poolSlotRank'),
-    { ...scope, workgroupBarrier() {}, poolSlotRank: () => POOL_RANKS },
-  )
-  const groups = Math.ceil(pages.length / LANES),
-    n = [groups, 1, 1]
-  for (let g = 0; g < groups; g++) {
-    poolLocal.fill(0)
-    for (let lane = 0; lane < LANES; lane++)
-      try {
-        counting.poolCount([g * LANES + lane, 0, 0], n, lane)
-      } catch (stop) {
-        if (stop !== BARRIER) throw stop
-      }
-    for (let lane = 0; lane < LANES; lane++) flushing.poolCount([g * LANES + lane, 0, 0], n, lane)
-  }
-  counting.poolPlace()
-  for (let j = 0; j < groups * LANES; j++) counting.poolScatter([j, 0, 0], n)
-  const free = counting.pmFreeCount(),
+  runPoolSort(CODE, HOST, scope, pages.length, mulberry32(seed))
+  const free = shaderRun<Free>(CODE, ['pmPop', 'pmFreeCount', 'pmFreeAt'], scope)
+  const count = free.pmFreeCount(),
     popped: number[] = []
-  for (let p; (p = counting.pmPop()) >= 0;) popped.push(p)
-  return { free, popped, counts: freePages.slice(0, POOL_RANKS) }
+  for (let p; (p = free.pmPop()) >= 0;) popped.push(p)
+  return { free: count, popped, counts: freePages.slice(0, POOL_RANKS) }
 }
 
 const step = (age: number) => 32 - Math.clz32(age)
@@ -122,6 +90,8 @@ test('the free pages: the empty ones, then by age step, the finer level first; n
     }
     // The counts zeroed for the next frame's sort.
     assert.ok(counts.every((c) => c === 0))
+    // Its threads in another order, the same pages in the same order.
+    assert.deepEqual(popAll(pages, frame, mapLevels, 2).popped, popped)
   }
 })
 

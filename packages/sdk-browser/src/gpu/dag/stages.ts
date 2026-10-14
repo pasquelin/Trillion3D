@@ -2,7 +2,7 @@ import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import type { CutSteps } from './cutSteps.ts'
-import { POOL_SORT_STAGES, poolSortPipelines } from '../pool/sort.ts'
+import { POOL_SORT_STAGES, type PoolSortStage } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a device whose dispatch width is not WebGPU's
@@ -65,7 +65,7 @@ export async function createDagStages(
     /** The groups replacing the groups the cut raised, raised with them (`shader/lastUseWgsl.ts`). */
     raisePipeline: stage.dagRaiseParents,
     /** The eviction queue: the pool's sort (`shader/evictWgsl.ts`). */
-    evictSort: poolSortPipelines(stage),
+    evictSort: (name: PoolSortStage) => stage[name],
     /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
     differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
     keepPipelines: KEEP_STAGES.map((name) => stage[name]),

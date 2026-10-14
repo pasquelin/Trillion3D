@@ -16,7 +16,7 @@ import { PICK_CYCLE } from './pickCycle.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { feedbackBuffers } from './feedbackBuffers.ts'
-import type { TileQueueCut } from './evictSort.ts'
+import type { TileQueueCut } from './queueCut.ts'
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore

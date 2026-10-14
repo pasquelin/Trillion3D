@@ -31,7 +31,9 @@ export function createTilePublish(
     ) {
       if (target) reduce.encode(encoder, target, feedback, size, feedback.phaseWord(every), stamp)
       // A queue rides the feedback's readback: none is cut when no buffer is free to carry it.
-      const cut = feedback.available() ? evictions.encode(encoder, atlases, stamp.clock) : undefined
+      const cut = feedback.available()
+        ? evictions.encode(encoder, atlases, stamp.clock, target !== undefined)
+        : undefined
       feedback.encode(encoder, cut)
       stamp.clock++
     },

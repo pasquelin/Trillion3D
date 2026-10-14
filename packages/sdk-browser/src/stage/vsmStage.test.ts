@@ -18,6 +18,7 @@ test('every virtual shadow map pass label the engine can emit lands in the Shado
     'vsm/markingPass.ts',
     'vsm/projectionPass.ts',
     'vsm/invalidationPass.ts',
+    'vsm/pageManagementEncode.ts',
     'vsm/pageManagementPass.ts',
     'vsm/transmissionPass.ts',
     'vsm/renderPass.ts',

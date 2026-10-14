@@ -20,7 +20,7 @@ import {
   VSM_TILE_DEPTHS_PER_PAGE,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from '../gpu/pool/sort.ts'
 import {
   alignUp,
   ceilDiv,
@@ -217,8 +217,9 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     clearArgs: 16,
     mergeArgs: 2 * 16,
     tileArgs: 2 * 16,
-    // The pool sort's counts and places, then the free pages' count and the pages (`freePages`).
-    freePages: (POOL_SORT_WORDS + 1 + maxPages) * 4,
+    // The pool sort's words, the free pages' count and the pages, then the sort's scratch, the
+    // whole pool a burst (`freePages`).
+    freePages: (POOL_SORT_WORDS + 1 + maxPages + poolScratchWords(maxPages, maxPages)) * 4,
   }
 }
 

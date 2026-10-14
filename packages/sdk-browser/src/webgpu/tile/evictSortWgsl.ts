@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { POOL_SORT_WGSL } from '../../gpu/pool/sortWgsl.ts'
+import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../gpu/pool/sortWgsl.ts'
+import { POOL_SORT_WORDS } from '../../gpu/pool/sort.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { TILE_UNRANKED, TILE_USE_HEADER } from './slotUse.ts'
 
@@ -30,11 +31,15 @@ fn poolSlotAge(j:u32)->u32{
 fn poolSlotTier(j:u32)->u32{return placeUse[placeWord(j)+1u];}
 fn poolInUse()->u32{return ${EVICT_IN_USE}u;}
 fn poolBurst()->u32{return ${TILE_BURST}u;}
-fn poolCountAdd(i:u32,v:u32)->u32{return atomicAdd(&sortWords[i],v);}
-fn poolCountLoad(i:u32)->u32{return atomicLoad(&sortWords[i]);}
-fn poolCountStore(i:u32,v:u32){atomicStore(&sortWords[i],v);}
 fn poolPlaced(total:u32){queues[sortUni.queueAt]=min(total,${TILE_BURST}u);}
 fn poolEmit(at:u32,j:u32){queues[sortUni.queueAt+1u+at]=j;}
 `,
-  [POOL_SORT_WGSL],
+  [
+    POOL_SORT_WGSL,
+    poolSortWordsWgsl(
+      'sortWords',
+      (i) => i,
+      (i) => `${POOL_SORT_WORDS}u+${i}`,
+    ),
+  ],
 )

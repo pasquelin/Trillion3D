@@ -10,12 +10,13 @@
  *   step, its level the tier: the finer level first within a step.
  * - A page wanted this frame is in use: never listed, never taken.
  *
- * `vsmFreePages` holds the sort's counts and places (`POOL_SORT_WORDS`, zero at creation), then
- * the count of free pages, then the pages: the queue's head at the top, where `pmPop` takes it.
+ * `vsmFreePages` holds the sort's words (`POOL_SORT_WORDS`, zero at creation), then the count of
+ * free pages, then the pages: the queue's head at the top, where `pmPop` takes it; then the sort's
+ * scratch over the pool's pages (`poolScratchWords`).
  */
 import { POOL_AGES } from '../gpu/pool/rank.ts'
 import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
-import { POOL_SORT_WGSL } from '../gpu/pool/sortWgsl.ts'
+import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../gpu/pool/sortWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The free pages' count and pages, behind the sort's words; `pmPop` takes the top one. */
@@ -43,7 +44,15 @@ fn pmPop()->i32{
  */
 export const VSM_POOL_SORT_WGSL = wgslBlock(
   'VSM_POOL_SORT_WGSL',
-  [POOL_SORT_WGSL, VSM_FREE_PAGES_WGSL],
+  [
+    POOL_SORT_WGSL,
+    VSM_FREE_PAGES_WGSL,
+    poolSortWordsWgsl(
+      'vsmFreePages',
+      (i) => i,
+      (i) => `PM_FREE_COUNT+1u+vsm.poolPages+${i}`,
+    ),
+  ],
   `/** The age of a page no map holds: the last age step, the first taken. */
 const PM_AGE_EMPTY:u32=0xffffffffu;
 /** A kept page's age stops a step under the empty pages' (\`poolRank\`): taken after every one. */
@@ -64,9 +73,6 @@ fn poolSlotTier(j:u32)->u32{
 /** Only a page wanted this frame is in use: one wanted last frame and not now may be taken. */
 fn poolInUse()->u32{return 1u;}
 fn poolBurst()->u32{return vsm.poolPages;}
-fn poolCountAdd(i:u32,v:u32)->u32{return atomicAdd(&vsmFreePages[i],v);}
-fn poolCountLoad(i:u32)->u32{return atomicLoad(&vsmFreePages[i]);}
-fn poolCountStore(i:u32,v:u32){atomicStore(&vsmFreePages[i],v);}
 fn poolPlaced(total:u32){atomicStore(&vsmFreePages[PM_FREE_COUNT],total);}
 /** The queue's entry \`at\` (0 its head) as the stack's \`total − 1 − at\`: the head is popped first. */
 fn poolEmit(at:u32,j:u32){

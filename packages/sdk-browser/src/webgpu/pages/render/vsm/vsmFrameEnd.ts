@@ -2,7 +2,7 @@
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { VSM_COUNTERS } from '../../../../vsm/constants.ts'
 import { finishVirtualShadowFrame } from '../../../../vsm/frameSetup.ts'
-import { keepVsmFrame } from '../../../../vsm/pageManagementPass.ts'
+import { keepVsmFrame } from '../../../../vsm/pageManagementEncode.ts'
 import { noteVsmFrame, stampVsmStats } from '../../state/vsmSettle.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { rowBinsSubmitted } from '../../../../vsm/rowBinsGpu.ts'

@@ -1,11 +1,11 @@
 import { POOL_RANKS } from './rank.ts'
 
 /**
- * CPU mirror of the pool sort's three dispatches (`sortWgsl.ts`), workgroup by workgroup: each
- * group of `lanes` counts its slots' ranks, then adds them to the global counters; one thread places
- * the ranks from the highest down; each slot then takes its rank's next place, those under `burst`
- * named. `rankOf(j)` is slot `j`'s rank, `POOL_RANKS` in use. Within a rank, slot order — the GPU's is
- * the threads', which the rank alone orders. Returns the queue of slots and the total ranked.
+ * CPU mirror of the pool sort (`sortWgsl.ts`): each group of `lanes` counts its slots' ranks, then
+ * adds them to the global counters; the ranks are placed from the highest down; each slot then
+ * takes its rank's next place, those under `burst` named. `rankOf(j)` is slot `j`'s rank,
+ * `POOL_RANKS` in use. Within a rank, slot order, as the GPU's stable sort gives it. Returns the
+ * queue of slots and the total ranked.
  */
 export function sortPool(slots: number, rankOf: (j: number) => number, burst: number, lanes = 256) {
   const counts = new Uint32Array(POOL_RANKS),
