@@ -94,14 +94,12 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
   if(historyCount(kept)>=REFLECTION_HISTORY){return kept;}
  }
  let coord=halfPixel(at,freshPick(fresh));
- let P=surfacePointAt(layer,coord);
- let normal=surfaceNormalAt(coord);
- let N=normalize(normal.xyz);
- let V=viewToEye(P);
+ let own=reflectingPixelAt(layer,coord,0u);
+ let P=own.P;let N=own.N;let V=own.V;
  let now=texelReflected(fresh);
  let hit=freshHit(fresh);
  var aim=vec4f(P,1.0);
- if(!reflectionSampled(lobeAlpha(normal.a))){
+ if(!reflectionSampled(lobeAlpha(own.rough))){
   aim=select(vec4f(P-V*hit,1.0),vec4f(-V,0.0),hit>=HALF_MAX);
  }
  let held=temporalHistory(P,N,V,aim,vec2f(at*2+vec2i(1))-vec2f(coord)-vec2f(0.5));

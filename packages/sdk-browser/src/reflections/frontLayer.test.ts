@@ -75,7 +75,7 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
   for (const kernel of [
     'textureStore(traceOut,id.xy,traceTexel(id.xy,1u));',
     'textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),1u));',
-    'surfacePointAt(1u,coord)',
+    'reflectingPixelAt(1u,coord,0u)',
   ])
     assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
   assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))

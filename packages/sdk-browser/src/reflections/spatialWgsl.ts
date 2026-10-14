@@ -28,9 +28,8 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let radius=freshRadius(centre);
  if(!freshValid(centre)||radius==0u){return centre;}
  let coord=halfPixel(at,freshPick(centre));
- let P=surfacePointAt(layer,coord);
- let N=normalize(surfaceNormalAt(coord).xyz);
- let V=viewToEye(P);
+ let own=reflectingPixelAt(layer,coord,0u);
+ let P=own.P;let N=own.N;let V=own.V;
  let depth=reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));
  let last=vec2i(textureDimensions(spatialIn))-vec2i(1);
  let turn=f32(reflectionView.temporal.x%REFLECTION_SEQUENCE)*GOLDEN_ANGLE;

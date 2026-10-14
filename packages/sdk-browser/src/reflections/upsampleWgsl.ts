@@ -1,7 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
-import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
 import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
@@ -56,13 +55,9 @@ fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){
  let coord=vec2i(id.xy);
  let flags=surfaceFlagsAt(coord);
  if(!surfaceReflects(flags)){return;}
- let P=surfacePointAt(0u,coord);
- let normal=surfaceNormalAt(coord);
- let N=normalize(normal.xyz);
- let V=viewToEye(P);
- if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(surfaceLobesAt(coord),1.0,N,V,normal.a);}
+ let own=reflectingPixelAt(0u,coord,flags);
  let base=textureLoad(traceBase,coord,0);
- let share=reflectionShare(upsampled(0u,coord,P,N,V),f0Of(base.rgb,base.a),normal.a,N,V);
+ let share=reflectionShare(upsampled(0u,coord,own.P,own.N,own.V),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
  textureStore(traceOut,coord,vec4f(share,1.0));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
@@ -70,8 +65,8 @@ fn upsampleFront(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)){return;}
  let coord=vec2i(id.xy);
  if(!surfaceReflects(surfaceFlagsAt(coord))){return;}
- let P=surfacePointAt(1u,coord);
- let traced=upsampled(1u,coord,P,normalize(surfaceNormalAt(coord).xyz),viewToEye(P));
+ let own=reflectingPixelAt(1u,coord,0u);
+ let traced=upsampled(1u,coord,own.P,own.N,own.V);
  textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),0u,0u));
 }`,
 )

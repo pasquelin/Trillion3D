@@ -5,7 +5,6 @@ import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../lighting/direct/lobes
 import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
 import { BOUNCE_GRID_WGSL } from '../bounce/gridWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel.ts'
-import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_TRACE_BINDINGS as B, TRACE_SCENE_BINDINGS } from './halfBindings.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
@@ -115,16 +114,11 @@ fn traceTexel(block:vec2u,layer:u32)->vec4u{
  let pick=halfPick(block,layer);
  if(pick==0u){return vec4u(0u);}
  let coord=halfPixel(vec2i(block),pick);
- let flags=surfaceFlagsAt(coord);
- let P=surfacePointAt(layer,coord);
- let normal=surfaceNormalAt(coord);
- let N=normalize(normal.xyz);
- let V=viewToEye(P);
- if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(surfaceLobesAt(coord),1.0,N,V,normal.a);}
- let traced=reflectionTrace(P,N,V,normal.a,reflectionSampleAt(block,layer));
+ let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
+ let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(block,layer));
  // A sampled lobe's ray is shared with the neighbours a rougher one reaches; a mirror's is its own.
- let reach=min(REFLECTION_REUSE_RADIUS,u32(ceil(f32(REFLECTION_REUSE_RADIUS)*normal.a)));
- return freshPack(traced,reflectionHit,pick,select(0u,reach,reflectionSampled(lobeAlpha(normal.a))));
+ let reach=min(REFLECTION_REUSE_RADIUS,u32(ceil(f32(REFLECTION_REUSE_RADIUS)*own.rough)));
+ return freshPack(traced,reflectionHit,pick,select(0u,reach,reflectionSampled(lobeAlpha(own.rough))));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceOpaque(@builtin(global_invocation_id) id:vec3u){
