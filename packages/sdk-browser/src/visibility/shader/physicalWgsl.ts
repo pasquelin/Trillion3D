@@ -1,8 +1,7 @@
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { PHYSICAL_RECORD_MASK } from '../types.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
-import { PHYSICAL_ROW_RECORDS } from '../../webgpu/visibility/physicalTable.ts'
+import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import {
   LOBE_PACK_WGSL,
   PHYSICAL_LOBES_FORMAT,
@@ -15,26 +14,12 @@ import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { unitToSigned2, unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { bitIsSet } from '../../../../math/src/wgsl/integer.ts'
 
-/** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
- *  read from its three texels: the very words the table holds. */
-export const physicalTableWgsl = (binding: number) =>
-  wgslBlock(
-    `physicalTableWgsl(${binding})`,
-    [],
-    `struct PhysicalInfo{lobes:vec4f,coatNormalScale:vec2f,channels:u32,pad:u32,maps:vec4u,}
-@group(0) @binding(${binding}) var physicalTable:texture_2d<u32>;
-fn physicalAt(i:u32)->PhysicalInfo{
- let at=vec2u((i%${PHYSICAL_ROW_RECORDS}u)*3u,i/${PHYSICAL_ROW_RECORDS}u);
- let a=textureLoad(physicalTable,at,0);let b=textureLoad(physicalTable,at+vec2u(1u,0u),0);
- return PhysicalInfo(bitcast<vec4f>(a),bitcast<vec2f>(b.xy),b.z,b.w,textureLoad(physicalTable,at+vec2u(2u,0u),0));
-}`,
-  )
-
 /**
  * The anisotropic and clear-coat lobes of a surface, from the Khronos material extension equations:
  * one implementation, which the opaque resolve (`PHYSICAL_RESOLVE_WGSL`, compiled into the
  * `HAS_PHYSICAL` class alone) and the blend pass (`../../webgpu/blend/physicalWgsl.ts`, its lobed
- * programs alone) both run. A pass sets the record (`physicalAt`) and the pixel's two UV sets —
+ * programs alone) both run. A pass sets the record (`physicalAt`, its surface's lobe extension in the material table,
+ * `../../webgpu/material/materialWgsl.ts`), `physicalOn`, and the pixel's two UV sets —
  * each a coordinate, its screen derivatives and its deltas along two displacements `e1`, `e2` of
  * the point, which a tangent frame is built from — and `sampled`, the expression its maps' filter
  * flag is read with.
@@ -60,6 +45,8 @@ export const physicalCoreWgsl = (sampled: string) =>
       bitIsSet,
     ],
     `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
+/** Whether the pixel's surface carries a lobe, its record read. */
+var<private> physicalOn:bool;
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
 var<private> physicalCoord1:PhysicalCoord;
@@ -151,8 +138,8 @@ export const PHYSICAL_TEXEL_WGSL = wgslBlock(
 )
 
 /**
- * The lobes in the opaque resolve (`shadeWgsl.ts`): run on a lit row that names a record
- * (`PageInfo.physical`), its triangle's edges the frame's displacements, its second UV set decoded
+ * The lobes in the opaque resolve (`shadeWgsl.ts`): run on a lit row whose surface's record names
+ * a lobe extension (`materialLobesOf`), its triangle's edges the frame's displacements, its second UV set decoded
  * at the triangle's corners (`pageUv1`). What the lighting needs is left in the lobes target
  * (`../../scene/physicalLobes.ts`) under `PHYSICAL_SURFACE_FLAG`, which a pixel with neither lobe
  * after its maps never carries. The target is full-size whenever a row names a record: it follows
@@ -164,7 +151,7 @@ export const PHYSICAL_RESOLVE_WGSL = wgslBlock(
   [
     physicalCoreWgsl('HAS_SAMPLING'),
     PHYSICAL_TEXEL_WGSL,
-    physicalTableWgsl(SHADE_BINDINGS.physical),
+    materialTableWgsl(SHADE_BINDINGS.material),
   ],
   `@group(0) @binding(${SHADE_BINDINGS.lobes}) var lobesOutput:texture_storage_2d<${PHYSICAL_LOBES_FORMAT},write>;
 /** The second UV set of triangle \`tri\` at the pixel, where its page has one; \`first\` otherwise. */
@@ -187,14 +174,17 @@ fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace
 
 /** What the resolve reads of a row's record before its tile request, spliced into
  *  \`shadeSurface\` where the triangle and the first UV set are known. */
-export const PHYSICAL_UV_READ = `if(HAS_PHYSICAL&&page.physical!=0u){
-  physicalRecord=physicalAt((page.physical&${PHYSICAL_RECORD_MASK}u)-1u);
+export const PHYSICAL_UV_READ = `var lobes=0u;
+ if(HAS_PHYSICAL){lobes=materialLobesOf(page.material);}
+ if(lobes!=0u){
+  physicalOn=true;
+  physicalRecord=physicalAt(lobes);
   physicalCoord0=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
   physicalCoord1=physicalCoord0;
   if(physicalRecord.channels!=0u){physicalCoord1=physicalSecondUv(page,tri,s0.xy,s1.xy,s2.xy,p,bary,t.iw,physicalCoord0);}
  }`
 
 /** The lobes of a lit pixel, once its normal and its flag are final. */
-export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&page.physical!=0u&&(page.flags&1u)!=0u){
+export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&physicalOn&&(page.flags&1u)!=0u){
   flag|=physicalLobes(pos.xy,N,coatBase,(w1-w0).xyz,(w2-w0).xyz,screenFace,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL));
  }`

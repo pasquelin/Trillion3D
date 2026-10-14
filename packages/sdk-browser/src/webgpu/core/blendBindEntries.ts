@@ -44,8 +44,8 @@ export type BlendBindResources = AtlasResources &
     items: GPUBuffer
     /** The float pool's normal atlas, or the empty one. */
     normals: GPUTextureView
-    /** The physical records (`../visibility/physicalTable.ts`), the opaque resolve's own. */
-    physical: GPUTextureView
+    /** The surfaces' records (`../material/materialTable.ts`), the opaque resolve's own. */
+    material: GPUTextureView
     /** Identity of a transparent cluster, one per draw-table entry. */
     clusterDiagnostic: GPUBuffer
     /** Instance list expanded for the image, and each cluster's span in the cache. */
@@ -106,9 +106,9 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   // the eight storage buffers WebGPU guarantees.
   proxyWorlds: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
   proxyTree: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
-  // The physical records a lobed blend reads (`../blend/physicalWgsl.ts`): a texture, the
-  // fragment stage holding the eight storage buffers WebGPU guarantees.
-  physical: ['fragment', { texture: { sampleType: 'uint' } }],
+  // The surfaces' records (`../material/materialTable.ts`): a texture, the fragment stage holding
+  // the eight storage buffers WebGPU guarantees.
+  material: ['fragment', { texture: { sampleType: 'uint' } }],
 }
 const SINGLES = Object.keys(BLEND_TABLE) as Single[]
 

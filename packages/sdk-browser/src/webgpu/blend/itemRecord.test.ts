@@ -11,7 +11,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 test('the item record table yields the shipped struct and its WGSL offsets', () => {
   assert.equal(
     wgslSource(BLEND_ITEM_WGSL),
-    'struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,physical:u32,}',
+    'struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,material:u32,}',
   )
   assert.equal(BLEND_ITEM_WORDS, 52)
   // The shipped struct's fields, laid out again by the one table rule the writer's words come from.
@@ -32,7 +32,7 @@ test('the item record table yields the shipped struct and its WGSL offsets', () 
     [30, 32, 35, 36, 40, 42],
   )
   assert.deepEqual(
-    [ITEM.subsurface, ITEM.deform, ITEM.deformInput, ITEM.deformOutput, ITEM.physical],
+    [ITEM.subsurface, ITEM.deform, ITEM.deformInput, ITEM.deformOutput, ITEM.material],
     [44, 48, 49, 50, 51],
   )
 })

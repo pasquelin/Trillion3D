@@ -1,4 +1,4 @@
-import { createPhysicalTable, type PhysicalTable } from '../../visibility/physicalTable.ts'
+import { createMaterialTable, type MaterialTable } from '../../material/materialTable.ts'
 import type { DeformationCompute } from '../../../deformation/compute.ts'
 import type * as DeformationCode from '../../../deformation/deformationCode.ts'
 import type { SessionDeformation } from '../../../deformation/session.ts'
@@ -130,8 +130,8 @@ export interface WebgpuVisState {
   deformation: SessionDeformation | undefined
   mapLayer: Map<Texture, number>
   dataLayer: Map<Texture, number>
-  /** The surfaces' anisotropic and clear-coat records the resolve reads (`physicalTable.ts`). */
-  physicalTable: PhysicalTable
+  /** The surfaces' records every pass reads (`../../material/materialTable.ts`). */
+  materialTable: MaterialTable
 }
 
 export function createWebgpuVisState(): WebgpuVisState {
@@ -192,6 +192,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     deformation: undefined,
     mapLayer: new Map(),
     dataLayer: new Map(),
-    physicalTable: createPhysicalTable(),
+    materialTable: createMaterialTable(),
   }
 }

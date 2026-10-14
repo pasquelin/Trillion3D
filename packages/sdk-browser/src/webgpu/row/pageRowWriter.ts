@@ -1,4 +1,4 @@
-import { physicalWord, type PhysicalTable } from '../visibility/physicalTable.ts'
+import type { MaterialTable } from '../material/materialTable.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
@@ -39,8 +39,8 @@ type PageRowResources = MaterialLayers & {
   emissiveAoShown: boolean
   /** The session's GPU deformation, once prepared: the record each placement's rows name. */
   deformation?: Pick<SessionDeformation, 'rowWord'>
-  /** The surfaces' anisotropic and clear-coat records (`../visibility/physicalTable.ts`). */
-  physicalTable?: Pick<PhysicalTable, 'rowWord'>
+  /** The surfaces' records (`../material/materialTable.ts`). */
+  materialTable?: Pick<MaterialTable, 'word'>
 }
 /** What every row write shares, made once with the writer. */
 type RowWriter = {
@@ -125,14 +125,10 @@ function writeRow(
   const deform = resources.deformation?.rowWord(rank) ?? 0
   ints[base + PAGE_INFO.at.deform] = deform
   writeRowDeformation(ints, base, outputOf(pageIndex))
-  // An opaque row's lobes record (`PageInfo.physical`): a blended caster's row is never resolved.
-  // A float block's second UV set rides in its high bit (`physicalWord`).
-  ints[base + PAGE_INFO.at.physical] = rec.transparent
-    ? 0
-    : physicalWord(
-        resources.physicalTable?.rowWord(mat, resources.dataLayer) ?? 0,
-        !!geo && !geo.quantized && !!geo.hasUv1,
-      )
+  // Its surface's record (`PageInfo.material`); a float block's second UV set rides in its high
+  // bit (`MATERIAL_SECOND_UV`).
+  ints[base + PAGE_INFO.at.material] =
+    resources.materialTable?.word(mat, resources, !!geo && !geo.quantized && !!geo.hasUv1) ?? 0
   ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
   floats[base + PAGE_INFO.at.pad1] = rec.role === 'coarse' ? 1 : 0

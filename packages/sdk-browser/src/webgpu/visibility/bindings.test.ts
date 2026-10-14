@@ -6,7 +6,7 @@ import { ensureWebgpuShadeBindings } from '../core/shadeBindings.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { visGroupFor } from './visGroup.ts'
-import { createPhysicalTable } from './physicalTable.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
 
 /** A device that counts its groups, and a runtime holding every resource the groups name. */
 function mount() {
@@ -34,7 +34,7 @@ function mount() {
     rasterGroups: [undefined] as unknown[],
     visIdentity: createWebgpuBindIdentity(),
     shadeIdentity: createWebgpuBindIdentity(),
-    physicalTable: createPhysicalTable(),
+    materialTable: createMaterialTable(),
   }
   const gpu = {
     cache: { buffer: {} },

@@ -37,8 +37,8 @@ export type ShadeBindResources = AtlasResources & {
   uniform: GPUBuffer
   /** The frame's cache (`../../visibility/shader/shadeCacheWgsl.ts`). */
   shadeCache: GPUBuffer
-  /** The physical records (`../visibility/physicalTable.ts`) and the lobes target the resolve writes. */
-  physical: GPUTextureView
+  /** The surfaces' records (`../material/materialTable.ts`) and the lobes target the resolve writes. */
+  material: GPUTextureView
   lobes: GPUTextureView
 }
 /** Resources of the software raster of small triangles: it only reads the alpha cutout. */
@@ -105,7 +105,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.uniform, () => r.uniform),
     ...atlasEntries(b.data, () => r.textures?.data),
     bufferEntry(b.shadeCache, () => r.shadeCache),
-    resourceEntry(b.physical, () => r.physical),
+    resourceEntry(b.material, () => r.material),
     resourceEntry(b.lobes, () => r.lobes),
   ]
 }

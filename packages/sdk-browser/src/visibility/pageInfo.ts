@@ -70,7 +70,7 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['deform', 'u32'],
   ['deformCount', 'u32'],
   ['deformOutput', 'u32'],
-  // The surface's physical record rank plus one, zero without an anisotropic or clear-coat lobe
-  // (`../webgpu/visibility/physicalTable.ts`).
-  ['physical', 'u32'],
+  // The rank of the surface's record in the material table and its second UV set's bit
+  // (`MATERIAL_SECOND_UV`, `../webgpu/material/materialTable.ts`).
+  ['material', 'u32'],
 ] as const)

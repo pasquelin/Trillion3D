@@ -33,9 +33,9 @@ export function shadeLayout(device: GPUDevice) {
       computeBufferEntry(b.pageTable, 'read-only-storage', fragment),
       // The rows' frames the resolve reads (`../../visibility/shader/shadeCacheWgsl.ts`).
       computeBufferEntry(b.shadeCache, 'read-only-storage', fragment),
-      // The anisotropic and clear-coat records — a texture, no storage buffer of the eight —, and
-      // the lobes target (`physicalWgsl.ts`).
-      computeTextureEntry(b.physical, 'uint', '2d', fragment),
+      // The surfaces' records — a texture, no storage buffer of the eight —, and the lobes target
+      // (`physicalWgsl.ts`).
+      computeTextureEntry(b.material, 'uint', '2d', fragment),
       {
         binding: b.lobes,
         visibility: fragment,

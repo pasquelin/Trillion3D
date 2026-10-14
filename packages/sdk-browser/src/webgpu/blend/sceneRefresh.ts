@@ -51,7 +51,7 @@ function writeBlendRecords(
     waterLobed = false
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
-    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis) !== 0
+    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     lobed ||= item.lobed
     waterLobed ||= item.lobed && !!item.transmissive
   }

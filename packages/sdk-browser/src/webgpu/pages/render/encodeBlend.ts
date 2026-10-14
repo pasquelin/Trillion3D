@@ -79,8 +79,8 @@ export function encodeBlend(
   // Resolve lighting resources once; a real resource voids a placeholder's bind group. Their key
   // picks the blend and water programs (`createForwardVariants`).
   const contract = directLightResources(rt)
-  // The physical records the item records named go up before a group names their texture.
-  if (rt.vis.physicalTable.pending) rt.vis.physicalTable.upload(device)
+  // The material records the item records named go up before a group names their texture.
+  if (rt.vis.materialTable.pending) rt.vis.materialTable.upload(device)
   voidStaleBlendGroups(rt, blendLightResources(rt, contract))
   const prepared = cpuNow()
   timing.transparentPrepareMs += prepared - cpuStart

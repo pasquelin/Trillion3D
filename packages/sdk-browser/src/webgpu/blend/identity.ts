@@ -42,7 +42,7 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       proxy: () => rt.blendState.lighting?.proxy,
       proxyWorlds: () => rt.blendState.lighting?.proxyWorlds,
       proxyTree: () => rt.blendState.lighting?.proxyTree,
-      physical: () => rt.vis.physicalTable.view,
+      material: () => rt.vis.materialTable.view,
     }),
   )
 }

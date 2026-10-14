@@ -8,7 +8,7 @@ import {
   FLAG_HAS_COLOR,
   FLAG_HAS_UV,
   FLAG_MASK,
-  PHYSICAL_SECOND_UV,
+  MATERIAL_SECOND_UV,
 } from '../types.ts'
 import { FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
@@ -161,7 +161,7 @@ export const PAGE_NORMAL_WGSL = wgslBlock(
 /**
  * A page vertex's second UV set, which the physical maps that ask for it read (`physicalWgsl.ts`):
  * from a quantized page that stores one (its header's flag), else from the tail of the normal atlas
- * where the row's physical word says its float geometry has one (`PHYSICAL_SECOND_UV`,
+ * where the row's material word says its float geometry has one (`MATERIAL_SECOND_UV`,
  * `vertUv1`). Declared after `vertUv1`, as `PAGE_NORMAL_WGSL`; a caller reads `pageUv1` only where
  * `pageHasUv1` says so.
  */
@@ -170,7 +170,7 @@ export const PAGE_UV1_WGSL = wgslBlock(
   [],
   `fn pageHasUv1(page:PageInfo,h:ClusterHeader)->bool{
  if(${QUANTIZED}){return (h.flags&${FLAG_UV1}u)!=0u;}
- return (page.physical&${PHYSICAL_SECOND_UV}u)!=0u;
+ return (page.material&${MATERIAL_SECOND_UV}u)!=0u;
 }
 fn pageUv1(page:PageInfo,h:ClusterHeader,vertex:u32,end:u32)->vec2f{
  if(${QUANTIZED}){

@@ -8,7 +8,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
   const { vis } = rt,
     identity = vis.shadeIdentity
   // The records the rows wrote this image go up before the group names their texture.
-  if (vis.physicalTable.pending) vis.physicalTable.upload(device)
+  if (vis.materialTable.pending) vis.materialTable.upload(device)
   const entries = (identity.entries[0] ??= shadeBindEntries(
     liveResources<ShadeBindResources>({
       visView: () => rt.vis.visView,
@@ -23,7 +23,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       sampler: () => rt.vis.mapsSampler,
       uniform: () => rt.vis.shadeUniform,
       shadeCache: () => rt.vis.shadeCache?.buffer,
-      physical: () => rt.vis.physicalTable.view,
+      material: () => rt.vis.materialTable.view,
       lobes: () => rt.gpu.surfaces?.lobesView,
     }),
   ))

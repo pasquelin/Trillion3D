@@ -7,7 +7,7 @@ import {
   type GeometryBlock,
   type MaterialLayers,
 } from '../row/pageRowMaterial.ts'
-import { physicalWord, type PhysicalTable } from '../visibility/physicalTable.ts'
+import type { MaterialTable } from '../material/materialTable.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
@@ -57,7 +57,7 @@ const BLEND_ITEM_FIELDS = [
   ['deform', 'u32'],
   ['deformInput', 'u32'],
   ['deformOutput', 'u32'],
-  ['physical', 'u32'],
+  ['material', 'u32'],
 ] as const
 const LAYOUT = fieldLayout('BlendItem', BLEND_ITEM_FIELDS)
 
@@ -69,12 +69,12 @@ export const BLEND_ITEM_WORDS = LAYOUT.words
 export const BLEND_ITEM_WORLD = ITEM.world
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; the session's
- *  GPU deformation, whose record a paged item of a deformed placement names (#357); the physical
- *  records, which a lobed surface names (`../visibility/physicalTable.ts`), and the float pool's blocks,
- *  which say whether a pooled geometry carries a second UV set. */
+ *  GPU deformation, whose record a paged item of a deformed placement names (#357); the material
+ *  table, whose record of its surface it names (`../material/materialTable.ts`), and the float
+ *  pool's blocks, which say whether a pooled geometry carries a second UV set. */
 type BlendAtlasTables = MaterialLayers & {
   deformation?: Pick<SessionDeformation, 'wordOfWorld'>
-  physicalTable?: Pick<PhysicalTable, 'rowWord'>
+  materialTable?: Pick<MaterialTable, 'word'>
   geometryBlocks?: ReadonlyMap<HostAttributes, GeometryBlock>
 }
 
@@ -85,7 +85,7 @@ const floatSecondUv = (item: BlendGpuItem, blocks?: ReadonlyMap<HostAttributes, 
   item.ownUv1 ?? !!blocks?.get(item.sourceGeometry.attributes)?.hasUv1
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer.
- *  Returns its physical word: not zero for a surface that carries a lobe. */
+ *  Returns whether its surface carries a lobe. */
 export function writeBlendItemRecord(
   floats: Float32Array,
   ints: Uint32Array,
@@ -112,15 +112,10 @@ export function writeBlendItemRecord(
   ints[base + ITEM.deformOutput] = item.deformOutput ?? 0
   ints[base + ITEM.deform] =
     item.paged || item.deformOutput ? (tables.deformation?.wordOfWorld(item.matrix) ?? 0) : 0
-  // Its anisotropic and clear-coat record (`physicalWgsl.ts`), the opaque rows' table.
-  const physical = lobed
-    ? physicalWord(
-        tables.physicalTable?.rowWord(mat, tables.dataLayer) ?? 0,
-        floatSecondUv(item, tables.geometryBlocks),
-      )
-    : 0
-  ints[base + ITEM.physical] = physical
-  return physical
+  // Its surface's record (`../material/materialTable.ts`), the opaque rows' table.
+  ints[base + ITEM.material] =
+    tables.materialTable?.word(mat, tables, floatSecondUv(item, tables.geometryBlocks)) ?? 0
+  return lobed
 }
 
 /** The material's words of the record at `base`: its flags, maps and factors. Returns whether the

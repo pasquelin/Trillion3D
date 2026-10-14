@@ -31,8 +31,9 @@ test('the resolve reads the record before its request and the lobes once its nor
   assert.ok(lobes < fragment.indexOf('return SurfaceOut(vec4f(rgb,metal)'))
   // The coat bends its own map from the normal before the base normal map.
   assert.ok(fragment.indexOf('let coatBase=N;') < bend)
-  for (const text of [PHYSICAL_UV_READ, PHYSICAL_LOBES_CALL])
-    assert.ok(text.startsWith('if(HAS_PHYSICAL&&page.physical!=0u'))
+  // The lobe word is read in the physical class alone, and the lobes run where it names an extension.
+  assert.ok(PHYSICAL_UV_READ.includes('if(HAS_PHYSICAL){lobes=materialLobesOf(page.material);}'))
+  assert.ok(PHYSICAL_LOBES_CALL.startsWith('if(HAS_PHYSICAL&&physicalOn'))
   // Its four maps ask their tiles after the others.
   assert.match(wgslSource(SHADE_REQUEST_WGSL), /\+select\(0u,4u,physical\);/)
   assert.match(

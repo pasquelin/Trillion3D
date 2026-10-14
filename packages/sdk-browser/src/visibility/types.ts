@@ -16,12 +16,12 @@ export function assertVisibilityPageTriangles(triangles: number, page?: string) 
 /** Words of a page-table row (`PAGE_INFO`), and its bytes: the stride of the page-table buffer. */
 export const ROW_WORDS = PAGE_INFO.words,
   PAGE_INFO_STRIDE = PAGE_INFO.words * 4
-/** The high bit of a physical word (`PageInfo.physical`, a blend item's `physical`): the row reads
+/** The high bit of a material word (`PageInfo.material`, a blend item's `material`): the row reads
  *  its geometry as floats and its geometry carries a second UV set, at the tail of the normal atlas
  *  it reads (`vertUv1`, `../webgpu/core/geometryPoolLayout.ts`). A quantized page says so in its
- *  own header. Below it, the record's rank plus one. */
-export const PHYSICAL_SECOND_UV = 0x80000000,
-  PHYSICAL_RECORD_MASK = 0x7fffffff
+ *  own header. Below it, the rank of its surface's record (`../webgpu/material/materialTable.ts`). */
+export const MATERIAL_SECOND_UV = 0x80000000,
+  MATERIAL_RANK_MASK = 0x7fffffff
 /** The bits of `PageInfo.deformOutput`, the results lying in the float pool whatever they are:
  *  the source of the deformation lies in the pool too — a whole copy's streams after a source
  *  header, a float page's geometry — rather than in the page of the row's slot; a float-pool block

@@ -1,11 +1,7 @@
 import { BLEND_BINDINGS } from '../core/bindLayout.ts'
-import {
-  FLAG_DOUBLE,
-  FLAG_HAS_NORMAL,
-  FLAG_SAMPLED,
-  PHYSICAL_RECORD_MASK,
-} from '../../visibility/types.ts'
-import { physicalCoreWgsl, physicalTableWgsl } from '../../visibility/shader/physicalWgsl.ts'
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { physicalCoreWgsl } from '../../visibility/shader/physicalWgsl.ts'
+import { materialTableWgsl } from '../material/materialWgsl.ts'
 import { LOBES_LIGHTING_WGSL } from '../../lighting/direct/lobesWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -13,30 +9,32 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 /**
  * The anisotropic and clear-coat lobes of a blend, in the blend pass's lobed programs alone
  * (`shader.ts`, a key without `lobeless`): the opaque resolve's one implementation
- * (`physicalCoreWgsl`), its record read from the same table, its two UV sets the fragment's own
- * (`vertexWgsl.ts`), and the frame's displacements its screen derivatives — the ones the blend's
- * normal map is bent with (`shaderSurface.ts`), framebuffer y running down, hence the side `-1`.
+ * (`physicalCoreWgsl`), its lobe extension read from the same table (`materialTableWgsl`), its two
+ * UV sets the fragment's own (`vertexWgsl.ts`), and the frame's displacements its screen
+ * derivatives — the ones the blend's normal map is bent with (`shaderSurface.ts`), framebuffer y
+ * running down, hence the side `-1`.
  *
  * The lobes go straight to the lighting (`setLobes`, `../../lighting/direct/lobesWgsl.ts`), no
- * target between them: a fragment whose item names no record, or whose maps leave neither lobe,
+ * target between them: a fragment whose surface carries no lobe, or whose maps leave neither lobe,
  * sets none, and every term then runs the standard lobe operand for operand.
  */
 export const BLEND_PHYSICAL_WGSL = wgslBlock(
   'BLEND_PHYSICAL_WGSL',
   [
     physicalCoreWgsl('physicalSampled'),
-    physicalTableWgsl(BLEND_BINDINGS.physical),
+    materialTableWgsl(BLEND_BINDINGS.material),
     LOBES_LIGHTING_WGSL,
     LOBE_AXIS_WGSL,
   ],
   `var<private> physicalSampled:bool;
-var<private> physicalOn:bool;
-/** The item's record and the fragment's two UV sets, before its tile request (\`blendRequest\`). */
+/** The item's lobe extension and the fragment's two UV sets, before its tile request
+ *  (\`blendRequest\`): none where its surface carries no lobe. */
 fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
- if(in.ids.w==0u){return;}
+ let lobes=materialLobesOf(in.ids.w);
+ if(lobes==0u){return;}
  physicalOn=true;
  physicalSampled=(in.ids.y&${FLAG_SAMPLED}u)!=0u;
- physicalRecord=physicalAt((in.ids.w&${PHYSICAL_RECORD_MASK}u)-1u);
+ physicalRecord=physicalAt(lobes);
  physicalCoord0=PhysicalCoord(in.uv.xy,g.gradX,g.gradY,g.gradX,g.gradY);
  physicalCoord1=PhysicalCoord(in.uv.zw,g.uv1X,g.uv1Y,g.uv1X,g.uv1Y);
 }

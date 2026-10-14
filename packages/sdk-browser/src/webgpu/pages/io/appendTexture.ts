@@ -148,8 +148,8 @@ function appendEntry(rt: WebgpuPagesRuntime, texture: Texture, a: Append) {
   pools.tails[kind] = a.tails
   pools.demand[kind] = a.demand
   slots.set(texture, slot)
-  // The physical records name data slots (`../../visibility/physicalTable.ts`): read again.
-  if (kind === 'data') vis.physicalTable.forget()
+  // The material records name atlas slots (`../../material/materialTable.ts`): read again.
+  vis.materialTable.forget()
   diag.engineDiagnostic('material-texture-appended', 'A texture joined the atlas', {
     kind,
     slot,
@@ -176,7 +176,7 @@ export function releaseWebgpuTexture(
   if (slot === undefined || !streamer || !pools) return
   streamer.release(kind, slot)
   slots.delete(texture)
-  if (kind === 'data') rt.vis.physicalTable.forget()
+  rt.vis.materialTable.forget()
   pools.tails[kind] = laneTails(streamer[kind].textures)
   pools.demand[kind] = laneDemand(streamer[kind].textures)
   rt.run.gate.resourcesChanged()

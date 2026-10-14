@@ -11,20 +11,20 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { lowBits } from '../../../../math/src/wgsl/integer.ts'
 
-/** A lobed program's two UV sets of the vertex: the second where the item names a record and its
- *  geometry carries one — a fragment reads it only under a record (`blendPhysicalBegin`). */
+/** A lobed program's two UV sets of the vertex: the second where its geometry carries one — a
+ *  fragment reads it only where its surface carries a lobe (`blendPhysicalBegin`). */
 const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
- if(it.physical!=0u&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
+ if(pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
  out.uv=vec4f(uv0,uv1);`
 
 /** What a lobed program's vertex stage adds (`blendVertexWgsl`): the second UV set beside the
- *  first, the item's physical word beside its ids and in its page, and their reads. */
+ *  first, the item's material word beside its ids and in its page, and their reads. */
 const LAYOUTS = {
   lobed: {
     uv: 'vec4f',
     ids: 'vec4u',
-    word: ',it.physical',
-    page: 'page.physical=it.physical;',
+    word: ',it.material',
+    page: 'page.material=it.material;',
     read: [PAGE_UV1_WGSL],
     write: UV_PAIR,
   },
@@ -45,7 +45,7 @@ const LAYOUTS = {
  * same fragments; only their fragment stages differ.
  *
  * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries the second UV set in its last
- * two lanes (`pageUv1`, the first where the geometry has none) and `ids` the item's physical word
+ * two lanes (`pageUv1`, the first where the geometry has none) and `ids` the item's material word
  * in its fourth — no varying more, a fragment stage reading its front face holding fifteen of the
  * sixteen WebGPU guarantees. Without, the stage as it was, word for word.
  */

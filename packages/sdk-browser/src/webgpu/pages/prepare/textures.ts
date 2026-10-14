@@ -28,8 +28,9 @@ export function takeMaterialTextures(rt: WebgpuPagesRuntime) {
   const { mapLayer, dataLayer } = rt.vis
   mapLayer.clear()
   dataLayer.clear()
-  // The physical records name data slots: counted again, each is written again (`physicalTable.ts`).
-  rt.vis.physicalTable.forget()
+  // The material records name atlas slots: counted again, each is written again
+  // (`../../material/materialTable.ts`).
+  rt.vis.materialTable.forget()
   return collectWebgpuMaterialTextures(rt.setup.allPages, rt.setup.blendCopies, mapLayer, dataLayer)
 }
 
