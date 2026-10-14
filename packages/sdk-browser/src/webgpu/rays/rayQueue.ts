@@ -7,7 +7,9 @@ import type { Intersection, RayFilter } from '../../world/query/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rayFilterRanks } from './rayFilter.ts'
 import { createRayQuery, type RayQuery } from './rayQuery.ts'
-import type { RaySources } from './rayQueryPass.ts'
+import { RAY_QUERY_PASS, type RaySources } from './rayQueryPass.ts'
+import { validationScope } from '../../gpu/core/errorScope.ts'
+import { log } from '../../diagnostic/log.ts'
 import { RAY_HIT, RAY_RECORD, RAY_REACH_MAX, readHit, writeRay } from './rayRecord.ts'
 import { createRayRecords, type RayRecords } from './rayRecords.ts'
 
@@ -130,24 +132,30 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (!asks.length) return
     const sources = sourcesOf(rt, records)
     if (!sources) return settleAll(asks.splice(0))
-    if (!query.compiled(schedule, () => settleAll(asks.splice(0)))) return
+    if (!query.compiled(schedule, refused)) return
     const batch = asks.splice(0, BATCH_RAYS)
     const staging = ring.take(batch, batch.length * RAY_HIT.words * 4)
     // Every staging buffer in flight: the batch waits, and a landing calls the queue again.
     if (!staging) return void asks.unshift(...batch)
-    try {
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D ray query' })
+    // In a validation scope: a batch the device refuses says why, never a silent miss.
+    void validationScope(device, () => {
+      const encoder = device.createCommandEncoder({ label: RAY_QUERY_PASS })
       const hits = query.encode(encoder, sources, packBatch(batch))
       encoder.copyBufferToBuffer(hits.buffer, hits.offset, staging, 0, hits.bytes)
       device.queue.submit([encoder.finish()])
-    } catch {
+      flying.add(batch)
+      ring.submitted(staging)
+      schedule()
+    }).then(
+      ({ error }) => error && log.error(`${RAY_QUERY_PASS} refused: ${error.message}`),
       // A device that refuses the batch — lost under it — answers none of its rays.
-      ring.dropped(staging)
-      return settleAll(batch)
-    }
-    flying.add(batch)
-    ring.submitted(staging)
-    schedule()
+      () => (ring.dropped(staging), settleAll(batch)),
+    )
+  }
+  /** The kernels refused: every ray waiting answers none, and the device's reason is said. */
+  function refused(error: unknown) {
+    log.error(`${RAY_QUERY_PASS} kernels refused:`, error)
+    settleAll(asks.splice(0))
   }
   return {
     /** The nearest drawn triangle `ray` meets within `reach`, of the objects `filter` lets it meet:

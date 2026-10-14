@@ -55,8 +55,12 @@ const indexKernel = oncePerDevice((device: GPUDevice) =>
 )
 
 /** Whether both kernels of the query are compiled on `device`: when not, their compile is started
- *  and `then` is called once it lands — `failed` if the device refuses it. */
-export function rayKernelsCompiled(device: GPUDevice, then: () => void, failed: () => void) {
+ *  and `then` is called once it lands — `failed`, with the device's reason, if it refuses it. */
+export function rayKernelsCompiled(
+  device: GPUDevice,
+  then: () => void,
+  failed: (reason: unknown) => void,
+) {
   const kernels = [traceKernel(device), indexKernel(device)]
   if (kernels.every((kernel) => kernel.ready)) return true
   Promise.all(kernels.map((kernel) => kernel.prepare())).then(then, failed)

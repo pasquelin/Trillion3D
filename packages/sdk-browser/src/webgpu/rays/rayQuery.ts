@@ -59,8 +59,9 @@ export function createRayQuery(device: GPUDevice) {
     }))
   return {
     /** Whether both kernels are compiled: when not, their compile is started and `then` is called
-     *  once it lands — `failed` if the device refuses it. */
-    compiled: (then: () => void, failed: () => void) => rayKernelsCompiled(device, then, failed),
+     *  once it lands — `failed`, with the device's reason, if it refuses it. */
+    compiled: (then: () => void, failed: (reason: unknown) => void) =>
+      rayKernelsCompiled(device, then, failed),
     /** Encodes `batch` into `encoder` over `sources`; returns where its hits lie in `buffer`. */
     encode(encoder: GPUCommandEncoder, sources: RaySources, batch: RayBatch) {
       const rebuilt = sources.records.sync(sources.tables)
