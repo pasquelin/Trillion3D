@@ -3,7 +3,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
@@ -66,8 +65,6 @@ export function mount(pages: PageRec[], blendSlots: number) {
       materialTable: createMaterialTable(),
     } as never,
     rows.markRowDirty,
-    // The catalogue's meshes sit at the origin: every page's root is placed at the identity.
-    pages.map(() => ({ world: new Matrix4() })),
     (packed) => packed,
   )
   pages.forEach((_, page) => {

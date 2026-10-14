@@ -42,7 +42,6 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
   const writePageRow = createPageRowWriter(
     rt.vis,
     rows.markRowDirty,
-    rt.layout.selectionRoots,
     (packed) => rootOfPacked(rt.layout.placement, packed),
     rt.layout.deformationOutputOf,
   )

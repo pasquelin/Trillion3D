@@ -62,7 +62,6 @@ test('a cut-out cluster names its surface, whose record carries its alpha test',
       emissiveAoShown: false,
     },
     () => {},
-    collected.roots,
     (packed) => packed,
   )
   // A page written as a row belongs to a placement: its collection ranked its root.
@@ -100,7 +99,6 @@ test('a row carries its resolve class, the census of the scene knows it before a
       materialTable: createMaterialTable(),
     },
     () => {},
-    collected.roots,
     (packed) => packed,
   )
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
@@ -142,7 +140,6 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
   const writeRow = createPageRowWriter(
     vis,
     () => {},
-    collected.roots,
     (packed) => packed,
   )
   const [opaque, blend] = collected.roots.map((root) => root.pages[0])

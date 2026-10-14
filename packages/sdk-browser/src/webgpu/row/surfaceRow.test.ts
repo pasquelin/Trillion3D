@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { pageRecFixture } from '../../../../../bench/perf/browser/support/pageRecFixture.ts'
 import { createPageRowWriter } from './pageRowWriter.ts'
@@ -43,7 +42,6 @@ test("a row write reads its surface's slots once a version and a census, not onc
       materialTable: table,
     },
     () => {},
-    [{ world: new Matrix4() }],
     () => 0,
   )
   const floats = new Float32Array(ROW_WORDS * ROWS),

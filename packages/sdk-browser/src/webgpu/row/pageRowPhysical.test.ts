@@ -5,7 +5,6 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { blendFixture } from '../../page/selection/blend.fixture.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
@@ -62,7 +61,6 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
       emissiveAoShown: false,
     } as never,
     () => {},
-    [{ world: new Matrix4() }] as never,
     (packed) => packed,
   )
   writer(rec, 0, 0, 0, floats, ints)

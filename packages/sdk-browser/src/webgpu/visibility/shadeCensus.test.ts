@@ -35,7 +35,6 @@ function opened() {
       materialTable: createMaterialTable(),
     },
     () => {},
-    roots,
     (packed) => packed,
   )
   const ints = new Uint32Array(ROW_WORDS)

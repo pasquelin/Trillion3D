@@ -37,7 +37,6 @@ test("a row's deformation words are its own, its neighbour's untouched", () => {
       materialTable: createMaterialTable(),
     },
     () => {},
-    [{ world: new Matrix4() }],
     () => 0,
     () => ({ from: 10, count: 3 }),
   )

@@ -1,8 +1,6 @@
 import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import type { HostAttributes } from '../../host/resources.ts'
-import { rootOf } from '../../page/selection/placements.ts'
 import type { PageRec, DeformationOutput } from '../../page/selection/types.ts'
-import type { Placements } from '../../page/selection/placements.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { createPageRowConstants } from './pageRowConstants.ts'
 import {
@@ -45,7 +43,6 @@ type PageRowResources = MaterialLayers & {
 type RowWriter = {
   resources: PageRowResources
   markRowDirty: (row: number) => void
-  roots: Placements
   rootRank: (packed: number) => number
   outputOf: (packed: number) => DeformationOutput | undefined
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
@@ -61,9 +58,8 @@ export type PageRowWriter = ReturnType<typeof createPageRowWriter>
 export function createPageRowWriter(
   resources: PageRowResources,
   markRowDirty: (row: number) => void,
-  /** The placement roots, and the root rank of each packed rank (#1235): the row's world, its
-   *  placement word and its deformation record are its instance's root's. */
-  roots: Placements,
+  /** The root rank of each packed rank (#1235), -1 for none: the row's placement word and its
+   *  deformation record are its instance's root's. */
   rootRank: (packed: number) => number,
   /** Where the placement of a packed rank writes the results of its page (`PackedPages.outputOf`). */
   outputOf: (packed: number) => DeformationOutput | undefined = () => undefined,
@@ -71,7 +67,6 @@ export function createPageRowWriter(
   const w: RowWriter = {
     resources,
     markRowDirty,
-    roots,
     rootRank,
     outputOf,
     constants: createPageRowConstants(),
@@ -88,7 +83,7 @@ export function createPageRowWriter(
 }
 
 function writeRow(
-  { resources, markRowDirty, roots, rootRank, outputOf, constants, block }: RowWriter,
+  { resources, markRowDirty, rootRank, outputOf, constants, block }: RowWriter,
   rec: PageRec,
   pageIndex: number,
   row: number,
@@ -108,10 +103,10 @@ function writeRow(
     resources.emissiveAoShown = true
   // Row placement: its rank, where the temporal pass reads the pixel motion matrix and the rows
   // pass the world it writes the row's world words from (`../../placement/rowWords.ts`), their
-  // one writer. A packed rank without a placement does not exist in a WebGPU layout: the root is
-  // looked up for that check alone, its throw (`PAGE_PLACEMENT_MISSING`), never for its words.
+  // one writer. A packed rank without a placement (`rootOfPacked`'s -1) does not exist in a WebGPU
+  // layout: refused by name.
   const rank = rootRank(pageIndex)
-  rootOf(roots, rank)
+  if (rank < 0) throw new Error('PAGE_PLACEMENT_MISSING')
   // A page holding more triangles than the identifier's eight low bits would alias the next page.
   assertVisibilityPageTriangles(indexCount / 3, rec.url)
   // A blended cluster's row is a shadow caster's alone (`blendCasters.ts`): its flag and its
