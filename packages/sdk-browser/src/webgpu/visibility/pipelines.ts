@@ -8,7 +8,7 @@ import {
   visVariantFragment,
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
-import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
 /** A slot's face modes, in its bins' order (`CULL_BINS`): a mirrored placement draws in the bin
  *  of the side it shows (`visBin`), so no clockwise pipeline is made. */

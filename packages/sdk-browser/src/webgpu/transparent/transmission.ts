@@ -4,7 +4,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
 import { volumeAttenuation } from './volumeLaw.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /** `transmission`, the refraction ratio 1 / ior, `thickness`, Fresnel's f0 = ((ior − 1) / (ior + 1))²,
  *  then aligned the volume's attenuation `k` (`volumeAttenuation`) and the marks word: one record

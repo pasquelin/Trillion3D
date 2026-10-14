@@ -6,6 +6,7 @@ import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { RECEIVER_TARGET_BYTES } from '../visibility/shader/receiverTargetWgsl.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
+import { DEPTH_FORMAT, DISPLAY_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from './targetFormats.ts'
 
 /** Bytes of one texel of each of `formats`, summed (`textureBytesOf`). */
 const texelBytesOf = (...formats: GPUTextureFormat[]) =>
@@ -24,24 +25,6 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
 /** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
  *  the virtual shadow maps' projection (`../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_BYTES_PER_PIXEL = texelBytesOf(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
-/** The HDR colour: what the lighting writes, and the transparents, the effects and the temporal
- *  antialiasing read and write. */
-export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
-/** The HDR colour's usages: drawn into, sampled, copied from (the water's backdrop) and into (the
- *  proofs that lay a lit image). Both HDR targets that take turns have them
- *  (`../reflections/radiance.ts`). A function: `GPUTextureUsage` exists only beside a device. */
-export const hdrUsage = () =>
-  GPUTextureUsage.RENDER_ATTACHMENT |
-  GPUTextureUsage.TEXTURE_BINDING |
-  GPUTextureUsage.COPY_SRC |
-  GPUTextureUsage.COPY_DST
-/** The scene's depth: every opaque raster's, and every copy made of it. */
-export const DEPTH_FORMAT: GPUTextureFormat = 'depth32float'
-/** Display colour target, what the composition writes; before it, the water pass borrows it. */
-export const DISPLAY_FORMAT: GPUTextureFormat = 'rgba8unorm'
-/** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
- *  resolve then by transparents, reduced to counters for one pixel in sixteen. */
-export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint'
 /** Bytes per pixel of the feedback target, made only while the pipelines write it
  *  (`../webgpu/pages/prepare/feedbackVariant.ts`). */
 export const FEEDBACK_BYTES = texelBytesOf(FEEDBACK_FORMAT)

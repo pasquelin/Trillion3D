@@ -2,7 +2,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
 import { bloomLevelLayout } from './bloomLevel.ts'
 

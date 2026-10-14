@@ -10,7 +10,7 @@ import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
-import { DEPTH_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */

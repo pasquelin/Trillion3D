@@ -10,7 +10,7 @@
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
 export type BloomTap = readonly [x: number, y: number, weight: number]

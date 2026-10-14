@@ -1,7 +1,7 @@
 import { ALPHA_BLEND } from '../blend/stagePipelines.ts'
 import { displayTargets } from '../blend/displayFilter.ts'
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /** The composite's targets: the HDR target, then, `routed`, a normal layer's display layers, then,
  *  when the frame has a share (`asIsShare.ts`), the reactive value's — green alone, as a

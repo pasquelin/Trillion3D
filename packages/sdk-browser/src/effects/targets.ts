@@ -1,7 +1,7 @@
 import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts'
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */

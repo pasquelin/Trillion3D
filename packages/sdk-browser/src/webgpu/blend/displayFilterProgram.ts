@@ -1,4 +1,4 @@
-import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'

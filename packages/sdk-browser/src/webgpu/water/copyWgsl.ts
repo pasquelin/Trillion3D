@@ -1,5 +1,5 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
 import { WATER_COPY_TILE } from './argsWgsl.ts'
 

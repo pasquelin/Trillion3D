@@ -4,7 +4,7 @@ import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { taaShader } from './shaderWgsl.ts'
 import { createTaaLayout } from './bindingsWgsl.ts'
 import { taaUpscaleShader } from './upscaleWgsl.ts'
-import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
 /** As-is share, flicker gradient, still weight and history count. Geometry uses an integer target. */
 export const SHARE_FORMAT: GPUTextureFormat = 'rgba8unorm'

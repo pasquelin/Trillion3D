@@ -2,7 +2,7 @@ import { type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { BLENDS } from './drawWords.ts'
 import { displayTargets } from '../webgpu/blend/displayFilter.ts'
 import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts'
-import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
 /** A disc's targets: the lit image, its blend's display layers if `routed`, the reactive value. */
 export const particleTargets = (

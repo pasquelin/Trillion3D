@@ -1,4 +1,5 @@
-import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
+import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
+import { DISPLAY_FORMAT, FEEDBACK_FORMAT } from '../../scene/targetFormats.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
 import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
 

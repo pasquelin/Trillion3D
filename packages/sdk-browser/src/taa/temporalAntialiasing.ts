@@ -8,7 +8,7 @@ import { createPlacementMotion, type MotionRoot } from './motion.ts'
 import { createTaaFilterHistory } from './layers.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { TAA_PASS } from '../stage/passLabels.ts'
-import { HDR_FORMAT } from '../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const

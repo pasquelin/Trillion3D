@@ -1,4 +1,4 @@
-import { FEEDBACK_FORMAT, HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { FEEDBACK_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts'
 import { displayTargets } from './displayFilter.ts'

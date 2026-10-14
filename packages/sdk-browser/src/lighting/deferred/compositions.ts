@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { bloomLevelLayout } from '../../webgpu/effects/bloomLevel.ts'
-import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import type { ComposeInput } from './shaders.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'

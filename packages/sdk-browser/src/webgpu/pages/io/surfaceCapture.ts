@@ -6,8 +6,8 @@ import {
   checkSurfaceSize,
   holds,
   type SurfaceCapture,
-  DEPTH_FORMAT,
 } from '../../../scene/surfaceBuffer.ts'
+import { DEPTH_FORMAT } from '../../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { collectPendingUrls } from '../../../page/selection/selection.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'

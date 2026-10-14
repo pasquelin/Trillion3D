@@ -7,7 +7,7 @@ import {
   type EffectPassOf,
 } from '../../effects/targets.ts'
 import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /**
  * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the

@@ -13,7 +13,7 @@ import { makeFullscreenPipeline } from './fullscreen.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { ProxyResources } from '../../gpu/core/selection.ts'
 
