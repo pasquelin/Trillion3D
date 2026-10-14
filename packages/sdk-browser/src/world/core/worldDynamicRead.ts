@@ -2,7 +2,7 @@ import { readList, type DrawnTriangles } from '../../../../sdk-core/src/world/ge
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Primitive } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { computeNormals } from '../../../../sdk-core/src/world/geometry/normals.ts'
-import { boxEmpty, boxExpandByPoint, boxGrow } from '../../../../math/src/geometry/box.ts'
+import { boxExpandByPoint, boxFromPoints, boxGrow } from '../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { HeldBox } from '../page/runtimePrimitive.ts'
 import { LISTS } from './worldDynamicRanges.ts'
@@ -12,8 +12,7 @@ import { LISTS } from './worldDynamicRanges.ts'
 export function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?: HeldBox) {
   const box = new Float64Array(6),
     p = drawn.positions
-  boxEmpty(box, 0)
-  for (let i = 0; i + 2 < p.length; i += 3) boxExpandByPoint(box, 0, p[i], p[i + 1], p[i + 2])
+  boxFromPoints(box, 0, p, 0, Math.floor(p.length / 3))
   for (const c of declared ? [declared.min, declared.max] : [])
     boxExpandByPoint(box, 0, c.x, c.y, c.z)
   for (let k = 0; before && k < 6; k += 3)
