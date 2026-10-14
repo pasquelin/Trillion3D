@@ -27,8 +27,8 @@
  * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
  */
 export function dagWorkLayout(blockCount: number, groupCount = 0) {
-  // Block counts, block offsets and two words per block of the draw mask (`compactWgsl.ts`): no
-  // word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
+  // Block counts, block offsets and `BLOCK_MASK_WORDS` per block of each draw mask (`compactWgsl.ts`):
+  // no word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
   // `flags`, `differenceWgsl.ts`).
   const base = blockCount * WORK_BLOCK_WORDS,
     viewWords = base + FRAME_COUNTERS,
@@ -41,7 +41,7 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
     /** The draw mask, a bit a page, behind the block counts and offsets and the mask the cut
      *  writes (`compactWgsl.ts`): what the draw, the raster and the blended pass read of the cut, the
      *  last one that ran whole. */
-    drawMask: 4 * blockCount,
+    drawMask: (2 + BLOCK_MASK_WORDS) * blockCount,
     /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
     liveCounter: base,
     liveGroups: base + 1,
@@ -76,15 +76,26 @@ export const RAISED_PER_GROUP = 2
  *  candidates' counter and argument, the drawn log's counter and argument, then the counter of the
  *  log the running cut writes (`levelWgsl.ts`, `drawnAppend`). */
 const FRAME_COUNTERS = 13
+/** Words of a block's draw mask: a bit for each of its `WORKGROUP_THREADS` pages, a multiple of 32.
+ *  Every place a block's mask takes, host and kernel, follows the knob through it. */
+export const BLOCK_MASK_WORDS = WORKGROUP_THREADS / 32
+/** `BLOCK_MASK_WORDS` as the kernels name it. */
+export const BLOCK_MASK_WORDS_WGSL = wgslConst(
+  'BLOCK_MASK_WORDS',
+  [],
+  wgslConsts({ BLOCK_MASK_WORDS }),
+)
+
 /** Words of `work` per block of `WORKGROUP_THREADS` pages ahead of the counters: its drawn count, its
  *  offset, the draw mask the running cut writes and the one the frame draws, a bit a page each
  *  (`compactWgsl.ts`). Under half a byte a page: a binding holds those of a quarter billion. */
-export const WORK_BLOCK_WORDS = 2 + (2 * WORKGROUP_THREADS) / 32
+export const WORK_BLOCK_WORDS = 2 + 2 * BLOCK_MASK_WORDS
 
 import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { POOL_SORT_WORDS } from '../../pool/sortWords.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { DAG_INF } from './infDecl.ts'
 
 export const DAG_FLOOR_WGSL = wgslBlock(

@@ -3,6 +3,7 @@ import { SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
+import { BLOCK_MASK_WORDS_WGSL } from './floorWgsl.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -13,7 +14,7 @@ import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/inte
  * now reports only a count and that many identifiers.
  *
  * Order is that of a serial walk, page by increasing page, not that of an atomic counter: each
- * block of sixty-four pages knows how many of its pages are drawn, the shared lane scan
+ * block of `WORKGROUP_THREADS` pages knows how many of its pages are drawn, the shared lane scan
  * (`../../core/laneScanWgsl.ts`) gives each block its offset, then each page finds its rank in its
  * own block. Sum in u32, associative; a block's offset depends only on the blocks before it. The
  * returned list is therefore term for term the one the CPU built.
@@ -29,20 +30,28 @@ import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/inte
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, ceilDivWgsl, bitWord, bitMask, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  [
+    LANE_SCAN_WGSL,
+    ceilDivWgsl,
+    bitWord,
+    bitMask,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    BLOCK_MASK_WORDS_WGSL,
+  ],
   `const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,WORKGROUP_THREADS);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
-/** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw
- *  flag as the running cut decides it, set by \`dagMask\`, cleared by \`dagPrepare\` with the block
- *  count. The mask the draw, the raster and the blended pass read lies behind (\`liveMaskBase\`). */
+/** \`BLOCK_MASK_WORDS\` per block behind the block counts and offsets: bit \`i\` of the mask is page
+ *  \`i\`'s draw flag as the running cut decides it, set by \`dagMask\`, cleared by \`dagPrepare\` with the
+ *  block count. The mask the draw, the raster and the blended pass read lies behind (\`liveMaskBase\`). */
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
 /** The mask the frame draws, behind the one the cut writes: the last cut that ran whole's
  *  (\`dagCommitMask\`), or the view a swap brought back (\`swapWgsl.ts\`). */
-fn liveMaskBase()->u32{return blockCount()*4u;}
+fn liveMaskBase()->u32{return blockCount()*(2u+BLOCK_MASK_WORDS);}
 fn liveMaskWord(i:u32)->u32{return liveMaskBase()+bitWord(i);}
 fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
@@ -63,11 +72,11 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
  let i=entryIndex(liveAt(s));if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
  // Rank in the block: the drawn pages before \`i\`, read off the block's mask — the sum of the
- // same 0/1 flags, in one or two words instead of up to sixty-three. A page of the block's second
- // half counts the whole first word too.
+ // same 0/1 flags, a word at a time instead of a page: those of its word below it, and every
+ // whole word of the block before its own.
  let word=drawMaskWord(i);
  var rank=drawnBefore(i,atomicLoad(&work[word]));
- if((i&32u)!=0u){rank=rank+countOneBits(atomicLoad(&work[word-1u]));}
+ for(var w=drawMaskBase()+(i/WORKGROUP_THREADS)*BLOCK_MASK_WORDS;w<word;w++){rank+=countOneBits(atomicLoad(&work[w]));}
  let off=atomicLoad(&work[blockBase()+blockCount()+i/WORKGROUP_THREADS]);
  let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[views[0u].listCap+HEAD+at]=i;

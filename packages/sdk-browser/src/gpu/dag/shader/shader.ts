@@ -19,7 +19,7 @@ import { DAG_TREE_DESCENT_WGSL, DAG_TREE_PREPARE_WGSL } from './placementTreeWgs
 import { DAG_WORLD_GATE_WGSL } from './worldGateWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
-import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
+import { BLOCK_MASK_WORDS_WGSL, DAG_FLOOR_WGSL } from './floorWgsl.ts'
 import { DAG_HELD_OPEN_WGSL } from '../heldOpen.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
@@ -80,7 +80,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
   atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
+ if(i<blockCount()){atomicStore(&work[blockBase()+i],0u);for(var k=0u;k<BLOCK_MASK_WORDS;k++){atomicStore(&work[drawMaskBase()+BLOCK_MASK_WORDS*i+k],0u);}}
  if(i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
  if(i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();}
  if(hasTree()){prepareTreeRoots(i);return;}
@@ -142,6 +142,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
     DAG_LAST_USE_WGSL,
     DAG_EVICT_WGSL,
     DAG_FLOOR_WGSL,
+    BLOCK_MASK_WORDS_WGSL,
     DAG_HELD_OPEN_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
