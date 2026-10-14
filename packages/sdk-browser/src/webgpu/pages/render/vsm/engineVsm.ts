@@ -1,8 +1,7 @@
-import { arrayView } from '../../../../gpu/core/textureViews.ts'
 /**
  * The engine's shadows: the virtual shadow maps (`../../../../vsm/`), in their frame order,
- * encoded in the direct-lighting step after the visibility and
- * material passes, before the lighting pass that reads the mask:
+ * encoded in the direct-lighting step after the visibility and material passes, before the
+ * lighting pass that reads the mask:
  *
  *   invalidation processing (change boxes, previous ids) → planVirtualShadowFrame (CPU: clipmaps,
  *   local lights, ids, projection data) → instance page invalidation → physical page address
@@ -12,52 +11,27 @@ import { arrayView } from '../../../../gpu/core/textureViews.ts'
  *
  * A shadowed light's `params.y` is `firstVsmId · 64 + k` (`store.assignSlice`): mask channel k
  * = layer k / 4, component k % 4, and the map a non-mask read samples; −1 for a light with no
- * virtual shadow map this frame.
+ * virtual shadow map this frame. The maps the lights take are `vsmLightMaps.ts`'s, the mask
+ * `vsmMask.ts`'s.
  */
-import { workgroupCount, alignUp } from '../../../../../../math/src/scalar/integers.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { createVsmResources, growVsmTables, type VsmResources } from '../../../../vsm/resources.ts'
+import { createVsmResources, type VsmResources } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
 import { releaseVsmInvalidation } from '../../../../vsm/castStale.ts'
 import type { VsmCastBoxes } from '../../../../vsm/castBoxes.ts'
-import {
-  rebindVsmPageManagement,
-  releaseVsmPageManagement,
-} from '../../../../vsm/pageManagementPass.ts'
+import { releaseVsmPageManagement } from '../../../../vsm/pageManagementPass.ts'
 import { createVsmFrameState, type VsmFrameState } from '../../../../vsm/frameState.ts'
-import { VSM_NEXT_MAP_BYTES } from '../../../../vsm/mapIds.ts'
-import type { VsmFrameLight, VsmFramePlan } from '../../../../vsm/frameSetup.ts'
-import { vsmShadowed } from '../../../../vsm/seenLights.ts'
+import type { VsmFramePlan } from '../../../../vsm/frameSetup.ts'
 import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
-import {
-  releaseVsmRender,
-  vsmRenderContextBytes,
-  type VsmRenderStats,
-} from '../../../../vsm/renderPass.ts'
-import { releaseVsmProjection, vsmProjectionHeldBytes } from '../../../../vsm/projectionPass.ts'
+import { releaseVsmRender } from '../../../../vsm/renderPass.ts'
+import { releaseVsmProjection } from '../../../../vsm/projectionPass.ts'
 import { releaseRowBins } from '../../../../vsm/rowBinsGpu.ts'
-import {
-  VSM_PROJECTION_MASK_FORMAT,
-  VSM_PROJECTION_MAX_LIGHTS,
-  VSM_PROJECTION_TILE_FORMAT,
-  vsmProjectionTiles,
-} from '../../../../vsm/projectionWgsl.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
-import { madeTextureBytes, textureBytesOf } from '../../../../gpu/core/textureBytes.ts'
-import {
-  releaseVsmTransmission,
-  vsmTransmissionContextBytes,
-  type VsmTransmission,
-} from '../../../../vsm/transmissionPass.ts'
+import { releaseVsmTransmission, type VsmTransmission } from '../../../../vsm/transmissionPass.ts'
 import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/readbackRing.ts'
 import { createVsmSettle, landVsmStats, type VsmSettle } from '../../state/vsmSettle.ts'
 import {
-  VSM_SUN_FINEST_LEVEL,
-  VSM_SUN_COARSEST_LEVEL,
-  VSM_MIPS,
-  VSM_PROJECTION_RECORD_BYTES,
   VSM_COUNT_CLEARED,
   VSM_COUNTERS,
   VSM_COUNT_DYNAMIC_KEPT,
@@ -67,24 +41,9 @@ import {
 } from '../../../../vsm/constants.ts'
 import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
-
-/** Directional clipmap levels a sun takes. */
-const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
-/** Full maps per page-table row: (`VSM_TABLE_ROW_WIDTH` / 2) / 128, a map being 128 pages wide. */
-const TABLES_PER_ROW = 64
-/** Room for `maps` full maps, rounded up to whole page-table rows (the last entry of the last row
- *  holds the single-page maps). */
-export const wholeTableRows = (maps: number) => alignUp(maps + 1, TABLES_PER_ROW) - 1
-
-/** The projection's mask, made and freed as one (`ensureMask`): its array, a layer per four
- *  shadowed lights, and its tile words, a texel per projection group naming the layers it stored,
- *  each with the one view the projection and the lighting bind. */
-export interface VsmMask {
-  array: GPUTexture
-  view: GPUTextureView
-  tiles: GPUTexture
-  tilesView: GPUTextureView
-}
+import { destroyMask, type VsmMask } from './vsmMask.ts'
+import { sunsOf } from './vsmLightMaps.ts'
+import { createVsmEngineStats, type VsmEngineStats } from './vsmStats.ts'
 
 /** What the engine keeps of the virtual shadow maps between frames. */
 export interface EngineVsm {
@@ -132,67 +91,7 @@ export interface EngineVsm {
   /** What its frames rebuild in place (`./vsmEncode.ts`), made at its first frame. */
   frameScratch?: VsmFrameScratch
   /** Diagnostics of the last frame. */
-  stats: {
-    lights: number
-    fullMaps: number
-    singlePageMaps: number
-    projectionPasses: number
-    render: VsmRenderStats | undefined
-    invalidationThreads: number
-    pressureBiasStat: number
-    freePages: number
-    /** Pages requested / newly allocated / cached (static + dynamic) / cleared then rendered. */
-    requestedPages: number
-    allocatedPages: number
-    cachedPages: number
-    renderedPages: number
-  }
-}
-
-/** The full maps one light takes when it casts: a clipmap's levels for a sun, six faces for a
- *  point, one for a spot. */
-const mapsOf = (kind: VsmFrameLight['light']['kind']) =>
-  kind === 'directional' ? CLIPMAP_LEVELS : kind === 'point' ? 6 : kind === 'spot' ? 1 : 0
-
-/** Full maps a set is first made for: its suns' clipmap levels, with room for the unreferenced
- *  entries the cache keeps ten frames, rounded to whole page-table rows — one row at least, which
- *  holds a sun and six more maps with that room. A local light takes a full map only while its
- *  view asks finer than one page (`localLight.ts`), else a single-page slot, whose ids the tables
- *  reserve: the full maps a frame plans follow the lights near its eye, never those it sees, and
- *  the plan grows the tables to them in the same frame (`planVirtualShadowFrame`, `grow`). */
-export function fullMapsFor(lights: readonly VsmFrameLight[]) {
-  let maps = 0
-  for (const entry of lights)
-    if (vsmShadowed(entry) && entry.light.kind === 'directional') maps += CLIPMAP_LEVELS
-  return wholeTableRows(2 * maps + 16)
-}
-
-/** The frame's lights it shadows (`vsmShadowed`): the mask takes a layer per four of them. */
-export function castingCount(lights: readonly VsmFrameLight[]) {
-  let count = 0
-  for (const entry of lights) if (vsmShadowed(entry)) count++
-  return count
-}
-
-/** The raster's views the frame's casting lights take at most (`vsmRenderViews`): a view per
- *  clipmap level of one mip, a view per local map of every mip. */
-export function renderViewBound(lights: readonly VsmFrameLight[]) {
-  let views = 0,
-    mips = 0
-  for (const entry of lights) {
-    if (!vsmShadowed(entry)) continue
-    const { light } = entry,
-      maps = mapsOf(light.kind)
-    views += maps
-    mips += light.kind === 'directional' ? maps : maps * VSM_MIPS
-  }
-  return { viewWords: 4 * views, viewMips: mips }
-}
-
-export function directionalCount(lights: readonly VsmFrameLight[]) {
-  let count = 0
-  for (const entry of lights) if (vsmShadowed(entry) && entry.light.kind === 'directional') count++
-  return Math.max(1, count)
+  stats: VsmEngineStats
 }
 
 /** Light slots the marking's ids first hold, and the suns' ids. */
@@ -226,21 +125,6 @@ export const lightIdsBuffer = (device: GPUDevice, size: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
 
-/** The set's options for `fullMapCapacity` maps and `directional` suns, at `poolPages`:
- *  the receiver cover holds the suns' clipmap levels. */
-export const engineVsmOptions = (
-  fullMapCapacity: number,
-  directional: number,
-  poolPages?: number,
-): VsmResourceOptions => ({
-  fullMapCapacity,
-  sunMapCapacity: CLIPMAP_LEVELS * directional + 1,
-  poolPages,
-})
-
-/** The suns the receiver cover of `options` holds (`engineVsmOptions`). */
-const sunsOf = (options: VsmResourceOptions) => ((options.sunMapCapacity ?? 1) - 1) / CLIPMAP_LEVELS
-
 /** Whether `device` takes the page management's counters: their kernels bind one more storage
  *  buffer (the stats permutation, `VsmPageManagementFrame.options`). */
 export const vsmCountersOn = (device: GPUDevice) =>
@@ -258,20 +142,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
       size: DIRECTIONAL_IDS_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    const stats: EngineVsm['stats'] = {
-      lights: 0,
-      fullMaps: 0,
-      singlePageMaps: 0,
-      projectionPasses: 0,
-      render: undefined,
-      invalidationThreads: 0,
-      pressureBiasStat: 0,
-      freePages: 0,
-      requestedPages: 0,
-      allocatedPages: 0,
-      cachedPages: 0,
-      renderedPages: 0,
-    }
+    const stats = createVsmEngineStats()
     const settle = createVsmSettle()
     return {
       res,
@@ -305,34 +176,6 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
   })
 }
 
-/**
- * The tables of `vsm` grown in place to `options` (`growVsmTables`): the pool, its pages, their
- * cache and the passes' state kept, the groups that bound the old tables made again. Made whole
- * or not at all (`constructGpuResources`); false when `options` asks no more than held.
- */
-export function growEngineVsmTables(
-  device: GPUDevice,
-  vsm: EngineVsm,
-  options: VsmResourceOptions,
-) {
-  const layout = constructGpuResources(device, () => growVsmTables(device, vsm.res, options))
-  if (!layout) return false
-  vsm.suns = Math.max(vsm.suns, sunsOf(options))
-  rebindVsmPageManagement(vsm.res)
-  const { state } = vsm
-  const slots = layout.mapSlots
-  state.projectionImage = grownImage(state.projectionImage, slots * VSM_PROJECTION_RECORD_BYTES)
-  state.nextMapsImage = grownImage(state.nextMapsImage, slots * VSM_NEXT_MAP_BYTES)
-  return true
-}
-
-/** `image` copied into the prefix of `bytes` bytes. */
-function grownImage(image: ArrayBuffer, bytes: number) {
-  const grown = new ArrayBuffer(bytes)
-  new Uint8Array(grown).set(new Uint8Array(image))
-  return grown
-}
-
 export function destroyEngineVsm(vsm: EngineVsm) {
   releaseRowBins(vsm.res.render?.rowBound)
   releaseRowBins(vsm.transmission?.context?.rowBound)
@@ -354,100 +197,4 @@ export function destroyEngineVsm(vsm: EngineVsm) {
 /** No light reads a shadow this frame. */
 export function unshadowLights(store: WebgpuPagesRuntime['lights']['store']) {
   for (let slot = 0; slot < store.count; slot++) store.assignSlice(slot, -1)
-}
-
-/** The mask array's layers for `lights` shadowed lights: one per four, one at least, and no more
- *  than the projection's one pass reads (`VSM_PROJECTION_MAX_PASS_LIGHTS`, `vsmProject.ts`). */
-export const maskLayersFor = (lights: number) =>
-  workgroupCount(Math.min(lights, VSM_PROJECTION_MAX_PASS_LIGHTS), VSM_PROJECTION_MAX_LIGHTS)
-
-const maskDescriptor = (width: number, height: number, layers: number) => ({
-  label: 'vsm.engine.shadowMask',
-  size: [width, height, layers],
-  format: VSM_PROJECTION_MASK_FORMAT,
-  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-})
-
-/** The mask's tile words at `width` × `height`: a texel per projection group. */
-const maskTilesDescriptor = (width: number, height: number) => ({
-  label: 'vsm.engine.shadowMaskTiles',
-  size: vsmProjectionTiles(width, height),
-  format: VSM_PROJECTION_TILE_FORMAT,
-  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-})
-
-/** Bytes of the mask `ensureMask` makes for `lights` shadowed lights at `width` × `height`: its
- *  array and its tile words. */
-export const maskBytes = (width: number, height: number, lights: number) =>
-  textureBytesOf(maskDescriptor(width, height, maskLayersFor(lights)))! +
-  textureBytesOf(maskTilesDescriptor(width, height))!
-
-/** Bytes the mask `vsm` holds: its array and its tile words. */
-const heldMaskBytes = ({ mask }: EngineVsm) =>
-  mask ? madeTextureBytes(mask.array) + madeTextureBytes(mask.tiles) : 0
-
-const destroyMask = (mask: VsmMask | undefined) => {
-  mask?.array.destroy()
-  mask?.tiles.destroy()
-}
-
-/** Bytes the mask asks beyond the one `vsm` holds, to be made at `width` × `height` for exactly
- *  `lights` shadowed lights (`ensureMask` frees the held one first). */
-export function maskGrowth(vsm: EngineVsm, width: number, height: number, lights: number) {
-  if (maskKept(vsm, width, height, maskLayersFor(lights), true)) return 0
-  return maskBytes(width, height, lights) - heldMaskBytes(vsm)
-}
-
-/** Whether the mask of `vsm` serves `layers` layers at `width` × `height`, exactly or at least. */
-const maskKept = (
-  { mask }: EngineVsm,
-  width: number,
-  height: number,
-  layers: number,
-  exact: boolean,
-) => {
-  const array = mask?.array
-  return (
-    !!array &&
-    array.width === width &&
-    array.height === height &&
-    (exact ? array.depthOrArrayLayers === layers : array.depthOrArrayLayers >= layers)
-  )
-}
-
-/** Bytes freeing `vsm` gives back (`destroyEngineVsm`): its set, mask, projection views and blue
- *  noise, raster lists and coloured transmission, each as the device ledger counted it. */
-export const engineVsmBytes = (vsm: EngineVsm) =>
-  vsm.res.bytes +
-  vsmProjectionHeldBytes(vsm.res) +
-  heldMaskBytes(vsm) +
-  vsmRenderContextBytes(vsm.res) +
-  (vsm.transmission ? vsm.transmission.bytes + vsmTransmissionContextBytes(vsm.transmission) : 0)
-
-/** The mask at the targets' size, one layer per four shadowed lights at least — `exact` when the
- *  plan reserves it for every casting light (`reserveProjection`, `vsmBeside.ts`), the frame then
- *  drawing into as many as its own lights take —, made whole or not at all
- *  (`constructGpuResources`). */
-export function ensureMask(
-  device: GPUDevice,
-  vsm: EngineVsm,
-  width: number,
-  height: number,
-  layers: number,
-  exact = false,
-): VsmMask {
-  if (vsm.mask && maskKept(vsm, width, height, layers, exact)) return vsm.mask
-  destroyMask(vsm.mask)
-  // Never a destroyed mask left in place should the new one be refused (`ledgerTentative`).
-  vsm.mask = undefined
-  return (vsm.mask = constructGpuResources(device, () => {
-    const array = device.createTexture(maskDescriptor(width, height, layers))
-    const tiles = device.createTexture(maskTilesDescriptor(width, height))
-    return {
-      array,
-      view: arrayView(array),
-      tiles,
-      tilesView: tiles.createView(),
-    }
-  }))
 }

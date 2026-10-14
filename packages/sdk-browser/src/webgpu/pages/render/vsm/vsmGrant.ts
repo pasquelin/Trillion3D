@@ -14,14 +14,8 @@ import {
   type Refusal,
 } from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../../shadow/memoryGrant.ts'
-import {
-  createEngineVsm,
-  destroyEngineVsm,
-  directionalCount,
-  engineVsmOptions,
-  fullMapsFor,
-  type EngineVsm,
-} from './engineVsm.ts'
+import { createEngineVsm, destroyEngineVsm, type EngineVsm } from './engineVsm.ts'
+import { directionalCount, engineVsmOptions, fullMapsFor } from './vsmLightMaps.ts'
 import { vsmLayout, type VsmResourceOptions } from '../../../../vsm/layout.ts'
 import { vsmResourceBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmPoolDraw, vsmPoolFloor, vsmPoolWithin } from '../../../../vsm/poolDraw.ts'

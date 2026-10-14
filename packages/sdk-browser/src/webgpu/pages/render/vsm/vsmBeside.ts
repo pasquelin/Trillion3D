@@ -15,16 +15,12 @@ import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
 import {
   castingCount,
   directionalCount,
-  engineVsmSideBytes,
   engineVsmOptions,
-  ensureMask,
   fullMapsFor,
-  maskBytes,
-  maskGrowth,
-  maskLayersFor,
   renderViewBound,
-  type EngineVsm,
-} from './engineVsm.ts'
+} from './vsmLightMaps.ts'
+import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
+import { ensureMask, maskBytes, maskGrowth, maskLayersFor } from './vsmMask.ts'
 import { vsmRenderContextBytes, vsmRenderFloorBytes } from '../../../../vsm/renderPass.ts'
 import { vsmLayout, type VsmLayout } from '../../../../vsm/layout.ts'
 import { vsmResourceBytes } from '../../../../vsm/layoutBytes.ts'

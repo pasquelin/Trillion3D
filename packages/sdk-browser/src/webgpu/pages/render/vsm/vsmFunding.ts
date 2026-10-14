@@ -1,15 +1,8 @@
 // What the virtual shadow maps ask of the GPU budget before the frame makes them: their mask with
 // the frame targets, the set the first lit frame draws, reserved before the pools grant themselves.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import {
-  castingCount,
-  directionalCount,
-  ensureMask,
-  fullMapsFor,
-  maskBytes,
-  maskGrowth,
-  maskLayersFor,
-} from './engineVsm.ts'
+import { castingCount, directionalCount, fullMapsFor } from './vsmLightMaps.ts'
+import { ensureMask, maskBytes, maskGrowth, maskLayersFor } from './vsmMask.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
 import { deviceWaiting } from '../../../../gpu/core/refusal.ts'
 import { vsmSetBytes } from './vsmBeside.ts'
