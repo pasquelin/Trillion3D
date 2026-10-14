@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'
 
 /**
@@ -32,24 +32,29 @@ export function volumeAttenuation(
   return out
 }
 
-/**
- * The law in WGSL, the water's and the shadow's: the transmittance of a path from its constant,
- * and the one unit of a volume's path. KHR_materials_volume declares `thickness` "in the
- * coordinate space of the mesh": the path a ray `ray` (world, any length) travels across it is
- * that length taken through the placement's world matrix `world` — its local direction
- * `M⁻¹ · ray` read through the cofactors (`cofactor3`, det · M⁻ᵀ), nonuniform scale and shear
- * included, no inverse taken, a collapsed transform's path zero. Where the matrix keeps the ray's
- * length (`|det| · |ray| = |C · ray|`, a rigid pose) the path is the declared thickness itself.
- * No path is longer than the thickness times the matrix's stretch bound `max(‖M‖₁, ‖M‖∞)`, which
- * bounds its largest singular value: the reach the water rectangle widens the backdrop by
- * (`waterStretch`, `../water/encloseWgsl.ts`), held under the cofactors' rounding too.
- */
+/** The law in WGSL: the transmittance of a path from its constant, the water's and the shadow's. */
 export const VOLUME_LAW_WGSL = wgslBlock(
   'VOLUME_LAW_WGSL',
-  [cofactor3],
+  [],
   `
-fn volumeTransmittance(k:vec3f,path:f32)->vec3f{return exp2(k*path);}
-fn volumeWorldPath(world:mat4x4f,thickness:f32,ray:vec3f)->f32{
+fn volumeTransmittance(k:vec3f,path:f32)->vec3f{return exp2(k*path);}`,
+)
+
+/**
+ * The one unit of a volume's path, the water's and the shadow's. KHR_materials_volume declares
+ * `thickness` "in the coordinate space of the mesh": the path a ray `ray` (world, any length)
+ * travels across it is that length taken through the placement's world matrix `world` — its local
+ * direction `M⁻¹ · ray` read through the cofactors (`cofactor3`, det · M⁻ᵀ), nonuniform scale and
+ * shear included, no inverse taken, a collapsed transform's path zero. Where the matrix keeps the
+ * ray's length (`|det| · |ray| = |C · ray|`, a rigid pose) the path is the declared thickness
+ * itself. No path is longer than the thickness times the matrix's stretch bound
+ * `max(‖M‖₁, ‖M‖∞)`, which bounds its largest singular value: the reach the water rectangle widens
+ * the backdrop by (`waterStretch`, `../water/encloseWgsl.ts`), held under the cofactors' rounding.
+ */
+export const volumeWorldPath = wgslFn(
+  'volumeWorldPath',
+  [cofactor3],
+  `fn volumeWorldPath(world:mat4x4f,thickness:f32,ray:vec3f)->f32{
  let a=world[0].xyz;let b=world[1].xyz;let c=world[2].xyz;
  let C=cofactor3(a,b,c);
  let determinant=abs(dot(a,C[0]));

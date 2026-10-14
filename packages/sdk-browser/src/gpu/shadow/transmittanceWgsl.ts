@@ -1,7 +1,7 @@
 import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { matrixWindingCwTriple } from '../../../../math/src/wgsl/matrix.ts'
-import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
+import { VOLUME_LAW_WGSL, volumeWorldPath } from '../../webgpu/transparent/volumeLaw.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
@@ -23,6 +23,7 @@ export const blendTransmittanceWgsl = (maskAlpha: WgslDecl, colorSample: WgslDec
       PAGE_INFO_STRUCT_WGSL,
       matrixWindingCwTriple,
       VOLUME_LAW_WGSL,
+      volumeWorldPath,
       materialTableWgsl(VIS_BINDINGS.material),
       maskAlpha,
       colorSample,
