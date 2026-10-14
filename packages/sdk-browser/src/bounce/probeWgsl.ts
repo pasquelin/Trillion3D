@@ -77,13 +77,12 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  var sums:array<vec3f,13>;
  var travelled=0.0;
  var answered=0.0;
- // One thread per ray: a probe at sixty-four rays occupies a whole group, where a single
- // thread chained them one after another and left the GPU idle.
- for(var ray=lane;ray<RAYS_PER_PROBE;ray+=PROBE_THREADS){
-  let d=rayDirection(ray,jitter,rotation);
-  let sample=rtProbeRay(origin,d,reach);
-  // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
-  if(sample.w<0.0){continue;}
+ // One thread per ray, the group as wide as the probe's rays (\`PROBE_THREADS\`): a probe at
+ // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
+ let d=rayDirection(lane,jitter,rotation);
+ let sample=rtProbeRay(origin,d,reach);
+ // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
+ if(!(sample.w<0.0)){
   let span=sample.w;
   travelled+=span;
   answered+=1.0;
