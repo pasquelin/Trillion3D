@@ -9,6 +9,7 @@ import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
+import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
@@ -59,14 +60,14 @@ const reflectionSeenWgsl = (group: number) =>
   wgslBlock(
     `reflectionSeenWgsl(${group})`,
     [
+      RADIANCE_ANSWER,
       reflectionFootprintWgsl(group),
       reflectionRayWgsl(group),
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
     ],
-    `struct ReflectionSeen{color:vec3f,confidence:f32,distance:f32,}
-fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32)->ReflectionSeen{
- var seen=ReflectionSeen(vec3f(0.0),0.0,0.0);
+    `fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32)->RadianceAnswer{
+ var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
  let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab);
@@ -121,6 +122,13 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       LOBE_AXIS_WGSL,
     ],
     `var<private> reflectionHit:f32;
+/** One stage of the chain: its answer's share of what is left added, \`reflectionHit\` its distance
+ *  where it takes the larger share, what is left reduced. */
+fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<function,f32>){
+ *radiance+=*rest*answer.confidence*answer.color;
+ if(*rest>0.5&&*rest*(1.0-answer.confidence)<=0.5){reflectionHit=answer.distance;}
+ *rest*=1.0-answer.confidence;
+}
 fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
@@ -128,19 +136,11 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)-
  reflectionHit=REFLECTION_FAR;
  let pixel=reflectionPixelAt(P);
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
-  let seen=reflectionSeen(P,N,ellipse,pixel);
-  radiance+=rest*seen.confidence*seen.color;
-  if(rest>0.5&&rest*(1.0-seen.confidence)<=0.5){reflectionHit=seen.distance;}
-  rest*=1.0-seen.confidence;
+  reflectionTake(reflectionSeen(P,N,ellipse,pixel),&radiance,&rest);
  }
 ${
   scene
-    ? ` if(rest>REFLECTION_EPSILON){
-  let proxied=reflectionProxied(P,N,ellipse,pixel);
-  radiance+=rest*proxied.confidence*proxied.color;
-  if(rest>0.5&&rest*(1.0-proxied.confidence)<=0.5){reflectionHit=proxied.distance;}
-  rest*=1.0-proxied.confidence;
- }
+    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel),&radiance,&rest);}
 `
     : ''
 } if(rest>REFLECTION_EPSILON){

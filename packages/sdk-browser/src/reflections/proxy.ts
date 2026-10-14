@@ -15,7 +15,7 @@ import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
  * that it never meets the proxy's own copy of the surface it leaves, and goes as far as the eye can tell its
  * answer from the field's (`reflectionProxyReach`, `reach.ts`): no ray where that is under the lift. Its
  * confidence comes from the hit alone: the share of the ray the surfaces met stop, its distance the first
- * surface's (`rtHitDistance`). Zero where it hits nothing, or where the scene has no proxy.
+ * surface's from `P`. Zero where it hits nothing, or where the scene has no proxy.
  */
 export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
   wgslBlock(
@@ -27,15 +27,15 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
       REFLECTION_REACH_WGSL,
       runtimeRadianceWgsl(scene),
     ],
-    `struct ReflectionProxied{color:vec3f,confidence:f32,distance:f32,}
-fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->ReflectionProxied{
- if(rtProxy.instances==0u){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
+    `fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->RadianceAnswer{
+ if(rtProxy.instances==0u){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  let narrow=min(lobe.widths.x,lobe.widths.y);
  let reach=reflectionProxyReach(P,N,narrow,min(lobe.tangents.x,lobe.tangents.y),pixel);
  let lift=rtProxy.error;
- if(reach<=lift){return ReflectionProxied(vec3f(0.0),0.0,0.0);}
+ if(reach<=lift){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  let tangent=reflectionReadTangent(lobe);
- let seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent);
- return ReflectionProxied(seen.color,seen.confidence,lift+rtHitDistance);
+ var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent);
+ seen.distance+=lift;
+ return seen;
 }`,
   )

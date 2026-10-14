@@ -61,7 +61,7 @@ export function runOver(w: ReturnType<typeof world>) {
       d: Vec,
       reach: number,
       tangent: number,
-    ) => { color: Vec; confidence: number }
+    ) => { color: Vec; confidence: number; distance: number }
     rtPackShared: (c: Vec) => number
     rtUnpackShared: (word: number) => Vec
     testWork: () => number
@@ -76,7 +76,6 @@ export function runOver(w: ReturnType<typeof world>) {
     rtExtra: 0,
     rtAnyHit: false,
     rtLost: false,
-    rtHitDistance: 0,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
@@ -85,7 +84,6 @@ export function runOver(w: ReturnType<typeof world>) {
       emission,
       blended,
     }),
-    RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
     Box: (low: Vec, high: Vec) => ({ low, high }),
     ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
       box,

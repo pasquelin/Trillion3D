@@ -1,6 +1,6 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslStruct } from '../../../math/src/wgsl/decl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
@@ -17,11 +17,19 @@ import {
   SURFACE_WORDS,
 } from './runtimeLayout.ts'
 
+/** What a stage of a ray's answer brings back: the radiance of what it met, the confidence of the
+ *  answer, and the distance to what answered — the screen's, the proxy's, one struct. */
+export const RADIANCE_ANSWER = wgslStruct(
+  'RadianceAnswer',
+  [],
+  'struct RadianceAnswer{color:vec3f,confidence:f32,distance:f32,}',
+)
+
 /**
  * THE RADIANCE OF A RAY: what a ray of the proxy (`runtimeSceneWgsl.ts`) brings back. `rtRadiance` is the
  * radiance through up to `RAY_LAYERS` surfaces — a blended one lets the rest of the light through (its opacity
  * weighs its own radiance, the transmittance goes on) —, and the confidence of the answer: what it holds, the
- * rest left to the next stage. The radiance of a surface is its emission and its diffuse tint lit as the proxy's
+ * rest left to the next stage, and the distance to the first surface it met. The radiance of a surface is its emission and its diffuse tint lit as the proxy's
  * other surfaces are (`surfaceLit`), the shadows traced against the proxy itself (`rtBlocked`). A mesh whose
  * placement deforms is traced at its rest shape, its confidence cut by the placement's reach against the
  * footprint. `rtProbeRay` is the probes' ray: the lit tint of the first surface and the distance to it.
@@ -30,6 +38,7 @@ export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimeRadianceWgsl(${sceneKey(scene)})`,
     [
+      RADIANCE_ANSWER,
       runtimeSceneWgsl(scene),
       SURFACE_RAY_WGSL,
       inverseTranspose3,
@@ -50,10 +59,6 @@ ${wgslConsts({
 const RT_SPREAD_FLOOR:f32=${wgslF32(RAY_SPREAD_FLOOR)};
 const RT_THROUGH_FLOOR:f32=${wgslF32(RAY_THROUGH_FLOOR)};
 const RT_ERROR_FLOOR:f32=${wgslF32(RAY_ERROR_FLOOR)};
-/** What a ray brings back: the radiance of what it met, weighed by the confidence of the answer. */
-struct RtRadiance{color:vec3f,confidence:f32,}
-/** The distance along the last \`rtRadiance\`'s ray to the first surface it met, its reach where none. */
-var<private> rtHitDistance:f32;
 /** A surface's words (\`runtimeLayout.ts\`): its diffuse tint and opacity, its emission and its flags. */
 struct RtSurface{tint:vec3f,opacity:f32,emission:vec3f,blended:bool,}
 fn rtSurfaceOf(index:u32)->RtSurface{
@@ -80,23 +85,23 @@ fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,wo
  * The run-time proxy's answer to a ray of length \`reach\` from \`origin\`: its first surface, and
  * the ones behind it while the surfaces met let light through, up to \`RT_LAYERS\`. The answer is the
  * radiance of the light they hold, \`confidence\` the share of the ray they stop; the rest goes on to the
- * next stage. \`error\` is the width the ray's lobe covers at a metre, \`tangent\`: a deformed placement's
+ * next stage, \`distance\` the first surface's, \`reach\` where none. \`error\` is the width the ray's lobe covers at a metre, \`tangent\`: a deformed placement's
  * reach, which its rest shape does not hold, takes confidence from a hit narrower than it.
  * Exhausted — its budget or a shadow ray's spent — is no answer at all, confidence zero
  * (\`runtimeLayout.ts\`).
  */
-fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
+fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RadianceAnswer{
  rtBegin();
- rtHitDistance=reach;
+ var first=reach;
  var color=vec3f(0.0);
  var through=1.0;
  var start=origin;
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
   let hit=rtScene(start,direction,left);
-  if(rtSpent()){return RtRadiance(vec3f(0.0),0.0);}
+  if(rtSpent()){return RadianceAnswer(vec3f(0.0),0.0,first);}
   if(!hit.found){break;}
-  if(layer==0u){rtHitDistance=hit.distance;}
+  if(layer==0u){first=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
   let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
   let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
@@ -105,7 +110,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let known=spread/(spread+marked*length(world[0]));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
   color+=through*opacity*rtShade(hit,start,direction,surface,reach,world);
-  if(rtLost){return RtRadiance(vec3f(0.0),0.0);}
+  if(rtLost){return RadianceAnswer(vec3f(0.0),0.0,first);}
   through*=1.0-opacity;
   let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
   start+=direction*travelled;
@@ -113,7 +118,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   if(through<RT_THROUGH_FLOOR||left<=0.0){break;}
  }
  let held=1.0-through;
- return RtRadiance(select(vec3f(0.0),color/held,held>0.0),held);
+ return RadianceAnswer(select(vec3f(0.0),color/held,held>0.0),held,first);
 }
 
 /** The light a probe's ray brings back: from \`origin\` along \`direction\`, \`reach\` far, what the first surface it
