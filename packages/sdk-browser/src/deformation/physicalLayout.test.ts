@@ -53,7 +53,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
   )
 })
 
-test('transparent deformation and subsurface records occupy distinct words', () => {
+test("a transparent item's deformation words are its own, its neighbour's untouched", () => {
   const floats = new Float32Array(BLEND_ITEM_WORDS * 2),
     words = new Uint32Array(floats.buffer)
   writeBlendItemRecord(
@@ -74,6 +74,6 @@ test('transparent deformation and subsurface records occupy distinct words', () 
   )
   const base = BLEND_ITEM_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
-  assert.deepEqual([...floats.subarray(base + 44, base + 47)], [0.25, 0.5, 0.75])
-  assert.deepEqual([...words.subarray(base + 48, base + 51)], [123, 456, 789])
+  // `deform`, `deformInput`, `deformOutput`, after the world and the three geometry words.
+  assert.deepEqual([...words.subarray(base + 19, base + 22)], [123, 456, 789])
 })

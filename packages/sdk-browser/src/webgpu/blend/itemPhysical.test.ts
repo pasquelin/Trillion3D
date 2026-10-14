@@ -32,7 +32,8 @@ function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasUv1 =
     materialTable: createMaterialTable(),
     geometryBlocks: new Map([[geometry.attributes, { ...emptyGeometryBlock(), count: 3, hasUv1 }]]),
   })
-  return { word: ints[BLEND_ITEM_WORDS - 1], lobed: returned, item: record }
+  // The record's material word: its twenty-third (`itemRecord.test.ts`).
+  return { word: ints[22], lobed: returned, item: record }
 }
 
 test('a blend names its record, a second UV set in its high bit, and says whether it is lobed', () => {

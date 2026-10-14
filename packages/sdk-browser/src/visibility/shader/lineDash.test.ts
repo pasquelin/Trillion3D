@@ -78,10 +78,8 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   assert.ok(rasterSource(4, 16).includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL.text))
-  assert.match(
-    wgslSource(BLEND_ITEM_WGSL),
-    /emissive:vec4f,dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,material:u32,\}/,
-  )
-  assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);'))
+  // Its dash is its surface's record's too, read by its vertex stage.
+  assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /dash/)
+  assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(m.alphaTest,m.aoIntensity,m.dash);'))
   assert.ok(BLEND_SHADER.includes('||!lineDash(in.uv.x,in.alphaAo.zw)){discard;return '))
 })

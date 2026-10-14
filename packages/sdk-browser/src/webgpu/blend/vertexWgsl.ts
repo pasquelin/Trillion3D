@@ -97,9 +97,9 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  let world=it.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;
  // A line quad widens on screen (\`lineClip\`), along the direction its corner's normal carries.
- if(it.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),it.lineWidth,uni.viewport,uni.pixelRatio);}
+ if(m.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),m.lineWidth,uni.viewport,uni.pixelRatio);}
  // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
- if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
+ if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
  out.tri=0u;
  out.diagId=0u;
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTER_VIEWS}u)!=0u){out.diagId=clusterId;}
@@ -144,13 +144,16 @@ const blendVertexStage = ({
  let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  let local=vertexIndex&lowBits(uni.vertexShift);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
- out.color=it.color;
- out.ids=${ids}(it.mapIndex,flags|(u32(it.emissive.w)<<${surfaceModel.MODEL_SHIFT}u),it.emissiveIndex${word});
- out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
- out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
- out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
- out.emissive=vec4f(it.emissive.xyz,it.subsurface.w);
- out.normal.w=it.subsurface.x;out.tangent.w=it.subsurface.y;out.bitangent.w=it.subsurface.z;
+ // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a vertex.
+ let m=materialAt(it.material);
+ out.color=vec4f(m.baseColor,m.opacity);
+ out.ids=${ids}(m.mapIndex,flags|(m.model<<${surfaceModel.MODEL_SHIFT}u),m.emissiveIndex${word});
+ out.maps=vec4u(m.roughnessIndex,m.metalnessIndex,m.normalIndex,m.aoIndex);
+ out.alphaAo=vec4f(m.alphaTest,m.aoIntensity,m.dash);
+ // The second normal factor of the frame the item's normal map is read in (\`frameNormalScaleY\`).
+ out.pbr=vec4f(m.roughness,m.metalness,m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,(it.flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u));
+ out.emissive=vec4f(m.emissive,f32(m.subsurfaceMap));
+ out.normal.w=m.subsurface.x;out.tangent.w=m.subsurface.y;out.bitangent.w=m.subsurface.z;
  var page:PageInfo;
  page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
 ${VERTEX_PAGE}

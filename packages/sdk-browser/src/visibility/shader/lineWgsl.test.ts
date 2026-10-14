@@ -120,13 +120,13 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
     SHADE_SHADER,
     /if\(shape\.lineWidth>0\.0\)\{let vp=uni\.viewProj\*page\.world;let width=shape\.lineWidth;c0=pageLine/,
   )
-  assert.match(wgslSource(BLEND_ITEM_WGSL), /emissiveIndex:u32,lineWidth:f32,alphaTest/)
+  assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /lineWidth/)
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)
-  assert.match(BLEND_SHADER, /if\(it\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
+  assert.match(BLEND_SHADER, /if\(m\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL.text))
   for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
     assert.ok(
       text.includes('lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio)'),
     )
-  assert.match(BLEND_SHADER, /it\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)
+  assert.match(BLEND_SHADER, /m\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)
 })

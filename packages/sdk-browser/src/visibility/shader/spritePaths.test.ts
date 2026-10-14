@@ -56,10 +56,8 @@ test('every raster turns a sprite page off its record, the shadow vertex stage i
 })
 
 test('the transparent pass turns a sprite with the shared text', () => {
-  assert.match(
-    wgslSource(BLEND_ITEM_WGSL),
-    /dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,material:u32,\}/,
-  )
+  // Its sprite words are its surface's record's, read by its vertex stage.
+  assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /sprite/)
   assert.ok(BLEND_SHADER.includes(SPRITE_WGSL.text))
   assert.ok(
     BLEND_SHADER.includes(
@@ -68,7 +66,7 @@ test('the transparent pass turns a sprite with the shared text', () => {
   )
   assert.ok(
     BLEND_SHADER.includes(
-      ' if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
+      ' if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
     ),
   )
 })

@@ -6,13 +6,16 @@ import { PAGE_NORMAL_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts'
 import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { materialTableWgsl } from '../material/materialWgsl.ts'
 
-/** What every vertex stage of the runs binds and reads before its layout's own reads. */
+/** What every vertex stage of the runs binds and reads before its layout's own reads: the item
+ *  records, and the material table their surfaces' records lie in. */
 export const VERTEX_READS_WGSL = wgslBlock(
   'VERTEX_READS_WGSL',
   [
     BLEND_VIEW_WGSL,
     BLEND_ITEM_WGSL,
+    materialTableWgsl(BLEND_BINDINGS.material),
     normalAtlasWgsl(BLEND_BINDINGS.normals),
     PAGE_INFO_STRUCT_WGSL,
     PAGE_NORMAL_WGSL,
@@ -41,8 +44,8 @@ export const vsOutWgsl = (uv: string, ids: string) =>
   wgslBlock(
     `vsOutWgsl(${uv}, ${ids})`,
     [],
-    `// What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
-// maps, their factors and the flags, constant over the call, therefore FLAT (no per-call binding).
+    `// What the vertex stage reads on the item's surface's record and the fragment stage re-reads
+// as-is: the six maps, their factors and the flags, constant over the call, therefore FLAT.
 // \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
 // above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
