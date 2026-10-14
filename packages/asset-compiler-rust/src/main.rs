@@ -60,7 +60,7 @@ fn pointer(result: &Value, cache: &Path) -> Value {
 fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     let started = Instant::now();
     emit(
-        json!({"event":"accepted","ratio":0.0,"source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangles":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),
+        json!({"event":"accepted","ratio":0.0,"source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangleBudget":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),
         id,
     );
     let job = id.to_string();

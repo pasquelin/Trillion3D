@@ -1,13 +1,14 @@
 use super::*;
 use crate::texture_preview::BlockFormat;
+use serde_json::Map;
 
 /// `--textures-format=` values: every family by default — each device then
 /// streams the blocks it samples, and PNG is the last fallback —, one family
 /// when a cook targets one platform, or none, a measurement's "before".
-pub const TEXTURE_FORMAT_OPTION: &str = "--textures-format=";
-pub const TEXTURE_FORMAT_DEFAULT: &str = "all";
+const TEXTURE_FORMAT_OPTION: &str = "--textures-format=";
+const TEXTURE_FORMAT_DEFAULT: &str = "all";
 
-pub fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, String> {
+fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, String> {
     match value {
         "all" => Ok(BlockFormat::ALL.to_vec()),
         "none" => Ok(Vec::new()),
@@ -17,52 +18,137 @@ pub fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, Str
     }
 }
 
+/// Batch file field of `--textures-format=`, read by the same job reader.
+const TEXTURES_FORMAT_FIELD: &str = "texturesFormat";
+/// Job fields the command line gives as numbers.
+const NUMBER_FIELDS: [&str; 3] = [
+    job_field::TRIANGLE_BUDGET,
+    job_field::THREADS,
+    job_field::RAM_BUDGET_MB,
+];
+
+/// A positive integer, `default` when absent or null.
+pub fn positive(
+    value: Option<&Value>,
+    default: usize,
+    name: &str,
+) -> std::result::Result<usize, String> {
+    match value {
+        None | Some(Value::Null) => Ok(default),
+        Some(v) => v
+            .as_u64()
+            .filter(|n| *n > 0)
+            .map(|n| n as usize)
+            .ok_or_else(|| format!("{name} must be a positive integer")),
+    }
+}
+
+/// What a job takes for the fields it does not name: the command line's defaults, or a batch's
+/// scope, thread count and memory share.
+pub struct JobDefaults {
+    pub scope: &'static str,
+    pub threads: usize,
+    pub ram_budget_mb: usize,
+}
+
+/// The one reading of a compile job, whichever form named it: a batch file's job object, or the
+/// command line's values keyed by `JOB_FIELDS`. The values themselves are checked by `compile`.
+pub fn job_options(
+    job: &Map<String, Value>,
+    defaults: &JobDefaults,
+    cancelled: Arc<AtomicBool>,
+) -> std::result::Result<Options, String> {
+    let text = |name: &str| job.get(name).and_then(Value::as_str);
+    let number = |name: &str, default: usize| positive(job.get(name), default, name);
+    let source = text(job_field::SOURCE).unwrap_or("");
+    let cache = text(job_field::CACHE).unwrap_or("");
+    let resource_base = text(job_field::RESOURCE_BASE_URL).unwrap_or("");
+    if source.is_empty() || cache.is_empty() || resource_base.is_empty() {
+        return Err(format!(
+            "{}, {} and {} are required",
+            job_field::SOURCE,
+            job_field::CACHE,
+            job_field::RESOURCE_BASE_URL
+        ));
+    }
+    Ok(Options {
+        source: PathBuf::from(source),
+        cache: PathBuf::from(cache),
+        resource_base: resource_base.to_string(),
+        scope: text(job_field::SCOPE).unwrap_or(defaults.scope).to_string(),
+        triangle_budget: number(job_field::TRIANGLE_BUDGET, DEFAULT_TRIANGLE_BUDGET)?,
+        threads: number(job_field::THREADS, defaults.threads)?,
+        ram_budget_mb: number(job_field::RAM_BUDGET_MB, defaults.ram_budget_mb)?,
+        simplification: text(job_field::SIMPLIFICATION)
+            .unwrap_or(SIMPLIFICATIONS[0])
+            .to_string(),
+        texture_formats: texture_formats(
+            text(TEXTURES_FORMAT_FIELD).unwrap_or(TEXTURE_FORMAT_DEFAULT),
+        )?,
+        cancelled,
+    })
+}
+
+/// The command line's usage, spelled from `JOB_FIELDS`.
+fn usage() -> String {
+    let word = |field: &&str| match *field {
+        job_field::SCOPE => SCOPES.join("|"),
+        job_field::THREADS => format!("[{field}"),
+        job_field::RAM_BUDGET_MB => format!("{field}]"),
+        job_field::SIMPLIFICATION => format!("[{}]", SIMPLIFICATIONS.join("|")),
+        _ => field.to_string(),
+    };
+    let fields: Vec<String> = JOB_FIELDS.iter().map(word).collect();
+    format!(
+        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}all|bc7|astc|etc2|none]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
+        fields.join(" "),
+        job_field::SOURCE
+    )
+}
+
+/// The command line's job: its values in `JOB_FIELDS` order, read as a batch of one reads its job.
 pub fn parse_compiler_args(
     args: &[String],
     cancelled: Arc<AtomicBool>,
 ) -> std::result::Result<Options, String> {
-    let (options, args): (Vec<String>, Vec<String>) = args
+    let (flags, args): (Vec<String>, Vec<String>) = args
         .iter()
         .cloned()
         .partition(|arg| arg.starts_with(TEXTURE_FORMAT_OPTION));
-    let texture_formats = texture_formats(options.last().map_or(TEXTURE_FORMAT_DEFAULT, |arg| {
-        &arg[TEXTURE_FORMAT_OPTION.len()..]
-    }))?;
-    fn number(
-        value: Option<&String>,
-        default: usize,
-        name: &str,
-    ) -> std::result::Result<usize, String> {
-        match value {
-            Some(raw) => raw
-                .parse::<usize>()
-                .ok()
-                .filter(|v| *v > 0)
-                .ok_or_else(|| format!("{name} must be a positive integer")),
-            None => Ok(default),
-        }
+    let left_out: &[&str] = match args.len() {
+        8 => &[],
+        7 => &[job_field::SIMPLIFICATION],
+        5 => &[
+            job_field::THREADS,
+            job_field::RAM_BUDGET_MB,
+            job_field::SIMPLIFICATION,
+        ],
+        _ => return Err(usage()),
+    };
+    let mut job: Map<String, Value> = JOB_FIELDS
+        .iter()
+        .filter(|field| !left_out.contains(*field))
+        .zip(&args)
+        .map(|(field, raw)| {
+            let value = match raw.parse::<u64>() {
+                Ok(n) if NUMBER_FIELDS.contains(field) => Value::from(n),
+                _ => Value::from(raw.as_str()),
+            };
+            (field.to_string(), value)
+        })
+        .collect();
+    if let Some(flag) = flags.last() {
+        job.insert(
+            TEXTURES_FORMAT_FIELD.into(),
+            Value::from(&flag[TEXTURE_FORMAT_OPTION.len()..]),
+        );
     }
-    let (scope,triangle_budget,threads,ram_budget_mb,resource_base,simplification)=match args.len(){
-  5=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,DEFAULT_THREADS,DEFAULT_RAM_BUDGET_MB,args[4].clone(),"none".into()),
-  7=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,number(Some(&args[4]),DEFAULT_THREADS,"threads")?,number(Some(&args[5]),DEFAULT_RAM_BUDGET_MB,"RAM_MB")?,args[6].clone(),"none".into()),
-  8=>(args[2].clone(),number(Some(&args[3]),DEFAULT_TRIANGLE_BUDGET,"triangles")?,number(Some(&args[4]),DEFAULT_THREADS,"threads")?,number(Some(&args[5]),DEFAULT_RAM_BUDGET_MB,"RAM_MB")?,args[6].clone(),args[7].clone()),
-  _=>return Err("Usage: trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=all|bc7|astc|etc2|none]\n       SOURCE is a directory or a file in one of the formats --version lists".into()),
- };
-    if !["none", "qem-endpoints"].contains(&simplification.as_str()) {
-        return Err("simplification must be none or qem-endpoints".into());
-    }
-    Ok(Options {
-        source: PathBuf::from(&args[0]),
-        cache: PathBuf::from(&args[1]),
-        resource_base,
-        scope,
-        triangle_budget,
-        threads,
-        ram_budget_mb,
-        simplification,
-        texture_formats,
-        cancelled,
-    })
+    let defaults = JobDefaults {
+        scope: SCOPES[0],
+        threads: DEFAULT_THREADS,
+        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
+    };
+    job_options(&job, &defaults, cancelled)
 }
 
 impl Options {
