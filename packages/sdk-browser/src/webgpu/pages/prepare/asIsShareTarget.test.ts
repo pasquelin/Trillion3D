@@ -93,10 +93,11 @@ test('the blend pipelines compile the share target only for an image that can sh
   const items = [{ transmissive: false, surface: { blending: 'normal' } }] as BlendGpuItem[]
   const plain = mountDevice()
   const built = await createWebgpuBlendPipelines(plain.device, items)
-  assert.deepEqual(plain.pipelines, ['fs', 'fs', 'fs'])
+  // The blend's three, and the front stage's, compiled with the scene's transparents (`frontStage.ts`).
+  assert.deepEqual(plain.pipelines, ['fs', 'fs', 'fs', 'fsFront', 'fsFront', 'fsFront'])
   assert.equal(plain.formats('fs')[2], undefined, 'an empty slot, no share target')
   built.blendPipelines.at(0, false, true)
-  assert.equal(plain.pipelines.length, 6, 'the share set compiles at its first draw')
+  assert.equal(plain.pipelines.length, 9, 'the share set compiles at its first draw')
   const debug = mountDevice()
   await createWebgpuBlendPipelines(debug.device, items, undefined, true, undefined, true)
   assert.equal(debug.formats('fs')[2], 'rg8unorm', 'precompiled with the share')

@@ -25,6 +25,12 @@ export function indirectDraws(draws: readonly FakeDraw[]) {
   return vis
 }
 
+/** The transparent passes' draws of an image — the blends', the water surfaces' — on the blend vertex stage,
+ *  the front pass's left out: it draws every run once more, for the transparents' front alone
+ *  (`webgpu/blend/frontPass.ts`). */
+export const transparentDraws = (draws: readonly FakeDraw[]) =>
+  draws.filter((draw) => draw.entryPoint === 'vs' && draw.fragment !== 'fsFront')
+
 /** WebGPU's error classes, one each for the whole process: an error made before a later install is
  *  still an instance of the class the engine tests it against. */
 class GPUOutOfMemoryError extends Error {}

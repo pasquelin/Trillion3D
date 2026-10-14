@@ -5,7 +5,7 @@ import type { HostMesh } from '../../host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { packDagSelection } from '../../gpu/dag/pack.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
@@ -119,10 +119,10 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   // Triangles the image drew: the instance count the cut writes falls to zero, the encode plan
   // never moves. A double-sided item draws its triangles twice, once per face pass.
   const dessines = () =>
-    draws
-      .splice(0, draws.length)
-      .filter((draw) => draw.entryPoint === 'vs')
-      .reduce((sum, draw) => sum + (draw.vertexCount * (draw.instanceCount ?? 0)) / 3, 0)
+    transparentDraws(draws.splice(0, draws.length)).reduce(
+      (sum, draw) => sum + (draw.vertexCount * (draw.instanceCount ?? 0)) / 3,
+      0,
+    )
   const cam = camera()
   /** One pose under the GPU cut (#1483): drawn and flushed — its readback, cut under the poses in
    *  place, adopted —, then drawn again, the draws of that image alone counted. */

@@ -37,6 +37,7 @@ export type RankedPipelines = {
 export type FrontStagePipelines = RankedPipelines & {
   readonly ready: boolean
   ask(): void
+  prepare(): Promise<unknown>
 }
 
 /** What a transparent pass compiles per blending mode (`BLEND_MODES`): each mode's pipelines, one

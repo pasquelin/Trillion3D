@@ -11,7 +11,7 @@ import type { VisMaterial } from '../../visibility/materialType.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
-import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
+import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 
 /** The surface-buffer model flag of a blend of item flags `flags` (`../../scene/surfaceModel.ts`): the
  *  physical one, the diffuse or the toon one, as its model lane says. The blend fragment's lighting and
@@ -73,7 +73,7 @@ export const frontStageWgsl = (outputs: FrontOutputs) => {
       surfaceModel.surfaceReflects,
       LINE_DASH_WGSL,
       REFLECTION_CONSTANTS_WGSL,
-      ...(lobes ? [BLEND_PHYSICAL_WGSL] : [BLEND_LOBELESS_WGSL]),
+      ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [BLEND_LOBELESS_WGSL]),
     ],
     `struct FrontOut{${fields.join(',')},}
 const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};

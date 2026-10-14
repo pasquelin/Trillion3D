@@ -10,18 +10,20 @@ test('opaque, blend and water pipelines omit exactly the feedback output', () =>
   assert.equal(shadeTargetFormats(true).length, 5)
   assert.equal(shadeTargetFormats(false).length, 4)
   assert.equal(shadeTargetFormats(true)[4], 'r32uint')
-  assert.equal(blendTargets('normal', 0xf, true).length, 6)
-  assert.equal(blendTargets('normal', 0xf, false).length, 5)
+  // The colour, the feedback, the share, the two display layers' slots: no front target, the front
+  // pass writes the transparents' front alone (`frontLayer.ts`).
+  assert.equal(blendTargets('normal', 0xf, true).length, 5)
+  assert.equal(blendTargets('normal', 0xf, false).length, 4)
   assert.equal(blendTargets('normal', 0xf, true)[2]?.format, 'rg8unorm')
   assert.equal(blendTargets('normal', 0xf, false)[1]?.format, 'rg8unorm')
   for (const mode of ['normal', 'additive', 'subtractive', 'multiply', 'none'] as const) {
     const share = blendTargets(mode, 0xf, true)[2]
     assert.equal(share?.blend?.color.dstFactor, 'one-minus-src-alpha')
   }
-  // The water's surface stage: three surfaces, the word, the front depth, then the feedback.
-  assert.equal(waterSurfaceTargets(true).length, 6)
-  assert.equal(waterSurfaceTargets(false).length, 5)
-  assert.equal(waterSurfaceTargets(true)[5].format, 'r32uint')
+  // The water's surface stage: three surfaces, the word, then the feedback.
+  assert.equal(waterSurfaceTargets(true).length, 5)
+  assert.equal(waterSurfaceTargets(false).length, 4)
+  assert.equal(waterSurfaceTargets(true)[4].format, 'r32uint')
 })
 
 test('opaque attachments follow the pipelines in place and do not mark feedback written', () => {

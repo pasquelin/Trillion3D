@@ -13,13 +13,30 @@ test('the water pass is mounted with the blend pipelines only for a scene that t
   const opaque = mountDevice()
   const none = await createWebgpuBlendPipelines(opaque.device, items(3, false))
   assert.equal(none.water, undefined, 'no transmissive item, no pass')
-  assert.deepEqual(opaque.pipelines, ['fs', 'fs', 'fs'], 'the three blend pipelines only')
+  // The front stage's three culls, compiled with the scene's transparents (`frontStage.ts`).
+  assert.deepEqual(
+    opaque.pipelines,
+    ['fs', 'fs', 'fs', 'fsFront', 'fsFront', 'fsFront'],
+    'the three blend pipelines and the front stage only',
+  )
   const water = mountDevice()
   const some = await createWebgpuBlendPipelines(water.device, items(3, true))
   assert.ok(some.water, 'a transmissive item mounts the pass')
   assert.deepEqual(
     water.pipelines,
-    ['fs', 'fs', 'fs', 'fsWater', 'fsWater', 'fsWater', 'composeWater', 'restore_fs'],
+    [
+      'fs',
+      'fs',
+      'fs',
+      'fsFront',
+      'fsFront',
+      'fsFront',
+      'fsWater',
+      'fsWater',
+      'fsWater',
+      'composeWater',
+      'restore_fs',
+    ],
     'the surface stage at the three cull modes, the composite, then the cropped depth restore',
   )
 })
@@ -61,10 +78,11 @@ test('without the pass, the transmission slice draws as one more blend', () => {
 test('the blend pipelines are built for normal and for every mode a blend item declares', async () => {
   const glow = mountDevice()
   const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'))
-  assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each')
+  // Normal and additive, three culls each, and the front stage's three.
+  assert.equal(glow.pipelines.length, 9, 'normal and additive, three culls each, and the front')
   // Additive sits right after normal: its ranks draw what was compiled, compiling nothing.
   for (const rank of [0, 1, 2, 3, 4, 5]) assert.ok(built.blendPipelines.at(rank))
-  assert.equal(glow.pipelines.length, 6)
+  assert.equal(glow.pipelines.length, 9)
 })
 
 // A blending written on a surface after the pass was built is compiled by the first draw
@@ -72,13 +90,17 @@ test('the blend pipelines are built for normal and for every mode a blend item d
 test('a mode first drawn after the pass was built compiles its three pipelines then', async () => {
   const plain = mountDevice()
   const built = await createWebgpuBlendPipelines(plain.device, items(2, false))
-  assert.equal(plain.pipelines.length, 3, 'a plain scene compiles the three normal pipelines')
+  assert.equal(
+    plain.pipelines.length,
+    6,
+    'a plain scene compiles the three normal pipelines and the front stage',
+  )
   const multiplyBack = 3 * 3 + 2
   const pipeline = built.blendPipelines.at(multiplyBack)
   assert.ok(pipeline, 'the multiply back-face pipeline is drawn')
   // Its back-face cull at once, its two other culls started off the thread.
-  assert.equal(plain.pipelines.length, 6, 'multiply compiled its three culls, nothing else')
+  assert.equal(plain.pipelines.length, 9, 'multiply compiled its three culls, nothing else')
   assert.equal(built.blendPipelines.at(multiplyBack), pipeline, 'compiled once')
-  assert.equal(plain.pipelines.length, 6)
+  assert.equal(plain.pipelines.length, 9)
   assert.throws(() => built.blendPipelines.at(15), /names no blending mode/)
 })

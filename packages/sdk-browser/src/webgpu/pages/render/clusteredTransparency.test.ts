@@ -4,7 +4,7 @@ import * as G from '../../../host/graph/graph.fixture.ts'
 import { BufferAttribute } from '../../../../../sdk-core/src/world/buffer/attribute.ts'
 import type { HostMesh } from '../../../host/resources.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals, transparentDraws } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
@@ -45,7 +45,7 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
     assert.equal(backend.metrics().transparentSubmittedTriangles, 1)
     assert.equal(backend.metrics().transparentDrawCalls, 1)
     assert.equal(backend.metrics().transparentMeshes, 1)
-    const blend = draws.filter((d) => d.indirect && d.entryPoint === 'vs')
+    const blend = transparentDraws(draws).filter((d) => d.indirect)
     assert.equal(blend.length, 1, 'both faces draw in one indirect call')
     assert.equal(blend[0].instanceCount, 2, 'the kept cluster, once per face')
     const uploads = writes.length
@@ -181,7 +181,7 @@ test('a transparent switched to double-sided still expands all its instances', a
     mesh.updateMatrixWorld(true)
     draws.length = 0
     backend.render(camera())
-    const blend = draws.filter((draw) => draw.indirect && draw.entryPoint === 'vs')
+    const blend = transparentDraws(draws).filter((draw) => draw.indirect)
     assert.equal(blend.length, 1, 'both faces are encoded, in one draw')
     const instances = blend.reduce((total, draw) => total + (draw.instanceCount ?? 0), 0)
     assert.ok(instances > 0, 'both faces expand instances')

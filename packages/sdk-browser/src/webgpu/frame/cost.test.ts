@@ -9,7 +9,7 @@ import { collectClusterPages } from '../../page/selection/collect.ts'
 import { packDagSelection } from '../../gpu/dag/pack.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 
@@ -51,7 +51,7 @@ test('paged transparent commands disappear outside the view and return with both
         mock.draws.length = 0
         mock.writes.length = 0
         backend.render(view)
-        const blend = mock.draws.filter((d) => d.entryPoint === 'vs')
+        const blend = transparentDraws(mock.draws)
         // The encode plan follows the scene: the two items, both faces each, share ONE run —
         // the vertex stage culls for them. In view, it draws the eight instances the cut writes
         // (two clusters, two faces, two items); out of view, the run merges two items, so it is

@@ -1,4 +1,5 @@
-import { frontStamp, type FrontOutputs } from '../../reflections/frontLayer.ts'
+import { frontStamp } from '../../reflections/frontLayer.ts'
+import { frontOutputsOf } from './frontStage.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { drawBlendRuns } from './draw.ts'
 
@@ -29,11 +30,7 @@ export function encodeFrontPass(
     (!blendState.runCount[0] && !blendState.runCount[1])
   )
     return
-  const outputs: FrontOutputs = !blendState.reflects
-    ? 0
-    : blendState.lobed || blendState.waterLobed
-      ? 2
-      : 1
+  const outputs = frontOutputsOf(blendState.reflects, blendState.lobed || blendState.waterLobed)
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
   const hizFront = hiz.front(encoder, true)

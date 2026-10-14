@@ -18,14 +18,15 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * target between them: a fragment whose surface carries no lobe, or whose maps leave neither lobe,
  * sets none, and every term then runs the standard lobe operand for operand.
  */
-export const BLEND_PHYSICAL_WGSL = wgslBlock(
-  'BLEND_PHYSICAL_WGSL',
+/** The record a lobed fragment reads and the lobes it holds: its lobe extension, its lobes' values and
+ *  their texel (`blendLobedTexel`) — what a stage that lights nothing reads, the front stage's
+ *  (`frontStageWgsl.ts`). */
+export const BLEND_PHYSICAL_RECORD_WGSL = wgslBlock(
+  'BLEND_PHYSICAL_RECORD_WGSL',
   [
     physicalCoreWgsl('physicalSampled'),
     PHYSICAL_TEXEL_WGSL,
     materialTableWgsl(BLEND_BINDINGS.material),
-    LOBES_LIGHTING_WGSL,
-    LOBE_AXIS_WGSL,
   ],
   `var<private> physicalSampled:bool;
 /** The item's lobe extension and the fragment's two UV sets, before its tile request
@@ -56,8 +57,14 @@ fn blendLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->BlendLobed{
  let v=blendPhysicalValues(in,front,g,s);
  if(physicalLobeless(v)){return BlendLobed(vec4u(0u),false);}
  return BlendLobed(physicalTexel(v),true);
-}
-/** The lobes of a lit fragment of surface \`s\`, seen along \`V\`, set for its lights at its
+}`,
+)
+
+/** The lobes set for a fragment's lights (`blendLobes`), on its record (`BLEND_PHYSICAL_RECORD_WGSL`). */
+export const BLEND_PHYSICAL_WGSL = wgslBlock(
+  'BLEND_PHYSICAL_WGSL',
+  [BLEND_PHYSICAL_RECORD_WGSL, LOBES_LIGHTING_WGSL, LOBE_AXIS_WGSL],
+  `/** The lobes of a lit fragment of surface \`s\`, seen along \`V\`, set for its lights at its
  *  roughness. */
 fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32){
  if(!physicalOn){return;}

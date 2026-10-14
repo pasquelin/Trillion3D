@@ -64,11 +64,8 @@ test('water keeps the surface flags temporal antialiasing and the composition re
     assert.ok(!writesOf(pass).includes(flags), `${pass.label} writes over the surface flags`)
   const surface = writesOf(passes.find((pass) => pass.label === WATER_SURFACE_PASS)!)
   assert.equal(surface[3], word, 'the rank and opacity go to the display colour')
-  assert.equal(
-    surface.length,
-    6,
-    'three material surfaces, the word, the front depth, the feedback',
-  )
+  // The transparents' front is the front pass's alone (`frontLayer.ts`).
+  assert.equal(surface.length, 5, 'three material surfaces, the word, the feedback')
   assert.equal(groups.last.get(WATER_BINDINGS.word), word, 'the composite reads the word back')
   // The stage's fourth target is the display colour's format, and the backdrop holds no word.
   assert.equal(mount.formats('fsWater')[3], DISPLAY_FORMAT)

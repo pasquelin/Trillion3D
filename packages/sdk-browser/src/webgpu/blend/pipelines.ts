@@ -22,7 +22,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
-import { createFrontStages } from './frontStage.ts'
+import { createFrontStages, frontStageOf } from './frontStage.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
   FULL_CONTRACT,
@@ -107,6 +107,13 @@ export async function createWebgpuBlendPipelines(
     front: createFrontStages(device, blendBindGroupLayout),
   }
   const programs = await createForwardVariants((key) => blendProgram(setup, key), lit)
+  // The front stage the scene's transparents draw their front pass with, compiled with them; refused,
+  // no front pass draws (`frontPass.ts`).
+  if (items.length)
+    await setup
+      .front(frontStageOf(items))
+      .prepare()
+      .catch(() => undefined)
   const { water, waterRefused } = await blendWater(setup, programs, waterLit)
   return { blendBindGroupLayout, blendPipelines: programs.twin.pipelines, water, waterRefused }
 }

@@ -41,8 +41,9 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
     const lobed = ready && waterLobed && hasLobes
     const writes = writesOf(r.passes[0]),
       commands = stepsOf(r.passes[0])
-    // The three surfaces, the word, the lobes target where lobed, the front depth, the feedback.
-    assert.equal(writes.length, lobed ? 7 : 6)
+    // The three surfaces, the word, the lobes target where lobed, the feedback: the transparents' front
+    // is the front pass's alone (`frontLayer.ts`).
+    assert.equal(writes.length, lobed ? 6 : 5)
     assert.equal(writes[4] === surfaces.lobesView, lobed, `${waterLobed}, ${hasLobes}`)
     assert.ok(!writes.includes(surfaces.lobesView) || lobed)
     const entry = lobed ? 'fsWaterLobed' : 'fsWater'

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { webgpuPagesEngine } from './pages.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
@@ -79,7 +79,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name)
       assert.equal(metrics.transparentDrawCalls, 2, item.name)
       assert.equal(metrics.transparentSubmittedTriangles, 4, item.name)
-      const actual = draws.filter((draw) => draw.entryPoint === 'vs')
+      const actual = transparentDraws(draws)
       assert.equal(actual.length, 2, item.name + ' actual GPU commands, encoded as in view')
       assert.equal(
         actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
@@ -109,7 +109,7 @@ test('transparent selection follows each camera without retaining an old rejecte
   // Triangles the last image actually drew: the plan is the same from one image to the next,
   // only the instance count the cut writes changes.
   const dessines = () => {
-    const image = draws.splice(0, draws.length).filter((draw) => draw.entryPoint === 'vs')
+    const image = transparentDraws(draws.splice(0, draws.length))
     return image.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0)
   }
   try {

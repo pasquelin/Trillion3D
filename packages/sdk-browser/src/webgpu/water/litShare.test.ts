@@ -57,6 +57,8 @@ function runner(text: string) {
       'litSurface',
       'lobeRoughness',
       'forwardTrace',
+      'reflectionFrontTraced',
+      'reflectionFrontDepth',
       'reflectionTrace',
       'reflectionShare',
       'f0Of',
