@@ -15,6 +15,16 @@ import { recordsIdentity } from './recordsFollow.ts'
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 
+/** What a cut encodes for the row cache after its own kernels, on its pass, its group set
+ *  (`../../webgpu/row/rowEviction.ts`): the rows' closure, and their victim queue when `read` — a
+ *  readback copies this cut —; and what a main readback brings back of it, mapped, cut at `frame`
+ *  on a list of `listCap` (`landed`): none from a cut that dropped work. Set by the session that
+ *  holds the rows (`selection.ts`). */
+export type RowCutPass = {
+  encode(pass: GPUComputePassEncoder, read: boolean): void
+  landed(range: ArrayBuffer | undefined, listCap: number, frame: number): void
+}
+
 /** The cut's buffers, pipelines and groups, or `undefined` when the device refuses them: why is
  *  told to `refused` by the device's own words, never swallowed. */
 export async function createDagResources(
@@ -109,6 +119,8 @@ export async function createDagResources(
        *  budget each growth asks first. */
       share,
       admit,
+      /** The row cache's pass, when a session holds rows (`RowCutPass`). */
+      rowPass: undefined as RowCutPass | undefined,
     }
     // The frame's copies of the lists, read back in order: made last, within what the tables leave.
     const readbacks = createMainReadbacks(device, resources, made.readbackBytes)

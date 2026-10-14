@@ -33,6 +33,23 @@ export const levelCountsWord = (listCap: number) =>
  *  pages, a list of `listCap` each, the rank its page held in the kept list. */
 export const differenceWord = (listCap: number) => levelCountsWord(listCap) + ADMISSION_BUCKETS
 
-/** Word of `out` where the camera's requests wait for their sort, behind the difference, outside
+/** Victims one readback hands the row cache at most (`../../webgpu/row/rowEvictSortWgsl.ts`): the
+ *  most rows the table hands out between two readbacks, 64 KiB of readback. */
+export const ROW_BURST = 16384
+
+/** The burst of a readout of `listCap` ranks: never more victims than the cut's pages, which bound
+ *  its rows, so a small scene's readout stays small. */
+export const rowBurst = (listCap: number) => Math.min(ROW_BURST, listCap)
+
+/** Word of `out` where the rows' victim queue lies, behind the difference and in what the frame
+ *  copies: its count, the rows the GPU ranked, the frame it was ranked at plus one — 0 when no cut
+ *  ranked it —, then `rowBurst` pages (`../../webgpu/row/rowEvictSortWgsl.ts`). */
+export const rowQueueWord = (listCap: number) => differenceWord(listCap) + 2 * listCap
+
+/** Words of the rows' victim queue: its header, then its burst. */
+const rowQueueWords = (listCap: number) => SELECTION_HEADER_WORDS + rowBurst(listCap)
+
+/** Word of `out` where the camera's requests wait for their sort, behind the rows' queue, outside
  *  what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) => differenceWord(listCap) + 2 * listCap
+export const stagedRequestsWord = (listCap: number) =>
+  rowQueueWord(listCap) + rowQueueWords(listCap)

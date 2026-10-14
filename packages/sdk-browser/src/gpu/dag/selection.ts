@@ -19,6 +19,7 @@ import { createDagRuntime, type RootsOnGpu } from './runtime.ts'
 import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { cutHeldSlots } from './listCap.ts'
 import type { CutAdmission } from './cutBuffers.ts'
+import type { DagResources, RowCutPass } from './resources.ts'
 export { packDagSelection } from './pack.ts'
 export type { PackedDag } from './types.ts'
 
@@ -44,6 +45,8 @@ export async function createGpuDagSelection(
     progress?: CutProgress
     /** Told what each sub-step took once the making is over, made or refused. */
     timed?: (steps: ReturnType<CutSteps['end']>) => void
+    /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
+    rowPass?: (cut: DagResources) => RowCutPass
   } = {},
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -72,5 +75,6 @@ export async function createGpuDagSelection(
     options.onRefused?.(`camera cut creation failed: ${why}`, { why })
     return undefined
   }
+  resources.rowPass = options.rowPass?.(resources)
   return createDagRuntime(resources, options.poolHeld, options.roots)
 }

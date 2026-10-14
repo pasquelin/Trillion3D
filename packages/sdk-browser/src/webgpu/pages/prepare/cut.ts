@@ -9,6 +9,7 @@ import { rootsOnGpu } from '../../../placement/rootPasses.ts'
 import { deriveEveryRoot } from '../../../placement/rootMoves.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../../diagnostic/log.ts'
+import { createRowEviction } from '../../row/rowEviction.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
@@ -68,6 +69,14 @@ export async function createSessionCut(
     admit: (bytes) => admitCutTables(rt, bytes),
     progress,
     timed: ({ took, ms }) => reportCutSteps(rt, { took: [pack, ...took], ms: pack.ms + ms }),
+    // The row cache on the cut: its map and use words sent, its rows stamped, its queue ranked.
+    rowPass: createRowEviction({
+      map: rt.layout.rows.rowMap,
+      words: rt.services.rowWords,
+      table: rt.layout.rows,
+      frame: () => rt.run.frame,
+      order: rt.services.followRowOrder,
+    }),
   })
   return { cut, refused }
 }

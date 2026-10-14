@@ -17,8 +17,14 @@ const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
 type Bound = { binding: number; resource: { buffer: { data: Uint8Array } } }
 
 /** Whether a dispatch's group is a tile pool sort's (`webgpu/tile/evictSort.ts`): its four
- *  bindings — the places' words, the counts, the queues, the lane's uniform. */
-export const isTileSort = (entries: readonly Bound[]) => entries.length === 4
+ *  bindings — the places' words, the counts, the queues, the lane's uniform —, its counts the
+ *  texture eviction's; the rows' sort binds four too (`webgpu/row/rowEvictSort.ts`). */
+export const isTileSort = (entries: readonly Bound[]) =>
+  entries.length === 4 &&
+  /texture eviction/.test(
+    (entries.find((e) => e.binding === 1)?.resource.buffer as { label?: string } | undefined)
+      ?.label ?? '',
+  )
 
 /**
  * A tile pool's queue, replayed on its last dispatch (`poolScatter`) over the words the kernels

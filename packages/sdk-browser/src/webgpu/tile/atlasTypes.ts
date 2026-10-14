@@ -47,7 +47,8 @@ export type WebgpuTileAtlas = {
    *  (`WebgpuTilePool.pin`): an asker that needs it and may read none of it — a card's maps — keeps
    *  it from the queue while it holds it. */
   pin(id: number, pinned: boolean): boolean
-  /** A place for an arriving tile: free, or the next victim of its lane's queue (`placeOrder.ts`);
+  /** A place for an arriving tile: free, or the next victim of its lane's queue
+   *  (`../../gpu/pool/slotOrder.ts`);
    *  `undefined` when the queue has none — every place read of late — refusal counted. */
   place(key: TileKey): TilePlace | undefined
   /** Says whether `place` may have a place to give, without taking anything; false counts a

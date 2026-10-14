@@ -53,12 +53,16 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { ensureResident, residency } = createResidencyFor(rt, parts)
   const tiers = { all: lowerTiers, ahead: aheadTier }
   const publication = createWebgpuCutPublication(rt, residencySets, closure, tiers)
-  const { syncRows, followCut, rowsOwed, blendCasters } = rowSync
+  const { syncRows, followCut, rowsOwed, blendCasters, rowWords, followRowOrder } = rowSync
   return {
     syncRows,
     followCut,
     rowsOwed,
     blendCasters,
+    /** The rows' use words the GPU stamps (`../row/rowWords.ts`), and the queues of their victims
+     *  the readbacks bring (`../row/rowOrder.ts`). */
+    rowWords,
+    followRowOrder,
     /** Asks the cache for what the views' cuts want, ranked by the GPU when the pool is short. */
     queueCutResidency: () => residency.queueCuts(publication.viewReadbacks()),
     pageSource,

@@ -16,7 +16,6 @@ import { postPackedBases } from '../../page/selection/placements.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createRowUse } from './rowUse.ts'
 import { createRowDemand } from './rowDemand.ts'
 import type { DagRoot } from '../../gpu/dag/types.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -67,7 +66,7 @@ test('a still camera closes nothing over; a moving one, its lists’ differences
       return closure
     }
     const table = pageStateOf(pages.length)
-    const demand = createRowDemand(table, createRowUse(pages.length), () => true, counted)
+    const demand = createRowDemand(table, () => true, counted)
     const centre = [span / 2, 0, -span / 2]
     let before = 0,
       after = 0

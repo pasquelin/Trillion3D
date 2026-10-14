@@ -3,10 +3,11 @@
 // for again, the list keeps the GPU's order, and the host budget counts every table it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MIRROR, closeAlone, closePairs, rowCache, rowIdleSpan } from './rowCache.fixture.ts'
-import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
-import { createRowUse } from './rowUse.ts'
+import { MIRROR, closeAlone, closePairs, rowCache } from './rowCache.fixture.ts'
+import { createRowDemand } from './rowDemand.ts'
+import type { InstanceClosure } from './rowDemandState.ts'
 import { pageStateOf } from './pageState.fixture.ts'
+import { ROW_IN_USE } from './rowEvictSortWgsl.ts'
 
 test('a page that left the requests and came back after the serve passed it takes its row', () => {
   const cache = rowCache(4, 2)
@@ -25,9 +26,11 @@ test('a page that left the requests and came back after the serve passed it take
   cache.frame()
   cache.land([2])
   cache.frame()
-  // The drawn rows go unused: both requests take one back, 2 as 3 does.
-  for (let k = 0, span = rowIdleSpan(); k <= span; k++) cache.readback([], [2, 3])
-  cache.frame()
+  // The drawn rows go unused for the frames a use protects: both requests take one back, 2 as 3.
+  for (let k = 0; k <= ROW_IN_USE; k++) {
+    cache.readback([], [2, 3])
+    cache.frame()
+  }
   cache.frame()
   assert.deepEqual(cache.held(), [2, 3])
 })
@@ -55,7 +58,7 @@ test('a request resident when asked, its row dropped by a rebuild, is asked for 
 
 test('the demand is served in the GPU’s order: a nearer new request before an older one', () => {
   const table = pageStateOf(4)
-  const demand = createRowDemand(table, createRowUse(1), () => true, closeAlone)
+  const demand = createRowDemand(table, () => true, closeAlone)
   const tried: number[] = []
   const refuse = (page: number) => (tried.push(page), false)
   demand.follow({ pageIds: [1] })
@@ -81,8 +84,8 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
     return Object.assign(alone, { hostBytes: 5000 })
   }
   const table = pageStateOf(2)
-  const demand = createRowDemand(table, createRowUse(1), () => true, closure)
-  assert.ok(demand.bytes >= 10000, `${demand.bytes} bytes: the two closures counted`)
+  const demand = createRowDemand(table, () => true, closure)
+  assert.ok(demand.bytes >= 5000, `${demand.bytes} bytes: the requests' closure counted`)
   // The three lists' differences count as theirs do: a longer readback, more bytes.
   const before = demand.bytes
   demand.follow({ pageIds: [0, 1] })
@@ -91,7 +94,7 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
 
 test('a group-mate a request closed over is served right behind that request, in its rank', () => {
   const table = pageStateOf(20)
-  const demand = createRowDemand(table, createRowUse(1), () => true, closePairs)
+  const demand = createRowDemand(table, () => true, closePairs)
   // The table at its cap refuses 3; the next readback ranks 1 before it.
   demand.follow({ pageIds: [3] })
   demand.serve(

@@ -10,7 +10,8 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
  * one the cut wants at the host's threshold — the page and the priority the host will give it in
  * its queue (`../request.ts`). A wanted cluster that is not resident is drawn through its nearest
  * resident ancestor (`dagMask`).
- * A page the camera does not request goes to the view ahead (`aheadWgsl.ts`).
+ * A page the camera does not request goes to the view ahead (`aheadWgsl.ts`). A request marks its
+ * candidate a seed of the rows' closure (`seedWgsl.ts`).
  *
  * Kept apart from `shader.ts`, which holds the other kernels and the bind declarations.
  */
@@ -20,6 +21,7 @@ export const DAG_WANTED_WGSL = wgslBlock(
   `@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id,n,WORKGROUP_THREADS);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].candCap)){return;}
+ wantedAt=s;
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flagAt(candBase()+2u*s);let i=entryIndex(entry);vi=entryView(entry);
@@ -39,7 +41,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  emitOne(i,cameraPriority(cluster.flags,replacementPixels(cluster,pixels)));
- stampUse(r);
+ stampUse(r);markSeed(ROW_SEED_ASKED);
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.

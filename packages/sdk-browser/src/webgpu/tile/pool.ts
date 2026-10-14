@@ -11,7 +11,7 @@ import {
 import type { PoolLane } from '../../texture/blockFormats.ts'
 import type { ChangedRuns } from '../residency/ranges.ts'
 import { acquire, adopt, freeAt, occupied, pin, placesOf, release, taken } from './poolPlaces.ts'
-import { createPlaceOrder } from './placeOrder.ts'
+import { createSlotOrder } from '../../gpu/pool/slotOrder.ts'
 
 /**
  * Physical pool of an atlas: an array-texture of 30×30-tile layers, at the size the host budget
@@ -23,7 +23,8 @@ import { createPlaceOrder } from './placeOrder.ts'
  * it and whether it is pinned. A texture's tail is pinned for good; a streamed tile only while an
  * asker that reads none of it holds it (`cardTiles.ts`).
  * Which place gives itself up is the GPU's word: each frame stamps the places its pixels read, and
- * the pool's queue, ranked on those stamps, is read back with the feedback (`placeOrder.ts`). The
+ * the pool's queue, ranked on those stamps, is read back with the feedback
+ * (`../../gpu/pool/slotOrder.ts`). The
  * places occupied or freed since the last flush are `changed`: their use words follow
  * (`slotUse.ts`).
  */
@@ -58,7 +59,8 @@ export type WebgpuTilePool = {
   pinnedOf(index: number): boolean
   /** Whether `index` is free. */
   freeAt(index: number): boolean
-  /** The place the GPU's queue gives up next (`placeOrder.ts`): unpinned, and read by no pixel in
+  /** The place the GPU's queue gives up next (`../../gpu/pool/slotOrder.ts`): unpinned, and read
+   *  by no pixel in
    *  the frame its queue was cut nor the one before. A tile looked at on the previous image is very
    *  likely looked at on this one: giving it up for another is asking for it again on the next — a
    *  full pool would spin on itself every image. It refuses instead, and the coarse level holds. */
@@ -119,8 +121,8 @@ export function createWebgpuTilePool(
   const label = descriptor.label
   const texture = device.createTexture(descriptor)
   const places = placesOf(tiles)
-  const order = createPlaceOrder((index) =>
-    freeAt(places, index) ? undefined : { index, generation: places.arrived[index] },
+  const order = createSlotOrder((index) =>
+    freeAt(places, index) ? undefined : places.arrived[index],
   )
   return {
     label,
@@ -150,7 +152,9 @@ export function createWebgpuTilePool(
     victim: order.victim,
     victims: order.victims,
     rankOf: order.rankOf,
-    follow: order.follow,
+    // The queue's count, then its places.
+    follow: (queue, arrivals) =>
+      order.follow(queue.subarray(1, 1 + Math.min(queue[0], queue.length - 1)), arrivals),
     occupied: () => occupied(places),
     placeOf,
     destroy() {

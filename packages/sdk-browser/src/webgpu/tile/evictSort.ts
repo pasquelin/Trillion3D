@@ -21,7 +21,8 @@ const UNIFORM_WORDS = 4
  * THE TILE POOLS' VICTIM QUEUES (#1527): after the feedback reduction stamped the places its pixels
  * read (`stampWgsl.ts`), each lane pool short of a burst of free places is ranked on the GPU
  * (`evictSortWgsl.ts`), its queue copied back with the feedback list, and followed by the pool when
- * it lands (`placeOrder.ts`) with the arrivals it had at the cut. A pool with a burst free asks
+ * it lands (`../../gpu/pool/slotOrder.ts`) with the arrivals it had at the cut. A pool with a
+ * burst free asks
  * none: its next arrivals take free places. Nor does a pool whose queue holds victims, none of its
  * places arrived, pinned or unpinned since its last cut, and no pixel stamped since — or its cut is
  * younger than a use protects (`EVICT_IN_USE`): its queue names what a new one would, or a place

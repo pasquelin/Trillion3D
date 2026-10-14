@@ -2,6 +2,7 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.ts'
+import { createRowMapJournal } from './rowMapGpu.ts'
 
 /**
  * WHAT THE ROW CACHE KNOWS OF EACH PACKED PAGE, held for the pages that carry something alone: the
@@ -9,7 +10,8 @@ import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.t
  * the cut reads — each a sparse map (`../../page/cut/sparseInts.ts`), so its size follows the rows
  * and the resident instances, never the placements a scene repeats its pages on. The pool slot
  * each ADDRESS holds, which every instance of it reads, is the cache's own (`slotWords`): read where
- * it is true, never mirrored. An absent page holds no row and no flag.
+ * it is true, never mirrored. An absent page holds no row and no flag. The page→row map names its
+ * writes to a journal, which the GPU's copy of it follows (`rowMapGpu.ts`): the same table.
  */
 export function createRowPageState(
   recordOf: (page: number) => PageRec | undefined,
@@ -18,17 +20,20 @@ export function createRowPageState(
   slotWords: (address: string) => number,
 ) {
   // A row is stored plus one: an absent page reads -1.
-  const rows = createSparseInts(),
+  const rowJournal = createRowMapJournal()
+  const rows = createSparseInts(rowJournal),
     blend = createSparseInts(),
     flags = createSparseInts()
   const page = {
     /** The visibility row `page` draws from, -1 none. */
     rowOf: (at: number) => rows.get(at) - 1,
     setRowOf: (at: number, row: number) => void rows.set(at, row + 1),
-    /** No page holds a visibility row any more: the table is rebuilt (`slotOps.ts`). */
+    /** No page holds a visibility row any more: the table is rebuilt (`rowPasses.ts`). */
     clearRows() {
       rows.clear()
     },
+    /** The page→row map's tables and what they wrote since the GPU's copy was sent. */
+    rowMap: { tables: rows, journal: rowJournal },
     /** The casters' row the blended `page` casts from, -1 none (`blendCasters.ts`). */
     blendRowOf: (at: number) => blend.get(at) - 1,
     setBlendRowOf: (at: number, row: number) => void blend.set(at, row + 1),

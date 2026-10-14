@@ -1,20 +1,23 @@
 import { worldStretch } from '../../page/selection/rootWorld.ts'
 import { FRAME_VEC4, type PackedDag } from './types.ts'
 import { sameLinearPart } from '../../../../math/src/matrix/matrixElements.ts'
+import { structuresOf } from './structureTable.ts'
 
 /** First word of primitive `w` in the frame buffer, its row: the stretch, then the root (`+ 1`),
  *  the record shift (`+ 2`), the never-culled mark (`+ 3`), its first page (`+ 4`) — what its shared
- *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`) and
- *  its page count (`+ 6`), as `primitiveFrameWords` lays them. */
+ *  nodes' pages are counted from —, the open counts it holds of its own (`+ 5`, `heldOpen.ts`), its
+ *  page count (`+ 6`) and its group structure's base (`+ 7`, `structureTable.ts`), as
+ *  `primitiveFrameWords` lays them. */
 export const primitiveWordAt = (w: number) => w * FRAME_VEC4 * 4
-/** The frame words of a placement's root node, its record shift, its mark, its first page and the
- *  open counts it holds (`primitiveWordAt`): what a pass beside the cut reads of a placement
- *  (`../../webgpu/rays/rayPlacementWgsl.ts`). */
+/** The frame words of a placement's root node, its record shift, its mark, its first page, the
+ *  open counts it holds and its group structure's base (`primitiveWordAt`): what a pass beside the
+ *  cut reads of a placement (`../../webgpu/rays/rayPlacementWgsl.ts`, `structureTable.ts`). */
 export const ROOT_WORD = 1,
   RECORD_SHIFT_WORD = 2,
   MARK_WORD = 3,
   PAGE_BASE_WORD = 4,
-  HELD_BY_WORD = 5
+  HELD_BY_WORD = 5,
+  STRUCTURE_WORD = 7
 const PAGE_COUNT_WORD = 6
 
 /** Whether primitive `w`'s words a cut reads differ between `previous` and `next`: its linear part
@@ -48,7 +51,7 @@ export function changedWorlds(
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
+    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen' | 'structures'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4)
@@ -60,7 +63,7 @@ export function primitiveFrameWords(
 export function writePrimitiveWords(
   frameData: Float32Array,
   packed: Pick<PackedDag, 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen'>>,
+    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen' | 'structures'>>,
   w: number,
 ) {
   const at = primitiveWordAt(w),
@@ -74,4 +77,6 @@ export function writePrimitiveWords(
   frameInts[at + PAGE_BASE_WORD] = packed.cutLinks?.[w]?.pageBase ?? 0
   frameInts[at + HELD_BY_WORD] = packed.heldOpen?.heldBy(w) ?? 0
   frameInts[at + PAGE_COUNT_WORD] = packed.cutLinks?.[w]?.pageCount ?? 0
+  // The structure is placed at its primitive's first placement, in placement order.
+  frameInts[at + STRUCTURE_WORD] = structuresOf(packed).baseOf(packed.cutLinks?.[w]?.structure)
 }

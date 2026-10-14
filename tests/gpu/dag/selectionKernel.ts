@@ -89,10 +89,15 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     device.queue.submit([encoder.finish()])
   }
 
-  /** The whole cut of `selection` on fresh buffers, read back. */
-  async function cut(selection: SelectionCase): Promise<SelectionReading> {
+  /** The whole cut of `selection` on fresh buffers, read back; `then`, when given, runs on its
+   *  buffers and group once the cut is read, before they are freed. */
+  async function cut(
+    selection: SelectionCase,
+    then?: (bound: ReturnType<typeof bind>, reading: SelectionReading) => Promise<void>,
+  ): Promise<SelectionReading> {
     const { packed } = selection
-    const { at, buffers, group, destroy } = bind(selection)
+    const bound = bind(selection)
+    const { at, buffers, group, destroy } = bound
     const pages = groups(packed.pageCount)
     // The whole descent in one pass, as the engine encodes it: a thread per primitive, and at
     // least one per block of pages (it resets the block counts), then each level dispatched flat
@@ -130,10 +135,9 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
           stagedRequestsWord(at.listCap) * 4,
         ))!
       : new Uint32Array(0)
-    destroy()
     const priorityOf = new Map<number, number>()
     for (let s = 0; s < count; s++) priorityOf.set(staged[2 * s], staged[2 * s + 1])
-    return {
+    const reading: SelectionReading = {
       name: selection.name,
       requests,
       priorities: requests.map((page) => priorityOf.get(page) ?? -1),
@@ -148,10 +152,16 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
       candidates: work[at.work.candCounter],
       live: work[at.work.liveCounter],
     }
+    await then?.(bound, reading)
+    destroy()
+    return reading
   }
 
   return {
     device,
+    /** The kernel's group layout and program: what a proof compiles the rows' closure on. */
+    layout,
+    module,
     bind,
     cut,
     /** `dagSortRequests` alone on `group`: the requests its output holds staged, sorted. */
