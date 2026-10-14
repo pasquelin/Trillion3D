@@ -134,9 +134,9 @@ test('a card out of the view asks no tile and leaves its root to the card', asyn
   fixture.geometry.dispose()
 })
 
-test('two meshes placed by one shared world each draw their own card, in one tile group', async () => {
-  const { gpu, rt, roots, fixture, land } = await bench()
-  // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
+/** `bench` with a second baked mesh beside the first, its root a copy of the first's, planned
+ *  from 200 units away. */
+function plannedWithSecondMesh({ rt, roots, land }: Awaited<ReturnType<typeof bench>>) {
   const other = { ...impostorSection.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
   rt.context.metadata.impostors = {
     ...impostorSection,
@@ -146,6 +146,12 @@ test('two meshes placed by one shared world each draw their own card, in one til
   roots.push({ ...roots[0], mesh: MESH + 1 })
   land()
   planWebgpuImpostors(rt, engineAt(200))
+}
+
+test('two meshes placed by one shared world each draw their own card, in one tile group', async () => {
+  const { gpu, rt, roots, fixture, land } = await bench()
+  // A second baked mesh whose root shares the first's world object (`IDENTITY_WORLD` is shared).
+  plannedWithSecondMesh({ rt, roots, land })
   for (const root of roots) assert.equal(root.mark, CARD_ROOT, 'each root left to its card')
   const { count, runCount } = rt.gpu.impostors!
   assert.deepEqual([count, runCount], [2, 2], 'a card and a draw per mesh, none dropped')
@@ -164,15 +170,7 @@ test('two meshes placed by one shared world each draw their own card, in one til
 test('a root the packed world DAG stands in for draws no card; one it does not hold keeps its own', async () => {
   const { rt, roots, marked, land } = await bench()
   // Two roots of two baked meshes: one the world holds, one it does not.
-  const other = { ...impostorSection.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
-  rt.context.metadata.impostors = {
-    ...impostorSection,
-    baked: 2,
-    meshes: [impostorSection.meshes[0], other],
-  }
-  roots.push({ ...roots[0], mesh: MESH + 1 })
-  land()
-  planWebgpuImpostors(rt, engineAt(200))
+  plannedWithSecondMesh({ rt, roots, land })
   assert.equal(roots[0].mark, CARD_ROOT, 'carded while no world DAG is packed')
   assert.equal(rt.gpu.impostors!.count, 2)
   // Root 0 linked to a world object, the others not: a host mesh outside the world's table.
