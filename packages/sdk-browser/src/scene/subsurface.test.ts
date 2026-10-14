@@ -16,6 +16,8 @@ import {
   RECEIVER_TARGET_FORMAT,
 } from '../visibility/shader/receiverTargetWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { wantsSubsurface } from './subsurface.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
@@ -93,4 +95,26 @@ test('public material reaches the engine, and a color edit repaints without an A
   assert.deepEqual(repainted.subsurfaceColor, [1, 0, 0])
   const layers = { mapLayer: new Map([[repainted.subsurfaceMap!, 3]]), dataLayer: new Map() }
   assert.equal(surfaceRow(repainted, layers).subsurface, 3, 'its own atlas slot')
+})
+
+test('the thin transmission target asks still rows their sheets once, again once they move', () => {
+  let reads = 0
+  const sheet = {
+    get subsurfaceColor() {
+      reads++
+      return [0.2, 0.7, 0.1]
+    },
+  }
+  const rows = {
+    packedRecs: [{ material: sheet }, { material: sheet }],
+    packedCount: 2,
+    rowWrites: 0,
+    tableEpoch: 0,
+  }
+  const rt = { layout: { rows } } as unknown as WebgpuPagesRuntime
+  for (let frame = 0; frame < 4; frame++) assert.equal(wantsSubsurface(rt), true)
+  assert.equal(reads, 1, 'one read of the one surface over four frames')
+  rows.packedCount = 0
+  rows.rowWrites++
+  assert.equal(wantsSubsurface(rt), false)
 })

@@ -21,7 +21,7 @@ export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
  * every slot), in one table: the struct the kernels read and the words the host writes
- * (`renderPass.ts`). The camera is the main view whose level of detail the casters take: eye (split
+ * (`vsmWriteChunkParams`, `chunkParams.ts`). The camera is the main view whose level of detail the casters take: eye (split
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold.
  */

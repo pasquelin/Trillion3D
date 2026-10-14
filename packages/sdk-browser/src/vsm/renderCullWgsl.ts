@@ -1,9 +1,8 @@
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
-import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -13,8 +12,9 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
 
 /**
  * Step 5, culling half: the per-page draw commands of the non-cluster raster, on the engine's
- * resident cluster rows (build of the per-page draw commands, page overlap, page cache, box cull
- * and page-mark pyramid helpers).
+ * resident cluster rows — the cull kernel alone: the page overlap and page cache it reads live in
+ * `renderOverlapWgsl.ts`, the box cull in `boxCullWgsl.ts`, the other kernels of the step in
+ * `renderCandidatesWgsl.ts`, `renderExpandWgsl.ts` and `renderParamsWgsl.ts`.
  *
  * Caster source: every row of the visibility page table (resident clusters), at the MAIN VIEW's
  * level of detail, and culls the instances against each VSM
@@ -23,7 +23,7 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
  * in) projected by the camera, without any frustum term: an off-screen caster is kept at the level
  * the camera's distance wants.
  *
- * Kernels (one module each, see `renderPass.ts` for the order):
+ * The step's kernels (one module each, see `renderPass.ts` for the order):
  * - `vsmRenderCandidates` (per row): the caster list. Drops rows that never cast
  *   (no corners, blended-caster rows, sprites — translucent / sprite proxies do not render into
  *   VSM depth —, and rows whose placement casts no shadow: `castShadow = false`, hidden or parked,
@@ -146,14 +146,11 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_RENDER_OVERLAP_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
       vsmBindingsWgsl(0, VSM_RENDER_CULL_SPECS, layout),
       VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_COVER_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
       FLOAT32_MAX,
       WORKGROUP_THREADS_WGSL,
-      lowBits,
     ],
   )

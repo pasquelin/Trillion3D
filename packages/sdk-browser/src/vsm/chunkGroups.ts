@@ -13,6 +13,10 @@ import type { VsmListName } from './chunkLists.ts'
 import { VSM_RENDER_PARAMS_BYTES } from './chunkParams.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 
+/** The dynamic offset of the parameters' first slot, held: the candidates and the cull's arguments
+ *  bind it every frame without a new array. */
+const FIRST_SLOT: readonly number[] = [0]
+
 /** The candidates kernel over `rowCount` rows, then the cull dispatch of every chunk, in `pass`:
  *  the opaque raster's and the transmission's. */
 export function encodeVsmCandidates(
@@ -24,10 +28,10 @@ export function encodeVsmCandidates(
   rowCount: number,
 ) {
   pass.setPipeline(candidates)
-  pass.setBindGroup(0, candGroup, [0])
+  pass.setBindGroup(0, candGroup, FIRST_SLOT)
   dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
   pass.setPipeline(kernels.args.cull.pipeline)
-  pass.setBindGroup(0, argsGroup, [0])
+  pass.setBindGroup(0, argsGroup, FIRST_SLOT)
   pass.dispatchWorkgroups(1)
 }
 

@@ -8,9 +8,11 @@
  * Every page allocated and valid for rendering this frame is drawn this frame. The work list of the
  * raster is (row, page) pairs; its worst case is rows × PoolPages (a row can touch at most
  * every valid-for-rendering page once, each physical page backs one virtual page). Rows are
- * processed in chunks of K = pairCapacity / PoolPages candidates, as many chunks as the
- * row count needs, each sized for its own worst case — commands ≤ K · min(view mips, pages), pairs
- * ≤ K · pages — so no list can overflow and nothing waits for a later frame. The command bound is
+ * processed in chunks, as many as the row count needs, their rows chosen by where the rows are
+ * (`vsmChunkRows`: the GPU's histograms of them, `rowPageBound.ts`), or, where that cannot speak,
+ * by the worst case — K = pairCapacity / PoolPages candidates, commands ≤ K · min(view mips,
+ * pages), pairs ≤ K · pages —, the lists sized for that chunk within the room the device admits
+ * (`vsmChunkRowsWithin`), and nothing waits for a later frame. The worst case's command bound is
  * exact: a row makes at most one command per (map, mip) — one per mip of each map view — and
  * only where its uncached rect overlaps a page flagged in that (map, mip): an allocated page of
  * it (a single-page map holds its one page at the last mip, the only rect its maps' bounds give

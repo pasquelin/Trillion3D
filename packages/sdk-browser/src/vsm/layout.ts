@@ -72,29 +72,30 @@ function mipChain(width: number, height: number, mips: number) {
 /** Full maps a page-table row holds: half a row's width over a map's level-0 pages, a power of two;
  *  one extra entry of the last row holds the single-page maps. */
 export const VSM_TABLES_PER_ROW = VSM_TABLE_ROW_WIDTH / 2 / VSM_LEVEL0_PAGES
+if (!isPow2(VSM_TABLES_PER_ROW))
+  throw new Error('VSM: page table row must be a power of two tables')
+
+/** The physical pool's row, in pages: one page-table row's width, a power of two. */
+const POOL_PAGES_X = Math.floor(VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS)
+if (!isPow2(POOL_PAGES_X)) throw new Error('VSM: pool row must be a power of two pages')
 
 /** Pure sizing; no device needed: the pool binds in windows every device holds
  *  (`poolWindowSizes`). */
 export function vsmLayout(options: VsmResourceOptions): VsmLayout {
-  const maxDim = VSM_TABLE_ROW_WIDTH
   const cacheEnabled = options.cacheEnabled ?? true
   // The physical pool: fixed power-of-two row width, height for the requested page count.
-  const physicalPagesX = Math.floor(maxDim / VSM_PAGE_TEXELS)
-  if (!isPow2(physicalPagesX)) throw new Error('VSM: pool row must be a power of two pages')
-  const physicalPagesY = ceilDiv(Math.max(1, options.poolPages ?? VSM_POOL_PAGES), physicalPagesX)
-  const poolPages = physicalPagesX * physicalPagesY
+  const physicalPagesY = ceilDiv(Math.max(1, options.poolPages ?? VSM_POOL_PAGES), POOL_PAGES_X)
+  const poolPages = POOL_PAGES_X * physicalPagesY
   const poolTexelsXY: [number, number] = [
-    physicalPagesX * VSM_PAGE_TEXELS,
+    POOL_PAGES_X * VSM_PAGE_TEXELS,
     physicalPagesY * VSM_PAGE_TEXELS,
   ]
 
   // The page table: `VSM_TABLES_PER_ROW` tables a row, one extra entry for the single-page block.
   const maxFull = Math.max(0, options.fullMapCapacity)
-  const entriesPerRow = VSM_TABLES_PER_ROW
-  if (!isPow2(entriesPerRow)) throw new Error('VSM: page table row must be a power of two tables')
-  const pageTableRows = ceilDiv(maxFull + 1, entriesPerRow)
+  const pageTableRows = ceilDiv(maxFull + 1, VSM_TABLES_PER_ROW)
   const pageTableSize: [number, number] = [
-    entriesPerRow * VSM_LEVEL0_PAGES,
+    VSM_TABLES_PER_ROW * VSM_LEVEL0_PAGES,
     pageTableRows * VSM_PAGE_TABLE_BLOCK_HEIGHT,
   ]
   // The page marks carry VSM_LOG2_PAGE mips.
@@ -106,8 +107,8 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   if (coverMode === 'directional') {
     // Directional maps (+1 single-page entry), a full row only past one row.
     const required = Math.max(0, options.sunMapCapacity ?? maxFull) + 1
-    const rows = ceilDiv(required, entriesPerRow)
-    const rowEntries = rows === 1 ? required : entriesPerRow
+    const rows = ceilDiv(required, VSM_TABLES_PER_ROW)
+    const rowEntries = rows === 1 ? required : VSM_TABLES_PER_ROW
     coverSize = [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT]
     coverMips = VSM_LOG2_PAGE + 1
   } else {
@@ -121,15 +122,15 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
 
   return {
     poolPages,
-    poolPagesXY: [physicalPagesX, physicalPagesY],
+    poolPagesXY: [POOL_PAGES_X, physicalPagesY],
     poolTexelsXY,
-    poolRowShift: floorLog2(physicalPagesX),
-    poolRowMask: physicalPagesX - 1,
+    poolRowShift: floorLog2(POOL_PAGES_X),
+    poolRowMask: POOL_PAGES_X - 1,
     staticSlice: cacheEnabled ? 1 : 0,
     fullMapCapacity: maxFull,
     mapSlots,
-    pageTableRowShift: floorLog2(entriesPerRow),
-    pageTableRowMask: entriesPerRow - 1,
+    pageTableRowShift: floorLog2(VSM_TABLES_PER_ROW),
+    pageTableRowMask: VSM_TABLES_PER_ROW - 1,
     pageTableRows,
     pageTableSize,
     pageTableWords: pageTableSize[0] * pageTableSize[1],

@@ -80,8 +80,8 @@ function encodeVsmChunkRaster(
 }
 
 /**
- * The candidates' kernel over `rowCount` rows, then, for each of `chunks`, its compute pass (the
- * cull and the expand) and its raster pass. The candidates open chunk 0's pass: its dispatches read
+ * The candidates' kernel over `rowCount` rows, then, for each of `chunks` — one at least, the rows
+ * being some (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster pass. The candidates open chunk 0's pass: its dispatches read
  * what theirs wrote, as a following pass would, and no command of the encoder lies between them.
  */
 export function vsmEncodeChunks(
@@ -101,7 +101,6 @@ export function vsmEncodeChunks(
   const opening = passes.chunk(0),
     first = encoder.beginComputePass(opening.cullPass)
   encodeVsmCandidates(first, ctx.candidates.pipeline, groups.cand, ctx, groups.chunk.args, rowCount)
-  if (!chunks) first.end()
   for (let c = 0; c < chunks; c++) {
     const each = passes.chunk(c)
     const pass = c ? encoder.beginComputePass(each.cullPass) : first
