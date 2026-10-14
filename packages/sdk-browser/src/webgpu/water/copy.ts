@@ -1,5 +1,10 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { COMPUTE, computeBufferEntry, sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeStorageTextureEntry,
+  computeTextureEntry,
+  sequentialEntries,
+} from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { VERDICT } from '../blend/verdictLayout.ts'
@@ -19,12 +24,8 @@ export async function createWaterCopy(device: GPUDevice) {
   const module = await createCheckedShaderModule(device, WATER_COPY_SHADER, 'WATER_COPY')
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: COMPUTE, texture: { sampleType: 'unfilterable-float' } },
-      {
-        binding: 1,
-        visibility: COMPUTE,
-        storageTexture: { access: 'write-only', format: HDR_FORMAT },
-      },
+      computeTextureEntry(0, 'unfilterable-float'),
+      computeStorageTextureEntry(1, HDR_FORMAT),
       computeBufferEntry(2, 'read-only-storage'),
     ],
   })

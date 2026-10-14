@@ -3,6 +3,7 @@ import { dAdd, dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { dIsNan, dIsZero, dNan } from '../../../../math/src/wgsl/doubleWords.ts'
 import { dBelow, dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
 import { dCeil, dFloor, dFromU32, dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
+import { affineAxis } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
 
@@ -22,6 +23,7 @@ export const WATER_PROJECT_WGSL = wgslBlock(
     WATER_DOUBLES_WGSL,
     WATER_ENCLOSE_WGSL,
     FRAME_HEAD_WGSL,
+    affineAxis,
     dAdd,
     dDiv,
     dMul,
@@ -40,13 +42,6 @@ export const WATER_PROJECT_WGSL = wgslBlock(
   `var<private> projectNdc:array<vec2u,6>;
 /** A corner's coordinate as \`boxCornersInto\` writes it under the identity: a zero as \`+0\`. */
 fn waterCorner(v:vec2u)->vec2u{return select(v,D_ZERO,dIsZero(v));}
-/** Row \`row\` of the view, in doubles, at \`(x, y, z, 1)\`. */
-fn waterViewRow(row:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
- let a=dMul(frameDouble(FRAME_VIEW+2u*row),x);
- let b=dMul(frameDouble(FRAME_VIEW+2u*(4u+row)),y);
- let c=dMul(frameDouble(FRAME_VIEW+2u*(8u+row)),z);
- return dAdd(dAdd(dAdd(a,b),c),frameDouble(FRAME_VIEW+2u*(12u+row)));
-}
 /** \`projectCornersInto\`'s pixel bounds of the box's corners, floor then ceil; a NaN first bound
  *  when a corner reaches the near plane or has no positive finite clip \`w\`. */
 fn waterCorners(box:array<vec2u,6>,e:array<vec2u,16>)->array<vec2u,4>{
@@ -54,26 +49,28 @@ fn waterCorners(box:array<vec2u,6>,e:array<vec2u,16>)->array<vec2u,4>{
  out[0]=dNan();
  let form=frame[FRAME_VIEW_FORM];
  let near=frameDouble(FRAME_NEAR);
+ var view:array<vec2u,16>;
+ for(var k=0u;k<16u;k++){view[k]=frameDouble(FRAME_VIEW+2u*k);}
  var lowX=D_INFINITY;
  var lowY=D_INFINITY;
- var highX=vec2u(D_INFINITY.x|0x80000000u,0u);
+ var highX=D_NEG_INFINITY;
  var highY=highX;
  for(var i=0u;i<8u;i++){
   let x=waterCorner(select(box[0],box[3],(i&1u)!=0u));
   let y=waterCorner(select(box[1],box[4],(i&2u)!=0u));
   let z=waterCorner(select(box[2],box[5],(i&4u)!=0u));
-  let viewZ=waterViewRow(2u,x,y,z);
+  let viewZ=affineAxis(view,2u,x,y,z);
   var depth=viewZ;
   if((form&VIEW_AFFINE)==0u){
-   let vd=waterViewRow(3u,x,y,z);
+   let vd=affineAxis(view,3u,x,y,z);
    if(vd.x!=D_ONE.x||vd.y!=D_ONE.y){depth=dMul(viewZ,dDiv(D_ONE,vd));}
   }
   let ahead=vec2u(depth.x^0x80000000u,depth.y);
   if(!dIsNan(ahead)&&!dIsNan(near)&&!dBelow(near,ahead)){return out;}
-  let cw=waterRow(e,3u,x,y,z);
+  let cw=affineAxis(e,3u,x,y,z);
   if(!dBelow(D_ZERO,cw)||!dIsFinite(cw)){return out;}
-  let ndcX=dDiv(waterRow(e,0u,x,y,z),cw);
-  let ndcY=dDiv(waterRow(e,1u,x,y,z),cw);
+  let ndcX=dDiv(affineAxis(e,0u,x,y,z),cw);
+  let ndcY=dDiv(affineAxis(e,1u,x,y,z),cw);
   if(dBelow(ndcX,lowX)){lowX=ndcX;}
   if(dBelow(highX,ndcX)){highX=ndcX;}
   if(dBelow(ndcY,lowY)){lowY=ndcY;}

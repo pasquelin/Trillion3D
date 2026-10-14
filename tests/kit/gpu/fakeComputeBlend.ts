@@ -144,9 +144,9 @@ const planes = new Float64Array(24),
 
 /**
  * Replays the frustum verdict (`judgeBlendItems`, `verdictWgsl.ts`) on the words it reads: a drawn
- * item kept unless unpaged with a box the frustum excludes (`frustumExcludesBox`, the CPU's doubles,
- * which the kernel's emulated ones equal to the bit, `verdictWgsl.test.ts`), its counts and each
- * water rank's word written where the kernel writes them.
+ * item kept unless unpaged with a box the frustum excludes (`frustumExcludesBox`, the exact doubles,
+ * which the kernel's single-precision test equals off its rounding margin, `verdictWgsl.test.ts`),
+ * its counts and each water rank's word written where the kernel writes them.
  */
 function simulateBlendVerdict(bind: ComputeBind) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))

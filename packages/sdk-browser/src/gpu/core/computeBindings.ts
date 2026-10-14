@@ -37,6 +37,20 @@ export const computeTextureEntry = (
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, texture: { sampleType, viewDimension } })
 
+/** A storage texture binding of `format` at `binding` in a layout, `access` (written only by
+ *  default) through a `viewDimension` view, seen by `visibility` (the compute stage by default). */
+export const computeStorageTextureEntry = (
+  binding: number,
+  format: GPUTextureFormat,
+  access: GPUStorageTextureAccess = 'write-only',
+  viewDimension: GPUTextureViewDimension = '2d',
+  visibility = COMPUTE,
+): GPUBindGroupLayoutEntry => ({
+  binding,
+  visibility,
+  storageTexture: { access, format, viewDimension },
+})
+
 /**
  * Bind-group entries of a group whose bindings are named by `bindings` (name → binding): each
  * resource — a buffer, a view, a sampler — lands at the binding of its shader name, whatever order

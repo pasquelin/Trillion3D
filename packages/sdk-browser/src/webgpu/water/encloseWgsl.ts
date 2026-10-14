@@ -1,36 +1,35 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
-import { dIsZero, dNan } from '../../../../math/src/wgsl/doubleWords.ts'
+import { dNan } from '../../../../math/src/wgsl/doubleWords.ts'
 import { dBelow, dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
 import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
+import { dBoxTransform } from '../../../../math/src/wgsl/doubleAffine.ts'
+import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { FLUSH, ROUND, ROUNDING_GAMMA } from './precision.ts'
-
-const cell = new Float64Array(1),
-  cellWords = new Uint32Array(cell.buffer)
-/** `x` as the shader's double, `vec2u(high word, low word)`: its bits, not a decimal. */
-const double = (x: number) => ((cell[0] = x), `vec2u(${cellWords[1]}u,${cellWords[0]}u)`)
 
 /** The doubles the water rectangle computes with, the CPU's constants bit for bit
  *  (`precision.ts`). */
 export const WATER_DOUBLES_WGSL = wgslBlock(
   'WATER_DOUBLES_WGSL',
   [],
-  `const D_ZERO=vec2u(0u,0u);
-const D_ONE=${double(1)};
-const D_HALF=${double(0.5)};
-const D_TWO=${double(2)};
-const D_INFINITY=${double(Infinity)};
-const D_ROUND=${double(ROUND)};
-const D_GAMMA=${double(ROUNDING_GAMMA)};
-const D_FLUSH=${double(FLUSH)};
-const D_FLOAT32_MAX=${double(FLOAT32_MAX)};
-const D_THICKNESS_GUARD=${double(1 + 16 * ROUND)};`,
+  `const D_ZERO=${wgslDouble(0)};
+const D_ONE=${wgslDouble(1)};
+const D_HALF=${wgslDouble(0.5)};
+const D_TWO=${wgslDouble(2)};
+const D_INFINITY=${wgslDouble(Infinity)};
+const D_NEG_INFINITY=${wgslDouble(-Infinity)};
+const D_ROUND=${wgslDouble(ROUND)};
+const D_GAMMA=${wgslDouble(ROUNDING_GAMMA)};
+const D_FLUSH=${wgslDouble(FLUSH)};
+const D_FLOAT32_MAX=${wgslDouble(FLOAT32_MAX)};
+const D_THICKNESS_GUARD=${wgslDouble(1 + 16 * ROUND)};`,
 )
 
 /**
  * THE ENCLOSURE OF A BINARY32 TRANSFORM, IN EMULATED DOUBLES (`math/src/wgsl/double.ts`): the CPU's
- * `widenBox`, `boxTransform` and `encloseTransform` (`precision.ts`, `math/src/geometry/box.ts`),
+ * `widenBox`, `boxTransform` (`dBoxTransform`) and `encloseTransform` (`precision.ts`,
+ * `math/src/geometry/box.ts`),
  * operation for operation — the same products, the same sums left to right, `Math.min` and
  * `Math.max` with their NaN (`dMathMin`) —, so each bound is the CPU's to the bit. A box is six
  * doubles, its minima then its maxima. An enclosure the CPU refuses returns a box whose first
@@ -41,12 +40,12 @@ export const WATER_ENCLOSE_WGSL = wgslBlock(
   'WATER_ENCLOSE_WGSL',
   [
     WATER_DOUBLES_WGSL,
+    dBoxTransform,
     dAbs,
     dAdd,
     dDiv,
     dMul,
     dSub,
-    dIsZero,
     dNan,
     dBelow,
     dMathMax,
@@ -65,45 +64,13 @@ fn waterWiden(box:array<vec2u,6>,distance:vec2u)->array<vec2u,6>{
  }
  return out;
 }
-/** Row \`row\` of \`m · (x, y, z, 1)\`, \`m\` column-major: \`transformPointRow\`'s sum. */
-fn waterRow(m:array<vec2u,16>,row:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
- return dAdd(dAdd(dAdd(dMul(m[row],x),dMul(m[4u+row],y)),dMul(m[8u+row],z)),m[12u+row]);
-}
-/** \`boxTransform\` of a finite box whose minima are not above its maxima: the union of its eight
- *  transformed corners, the divide by \`w\` skipped where the last row is \`0, 0, 0, 1\`. */
-fn waterBoxTransform(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{
- let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==D_ONE.x&&m[15].y==D_ONE.y;
- var out:array<vec2u,6>;
- for(var k=0u;k<3u;k++){
-  out[k]=D_INFINITY;
-  out[k+3u]=vec2u(D_INFINITY.x|0x80000000u,0u);
- }
- for(var i=0u;i<8u;i++){
-  let lx=select(box[0],box[3],(i&1u)!=0u);
-  let ly=select(box[1],box[4],(i&2u)!=0u);
-  let lz=select(box[2],box[5],(i&4u)!=0u);
-  var x=waterRow(m,0u,lx,ly,lz);
-  var y=waterRow(m,1u,lx,ly,lz);
-  var z=waterRow(m,2u,lx,ly,lz);
-  if(!affine){
-   let mw=dDiv(D_ONE,waterRow(m,3u,lx,ly,lz));
-   x=dMul(x,mw);
-   y=dMul(y,mw);
-   z=dMul(z,mw);
-  }
-  out[0]=dMathMin(out[0],x);
-  out[1]=dMathMin(out[1],y);
-  out[2]=dMathMin(out[2],z);
-  out[3]=dMathMax(out[3],x);
-  out[4]=dMathMax(out[4],y);
-  out[5]=dMathMax(out[5],z);
- }
- return out;
-}
 /** How far the pose \`m\` stretches a length, bounded: the larger of its linear part's column and
  *  row sums of magnitudes, \`max(‖M‖₁, ‖M‖∞)\`, above its largest singular value — the most a
  *  volume's declared thickness grows to the world (\`volumeWorldPath\`); 1 for a rigid pose along
- *  the axes. \`waterStretch\` of the CPU (\`waterRect.fixture.ts\`), sum for sum. */
+ *  the axes. It is that law's cap, not the cut's \`maxStretchBits\` (the largest singular value of
+ *  a root's world): the composite's single-precision path, its cofactors rounded, may exceed the
+ *  singular value but never this bound, and the item's pose is not its root's. \`waterStretch\` of
+ *  the CPU (\`waterRect.fixture.ts\`), sum for sum. */
 fn waterStretch(m:array<vec2u,16>)->vec2u{
  var stretch=D_ZERO;
  for(var k=0u;k<3u;k++){
@@ -133,7 +100,7 @@ fn waterEnclose(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{
  }
  let errorW=dAdd(dMul(D_GAMMA,magnitudeW),D_FLUSH);
  if(!dBelow(errorW,minimumW)||!dIsFinite(maximumW)){return out;}
- out=waterBoxTransform(box,m);
+ out=dBoxTransform(box,m);
  for(var axis=0u;axis<3u;axis++){
   var magnitude=dAbs(m[12u+axis]);
   for(var column=0u;column<3u;column++){

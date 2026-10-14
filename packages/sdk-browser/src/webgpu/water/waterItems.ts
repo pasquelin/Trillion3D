@@ -14,16 +14,14 @@ import type { WebgpuBlendState } from '../blend/state.ts'
  * the key record's and the item record's, read where they are.
  */
 export const WATER_ITEM_WORDS = 14
-const WATER_ITEM = { crops: 12 } as const
+/** The record's word saying whether the rectangle may crop, after the box's twelve. */
+const WATER_ITEM_CROPS = 12
 
 /** The record's layout as the rectangle kernel names it. */
 export const WATER_ITEM_WGSL = wgslBlock(
   'WATER_ITEM_WGSL',
   [],
-  wgslConsts({
-    WATER_ITEM_WORDS,
-    WATER_ITEM_CROPS: WATER_ITEM.crops,
-  }),
+  wgslConsts({ WATER_ITEM_WORDS, WATER_ITEM_CROPS }),
 )
 
 /** Every transmissive item's record, written with the key records: what it reads moves with the
@@ -47,7 +45,7 @@ export function writeWaterItems(blendState: WebgpuBlendState) {
     else if (local) readHostBox(local, packed, at / 2)
     else packed.fill(0, at / 2, at / 2 + 6)
     const own = !(item.flags & FLAG_CLUSTER_PAGE) && !item.surface.lineWidth && !item.surface.sprite
-    words[at + WATER_ITEM.crops] = local && own ? 1 : 0
+    words[at + WATER_ITEM_CROPS] = local && own ? 1 : 0
   }
   return words.subarray(0, count * WATER_ITEM_WORDS)
 }
