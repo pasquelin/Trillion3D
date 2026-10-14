@@ -27,7 +27,7 @@ import {
   type CardSegment,
 } from './cardSlots.ts'
 import { cardAsk } from './cardAsk.ts'
-import type { CardAsk, CardTiles } from '../webgpu/tile/cardTiles.ts'
+import type { CardAsk, CardHold, CardTiles } from '../webgpu/tile/cardTiles.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
 
@@ -44,11 +44,12 @@ type CardRun = { first: number; count: number }
 
 /** What a session's cards are told and ask, given once: a mesh's three map slots in the tile
  *  atlases, none for one they do not hold; whether the maps hold every tile its cards read at
- *  `ask`, the missing ones asked; each root whose card bit moved; whether a root may take a card
- *  at all — one another structure draws far away takes none. */
+ *  `ask`, held by `hold`, the missing ones asked; a hold let go; each root whose card bit moved;
+ *  whether a root may take a card at all — one another structure draws far away takes none. */
 export type CardHooks = {
   tilesOf: (mesh: number) => CardTiles | undefined
-  ready: (tiles: CardTiles, ask: CardAsk) => boolean
+  ready: (tiles: CardTiles, ask: CardAsk, hold: CardHold) => boolean
+  release: (hold: CardHold) => void
   moved?: CardMoved
   carded?: (rank: number) => boolean
 }
@@ -123,6 +124,7 @@ export function impostorCardsBytes(state: ImpostorCards) {
 export function dropImpostorCards(state: ImpostorCards | undefined) {
   if (!state || state.roots === NO_ROOTS) return
   for (const segment of state.segments.values()) {
+    state.hooks.release(segment.hold)
     const { list, count } = segment.eligible
     for (let i = 0; i < count; i++) mark(state, list[i], false)
   }
@@ -181,7 +183,7 @@ function segmentOf(state: ImpostorCards, mesh: number): CardSegment {
       ...{ start: state.slots.used, capacity: 0, count: 0, cards: [], holders: new Map() },
       ...{ eligible: core.createDenseKeySet(), box: new Float64Array(6), stale: false },
       ...{ radii: Float64Array.of(Infinity, 0), tiles: state.hooks.tilesOf(mesh) },
-      ...{ ready: false, gated: false, pending: [] },
+      ...{ hold: core.createCardHold(), ready: false, gated: false, pending: [] },
     }
     boxEmpty(segment.box, 0)
     state.segments.set(mesh, segment)
@@ -309,21 +311,25 @@ function followMoves(state: ImpostorCards) {
 function drawable(state: ImpostorCards, cam: EngineCamera, focal: number) {
   state.runCount = state.count = 0
   for (const segment of state.segments.values()) {
-    const pending = segment.pending
+    const { pending, hold } = segment
     if (!segment.eligible.count) {
+      state.hooks.release(hold)
       pending.length = 0
       continue
     }
     if (segment.stale) refit(state, segment)
     const box = segment.box
     if (frustumExcludesBox(cam.planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
+      // Out of view, its maps' tiles go back to the queue: the view asks them again.
+      state.hooks.release(hold)
       if (!segment.gated) for (const rank of pending) cardAt(state, segment, rank, true)
       pending.length = 0
       continue
     }
     pending.length = 0
     const { tiles } = segment
-    const ready = tiles !== undefined && state.hooks.ready(tiles, cardAsk(segment, cam.eye, focal)),
+    const ready =
+        tiles !== undefined && state.hooks.ready(tiles, cardAsk(segment, cam.eye, focal), hold),
       held = segment.ready && !segment.gated,
       gated = segment.gated
     segment.ready = ready

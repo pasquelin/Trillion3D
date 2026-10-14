@@ -3,11 +3,10 @@ import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/index.ts'
 import { createTileSlotUse } from './slotUse.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'
-import { writeRgbaLevel, writeTail } from './write.ts'
-import { writeBlocksLevel } from './writeBlocks.ts'
 import type { LaneCounts, PoolEncoding } from '../../texture/blockFormats.ts'
 import { createTileLanes, type Lane } from './lanes.ts'
-import { tailId, tileId } from './ids.ts'
+import { tileId, tileSlotOf } from './ids.ts'
+import { createTailPins } from './tails.ts'
 import { evictTile } from './atlasResize.ts'
 import { releaseTileSlot } from './release.ts'
 import { regrownPageTable } from './regrow.ts'
@@ -62,39 +61,13 @@ export function createWebgpuTileAtlas(
   /** The white fill never opens a lane (`laneDemand`): until a map opens its own, it takes no
    *  layer and reads the white stand-in (`lanes.ts`). */
   const fillWaits = () => !lanes.lanes.has(textures[0].lane)
-  const pinTails: WebgpuTileAtlas['pinTails'] = (
-    queue,
-    fromHost,
-    from = 0,
-    to = textures.length,
-  ) => {
-    for (let slot = from; slot < to; slot++) {
-      const { layout, source, lane, retired } = textures[slot]
-      // A level files' tail is pinned once its levels arrive (`fileTails.ts`), never here.
-      if (retired || source.kind === 'files') continue
-      if (slot === 0 && fillWaits()) {
-        pages.setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane))
-        continue
-      }
-      const pool = lanes.of(slot).pool
-      // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
-      const index = pool.acquire(tailId(slot), true)
-      if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR')
-      const place = pool.placeOf(index)
-      if (source.kind === 'host') fromHost(slot, place)
-      else
-        writeTail(
-          queue,
-          pool.texture,
-          place,
-          [layout.width, layout.height],
-          layout.tail,
-          encoding.tailOf(source.tail, lane),
-          lane === 'lossless' ? writeRgbaLevel : writeBlocksLevel,
-        )
-      pages.setTail(slot, place, encoding.tapOf(lane))
-    }
-  }
+  const tails = createTailPins({
+    textures,
+    encoding,
+    laneOf: lanes.of,
+    pages: () => pages,
+    fillWaits,
+  })
   return {
     kind,
     get pools() {
@@ -116,7 +89,9 @@ export function createWebgpuTileAtlas(
     },
     poolOf: (slot) => lanes.of(slot).pool,
     residentIn: (lane) => lanes.lanes.get(lane)?.pool.resident ?? 0,
-    pinTails,
+    pinTail: tails.pinTail,
+    pinTails: tails.pinTails,
+    tailPinned: tails.tailPinned,
     append(texture) {
       const slot = vacant.values().next().value ?? textures.length
       const previous = textures[slot]
@@ -145,10 +120,10 @@ export function createWebgpuTileAtlas(
     },
     relayout,
     resides: (key) => lanes.of(key.slot).resident.has(tileId(key)),
-    stamp(key) {
-      const lane = lanes.of(key.slot),
-        index = lane.resident.get(tileId(key))
-      if (index !== undefined) lane.pool.use(index)
+    pin(id, pinned) {
+      const lane = lanes.of(tileSlotOf(id)),
+        index = lane.resident.get(id)
+      if (index !== undefined) lane.pool.pin(index, pinned)
       return index !== undefined
     },
     roomFor(slot) {
@@ -186,7 +161,7 @@ export function createWebgpuTileAtlas(
       if (fillLane && layers[textures[0].lane] === 0) releaseTileSlot(fillLane, 0)
       const waited = fillWaits(),
         result = lanes.resize(target, layers, pages)
-      if (waited !== fillWaits()) pinTails(target.queue, () => {}, 0, 1)
+      if (waited !== fillWaits()) tails.pinTails(target.queue, () => {}, 0, 1)
       if (result.replaced) {
         views = lanes.views()
         pools = lanes.pools()

@@ -3,6 +3,8 @@ import type { TileKey } from './pageTable.ts'
 /** Integer id of a streamed tile, the one the pool keeps per slot. */
 export const tileId = ({ slot, level, tx, ty }: TileKey) =>
   ((slot << 20) | (level << 16) | (ty << 8) | tx) >>> 0
+/** The slot of a streamed tile's id. */
+export const tileSlotOf = (id: number) => id >>> 20
 export const tileKeyOf = (id: number): TileKey => ({
   slot: id >>> 20,
   level: (id >>> 16) & 15,

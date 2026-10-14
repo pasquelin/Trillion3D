@@ -30,6 +30,7 @@ export async function bench() {
       asks.push({ ...ask, tiles })
       return resident
     },
+    release() {},
   }
   const atlas = (kind: string) => ({
     views: [0, 1, 2].map((lane) => ({ label: `${kind} pool ${lane}` })),

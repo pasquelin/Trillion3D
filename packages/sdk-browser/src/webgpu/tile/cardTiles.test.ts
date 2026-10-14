@@ -12,7 +12,7 @@ import { tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import type { TextureLevelRequest } from '../../texture/levelReader.ts'
-import type { CardTiles } from './cardTiles.ts'
+import { createCardHold, type CardTiles } from './cardTiles.ts'
 
 /** A 256² map of three levels — 256, 128, 64 —, as a bake that stops at frames of four texels
  *  writes it: two streamed levels of four and one tile, its tail the 64² level. */
@@ -73,9 +73,10 @@ test('a card is ready once every tile it reads resides in its three maps and the
   assert.equal(cards.count, 1)
   assert.deepEqual(cards.tilesOf(7), tiles)
   assert.equal(cards.tilesOf(8), undefined, 'a mesh the catalogue does not hold')
-  const ask = { from: 0, to: 1, pixels: 160 }
+  const ask = { from: 0, to: 1, pixels: 160 },
+    hold = createCardHold()
   let passes = 0
-  while (!cards.ready(tiles, ask)) {
+  while (!cards.ready(tiles, ask, hold)) {
     assert.ok(++passes <= 6, 'ready within a few passes')
     textures.pump(passes)
     await textures.settled()
@@ -93,11 +94,40 @@ test('a card is ready once every tile it reads resides in its three maps and the
   assert.equal(imageCopies.length, 18)
 })
 
+// A mesh whose maps all reside and whose ask stands holds its tiles pinned: an image asks nothing
+// and writes no use word for them. Its tiles go back to the queue when it lets go. Old code: every
+// tile of its levels was stamped again every image, each a use word written.
+test('a ready card holds its tiles at no cost an image, and lets them go back to the queue', async () => {
+  const { textures, tiles } = cardStreamer()
+  const { cards, color, data } = textures
+  const ask = { from: 0, to: 1, pixels: 160 },
+    hold = createCardHold()
+  for (let pass = 1; !cards.ready(tiles, ask, hold); pass++) {
+    assert.ok(pass <= 6)
+    textures.pump(pass)
+    await textures.settled()
+  }
+  const pools = [...color.pools, ...data.pools]
+  const pinned = () =>
+    pools.reduce((n, pool) => n + pool.occupied().filter((i) => pool.pinnedOf(i)).length, 0)
+  // Three tails, two fills' and three maps', then five tiles a map.
+  assert.equal(pinned(), 2 + 3 + 3 * 5, 'every tile its levels read held')
+  for (const pool of pools) pool.changed.clear()
+  for (let image = 0; image < 4; image++) assert.equal(cards.ready(tiles, ask, hold), true)
+  assert.ok(
+    pools.every((pool) => pool.changed.count === 0),
+    'no use word written again',
+  )
+  cards.release(hold)
+  assert.equal(pinned(), 2 + 3, 'let go: the tails alone stay pinned')
+})
+
 test('a card that reads a level the pool lacks waits, its finer tiles asked, nothing else served', async () => {
   const { textures, tiles, imageCopies } = cardStreamer()
   const { cards } = textures
   // Far: the second level and the tail alone.
-  for (let pass = 1; !cards.ready(tiles, { from: 1, to: 2, pixels: 16 }); pass++) {
+  const hold = createCardHold()
+  for (let pass = 1; !cards.ready(tiles, { from: 1, to: 2, pixels: 16 }, hold); pass++) {
     assert.ok(pass <= 6)
     textures.pump(pass)
     await textures.settled()
@@ -105,8 +135,8 @@ test('a card that reads a level the pool lacks waits, its finer tiles asked, not
   assert.equal(imageCopies.length, 3 * 1 + 3, 'one tile and the tail a map')
   // Nearer: level 0 is read now, which the pool lacks — not ready until it lands.
   const near = { from: 0, to: 1, pixels: 160 }
-  assert.equal(cards.ready(tiles, near), false)
-  for (let pass = 10; !cards.ready(tiles, near); pass++) {
+  assert.equal(cards.ready(tiles, near, hold), false)
+  for (let pass = 10; !cards.ready(tiles, near, hold); pass++) {
     assert.ok(pass <= 16)
     textures.pump(pass)
     await textures.settled()

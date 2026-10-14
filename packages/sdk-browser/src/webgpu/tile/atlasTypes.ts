@@ -4,6 +4,7 @@ import type { TileTexture } from './tileTexture.ts'
 import type { WebgpuTilePool } from './pool.ts'
 import type { TileKey, WebgpuTilePageTable } from './pageTable.ts'
 import type { TileSlotUse } from './slotUse.ts'
+import type { TailWrite } from './tails.ts'
 
 export type WebgpuTileAtlas = {
   readonly kind: 'color' | 'data'
@@ -21,6 +22,8 @@ export type WebgpuTileAtlas = {
   poolOf(slot: number): WebgpuTilePool
   /** Tiles the pool of `lane` holds, none when the lane has no pool. */
   residentIn(lane: PoolLane): number
+  /** Pins `slot`'s tail in a place of its lane's pool for good, `write` filling it (`tails.ts`). */
+  pinTail(slot: number, write: TailWrite): void
   /** Pins the tail of each texture from slot `from` on; `fromHost` sets that of a texture with no
    *  tail in bytes. */
   pinTails(
@@ -38,9 +41,12 @@ export type WebgpuTileAtlas = {
   relayout(feedbackOffset: number): void
   /** Whether the tile resides. Its use is the GPU's: the pixels that read it stamp its place. */
   resides(key: TileKey): boolean
-  /** Whether the tile resides; one that does is stamped used (`WebgpuTilePool.use`), as a pixel's
-   *  read stamps it: an asker that needs it and reads none of it yet keeps it from the queue. */
-  stamp(key: TileKey): boolean
+  /** Whether `slot`'s tail holds its place. */
+  tailPinned(slot: number): boolean
+  /** Whether the tile of id `id` resides; one that does is pinned or unpinned
+   *  (`WebgpuTilePool.pin`): an asker that needs it and may read none of it — a card's maps — keeps
+   *  it from the queue while it holds it. */
+  pin(id: number, pinned: boolean): boolean
   /** A place for an arriving tile: free, or the next victim of its lane's queue (`placeOrder.ts`);
    *  `undefined` when the queue has none — every place read of late — refusal counted. */
   place(key: TileKey): TilePlace | undefined

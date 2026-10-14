@@ -17,7 +17,7 @@ import { invertMatrix4 } from '../../../sdk-core/src/index.ts'
 import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
-import type { CardTiles } from '../webgpu/tile/cardTiles.ts'
+import type { CardHold, CardTiles } from '../webgpu/tile/cardTiles.ts'
 import { core } from './borrowed.ts'
 import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
 import { sameLinearPartFloat32 } from '../../../math/src/matrix/matrixElements.ts'
@@ -48,6 +48,8 @@ export type CardSegment = {
   stale: boolean
   /** The mesh's three map slots, read once; none for a mesh the tile catalogue does not hold. */
   tiles: CardTiles | undefined
+  /** What its cards hold of its maps while in view (`CardHold`). */
+  hold: CardHold
   /** Whether its maps held what its cards read the last image that asked them. */
   ready: boolean
   /** Asked in view and found not ready: its roots keep their clusters until its tiles land. */

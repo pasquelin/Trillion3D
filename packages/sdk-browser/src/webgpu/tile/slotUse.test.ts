@@ -10,6 +10,7 @@ import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
 import { TILE_USE_HEADER } from './slotUse.ts'
+import { tileId } from './ids.ts'
 import { packEntry, placeOf, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
 import { textureProbe } from '../residency/poolGrants.ts'
@@ -126,34 +127,39 @@ test('a tile past the feedback cap, read every frame, is stamped and stays resid
 })
 
 // A card waiting for its maps posts no feedback, and one drawn may not read every level it needs:
-// the CPU stamps the tiles it asks (`cardTiles.ts`) in the words the pixels' stamp writes, so a
-// full pool never gives them up and turns the card back to its clusters. Old code: no pixel read
-// them, and the queue named them.
-test('under a full pool, the tiles a card asks are never victims while it waits or is shown', () => {
+// the CPU pins the tiles its mesh holds (`cardTiles.ts`) once, never again an image, so a full pool
+// never gives them up and turns the card back to its clusters; let go, they rank as arrivals. Old
+// code: the CPU stamped each of them every image, a write per tile per image.
+test('under a full pool, the tiles a card holds are never victims, and rank again once let go', () => {
   const { atlas, frame, level0, pool } = scene()
   const held: TileKey[] = []
   for (let i = 0; pool.resident < pool.tiles; i++) atlas.place((held[i] = level0(i)))
-  const card = Array.from({ length: 50 }, (_, i) => level0(100 + i))
-  const ask = () => card.forEach((key) => assert.equal(atlas.stamp(key), true))
-  // No pixel reads them: the card asks them image after image.
-  for (let f = 0; f < 6; f++) {
-    ask()
-    frame([])
-  }
-  // Asked once more after the queue's cut: that ask keeps them out of the cut queue too.
-  ask()
+  const card = Array.from({ length: 50 }, (_, i) => tileId(level0(100 + i)))
+  for (const id of card) assert.equal(atlas.pin(id, true), true)
+  const changed = pool.changed.count
+  // No pixel reads them, and nothing is written for them image after image.
+  for (let f = 0; f < 6; f++) frame([])
+  assert.ok(changed > 0)
+  assert.equal(pool.changed.count, 0, 'held: no word written again')
   // An arrival takes the first victim's place, its tile given up by the atlas as the engine does.
   assert.ok(atlas.place({ slot: 0, level: 1, tx: 0, ty: 0 }))
   const given = held.filter((key) => !atlas.resides(key))
   assert.equal(given.length, 1)
-  assert.equal(atlas.stamp(given[0]), false, 'a tile given up is not stamped')
+  assert.equal(atlas.pin(tileId(given[0]), true), false, 'a tile given up is not pinned')
   const victims = new Set<number>()
   for (let index = pool.victim(); index !== undefined; index = pool.victim()) {
     victims.add(index)
     pool.release(index)
   }
   assert.equal(victims.size, pool.tiles - 2 - card.length, 'every other place but the tail')
-  for (const key of card) assert.equal(atlas.resides(key), true)
+  for (const id of card) assert.equal(atlas.pin(id, false), true, 'let go, still resident')
+  for (let f = 0; f < 6; f++) frame([])
+  let ranked = 0
+  for (let index = pool.victim(); index !== undefined; index = pool.victim()) {
+    ranked++
+    pool.release(index)
+  }
+  assert.equal(ranked, card.length + 1, 'let go, each a victim again, beside the arrival')
 })
 
 // The place words are GPU memory made with the pools: the probe that asks the device for a pool

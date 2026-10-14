@@ -6,7 +6,7 @@ import { type LaneCounts, type PoolEncoding, type PoolLane } from '../../texture
 import { resizeTileAtlas } from './atlasResize.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 
-/** A lane's pool, and the tiles resident in it by id. */
+/** A lane's pool, and the places held in it by key: its tiles and its textures' tails. */
 export type Lane = { pool: WebgpuTilePool; resident: Map<number, number> }
 
 /**
