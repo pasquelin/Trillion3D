@@ -72,7 +72,7 @@ test('a row parked or taken back where it stands is drawn again, and is no move'
 })
 
 test('a row that stops or starts casting flips its mark, whatever its pose', () => {
-  // `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
+  // `castShadow` written on a world mesh reaches its row (`worldPoseSeat.ts`); its root leaves
   // or enters every light cut, and the pages it covered are drawn again without it, or with it.
   const { rows, write, mobility } = placed(),
     marks: [number, number | undefined][] = []

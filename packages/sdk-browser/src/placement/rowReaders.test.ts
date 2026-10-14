@@ -18,7 +18,7 @@ const TOUCHING = [
   'physics/placer.ts',
   'placement/rows.ts',
   'world/core/worldModels.ts',
-  'world/core/worldPoses.ts',
+  'world/core/worldPoseSeat.ts',
 ]
 
 /** Each engine module, tests and fixtures left out, with its text. */
