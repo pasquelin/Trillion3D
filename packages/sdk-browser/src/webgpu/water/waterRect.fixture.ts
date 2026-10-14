@@ -1,6 +1,6 @@
-// The water rectangle walked item by item on the CPU, in doubles, as the frame once computed it:
-// the model the GPU rectangle (`rectWgsl.ts`) is compared with word for word — by its JavaScript
-// run (`rectWgsl.test.ts`) and by the Dawn proofs' readback.
+// The water rectangle's law walked item by item on the CPU in float64: the independent oracle the
+// GPU rectangle (`rectWgsl.ts`, emulated doubles for the reason it states) is compared with word
+// for word — by its JavaScript run (`rectWgsl.test.ts`) and by the Dawn proofs' readback.
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxCornersInto } from '../../../../math/src/geometry/box.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'

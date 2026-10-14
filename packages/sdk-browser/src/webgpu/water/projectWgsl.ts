@@ -13,9 +13,10 @@ import { WATER_DOUBLES_WGSL, WATER_ENCLOSE_WGSL } from './encloseWgsl.ts'
  * `projectCornersInto` (`../../hiz/projection.fixture.ts`: the view depth against the near plane,
  * the clip `w`, the divided coordinates, floor and ceil of their pixels), then each side pushed out
  * by the enclosure's error and one pixel, clamped to the target — operation for operation, so the
- * rectangle is the CPU's to the bit. A refused one (a corner at or behind the near plane, a refused enclosure, a non-finite
- * side) returns a NaN first side. The enclosure of the last box projected stays in `projectNdc`,
- * where the backdrop's reconstruction starts from it, as the CPU's scratch does.
+ * rectangle is the CPU's to the bit (why doubles: `rectWgsl.ts`). A refused one (a corner at or
+ * behind the near plane, a refused enclosure, a non-finite side) returns a NaN first side. The
+ * enclosure of the last box projected stays in `projectNdc`, where the backdrop's reconstruction
+ * starts from it, as the CPU's scratch does.
  */
 export const WATER_PROJECT_WGSL = wgslBlock(
   'WATER_PROJECT_WGSL',

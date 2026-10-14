@@ -48,9 +48,21 @@ export function waterRectBindEntries(): GPUBindGroupLayoutEntry[] {
  * to the world by the pose's stretch bound (`waterStretch`) and projected again; its item rank is
  * its volume's (`VOLUME_ITEM`). An item whose geometry may not crop — no local box, a paged or line
  * or sprite surface, a non-finite world box, a non-affine pose — or whose enclosure is refused
- * covers the full target. Each bound folds into the verdict's unions with one `atomicMax` (minima stored
- * complemented): the union does not depend on the threads' order, and is the CPU's walk's.
+ * covers the full target. Each bound folds into the verdict's unions with one `atomicMax` (minima
+ * stored complemented): the union does not depend on the threads' order, and is the CPU's walk's.
  * Then one thread writes what the pass draws from the unions (`argsWgsl.ts`).
+ *
+ * WHY EMULATED DOUBLES, where the frustum verdict proves its test in single precision
+ * (`../blend/verdictWgsl.ts`): the rectangle must hold every pixel the surfaces' own
+ * single-precision raster reaches, so its enclosures already carry that raster's rounding
+ * (`ROUNDING_GAMMA` on the world and clip magnitudes, `encloseWgsl.ts`). Computed in single
+ * precision, each enclosure would add a rounding of the same size — twice the margins —, and the
+ * near-plane decision, taken on the absolute world corners under the camera's double view, would
+ * err by the world's magnitude — 64 roundoffs of 10⁶ m are about 4 m —: every water item within
+ * metres of the camera far from the origin would refuse to crop and cover the full target. The
+ * kernel runs one thread per drawn water item, a handful an image, where the doubles cost
+ * microseconds: single precision would save nothing worth that loss. The CPU walk of the same law in float64
+ * (`waterRect.fixture.ts`) is the independent oracle the tests compare it with.
  */
 export const WATER_RECT_SHADER = wgslProgram(
   `@group(0) @binding(${WATER_RECT_BINDING.frame}) var<storage,read> frame:array<u32>;
