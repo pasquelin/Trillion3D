@@ -1,10 +1,7 @@
 import { GRID_TOLERANCE, SUPPORT } from './refreshClock.ts'
-import { HEADROOM, SECOND_MS } from './scaleTargets.ts'
+import { FALLBACK_REFRESH_MS, HEADROOM, SECOND_MS } from './scaleTargets.ts'
 import { gpuCosts, restartWindow, type ScaleWindow } from './scaleWindow.ts'
 
-/** The slowest steady cadence, ms between two images: 60 a second, never fewer by this rule. A
- *  cadence is judged over a second of images (`SECOND_MS`), as the render scale judges its. */
-const SLOWEST_MS = SECOND_MS / 60
 /** The share of a slower cadence's budget the GPU must fall to before a faster one is tried
  *  again: `HEADROOM²`, a tenth below the headroom a slower cadence is taken at, so a cost between
  *  the two keeps the cadence it has. */
@@ -23,8 +20,10 @@ const RISE = HEADROOM * HEADROOM
  * the second costliest GPU time (one spike moves nothing) — and the refresh `R`:
  * - slower: two misses or more, and the second costliest GPU time over `HEADROOM · divisor · R`:
  *   the GPU's own work misses the cadence, not the CPU or a hitch. The divisor grows by one,
- *   while the cadence stays at `SLOWEST_MS` or faster, and only where the render scale cannot
- *   lower the cost any more (fixed, or at its floor: `scaleControl.ts` answers first).
+ *   while the cadence stays at 60 images a second or faster (`FALLBACK_REFRESH_MS`: never fewer
+ *   by this rule, judged over a second of images, `SECOND_MS`, as the render scale judges its),
+ *   and only where the render scale cannot lower the cost any more (fixed, or at its floor:
+ *   `scaleControl.ts` answers first).
  * - faster: a window of a second of the frames drawn, one miss at most, `SUPPORT` GPU times,
  *   every one whole, and the second costliest at most `RISE · (divisor − 1) · R`: the faster
  *   cadence holds with room. The divisor falls by one.
@@ -94,7 +93,7 @@ export function judgeCadence(c: Cadence, w: ScaleWindow, refresh: Refresh, floor
     w.misses > 1 &&
     w.count > 1 &&
     w.second > HEADROOM * d * period &&
-    (d + 1) * period <= (1 + GRID_TOLERANCE) * SLOWEST_MS
+    (d + 1) * period <= (1 + GRID_TOLERANCE) * FALLBACK_REFRESH_MS
   ) {
     c.divisor++
     restartWindow(w)
