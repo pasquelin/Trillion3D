@@ -136,7 +136,8 @@ export function growRowItems(
 }
 
 /** `growPlaced` on the blended copies: the copies of `from` read `to`, and one parked copy per new
- *  row is returned — a paged one comes with the root of its row, never from here. */
+ *  row is returned, its primitive's deformation and proxy the template's — a paged one comes with
+ *  the root of its row, never from here. */
 export function growRowCopies(
   copies: readonly BlendCopy[],
   from: PlacementRows,
@@ -157,7 +158,10 @@ export function growRowCopies(
         template.surface,
         placement,
       )
+      // What its primitive gives every placement: the deformation, and the proxy a ray meets it
+      // by (`collect.ts`), as a copy collected at the open carries them.
       copy.deformation = template.deformation
+      copy.proxy = template.proxy
       return copy
     },
   ).map(({ item }) => item)

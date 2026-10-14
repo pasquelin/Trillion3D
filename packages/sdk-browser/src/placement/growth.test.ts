@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'
+import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { PageSurface } from '../page/surface.ts'
 import { growRowCopies, growRowItems, type Rebound } from './growth.ts'
@@ -15,9 +16,15 @@ const surface = {} as PageSurface
 test('copies and items of a buffer read the larger one, a parked copy joins per new row', () => {
   const from = createPlacementRows(2),
     to = growPlacementRows(from, 5)
-  const copies = [0, 1].map((index) =>
-    createBlendCopyRecord(source, 7, placementWorld(from, index), surface, { rows: from, index }),
-  )
+  const proxy = { primitive: {}, surface } as BlendCopy['proxy']
+  const copies = [0, 1].map((index) => {
+    const copy = createBlendCopyRecord(source, 7, placementWorld(from, index), surface, {
+      rows: from,
+      index,
+    })
+    copy.proxy = proxy
+    return copy
+  })
   const items = copies.map((copy) => ({ matrix: copy.matrix, placement: copy.placement }))
   const rebound: Rebound = new Map()
   const added = growRowCopies(copies, from, to, rebound)
@@ -35,5 +42,7 @@ test('copies and items of a buffer read the larger one, a parked copy joins per 
   added.forEach((copy, k) => {
     assert.equal(copy.placement?.index, from.capacity + k)
     assert.equal(copy.renderOrder, 7)
+    // A copy no ray meets would leave the reflections of a grown batch without it.
+    assert.equal(copy.proxy, proxy, 'the proxy a ray meets it by is its primitive’s')
   })
 })
