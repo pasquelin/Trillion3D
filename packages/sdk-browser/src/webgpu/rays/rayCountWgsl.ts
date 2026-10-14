@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { rayBoxEntry, rayInverseDirection } from '../../../../math/src/wgsl/geometry.ts'
@@ -41,40 +41,64 @@ const DUMP_WGSL = `${wgslConsts({ RQ_DUMP_WORDS: RAY_DUMP_WORDS, RQ_COUNT_WORDS:
  rqCounts[at+56u]=treeWord(0u,15u);
 }`
 
-/**
- * The trace's counters (`rqCount`, `rqCountRoot`, `rqFlushCounts`): empty in the shipped kernel,
- * which the compiler drops; counted and written per ray, with the tables' dump, in the audit's
- * kernel alone (`rayAudit.ts`), never in a frame.
- */
-export const rayCountWgsl = (counted: boolean) =>
-  counted
-    ? wgslBlock(
-        'rayCountWgsl(true)',
-        [
-          RAY_PAGE_WGSL,
-          WIDE_TRAVERSAL_WGSL,
-          DAG_READ_TABLES_WGSL,
-          rayQueryBindingsWgsl(1, false),
-          rayBoxEntry,
-          rayInverseDirection,
-          NO_INDEX,
-          FLAT_INDEX_WGSL,
-          WORKGROUP_THREADS_WGSL,
-        ],
-        `var<private> rqCounted:array<u32,${RAY_COUNTERS.length}>;
+/** The counters' store, the audit's alone: each ray's counts while it runs, and the buffer they
+ *  are written to with the tables' dump (`dumpTables`). */
+const COUNTS_WGSL = wgslBlock(
+  'RAY_COUNTS_WGSL',
+  [
+    DAG_READ_TABLES_WGSL,
+    rayQueryBindingsWgsl(1, false),
+    NO_INDEX,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+  ],
+  `var<private> rqCounted:array<u32,${RAY_COUNTERS.length}>;
 @group(1) @binding(4) var<storage,read_write> rqCounts:array<u32>;
-fn rqCount(i:u32){rqCounted[i]+=1u;}
-fn rqCountRoot(box:Box,o:vec3f,d:vec3f,limit:f32){if(rayBoxEntry(box.low,box.high,o,rayInverseDirection(d),limit)>limit){rqCount(2u);}}
-fn rqFlushCounts(k:u32,best:RqHit){
- for(var i=0u;i<${RAY_COUNTERS.length}u;i++){rqCounts[k*${RAY_COUNT_WORDS}u+i]=rqCounted[i];}
- rqCounts[k*${RAY_COUNT_WORDS}u+${RAY_COUNTERS.length}u]=bitcast<u32>(best.distance);
-}
 ${DUMP_WGSL}`,
-      )
-    : wgslBlock(
-        'rayCountWgsl(false)',
-        [RAY_PAGE_WGSL, WIDE_TRAVERSAL_WGSL],
-        `fn rqCount(i:u32){}
-fn rqCountRoot(box:Box,o:vec3f,d:vec3f,limit:f32){}
-fn rqFlushCounts(k:u32,best:RqHit){}`,
-      )
+)
+
+/** Counter \`i\` of the ray, one more. */
+const countFn = (counted: boolean) =>
+  wgslFn(
+    'rqCount',
+    counted ? [COUNTS_WGSL] : [],
+    `fn rqCount(i:u32){${counted ? 'rqCounted[i]+=1u;' : ''}}`,
+  )
+
+/** The placement's root box missed by the ray in its own space: counted. */
+const countRootFn = (counted: boolean) =>
+  wgslFn(
+    'rqCountRoot',
+    counted
+      ? [WIDE_TRAVERSAL_WGSL, countFn(true), rayBoxEntry, rayInverseDirection]
+      : [WIDE_TRAVERSAL_WGSL],
+    `fn rqCountRoot(box:Box,o:vec3f,d:vec3f,limit:f32){${
+      counted
+        ? 'if(rayBoxEntry(box.low,box.high,o,rayInverseDirection(d),limit)>limit){rqCount(2u);}'
+        : ''
+    }}`,
+  )
+
+/** The ray's counts and its best distance, written at its rank. */
+const flushFn = (counted: boolean) =>
+  wgslFn(
+    'rqFlushCounts',
+    counted ? [RAY_PAGE_WGSL, COUNTS_WGSL] : [RAY_PAGE_WGSL],
+    `fn rqFlushCounts(k:u32,best:RqHit){${
+      counted
+        ? `for(var i=0u;i<${RAY_COUNTERS.length}u;i++){rqCounts[k*${RAY_COUNT_WORDS}u+i]=rqCounted[i];}
+ rqCounts[k*${RAY_COUNT_WORDS}u+${RAY_COUNTERS.length}u]=bitcast<u32>(best.distance);`
+        : ''
+    }}`,
+  )
+
+/**
+ * The trace's counter hooks (\`rqCount\`, \`rqCountRoot\`, \`rqFlushCounts\`), declarations its
+ * program lists: empty in the shipped kernel, which the compiler drops; counted and written per
+ * ray, with the tables' dump, in the audit's kernel alone (\`rayAudit.ts\`), never in a frame.
+ */
+export const rayCountWgsl = (counted: boolean) => [
+  countFn(counted),
+  countRootFn(counted),
+  flushFn(counted),
+]

@@ -6,7 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
+import { RAY_QUERY_WGSL, rayQueryWgsl } from './rayQueryWgsl.ts'
+import { unresolvedNames } from '../../gpu/core/wgslNames.fixture.ts'
 import { dagBindingOf } from '../../gpu/dag/shader/bindings.fixture.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
@@ -68,4 +69,15 @@ test("the trace reads the cut's record tables at the culling's bindings, whateve
     tree: culling.tree,
   })
   assert.ok(!/memberWord/.test(RAY_QUERY_WGSL), 'no copied member order')
+})
+
+test("the shipped trace and the audit's counting one declare every function they call", () => {
+  // The counter hooks are declarations each program lists (`rayCountWgsl.ts`): empty in the
+  // shipped kernel, counting in the audit's — never a call a device cannot resolve.
+  for (const text of [RAY_QUERY_WGSL, rayQueryWgsl(true)]) {
+    assert.deepEqual(unresolvedNames(text), [])
+    for (const hook of ['rqCount', 'rqCountRoot', 'rqFlushCounts'])
+      assert.match(text, new RegExp(`fn ${hook}\\(`), hook)
+  }
+  assert.ok(!/rqCounts/.test(RAY_QUERY_WGSL), 'the shipped kernel binds no counters')
 })

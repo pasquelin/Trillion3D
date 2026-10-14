@@ -100,6 +100,7 @@ ${placementTreeWalk({
       WORKGROUP_THREADS_WGSL,
       PLACEMENT_TREE_WALK_WGSL,
       RAY_PLACEMENT_WGSL,
+      ...rayCountWgsl(counted),
       toF32,
       rayInverseDirection,
       invTranspose3Prep,
