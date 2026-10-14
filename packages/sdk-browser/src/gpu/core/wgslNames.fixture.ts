@@ -24,7 +24,7 @@ const WGSL_KEYWORDS = new Set(
 const WGSL_OWN = new Set([
   ...WGSL_KEYWORDS,
   ...(
-    '_ array atomic bitcast bool f16 f32 function i32 mat2x2f mat3x3f mat3x4f mat4x4f ' +
+    '_ array atomic bitcast bool f16 f32 function i32 mat2x2f mat3x2f mat3x3f mat3x4f mat4x4f ' +
     'private ptr read read_write sampler sampler_comparison storage ' +
     'u32 uniform vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
     'vec4u workgroup write ' +
