@@ -57,7 +57,7 @@ test('a still scene weighs no host map’s coverage rule', () => {
     map,
     coverage: readers,
   }
-  const journal = openTextureJournal()
+  const journal = textureJournals.open()
   const surfaces = new Set<never>()
   const follow = samplingHeaders(colour.atlas, data.atlas, journal, surfaces)
   const copies = { refresh: () => true, reduce: () => true }
@@ -68,5 +68,5 @@ test('a still scene weighs no host map’s coverage rule', () => {
   surfaces.add(undefined as never)
   follow(false, new Set(), copies)
   assert.equal(weighed, 1, 'a reader filed: its maps weighed once')
-  closeTextureJournal(journal)
+  textureJournals.close(journal)
 })
