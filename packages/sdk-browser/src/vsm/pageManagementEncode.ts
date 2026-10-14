@@ -53,15 +53,17 @@ function group0(ctx: VsmPageManagementContext, res: VsmResources, pipe: Pipe) {
   return g
 }
 
-/** Writes slots [first, end) only: each encoder owns its slots, so encoders sharing a submit never clobber each other. */
+/** Writes slots [first, end) only: each encoder owns its slots, so encoders sharing a submit never
+ *  clobber each other. The cache is valid when the previous frame was kept (`keepVsmFrame`). */
 function writeParams(
   ctx: VsmPageManagementContext,
+  res: VsmResources,
   frame: VsmPageManagementFrame,
-  cacheValid: boolean,
   first: number,
   end: number,
 ) {
-  const { slots, paramsU32: u } = ctx
+  const { slots, paramsU32: u } = ctx,
+    cacheValid = res.prevFrameKept
   for (let s = first; s < end; s++) {
     const b = s * slots.strideWords
     u[b + 0] = frame.nextMapCount ?? 0
@@ -85,16 +87,17 @@ function bind(
   pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, ctx.slots.offset(slot))
 }
 
+/** Runs kernel `name` over `groups` groups: by default a thread a pool page, ⌈poolPages / 256⌉ —
+ *  one row for the largest pool (`poolDispatch.test.ts`). */
 function run(
   ctx: VsmPageManagementContext,
   res: VsmResources,
   pass: GPUComputePassEncoder,
   name: KernelName,
   slot: number,
-  groups: number,
+  groups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH),
 ) {
   bind(ctx, res, pass, name, slot)
-  // One group, or ⌈poolPages / 256⌉: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(groups)
 }
 
@@ -121,9 +124,8 @@ export function encodeVsmPageCarry(
 ) {
   if (frame.mapCount === 0 && !frame.nextMapCount) return
   const ctx = vsmPageManagementContext(res, frame)
-  const cacheValid = res.prevFrameKept
-  writeParams(ctx, frame, cacheValid, SLOT_ADDRESSES, SLOT_ADDRESSES + 1)
-  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH))
+  writeParams(ctx, res, frame, SLOT_ADDRESSES, SLOT_ADDRESSES + 1)
+  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES)
 }
 
 /**
@@ -139,23 +141,21 @@ export function encodeVsmPageMapping(
 ) {
   if (frame.mapCount === 0) return
   const ctx = vsmPageManagementContext(res, frame)
-  const cacheValid = res.prevFrameKept
-  writeParams(ctx, frame, cacheValid, SLOT_MAIN, SLOT_ADDRESSES)
+  writeParams(ctx, res, frame, SLOT_MAIN, SLOT_ADDRESSES)
   ctx.dispatcher.setBins(frame.perPageBins ?? [])
-  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args, 1D, in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
 
   const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}pageMapping` })
   // Update cached or newly invalidated pages against the new requests.
-  run(ctx, res, pass, 'keepPages', SLOT_MAIN, maxGroups)
+  run(ctx, res, pass, 'keepPages', SLOT_MAIN)
   // The free pages in the pool rank's order: the stages share `poolCount`'s group 0.
   bind(ctx, res, pass, 'poolCount', SLOT_MAIN)
   encodePoolSort(pass, ctx.poolSort, res.layout.poolPages, groupWidth(ctx.device.limits))
   runPerPage(ctx, res, pass, 'grantPages')
-  run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN, maxGroups)
+  run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN)
   if (frame.fullMapCount > 0) runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
-  run(ctx, res, pass, 'listClears', SLOT_MAIN, maxGroups)
+  run(ctx, res, pass, 'listClears', SLOT_MAIN)
   bind(ctx, res, pass, 'clearPages', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
   // The feedback: the free pages left.
@@ -172,13 +172,12 @@ export function encodeVsmAfterRaster(
 ) {
   if (frame.mapCount === 0) return
   const ctx = vsmPageManagementContext(res, frame)
-  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args: merge set in (16, pages, 1) form, filter set (0, 1, 1).
   encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.tileArgs, 0, 16)
   const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}afterRaster` })
-  run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN, maxGroups)
+  run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN)
   bind(ctx, res, pass, 'mergeStatic', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.mergeArgs, 0)
   bind(ctx, res, pass, 'tileDepthsBuild', SLOT_MAIN)
