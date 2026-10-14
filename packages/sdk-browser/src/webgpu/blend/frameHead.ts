@@ -26,8 +26,6 @@ export const FRAME_HEAD = {
 } as const
 /** The view's fourth row is `0, 0, 0, 1`: a corner's view depth is not divided. */
 export const VIEW_AFFINE = 1
-/** The projection's fourth row is minus the view's third: a corner's clip `w` is minus its depth. */
-export const VIEW_MIRRORED = 2
 
 /** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
  *  the head, a key per item, a seed and a slot per entry of each pass (`order.ts`). */
@@ -50,7 +48,6 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     FRAME_ITEMS: FRAME_HEAD.items,
     FRAME_WATERS: FRAME_HEAD.waters,
     VIEW_AFFINE,
-    VIEW_MIRRORED,
   })}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}`,
 )
