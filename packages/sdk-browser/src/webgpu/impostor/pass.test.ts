@@ -21,14 +21,19 @@ test('the card pass makes a group again only when what it binds moves', async ()
   const gpu = fakeDevice()
   assert.ok(await prepareImpostorPipelines(gpu.device, () => {}))
   const pass = createImpostorPass(gpu.device)
-  const sources = { color: atlas('color'), data: atlas('data'), sampler: {} as GPUSampler }
+  const atlases = { color: atlas('color'), data: atlas('data') },
+    sampler = {} as GPUSampler
   const made = () => gpu.bindGroups.length
-  const first = pass.tilesGroup(sources),
+  const first = pass.tilesGroup(atlases, sampler),
     groups = made()
-  assert.equal(pass.tilesGroup(sources), first, 'still sources: the same group')
+  assert.equal(pass.tilesGroup(atlases, sampler), first, 'still sources: the same group')
   assert.equal(made(), groups)
-  const regrown = { ...sources, data: { ...sources.data, pages: { buffer: {} } } }
-  assert.notEqual(pass.tilesGroup(regrown as never), first, 'a table regrown: a group again')
+  const regrown = { color: atlases.color, data: { ...atlases.data, pages: { buffer: {} } } }
+  assert.notEqual(
+    pass.tilesGroup(regrown as never, sampler),
+    first,
+    'a table regrown: a group again',
+  )
   const view = {} as GPUTextureView
   const ids = pass.idsGroup(view)
   assert.equal(pass.idsGroup(view), ids)

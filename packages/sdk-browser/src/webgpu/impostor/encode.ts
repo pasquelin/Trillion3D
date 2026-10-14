@@ -5,6 +5,7 @@ import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrig
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { WebgpuImpostors } from './frame.ts'
 
 const viewWords = new Float32Array(CARD_VIEW_FLOATS),
   viewBits = new Uint32Array(viewWords.buffer)
@@ -24,23 +25,20 @@ function cardView(rt: WebgpuPagesRuntime) {
   return viewWords
 }
 
-/** The image's cards (`frame.ts`), when it has any, and the tile pool their maps are read from. */
-const cardsOf = (rt: WebgpuPagesRuntime) => {
+/** The group of the tile pool the image's cards (`frame.ts`) read their maps from, when it has
+ *  any: cached by the pass, nothing made for a group that stays. */
+const cardTiles = (rt: WebgpuPagesRuntime) => {
   const state = rt.gpu.impostors,
     textures = rt.vis.textures,
     sampler = rt.vis.mapsSampler
-  return state?.count && textures && sampler
-    ? {
-        state,
-        tiles: state.pass.tilesGroup({ color: textures.color, data: textures.data, sampler }),
-      }
-    : undefined
+  return state?.count && textures && sampler ? state.pass.tilesGroup(textures, sampler) : undefined
 }
 
 /** One instanced draw per mesh, with `pipeline`, on `pass`: every card reads the one tile group. */
 function drawRuns(
   rt: WebgpuPagesRuntime,
-  { state, tiles }: NonNullable<ReturnType<typeof cardsOf>>,
+  state: WebgpuImpostors,
+  tiles: GPUBindGroup,
   pass: GPURenderPassEncoder,
   pipeline: GPURenderPipeline,
   image = state.pass.imageGroup(state.slots.used),
@@ -70,13 +68,14 @@ export function drawImpostorVisibility(
   pass: GPURenderPassEncoder,
   hiz: boolean,
 ) {
-  const cards = cardsOf(rt)
-  if (!cards) return false
-  const { state } = cards,
+  const tiles = cardTiles(rt)
+  if (!tiles) return false
+  // `cardTiles` makes a group only for an image that has cards.
+  const state = rt.gpu.impostors!,
     image = state.pass.imageGroup(state.slots.used)
   device.queue.writeBuffer(state.pass.viewBuffer, 0, cardView(rt))
   uploadRecords(device, state, image.buffer)
-  drawRuns(rt, cards, pass, state.pass.visPipeline(hiz), image)
+  drawRuns(rt, state, tiles, pass, state.pass.visPipeline(hiz), image)
   return true
 }
 
@@ -92,7 +91,7 @@ export function encodeImpostorVisibilityPass(
 ) {
   const { visView } = rt.vis,
     { depthView } = rt.gpu
-  if (!cardsOf(rt) || !visView || !depthView) return false
+  if (!cardTiles(rt) || !visView || !depthView) return false
   const pass = encoder.beginRenderPass({
     label: IMPOSTOR_VISIBILITY_PASS,
     colorAttachments: [
@@ -120,11 +119,12 @@ export function encodeImpostorVisibilityPass(
  * encodes nothing.
  */
 export function encodeImpostorCards(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const cards = cardsOf(rt),
+  const tiles = cardTiles(rt),
     { surfaces } = rt.gpu,
     { visView } = rt.vis
-  if (!cards || !surfaces || !visView) return
-  const { pass } = cards.state
+  if (!tiles || !surfaces || !visView) return
+  const state = rt.gpu.impostors!,
+    { pass } = state
   const draw = encoder.beginRenderPass({
     label: IMPOSTOR_PASS,
     colorAttachments: core.cardColorAttachments(rt, surfaces),
@@ -132,6 +132,6 @@ export function encodeImpostorCards(rt: WebgpuPagesRuntime, encoder: GPUCommandE
   const [width, height] = rt.gpu.targetSize
   draw.setViewport(0, 0, width, height, 0, 1)
   const pipeline = pass.surfacePipeline(rt.vis.writesFeedback)
-  drawRuns(rt, cards, draw, pipeline, undefined, pass.idsGroup(visView))
+  drawRuns(rt, state, tiles, draw, pipeline, undefined, pass.idsGroup(visView))
   draw.end()
 }
