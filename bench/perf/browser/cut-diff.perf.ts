@@ -1,5 +1,5 @@
 // GEO-1: cut readers by delta. Both cuts rank by admission.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import {
   RequestStamps,
@@ -21,7 +21,7 @@ const PAGES = 160000,
 const levels = new Int32Array(PAGES)
 for (let k = 0; k < PAGES; k++) levels[k] = Math.floor(alea() * LEVELS)
 /** Fields the cut readers never touch: shared across every record, never mutated. */
-const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {}
+const DUMMY_ATTRIBUTES: Geometry['attributes'] = {}
 const DUMMY_BOUNDS: number[] = [0, 0, 0]
 const pages: PageRec[] = []
 for (let i = 0; i < PAGES; i++)

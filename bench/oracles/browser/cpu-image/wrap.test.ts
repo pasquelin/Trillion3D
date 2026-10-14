@@ -6,6 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Texture } from '../../../../packages/sdk-core/src/world/texture/texture.ts'
+import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { createEngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../../packages/sdk-browser/src/camera/world.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
@@ -21,14 +23,14 @@ import { sampleLinear } from './math.ts'
 import { rasterVisibility } from './raster.ts'
 
 const CASES = addressingCases()
-const maps = new Map<string, G.Texture>()
+const maps = new Map<string, Texture>()
 /** The case's texture, one per size and pair of modes. */
 function mapOf({ width, height, wrapS, wrapT }: AddressingCase) {
   const key = `${width}x${height}/${wrapS}/${wrapT}`
   if (!maps.has(key))
     maps.set(
       key,
-      Object.assign(new G.Texture(), {
+      Object.assign(new Texture(), {
         image: { data: textureBytes(width, height), width, height },
         wrapS,
         wrapT,
@@ -59,7 +61,7 @@ test("the oracle raster's alpha cutout reads the texel the sampler rule names", 
   const view = readCameraWorld(createEngineCamera(), camera)
   const positions = G.floatAttribute([-1, 1, -1, 3, 1, -1, -1, -3, -1], 3)
   for (const c of CASES) {
-    const geometry = new G.Geometry()
+    const geometry = new Geometry()
     geometry.setAttribute('position', positions)
     geometry.setAttribute('uv', G.floatAttribute([c.u, c.v, c.u, c.v, c.u, c.v], 2))
     const material = G.basicSurface({ map: mapOf(c), side: G.DOUBLE_SIDE })
@@ -92,7 +94,7 @@ test('each map of a mixed material is read in its own mode', () => {
     height: TEXTURE.height,
   }
   for (const { name: map, slot, wrapS, wrapT } of MAPS) {
-    const texture = Object.assign(material[slot] as G.Texture, { image, flipY: false })
+    const texture = Object.assign(material[slot] as Texture, { image, flipY: false })
     for (const [u, v] of UV)
       assert.deepEqual(
         texelOf(sampleLinear(texture, u, v)),

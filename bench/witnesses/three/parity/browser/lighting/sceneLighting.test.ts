@@ -1,16 +1,26 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import {
+  Group,
+  type Object3D,
+} from '../../../../../../packages/sdk-core/src/world/object/object3d.ts'
+import {
+  directionalLight,
+  pointLight,
+  ambientLight,
+  lightProbe,
+} from '../../../../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+import type { Light } from '../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { installSceneLighting } from '../../../../../../packages/sdk-browser/src/lighting/sceneLighting.ts'
 import { lighting } from '../../../displayObjects.ts'
 
 test('the witness scene copies the authored directional target in world space', () => {
-  const source = new G.Group(),
-    parent = new G.Group()
+  const source = new Group(),
+    parent = new Group()
   parent.position.set(4, 0, 0)
   source.add(parent)
-  const sun = G.directionalLight(0xffffff, 2)
+  const sun = directionalLight(0xffffff, 2)
   sun.position.set(1, 3, 2)
   parent.add(sun)
   sun.target.position.set(4, 0, 0)
@@ -26,7 +36,7 @@ test('the witness scene copies the authored directional target in world space', 
 
 test('a source without a declared light installs no light at all', () => {
   const scene = new THREE.Scene()
-  installSceneLighting(scene, new G.Group())
+  installSceneLighting(scene, new Group())
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,
@@ -36,9 +46,9 @@ test('a source without a declared light installs no light at all', () => {
 
 test('placing the lights leaves the display background to the boundary that owns the graph', () => {
   const scene = new THREE.Scene()
-  installSceneLighting(scene, new G.Group())
+  installSceneLighting(scene, new Group())
   assert.equal(scene.background, null, 'the light placement declares no clear colour')
-  lighting(scene, 0x112233, new G.Group())
+  lighting(scene, 0x112233, new Group())
   const background: THREE.Color | null = scene.background as THREE.Color | null
   assert.equal(
     background?.getHex(),
@@ -48,8 +58,8 @@ test('placing the lights leaves the display background to the boundary that owns
 })
 
 test('a light that aims carries its own target: the source graph keeps the one it declared', () => {
-  const source = new G.Group()
-  const sun = G.directionalLight(0xffffff, 1)
+  const source = new Group()
+  const sun = directionalLight(0xffffff, 1)
   source.add(sun)
   source.add(sun.target)
   const scene = new THREE.Scene()
@@ -69,21 +79,21 @@ function recordingScene() {
 }
 
 test('a copy aims at its own target, posed where the source declared its own', () => {
-  const source = new G.Group()
-  const sun = G.directionalLight(0xffffff, 1)
+  const source = new Group()
+  const sun = directionalLight(0xffffff, 1)
   sun.target.position.set(7, 8, 9)
   source.add(sun, sun.target)
   const { added, scene } = recordingScene()
   installSceneLighting(scene, source)
-  const [aim, copy] = added as [G.Object3D, G.Light]
+  const [aim, copy] = added as [Object3D, Light]
   assert.equal(aim, copy.target, 'the aim node placed beside the copy is its own target')
   assert.notEqual(aim, sun.target, 'the source keeps the target it declared')
   assert.deepEqual(aim.position.toArray(), [7, 8, 9])
 })
 
 test('a point, an ambient and a probe are placed with no aim node', () => {
-  const source = new G.Group()
-  source.add(G.pointLight(0xffffff, 1), G.ambientLight(0xffffff, 1), G.lightProbe())
+  const source = new Group()
+  source.add(pointLight(0xffffff, 1), ambientLight(0xffffff, 1), lightProbe())
   const { added, scene } = recordingScene()
   const installed = installSceneLighting(scene, source)
   assert.equal(installed.lit, true)
@@ -93,12 +103,12 @@ test('a point, an ambient and a probe are placed with no aim node', () => {
 // #558 (D): a casting lamp shown or hidden after the copy is heard at the placement that sees it,
 // so the engine never draws it unshadowed silently.
 test('a source lamp shown, hidden or set to cast after the copy changes the casting list', () => {
-  const sun = G.directionalLight()
+  const sun = directionalLight()
   sun.name = 'sun'
   sun.castShadow = true
   sun.visible = false
-  const source = new G.Group()
-  source.add(sun, G.pointLight())
+  const source = new Group()
+  source.add(sun, pointLight())
   const lighting = installSceneLighting({ add() {}, remove() {} }, source)
   let heard = 0
   lighting.castingChanged = () => void heard++

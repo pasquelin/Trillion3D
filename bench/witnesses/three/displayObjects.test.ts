@@ -5,14 +5,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import { directionalLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
 import { witnessScene } from './displayObjects.ts'
 
 const CLEAR = 0x2a303c
 
 /** A source of two drawn squares, the first under a moved and stretched parent. */
 function source() {
-  const root = new G.Group(),
-    parent = new G.Group()
+  const root = new Group(),
+    parent = new Group()
   parent.position.set(2, 0, 0)
   parent.scale.set(1, 3, 1)
   const first = G.mesh(G.planeGeometry(1, 1), G.basicSurface()),
@@ -47,7 +49,7 @@ test('the witness scene copies each drawn mesh once, in source order, posed at e
 test('the witness scene is lit only by a light of the source', () => {
   const { root } = source()
   assert.equal(witnessScene(root, CLEAR).lit(), false)
-  root.add(G.directionalLight(0xffffff, 2))
+  root.add(directionalLight(0xffffff, 2))
   const witness = witnessScene(root, CLEAR)
   assert.equal(witness.lit(), true)
   assert.equal(witness.scene.children.filter((node) => node instanceof THREE.Light).length, 1)

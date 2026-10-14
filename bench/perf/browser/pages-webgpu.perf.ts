@@ -1,5 +1,8 @@
 // winding of a cluster.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
+import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
 import {
   setWindingEpoch,
   windingCw,
@@ -15,8 +18,8 @@ import { pageRecFixture } from './support/pageRecFixture.ts'
 const alea = xorshiftRandom(67)
 
 /** A record with the world the oracle reads on it, and the one root that carries it. */
-type Cluster = PageRec & { matrix: G.Matrix4; roots: { world: G.Matrix4 }[] }
-const pageOf = (matrix: G.Matrix4): Cluster => ({
+type Cluster = PageRec & { matrix: Matrix4; roots: { world: Matrix4 }[] }
+const pageOf = (matrix: Matrix4): Cluster => ({
   ...pageRecFixture(),
   matrix,
   roots: [{ world: matrix }],
@@ -25,10 +28,10 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
 function clusters(count: number): Cluster[] {
   const recs: Cluster[] = []
   for (let i = 0; i < count; i++) {
-    const matrix = new G.Matrix4().compose(
-      new G.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
-      new G.Quaternion().setFromEuler(new G.Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28)),
-      new G.Vector3(1, 1, i % 7 ? 1 : -1),
+    const matrix = new Matrix4().compose(
+      new Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
+      new Quaternion().setFromEuler(new Euler(alea() * 6.28, alea() * 6.28, alea() * 6.28)),
+      new Vector3(1, 1, i % 7 ? 1 : -1),
     )
     recs.push(pageOf(matrix))
   }
@@ -68,9 +71,9 @@ await stress({
   extremes: [
     {
       name: 'zero matrix',
-      input: pageOf(new G.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
+      input: pageOf(new Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)),
     },
-    { name: 'negative scale', input: pageOf(new G.Matrix4().makeScale(-1, -1, -1)) },
+    { name: 'negative scale', input: pageOf(new Matrix4().makeScale(-1, -1, -1)) },
   ],
 })
 

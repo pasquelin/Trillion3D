@@ -5,6 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Color } from '../../../../../../packages/sdk-core/src/world/math/color.ts'
+import { Vector2 } from '../../../../../../packages/sdk-core/src/world/math/vector2.ts'
 import { threeMaterials } from '../../../fromSurface.ts'
 
 const texture = () => G.dataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, 'rgba')
@@ -70,12 +72,12 @@ test('A Phong surface reads its exponent as the roughness of the GGX lobe that m
 // The engine draws every family through its one model; the witness draws each as the reference
 // lights that family, from the facts the record keeps as declared.
 test('The witness draws a Lambert, Phong and toon record as the reference draws that family', () => {
-  const emissive = new G.Color().setRGB(0.25, 0.5, 0)
+  const emissive = new Color().setRGB(0.25, 0.5, 0)
   const lambert = threeMaterials(G.familySurface('lambert', { color: 0x336699, emissive }))
   assert.ok(lambert instanceof THREE.MeshLambertMaterial)
   assert.deepEqual(lambert.emissive.toArray(), [0.25, 0.5, 0])
-  assert.deepEqual(lambert.color.toArray(), new G.Color(0x336699).toArray())
-  const specular = new G.Color().setRGB(0.5, 0.25, 0.125)
+  assert.deepEqual(lambert.color.toArray(), new Color(0x336699).toArray())
+  const specular = new Color().setRGB(0.5, 0.25, 0.125)
   const phong = threeMaterials(G.familySurface('phong', { shininess: 12, specular }))
   assert.ok(phong instanceof THREE.MeshPhongMaterial)
   assert.equal(phong.shininess, 12)
@@ -94,7 +96,7 @@ test('The witness draws a Lambert, Phong and toon record as the reference draws 
 })
 
 test('A record written for vertex tangents hands the witness its factors as declared', () => {
-  const normalScale = new G.Vector2(1, 0.5)
+  const normalScale = new Vector2(1, 0.5)
   const record = G.standardSurface({ normalScale, forVertexTangents: true })
   assert.equal(record.normalScaleY, -0.5, 'the engine rebuilds the frame: the factor turned')
   const drawn = threeMaterials(record) as THREE.MeshStandardMaterial

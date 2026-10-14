@@ -7,28 +7,37 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { InstancedMesh } from '../../../../../../../packages/sdk-core/src/world/object/instancedMesh.ts'
+import {
+  Group,
+  Object3D,
+} from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
+import {
+  isDrawnNode,
+  isInstancedNode,
+} from '../../../../../../../packages/sdk-browser/src/host/graph/kinds.ts'
 import { meshes } from '../../../../../../../packages/sdk-browser/src/scene/meshes.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 
-const placed = () => new G.InstancedMesh(G.boxGeometry(), G.basicSurface(), 4)
+const placed = () => new InstancedMesh(G.boxGeometry(), G.basicSurface(), 4)
 
 test('a walk of the graph draws the core mesh and instanced mesh', () => {
-  const root = new G.Group(),
+  const root = new Group(),
     single = G.mesh(G.boxGeometry()),
     several = placed()
   several.count = 3
-  root.add(single, new G.Group().add(several), new G.Object3D())
+  root.add(single, new Group().add(several), new Object3D())
   assert.deepEqual(meshes(root), [single, several], 'both drawn, in preorder, nothing else')
 })
 
 test('the guards pick the core meshes, never a node that only looks like one', () => {
   const single = G.mesh(),
     several = placed()
-  assert.ok(G.isDrawnNode(single) && G.isDrawnNode(several))
-  assert.ok(!G.isInstancedNode(single) && G.isInstancedNode(several))
+  assert.ok(isDrawnNode(single) && isDrawnNode(several))
+  assert.ok(!isInstancedNode(single) && isInstancedNode(several))
   const witness = new THREE.InstancedMesh(new THREE.BufferGeometry(), undefined, 1)
-  for (const other of [witness, { kind: 'mesh' }, { kind: 'instancedMesh' }, new G.Group()])
-    assert.ok(!G.isDrawnNode(other) && !G.isInstancedNode(other))
+  for (const other of [witness, { kind: 'mesh' }, { kind: 'instancedMesh' }, new Group()])
+    assert.ok(!isDrawnNode(other) && !isInstancedNode(other))
 })
 
 test('a pose write on a hooked core mesh is heard, as on any node of the graph', () => {
@@ -45,13 +54,13 @@ test('a copied instanced mesh keeps its placements, count, morph weights and dra
   geometry.morphAttributes.position = [
     Object.assign(G.floatAttribute(new Float32Array(72), 3), { name: 'open' }),
   ]
-  const source = new G.InstancedMesh(geometry, [G.basicSurface()], 2)
+  const source = new InstancedMesh(geometry, [G.basicSurface()], 2)
   assert.deepEqual(source.morphTargetDictionary, { open: 0 })
   source.morphTargetInfluences![0] = 0.5
   source.instanceMatrix.array.set([7], 16)
   source.count = 1
   const copy = source.clone()
-  assert.ok(copy instanceof G.InstancedMesh)
+  assert.ok(copy instanceof InstancedMesh)
   assert.equal(copy.geometry, geometry, 'the geometry shared')
   assert.notEqual(copy.material, source.material, 'the surface list its own')
   assert.equal(copy.instanceMatrix.array[16], 7)

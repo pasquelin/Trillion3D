@@ -3,6 +3,8 @@
 // cut refines near the eye and keeps coarse far from it. Pages stream in on demand (`readPage`),
 // so residency, eviction and the cut's coarsening all have work, as on a real scene.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { Group } from '../../../../packages/sdk-core/src/world/object/object3d.ts'
 import {
   DAG,
   MANIFEST_IDENTITY,
@@ -98,11 +100,11 @@ export function cutFrameScene(side: number) {
       groups.push({ level: 1, error: ERROR, sphere, children, outputs: [coarse] })
       roots.push(coarse)
     }
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(positions, 3))
   geometry.setIndex(G.indices(all))
   const mesh = G.mesh(geometry, G.basicSurface()),
-    source = new G.Group()
+    source = new Group()
   source.add(mesh)
   const metadata: ClusterManifest = {
     ...DAG,

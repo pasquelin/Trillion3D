@@ -1,5 +1,8 @@
 // Vertex bytes published by metrics().
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
+import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { createWebgpuGpuState } from '../../../packages/sdk-browser/src/webgpu/pages/state/gpu.ts'
 import { createWebgpuBlendState } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts'
@@ -29,16 +32,16 @@ const device = {
 } as unknown as GPUDevice
 
 function geometry(vertices: number, alea: () => number) {
-  const geo = new G.Geometry()
+  const geo = new Geometry()
   const pos = new Float32Array(vertices * 3)
   for (let i = 0; i < pos.length; i++) pos[i] = alea() * 2 - 1
-  geo.setAttribute('position', new G.BufferAttribute(pos, 3))
-  geo.setAttribute('normal', new G.BufferAttribute(new Float32Array(vertices * 3), 3))
-  geo.setAttribute('tangent', new G.BufferAttribute(new Float32Array(vertices * 4), 4))
-  geo.setAttribute('uv', new G.BufferAttribute(new Float32Array(vertices * 2), 2))
+  geo.setAttribute('position', new BufferAttribute(pos, 3))
+  geo.setAttribute('normal', new BufferAttribute(new Float32Array(vertices * 3), 3))
+  geo.setAttribute('tangent', new BufferAttribute(new Float32Array(vertices * 4), 4))
+  geo.setAttribute('uv', new BufferAttribute(new Float32Array(vertices * 2), 2))
   const index = new Uint32Array(vertices - (vertices % 3))
   for (let i = 0; i < index.length; i++) index[i] = i % vertices
-  geo.setIndex(new G.BufferAttribute(index, 1))
+  geo.setIndex(new BufferAttribute(index, 1))
   return geo
 }
 
@@ -46,7 +49,7 @@ function state(pages: number, transparents: number, concats: boolean, depart: nu
   const alea = xorshiftRandom(depart)
   const gpu = createWebgpuGpuState([1, 1]),
     blendState = createWebgpuBlendState(),
-    scene = new G.Scene()
+    scene = new Scene()
   for (let i = 0; i < pages; i++)
     ensureWebgpuPositionBuffer(
       device,

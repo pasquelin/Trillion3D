@@ -1,6 +1,6 @@
 // loading a scene.
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts'
@@ -47,7 +47,7 @@ const emptyMetadata: ClusterManifest = {
   primitives: [],
 }
 const emptyScene: ChargementScene = {
-  source: new G.Group(),
+  source: new Group(),
   associations: new Map(),
   metadata: emptyMetadata,
   indices: new Map(),
@@ -120,7 +120,7 @@ const passeBounds =
 
 const passeIndex =
   (pages: typeof indexManifestPages, bundles: typeof indexManifestBundles) =>
-  (metadata: import('../../../packages/sdk-core/src/index.ts').ClusterManifest) => {
+  (metadata: import('../../../packages/sdk-core/src/contracts/geometry.ts').ClusterManifest) => {
     const index = pages(metadata)
     return {
       pages: index.pages.map((page) => page.url),

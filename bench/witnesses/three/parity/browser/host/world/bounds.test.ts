@@ -11,11 +11,18 @@ import {
 } from '../../../../../../../packages/sdk-browser/src/host/world/bounds.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import {
+  Group,
+  Object3D,
+} from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../../../../../../packages/sdk-browser/src/host/resources.ts'
+import { Box3 } from '../../../../../../../packages/sdk-core/src/world/math/box3.ts'
+import { Vector3 } from '../../../../../../../packages/sdk-core/src/world/math/vector3.ts'
 import { threeGraph } from '../../../../fromGraphNodes.ts'
 import { threeGeometry } from '../../../../fromGraph.ts'
 
 /** The same box, flattened, as the host library computes it. */
-function referenceBox(graph: G.Object3D) {
+function referenceBox(graph: Object3D) {
   const source = threeGraph(graph)
   const box = new THREE.Box3().setFromObject(source)
   return [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z]
@@ -23,9 +30,9 @@ function referenceBox(graph: G.Object3D) {
 
 /** Hostile subtree, depth 3: negative then non-uniform scale, two meshes. */
 function hostileScene() {
-  const rootNode = new G.Group()
+  const rootNode = new Group()
   rootNode.scale.set(-2, 1, 1)
-  const child = new G.Group()
+  const child = new Group()
   child.position.set(5, -5, 0)
   child.scale.set(1, 3, 0.001)
   rootNode.add(child)
@@ -33,7 +40,7 @@ function hostileScene() {
   const meshA = G.mesh(geometryA, G.basicSurface())
   meshA.position.set(1, 1, 1)
   child.add(meshA)
-  const grandchild = new G.Group()
+  const grandchild = new Group()
   grandchild.position.set(0, 0, 100)
   child.add(grandchild)
   const geometryB = G.sphereGeometry(1)
@@ -49,8 +56,8 @@ test('hostWorldBounds agrees with Box3.setFromObject on a hostile subtree, depth
 })
 
 test('a subtree with no geometry at all returns an empty box, like Box3.setFromObject', () => {
-  const source = new G.Group()
-  source.add(new G.Group(), new G.Object3D())
+  const source = new Group()
+  source.add(new Group(), new Object3D())
   const actual = hostWorldBounds(source)
   const expected = new THREE.Box3().setFromObject(threeGraph(source))
   assert.ok(expected.isEmpty(), 'the expected box must be empty for this test to mean anything')
@@ -65,8 +72,8 @@ test('emptyWorldBox returns an independent empty box on every call', () => {
 })
 
 test('geometry carried by a node that is not a mesh counts, like expandByObject', () => {
-  const source = new G.Group()
-  const cloud = Object.assign(new G.Object3D(), { geometry: G.sphereGeometry(3) })
+  const source = new Group()
+  const cloud = Object.assign(new Object3D(), { geometry: G.sphereGeometry(3) })
   cloud.position.set(10, -10, 10)
   source.add(cloud)
   // The host library reads a point cloud of the same geometry, the library's node carrying one.
@@ -77,13 +84,13 @@ test('geometry carried by a node that is not a mesh counts, like expandByObject'
 })
 
 test("an object's own box (object.boundingBox) wins over its geometry's, like expandByObject", () => {
-  const source = new G.Group()
-  const mesh: G.HostMesh & { boundingBox?: G.Box3 | null } = G.mesh(
+  const source = new Group()
+  const mesh: HostMesh & { boundingBox?: Box3 | null } = G.mesh(
     G.boxGeometry(100, 100, 100),
     G.basicSurface(),
   )
   // Object box much smaller than its 100×100×100 geometry box.
-  mesh.boundingBox = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1))
+  mesh.boundingBox = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1))
   source.add(mesh)
   const actual = hostWorldBounds(source)
   // The library's copy carries no own box: the witness is given the same one.

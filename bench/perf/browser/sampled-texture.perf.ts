@@ -1,6 +1,5 @@
 // the bytes of a sampled texture.
-import type { Texture } from '../../../packages/sdk-core/src/texture/contract.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
@@ -15,25 +14,25 @@ const octets = (n: number) => {
   return data
 }
 const texture = (width: number, height: number) => {
-  const t = new G.Texture()
+  const t = new Texture()
   t.image = { data: octets(width * height * 4), width: width, height: height }
   return t
 }
 const grandeTexture = texture(512, 512),
   minuscule = texture(1, 1)
-const withoutData = new G.Texture()
+const withoutData = new Texture()
 withoutData.image = { width: 4, height: 4 }
-const sansImage = new G.Texture()
-const zero = new G.Texture()
+const sansImage = new Texture()
+const zero = new Texture()
 zero.image = { data: new Uint8Array(0), width: 0, height: 0 }
 const contentBefore = octets(16 * 16 * 4),
   contentAfter = octets(8 * 8 * 4)
 const shiftedView = new Uint8Array(new ArrayBuffer(4096), 128, 1024)
-const decalee = new G.Texture()
+const decalee = new Texture()
 decalee.image = { data: shiftedView, width: 16, height: 16 }
 
 interface CasTexture {
-  textures?: G.Texture[]
+  textures?: Texture[]
   tours: number
   remplacer?: boolean
 }
@@ -46,7 +45,7 @@ const passeTexture =
     const cibles = input.remplacer
       ? [
           (() => {
-            const t = new G.Texture()
+            const t = new Texture()
             t.image = { data: contentBefore, width: 16, height: 16 }
             return t
           })(),
@@ -101,7 +100,7 @@ const resTexture = await measure({
 
 await stress({
   name: 'textureRgba extremes',
-  calculation: (t: G.Texture) => textureRgba(t),
+  calculation: (t: Texture) => textureRgba(t),
   extremes: [
     { name: 'sansImage', input: sansImage },
     { name: 'zero', input: zero },

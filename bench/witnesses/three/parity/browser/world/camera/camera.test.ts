@@ -8,12 +8,16 @@ import * as THREE from 'three'
 import { createExplorerCamera } from '../../../../../../../packages/sdk-browser/src/world/camera/camera.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import {
+  Group,
+  type Object3D,
+} from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
 import { threeGraph } from '../../../../fromGraphNodes.ts'
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement
 
 /** The old path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
-function referenceFraming(graph: G.Object3D) {
+function referenceFraming(graph: Object3D) {
   const source = threeGraph(graph)
   const bounds = new THREE.Box3()
   source.updateMatrixWorld(true) // the old `objects()` of ../../scene/meshes.ts resolved the subtree before walking it
@@ -27,13 +31,13 @@ function referenceFraming(graph: G.Object3D) {
 
 /** Hostile subtree, depth 3: negative then non-uniform scale. */
 function hostileScene() {
-  const rootNode = new G.Group()
+  const rootNode = new Group()
   rootNode.scale.set(-3, 1, 1)
-  const child = new G.Group()
+  const child = new Group()
   child.position.set(2, -4, 6)
   child.scale.set(1, 0.25, 5)
   rootNode.add(child)
-  const grandchild = new G.Group()
+  const grandchild = new Group()
   grandchild.position.set(1, 1, 1)
   child.add(grandchild)
   const mesh = G.mesh(G.boxGeometry(2, 3, 4), G.basicSurface())
@@ -62,8 +66,8 @@ test('createExplorerCamera yields the same bounds, centre and radius as expandBy
 })
 
 test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
-  const source = new G.Group()
-  source.add(new G.Group())
+  const source = new Group()
+  source.add(new Group())
   assert.throws(
     () => createExplorerCamera(source, canvas, { manifestUrl: '' }),
     /Empty scene bounds/,

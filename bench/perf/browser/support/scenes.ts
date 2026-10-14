@@ -1,5 +1,6 @@
 // Bench inputs, realistic and hostile, from a seeded generator: two runs see the exact same floats.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 
 export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
@@ -10,8 +11,8 @@ export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
   return cam
 }
 
-type Placed = { matrix: G.Matrix4; placementIndex: number }
-const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 })
+type Placed = { matrix: Matrix4; placementIndex: number }
+const placed = (): Placed => ({ matrix: new Matrix4(), placementIndex: 0 })
 
 /** A box only, without geometry: what Hi-Z projects and sorts. */
 export interface SceneBox extends Placed {

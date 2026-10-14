@@ -4,9 +4,8 @@
 // (`packages/sdk-browser/src/gpu/dag/viewLayout.ts`, `uniforms.ts`).
 import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { aheadViewOf } from '../../../packages/sdk-browser/src/gpu/core/aheadView.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import { viewWord, VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { AHEAD_VIEW } from '../../../packages/sdk-browser/src/gpu/dag/shader/aheadWgsl.ts'
-import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/motion.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'

@@ -4,6 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { triangleAt } from './projection.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
@@ -17,7 +19,7 @@ const VIEW: [number, number] = [96, 96]
 /** One segment from (−1, 0, 0) to (1, 0, 0) as `drawn.ts` quads it: every corner on an endpoint,
  *  its normal the signed direction; `dash`, a dashed line's, its distance along the line in `uv`. */
 function segment(lineWidth: number, dash?: { dashSize: number; gapSize: number }): VisPage {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0], 3))
   geometry.setAttribute('normal', G.floatAttribute([1, 0, 0, -1, 0, 0, 1, 0, 0, -1, 0, 0], 3))
   if (dash) geometry.setAttribute('uv', G.floatAttribute([0, 0, 0, 0, 2, 0, 2, 0], 2))
@@ -38,7 +40,7 @@ function camera() {
 
 test('the CPU raster widens a line corner by the CSS width times the pixel ratio', () => {
   for (const pixelRatio of [1, 2]) {
-    const tri = triangleAt(segment(3), new G.Matrix4(), 0, camera(), VIEW[0], VIEW[1], pixelRatio)!
+    const tri = triangleAt(segment(3), new Matrix4(), 0, camera(), VIEW[0], VIEW[1], pixelRatio)!
     // Corners 0 and 1 are the two sides of the first endpoint.
     const gap = Math.hypot(tri.a.x - tri.b.x, tri.a.y - tri.b.y)
     assert.ok(Math.abs(gap - 3 * pixelRatio) < 1e-9, `ratio ${pixelRatio}: ${gap}`)

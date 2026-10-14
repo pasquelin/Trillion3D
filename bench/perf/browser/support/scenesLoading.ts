@@ -2,6 +2,10 @@
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { BufferAttribute } from '../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { material, porte } from './scenesCut.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
@@ -88,8 +92,8 @@ export function manifesteEtScene({
   seed = 4201,
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
   const alea = xorshiftRandom(seed)
-  const source = new G.Group()
-  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>()
+  const source = new Group()
+  const associations = new Map<HostMesh, { meshes: number; primitives: number }>()
   const indices = new Map<string, Uint32Array>()
   const list: LoadedPrimitive[] = []
   let idPage = 0
@@ -119,9 +123,9 @@ export function manifesteEtScene({
       sourceIndex.set(bloc, at)
       at += bloc.length
     }
-    const geometry = new G.Geometry()
-    geometry.setIndex(new G.BufferAttribute(sourceIndex, 1))
-    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(vertex * 3), 3))
+    const geometry = new Geometry()
+    geometry.setIndex(new BufferAttribute(sourceIndex, 1))
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertex * 3), 3))
     const mesh = G.mesh(geometry, material(p))
     mesh.position.set(p % 10, Math.floor(p / 10), 0)
     source.add(mesh)
@@ -166,11 +170,11 @@ export function catalogueDePages({
 }: { pages?: number; materials?: number; seed?: number } = {}): PageRec[] {
   const alea = xorshiftRandom(seed)
   const list: PageRec[] = []
-  const attributs: { position: G.BufferAttribute }[] = []
+  const attributs: { position: BufferAttribute }[] = []
   for (let i = 0; i < materials; i++) {
     const positions = new Float32Array(3 * 3 * 64)
     for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2
-    attributs.push({ position: new G.BufferAttribute(positions, 3) })
+    attributs.push({ position: new BufferAttribute(positions, 3) })
   }
   for (let i = 0; i < pages; i++) {
     const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined

@@ -10,6 +10,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
 import type { Side } from '../../../../packages/sdk-core/src/contracts/material.ts'
@@ -24,7 +26,7 @@ const VIEW: [number, number] = [96, 96]
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0]
 
 function page(side: Side): VisPage {
-  const geometry = new G.Geometry()
+  const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(POSITIONS, 3))
   return {
     array: new Uint32Array([0, 1, 2, 3, 4, 5]),
@@ -42,7 +44,7 @@ function camera() {
 }
 
 /** Triangles actually written into the buffer, and how many pixels each covers. */
-function drawnTriangles(matrix: G.Matrix4, side: Side) {
+function drawnTriangles(matrix: Matrix4, side: Side) {
   const { ids } = rasterVisibility(
     [page(side)],
     locatedBy([{ world: matrix }]),
@@ -57,8 +59,8 @@ function drawnTriangles(matrix: G.Matrix4, side: Side) {
   return pixels
 }
 
-const DIRECT = new G.Matrix4()
-const MIRROR = new G.Matrix4().makeScale(1, 1, -1)
+const DIRECT = new Matrix4()
+const MIRROR = new Matrix4().makeScale(1, 1, -1)
 
 test('the mirror is the one the engine recognises, the direct transform is not', () => {
   assert.equal(matrixWindingCw(DIRECT.elements), false)

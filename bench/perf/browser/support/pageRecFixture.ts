@@ -1,11 +1,11 @@
 // A minimal `PageRec` fixture shared by benches that only exercise a handful of its fields
 // (residency, streaming, shadow spheres): the rest are shared constants, allocated once, never
 // read by the timed loop, so filling them costs nothing the bench's own numbers could move.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 
-const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {}
+const DUMMY_ATTRIBUTES: Geometry['attributes'] = {}
 const DUMMY_BOUNDS: number[] = [0, 0, 0]
 
 export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {

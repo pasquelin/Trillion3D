@@ -2,8 +2,6 @@ import * as THREE from 'three'
 import { BOX_VALUES } from '../../../packages/math/src/geometry/box.ts'
 import { N, alea, flatOf, points, trsMatrices, views } from './three-duel.ts'
 
-export { N }
-
 export function prepareBatchData() {
   const mats = trsMatrices(N)
   const outMats = new Float64Array(N * 16)

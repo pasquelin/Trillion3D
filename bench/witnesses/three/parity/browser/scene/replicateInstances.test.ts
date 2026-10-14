@@ -10,13 +10,18 @@ import { ENGINE_OWNED } from '../../../../../../packages/sdk-browser/src/host/sc
 import { hostWorldBounds } from '../../../../../../packages/sdk-browser/src/host/world/bounds.ts'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
 import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import {
+  Group,
+  type Object3D,
+} from '../../../../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../../../../../packages/sdk-browser/src/host/resources.ts'
 import { threeGraph } from '../../../fromGraphNodes.ts'
 
 /** Two meshes under negative scale root and non-uniform scale child. */
 function hostileSource() {
-  const rootNode = new G.Group()
+  const rootNode = new Group()
   rootNode.scale.set(-1, 1, 1)
-  const child = new G.Group()
+  const child = new Group()
   child.position.set(3, 0, 0)
   child.scale.set(1, 2, 0.5)
   rootNode.add(child)
@@ -30,7 +35,7 @@ function hostileSource() {
 }
 
 /** Host-graph path: a matrix copy then a walk of the host group's graph. */
-function referenceReplicate(graph: G.Object3D, count: 1 | 4 | 9 | 12) {
+function referenceReplicate(graph: Object3D, count: 1 | 4 | 9 | 12) {
   const source = threeGraph(graph)
   source.updateMatrixWorld(true)
   if (count === 1) return source
@@ -68,12 +73,12 @@ for (const count of [4, 9, 12] as const) {
   test(`replicateInstances(count=${count}) : world matrices of copies bit-for-bit identical to legacy path, hostile source`, () => {
     const actual = hostileSource()
     const expected = hostileSource()
-    const groupActual = replicateInstances(actual.rootNode, new Map(), count) as G.Group
+    const groupActual = replicateInstances(actual.rootNode, new Map(), count) as Group
     const groupExpected = referenceReplicate(expected.rootNode, count) as THREE.Group
     assert.equal(groupActual.children.length, groupExpected.children.length)
     for (let i = 0; i < groupActual.children.length; i++)
       assertBits(
-        (groupActual.children[i] as G.HostMesh).matrixWorld.elements,
+        (groupActual.children[i] as HostMesh).matrixWorld.elements,
         (groupExpected.children[i] as THREE.Mesh).matrixWorld.elements,
       )
   })
@@ -81,8 +86,8 @@ for (const count of [4, 9, 12] as const) {
 
 test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (matrixAutoUpdate to false)', () => {
   const { rootNode } = hostileSource()
-  const group = replicateInstances(rootNode, new Map(), 4) as G.Group
-  for (const copy of group.children as G.HostMesh[]) {
+  const group = replicateInstances(rootNode, new Map(), 4) as Group
+  for (const copy of group.children as HostMesh[]) {
     assert.equal(copy.userData[ENGINE_OWNED], true)
     assert.equal(copy.matrixAutoUpdate, false)
   }
@@ -90,12 +95,12 @@ test('replicateInstances flags each copy ENGINE_OWNED and freezes its matrix (ma
 
 test('replicateInstances transfers association of each source mesh onto its copies', () => {
   const { rootNode, a, b } = hostileSource()
-  const associations = new Map<G.Object3D, { meshes: number }>([
+  const associations = new Map<Object3D, { meshes: number }>([
     [a, { meshes: 0 }],
     [b, { meshes: 1 }],
   ])
-  const group = replicateInstances(rootNode, associations, 4) as G.Group
-  for (const copy of group.children as G.HostMesh[])
+  const group = replicateInstances(rootNode, associations, 4) as Group
+  for (const copy of group.children as HostMesh[])
     assert.ok(associations.get(copy), 'each copy carries association of its source mesh')
 })
 
@@ -112,11 +117,11 @@ test('replicateInstances uses `preparedBounds` as is, without recalculating boun
     actualBounds[4],
     actualBounds[5],
   ])
-  const group = replicateInstances(rootNode, new Map(), 4, falseBounds) as G.Group
+  const group = replicateInstances(rootNode, new Map(), 4, falseBounds) as Group
   const expectedSpacing = falseBounds[3] - falseBounds[0]
   const actualSpacing = actualBounds[3] - actualBounds[0]
-  const firstColumn = (group.children[0] as G.HostMesh).matrixWorld.elements[12]
-  const lastColumn = (group.children[group.children.length - 2] as G.HostMesh).matrixWorld
+  const firstColumn = (group.children[0] as HostMesh).matrixWorld.elements[12]
+  const lastColumn = (group.children[group.children.length - 2] as HostMesh).matrixWorld
     .elements[12]
   assert.notEqual(expectedSpacing, actualSpacing, 'test must use different bounds')
   assert.ok(

@@ -3,6 +3,8 @@
 // redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts'
@@ -12,10 +14,10 @@ const GROUPS = 200
 
 /** `NODES` meshes under `GROUPS` groups, every pose distinct, matrices left to recompose. */
 function graph() {
-  const root = new G.Group()
+  const root = new Group()
   const meshes = []
   for (let g = 0; g < GROUPS; g++) {
-    const group = new G.Group()
+    const group = new Group()
     group.position.set(g, 0, -g)
     root.add(group)
     for (let i = 0; i < NODES / GROUPS; i++) {
@@ -44,7 +46,7 @@ function hooked() {
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
-function walk({ root, meshes }: { root: G.Group; meshes: G.HostMesh[] }) {
+function walk({ root, meshes }: { root: Group; meshes: HostMesh[] }) {
   root.updateMatrixWorld(true)
   const sample = new Float64Array((meshes.length / 200) * 16)
   for (let i = 0; i < meshes.length; i += 200)
