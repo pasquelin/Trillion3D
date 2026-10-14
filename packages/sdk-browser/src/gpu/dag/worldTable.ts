@@ -1,7 +1,7 @@
 import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { TRANSLATION_AT_EYE_WGSL } from './shader/worldPoseWgsl.ts'
+import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 
 /**
  * THE PLACEMENTS' RECORDS, one home whatever the world's size: a record table
@@ -31,23 +31,25 @@ export const WORLD_TABLE: RecordLayout = {
 /**
  * The records as a program in `group` binds them at `binding`, named `name`: `<name>Matrix(w,k)`,
  * `<name>Origin(w,k)`, `<name>Instance(w,0u)` where it reads them, `…Store(w,k,v)` where it writes
- * them. Where it reads them, the one reader of a placement's world: `<name>Linear(w)`, its linear
- * part, and `<name>WorldAtEye(w,e0,e1)`, its world with the translation at the eye `e0`, `e1` taken
- * from the exact one beside the matrix (`TRANSLATION_AT_EYE_WGSL`) — a cut at its view's eye, a ray
- * at its origin, the proxy at a zero eye, the single-precision value a host write holds. The
- * matrix is taken as floats, its words 12 to 14 never read.
+ * them. Where it reads them, the readers of a placement's world: `<name>Column(w,c)`, column `c` of
+ * its matrix taken as floats (its words 12 to 14 never read); `<name>Linear(w)`, its linear part;
+ * `<name>Translation(w)`, the exact translation beside the matrix rounded once to the
+ * single-precision value a host write holds. The world at an eye, which subtracts it in double, is
+ * `worldAtEyeWgsl` (`shader/worldPoseWgsl.ts`), listed only by the programs that take an eye.
  */
 export function worldTableWgsl(name: string, binding: Omit<RecordBinding, 'name'>) {
   const table = recordTextureWgsl(WORLD_TABLE, { name, ...binding })
   if (binding.access === 'write') return table
-  const column = (c: number) => `bitcast<vec4f>(${name}Matrix(w,${c}u))`
+  const column = (c: number) => `${name}Column(w,${c}u)`
   return wgslBlock(
     `worldTable(${name}, ${binding.group}, ${binding.binding}, ${binding.access})`,
-    [table, TRANSLATION_AT_EYE_WGSL],
-    `fn ${name}Linear(w:u32)->mat3x3f{return mat3x3f(${column(0)}.xyz,${column(1)}.xyz,${column(2)}.xyz);}
-fn ${name}WorldAtEye(w:u32,e0:vec4u,e1:vec4u)->mat4x4f{
- let t=bitcast<vec3f>(translationAtEye(${name}Origin(w,0u),${name}Origin(w,1u),e0,e1));
- return mat4x4f(${column(0)},${column(1)},${column(2)},vec4f(t,${column(3)}.w));
+    [table, toF32],
+    `fn ${name}Column(w:u32,c:u32)->vec4f{return bitcast<vec4f>(${name}Matrix(w,c));}
+fn ${name}Linear(w:u32)->mat3x3f{return mat3x3f(${column(0)}.xyz,${column(1)}.xyz,${column(2)}.xyz);}
+fn ${name}Translation(w:u32)->vec3f{
+ let o0=${name}Origin(w,0u);
+ let o1=${name}Origin(w,1u);
+ return bitcast<vec3f>(vec3u(toF32(o0.xy),toF32(o0.zw),toF32(o1.xy)));
 }`,
   )
 }
