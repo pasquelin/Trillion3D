@@ -10,17 +10,18 @@ import { SIZE } from '../../../../../tests/gpu/water/waterCostScene.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import {
+  transformAffinePoint,
+  transformHomogeneousPoint,
+} from '../../../../math/src/vector/vector.ts'
 
 /** The pixel of local point `p` of a copy posed by `m`, under `camera`. */
 function pixelOf(camera: EngineCamera, m: ArrayLike<number>, p: number[]) {
-  const world = [0, 1, 2].map((r) => m[r] * p[0] + m[4 + r] * p[1] + m[8 + r] * p[2] + m[12 + r])
-  const e = camera.viewProjection
-  const clip = [0, 1, 3].map(
-    (r) => e[r] * world[0] + e[4 + r] * world[1] + e[8 + r] * world[2] + e[12 + r],
-  )
+  const [x, y, z] = transformAffinePoint([0, 0, 0], m, p[0], p[1], p[2])
+  const clip = transformHomogeneousPoint([0, 0, 0, 0], camera.viewProjection, x, y, z)
   return [
-    ((clip[0] / clip[2]) * 0.5 + 0.5) * SIZE[0],
-    (1 - ((clip[1] / clip[2]) * 0.5 + 0.5)) * SIZE[1],
+    ((clip[0] / clip[3]) * 0.5 + 0.5) * SIZE[0],
+    (1 - ((clip[1] / clip[3]) * 0.5 + 0.5)) * SIZE[1],
   ]
 }
 

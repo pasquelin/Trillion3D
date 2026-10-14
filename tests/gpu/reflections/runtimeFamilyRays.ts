@@ -6,6 +6,7 @@
 // count (`RAY_LAYERS`).
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { add, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
@@ -51,20 +52,19 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
       q: Vec = [ld[0] * k[0], ld[1] * k[1], ld[2] * k[2]]
     hits.push(...quadratic(dotVector3(q, q), 2 * dotVector3(p, q), dotVector3(p, p) - 1))
   } else if (s.kind === 'box') {
-    let near = -Infinity,
-      far = Infinity
-    for (let k = 0; k < 3; k++) {
-      const half = s.size[k]
-      if (Math.abs(ld[k]) < 1e-12) {
-        if (Math.abs(lo[k]) > half) return []
-        continue
-      }
-      const [t0, t1] = [(-half - lo[k]) / ld[k], (half - lo[k]) / ld[k]]
-      const [in0, out0] = t0 < t1 ? [t0, t1] : [t1, t0]
-      if (in0 > near) near = in0
-      if (out0 < far) far = out0
-    }
-    if (near <= far) hits.push(near, far)
+    const span = new Float64Array([-Infinity, Infinity])
+    if (
+      slabCut(
+        span,
+        s.size.map((half) => -half),
+        0,
+        s.size,
+        0,
+        lo,
+        ld,
+      )
+    )
+      hits.push(...span)
   } else if (s.kind === 'post' || s.kind === 'skinned') {
     // A cylinder along y, capped: sides, then the two caps.
     for (const t of quadratic(

@@ -68,11 +68,9 @@ test('a deformed placement is met at its rest shape, its reach taking confidence
 test('a ray that spends its budget answers nothing, never a miss that darkens', () => {
   // Four hundred cubes in a row the ray crosses: the budget runs out before the tree does.
   const count = 400
-  const places = Array.from({ length: count }, (_, k) => {
-    const m = new Matrix4()
-    m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * 0.02 + 1, 0, 0, 1])
-    return m
-  })
+  const places = Array.from({ length: count }, (_, k) =>
+    new Matrix4().makeTranslation(k * 0.02 + 1, 0, 0),
+  )
   const w = world(count, 1, { places, surfaces: [[0, 0, 0, 0.0001, 1, 1, 1, SURFACE_BLENDED]] })
   const seen = runOver(w).rtRadiance(origin, ahead, 1000, 0.01)
   assert.equal(seen.confidence, 0)

@@ -6,7 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { reflect, scale } from '../../../math/src/vector/vectorTuple.ts'
+import { reflect, scale, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { reflectionRunner, sceneFromDepth } from './scene.fixture.ts'
 import { camera, type V3 } from './boxes.fixture.ts'
 
@@ -81,13 +82,9 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         (height(P[0] + e, P[2]) - height(P[0] - e, P[2])) / (2 * e),
         (height(P[0], P[2] + e) - height(P[0], P[2] - e)) / (2 * e),
       ]
-      const length = Math.hypot(slope[0], 1, slope[1])
-      const N: V3 = [-slope[0] / length, 1 / length, -slope[1] / length]
-      const toEye = [0, 1, 2].map((a) => eye[a] - P![a]) as V3
-      const away = Math.hypot(...toEye)
-      const V: V3 = [toEye[0] / away, toEye[1] / away, toEye[2] / away]
-      const cosine = V[0] * N[0] + V[1] * N[1] + V[2] * N[2]
-      if (cosine <= 0) continue
+      const N = unit([-slope[0], 1, -slope[1]])
+      const V = unit(subtract(eye, P))
+      if (dotVector3(V, N) <= 0) continue
       const R = reflect(scale(V, -1), N)
       const alpha = 0.0028
       const lobe = run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha])

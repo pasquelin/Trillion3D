@@ -1,6 +1,6 @@
 // Synthetic views for the reflection's tests: opaque boxes, the exact ray cast of them, a reversed
 // infinite perspective camera, and the boxes rasterized into a reversed depth.
-import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { dotVector3, transformHomogeneousPoint } from '../../../math/src/vector/vector.ts'
 import { cross, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
@@ -63,9 +63,7 @@ export function camera(
   const projection = perspectiveProjection(new Float64Array(16), degrees, a, near, 1)
   const m = multiplyMatrix4(new Float64Array(16), projection, view)
   const project = (p: V3) => {
-    const c = [0, 1, 2, 3].map(
-      (row) => m[row] * p[0] + m[4 + row] * p[1] + m[8 + row] * p[2] + m[12 + row],
-    )
+    const c = transformHomogeneousPoint([0, 0, 0, 0], m, p[0], p[1], p[2])
     return [
       ((c[0] / c[3]) * 0.5 + 0.5) * width,
       (-(c[1] / c[3]) * 0.5 + 0.5) * height,

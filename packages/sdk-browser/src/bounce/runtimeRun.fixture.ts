@@ -110,10 +110,6 @@ export function runOver(w: ReturnType<typeof world>) {
 
 /** Cubes along a line of sight from the origin, `gap` apart, the first at `gap`. */
 export const along = (count: number, gap: number) =>
-  Array.from({ length: count }, (_, k) => {
-    const m = new Matrix4()
-    m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * gap + gap, 0, 0, 1])
-    return m
-  })
+  Array.from({ length: count }, (_, k) => new Matrix4().makeTranslation(k * gap + gap, 0, 0))
 export const ahead: Vec = [1, 0, 0]
 export const origin: Vec = [0, 0, 0]

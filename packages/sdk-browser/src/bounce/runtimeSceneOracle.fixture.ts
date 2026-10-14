@@ -13,7 +13,7 @@ import {
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
-import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { dotVector3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
 import {
   boxEntry,
@@ -163,11 +163,7 @@ export function bruteForce(scene: OracleScene, o: Vec, d: Vec, limit: number): H
   let best = missed(limit)
   for (const [w, instance] of scene.instances) {
     const m = worldOf(scene, w)
-    const place = (v: Vec): Vec => [
-      m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12],
-      m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13],
-      m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14],
-    ]
+    const place = (v: Vec) => transformAffinePoint<Vec>([0, 0, 0], m, v[0], v[1], v[2])
     for (let k = 0; k < instance.triangles; k++) {
       const t = instance.triangle + k
       const corners = [0, 1, 2].flatMap((c) => place(vertex(scene.columns, t, c)))

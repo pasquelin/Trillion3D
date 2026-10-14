@@ -39,11 +39,9 @@ for (const count of [5, 400]) {
 
 test('blended copies, members after the placements, are met as the oracle meets them', () => {
   // The tree's placements, and eight copies of the cube amongst them, each at a pose of its own.
-  const copies = Array.from({ length: 8 }, (_, k) => {
-    const m = new Matrix4()
-    m.elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, k * 2 - 1, 0.5, 4 + k, 1])
-    return m
-  })
+  const copies = Array.from({ length: 8 }, (_, k) =>
+    new Matrix4().makeTranslation(k * 2 - 1, 0.5, 4 + k),
+  )
   const w = world(70, 4, { copies })
   const run = runOver(w)
   const random = lcgRandom(9)
