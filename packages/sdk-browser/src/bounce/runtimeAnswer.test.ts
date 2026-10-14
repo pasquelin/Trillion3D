@@ -4,16 +4,8 @@
 // it shares them (`rtShare`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
-import {
-  along,
-  ahead,
-  counters,
-  FRAME_UNITS,
-  makeStore,
-  origin,
-  runOver,
-} from './runtimeRun.fixture.ts'
+import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
+import { along, ahead, counters, makeStore, origin, runOver } from './runtimeRun.fixture.ts'
 import { world, type Vec } from './runtimeScene.fixture.ts'
 import { TRACE_SHADER } from '../reflections/trace.ts'
 
@@ -48,7 +40,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
   const first = runOver(w, list, 2, store)
   first.testPixel(2, 0, 0)
   first.rtAnswer(origin, ahead, 1000, 0.01)
-  list[TRACE_LIST.spent] = FRAME_UNITS
+  list[TRACE_LIST.spent] = FRAME_WORK
   const run = runOver(w, list, 2, store)
   run.testPixel(2, 0, 0)
   const again = run.rtAnswer(origin, [-1, 0, 0], 1000, 0.01)
@@ -71,7 +63,7 @@ test('a frame past its budget leaves the ray for the next image: the pixel answe
 
 test('a second lobe of a pixel keeps nothing: past the budget it answers nothing', () => {
   const w = lit(),
-    list = counters(FRAME_UNITS),
+    list = counters(FRAME_WORK),
     store = makeStore()
   const run = runOver(w, list, 2, store)
   run.testPixel(1, 0, 0)
@@ -134,7 +126,7 @@ test('the opaque trace answers from the store within its frame budget, its count
   for (const kept of [
     'var rtStore:texture_storage_2d_array<r32uint,read_write>',
     'rtAnswer(',
-    'reflectionView.runtime.y',
+    'RT_FRAME_WORK',
     'rtShare(lane)',
     'rtPixel=id',
   ])
@@ -144,21 +136,19 @@ test('the opaque trace answers from the store within its frame budget, its count
 test('a frame never spends past its budget: once spent, no ray is cast and no work is added', () => {
   const w = lit(),
     store = makeStore()
-  // A budget of one ray: the first pixel casts it, the frame's work then reaches the budget.
-  const probe = runOver(w, counters(0), 2, makeStore())
-  probe.testPixel(0, 0, 0)
-  probe.rtAnswer(origin, ahead, 1000, 0.01)
-  const one = probe.testWork()
-  assert.ok(one > 0)
-  const list = counters(0)
-  const run = runOver(w, list, 2, store, one)
+  // One unit short of the budget: the first pixel casts its ray, the frame's work then past the budget.
+  const list = counters(FRAME_WORK - 1)
+  const run = runOver(w, list, 2, store)
+  let one = 0
   for (let x = 0; x < 4; x++) {
     run.testPixel(x, 0, x)
     run.testReset()
     run.rtAnswer(origin, ahead, 1000, 0.01)
+    if (x === 0) one = run.testWork()
     run.testShare()
   }
-  assert.equal(list[TRACE_LIST.spent], one, 'one ray spent, the budget whole, nothing past it')
+  assert.ok(one > 0)
+  assert.equal(list[TRACE_LIST.spent], FRAME_WORK - 1 + one, 'one ray cast, nothing after it')
   assert.equal(list[TRACE_LIST.cursor], 1, 'the next frame starts after the tile it served')
   assert.equal(list[TRACE_LIST.left], 3, 'three pixels left for the next frames')
   assert.equal(store.get([0, 0], 1) >>> STORE_BITS.stamp, (2 % 255) + 1)

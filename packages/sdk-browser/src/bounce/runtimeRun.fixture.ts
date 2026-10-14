@@ -51,8 +51,6 @@ const FUNCTIONS = [
   'rtProbeRay',
 ]
 const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14, list: 8, store: 9 }
-/** The work units a run's frame may spend on its rays (`reflectionView.runtime.y`). */
-export const FRAME_UNITS = 2 ** 22
 
 /** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
 export function makeStore() {
@@ -74,13 +72,12 @@ fn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}
 fn testShare(){rtGroupAdd();rtGroupSend();for(var k=0u;k<3u;k++){atomicStore(&rtGroup[k],0u);}rtSpentHere=0u;rtCastHere=false;rtLeftHere=false;}
 `
 
-/** The shipped program over `w`: the trace's list `list`, the frame's epoch and units, the store. */
+/** The shipped program over `w`: the trace's list `list`, the frame's epoch, the store. */
 export function runOver(
   w: ReturnType<typeof world>,
   list: number[] = counters(0),
   epoch = 2,
   store: Store = makeStore(),
-  units = FRAME_UNITS,
 ) {
   const { header } = w
   const text = wgslModule(runtimeAnswerWgsl(BINDINGS)) + HELPERS
@@ -120,7 +117,7 @@ export function runOver(
     rtStore: store,
     textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
     textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
-    reflectionView: { runtime: [epoch, units, 0, 0] },
+    reflectionView: { runtime: [epoch, 0, 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({

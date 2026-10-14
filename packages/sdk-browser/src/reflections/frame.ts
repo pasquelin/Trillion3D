@@ -61,9 +61,6 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection) {
     // would restart the budget for ever.
     gpu.temporal?.frame.active ? gpu.temporal.frame.cameraViewProjection : frame.viewProjection,
   )
-  // The proxy rays' units this frame, from the device's rate the last frames measured.
-  bounce.budget.spent(reflection.settle.takeSpent())
-  frame.proxyUnits = bounce.budget.units
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 

@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import { sceneKey, type SceneBindings } from './sceneBindings.ts'
-import { STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
+import { FRAME_WORK, STORE_BITS, TRACE_LIST } from './runtimeLayout.ts'
 
 /** The bindings of the program that answers a pixel from the store: the proxy's, the trace's list with the
  *  frame's counters and the store of the answers (`runtimeLayout.ts`). */
@@ -12,11 +12,11 @@ export type RuntimeBindings = SceneBindings & { list: number; store: number }
  * THE RUN-TIME PROXY'S ANSWER, KEPT FROM IMAGE TO IMAGE: the radiance of a ray (`rtRadiance`), cast by the
  * opaque trace within its frame's budget. What a pixel last got from its ray lives in the store
  * (`runtimeLayout.ts`) under the stamp of the epoch (`follow`) it was cast in, so that a frame that spends its
- * budget (`ProxyBudget.units`) leaves the pixels after it their last answer, and the next frames — the trace
+ * budget (`FRAME_WORK`) leaves the pixels after it their last answer, and the next frames — the trace
  * starts where the last one's budget ended — answer them. The store is the one cache of the proxy's answers.
  *
- * `rtAnswer`, within the frame's budget and from the store: a ray is cast while the frame has spent under the
- * frame's units (`reflectionView.runtime.y`) — one a frame at `RT_WORK` at most, and the trace starts at
+ * `rtAnswer`, within the frame's budget and from the store: a ray is cast while the frame has spent under
+ * `RT_FRAME_WORK` — one a frame at `RT_WORK` at most, and the trace starts at
  * another tile each image (the list's `offset`) —, its work added to the frame's, its answer kept for its
  * pixel under the epoch's stamp. An answer of this epoch is the answer: no ray is cast again for it, whatever
  * budget is left. A ray the budget leaves out answers what its pixel last got, and is counted as left when that
@@ -36,6 +36,7 @@ export const runtimeAnswerWgsl = ({ list, store, ...scene }: RuntimeBindings) =>
     [runtimeRadianceWgsl(scene)],
     `
 ${wgslConsts({
+  RT_FRAME_WORK: FRAME_WORK,
   RT_LEFT: TRACE_LIST.left,
   RT_SPENT: TRACE_LIST.spent,
   RT_CURSOR: TRACE_LIST.cursor,
@@ -99,7 +100,7 @@ fn rtAnswer(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   cell=rtCellRead(rtPixel);
   if(cell.stamp==stamp){return rtCellAnswer(cell);}
  }
- if(atomicLoad(&traceList[RT_SPENT])+rtSpentHere<reflectionView.runtime.y){
+ if(atomicLoad(&traceList[RT_SPENT])+rtSpentHere<RT_FRAME_WORK){
   let seen=rtRadiance(origin,direction,reach,tangent);
   rtSpentHere+=rtWork+rtExtra;
   if(first){
