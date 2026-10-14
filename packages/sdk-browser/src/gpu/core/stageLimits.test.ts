@@ -21,7 +21,7 @@ import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { createReflectionPipelines } from '../../reflections/reflectionPipelines.ts'
 import { createHizPipelines } from '../hiz/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { stageBindingCounts } from '../../../../../tests/kit/gpu/limitRules.ts'
+import { limitOf, stageBindingCounts } from '../../../../../tests/kit/gpu/limitRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
 import { dagBindEntries } from '../dag/shader/bindings.ts'
@@ -36,28 +36,21 @@ import { wgslComputeLayout } from './wgslBindings.fixture.ts'
 import { RAY_QUERY_WGSL } from '../../webgpu/rays/rayQueryWgsl.ts'
 import { DEFORM_INDEX_SHADER } from '../../webgpu/rays/deformIndexWgsl.ts'
 
-/** What WebGPU guarantees each stage of a device that asks for no more, by limit. */
-const WEBGPU_DEFAULTS: Readonly<Record<string, number>> = {
-  maxSampledTexturesPerShaderStage: 16,
-  maxStorageBuffersPerShaderStage: 8,
-  maxStorageTexturesPerShaderStage: 4,
-}
-
-/** Every stage of every layout of `layouts` within WebGPU's defaults, each kind; `where` names
- *  the programs. */
+/** Every stage of every layout of `layouts` within WebGPU's defaults (`limitOf`, the kit device's
+ *  one table), each kind; `where` names the programs. */
 function withinDefaults(layouts: GPUPipelineLayoutDescriptor[], where: string) {
   assert.ok(layouts.length > 0, `${where}: built`)
   for (const layout of layouts)
     for (const { limit, kind, count } of stageBindingCounts(layout)) {
-      const max = WEBGPU_DEFAULTS[limit]
-      if (max !== undefined) assert.ok(count <= max, `${where}: ${count} ${kind}, past ${max}`)
+      const max = limitOf(limit)
+      assert.ok(count <= max, `${where}: ${count} ${kind}, past ${max}`)
     }
 }
 
 test('the engine asks no more sampled textures a stage than WebGPU guarantees', () => {
   assert.equal(
     WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
-    WEBGPU_DEFAULTS.maxSampledTexturesPerShaderStage,
+    limitOf('maxSampledTexturesPerShaderStage'),
   )
 })
 
@@ -188,7 +181,8 @@ test('a device whose binding holds two thirds of the frame words binds the cut a
       ['clusters', 'nodes', 'worlds', 'pageCones'].map((name) => [name, new Float32Array(16)]),
     ),
   } as unknown as PackedDag
-  const limits = { maxStorageBufferBindingSize: 400 * 32, ...WEBGPU_DEFAULTS }
+  // Every other limit at WebGPU's default: the check reads a limit the device leaves out as such.
+  const limits = { maxStorageBufferBindingSize: 400 * 32 }
   assert.equal(dagDeviceRefusal(limits, packed), undefined, 'the device holds the cut')
   withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
 })
