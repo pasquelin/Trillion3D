@@ -107,7 +107,7 @@ function scene(terrain: number, model: number, blendSlots = 0) {
   moving.packedBase = terrain
   glass.packedBase = terrain + model
   const pages = [...ground.pages, ...moving.pages, ...glass.pages]
-  const rows = createWebgpuRowState(pages, terrain + model, blendSlots)
+  const rows = createWebgpuRowState(pages, terrain + model, blendSlots, undefined, () => -1)
   rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS)
   for (let row = 0; row < terrain + model; row++) {
     rows.setRowOf(row, row)

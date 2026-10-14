@@ -98,7 +98,11 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
 
 test('the layout lets the feed route every move; a layout that does not is counted', () => {
   const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 }
-  const webgpu = createWebgpuPagesLayout(setup as unknown as WebgpuPagesSetup).selectionRoots
+  const webgpu = createWebgpuPagesLayout(
+    setup as unknown as WebgpuPagesSetup,
+    undefined,
+    () => -1,
+  ).selectionRoots
   const routed = (cut: ReturnType<typeof cpuBackend>) => {
     const next = lcgRandom(4)
     for (let frame = 0; frame < 4; frame++) cut(residency(next))

@@ -1,6 +1,6 @@
 import { grantPending, startGrant } from '../../../gpu/core/errorScope.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
-import { vsmAskedBytes, vsmReserveBytes } from '../render/vsm/vsmPlan.ts'
+import { vsmAskedBytes, vsmReserveBytes } from '../render/vsm/vsmFunding.ts'
 import { shadowHeldBytes } from '../render/vsm/vsmStats.ts'
 import { setWebgpuMemoryBudgets, textureBytesBeside } from '../io/memory.ts'
 import { vertexBytesOf } from '../io/metrics.ts'

@@ -6,6 +6,7 @@ export const pageStateOf = (count: number) =>
   createRowPageState(
     () => undefined,
     () => count,
+    () => -1,
   )
 
 /** A page cache's slots as the row state reads them (`slotWords`), each address's set by hand: -1

@@ -9,29 +9,16 @@ import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustu
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
-import {
-  castingCount,
-  directionalCount,
-  ensureMask,
-  fullMapsFor,
-  maskBytes,
-  maskGrowth,
-  maskLayersFor,
-  unshadowLights,
-  vsmCountersOn,
-  wholeTableRows,
-} from './engineVsm.ts'
+import { unshadowLights, vsmCountersOn, wholeTableRows } from './engineVsm.ts'
 import { vsmInvalidationPipe } from '../../../../vsm/invalidationPass.ts'
 import { vsmCastMaps, vsmCastPipes } from '../../../../vsm/castInvalidation.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPass.ts'
 import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
-import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
-import { retryFrame } from '../../../../gpu/core/refusal.ts'
-import { grantEngineVsm, growEngineVsm, vsmFirstSetLayout, vsmSetBytes } from './vsmGrant.ts'
-import { shadowHeldBytes } from './vsmStats.ts'
-import { shadowRowBytes } from '../../../shadow/rowBuffers.ts'
+import { grantEngineVsm } from './vsmGrant.ts'
+import { growEngineVsm } from './vsmRegrow.ts'
+import { vsmFirstSetLayout } from './vsmBeside.ts'
 
 const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
 
@@ -40,7 +27,7 @@ const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
  *  is in reach of is not `visible` (`vsmLightSeen`): it costs no map, no page, no projection and no
  *  room in the tables or the mask, and its cache waits unreferenced. Before any image no local
  *  light is seen yet: the first plan grows the set for those its camera sees. */
-function frameLights(
+export function frameLights(
   rt: WebgpuPagesRuntime,
   which: 'plan' | 'reserve',
   cam = rt.run.lastCamera ? rt.run.gate.cam : undefined,
@@ -69,69 +56,6 @@ export function castingLights(rt: WebgpuPagesRuntime) {
     for (let slot = 0; slot < store.count; slot++)
       if (store.light(store.ids[slot])?.castsShadow) count++
   return count
-}
-
-/** Lights the frame shadows (`castingCount`), seen from the last image (`frameLights`): what its
- *  mask is funded and made for. None while the store is unlit. */
-const shadowedLights = (rt: WebgpuPagesRuntime) =>
-  castingLights(rt) && castingCount(frameLights(rt, 'reserve'))
-
-/**
- * WHAT THE VIRTUAL SHADOW MAPS ASK OF THE GPU BUDGET beside what they hold (`shadowHeldBytes`), at
- * a frame of `width` × `height`: their mask, made at that frame's size — a frame target, sized by
- * the frame —, or its growth to it, funded with the frame targets before the geometry and texture
- * pools (`fundFrameTargets`), the shadows first as the budget's split declares
- * (`splitMemoryBudget`). The set itself is drawn within the room at the first lit frame
- * (`vsmReserveBytes`) and grows back within it (`vsmGrant.ts`); the lists and the coloured atlas
- * grow within it too. While no light casts, nothing.
- */
-export function vsmAskedBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
-  const { vsm } = rt.lights,
-    casting = shadowedLights(rt)
-  if (!casting) return 0
-  return vsm ? maskGrowth(vsm, width, height, casting) : maskBytes(width, height, casting)
-}
-
-/** While a light casts and no set holds its maps yet — none made, or one the next lit frame
- *  replaces by a larger one (`planVsmFrame`) —, what the set it draws (`vsmSetBytes`) takes beyond
- *  the one held, and the caster rows' shadow data while none was made (`shadowRowBytes`, made by
- *  the first frame a light casts, before its set): reserved before the pools grant themselves, so
- *  a pool never takes the room of shadows still to come — out of the pools' room only, never under
- *  their floors (`ActiveGpuMemory.shadowReserve`). None while the device's refusal of that set for
- *  these lights waits (`../../../../gpu/core/refusal.ts`). */
-export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
-  const { vsm, vsmRefusal } = rt.lights,
-    device = rt.gpu.device
-  if (!device || !castingLights(rt)) return 0
-  const list = frameLights(rt, 'reserve'),
-    wanted = fullMapsFor(list)
-  if (vsm && vsm.res.layout.fullMapCapacity >= wanted) return 0
-  const refused =
-    vsmRefusal?.roomBytes === Infinity &&
-    rt.run.frame < retryFrame(vsmRefusal) &&
-    vsmRefusal.wanted === wanted &&
-    vsmRefusal.directional === directionalCount(list)
-  if (refused) return 0
-  const rows = rt.lights.spheres ? 0 : shadowRowBytes(rt.layout.rows.casterSlots)
-  return Math.max(0, vsmSetBytes(rt, device, list) - shadowHeldBytes(rt)) + rows
-}
-
-/** The mask a frame of the targets in place projects into, made once they are (`grantTargets`):
- *  at their size, a layer per four casting lights, in the room their funding kept for it
- *  (`vsmAskedBytes`) — never left to a later allocation of the frame that could take it. Funded
- *  and made by the same lights. Tentative: refused, the plan asks it again (`reserveProjection`). */
-export function makeVsmMask(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vsm } = rt.lights,
-    casting = shadowedLights(rt)
-  if (!vsm || !casting) return
-  const [width, height] = rt.gpu.allocatedSize
-  try {
-    ledgerTentative(device, () =>
-      ensureMask(device, vsm, width, height, maskLayersFor(casting), true),
-    )
-  } catch {
-    // The room went elsewhere since the funding: the plan's own check says so, once.
-  }
 }
 
 /**

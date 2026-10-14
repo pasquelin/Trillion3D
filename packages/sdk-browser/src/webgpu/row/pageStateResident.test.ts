@@ -7,6 +7,7 @@ test('the resident pages are the flags up, never the catalogue', () => {
   const state = createRowPageState(
     () => undefined,
     () => 1_000_000,
+    () => -1,
   )
   state.setResidentFlag(7, 1)
   state.setResidentFlag(900_000, 1)

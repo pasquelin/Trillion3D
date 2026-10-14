@@ -3,7 +3,7 @@ import { sameSelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { CutDelta } from './delta.ts'
 import { createHeadUnion } from './headUnion.ts'
-import { copyPages, copyPacked } from './copyRanks.ts'
+import { copyRanks } from './copyRanks.ts'
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -104,7 +104,7 @@ export function createWebgpuCutAdopter(options: {
     }
     // The packed ranks of the desired cut, rank by rank beside its records: held or applied,
     // the difference names the instances it keeps.
-    copyPacked(options.desiredPacked, delta.ids, delta.count)
+    copyRanks(options.desiredPacked, delta.ids, delta.count)
     if (offer) offerAhead(cut)
     if (drawnDelta.changed) drawnSeq++
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
@@ -127,10 +127,10 @@ export function createWebgpuCutAdopter(options: {
     if (!held) {
       // The difference has just written these records by reading the sequence once; rereading them a
       // second time in the catalogue, at sparse ranks, would yield exactly the same array.
-      copyPages(shown, options.drawnPages)
-      copyPages(drawn, shown)
-      copyPacked(options.shownPacked, drawnDelta.ids, drawnDelta.count)
-      copyPacked(options.drawnPacked, drawnDelta.ids, drawnDelta.count)
+      copyRanks(shown, options.drawnPages)
+      copyRanks(drawn, shown)
+      copyRanks(options.shownPacked, drawnDelta.ids, drawnDelta.count)
+      copyRanks(options.drawnPacked, drawnDelta.ids, drawnDelta.count)
       options.onDrawnMirrored()
       shownCut = cut
       shownSeq = drawnSeq

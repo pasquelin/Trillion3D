@@ -27,6 +27,7 @@ import type { VsmProjectionState } from './projectionPass.ts'
 import type { VsmRenderContext } from './renderPass.ts'
 import type { VsmPageManagementContext } from './pageManagementPass.ts'
 import type { VsmInvalidationState } from './invalidationPass.ts'
+import { vsmLayout, type VsmLayout, type VsmResourceOptions } from './layout.ts'
 import {
   bufferBytes,
   frameBufferSizes,
@@ -35,10 +36,7 @@ import {
   setBufferSizes,
   SHARED_FRAME_MEMBERS,
   tableBufferSizes,
-  vsmLayout,
-  type VsmLayout,
-  type VsmResourceOptions,
-} from './layout.ts'
+} from './layoutBytes.ts'
 import { wgslBlock, type WgslDecl, wgslFn } from '../../../math/src/wgsl/decl.ts'
 
 /** One frame's buffers; `pageTable`, `receiverCover` and `staleRects` are the same

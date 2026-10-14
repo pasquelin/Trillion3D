@@ -7,7 +7,6 @@ pub(crate) mod fixtures;
 pub(crate) mod golden;
 mod golden_digest;
 pub(crate) mod random;
-pub(crate) mod vectors;
 use base::*;
 use directories::scratch;
 use fixtures::*;

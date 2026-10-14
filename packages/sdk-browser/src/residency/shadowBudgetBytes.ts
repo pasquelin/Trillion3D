@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { bounceProbeBytes } from '../bounce/limits.ts'
-import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts'
+import { vsmLayout } from '../vsm/layout.ts'
+import { vsmResourceBytes } from '../vsm/layoutBytes.ts'
 import {
   VSM_RENDER_PAIR_CAPACITY,
   VSM_RENDER_CMD_BYTES,
@@ -14,7 +15,7 @@ import { alignUp } from '../../../math/src/scalar/integers.ts'
  * The virtual shadow maps of one sun, on any device (the pool binds in windows every device holds), at
  * the default pool — `vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })`, one
  * page-table row (`fullMapsFor`) and 2048 physical pages in two slices —: every buffer of the set
- * (`vsmResourceBytes`, `../vsm/layout.ts`), the raster's pair and command lists at their ceiling
+ * (`vsmResourceBytes`, `../vsm/layoutBytes.ts`), the raster's pair and command lists at their ceiling
  * (`VSM_RENDER_PAIR_CAPACITY`, one command a pair at most, `../vsm/constants.ts`) and the
  * coloured transmission's first atlas (`vsmTransmissionBytes`, `../vsm/transmissionLayout.ts`).
  * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,

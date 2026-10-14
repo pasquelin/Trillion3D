@@ -7,7 +7,9 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission } from './transmissionPass.ts'
-import { vsmLayout, vsmPoolWithin, vsmResourceBytes, type VsmResourceOptions } from './layout.ts'
+import { vsmLayout, type VsmResourceOptions } from './layout.ts'
+import { vsmResourceBytes } from './layoutBytes.ts'
+import { vsmPoolWithin } from './poolDraw.ts'
 import { vsmTransmissionBytes, vsmTransmissionFirstCaps } from './transmissionLayout.ts'
 
 const BINDING = 1 << 27

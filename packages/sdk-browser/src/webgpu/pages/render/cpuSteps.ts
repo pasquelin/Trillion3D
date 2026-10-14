@@ -1,3 +1,4 @@
+import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { CPU_STEP } from './cpuStepTable.ts'
 import {
   frameCostAuditEnabled,
@@ -77,7 +78,7 @@ function publishCpuProfile(rt: WebgpuPagesRuntime) {
     run.frame === timing.lastCpuLogFrame
   )
     return
-  const now = performance.now()
+  const now = cpuNow()
   if (now - timing.lastCpuLogMs < 2000) return
   timing.lastCpuLogMs = now
   timing.lastCpuLogFrame = run.frame

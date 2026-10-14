@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'
+import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
@@ -45,6 +46,7 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
     encoding: poolEncoding(undefined),
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs: Number.MAX_SAFE_INTEGER,
+    clock: createFrameBudget(Infinity),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: (slots) => {
       signalled.push(slots === -1 ? [-1] : [...slots])

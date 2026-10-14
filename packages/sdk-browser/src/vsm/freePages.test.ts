@@ -9,6 +9,7 @@ import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { POOL_RANKS } from '../gpu/pool/rank.ts'
+import { ageStep } from '../gpu/pool/rank.fixture.ts'
 import { POOL_SORT_WORDS } from '../gpu/pool/sort.ts'
 
 const CODE = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 })).poolCount.code
@@ -80,8 +81,6 @@ function popAll(pages: Page[], frame: number, mapLevels: number[]) {
   return { free, popped, counts: freePages.slice(0, POOL_RANKS) }
 }
 
-const step = (age: number) => 32 - Math.clz32(age)
-
 test('the free pages: the empty ones, then by age step, the finer level first; none wanted now', () => {
   const rand = mulberry32(27),
     frame = 5000
@@ -116,7 +115,7 @@ test('the free pages: the empty ones, then by age step, the finer level first; n
     const kept = popped.slice(firstKept)
     for (let i = 1; i < kept.length; i++) {
       const [a, b] = [kept[i - 1], kept[i]]
-      const [stepA, stepB] = [a, b].map((p) => step(frame - pages[p].lastWantedStamp))
+      const [stepA, stepB] = [a, b].map((p) => ageStep(frame - pages[p].lastWantedStamp))
       assert.ok(stepA >= stepB, `${count}: the older step first at ${i}`)
       if (stepA === stepB) assert.ok(tierOf(a) <= tierOf(b), `${count}: the finer first at ${i}`)
     }

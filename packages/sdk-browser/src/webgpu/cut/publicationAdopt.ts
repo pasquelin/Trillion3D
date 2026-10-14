@@ -4,7 +4,7 @@ import type { createCutPending } from './pending.ts'
 import type { createWebgpuCutAdopter } from './adoption.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 import { markDrawnMirrored } from '../pages/helpers.ts'
-import { copyPacked, copyPages } from './copyRanks.ts'
+import { copyRanks } from './copyRanks.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
 import type { WebgpuResidencySets } from '../residency/sets.ts'
 import type { WebgpuPagesCore } from '../pages/runtime.ts'
@@ -93,10 +93,10 @@ export function adoptAsideCut(p: Publication, cut: ViewCut) {
   cut.adopted = next
   const { pageIds, drawablePageIds = NO_IDS } = next.result
   adoptView(p, cut, pageIds, drawablePageIds)
-  copyPacked(run.desiredPacked, cut.asked.ids, cut.asked.count)
-  copyPacked(run.shownPacked, cut.drawn.ids, cut.drawn.count)
-  copyPacked(run.drawnPacked, cut.drawn.ids, cut.drawn.count)
-  copyPages(run.drawn, run.shown)
+  copyRanks(run.desiredPacked, cut.asked.ids, cut.asked.count)
+  copyRanks(run.shownPacked, cut.drawn.ids, cut.drawn.count)
+  copyRanks(run.drawnPacked, cut.drawn.ids, cut.drawn.count)
+  copyRanks(run.drawn, run.shown)
   markDrawnMirrored(run)
   run.cutEpoch++
   run.pagesEntered = cut.asked.enteredCount

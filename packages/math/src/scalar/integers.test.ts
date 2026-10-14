@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   alignUp,
+  bitLength,
   floorLog2,
   isImageSize,
   mipSize,
@@ -177,4 +178,8 @@ test('slotsWithin is the largest power of two of slots the bytes hold, as the do
   assert.equal(slotsWithin(2 ** 36 - 1, 1), 2 ** 35)
   assert.equal(slotsWithin(Infinity, 12), Infinity)
   assert.equal(slotsWithin(NaN, 12), 0)
+})
+
+test('bitLength counts the bits an unsigned 32-bit integer spans, as the WGSL one', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 255, 256, 0xffffffff].map(bitLength), [0, 1, 2, 2, 3, 8, 9, 32])
 })

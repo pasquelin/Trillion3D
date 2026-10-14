@@ -1,3 +1,4 @@
+import { cpuNow } from './stopwatch.ts'
 import type { ClusterManifest, FrameMetrics } from '../../../sdk-core/src/index.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameProfile } from './frameProfile.ts'
@@ -73,7 +74,7 @@ export class EngineProfiler {
   }
 
   /** Records one frame's metrics. */
-  record(metrics: FrameMetrics, now = performance.now()) {
+  record(metrics: FrameMetrics, now = cpuNow()) {
     this.code()?.record(metrics, now)
   }
 

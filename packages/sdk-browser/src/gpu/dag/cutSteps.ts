@@ -1,3 +1,4 @@
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 /** What the cut's making tells as it reaches each of its sub-steps: a line naming it. */
 export type CutProgress = (note: string) => void
 
@@ -8,7 +9,7 @@ export type CutProgress = (note: string) => void
  * (`../../world/session/openWatch.ts`). `took` lists what each took once the making is over.
  */
 export function cutSteps(progress: CutProgress = () => {}) {
-  const start = performance.now()
+  const start = cpuNow()
   const took: { step: string; ms: number }[] = []
   let current = '',
     at = start
@@ -19,7 +20,7 @@ export function cutSteps(progress: CutProgress = () => {}) {
   return {
     /** `step` begins: the one before it ends. */
     begin(step: string) {
-      const now = performance.now()
+      const now = cpuNow()
       close(now)
       current = step
       at = now
@@ -27,11 +28,11 @@ export function cutSteps(progress: CutProgress = () => {}) {
     },
     /** A note within the current sub-step — a pipeline handed back among those asked. */
     note(note: string) {
-      progress(`${current}: ${note}, at ${since(performance.now())}`)
+      progress(`${current}: ${note}, at ${since(cpuNow())}`)
     },
     /** The making is over: what each sub-step took, and the whole. */
     end() {
-      const now = performance.now()
+      const now = cpuNow()
       close(now)
       current = ''
       return { took, ms: Math.round(now - start) }

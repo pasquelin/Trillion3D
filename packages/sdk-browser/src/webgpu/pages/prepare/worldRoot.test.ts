@@ -74,12 +74,16 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
     context,
     context.draws,
   ).roots
-  const layout = createWebgpuPagesLayout({
-    roots: [roots[2], roots[0], roots[1]],
-    bootstrap: [],
-    cap: 64,
-    pageBytes: 64,
-  } as unknown as WebgpuPagesSetup)
+  const layout = createWebgpuPagesLayout(
+    {
+      roots: [roots[2], roots[0], roots[1]],
+      bootstrap: [],
+      cap: 64,
+      pageBytes: 64,
+    } as unknown as WebgpuPagesSetup,
+    undefined,
+    () => -1,
+  )
   // The world DAG first, as the scene listed it, the blended placement after every opaque one.
   assert.deepEqual(layout.selectionRoots, [roots[2], roots[0], roots[1]])
 })

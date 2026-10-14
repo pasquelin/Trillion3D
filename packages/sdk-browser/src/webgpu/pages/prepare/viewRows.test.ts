@@ -17,12 +17,16 @@ const dag = ruleDag(8)
 const layoutOf = (count: number) => {
   const roots = placements(dag, count)
   for (const root of roots) root.pages = roots[0].pages
-  return createWebgpuPagesLayout({
-    roots,
-    bootstrap: [],
-    cap: 64,
-    pageBytes: 64,
-  } as unknown as WebgpuPagesSetup)
+  return createWebgpuPagesLayout(
+    {
+      roots,
+      bootstrap: [],
+      cap: 64,
+      pageBytes: 64,
+    } as unknown as WebgpuPagesSetup,
+    undefined,
+    () => -1,
+  )
 }
 
 test('the rows and draw words do not grow with the placements', () => {

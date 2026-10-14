@@ -10,7 +10,8 @@ import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { vsmBindingsWgsl } from './resources.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS } from './constants.ts'
-import { poolWindowSizes, VSM_POOL_WINDOW_SHIFT, vsmLayout, type VsmLayout } from './layout.ts'
+import { vsmLayout, type VsmLayout } from './layout.ts'
+import { poolWindowSizes, VSM_POOL_WINDOW_SHIFT } from './layoutBytes.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 /** The TS mirror of `vsmPoolTexelIndexWgsl`. */

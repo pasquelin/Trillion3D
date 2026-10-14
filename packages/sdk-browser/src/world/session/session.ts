@@ -1,3 +1,4 @@
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { DEFAULT_SCOPE } from '../../../../sdk-core/src/index.ts'
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../../../../sdk-core/src/index.ts'
 import type { MeasuredWorldOptions } from '../../engine/types.ts'
@@ -40,7 +41,7 @@ export function createExplorerSession(options: MeasuredWorldOptions, label: stri
     opening.note(phase, message)
     diagnosticChannel.emit({ phase, message, context })
   }
-  const preparationStart = performance.now()
+  const preparationStart = cpuNow()
   const signal = options.signal
   const scope = options.scope ?? DEFAULT_SCOPE
   const progress = (phase: string, completed: number, total: number, message: string) => {

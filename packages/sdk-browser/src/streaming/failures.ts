@@ -19,6 +19,7 @@
  * failed again meanwhile — or at once when its owner lets the key go (`leaves`) —, so the failures
  * held are those of the keys still asked, and those refused for good.
  */
+import { cpuNow } from '../diagnostic/stopwatch.ts'
 import { retryAfterOf } from '../cluster/checked.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 
@@ -79,11 +80,11 @@ function createWaits(due: (failure: ReadFailure) => void) {
     if (first === armed) return
     clearTimeout(timer)
     armed = first
-    if (first < Infinity) timer = setTimeout(wake, Math.max(0, first - performance.now()))
+    if (first < Infinity) timer = setTimeout(wake, Math.max(0, first - cpuNow()))
   }
   const wake = () => {
     armed = Infinity
-    const now = performance.now()
+    const now = cpuNow()
     while (waits.size && waits.items[0].due <= now) due(take(waits.items[0]))
     arm()
   }
@@ -142,7 +143,7 @@ export function createReadFailures({ retriable, ended, onStalled }: FailurePolic
   const waits = createWaits((failure) => {
     if (failure.state !== 'waiting') return remove(failure)
     move(failure, 'over')
-    failure.due = performance.now() + LAST_WAIT_MS
+    failure.due = cpuNow() + LAST_WAIT_MS
     waits.wait(failure)
     ended?.(failure.key)
   })
@@ -159,7 +160,7 @@ export function createReadFailures({ retriable, ended, onStalled }: FailurePolic
         again = retriable(cause),
         wait = again ? Math.max(waitAfter(tries), retryAfterOf(cause)) : Infinity
       failure.error = failedRead(key, tries, cause)
-      failure.due = performance.now() + wait
+      failure.due = cpuNow() + wait
       move(failure, again ? 'waiting' : 'refused')
       if (again) waits.wait(failure)
       else waits.leave(failure)

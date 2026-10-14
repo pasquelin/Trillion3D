@@ -1,3 +1,5 @@
+import { bitLength } from '../../../../math/src/scalar/integers.ts'
+
 /**
  * THE EVICTION RANK of every GPU pool (#1527): geometry pages, texture tiles, row table slots and
  * shadow pages. The GPU stamps a last-use word on each slot where it is read, ranks the slots by
@@ -21,4 +23,4 @@ export const POOL_RANKS = 1024,
 export const EVICT_IN_USE = 2
 /** The first age step of the OLD slots: older than any page the view ahead asks for. The queue's
  *  head of old slots is what a page of the view ahead may take the place of (`evictOld`). */
-export const OLD_STEP = 32 - Math.clz32(EVICT_IN_USE) + 1
+export const OLD_STEP = bitLength(EVICT_IN_USE) + 1

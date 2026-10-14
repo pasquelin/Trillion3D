@@ -5,8 +5,8 @@
 //! random meshes, the signed zeros, NaN and infinities, the empty page and the largest one.
 
 use crate::tests::random::Xorshift;
-use crate::tests::vectors::cross_f32;
 use sha2::{Digest, Sha256};
+use trillion3d_math::vec3::cross_f32;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 

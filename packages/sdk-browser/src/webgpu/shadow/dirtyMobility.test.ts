@@ -26,7 +26,7 @@ const ROWS = 1000,
 /** A table of `ROWS` rows over `PLACEMENTS` placements, and the bytes its mobility buffer holds. */
 function twin() {
   const pages = Array.from({ length: ROWS }, (_, i) => ({ url: `p${i}` }) as unknown as PageRec)
-  const rows = createWebgpuRowState(pages, ROWS)
+  const rows = createWebgpuRowState(pages, ROWS, 0, undefined, () => -1)
   rows.pageTableInts = new Uint32Array(ROWS * ROW_WORDS)
   for (let row = 0; row < ROWS; row++) {
     rows.packedPageIndex[row] = row

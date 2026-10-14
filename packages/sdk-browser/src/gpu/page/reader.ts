@@ -1,3 +1,4 @@
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import type { PageSource } from '../../../../sdk-core/src/index.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
 import type { EngineDiagnostic } from '../../engine/types.ts'
@@ -26,7 +27,7 @@ export function createGpuPageReader(
 ) {
   const report = typeof diagnostic === 'function' ? diagnostic : undefined
   const emit = lazyDiagnostic(report)
-  const now = () => (report ? performance.now() : 0)
+  const now = () => (report ? cpuNow() : 0)
   /** `key`'s bytes from the source, read on `signal` at `priority`. Its failure is caught here
    *  already: one that fails before its load's turn comes is no unhandled rejection, and the load
    *  that awaits it meets it. */

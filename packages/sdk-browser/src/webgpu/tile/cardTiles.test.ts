@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { previewLevelSize } from '../../../../sdk-core/src/index.ts'
 import { createWebgpuTileStreamer } from './streamer.ts'
+import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -50,6 +51,7 @@ function cardStreamer() {
     encoding: poolEncoding(undefined),
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs: Number.MAX_SAFE_INTEGER,
+    clock: createFrameBudget(Infinity),
     readLevel: Object.assign(
       async ({ level, url }: TextureLevelRequest) => {
         read.push(url!)

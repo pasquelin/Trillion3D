@@ -56,6 +56,15 @@ pub fn length(a: [f64; 3]) -> f64 {
 pub fn length_f32(a: [f32; 3]) -> f32 {
     (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt()
 }
+/// `cross` in single precision, in the same term order.
+#[inline]
+pub fn cross_f32(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
 /// `divide` in single precision.
 #[inline]
 pub fn divide_f32(a: [f32; 3], k: f32) -> [f32; 3] {

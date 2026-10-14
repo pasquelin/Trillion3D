@@ -20,7 +20,7 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /** The row table's sync: the residency mirror, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
-  const { run, gpu, context } = rt,
+  const { run, gpu } = rt,
     { rows, packedPages } = rt.layout
   const mirror = createWebgpuResidencyMirror({
     table: rows,
@@ -66,7 +66,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
       const { selectionRoots, placement } = rt.layout
       noteResidenceChange(rt.lights, selectionRoots, placement, page, rec)
     },
-    context.frameBudget,
+    rt.clock,
   )
   return rowSync
 }
@@ -146,7 +146,7 @@ export function createResidencyFor(
     coverMissing: residencySets.coverMissing,
     coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
-    clock: context.frameBudget,
+    clock: rt.clock,
   })
   const residency = createWebgpuResidencyQueue({
     tracking,

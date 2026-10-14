@@ -139,7 +139,7 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
 
 // An image over the same rows reuses its classes; a pose moves none.
 test('the classes an image draws are read off the rows again only once a row is written', () => {
-  const rows = createWebgpuRowState([], 3),
+  const rows = createWebgpuRowState([], 3, 0, undefined, () => -1),
     ints = new Uint32Array(3 * ROW_WORDS),
     present = createPresentClasses()
   rows.packedCount = 3

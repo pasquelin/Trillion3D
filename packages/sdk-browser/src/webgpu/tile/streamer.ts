@@ -2,7 +2,7 @@ import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts'
 import { createWebgpuTileAtlas } from './atlas.ts'
 import type { TileTexture } from './tileTexture.ts'
-import { createFrameBudget, type FrameClock } from '../../page/integration/frameBudget.ts'
+import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { createWebgpuTileFeedback } from './feedback.ts'
 import { createTileSources } from './sources.ts'
 import { createTilePublish } from './publish.ts'
@@ -13,6 +13,7 @@ import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHe
 import { createCardTiles, type CardOptions } from './cardTiles.ts'
 import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
 import { surfaceJournals } from '../../page/surfaceWrites.ts'
+import { createTilePump } from './pump.ts'
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -40,14 +41,12 @@ export function createWebgpuTileStreamer(options: {
   encoding: PoolEncoding
   /** Tile bytes admitted per image outside a barrier. */
   budgetBytes: number
-  /** Milliseconds a pass may spend copying tiles outside a barrier, the host's ceiling; the rest is
-   *  deferred. */
+  /** Milliseconds a pass may spend copying tiles outside a barrier, the host's ceiling: the cap of
+   *  the pass's stage on `clock`; the rest is deferred. */
   budgetMs: number
-  /** The session's one main-thread clock (`EngineContext.frameBudget`): a pass is a stage of it,
-   *  after the arrivals, and stops where it is spent too. Absent, the ceiling alone. */
-  clock?: FrameClock
-  /** Clock the budget is read on; `performance.now` unless a test drives it. */
-  now?: () => number
+  /** The session's one main-thread clock (`WebgpuPagesRuntime.clock`): a pass is a stage of it,
+   *  after the arrivals, and stops where the frame's share or its own ceiling is spent. */
+  clock: FrameClock
   readLevel?: TextureLevelReader
   onFailure: (phase: string, error: unknown) => void
   /** Colour textures a tile of which arrived or was evicted in this pump, or whose sampling moved
@@ -57,9 +56,7 @@ export function createWebgpuTileStreamer(options: {
   cards?: CardOptions['cards']
   onCardsLanded?: CardOptions['onCardsLanded']
 }) {
-  const { device, encoding } = options,
-    now = options.now ?? (() => performance.now()),
-    budget = createFrameBudget(options.budgetMs, now)
+  const { device, encoding } = options
   /** Colour textures a pump served or evicted a tile of, named once each. */
   const colorChanged = new Set<number>()
   const color = createWebgpuTileAtlas(device, {
@@ -111,66 +108,16 @@ export function createWebgpuTileStreamer(options: {
       followHeaders(true)
       flushAll()
     },
-    /**
-     * One pass: requested tiles, served in weight order until the byte or the millisecond budget
-     * (`FrameBudget`) is spent; `unbounded` lifts both. Both are read after each copy: the first
-     * always lands, the one that crosses a budget overshoots it — the peak says by how much. Returns
-     * what was served and what is pending — waiting for its bytes, or deferred to the next pass; a
-     * pool refusal is neither — nothing will come, the coarse level holds — and is counted.
-     */
-    pump(frame: number, unbounded = false) {
-      const started = budget.open(),
-        { clock } = options
-      clock?.stage()
-      let served = 0,
-        waiting = 0,
-        bytes = 0,
-        stop = false,
-        encoder: GPUCommandEncoder | undefined
-      colorChanged.clear()
-      const open = () =>
-        (encoder ??= device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
-      const pinned = cards.pass(),
-        wanted = requests.take(frame),
-        at = requests.frame
-      counters.worked = wanted.to > wanted.from
-      let index = wanted.from
-      for (; index < wanted.to && !stop; index++) {
-        const request = wanted.list[index]
-        // A tile both asked and named by a pass deferred lands once.
-        if (request.atlas.resides(request.key)) continue
-        let verdict: ReturnType<typeof sources.serve> = 'waiting'
-        try {
-          verdict = sources.serve(request.atlas, request.key, at, open)
-        } catch (error) {
-          options.onFailure('texture-tile-failed', error)
-        }
-        if (verdict === 'waiting') waiting++
-        else if (verdict === 'served') {
-          served++
-          bytes += request.atlas.poolOf(request.key.slot).tileBytes
-          if (request.atlas === color) colorChanged.add(request.key.slot)
-          budget.spend()
-          clock?.spend()
-          stop =
-            !unbounded &&
-            (bytes >= options.budgetBytes || !budget.admits() || clock?.admits() === false)
-        }
-      }
-      sources.endPass(encoder, at)
-      flushAll()
-      requests.defer(index)
-      counters.served += served
-      counters.deferred = requests.deferred
-      counters.pending = waiting + requests.deferred
-      counters.bytesLastFrame = bytes
-      cards.served(served, pinned)
-      // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
-      if (colorChanged.size) options.onColorChanged(colorChanged)
-      counters.pass(now() - started, unbounded)
-      clock?.pause()
-      return { served, pending: counters.pending }
-    },
+    pump: createTilePump({
+      ...options,
+      color,
+      colorChanged,
+      sources,
+      requests,
+      cards,
+      counters,
+      flushAll,
+    }),
     /** Follows the atlases' records, writes the headers that moved and copies a moved host picture
      *  again, signalled as a landed tile is. True when a filter rule switched
      *  on or off: the rows that wear it change resolve class. */

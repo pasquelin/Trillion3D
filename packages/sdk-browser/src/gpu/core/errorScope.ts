@@ -86,6 +86,28 @@ export async function deviceMade<R extends { destroy(): void }>(
   return undefined
 }
 
+/**
+ * `make` asked of the device as `deviceMade` asks it — under the same out-of-memory scope —, for a
+ * caller that cannot await the device's verdict, the frame's own grant: what `make` made, at once,
+ * a throw thrown at once; and `refused` told of it if the device's verdict, which comes later,
+ * refuses it. The scope opens and closes before this returns, nested in any scope still open.
+ */
+export function deviceMadeNow<R>(device: GPUDevice, make: () => R, refused: (made: R) => void): R {
+  const out: { made?: { value: R }; thrown?: unknown } = {}
+  void deviceMade(device, () => {
+    try {
+      out.made = { value: make() }
+    } catch (error) {
+      out.thrown = error
+      throw error
+    }
+    const { value } = out.made
+    return { destroy: () => refused(value) }
+  }).catch(() => {})
+  if (!out.made) throw out.thrown
+  return out.made.value
+}
+
 /** What the device is asked under `deviceMade` — a pool, the frame targets —, `settled` once done. */
 export type DeviceGrant = { settled: boolean; done: Promise<void> }
 

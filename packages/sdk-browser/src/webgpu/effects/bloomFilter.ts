@@ -9,6 +9,8 @@
 
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
 export type BloomTap = readonly [x: number, y: number, weight: number]
@@ -49,9 +51,6 @@ export const BLOOM_UP_TAPS: readonly BloomTap[] = [
   [1, -1, 1 / 16],
 ]
 
-/** Bytes per texel of every bloom target: `rgba16float`. */
-export const BLOOM_TEXEL_BYTES = 8
-
 /** Size of each level for an image, the first half the image. */
 export function bloomLevelSizes(width: number, height: number) {
   const sizes: [number, number][] = []
@@ -64,11 +63,17 @@ export function bloomLevelSizes(width: number, height: number) {
   return sizes
 }
 
-/** Bytes of a bloom's level chain for an image. */
+/** The texture of a bloom's levels `sizes` (`bloomLevelSizes`): one mip chain from the first. */
+export const bloomLevelsTexture = (sizes: readonly [number, number][]) => ({
+  size: { width: sizes[0][0], height: sizes[0][1] },
+  mipLevelCount: sizes.length,
+  format: HDR_FORMAT,
+})
+
+/** Bytes of a bloom's level chain for an image, as its texture is made; none past the levels. */
 export function bloomLevelBytes(width: number, height: number) {
-  let texels = 0
-  for (const [w, h] of bloomLevelSizes(width, height)) texels += w * h
-  return texels * BLOOM_TEXEL_BYTES
+  const sizes = bloomLevelSizes(width, height)
+  return sizes.length ? (textureBytesOf(bloomLevelsTexture(sizes)) ?? 0) : 0
 }
 
 /**

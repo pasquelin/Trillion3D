@@ -1,3 +1,4 @@
+import { cpuNow } from './stopwatch.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
@@ -105,7 +106,7 @@ export class FrameProfile {
   }
 
   /** Records one frame's metrics. */
-  record(metrics: FrameMetrics, now = performance.now()) {
+  record(metrics: FrameMetrics, now = cpuNow()) {
     if (this.lastTime > 0) {
       const dt = now - this.lastTime
       if (dt > 0 && dt < 1000) {

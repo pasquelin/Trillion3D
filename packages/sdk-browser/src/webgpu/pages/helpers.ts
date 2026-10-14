@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { copyPages } from '../cut/copyRanks.ts'
+import { copyRanks } from '../cut/copyRanks.ts'
 
 /** View-projection of the image as the GPU reads it, flattened: sixteen floats rewritten each
  *  image, never reallocated. */
@@ -26,8 +26,8 @@ export function markDrawnMirrored(run: DrawnMirrorFlag) {
 }
 /** Remakes `drawn` from `shown`, whether the flag is raised or not. */
 function copyDrawnFromShown(run: DrawnMirror) {
-  copyPages(run.drawn, run.shown)
-  copyPages(run.drawnPacked, run.shownPacked)
+  copyRanks(run.drawn, run.shown)
+  copyRanks(run.drawnPacked, run.shownPacked)
   markDrawnMirrored(run)
 }
 /** Remakes `drawn` from `shown` if it is no longer the copy of it; returns true if it did. */
