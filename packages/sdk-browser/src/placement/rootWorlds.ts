@@ -18,6 +18,7 @@
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
+import { joinedRanges } from '../gpu/dag/runWrites.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { movedList, noteMoved } from './rootMoves.ts'
 import {
@@ -150,12 +151,13 @@ export function sendRootWorlds(rt: WebgpuPagesRuntime, device: GPUDevice) {
   held.sent = roots
   held.held = all
   if (!held.moved.count) return
-  const moved = held.moved.take()
-  for (let k = 0; k < moved.length;) {
-    const from = moved[k]
-    let to = from
-    while (++k < moved.length && moved[k] === to + 1) to = moved[k]
-    if (from < all) sendSpan(rt, device, from, Math.min(to, all - 1))
+  // Joined by the engine's one rule (`joinedRanges`): scattered moves are a few writes, each
+  // rewriting at most a few roots between them, which the host holds as they stand.
+  const moved = held.moved.take(),
+    { runs, spans } = joinedRanges(moved, moved.length, ROOT_WORLD_WORDS)
+  for (let r = 0; r < runs; r++) {
+    const from = spans[r * 2]
+    if (from < all) sendSpan(rt, device, from, Math.min(spans[r * 2 + 1], all - 1))
   }
   noteMoved(held.rows, moved)
   noteMoved(held.roots, moved)
