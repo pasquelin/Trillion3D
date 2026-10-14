@@ -45,10 +45,9 @@ const FUNCTIONS = [
 ]
 const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 
-/** Helpers the tests call: a ray's work and triangle tests, and both cleared. */
+/** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both). */
 const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
-fn testReset(){rtWork=0u;rtTests=0u;}
 `
 
 /** The shipped program over `w`. */
@@ -67,8 +66,8 @@ export function runOver(w: ReturnType<typeof world>) {
     rtUnpackShared: (word: number) => Vec
     testWork: () => number
     testTests: () => number
-    testReset: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset'], {
+    rtBegin: () => void
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests'], {
     rtProxy: header,
     rtWorlds: w.worlds,
     rtTree: w.tree,

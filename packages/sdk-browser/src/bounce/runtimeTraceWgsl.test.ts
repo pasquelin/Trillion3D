@@ -22,7 +22,7 @@ for (const count of [5, 400]) {
       const direction = target.map((v, k) => v - origin[k]) as Vec
       const spent = { work: 0, tests: 0 }
       const want = traceScene(w.scene, origin, direction, 100, spent)
-      run.testReset()
+      run.rtBegin()
       const got = run.rtScene(origin, direction, 100)
       assert.equal(run.testWork(), spent.work, `ray ${ray} work`)
       assert.equal(run.testTests(), spent.tests, `ray ${ray} tests`)
@@ -53,7 +53,7 @@ test('blended copies, members after the placements, are met as the oracle meets 
     const direction: Vec = [random() - 0.5, -1, random() - 0.5]
     const spent = { work: 0, tests: 0 }
     const want = traceScene(w.scene, origin, direction, 100, spent)
-    run.testReset()
+    run.rtBegin()
     const got = run.rtScene(origin, direction, 100)
     assert.equal(run.testWork(), spent.work, `ray ${ray} work`)
     assert.equal(got.found, want.found, `ray ${ray}`)

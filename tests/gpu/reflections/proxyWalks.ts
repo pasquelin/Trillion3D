@@ -17,7 +17,7 @@ const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u){
  let i=g.x;
  if(i>=arrayLength(&rays)/2u){return;}
- rtWork=0u;rtTests=0u;rtExtra=0u;rtAnyHit=false;rtLost=false;
+ rtBegin();
  let o=rays[2u*i];
  let d=rays[2u*i+1u];
  let hit=rtScene(o.xyz,d.xyz,o.w);
