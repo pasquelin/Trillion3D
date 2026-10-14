@@ -1,28 +1,27 @@
-// A grown buffer takes the power of two at or above the size asked: never 0 bytes for an empty ask,
-// and past 1 GiB still the next power of two, never a shift turned negative. The outgrown one is
-// retired, destroyed after the frame's submit; a growth refused keeps it.
+// A grown buffer follows the engine's one growth rule for a buffer the CPU grows (`sizedBuffer`):
+// the first ask exactly, then twice the held size at least. The outgrown one is retired, destroyed
+// after the frame's submit; a growth refused keeps it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { heldBuffers } from './heldBuffers.ts'
 import { destroyRetired } from './frameRetire.ts'
 
-test('a grown buffer is the power of two at or above its size, never 0 bytes', () => {
+test('a grown buffer is made at the size asked, then at twice the held size at least', () => {
   const { device } = fakeDevice()
-  const grow = (label: string, size: number) =>
-    heldBuffers().grow(device, label, size, GPUBufferUsage.STORAGE).size
-  assert.equal(grow('empty', 0), 1)
-  assert.equal(grow('one', 1), 1)
-  assert.equal(grow('five', 5), 8)
-  assert.equal(grow('exact', 4096), 4096)
-  assert.equal(grow('past a gibibyte', 2 ** 30 + 1), 2 ** 31)
+  const held = heldBuffers()
+  const grow = (size: number) => held.grow(device, 'grown', size, GPUBufferUsage.STORAGE).size
+  assert.equal(grow(12), 12, 'the first ask, exactly: no power of two padding')
+  assert.equal(grow(13), 24, 'a slightly larger ask doubles')
+  assert.equal(grow(100), 100, 'an ask past twice the held size is taken as it is')
 })
 
 test('a grown buffer is kept while it holds the size asked', () => {
   const { device } = fakeDevice()
   const held = heldBuffers()
-  const first = held.grow(device, 'kept', 5, GPUBufferUsage.STORAGE)
+  const first = held.grow(device, 'kept', 8, GPUBufferUsage.STORAGE)
   assert.equal(held.grow(device, 'kept', 8, GPUBufferUsage.STORAGE), first)
+  assert.equal(held.grow(device, 'kept', 4, GPUBufferUsage.STORAGE), first)
   assert.equal(held.grow(device, 'kept', 9, GPUBufferUsage.STORAGE).size, 16)
 })
 

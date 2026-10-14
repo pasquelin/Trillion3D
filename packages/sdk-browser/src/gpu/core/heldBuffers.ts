@@ -1,6 +1,5 @@
 import { oncePerDevice } from './oncePerDevice.ts'
-import { pendingMade } from './tableGrowth.ts'
-import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { sizedBuffer } from './sizedBuffer.ts'
 
 /**
  * Buffers a device holds between the uses that take them, one a slot, so a burst of uses
@@ -10,11 +9,11 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
  *   one —, else makes one; `give` puts it back, the one it replaces destroyed (under `larger`, the
  *   larger of the two kept). With `idleMs`, everything held is destroyed once nothing was given
  *   back for that long: a scene at rest holds no byte of it.
- * - `grow` keeps a buffer that rewrites itself in queue order and is never lent, grown to the next
- *   power of two when outgrown — a stream of slightly larger asks reallocates rarely —, by the
- *   growth transaction (`tableGrowth.ts`): the new one made first — refused, the held one stays —,
- *   the outgrown one retired, destroyed after the frame's submit, which may name it
- *   (`frameRetire.ts`).
+ * - `grow` keeps a buffer that rewrites itself in queue order and is never lent, grown by the
+ *   engine's one rule for a buffer the CPU grows (`sizedBuffer.ts`): twice its size at least — a
+ *   stream of slightly larger asks reallocates rarely —, the new one made first — refused, the
+ *   held one stays —, the outgrown one retired, destroyed after the frame's submit, which may name
+ *   it (`frameRetire.ts`).
  * - `drop` destroys what a slot holds once its holder is gone.
  */
 export function heldBuffers(idleMs?: number) {
@@ -66,15 +65,8 @@ export function heldBuffers(idleMs?: number) {
     /** The buffer kept under `label`, of `size` bytes at least: made, or grown, when it is not. */
     grow(device: GPUDevice, label: string, size: number, usage: number) {
       const { held } = holdOf(device),
-        kept = held.get(label)
-      if (kept && kept.size >= size) return kept
-      // The power of two at or above `size`, never 0 bytes (`2 **`, not `1 <<`: past 1 GiB a shift
-      // turns negative; `nextPow2` is exact for an integer size).
-      const buffer = device.createBuffer({ label, size: nextPow2(size), usage })
-      pendingMade(device, [buffer], buffer.size, () => {
-        held.set(label, buffer)
-        return [kept]
-      }).commit()
+        buffer = sizedBuffer(device, held.get(label), size, usage, label)
+      held.set(label, buffer)
       return buffer
     },
     /** Destroys the buffer held under `slot`, if any, and forgets it: its holder is disposed. */
