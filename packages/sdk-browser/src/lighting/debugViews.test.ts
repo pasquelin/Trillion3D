@@ -2,8 +2,8 @@
 // mapped, so on WebGPU a normal or depth surface carries one flag through the resolve
 // and the lighting pass, and the composition keeps exposure and the display curve off it — from
 // the surface flag of a still image, from the share the temporal pass accumulated beside the
-// colour of a jittered one. Every expression is read out of the shipped shader text and evaluated
-// here on grey scalars, so a shader edit is what the tests see.
+// colour of a jittered one. Every expression is read out of the shipped shader text and run by the
+// shared WGSL run on grey scalars, so a shader edit is what the tests see.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts'
@@ -20,6 +20,7 @@ import {
 } from '../gpu/core/shaderTexts.fixture.ts'
 import { AS_IS_SHARE_SHADER } from './deferred/asIsShareWgsl.ts'
 import { blendTargets } from '../webgpu/blend/blendTargets.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -27,58 +28,51 @@ function capture(source: string, pattern: RegExp) {
   assert.ok(found, `no line matching ${pattern}`)
   return found.slice(1)
 }
-/** WGSL read as JavaScript over scalars: unsigned literals lose their suffix. */
-const js = (wgsl: string) => wgsl.replace(/(\d)u\b/g, '$1')
-const helpers = {
-  select: (f: unknown, t: unknown, c: boolean) => (c ? t : f),
-  max: Math.max,
-  f32: Number,
-  u32: Number,
-  textureLoad: (texel: number) => ({ r: texel }),
-  linearToSrgb: (rgb: number) => rgb,
-}
+/** Shipped WGSL `lines` run by the shared WGSL run (`shaderRun`), as the body of a function of
+ *  `params` returning `result`; `scope` binds what the lines read beside. */
+const runLines = <T extends (...args: never[]) => unknown>(
+  lines: string,
+  params: string,
+  result: string,
+  scope: object,
+) =>
+  shaderRun<{ lines: T }>(`fn lines(${params})->f32{${lines}return ${result};}`, ['lines'], scope)
+    .lines
+/** A texture of one texel holding `texel`, as the lines below load it. */
+const textureLoad = (texel: number) => ({ r: texel })
 /** A stand-in display curve that bends every value, as ACES does. */
 const curve = (rgb: number) => rgb / (1 + rgb)
 const EXPOSURE = 0.7
 
 /** The composition of `shader` for one grey pixel: its HDR value and what binding 2 reads. */
 function composition(shader: string) {
-  const [share, curved, untouched, color] = capture(
+  const [lines] = capture(
     shader,
-    /let share=(.*?);let curved=(.*?);let untouched=(.*?);\n let color=(.*?);\n/,
-  ).map(js)
-  const run = new Function(
-    ...Object.keys(helpers),
-    'toneMap',
-    'asIs',
-    'coord',
-    'value',
-    'view',
-    `const share=${share};const curved=${curved};const untouched=${untouched};return ${color};`,
+    /(let share=.*?;let curved=.*?;let untouched=.*?;\n let color=.*?;)\n/,
   )
-  return (rgb: number, binding: number) =>
-    run(
-      ...Object.values(helpers),
-      curve,
-      binding,
-      0,
-      { rgb, a: 1 },
-      {
-        lightParams: { w: EXPOSURE },
-        display: { x: 0 },
-      },
-    ) as number
+  const run = runLines<(asIs: number, coord: number, value: object) => number>(
+    lines,
+    'asIs:u32,coord:vec2i,value:vec4f',
+    'color',
+    {
+      textureLoad,
+      toneMap: curve,
+      linearToSrgb: (rgb: number) => rgb,
+      view: { lightParams: [0, 0, 0, EXPOSURE], display: [0, 0, 0, 0] },
+    },
+  )
+  return (rgb: number, binding: number) => run(binding, 0, { rgb, a: 1 })
 }
 const still = composition(CONTRACT_COMPOSITIONS.plain.still)
 const accumulated = composition(CONTRACT_COMPOSITIONS.plain.accumulated)
 
 test('A normal or depth surface resolves to the as-is flag, passed through unlit', () => {
-  const flagOf = new Function(
-    'select',
-    'model',
-    'page',
-    `return ${js(capture(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/)[0])};`,
-  ).bind(null, helpers.select)
+  const flagOf = runLines<(model: number, page: { flags: number }) => number>(
+    '',
+    'model:u32,page:Page',
+    capture(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/)[0],
+    {},
+  )
   for (const model of Object.values(SURFACE_MODEL).filter((model) => model >= 3))
     for (const flags of [0, 1 << 20])
       assert.equal(flagOf(model, { flags }) === AS_IS_FLAG, shownAsIs(model), `model ${model}`)
@@ -115,21 +109,19 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/)
   // The share's channel is followed by the flicker gradient, the still weight (none at native
   // size) and the history count (`../taa/layers.ts`). In motion the weights' `tone` is the exposure.
-  const [wcOf, whOf, colorOf, shareOf] = capture(
+  const [weights, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),gradient[^,]*,0\.0,[^;]*\);/,
-  ).map(js)
-  const blend = new Function(
-    'alpha',
-    'filtered',
-    'kept',
-    'share',
-    'keptShare',
-    `const toYcocg=(rgb)=>({x:rgb});const clamped={x:kept};const lumaNow=filtered;
-     const view={tsr:{x:1}};const tone=view.tsr.x;
-     const wc=${wcOf.replace('filtered.rgb', 'filtered')};const wh=${whOf};
-     return [${colorOf},${shareOf}];`,
-  ) as (...args: number[]) => [number, number]
+    /(let wc=.*?;\n let wh=.*?;)\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),gradient[^,]*,0\.0,[^;]*\);/,
+  )
+  const run = runLines<(...args: unknown[]) => [number, number]>(
+    weights,
+    'alpha:f32,filtered:f32,kept:f32,share:f32,keptShare:f32,lumaNow:f32,clamped:vec4f,tone:f32',
+    `vec2f(${colorOf},${shareOf})`,
+    {},
+  )
+  // In motion: the weights' `tone` is the exposure, here 1; the luma of a grey is its value.
+  const blend = (alpha: number, filtered: number, kept: number, share: number, keptShare: number) =>
+    run(alpha, filtered, kept, share, keptShare, filtered, [kept, 0, 0, 0], 1)
   // One pixel on the edge of a depth view (0.5) and a lit surface (3, HDR): the jitter lands its
   // sample on one then the other, in motion (an eighth of the current frame).
   let color = 0.5,
@@ -153,16 +145,13 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
 test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 share', () => {
   // The seed pass: the opaque flags give a share of 1 under a debug view, 0 under a lit surface.
   const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return vec2f\((f32\(.*?\)),0\.0\);/)
-  const seedOf = new Function(
-    'f32',
-    'textureLoad',
-    'vec2i',
-    'flags',
-    'pixel',
-    `return ${js(seedWgsl)};`,
+  const seedOf = runLines<(flags: number, pixel: number[]) => number>(
+    '',
+    'flags:u32,pixel:vec4f',
+    seedWgsl,
+    { textureLoad },
   )
-  const seed = (flag: number) =>
-    seedOf(Number, helpers.textureLoad, () => 0, flag, { xy: 0 }) as number
+  const seed = (flag: number) => seedOf(flag, [0, 0, 0, 0])
   assert.equal(seed(AS_IS_FLAG), 1)
   assert.equal(seed(2), 0)
   // What the lit transparent's fragment writes to the share target, at its opacity.
@@ -170,8 +159,8 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
     BLEND_SHADER,
     /return BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
   )
-  const shareOf = new Function('vec4f', 's', 'r', `return ${shareWgsl};`)
-  const src = shareOf((...c: number[]) => c, { alpha: 0.4 }, { keep: 1 }) as Rgba
+  const shareOf = runLines<(s: object, r: object) => Rgba>('', 's:S,r:R', shareWgsl, {})
+  const src = shareOf({ alpha: 0.4 }, { keep: 1 })
   // The pass's own share target blends it over the seed, in every mode.
   let left = 1
   for (const mode of BLEND_MODES) {
@@ -183,8 +172,10 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
   }
   // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
   const [readWgsl] = capture(taaShader(true, true), /let asIs=(textureLoad\(flags,at,0\)\.r);/)
-  const read = new Function('textureLoad', 'flags', 'at', `return ${readWgsl};`)
-  const share = read(helpers.textureLoad, left, 0) as number
+  const read = runLines<(flags: number, at: number) => number>('', 'flags:u32,at:vec2i', readWgsl, {
+    textureLoad,
+  })
+  const share = read(left, 0)
   assert.equal(share, left)
   const expected = curve(2 * EXPOSURE) * 0.4 + 2 * 0.6
   assert.ok(Math.abs(accumulated(2, share) - expected) < 1e-9, 'the lit overlap keeps its curve')

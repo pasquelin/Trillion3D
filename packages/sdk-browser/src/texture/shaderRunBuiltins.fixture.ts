@@ -171,6 +171,7 @@ export const builtins = {
   ],
   log: numeric(Math.log),
   log2: numeric(Math.log2),
+  exp: numeric(Math.exp),
   exp2: numeric((x) => 2 ** x),
   pow: numeric((x, y) => x ** y),
   mix: numeric((a, b, t) => a + (b - a) * t),
