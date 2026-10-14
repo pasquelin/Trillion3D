@@ -1,24 +1,11 @@
-// The page of the proxy-tables proof (`proxy-tables.gpu.ts`), on the engine's device: the shipped walk over
-// the culling's worlds and placement tree in their record tables against the walk of before, over the same
-// scene and rays; and the engine's own proxy over a world the culling splits in ranges, against the same
-// world held whole.
+// The page of the proxy-tables proof (`proxy-tables.gpu.ts`), on the engine's device: the engine's own
+// proxy over a world the culling splits in ranges, against the same world held whole.
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { reporting } from '../kit/reportingDevice.ts'
-import { NEW_WALK, oldWalk, walk } from './proxyWalks.ts'
 import { engineWalk } from './proxyEngineWalk.ts'
-import { recordEcho } from './recordEcho.ts'
-import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import {
-  RUNTIME_HEADER,
-  RUNTIME_HEADER_WORDS,
-} from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
-import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
-import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
-import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
 /** `count` rays over a field `side` cubes wide spaced three metres apart: half cast down at a cube's
@@ -39,100 +26,6 @@ function rays(count: number, side: number, seed: number) {
     out.set([...o, 1000, ...d.map((v) => v / length), 0], i * 8)
   }
   return out
-}
-
-/** The shipped walk and the walk of before over `count` cubes and `rayCount` rays, each hit's words. */
-export async function compareWalks({
-  count,
-  seed,
-  rayCount,
-}: {
-  count: number
-  seed: number
-  rayCount: number
-}) {
-  const gpu = await openGpuDevice()
-  if (!gpu) throw new Error('WebGPU must be available')
-  const { device, errors } = gpu
-  const copies = [new Matrix4().makeTranslation(-4, 0, -4), new Matrix4().makeTranslation(-8, 1, 0)]
-  const scene = world(count, seed, { copies })
-  // The proxy's buffer: the header's fields at their words (`RUNTIME_HEADER`), then its words.
-  const words = new Uint32Array(RUNTIME_HEADER_WORDS + scene.header.words.length)
-  for (const [name, at] of Object.entries(RUNTIME_HEADER)) {
-    const value = scene.header[name as keyof typeof scene.header] as number
-    words[at] = name === 'error' ? new Uint32Array(Float32Array.of(value).buffer)[0] : value
-  }
-  words.set(scene.header.words, RUNTIME_HEADER_WORDS)
-  const proxy = device.createBuffer({
-    size: words.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(proxy, 0, words)
-  // The culling's records, as the host writes them — each placement's world, then every instance, a
-  // copy's behind the placements —, and the worlds as the proxy mirrored them.
-  const usage =
-    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
-  const held = count + copies.length
-  const table = createRecordTexture(device, WORLD_TABLE, held, usage)
-  const matrices = scene.packed.worlds.slice(0, count * 16),
-    origins = new Uint32Array(count * 8)
-  for (let w = 0; w < count; w++) origins.set(scene.worlds.get('Origin', w), w * 8)
-  table.write('Matrix', 0, count, matrices.buffer, 0)
-  table.write('Origin', 0, count, origins.buffer, 0)
-  const mirrored = new Uint32Array(count * 24)
-  mirrored.set(new Uint32Array(matrices.buffer))
-  mirrored.set(origins, count * 16)
-  const oldWorlds = device.createBuffer({
-    size: mirrored.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(oldWorlds, 0, mirrored)
-  // The placement tree in its table, as the engine makes it, and as the proxy mirrored it: its
-  // nodes, then its order.
-  const tree = scene.packed.placementTree,
-    treeTable = createTreeTable(device, tree)
-  const nodeWords = tree ? new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset) : [],
-    treeWords = new Uint32Array(Math.max(1, nodeWords.length + (tree?.capacity ?? 0)))
-  treeWords.set(nodeWords)
-  if (tree) treeWords.set(tree.order, nodeWords.length)
-  const oldTree = device.createBuffer({
-    size: treeWords.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(oldTree, 0, treeWords)
-  // The instances in the records, and as the proxy's buffer held them, four words each.
-  const instanceWords = new Uint32Array(held * 4)
-  for (let w = 0; w < held; w++) instanceWords.set(scene.worlds.get('Instance', w), w * 4)
-  table.write('Instance', 0, held, instanceWords.buffer, 0)
-  const oldInstances = device.createBuffer({
-    size: instanceWords.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(oldInstances, 0, instanceWords)
-  // What the table holds on the GPU, against the records the host built (`scene.worlds`).
-  const { width, height } = table.texture
-  const echo = await recordEcho(device, table.texture, [width, height], scene.worlds.words)
-  const side = Math.ceil(Math.sqrt(count)),
-    cast = rays(rayCount, side, seed)
-  const now = await walk(device, NEW_WALK, cast, {
-    proxy,
-    worlds: table.view,
-    tree: treeTable.view,
-  })
-  const before = await walk(device, oldWalk(nodeWords.length), cast, {
-    proxy,
-    oldInstances,
-    oldWorlds,
-    oldTree,
-  })
-  oldInstances.destroy()
-  table.destroy()
-  treeTable.destroy()
-  proxy.destroy()
-  oldWorlds.destroy()
-  oldTree.destroy()
-  const info = await gpu.fermer()
-  return { adapter: info.court, errors, now, before, echo, tree: !!scene.packed.placementTree }
 }
 
 /** The engine's proxy over a world past one storage binding — the device reporting a binding four
