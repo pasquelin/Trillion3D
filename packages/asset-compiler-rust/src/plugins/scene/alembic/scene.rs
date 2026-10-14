@@ -8,8 +8,7 @@
 use self::write::digest;
 use super::mesh::{FaceSet, Part};
 use super::*;
-use crate::import::mesh::index_bytes;
-use crate::import::{f32_bytes, Bin, Report};
+use crate::import::{primitive, Bin, Report};
 use std::collections::{BTreeMap, HashMap};
 
 mod write;
@@ -95,8 +94,15 @@ impl Scene {
                 .faceset
                 .and_then(|rank| facesets.get(rank))
                 .map(|faceset| self.material(&faceset.name));
-            triangles += part.indices.len() / 3;
-            primitives.push(self.primitive(part, material));
+            triangles += part.vertices.indices.len() / 3;
+            // An attribute absent from the source stays absent from glTF: nothing is computed in
+            // place of what the file did not write.
+            primitives.push(primitive(
+                &part.vertices,
+                &mut self.bin,
+                &mut self.accessors,
+                material,
+            ));
         }
         self.meshes
             .push(json!({"name": name, "primitives": primitives}));
@@ -104,42 +110,6 @@ impl Scene {
         let id = self.meshes.len() - 1;
         self.mesh_ids.insert(digest, id);
         id
-    }
-
-    /// A primitive and its accessors. An attribute absent from the source stays absent from glTF:
-    /// nothing is computed in place of what the file did not write.
-    fn primitive(&mut self, part: &Part, material: Option<usize>) -> Value {
-        let vertices = part.positions.len() / 3;
-        let mut attributes = json!({});
-        let view = self.bin.view(&f32_bytes(&part.positions), Some(34962));
-        self.accessors
-            .push(json!({"bufferView": view, "componentType": 5126,
-            "count": vertices, "type": "VEC3", "min": part.min, "max": part.max}));
-        attributes["POSITION"] = json!(self.accessors.len() - 1);
-        for (name, values, kind) in [
-            ("NORMAL", &part.normals, "VEC3"),
-            ("TEXCOORD_0", &part.uvs, "VEC2"),
-        ] {
-            if values.is_empty() {
-                continue;
-            }
-            let view = self.bin.view(&f32_bytes(values), Some(34962));
-            self.accessors.push(
-                json!({"bufferView": view, "componentType": 5126, "count": vertices, "type": kind}),
-            );
-            attributes[name] = json!(self.accessors.len() - 1);
-        }
-        let (bytes, component) = index_bytes(&part.indices, vertices);
-        let view = self.bin.view(&bytes, Some(34963));
-        self.accessors
-            .push(json!({"bufferView": view, "componentType": component,
-            "count": part.indices.len(), "type": "SCALAR"}));
-        let mut primitive =
-            json!({"attributes": attributes, "indices": self.accessors.len() - 1, "mode": 4});
-        if let Some(material) = material {
-            primitive["material"] = json!(material);
-        }
-        primitive
     }
 
     /// Notes a file read: its name, size and digest enter the cache key.

@@ -46,15 +46,23 @@ fn faces_are_fanned_backwards_and_split_by_face_set() {
     assert_eq!(parts.len(), 2, "one part per served face set");
     assert_eq!(parts[0].faceset, Some(0));
     // Pentagon 0,1,2,3,4 read backwards gives 4,3,2,1,0, cut into three triangles.
-    assert_eq!(parts[0].indices, [0, 1, 2, 0, 2, 3, 0, 3, 4]);
+    assert_eq!(parts[0].vertices.indices, [0, 1, 2, 0, 2, 3, 0, 3, 4]);
     assert_eq!(
-        parts[0].positions[..3],
+        parts[0].vertices.positions[..3],
         [12.0, 13.0, 14.0],
         "corner 4 first"
     );
     assert_eq!(parts[1].faceset, Some(1));
-    assert_eq!(parts[1].indices, [0, 1, 2], "triangle 0,1,2 read backwards");
-    assert_eq!(parts[1].positions[..3], [6.0, 7.0, 8.0], "corner 2 first");
+    assert_eq!(
+        parts[1].vertices.indices,
+        [0, 1, 2],
+        "triangle 0,1,2 read backwards"
+    );
+    assert_eq!(
+        parts[1].vertices.positions[..3],
+        [6.0, 7.0, 8.0],
+        "corner 2 first"
+    );
 }
 
 // Behaviour: a face index outside the position table is a file that contradicts itself, refused
@@ -88,11 +96,11 @@ fn a_concave_polygon_keeps_its_own_area() {
     assert_eq!(counted.uncut, 0, "a simple U cuts entirely");
     assert_eq!(parts.len(), 1, "a single part, with no face set");
     assert_eq!(
-        parts[0].indices.len(),
+        parts[0].vertices.indices.len(),
         18,
         "eight corners make six triangles"
     );
-    let area = rendered_area(&parts[0].positions, &parts[0].indices);
+    let area = rendered_area(&parts[0].vertices.positions, &parts[0].vertices.indices);
     assert!(
         (area - 7.0).abs() < 1e-5,
         "rendered area {area}, expected 7"
