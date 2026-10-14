@@ -1,4 +1,5 @@
-import type { PageSurface } from '../../page/surface.ts'
+import type { SurfaceFacts } from '../../page/surface.ts'
+import type { VisMaterial } from '../../visibility/materialType.ts'
 import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
@@ -6,8 +7,10 @@ import { volumeAttenuation } from '../transparent/volumeLaw.ts'
 import { layerSlot, type MaterialLayers } from '../row/pageRowMaterial.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 
-/** The surface a record is written from: its shaded fields and its opacity. */
-export type MaterialSurface = Omit<PageSurface, 'version' | 'released'> & { version?: number }
+/** The surface a record is written from: its shaded fields, its opacity, whether it is blended,
+ *  and its version where it has one — none of its release, which a record never reads. */
+export type MaterialSurface = VisMaterial &
+  Pick<SurfaceFacts, 'opacity' | 'transparent'> & { version?: number }
 
 const F = MATERIAL_RECORD.at
 /** One record, filled before it is compared with the table's: a write allocates nothing. */
