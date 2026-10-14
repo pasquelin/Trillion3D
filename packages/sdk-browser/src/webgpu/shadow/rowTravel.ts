@@ -56,10 +56,12 @@ function slotReach(rt: WebgpuPagesRuntime, state: ComposeState | undefined, slot
   let reach = 0
   for (const rank of ranks) {
     if (state.parentOf[rank] !== slot) continue
-    const m = state.localMats.subarray(rank * 16, rank * 16 + 16)
+    // Its local matrix read in place: no view made per root.
+    const m = state.localMats,
+      o = rank * 16
     let linear = 0
-    for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) linear += m[c * 4 + r] ** 2
-    const t = hypot3(m[12], m[13], m[14])
+    for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) linear += m[o + c * 4 + r] ** 2
+    const t = hypot3(m[o + 12], m[o + 13], m[o + 14])
     reach = Math.max(reach, t + Math.sqrt(linear) * rootReach(rt.layout.selectionRoots[rank]))
   }
   return reach * (1 + 2 ** -40)
