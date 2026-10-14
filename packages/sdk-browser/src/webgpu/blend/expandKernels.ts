@@ -9,7 +9,7 @@ import {
 } from './orderWgsl.ts'
 import { BLEND_VERDICT_SHADER, blendVerdictBindEntries, VERDICT_BINDING } from './verdictWgsl.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
-import { shaderFailed } from '../../gpu/core/shaderModule.ts'
+import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 import type { ExpandBuffers } from './expandBuffers.ts'
@@ -46,14 +46,14 @@ export async function compileBlendExpand(device: GPUDevice) {
   throw new Error(EXPANSION_REFUSED)
 }
 
-/** The kernels' modules, layouts and pipelines, compiled together off the thread; `undefined`
- *  when a module does not compile. */
+/** The kernels' modules, layouts and pipelines, compiled together off the thread; a module that
+ *  does not compile throws under its label, with the device's messages. */
 async function expandKernels(device: GPUDevice) {
-  const expandModule = device.createShaderModule({ code: BLEND_EXPAND_SHADER })
-  const orderModule = device.createShaderModule({ code: BLEND_ORDER_SHADER })
-  const verdictModule = device.createShaderModule({ code: BLEND_VERDICT_SHADER })
-  for (const module of [expandModule, orderModule, verdictModule])
-    if (await shaderFailed(module)) return undefined
+  const [expandModule, orderModule, verdictModule] = await Promise.all([
+    createCheckedShaderModule(device, BLEND_EXPAND_SHADER, 'BLEND_EXPAND'),
+    createCheckedShaderModule(device, BLEND_ORDER_SHADER, 'BLEND_ORDER'),
+    createCheckedShaderModule(device, BLEND_VERDICT_SHADER, 'BLEND_VERDICT'),
+  ])
   const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
   const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
   const verdictLayout = device.createBindGroupLayout({ entries: blendVerdictBindEntries() })
