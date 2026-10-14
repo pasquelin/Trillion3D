@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mat, matrixProduct } from '../texture/shaderRunMatrix.fixture.ts'
 import { INVALIDATION, RENDER, run } from './boxCullTables.fixture.ts'
-import { bitsDigest, inputs } from './sameBits.fixture.ts'
+import { bitsDigest, inputs } from './bitsDigest.fixture.ts'
 
 const CULL_KEYS = ['clipLow', 'clipHigh', 'pastFar', 'pastNear', 'inMapView']
 /** The digests of the runs below (`bitsDigest`). */

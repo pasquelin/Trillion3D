@@ -16,7 +16,7 @@ import {
   tables,
   use,
 } from './boxCullTables.fixture.ts'
-import { bitsDigest, inputs } from './sameBits.fixture.ts'
+import { bitsDigest, inputs } from './bitsDigest.fixture.ts'
 
 const CASES = 12000
 /** The digests of the runs below (`bitsDigest`). */

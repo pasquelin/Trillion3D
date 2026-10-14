@@ -13,7 +13,7 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts'
 import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
-import { bitsDigest, inputs } from './sameBits.fixture.ts'
+import { bitsDigest, inputs } from './bitsDigest.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
 const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
