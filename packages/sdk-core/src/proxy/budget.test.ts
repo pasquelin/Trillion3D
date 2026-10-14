@@ -56,15 +56,18 @@ test('a stage without a usable timestamp leaves the budget as it was', () => {
   assert.deepEqual(state(budget), before)
 })
 
+/** The load that fills the probes' part of a 2 ms budget on a device whose probes take 8 ms. */
+const FITS = (2 * BOUNCE_SETTINGS.probeShare) / 8
+
 test('an overloaded device settles on the load that fills the budget, smoothly and from above', () => {
   const budget = createProxyBudget(2)
   const loads = run(budget, 8, 120)
-  assert.ok(loads[0] < 1 && loads[0] > 0.25, `one frame closes part of the gap: ${loads[0]}`)
+  assert.ok(loads[0] < 1 && loads[0] > FITS, `one frame closes part of the gap: ${loads[0]}`)
   for (let frame = 1; frame < loads.length; frame++) {
     assert.ok(loads[frame] <= loads[frame - 1], `never rises: ${loads}`)
-    assert.ok(loads[frame] >= 0.25, `never overshoots the load that fits: ${loads[frame]}`)
+    assert.ok(loads[frame] >= FITS, `never overshoots the load that fits: ${loads[frame]}`)
   }
-  assert.ok(Math.abs(loads.at(-1)! - 0.25) < 1e-9, `${loads.at(-1)}`)
+  assert.ok(Math.abs(loads.at(-1)! - FITS) < 1e-9, `${loads.at(-1)}`)
   assert.equal(budget.samples, 120)
   assert.equal(budget.lastMs, loads.at(-2)! * 8)
 })
@@ -72,15 +75,15 @@ test('an overloaded device settles on the load that fills the budget, smoothly a
 test('a lighter frame lets the load recover gradually, never above the full ceiling', () => {
   const budget = createProxyBudget(2)
   run(budget, 8, 120)
-  const loads = run(budget, 1, 120)
-  assert.ok(loads[0] > 0.25 && loads[0] < 0.5, `one frame recovers part of the way: ${loads[0]}`)
+  const loads = run(budget, 0.5, 120)
+  assert.ok(loads[0] > FITS && loads[0] < 0.5, `one frame recovers part of the way: ${loads[0]}`)
   for (let frame = 1; frame < loads.length; frame++) {
     assert.ok(loads[frame] >= loads[frame - 1], `never falls: ${loads}`)
     assert.ok(loads[frame] <= 1)
   }
   assert.ok(1 - loads.at(-1)! < 1e-9, `${loads.at(-1)}`)
   const fast = createProxyBudget(2)
-  fast.observe(null, 1)
+  fast.observe(null, 0.5)
   assert.equal(fast.load, 1, 'a device under budget at full load stays at full load')
 })
 
@@ -109,4 +112,11 @@ test('the reflections take the share first, the probes what they leave', () => {
   // Reflections past the share leave the probes their floor, never nothing.
   for (let frame = 0; frame < 300; frame++) budget.observe(5, budget.load * 1)
   assert.ok(Math.abs(budget.load - 2 * BOUNCE_SETTINGS.budgetFloor) < 1e-6, `${budget.load}`)
+})
+
+test('without reflections the probes keep their own part of the budget, never all of it', () => {
+  const budget = createProxyBudget(2)
+  // Probes taking 1.6 ms at full load: alone, they aim at 0.8 ms, never at the whole 2.
+  for (let frame = 0; frame < 120; frame++) budget.observe(null, budget.load * 1.6)
+  assert.ok(Math.abs(budget.load * 1.6 - 2 * BOUNCE_SETTINGS.probeShare) < 1e-6, `${budget.load}`)
 })

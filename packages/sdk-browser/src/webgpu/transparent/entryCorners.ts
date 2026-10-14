@@ -121,13 +121,14 @@ export function sendEntryInputs(
   }
 }
 
-/** The entries pass over the entries named since the last — every entry when `all` —, before the
- *  occlusion test reads their corners in `encoder`. Nothing when none was named. */
+/** The entries pass over the entries named since the last — every entry when `all` —, into the
+ *  corners buffer the inputs were sent for (`held.corners`), before the occlusion test reads them in
+ *  `encoder`. Nothing when none was named. */
 export function encodeEntryCorners(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  { held, corners, capacity }: { held: EntryCorners; corners: GPUBuffer; capacity: number },
+  { held, capacity }: { held: EntryCorners; capacity: number },
 ) {
   const worlds = rt.rootWorlds?.worlds,
     listed = held.all ? capacity : held.count
@@ -153,7 +154,6 @@ export function encodeEntryCorners(
     liveBuffer(() => held.corners),
     liveBuffer(() => held.list ?? held.absent),
   ])
-  held.corners = corners
   composeGroup(device, held.group, pipeline)
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
   pass.setPipeline(pipeline)

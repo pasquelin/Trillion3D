@@ -1,107 +1,10 @@
-import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { shaderFailed } from '../../gpu/core/shaderModule.ts'
-import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
-import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
-import { buildComputeStages } from '../../gpu/core/computeStages.ts'
-
-const UNIFORM_WORDS = 8
+import type { TransparentTable } from './table.ts'
+import { compactKernels, compactPasses } from './compactPasses.ts'
+import { compactBuffers } from './compactBuffers.ts'
 
 export type TransparentCompaction = NonNullable<
   Awaited<ReturnType<typeof createTransparentCompaction>>
 >
-
-/** The compaction's layout: its nine buffers, the uniform at 1, the inputs read-only. */
-function compactLayout(device: GPUDevice) {
-  const readOnly = [0, 2, 7, 8]
-  return device.createBindGroupLayout({
-    entries: [0, 1, 2, 3, 4, 5, 6, 7, 8].map((binding) => ({
-      binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer:
-        binding === 1
-          ? { type: 'uniform' as const }
-          : readOnly.includes(binding)
-            ? { type: 'read-only-storage' as const }
-            : { type: 'storage' as const },
-    })),
-  })
-}
-
-/** The compute half's kernels: the three passes that turn the frame's selection mask into instance
- *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
-async function compactKernels(device: GPUDevice) {
-  const layout = compactLayout(device)
-  const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
-  if (await shaderFailed(module)) return undefined
-  const entryPoints = [
-    'countTransparentGroups',
-    'prefixTransparentItems',
-    'scatterTransparentGroups',
-  ] as const
-  const stages = await buildComputeStages(device, [layout], module, entryPoints)
-  return { layout, pipelines: entryPoints.map((entry) => stages[entry]) }
-}
-
-type Kernels = NonNullable<Awaited<ReturnType<typeof compactKernels>>>
-type Held = ReturnType<typeof compactBuffers>
-
-/** The passes on the buffers `held` names, for the table as it stands at each image. */
-function compactPasses(
-  device: GPUDevice,
-  kernels: Kernels,
-  table: TransparentTable,
-  held: () => Held,
-) {
-  const { layout, pipelines } = kernels
-  const bindTo = (mask: GPUBuffer, made: Held) =>
-    device.createBindGroup({
-      layout,
-      entries: sequentialEntries(
-        [
-          made.entriesBuf,
-          made.uniforms,
-          mask,
-          made.groupCounts,
-          made.groupOffsets,
-          made.instanceBuffer,
-          made.indirectBuffer,
-          made.itemRangesBuf,
-          made.occludedBuffer,
-        ].map((buffer) => ({ buffer })),
-      ),
-    })
-  // The group over the mask and the held buffers, made again when either moved.
-  const bound = createWebgpuBindIdentity()
-  let bindGroup: GPUBindGroup | undefined
-  const uniData = new Uint32Array(UNIFORM_WORDS)
-  return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
-    const made = held()
-    const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
-    const items = Math.max(1, table.pagedItems.length)
-    // A thread a group, an item, an entry.
-    const launches = [ceilDiv(groups, WORKGROUP_THREADS), ceilDiv(items, WORKGROUP_THREADS), groups]
-    uniData[0] = table.length
-    uniData[1] = groups
-    uniData[2] = table.pagedItems.length
-    uniData[3] = maskOffset
-    uniData[4] = table.maxVertexWords
-    bound.next[0] = mask
-    bound.next[1] = made
-    if (bound.moved()) bindGroup = bindTo(mask, made)
-    device.queue.writeBuffer(made.uniforms, 0, uniData)
-    const pass = encoder.beginComputePass({ label: TRANSPARENT_COMPACTION_PASS })
-    pass.setBindGroup(0, bindGroup!)
-    for (let step = 0; step < 3; step++) {
-      pass.setPipeline(pipelines[step])
-      dispatchRows(pass, launches[step])
-    }
-    pass.end()
-  }
-}
 
 /**
  * What a transparent draw reads, and the GPU compaction that fills it.
@@ -206,57 +109,5 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
         /* Partial transparent compaction setup must not leak. */
       }
     return undefined
-  }
-}
-
-/** The compaction's buffers for `table`, each pushed into `buffers` as soon as it is made: a setup
- *  that fails part-way destroys those it made. */
-function compactBuffers(device: GPUDevice, table: TransparentTable, buffers: GPUBuffer[]) {
-  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  const make = (label: string, size: number, usage = storage) => {
-    const buffer = device.createBuffer({ label, size: Math.max(8, size), usage })
-    buffers.push(buffer)
-    return buffer
-  }
-  const items = table.itemRanges.length / 2
-  const entriesBuf = make('Trillion3D transparent entries', table.capacity * 4)
-  const itemRangesBuf = make('Trillion3D transparent item ranges', items * 8)
-  const uniforms = make(
-    'Trillion3D transparent compaction uniforms',
-    UNIFORM_WORDS * 4,
-    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  )
-  const groupCounts = make('Trillion3D transparent group counts', table.groupCount * 4)
-  const groupOffsets = make('Trillion3D transparent group offsets', table.groupCount * 4)
-  const instanceBuffer = make('Trillion3D transparent instances', table.capacity * 4)
-  const spanBuffer = make('Trillion3D transparent cluster spans', table.capacity * 16)
-  // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
-  // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
-  // dropped from the table.
-  // `COPY_SRC` only serves the audit, which rereads the verdicts; no image copies them.
-  const occludedBuffer = make(
-    'Trillion3D transparent occlusion verdicts',
-    table.capacity * 4,
-    storage | GPUBufferUsage.COPY_SRC,
-  )
-  const diagnosticBuffer = make('Trillion3D transparent cluster identity', table.capacity * 4)
-  const indirectBuffer = make(
-    'Trillion3D transparent indirect',
-    items * 16,
-    storage | GPUBufferUsage.INDIRECT,
-  )
-  return {
-    capacity: table.capacity,
-    items,
-    entriesBuf,
-    itemRangesBuf,
-    uniforms,
-    groupCounts,
-    groupOffsets,
-    instanceBuffer,
-    spanBuffer,
-    occludedBuffer,
-    diagnosticBuffer,
-    indirectBuffer,
   }
 }

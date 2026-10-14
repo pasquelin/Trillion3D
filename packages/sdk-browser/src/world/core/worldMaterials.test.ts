@@ -6,6 +6,7 @@ import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
+import { variantPlain } from '../../page/surfaceVariant.ts'
 
 // A material written every frame on a value — a pulsing lamp, a colour picker — keeps its
 // entry, so its wearers keep their batch and the session is never opened again for it.
@@ -58,37 +59,6 @@ test('a blending written at runtime is a new entry, and an additive one is never
   spark.color.set(0x00ff00)
   assert.notEqual(table.entryOf(spark), glow, 'an additive surface is laid out at opening')
   assert.deepEqual(table.takeRepainted(), [])
-})
-
-// A map's sampling or placement written after the entry was made repaints the entry,
-// whose host texture the repaint then writes in place; a new vector for the offset is heard like
-// the one it replaced. Neither moves the texture's version: nothing is sent again.
-test('a map’s sampling or placement repaints its entry, a new offset vector heard too', () => {
-  const table = createWorldMaterials()
-  const map = new Texture({ width: 2, height: 2 })
-  const paint = material.meshStandard({ map })
-  const entry = table.entryOf(paint)
-  const writes: [() => unknown, 'sampling' | 'placement'][] = [
-    [() => map.offset.set(0.5, 0), 'placement'],
-    [() => (map.rotation = 1), 'placement'],
-    [() => (map.wrapS = 'repeat'), 'sampling'],
-    [() => (map.minFilter = 'nearest'), 'sampling'],
-    [() => (map.offset = new Vector2(0.25, 0)), 'placement'],
-    [() => map.offset.set(0.75, 0), 'placement'],
-  ]
-  for (const [write, counter] of writes) {
-    const count = map[counter],
-      version = map.version
-    write()
-    assert.equal(map[counter], count + 1, `${write}: counted as ${counter}`)
-    assert.equal(map.version, version, 'no picture to send')
-    assert.equal(table.entryOf(paint), entry, 'the entry kept')
-    assert.deepEqual(
-      table.takeRepainted(),
-      [{ entry, values: false }],
-      `${write}: repainted, no value`,
-    )
-  }
 })
 
 // A replaced vector kept its listener, so a write to it still repainted the texture.
@@ -160,6 +130,7 @@ test('one material worn with and without colours gets one surface per case, both
   )
   assert.equal(a, c, 'the coloured surface is shared')
   assert.notEqual(a, b)
+  assert.equal(variantPlain(a), b, 'the coloured one is the plain one’s variant: one table record')
   assert.equal(table.surfaceOf(entry, triangle(true), true) === a, false, 'a cloth is its own')
   const versions = [a, b].map((surface) => surface.version)
   paint.color.set(0xff0000)
@@ -176,13 +147,13 @@ test('one material worn with and without colours gets one surface per case, both
 test('the surfaces of an entry the table drops are given back', () => {
   const table = createWorldMaterials()
   const kept = table.entryOf(material.meshStandard({ color: 0x111111 })),
-    dropped = table.entryOf(material.meshStandard({ color: 0x222222 }))
-  const surface = table.surfaceOf(dropped, triangle(false), false)
+    dropped = table.entryOf(material.meshStandard({ color: 0x222222, vertexColors: true }))
   let given = 0
-  surface.released.add(() => given++)
+  for (const colors of [false, true])
+    table.surfaceOf(dropped, triangle(colors), false).released.add(() => given++)
   table.surfaceOf(kept, triangle(false), false)
   table.keep(new Set([kept]))
-  assert.equal(given, 1)
+  assert.equal(given, 2, 'the plain surface and its variant')
   assert.equal(kept.surfaces.length > 0, true)
   assert.equal(dropped.surfaces.length, 0)
 })

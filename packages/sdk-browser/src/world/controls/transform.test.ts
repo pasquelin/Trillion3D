@@ -33,11 +33,15 @@ function rig(at: { x: number; y: number; z: number }) {
       ? { object, point: new Vector3(), normal: new Vector3(), distance: 1, face: 0 }
       : null
   }
-  const host = { canvas, scene, camera, onFrame: () => () => {}, raycast }
+  /** The hook run after each frame the world draws (`host.onFrame`). */
+  let drawn = () => {}
+  const onFrame = (hook: () => void) => ((drawn = hook), () => {})
+  const host = { canvas, scene, camera, onFrame, raycast }
   const gizmo = createTransformControls(host)
   /** The x arrow's shaft: the translate group's first part (`transformHandles.ts`). */
   const xArrow = () => gizmo.handles.children[0].children[0]
-  return { surface, camera, orbit, scene, gizmo, under, asked, xArrow }
+  const frame = () => drawn()
+  return { surface, camera, orbit, scene, gizmo, under, asked, xArrow, frame }
 }
 
 /** The pointer moved over `(x, y)`, and the answer of its hover landed. */
@@ -143,4 +147,24 @@ test('a press never waits for an answer: with none, nothing is grabbed and it as
   fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 })
   assert.ok(box.position.x > 0, 'the next press grabs the arrow')
   assert.deepEqual(camera.position.toArray(), [0, 0, 10], 'the orbit never heard it')
+})
+
+test('a view that moves under a still pointer drops its answer: the press no longer grabs the arrow', async () => {
+  const { surface, camera, scene, gizmo, under, asked, xArrow, frame } = rig({ x: 0, y: 0, z: 0 })
+  const box = object.mesh(geometry.box(1, 1, 1))
+  scene.add(box)
+  gizmo.attach(box)
+  under.set('243,200', xArrow())
+  await hover(surface, 243, 200)
+  frame()
+  assert.equal(asked.length, 1, 'a still view asks nothing again')
+  // The orbit's damping, or the page, turns the view: the arrow leaves the pointer.
+  camera.position.set(3, 0, 10)
+  under.clear()
+  frame()
+  assert.equal(asked.length, 2, 'the pointer’s point asked again')
+  assert.deepEqual(asked.at(-1), { x: 243, y: 200 })
+  await new Promise((settled) => setTimeout(settled, 0))
+  fixtureDrag(surface, 40, 0, { clientX: 243, clientY: 200 })
+  assert.equal(box.position.x, 0, 'the arrow no longer under the pointer is not grabbed')
 })

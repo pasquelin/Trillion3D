@@ -129,16 +129,22 @@ export function repaint(
 /** How a session reads repainted surfaces again (`EngineSceneUpdates.refreshMaterials`). */
 export type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
 
+/** Declares the surfaces of the entries whose values were written again, then has `refresh` read
+ *  every repainted entry's surfaces again (`createWorldMaterials.repaint`). */
 export function repaintSurfaces(painted: readonly RepaintedEntry[], refresh?: Refresh) {
   let written = false,
     values = false
   const moved = new Map<string, AlphaChange & { surfaces: PageSurface[] }>()
   for (const { entry, alpha, values: wrote } of painted) {
     const worn: PageSurface[] = []
-    entry.surfaces.forEach((surface, rank) => {
-      if (!surface) return
-      repaintHostSurface(surface, entry.material, RANK_READINGS[rank])
-      worn.push(surface)
+    entry.surfaces.forEach((plain, rank) => {
+      if (!plain) return
+      for (const surface of [plain, ...(entry.variants[rank]?.values() ?? [])]) {
+        // Pictures alone: the surface holds the texture records themselves, which journal their
+        // own writes; declaring it again would journal a surface whose values did not move.
+        if (wrote) repaintHostSurface(surface, entry.material, RANK_READINGS[rank])
+        worn.push(surface)
+      }
     })
     if (!worn.length) continue
     written = true

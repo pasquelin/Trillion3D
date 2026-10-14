@@ -2,40 +2,43 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import { hostSurface, readingRank, type SurfaceReading } from './worldSurface.ts'
+import { surfaceVariant } from '../../page/surfaceVariant.ts'
+import { hostSurface, RANK_READINGS, type SurfaceReading } from './worldSurface.ts'
 import { materialKey, repaint, repaintSurfaces, type Refresh } from './worldRepaint.ts'
 
-/** An entry of the table: the parameters as they were when the entry was made or repainted, and
- *  the surfaces built from them, one per way its wearers read it (`surfaceOf`). */
+/** An entry of the table: the parameters as they were when the entry was made or repainted, the
+ *  plain surfaces built from them, one per way its wearers read it (`RANK_READINGS`), and the
+ *  variants worn from each (`surfaceOf`). */
 export type MaterialEntry = {
   readonly id: number
   key: string
   readonly material: Material
   readonly surfaces: (PageSurface | undefined)[]
+  readonly variants: Map<string, PageSurface>[]
 }
 
-/** The surface of `entry` for the triangles `drawn`, built once and shared by every wearer: one
- *  per material, a second one when the material asks for vertex colours and is worn by geometries
- *  with and without them (the material decides, and a geometry with no colour has none to tint
- *  by), a third when it is worn by lines (widened and lifted), a fourth by a sprite (its quad
- *  turned to the camera), a fifth, and a sixth with vertex colours, by cloths (drawn on both
- *  faces). */
-function surfaceFor(
-  state: MaterialsState,
-  entry: MaterialEntry,
-  drawn: DrawnTriangles,
-  twoSided: boolean,
-) {
+/** The surface of `entry` for the triangles `drawn`, built once and shared by every wearer: a
+ *  plain one per reading — faces, lines widened and lifted, a sprite's quad turned to the camera,
+ *  a cloth's faces drawn on both sides —, and its tinted variant (`surfaceVariant`) where the
+ *  material asks for vertex colours and the geometry has some (the material decides, and a
+ *  geometry with no colour has none to tint by). A variant shares its plain's record in the
+ *  material table (`variantPlain`). */
+function surfaceFor(entry: MaterialEntry, drawn: DrawnTriangles, twoSided: boolean) {
   const { material } = entry
-  const tinted = !!material.vertexColors && !!drawn.colors,
-    reading: SurfaceReading = drawn.lines
-      ? 'lines'
-      : drawn.spriteRadius !== undefined
-        ? 'sprite'
-        : twoSided
-          ? 'sheet'
-          : 'faces'
-  return (entry.surfaces[readingRank(reading, tinted)] ??= hostSurface(material, tinted, reading))
+  const reading: SurfaceReading = drawn.lines
+    ? 'lines'
+    : drawn.spriteRadius !== undefined
+      ? 'sprite'
+      : twoSided
+        ? 'sheet'
+        : 'faces'
+  const rank = RANK_READINGS.indexOf(reading)
+  const plain = (entry.surfaces[rank] ??= hostSurface(material, reading))
+  return surfaceVariant(plain, (entry.variants[rank] ??= new Map()), {
+    vertexColors: !!material.vertexColors && !!drawn.colors,
+    flatShading: false,
+    twoSided: false,
+  })
 }
 
 /** Gives back the surfaces of `entries`. The textures they wore are the page's own records,
@@ -43,7 +46,10 @@ function surfaceFor(
 function release(entries: Iterable<MaterialEntry>) {
   for (const entry of entries) {
     for (const surface of entry.surfaces) surface?.dispose()
+    for (const variants of entry.variants)
+      for (const surface of variants.values()) surface.dispose()
     entry.surfaces.length = 0
+    entry.variants.length = 0
   }
 }
 
@@ -77,7 +83,7 @@ export function createWorldMaterials() {
     entryOf: (material: Material): MaterialEntry => entryOf(state, material),
     /** The surface `entry` is worn as by the triangles `drawn` (`surfaceFor`). */
     surfaceOf: (entry: MaterialEntry, drawn: DrawnTriangles, twoSided: boolean) =>
-      surfaceFor(state, entry, drawn, twoSided),
+      surfaceFor(entry, drawn, twoSided),
     /** Writes the repainted entries into the surfaces built for them, then has `refresh` — the
      *  open session, if any — read them again: once, with the surfaces whose alpha moved the same
      *  way, and once more, no value, for each other way (`AlphaChange`). False when the session
@@ -142,7 +148,10 @@ function entryOf(state: MaterialsState, material: Material): MaterialEntry {
   }
   let entry = entries.get(key)
   if (!entry)
-    entries.set(key, (entry = { id: state.ids++, key, material: material.clone(), surfaces: [] }))
+    entries.set(
+      key,
+      (entry = { id: state.ids++, key, material: material.clone(), surfaces: [], variants: [] }),
+    )
   else if (last?.entry !== entry) state.counts.duplicates++
   if (last && last.entry !== entry) sources.get(last.entry)?.delete(material)
   const from = sources.get(entry) ?? new Set<Material>()

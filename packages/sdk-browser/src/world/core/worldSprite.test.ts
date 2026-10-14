@@ -27,7 +27,7 @@ import { MARK_WORD } from '../../gpu/dag/frameTable.ts'
 
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false })
-  const surface = hostSurface(picture, false, 'sprite')
+  const surface = hostSurface(picture, 'sprite')
   assert.equal(surface.side, 'double', 'a quad turned to the camera has no back')
   assert.deepEqual(surface.sprite, { rotation: 0.4, sizeAttenuation: false })
   picture.rotation = 1.2
@@ -36,7 +36,7 @@ test('a sprite surface carries its turn and size rule, both sides, and a repaint
   // The size rule sets the root mark, taken once at collection: a repaint never moves it.
   assert.deepEqual(surface.sprite, { rotation: 1.2, sizeAttenuation: false })
   // The same material worn by faces is no sprite.
-  assert.equal(hostSurface(picture, false).sprite, undefined)
+  assert.equal(hostSurface(picture).sprite, undefined)
 })
 
 test("a sprite's rotation written at run time repaints its entry in place", () => {
@@ -61,7 +61,7 @@ test("a sprite's size rule written at run time is a new entry, whose roots carry
     if (marks.length) assert.notEqual(entry, before, 'copied on write, never repainted')
     assert.deepEqual(table.takeRepainted(), [])
     const fixture = dagFixture()
-    fixture.mesh.material = hostSurface(entry.material, false, 'sprite')
+    fixture.mesh.material = hostSurface(entry.material, 'sprite')
     const { roots, dag } = packed(fixture)
     const frames = new Uint32Array(primitiveFrameWords(dag).buffer)
     assert.equal(roots[0].mark, dag.mark[0], 'the CPU cut root and the packed DAG agree')
