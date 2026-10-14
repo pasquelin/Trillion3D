@@ -122,8 +122,6 @@ function applyRows(
   followArrivals(s, budget)
   closeFreeRows(s)
   rows.clearTouched()
-  // Departures and arrivals each name themselves in their order: GPU selection wants them sorted.
-  rows.sortResidencyChanges()
   seen.epoch = rows.tableEpoch
   seen.revision = rows.rowsRevision
   if (writers.state.changed || rows.packedCount !== s.count) rows.rowsChanged = true
