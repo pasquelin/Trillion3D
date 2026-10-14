@@ -3,6 +3,9 @@
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { cross, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { perspectiveProjection, perspectiveSlope } from '../../../math/src/projection/camera.ts'
+import { RAD2DEG } from '../../../math/src/constants.ts'
 import { slabCut } from '../../../math/src/geometry/slab.ts'
 
 export type V3 = [number, number, number]
@@ -45,17 +48,19 @@ export function camera(
   const f = unit(subtract(target, eye)),
     r = unit(cross(f, [0, 1, 0])),
     u = cross(r, f)
-  const F = 1 / Math.tan(fov / 2),
-    a = width / height
-  const rows = [
-    [...r.map((x) => (F / a) * x), (-F / a) * dotVector3(r, eye)],
-    [...u.map((x) => F * x), -F * dotVector3(u, eye)],
-    [0, 0, 0, near],
-    [...f, -dotVector3(f, eye)],
-  ]
-  const m = new Float64Array(16)
-  for (let row = 0; row < 4; row++)
-    for (let col = 0; col < 4; col++) m[col * 4 + row] = rows[row][col]
+  const a = width / height,
+    degrees = fov * RAD2DEG,
+    slope = perspectiveSlope(degrees)
+  // The view, the eye's frame about the eye (right, up, back), then the engine's projection.
+  const view = new Float64Array([
+    ...[0, 1, 2].flatMap((k) => [r[k], u[k], -f[k], 0]),
+    -dotVector3(r, eye),
+    -dotVector3(u, eye),
+    dotVector3(f, eye),
+    1,
+  ])
+  const projection = perspectiveProjection(new Float64Array(16), degrees, a, near, 1)
+  const m = multiplyMatrix4(new Float64Array(16), projection, view)
   const project = (p: V3) => {
     const c = [0, 1, 2, 3].map(
       (row) => m[row] * p[0] + m[4 + row] * p[1] + m[8 + row] * p[2] + m[12 + row],
@@ -70,7 +75,7 @@ export function camera(
   const ray = (x: number, y: number): V3 => {
     const nx = (x / width) * 2 - 1,
       ny = 1 - (y / height) * 2
-    return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) / F) as V3)
+    return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) * slope) as V3)
   }
   return {
     eye,
@@ -82,7 +87,7 @@ export function camera(
     width,
     height,
     near,
-    scale: 2 / (height * F),
+    scale: (2 * slope) / height,
   }
 }
 export type Camera = ReturnType<typeof camera>

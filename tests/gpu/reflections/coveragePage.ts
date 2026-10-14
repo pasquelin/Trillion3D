@@ -2,7 +2,7 @@
 // whole and upsampled to every pixel (`reflections/traceHalf.ts`).
 // The reflection target is set to a not-a-number first; after the second image — the first builds
 // the radiance pyramid the screen is marched on — each of its words must have been written.
-import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { openRig } from './rig.ts'
 import { HALF_NAN } from './rigFrame.ts'
@@ -13,25 +13,7 @@ export type CoverageReading = { sizes: { size: number[]; unwritten: number }[] }
 
 /** A wall facing the eye at a depth of 0.3 of its near plane, lit: every pixel a mirror. */
 function wall(width: number, height: number) {
-  const f = 1 / perspectiveSlope(60)
-  const viewProjection = new Float64Array([
-    f / (width / height),
-    0,
-    0,
-    0,
-    0,
-    f,
-    0,
-    0,
-    0,
-    0,
-    0,
-    -1,
-    0,
-    0,
-    0.1,
-    0,
-  ])
+  const viewProjection = perspectiveProjection(new Float64Array(16), 60, width / height, 0.1, 1)
   const pixels = width * height
   const fill = (values: number[]) => {
     const out = new Float32Array(pixels * values.length)

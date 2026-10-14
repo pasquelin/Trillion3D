@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import type { HeldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
+import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import type { FakeBuffer } from '../../../../tests/kit/gpu/fakeRecords.ts'
 
@@ -35,9 +36,7 @@ function viewDevice() {
 
 test('the view uniform carries the pixel scale, the held image, the slab and whether the screen traces', () => {
   // An infinite reversed perspective of 60° vertically, the eye at the origin.
-  const f = 1 / Math.tan(Math.PI / 6),
-    near = 0.1
-  const viewProjection = [f / 2, 0, 0, 0, 0, f, 0, 0, 0, 0, 0, -1, 0, 0, near, 0]
+  const viewProjection = perspectiveProjection(new Float64Array(16), 60, 2, 0.1, 1)
   const { device, buffer, held: sent } = viewDevice()
   const write = createReflectionViewWriter(device, buffer)
   const held: HeldImage = {
@@ -135,7 +134,7 @@ test('a still view with transparents writes its view once: the front pass sets a
     still: true,
   }
   const frame = {
-    viewProjection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
+    viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
     proxyError: 0,
@@ -161,7 +160,7 @@ test('the reflections’ turn and quiet images are the view’s, and a frozen vi
     still: true,
   }
   const frame = {
-    viewProjection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
+    viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
     proxyError: 0,
