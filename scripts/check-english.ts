@@ -5,7 +5,6 @@
 // written there, to be committed. `pnpm run check:english`; `--write` records today's counts.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { FRENCH_EXCEPTIONS, FRENCH_WORDS } from './french-words.ts'
 import { repositoryFiles, readJson } from './repository-files.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
@@ -78,7 +77,7 @@ export function ratchet(baseline: Record<string, number>, counts: Record<string,
   return { risen, fallen }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const tracked = repositoryFiles(REPOSITORY_ROOT)
   if (!tracked) throw new Error('Not a Git repository.')
   const found = frenchByFile(

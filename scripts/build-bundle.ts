@@ -6,7 +6,6 @@
 // families' chunks, fetched on first use (`bundle-fold.ts`). A page loads it with one import.
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { build, type BuildOptions } from 'esbuild'
 import { CHUNK_PREFIX, foldPlugin } from './bundle-fold.ts'
 import { BUNDLE_SOURCES, bundleSources } from './core-sources.ts'
@@ -89,5 +88,4 @@ async function buildBundle(dist: string) {
   writeFileSync(join(dist, BUNDLE_SOURCES), JSON.stringify(bundleSources(core.metafile, dist)))
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  await buildBundle(resolve('dist'))
+if (import.meta.main) await buildBundle(resolve('dist'))

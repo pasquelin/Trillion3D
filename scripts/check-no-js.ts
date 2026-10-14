@@ -1,6 +1,5 @@
 // The repository is TypeScript: no `.js`, `.mjs` or `.cjs` source may live anywhere in it. The
 // bundles are build products of `dist/`, never sources.
-import { pathToFileURL } from 'node:url'
 import { repositoryFiles } from './repository-files.ts'
 
 const JAVASCRIPT = /\.[cm]?js$/
@@ -10,7 +9,7 @@ export function javascriptFiles(files: string[]): string[] {
   return files.filter((file) => JAVASCRIPT.test(file))
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const found = repositoryFiles()
   if (!found) throw new Error('Not a Git repository.')
   const files = javascriptFiles(found)

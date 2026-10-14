@@ -16,7 +16,7 @@
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { availableParallelism, totalmem } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { parseArgs } from '../harness/flags.ts'
 import { ASSETS, sceneDerived } from './scene.ts'
@@ -117,4 +117,4 @@ function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) main()
+if (import.meta.main) main()

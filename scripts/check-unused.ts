@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 // `pnpm run check:unused`: knip, twice. The first pass (`knip.config.ts`) takes the tests as
 // entries: a file or an export that nothing reaches is dead. The second
@@ -31,7 +31,7 @@ export function checkUnused(directory = process.cwd()): { status: number; output
   return { status, output }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const { status, output } = checkUnused()
   process.stdout.write(output)
   process.exit(status)

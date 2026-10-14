@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
 import { relatedTests } from './affected-tests.ts'
 import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts'
 import { goldenChecks } from './golden-checks.ts'
@@ -115,4 +114,4 @@ function runRust(): void {
   run('node', ['scripts/native.ts', 'lint'])
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()
+if (import.meta.main) await main()

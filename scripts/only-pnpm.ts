@@ -7,12 +7,11 @@
 //
 // `npm_config_user_agent` is set by any package manager launching a lifecycle script; it
 // starts with its name. If absent, nobody ran us from an install: we allow it.
-import { pathToFileURL } from 'node:url'
 //
 // The guardrail runs ONLY when this file is the launched program (`preinstall`): repo scripts
 // import it for `pnpmCommand`, and an import should not decide their fate.
 const agent = process.env.npm_config_user_agent ?? ''
-const lance = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+const lance = import.meta.main
 if (lance && agent && !agent.startsWith('pnpm')) {
   const nom = agent.split('/')[0]
   console.error(

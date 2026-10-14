@@ -14,7 +14,6 @@
 // and it falls as the tree is brought under it. What it does not measure is the number of
 // declarations a module holds: the tree decomposes by responsibility at a fine grain on purpose, and
 // a gate on that would condemn the style rather than a defect.
-import { pathToFileURL } from 'node:url'
 import { functionsOf, type Fn } from './check-cohesion-measure.ts'
 import {
   changedFiles,
@@ -59,7 +58,7 @@ export function overBound(
     .map(({ file, fn, what }) => `${file}:${fn.line} ${fn.name} ${what}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const files = sourceFilesOf(EXTS, REPOSITORY_ROOT, (file) => !!unitOf(file))
 
   const touched = process.argv.includes('--changed') ? await changedFiles() : new Set<string>()

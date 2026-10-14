@@ -8,7 +8,6 @@ import {
   symlinkSync,
 } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 
 /**
  * Links the company's tracked skills (`skills/`) into the local, untracked `.claude/` folder, as symbolic links, so an edit in the repository applies at once.
@@ -59,6 +58,6 @@ function pruneRemoved(root: string, source: string): void {
     }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   for (const path of linkSkills(process.cwd())) console.log(`linked ${path}`)
 }

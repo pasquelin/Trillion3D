@@ -3,7 +3,6 @@
 // comment linking the pull request; an issue already closed is skipped. It talks to the REST API
 // with Node's own `fetch`, so the workflow needs no dependency and no CLI.
 // Usage (CI): GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/repo PR_URL=… PR_BODY=… node scripts/close-named-issues.ts
-import { pathToFileURL } from 'node:url'
 import { githubApi } from './github-api.ts'
 
 // GitHub's closing keywords, then `#n` of this repository (an `owner/repo#n` does not match).
@@ -61,6 +60,6 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   await main()
 }

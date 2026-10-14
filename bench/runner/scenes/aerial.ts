@@ -13,7 +13,7 @@
 // bench's `overview` view flies over it.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { parseArgs } from '../harness/flags.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
@@ -181,4 +181,4 @@ function main() {
   )
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) main()
+if (import.meta.main) main()

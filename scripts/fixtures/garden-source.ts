@@ -186,5 +186,5 @@ export async function writeGarden(directory: string) {
   await writeFile(resolve(directory, 'garden.bin'), Buffer.concat(chunks))
   await writeFile(resolve(directory, 'garden.gltf'), JSON.stringify(gltf))
 }
-if (process.argv[1] === import.meta.filename)
+if (import.meta.main)
   await writeGarden(resolve(process.argv[2] ?? 'tests/fixtures/scenes/kinetic-garden/source'))

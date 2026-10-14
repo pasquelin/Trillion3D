@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
 import { changedFiles, isTestModule, repositoryFiles, unitOf } from './repository-files.ts'
 
 export const MAX_LINES = 200
@@ -68,4 +67,4 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()
+if (import.meta.main) await main()

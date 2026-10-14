@@ -6,7 +6,6 @@
 // golden test runs natively in `pnpm run test:native`.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { WASM_CRATE } from './native-crates.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
 import { runChecked } from './run.ts'
@@ -122,4 +121,4 @@ function main(): void {
   console.log(`${MODULE_NAME}: ${statSync(built).size} bytes`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()
+if (import.meta.main) main()
