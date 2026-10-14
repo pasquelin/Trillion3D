@@ -28,7 +28,7 @@ export const CAST_HEADER_WORDS = 4,
 const CAST_FLOOR = 4096,
   CAST_CEILING = 1 << 21
 
-const castBytes = (records: number) => (records + 1) * CAST_RECORD_WORDS * 4
+const castBytes = (records: number) => (CAST_HEADER_WORDS + records * CAST_RECORD_WORDS) * 4
 
 function castBuffer(device: GPUDevice, records: number) {
   return device.createBuffer({
