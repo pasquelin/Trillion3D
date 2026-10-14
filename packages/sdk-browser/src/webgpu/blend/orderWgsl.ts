@@ -1,9 +1,6 @@
-import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { RUN_WORDS } from './planLayout.ts'
-import { KEYED_WGSL } from './keyLayout.ts'
-import { FRAME_HEAD_WGSL } from './frameHead.ts'
-import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
+import { ORDER_KEY_WGSL } from './orderKeyWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
@@ -59,7 +56,6 @@ const ORDER_UNI_FIELDS = [
   'last',
   'ownKeyBase',
 ] as const
-export const ORDER_UNI_WORDS = 16
 export const ORDER_UNI = Object.fromEntries(
   ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
 ) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
@@ -80,22 +76,6 @@ export const ORDER_BINDING = {
   placed: 5,
 } as const
 
-/** Group-0 layout entries of the order kernel, read from the names above: the uniform at its
- *  dynamic offset, then its five storage buffers. */
-export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
-  return [
-    computeUniformEntry(ORDER_BINDING.uni, {
-      hasDynamicOffset: true,
-      minBindingSize: ORDER_UNI_WORDS * 4,
-    }),
-    computeBufferEntry(ORDER_BINDING.plan, 'storage'),
-    computeBufferEntry(ORDER_BINDING.keyed, 'read-only-storage'),
-    computeBufferEntry(ORDER_BINDING.frame, 'read-only-storage'),
-    computeBufferEntry(ORDER_BINDING.sorted, 'storage'),
-    computeBufferEntry(ORDER_BINDING.placed, 'storage'),
-  ]
-}
-
 export const BLEND_ORDER_SHADER = wgslProgram(
   `@group(0) @binding(${ORDER_BINDING.uni}) var<uniform> uni:OrderUni;
 @group(0) @binding(${ORDER_BINDING.plan}) var<storage,read_write> plan:array<u32>;
@@ -104,43 +84,9 @@ export const BLEND_ORDER_SHADER = wgslProgram(
 @group(0) @binding(${ORDER_BINDING.sorted}) var<storage,read_write> sorted:array<vec4u>;
 @group(0) @binding(${ORDER_BINDING.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
-/** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
-fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
-/**
- * An item's key, as \`eyeKey\` computes it on the CPU (\`order.ts\`): the square of the distance from
- * the eye to its world box centre, its world origin without a box. An own item's key is the one the
- * CPU ordered it with.
- */
-fn itemKey(item:u32)->vec2u{
- let at=item*KEY_RECORD_WORDS;
- let own=keyed[at+KEY_OWN];
- if(own!=NO_INDEX){return frameDouble(uni.ownKeyBase+own*2u);}
- let ex=frameDouble(0u);
- let ey=frameDouble(2u);
- let ez=frameDouble(4u);
- var x=vec2u(0u,0u);
- var y=vec2u(0u,0u);
- var z=vec2u(0u,0u);
- if((keyed[at+KEY_FLAGS]&KEY_HAS_BOX)!=0u){
-  x=boxAxis(keyedDouble(at),keyedDouble(at+6u),ex);
-  y=boxAxis(keyedDouble(at+2u),keyedDouble(at+8u),ey);
-  z=boxAxis(keyedDouble(at+4u),keyedDouble(at+10u),ez);
- }else{
-  x=dSub(keyedDouble(at),ex);
-  y=dSub(keyedDouble(at+2u),ey);
-  z=dSub(keyedDouble(at+4u),ez);
- }
- return dAdd(dAdd(dMul(x,x),dMul(y,y)),dMul(z,z));
-}
 fn writeRun(slot:u32,first:u32,entries:u32){
  plan[uni.runsBase+slot*${RUN_WORDS}u]=first;
  plan[uni.runsBase+slot*${RUN_WORDS}u+1u]=entries;
-}
-/** Whether \`a\` paints before \`b\`: the farther key, then the lower seed. */
-fn goesFirst(a:vec4u,b:vec4u)->bool{
- if(a.x!=b.x){return a.x>b.x;}
- if(a.y!=b.y){return a.y>b.y;}
- return a.z<b.z;
 }
 /** Position \`p\` of the pass — key, seed, entry — from its seed on the first dispatch, else as the
  *  last left it. */
@@ -228,15 +174,5 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
 `,
-  [
-    orderUniformWgsl(),
-    dAdd,
-    dSub,
-    dMul,
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
-    NO_INDEX,
-    KEYED_WGSL,
-    FRAME_HEAD_WGSL,
-  ],
+  [orderUniformWgsl(), FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, ORDER_KEY_WGSL],
 )
