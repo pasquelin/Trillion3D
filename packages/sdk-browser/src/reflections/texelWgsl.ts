@@ -4,6 +4,7 @@ import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTED_WGSL } from './weight.ts'
+import { slabPerspective } from '../../../math/src/wgsl/projection.ts'
 
 /** The gather `name` (`historyGather`): with `near`, the bilinear sum of the held taps too — the
  *  upsample's fallback alone reads it, so the accumulation's gather adds none. One text, both. */
@@ -61,6 +62,7 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
   [
     REFLECTED_WGSL,
     HALF_MAX,
+    slabPerspective,
     octEncode,
     octDecode,
     REFLECTION_CONSTANTS_WGSL,
@@ -99,10 +101,10 @@ fn historyNormal(t:vec4u)->vec3f{
 fn halfPixel(at:vec2i,pick:u32)->vec2i{
  return at*2+vec2i(i32((pick-1u)&1u),i32((pick-1u)>>1u));
 }
-fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,reflectionView.slab.w!=0.0);}
+fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,slabPerspective(reflectionView.slab));}
 fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}
 fn reflectionDepthPixel(depth:f32)->f32{
- return select(reflectionView.slab.z,depth*reflectionView.slab.x,reflectionView.slab.w!=0.0);
+ return select(reflectionView.slab.z,depth*reflectionView.slab.x,slabPerspective(reflectionView.slab));
 }
 fn reflectionSameSurface(depth:f32,N:vec3f,V:vec3f,other:f32,otherN:vec3f,pixels:f32)->f32{
  let c=max(dot(N,V),REFLECTION_GRAZING);

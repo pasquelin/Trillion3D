@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { hizDepthWgsl } from './pyramidTexture.ts'
 
@@ -52,13 +53,13 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
 export const SCREEN_MARCH_WGSL = (group: number, binding: number) =>
   wgslBlock(
     `SCREEN_MARCH_WGSL(${group}, ${binding})`,
-    [hizDepthWgsl(group, binding)],
+    [hizDepthWgsl(group, binding), slabPerspective],
     `const SCREEN_MARCH_NUDGE:f32=${wgslF32(SCREEN_MARCH_NUDGE)};
 struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,}
 fn screenBack(z:f32,pixels:f32,slab:vec4f)->f32{
  let k=pixels*slab.x;
  let perspective=z-(z-slab.y)*k/(1.0+k);
- return select(z-pixels*slab.z,perspective,slab.w>0.5);
+ return select(z-pixels*slab.z,perspective,slabPerspective(slab));
 }
 fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
  let toward=select(-o,size-o,d>vec2f(0.0));

@@ -84,3 +84,11 @@ export const unprojectPoint = wgslFn(
  return perspectiveDivide(point);
 }`,
 )
+
+/** Whether the projection a screen slab describes is a perspective: its word `w`, one under a
+ *  perspective, zero under an orthographic projection. Every reader of that word. */
+export const slabPerspective = wgslFn(
+  'slabPerspective',
+  [],
+  'fn slabPerspective(slab:vec4f)->bool{return slab.w>0.5;}',
+)
