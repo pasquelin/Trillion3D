@@ -15,7 +15,7 @@
  * (`../scene/surfaceModel.ts`); a field a family does not read is left at its silent value.
  */
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
-import { DEFAULT_IOR, DEFAULT_SHININESS } from '../../../sdk-core/src/world/material/index.ts'
+import { DEFAULT_IOR, DEFAULT_SHININESS } from '../../../sdk-core/src/world/material/defaults.ts'
 import { Releasable } from '../host/graph/resource.ts'
 import {
   SURFACE_MODEL,

@@ -82,8 +82,10 @@ test('generated inventory and explicit facade files are current', async () => {
   // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
   // (materialSide) and the texture's own colour-space word (TextureColorSpace, now the world's
   // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
-  // the table texture carries are named; the bounce budget is the proxy's (ProxyBudget).
-  assert.equal(inventory.exports.length, 710)
+  // the table texture carries are named, beside the one table of their engine filters
+  // (TABLE_FILTERS); the bounce budget is the proxy's (ProxyBudget). The material kinds' default
+  // exponent and index of refraction are engine values, never public.
+  assert.equal(inventory.exports.length, 711)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

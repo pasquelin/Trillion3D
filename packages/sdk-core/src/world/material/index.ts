@@ -1,9 +1,5 @@
 import { Material, type MaterialParameters } from './material.ts'
-
-/** A Phong surface's exponent, and a physical one's index of refraction, where none is declared:
- *  the kinds start from them and a surface record reads them (`page/surfaceRecord.ts`). */
-export const DEFAULT_SHININESS = 30
-export const DEFAULT_IOR = 1.5
+import { DEFAULT_IOR, DEFAULT_SHININESS } from './defaults.ts'
 
 /** A member building one kind, with the values that kind starts from. */
 const kind =
