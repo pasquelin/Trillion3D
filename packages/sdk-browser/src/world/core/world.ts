@@ -240,7 +240,7 @@ function worldSettings({ switches, live }: WorldParts) {
 /** The world's parts and methods: physics, budget, diagnostic, guides, materials, nodes, frames,
  *  pages, and its disposal. */
 function worldMethods(parts: WorldParts) {
-  const { canvas, frames, pools, state, scene, invalidate, diagnostic, switches } = parts
+  const { canvas, frames, pools, state, invalidate, diagnostic, switches } = parts
   const { runtime, physics, controls, ahead, live } = parts
   return {
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
