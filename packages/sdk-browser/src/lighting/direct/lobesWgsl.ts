@@ -70,9 +70,7 @@ fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energ
  let D=lobes.dScale/(q*q);
  let gV=NdotL*lobes.viewLength;
  let gL=s.NdotV*length(vec3f(at*dot(T,L),ab*dot(B,L),NdotL));
- let Vis=0.5/(gV+gL+1e-7);
- let F=fresnelSchlick(s.f0,max(dot(V,H),0.0));
- return s.diffuse*direct+D*Vis*F*direct;
+ return lobeSum(s,D,gV,gL,max(dot(V,H),0.0),direct);
 }
 /** One light on surface \`s\` (\`lobeSurface\`): \`surfaceLight\` without lobes, else its
  *  anisotropic lobe where it has a strength — the surface the lobes were set for, or the water's

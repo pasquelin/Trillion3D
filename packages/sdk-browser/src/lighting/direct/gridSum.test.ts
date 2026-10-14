@@ -84,6 +84,7 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       'lobeSurface',
       'surfaceLight',
       'standardLobe',
+      'lobeSum',
       'fresnelSchlick',
       'ggxDistribution',
       'modelLight',

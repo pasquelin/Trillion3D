@@ -29,6 +29,7 @@ const SHADING = [
   'lobeSurface',
   'surfaceLight',
   'standardLobe',
+  'lobeSum',
   'fresnelSchlick',
   'ggxDistribution',
   'modelLight',

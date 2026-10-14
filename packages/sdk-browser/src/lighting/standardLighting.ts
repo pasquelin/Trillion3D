@@ -74,6 +74,12 @@ fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec
  let D=ggxDistribution(s.alpha2,NdotH,select(dot(NxH,NxH),1.0,NdotH==0.0));
  let gV=NdotL*s.viewG;
  let gL=s.NdotV*sqrt(NdotL*NdotL*s.rest+s.alpha2);
+ return lobeSum(s,D,gV,gL,VdotH,direct);
+}
+/** A lobe's term from its distribution \`D\` and its two visibility halves \`gV\`, \`gL\`: the
+ *  diffuse share and the specular one, the height-correlated visibility and Fresnel at \`VdotH\`,
+ *  times \`direct\`. The standard lobe's and the anisotropic one's (\`direct/lobesWgsl.ts\`). */
+fn lobeSum(s:LobeSurface,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
  let Vis=0.5/(gV+gL+1e-7);
  let F=fresnelSchlick(s.f0,VdotH);
  return s.diffuse*direct+D*Vis*F*direct;
