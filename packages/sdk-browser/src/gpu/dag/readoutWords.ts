@@ -34,7 +34,7 @@ export const levelCountsWord = (listCap: number) =>
 export const differenceWord = (listCap: number) => levelCountsWord(listCap) + ADMISSION_BUCKETS
 
 /** Victims one readback hands the row cache (`../../webgpu/row/rowEvictSortWgsl.ts`): the most rows
- *  the table hands out between two readbacks, 64 KiB of readback. TODO: measured as M-R2. */
+ *  the table hands out between two readbacks, 64 KiB of readback. */
 export const ROW_BURST = 16384
 
 /** Word of `out` where the rows' victim queue lies, behind the difference and in what the frame
