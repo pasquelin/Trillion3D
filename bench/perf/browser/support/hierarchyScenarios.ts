@@ -2,13 +2,15 @@
 // `hierarchyReplayThree.ts` and `hierarchyReplayEngine.ts`.
 // Drawn from a fixed seed: two runs play the exact same operations.
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
-import { normalizeQuaternion } from '../../../../packages/math/src/quaternion/quaternion.ts'
 import { dansDe } from './scenesCore.ts'
 import {
+  EXTREME_SCALES,
   HOSTILE_POSITIONS,
+  HOSTILE_ROTATIONS,
   MIRRORED_SCALES,
   hostileChains,
   hostilePose,
+  randomRotation,
 } from './hostileHierarchy.ts'
 import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 
@@ -45,18 +47,12 @@ export type HierarchyOp =
 const alea = xorshiftRandom(0x3a3a)
 const tire = <T>(list: T[]): T => list[Math.floor(alea() * list.length)]
 const dans = dansDe(alea)
-const tourne = (): Quat => {
-  const q = new Float64Array([alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5])
-  return Array.from(normalizeQuaternion(q)) as Quat
-}
 
 /** Hostile positions, rotations and scales: ±0, extremes, NaN, infinities, mirrors, zeros. */
 const POSITIONS: Vec3[] = [...HOSTILE_POSITIONS, [NaN, 0, 1], [Infinity, -Infinity, 0]]
 const ROTATIONS: Quat[] = [
-  [0, 0, 0, 1],
+  ...HOSTILE_ROTATIONS,
   [-0, -0, -0, -1],
-  [0, 1, 0, 0],
-  [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
   [1e-9, 0, 0, 1],
   [1, 2, 3, 4],
   [NaN, 0, 0, 1],
@@ -65,8 +61,7 @@ const SCALES: Vec3[] = [
   ...MIRRORED_SCALES,
   [0, 0, 0],
   [-0, 1, 1],
-  [1e-300, 1, 1],
-  [1e150, 1e150, 1e150],
+  ...EXTREME_SCALES,
   [Infinity, 1, 1],
   [NaN, 1, 1],
 ]
@@ -74,7 +69,7 @@ const SCALES: Vec3[] = [
 /** An ordinary pose: what a real scene carries, scales from 0.5 to 2, one in four mirrored. */
 const ordinaire = (): Pose => [
   [dans(50), dans(50), dans(50)],
-  tourne(),
+  randomRotation(alea),
   [(alea() < 0.25 ? -1 : 1) * (0.5 + alea() * 1.5), 0.5 + alea() * 1.5, 0.5 + alea() * 1.5],
 ]
 /** A hostile pose once every `rarete`, ordinary otherwise. */
