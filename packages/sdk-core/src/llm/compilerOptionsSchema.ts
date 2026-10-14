@@ -2,7 +2,6 @@ import type { JsonSchemaObject, JsonSchemaProperty } from './types.ts'
 import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
 import {
   DEFAULT_RAM_BUDGET_MB,
-  DEFAULT_SIMPLIFICATION,
   DEFAULT_THREADS,
   MAX_THREADS,
   MIN_RAM_BUDGET_MB,
@@ -54,7 +53,7 @@ const properties: Record<JobField, JsonSchemaProperty> = {
   simplification: {
     type: 'string',
     enum: SIMPLIFICATIONS,
-    default: DEFAULT_SIMPLIFICATION,
+    default: SIMPLIFICATIONS[0],
     description:
       "LOD simplification strategy: 'none' (no simplification) or 'qem-endpoints' (quadric error metrics QEM).",
   },
