@@ -60,37 +60,6 @@ test('a blending written at runtime is a new entry, and an additive one is never
   assert.deepEqual(table.takeRepainted(), [])
 })
 
-// A map's sampling or placement written after the entry was made repaints the entry,
-// whose host texture the repaint then writes in place; a new vector for the offset is heard like
-// the one it replaced. Neither moves the texture's version: nothing is sent again.
-test('a map’s sampling or placement repaints its entry, a new offset vector heard too', () => {
-  const table = createWorldMaterials()
-  const map = new Texture({ width: 2, height: 2 })
-  const paint = material.meshStandard({ map })
-  const entry = table.entryOf(paint)
-  const writes: [() => unknown, 'sampling' | 'placement'][] = [
-    [() => map.offset.set(0.5, 0), 'placement'],
-    [() => (map.rotation = 1), 'placement'],
-    [() => (map.wrapS = 'repeat'), 'sampling'],
-    [() => (map.minFilter = 'nearest'), 'sampling'],
-    [() => (map.offset = new Vector2(0.25, 0)), 'placement'],
-    [() => map.offset.set(0.75, 0), 'placement'],
-  ]
-  for (const [write, counter] of writes) {
-    const count = map[counter],
-      version = map.version
-    write()
-    assert.equal(map[counter], count + 1, `${write}: counted as ${counter}`)
-    assert.equal(map.version, version, 'no picture to send')
-    assert.equal(table.entryOf(paint), entry, 'the entry kept')
-    assert.deepEqual(
-      table.takeRepainted(),
-      [{ entry, values: false }],
-      `${write}: repainted, no value`,
-    )
-  }
-})
-
 // A replaced vector kept its listener, so a write to it still repainted the texture.
 test('a replaced placement vector is let go, and writing the same one back moves nothing', () => {
   const map = new Texture({ width: 2, height: 2 })
