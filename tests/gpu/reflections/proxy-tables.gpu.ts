@@ -1,7 +1,8 @@
 // The proxy's rays read the culling's worlds and placement tree where they lie (`gpu/dag/worldTable.ts`,
 // `gpu/dag/treeTable.ts`): on the GPU, the shipped walk over the record tables and the walk of before, over the
-// worlds and the tree the proxy's buffer mirrored, answer every ray with the same words — its distance's bits, its placement, its triangle, found or not, its work and its
-// tests —, on generated fields with and without a placement tree, blended copies among them. And a world past
+// worlds and the tree the proxy's buffer mirrored, answer every ray with the same placement, triangle, found or
+// not, work and tests, and its distance within `DISTANCE_ULPS`, on generated fields with and without a
+// placement tree, blended copies among them. And a world past
 // one storage binding keeps its proxy and its camera cut: once refused past the device's limits, its rays now
 // meet every placement, hit for hit those of the same world held whole.
 //
@@ -18,15 +19,25 @@ const page = async () =>
     'proxyTables',
   )) as typeof import('./proxyTablesPage.ts')
 
-/** The rays whose words differ, by rank. */
-const differing = (a: readonly number[], b: readonly number[]) => {
+/** Units in the last place two walks' distances may differ by. The walk of before and the record walk
+ *  read the same words and reach the same hit, but the compiler fuses the two programs' multiply-adds
+ *  (the placed ray, the world box) differently around their different loads: the distance's last bits
+ *  move, measured at 1 to 2 ULPs, the placement, triangle, found, work and tests never. */
+const DISTANCE_ULPS = 2
+
+/** The rays whose words differ, by rank: every word exactly, the distance's bits (word 0, a distance
+ *  never negative) within `ulps`. */
+const differing = (a: readonly number[], b: readonly number[], ulps = 0) => {
   const rays: number[] = []
   for (let r = 0; r * HIT_WORDS < a.length; r++)
-    for (let k = 0; k < HIT_WORDS; k++)
-      if (a[r * HIT_WORDS + k] !== b[r * HIT_WORDS + k]) {
+    for (let k = 0; k < HIT_WORDS; k++) {
+      const x = a[r * HIT_WORDS + k],
+        y = b[r * HIT_WORDS + k]
+      if (k === 0 ? Math.abs(x - y) > ulps : x !== y) {
         rays.push(r)
         break
       }
+    }
   return rays
 }
 /** The rays that found a surface. */
@@ -48,14 +59,15 @@ for (const [count, seed] of [
     async () => {
       const { compareWalks } = await page()
       const result = await runOnDawn(compareWalks, { count, seed, rayCount: 4096 })
-      const { now, before, errors, tree } = result
+      const { now, before, errors, tree, echo } = result
       console.log(
         JSON.stringify({ count, tree, hits: found(now).length, rays: now.length / HIT_WORDS }),
       )
       assert.deepEqual(errors, [])
+      assert.deepEqual(echo, [], 'the table holds the records the host wrote, word for word')
       assert.equal(now.length, before.length)
       assert.ok(found(now).length > 100, 'the rays meet the cubes')
-      assert.deepEqual(differing(now, before), [], 'no ray answers otherwise')
+      assert.deepEqual(differing(now, before, DISTANCE_ULPS), [], 'no ray answers otherwise')
     },
   )
 
