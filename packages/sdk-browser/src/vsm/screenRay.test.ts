@@ -38,6 +38,7 @@ function caster(width: number, height: number, depth: (x: number, y: number) => 
       'screenBack',
       'clipToFramebuffer',
       'perspectiveDivide',
+      'ndcToPixel',
       ...HIZ_DEPTH_READERS,
     ],
     {

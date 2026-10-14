@@ -65,6 +65,7 @@ export function cacheRun(width: number, height: number, none = false) {
       'framebuffer',
       'clipToFramebuffer',
       'perspectiveDivide',
+      'ndcToPixel',
       'invTranspose3Apply',
       'unitOrZero',
       'pageSprite',

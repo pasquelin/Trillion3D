@@ -147,6 +147,7 @@ const HELPERS = [
   'framebuffer',
   'clipToFramebuffer',
   'perspectiveDivide',
+  'ndcToPixel',
   'edgeFunction',
   'affineBarycentric',
   'decodeCorners',
