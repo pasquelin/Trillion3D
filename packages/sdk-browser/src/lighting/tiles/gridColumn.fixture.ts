@@ -14,7 +14,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 /** The view grid's compaction: a column's depth slices. */
-const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
+export const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
 
 const W = { ...wgslConstants(directLightWgsl()), ...wgslConstants(GRID_COMPACT_WGSL) }
 export const { GRID_SLICES, TILE_SHADOWED, TILE_NO_SLICE, CACHE } = W

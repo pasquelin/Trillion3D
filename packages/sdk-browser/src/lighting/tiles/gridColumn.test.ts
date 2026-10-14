@@ -8,6 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CACHE,
+  GRID_COMPACT_WGSL,
   GRID_SLICES,
   serialColumn,
   shippedColumn,
@@ -15,14 +16,9 @@ import {
   type Pool,
   type Run,
 } from './gridColumn.fixture.ts'
-import { gridCompactWgsl } from './compactWgsl.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { lightTilesShader } from './shader.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-
-/** The view grid's compaction: a column's depth slices. */
-const GRID_COMPACT_WGSL = gridCompactWgsl(LIGHT_SETTINGS.gridSlices)
 
 /** `count` lights of a column: a share full depth, a share meeting no cell, the others a run. */
 function series(seed: number, count: number, full: number, none: number): Run[] {
