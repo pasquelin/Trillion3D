@@ -131,7 +131,7 @@ export function vsmChunkContext<Tables>(
 
 /** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset in `slots`:
  *  made once for every frame (the raster's and the transmission's). */
-export function vsmChunkPasses(prefix: string, slots: UniformSlots) {
+function vsmChunkPasses(prefix: string, slots: UniformSlots) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
     chunk: (c: number) =>
