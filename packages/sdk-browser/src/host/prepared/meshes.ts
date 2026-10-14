@@ -41,28 +41,32 @@ export async function buildMeshes(
       // The variant waits for the manifest to list the primitive: a cloth's is drawn on both faces.
       const cloth = clothOf?.(rank, p) ?? Promise.resolve(false)
       const material = cloth.then((twoSided) =>
-        materialOf(primitive.material, variantOf(geometry, twoSided)),
+        materialOf(primitive.material, variantOf(geometry, twoSided)).then((surface) => ({
+          surface,
+          twoSided,
+        })),
       )
-      return { geometry, material, cloth }
+      return { geometry, material }
     }),
   )
   // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
   // surfaces land together keep the order they were first named in. The ranks are recorded
-  // afterwards in that first order, whatever order the images landed in.
+  // afterwards in that first order, whatever order the images landed in. A cloth's primitive
+  // says so in its association: what a surface given to it later asks for.
+  const cloths: boolean[][] = []
   const made = await Promise.all(
     order.map((rank, at) =>
-      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
-        drawn[at].map(({ geometry }, p) => {
-          const mesh = new Mesh(geometry, surfaces[p])
+      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) => {
+        cloths[at] = surfaces.map(({ twoSided }) => twoSided)
+        return drawn[at].map(({ geometry }, p) => {
+          const mesh = new Mesh(geometry, surfaces[p].surface)
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights)
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`)
           return mesh
-        }),
-      ),
+        })
+      }),
     ),
   )
-  // A cloth's primitive says so in its association: what a surface given to it later asks for.
-  const cloths = await Promise.all(drawn.map((parts) => Promise.all(parts.map((d) => d.cloth))))
   const built = new Map<number, Object3D>()
   for (const [at, rank] of order.entries()) {
     const parts = made[at]
