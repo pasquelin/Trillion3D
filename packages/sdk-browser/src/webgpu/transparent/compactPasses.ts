@@ -30,7 +30,10 @@ function compactLayout(device: GPUDevice) {
  *  lists, compiled once whatever the table's size. Undefined on a device that refuses them. */
 export async function compactKernels(device: GPUDevice) {
   const layout = compactLayout(device)
-  const module = device.createShaderModule({ code: TRANSPARENT_COMPACT_SHADER })
+  const module = device.createShaderModule({
+    label: 'Trillion3D transparent compaction',
+    code: TRANSPARENT_COMPACT_SHADER,
+  })
   if (await shaderFailed(module)) return undefined
   const entryPoints = [
     'countTransparentGroups',
