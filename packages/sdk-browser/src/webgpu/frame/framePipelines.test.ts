@@ -134,3 +134,17 @@ test('the guide pass is made by the frame entry that first shows a guide, its pi
   assert.equal(holdWebgpuFrame(rt, device), false, 'then drawn, the guide with it')
   assert.equal(compiled.sync, 0)
 })
+
+test('the passes beside the cut are asked once it is adopted, never queued ahead of its compiles', async () => {
+  const armedRt = armed(),
+    { rt, compiled } = armedRt
+  // A table that holds rows, its cut still being made.
+  Object.assign(rt.layout.rows, { casterSlots: 4 })
+  askFramePipelines(rt)
+  const before = compiled.async
+  Object.assign(rt.run, { gpuSelection: {} })
+  askFramePipelines(rt)
+  assert.equal(compiled.async, before + 1, 'asked once the cut is adopted, not before')
+  await armedRt.land()
+  assert.equal(compiled.sync, 0)
+})

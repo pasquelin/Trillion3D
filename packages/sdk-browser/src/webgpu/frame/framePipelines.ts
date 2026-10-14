@@ -56,7 +56,8 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * the guide pass once a guide is shown, the particles' routed draw, the seed of the share the
  * transparents and particles write, the rows pass once the table holds a row and its transparent
  * entries' pass once a transparent table is made, the kernels
- * composing placements once a parent links rows, the roots' boxes and the tree's leaves, the
+ * composing placements once a parent links rows, the roots' boxes and the tree's leaves — these
+ * four once the session's cut is adopted, never queued ahead of its compiles —, the
  * lobe code of a lobed surface (`askLobedPrograms`), the compute raster a variant asks for on a
  * visibility path —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
@@ -70,10 +71,14 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   askGuidePass(rt, device)
   askParticles(rt, device)
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
-  askRowWords(rt, device)
-  askEntryCorners(rt, device)
-  askComposedPlacements(rt, device)
-  askRootPasses(rt, device)
+  // The passes beside the cut — the rows, the transparent entries, the composition, the roots —
+  // once it is adopted: asked before, they would queue ahead of its own compiles.
+  if (rt.run.gpuSelection) {
+    askRowWords(rt, device)
+    askEntryCorners(rt, device)
+    askComposedPlacements(rt, device)
+    askRootPasses(rt, device)
+  }
   askLobedPrograms(rt, device)
   if (requestsComputeRaster(rt.context?.diagnosticGpuVariant)) ensureGpuRaster(rt, device)
 }

@@ -131,6 +131,8 @@ export async function finishPreparation(
   await step('direct lights', () => prepareDirectLights(rt, gpuDevice))
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice))
   await prepareGpuCut(rt, gpuDevice, step)
+  // The passes beside the cut, asked once it is adopted: compiled behind it, awaited at the end.
+  askFramePipelines(rt)
   await step('coverage bootstrap', () => services.bootstrapState.ensure())
   // Last, the lit program of the first step; one that failed is said, and lets the unlit view by.
   await gpu.deferred?.litReady
