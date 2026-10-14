@@ -5,14 +5,12 @@
 // margin of a plane, a margin measured from the eye.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { gpuVerdict } from './verdictRun.fixture.ts'
-import { orderBlendPasses } from './order.ts'
 import { blendVerdictCpu } from './verdict.fixture.ts'
 import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
-import { verdictScene } from './verdictScene.fixture.ts'
+import { axisScene, verdictScene } from './verdictScene.fixture.ts'
 
 /** Whether the exact test's verdict on `box` may differ from the kernel's: a number the kernel
  *  leaves out of single precision, or a plane the box lies behind within twice its margin, both
@@ -77,27 +75,12 @@ test('empty groups and the word edges', () => {
 })
 
 test('a box a rounding outside a plane is kept; one a unit outside is rejected', () => {
-  const near = verdictScene(2, lcgRandom(7), false)
-  const items = near.blendState.blendGpu
   // Six axis planes around the origin, the first `x ≤ 10`; no item paged.
-  for (let p = 0; p < 6; p++) {
-    const n = [0, 0, 0]
-    n[p >> 1] = p & 1 ? 1 : -1
-    near.blendState.blendPlanes.set([n[0], n[1], n[2], 10], p * 4)
-  }
-  near.blendState.drawsPacked.fill(NO_INDEX)
-  const outside = [10 + 2 ** -30, 11]
-  items.forEach((item, i) =>
-    Object.assign(item, {
-      hidden: false,
-      transmissive: false,
-      flags: 0,
-      placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
-      bounds: new Float64Array([outside[i], 0, 0, outside[i] + 1, 1, 1]),
-    }),
+  const near = axisScene(
+    lcgRandom(7),
+    [10 + 2 ** -30, 11].map((x) => new Float64Array([x, 0, 0, x + 1, 1, 1])),
   )
-  orderBlendPasses(near.blendState, [0, 0, 0])
-  const gpu = gpuVerdict(near.blendState, [])
+  const gpu = gpuVerdict(near, [])
   assert.ok(hasBit(gpu.keep, 0), 'a box single precision cannot tell from the plane stays')
   assert.ok(!hasBit(gpu.keep, 1), 'a box well outside goes')
   assert.equal(gpu.rejected, 1)
@@ -106,25 +89,14 @@ test('a box a rounding outside a plane is kept; one a unit outside is rejected',
 test('beside an eye a million metres out, a box a millimetre outside a plane is rejected', () => {
   // Measured from the world's origin, the margin would reach metres there and keep it.
   const eye = [2 ** 20, 0, 2 ** 20]
-  const far = verdictScene(2, lcgRandom(9), false, eye)
-  for (let p = 0; p < 6; p++) {
-    const n = [0, 0, 0]
-    n[p >> 1] = p & 1 ? 1 : -1
-    far.blendState.blendPlanes.set([n[0], n[1], n[2], 10 - n[0] * eye[0] - n[2] * eye[2]], p * 4)
-  }
-  far.blendState.drawsPacked.fill(NO_INDEX)
-  const outside = [eye[0] + 10 + 2 ** -20, eye[0] + 10 + 2 ** -10]
-  far.blendState.blendGpu.forEach((item, i) =>
-    Object.assign(item, {
-      hidden: false,
-      transmissive: false,
-      flags: 0,
-      placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
-      bounds: new Float64Array([outside[i], 0, eye[2], outside[i] + 1, 1, eye[2] + 1]),
-    }),
+  const far = axisScene(
+    lcgRandom(9),
+    [eye[0] + 10 + 2 ** -20, eye[0] + 10 + 2 ** -10].map(
+      (x) => new Float64Array([x, 0, eye[2], x + 1, 1, eye[2] + 1]),
+    ),
+    eye,
   )
-  orderBlendPasses(far.blendState, eye)
-  const gpu = gpuVerdict(far.blendState, [])
+  const gpu = gpuVerdict(far, [])
   assert.ok(hasBit(gpu.keep, 0), 'a micrometre out, within the rounding from the eye: kept')
   assert.ok(!hasBit(gpu.keep, 1), 'a millimetre out: rejected')
   assert.equal(gpu.rejected, 1)
@@ -132,26 +104,10 @@ test('beside an eye a million metres out, a box a millimetre outside a plane is 
 
 test('an eye past the bound, infinite or NaN: no plane rejects, every drawn box is kept', () => {
   for (const x of [2 ** 61, Infinity, NaN]) {
-    const scene = verdictScene(2, lcgRandom(11), false)
-    for (let p = 0; p < 6; p++) {
-      const n = [0, 0, 0]
-      n[p >> 1] = p & 1 ? 1 : -1
-      scene.blendState.blendPlanes.set([n[0], n[1], n[2], 10], p * 4)
-    }
-    scene.blendState.drawsPacked.fill(NO_INDEX)
-    scene.blendState.blendGpu.forEach((item) =>
-      Object.assign(item, {
-        hidden: false,
-        transmissive: false,
-        flags: 0,
-        placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
-        bounds: new Float64Array([11, 0, 0, 12, 1, 1]),
-      }),
-    )
     // The boxes lie a unit outside `x ≤ 10`: an eye at the origin rejects both.
-    const eye = [x, 0, 0]
-    orderBlendPasses(scene.blendState, eye)
-    const gpu = gpuVerdict(scene.blendState, [])
+    const box = () => new Float64Array([11, 0, 0, 12, 1, 1])
+    const scene = axisScene(lcgRandom(11), [box(), box()], [0, 0, 0], [x, 0, 0])
+    const gpu = gpuVerdict(scene, [])
     assert.ok(hasBit(gpu.keep, 0) && hasBit(gpu.keep, 1), `eye x = ${x}: both kept`)
     assert.equal(gpu.rejected, 0)
   }

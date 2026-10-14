@@ -1,8 +1,5 @@
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
-import { ORDER_BINDING } from './orderWgsl.ts'
-
-/** Words of one dispatch's uniform (`OrderUni`), at its dynamic offset. */
-export const ORDER_UNI_WORDS = 16
+import { ORDER_BINDING, ORDER_UNI_WORDS } from './orderWgsl.ts'
 
 /** Group-0 layout entries of the order kernel, read from its bindings (`ORDER_BINDING`): the uniform at its
  *  dynamic offset, then its five storage buffers. */

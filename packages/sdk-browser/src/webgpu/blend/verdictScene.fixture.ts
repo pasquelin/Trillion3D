@@ -2,6 +2,7 @@
 // one-ulp straddles, NaN, infinite and signed-zero boxes and planes, items with no box, hidden and
 // parked items, paged items the cut emptied, all around an eye that may lie far from the origin.
 import * as G from '../../host/graph/graph.fixture.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
@@ -83,4 +84,33 @@ export function verdictScene(count: number, next: () => number, edges: boolean, 
   })
   orderBlendPasses(blendState, eye)
   return { blendState, counts }
+}
+
+/** Items of boxes `boxes` inside six axis planes 10 from `centre`, the first `x ≤ centre.x + 10`:
+ *  every item drawn, unpaged, opaque to the water and unflagged, ordered from `eye`. */
+export function axisScene(
+  next: () => number,
+  boxes: Float64Array[],
+  centre = [0, 0, 0],
+  eye = centre,
+) {
+  const { blendState } = verdictScene(boxes.length, next, false, centre)
+  for (let p = 0; p < 6; p++) {
+    const n = [0, 0, 0]
+    n[p >> 1] = p & 1 ? 1 : -1
+    const d = 10 - n[0] * centre[0] - n[1] * centre[1] - n[2] * centre[2]
+    blendState.blendPlanes.set([n[0], n[1], n[2], d], p * 4)
+  }
+  blendState.drawsPacked.fill(NO_INDEX)
+  blendState.blendGpu.forEach((item, i) =>
+    Object.assign(item, {
+      hidden: false,
+      transmissive: false,
+      flags: 0,
+      placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
+      bounds: boxes[i],
+    }),
+  )
+  orderBlendPasses(blendState, eye)
+  return blendState
 }

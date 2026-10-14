@@ -14,6 +14,7 @@ import {
 } from '../../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
 import { BLEND_ITEM_SHIPPED } from '../../blend/itemLayout.fixture.ts'
+import { materialRecordsSent } from '../../material/materialRecordsSent.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -23,13 +24,6 @@ import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 import { ROW_NAMED, ROW_STALES } from '../../../placement/rowWordsWgsl.ts'
 import { targetsTaken } from '../../../placement/rowTargets.ts'
-
-/** The records the material table sent up last (`Trillion3D material records`). */
-const lastRecords = (textureWrites: ReturnType<typeof fakeDevice>['textureWrites']) =>
-  textureWrites.findLast(
-    ({ destination }) =>
-      (destination.texture as { label?: string }).label === 'Trillion3D material records',
-  )!
 
 test('a blended surface rewritten in place reaches its record at the values refresh', async () => {
   installGpuGlobals()
@@ -50,7 +44,9 @@ test('a blended surface rewritten in place reaches its record at the values refr
     const rank =
       new Uint32Array(writtenBytes(last).slice().buffer)[BLEND_ITEM_SHIPPED.at.material] &
       MATERIAL_RANK_MASK
-    const words = new Float32Array(lastRecords(textureWrites).data.buffer as ArrayBuffer),
+    const words = new Float32Array(
+        materialRecordsSent(textureWrites).at(-1)!.data.buffer as ArrayBuffer,
+      ),
       at = rank * MATERIAL_RECORD_WORDS + MATERIAL_RECORD.at.baseColor
     return [...words.subarray(at, at + 3), words[at + 3]]
   }
@@ -95,12 +91,7 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
     backend.refreshMaterials?.(true)
     backend.render(camera())
     assert.equal(rowWrites(), rows, 'no row written')
-    const sent = textureWrites
-      .slice(records)
-      .filter(
-        ({ destination }) =>
-          (destination.texture as { label?: string }).label === 'Trillion3D material records',
-      )
+    const sent = materialRecordsSent(textureWrites.slice(records))
     assert.equal(sent.length, 1, 'one write of the table')
     assert.deepEqual(sent[0].size, [MATERIAL_RECORD_WORDS / 4, 1, 1], 'of one record, one layer')
   } finally {

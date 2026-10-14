@@ -13,6 +13,7 @@ import {
   HEADER_SHIFT,
   HEADER_TEXELS,
   TEXTURED_BIT,
+  VSM_T_BLOCK_AT_WGSL,
   VSM_TRANSMISSION_CELL,
   VSM_TRANSMISSION_CELLS,
   WIDTH_SHIFT,
@@ -38,7 +39,14 @@ import {
 export const vsmTransmissionReadWgsl = (binding: number) =>
   wgslBlock(
     `vsmTransmissionReadWgsl(${binding})`,
-    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3, VSM_PROJECTION_DATA_READ_WGSL, lowHalf, highHalf],
+    [
+      VSM_TRANSMISSION_EDGE_WGSL,
+      VSM_T_BLOCK_AT_WGSL,
+      bilinear3,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      lowHalf,
+      highHalf,
+    ],
     `
 @group(0) @binding(${binding}) var vsmTransmissionMemory:texture_2d_array<u32>;
 fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0,0);}
@@ -53,8 +61,9 @@ fn vsmTBlock(b0:u32,v:u32)->u32{
 fn vsmTRead(b0:u32,v:u32)->vec4u{
  return vsmTLoad(vsmTMemBlock(vsmTBlock(b0,v),v&${VSM_TRANSMISSION_BLOCK_TEXELS - 1}u));
 }
+/** Block \`b\`'s texel \`t\` below the page headers' rows, counted from the pool's pages. */
 fn vsmTMemBlock(b:u32,t:u32)->vec2u{
- return vec2u((b&1u)*${VSM_TRANSMISSION_BLOCK_TEXELS}u+t,((vsm.poolPages+${2 * VSM_TRANSMISSION_WIDTH - 1}u)>>${HEADER_SHIFT}u)+(b>>1u));
+ return vsmTBlockAt(b,t,(vsm.poolPages+${2 * VSM_TRANSMISSION_WIDTH - 1}u)>>${HEADER_SHIFT}u);
 }
 /** The two first blocks (dynamic, static) of physical page \`page\`: none both without translucent
  *  casters (the one-texel stand-in). */

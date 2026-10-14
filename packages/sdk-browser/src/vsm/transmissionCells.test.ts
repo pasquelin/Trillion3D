@@ -3,7 +3,8 @@
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { type Tri, CELL, CELLS, geometry } from './transmissionSheets.fixture.ts'
+import { type Tri, geometry } from './transmissionSheets.fixture.ts'
+import { VSM_TRANSMISSION_CELL, VSM_TRANSMISSION_CELLS } from './transmissionShared.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
 test('a point’s cell lists every triangle it lies in: small, large, thin, corners far off the page', () => {
@@ -39,7 +40,9 @@ test('a point’s cell lists every triangle it lies in: small, large, thin, corn
       const p = [0, 1].map((ax) => Math.fround(w[0] * a[ax] + w[1] * b[ax] + w[2] * c[ax]))
       if (p.some((x) => x < 0 || x >= 128)) continue
       if (!geometry.vsmTInside(a, b, c, p)) continue
-      const cell = p.map((x) => Math.min(Math.floor(x / CELL), CELLS - 1))
+      const cell = p.map((x) =>
+        Math.min(Math.floor(x / VSM_TRANSMISSION_CELL), VSM_TRANSMISSION_CELLS - 1),
+      )
       assert.ok(
         cell[0] >= range[0] && cell[0] <= range[2] && cell[1] >= range[1] && cell[1] <= range[3],
       )

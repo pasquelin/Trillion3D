@@ -1,8 +1,11 @@
-// The exact transmission read's geometry under test (`transmissionReadWgsl.ts`), its shipped WGSL run
-// by `shaderRun`: the edge rule and the bin's cells, and the generated sheets they are proven on.
+// The exact transmission read's geometry under test (`transmissionGeometryWgsl.ts`), its shipped
+// WGSL run by `shaderRun`: the edge rule and the bin's cells, and the generated sheets they are
+// proven on.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { vsmTransmissionBinWgsl } from './transmissionBinWgsl.ts'
-import { vsmTransmissionReadWgsl } from './transmissionReadWgsl.ts'
+import {
+  VSM_TRANSMISSION_COVER_WGSL,
+  VSM_TRANSMISSION_EDGE_WGSL,
+} from './transmissionGeometryWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
@@ -10,17 +13,13 @@ export type V = number[]
 export type Tri = [V, V, V]
 /** The engine's layout for one sun. */
 export const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
-/** Texels of a block, of a cell, cells a side, the memory's width (`transmissionShared.ts`). */
-export const BLOCK = 512
-export const CELL = 8
-export const CELLS = 16
 
 export const geometry = shaderRun<{
   vsmTInside: (a: V, b: V, c: V, p: V) => boolean
   vsmTCoversCell: (a: V, b: V, c: V, s: number, cell: V) => boolean
   vsmTCellRange: (lo: V, hi: V) => V
 }>(
-  wgslModule(vsmTransmissionReadWgsl(14)) + vsmTransmissionBinWgsl(LAYOUT),
+  wgslModule(VSM_TRANSMISSION_EDGE_WGSL, VSM_TRANSMISSION_COVER_WGSL),
   [
     'vsmTEdge',
     'edgeFunction',

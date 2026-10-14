@@ -133,7 +133,6 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  * WebGPU only opens it to an indirect call under an extension.
  */
 const blendVertexStage = ({
-  uv,
   ids,
   word,
   page,
@@ -145,7 +144,13 @@ const blendVertexStage = ({
  let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  let local=vertexIndex&lowBits(uni.vertexShift);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
- // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a vertex.
+ var page:PageInfo;
+ page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
+${VERTEX_PAGE}
+ // A padding or dropped lane leaves the clip volume; every other output stays zero, as declared.
+ if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return out;}
+ // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a drawn
+ // vertex, never by a padding or dropped lane.
  let m=materialAt(it.material);
  out.color=vec4f(m.baseColor,m.opacity);
  out.ids=${ids}(m.mapIndex,flags|(m.model<<${surfaceModel.MODEL_SHIFT}u),m.emissiveIndex${word});
@@ -155,10 +160,6 @@ const blendVertexStage = ({
  out.pbr=vec4f(m.roughness,m.metalness,m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,(it.flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u));
  out.emissive=vec4f(m.emissive,f32(m.subsurfaceMap));
  out.normal.w=m.subsurface.x;out.tangent.w=m.subsurface.y;out.bitangent.w=m.subsurface.z;
- var page:PageInfo;
- page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
-${VERTEX_PAGE}
- if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=${uv}(0.0);out.view=vec3f(0.0);out.normal=vec4f(vec3f(0.0,0.0,1.0),out.normal.w);out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
 ${VERTEX_CORNER}
  ${write}
  return out;

@@ -115,14 +115,12 @@ export function encodeVsmTransmission(
     pass.setPipeline(ctx.place.pipeline)
     pass.setBindGroup(0, groups.place)
     pass.dispatchWorkgroupsIndirect(trans.args, VSM_TRANSMISSION_ARGS_AT.place)
-    for (const [pipe, at] of [
-      [ctx.resolve, VSM_TRANSMISSION_ARGS_AT.resolve],
-      [ctx.headers, VSM_TRANSMISSION_ARGS_AT.headers],
-    ] as const) {
-      pass.setPipeline(pipe.pipeline)
-      pass.setBindGroup(0, groups.resolve)
-      pass.dispatchWorkgroupsIndirect(trans.args, at)
-    }
+    pass.setPipeline(ctx.resolve.pipeline)
+    pass.setBindGroup(0, groups.resolve)
+    pass.dispatchWorkgroupsIndirect(trans.args, VSM_TRANSMISSION_ARGS_AT.resolve)
+    pass.setPipeline(ctx.headers.pipeline)
+    pass.setBindGroup(0, groups.resolve)
+    pass.dispatchWorkgroupsIndirect(trans.args, VSM_TRANSMISSION_ARGS_AT.headers)
   }
   pass.end()
   return plan?.within || undefined
