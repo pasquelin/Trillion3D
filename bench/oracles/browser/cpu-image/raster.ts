@@ -3,7 +3,6 @@
 import { signedArea, triangleAt, type Projected } from './projection.ts'
 import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts'
 import { uvTransformed } from '../../../../packages/sdk-core/src/texture/contract.ts'
-import { surfaceSide } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import {
   DEPTH_CLEAR,
   depthNearer,
@@ -108,7 +107,7 @@ export function rasterVisibility(
     // Once per page and per image: the record as its owner wrote it last — a side, an alpha
     // cutoff written in place —, of which this raster is an oracle NOW.
     const mat = page.material,
-      side = surfaceSide(mat)
+      side = mat.side
     // A mirrored transform reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and the witness library (`frontFaceCW`). Without this
     // flip, this rasterizer drew under a mirror exactly the faces that cone rejection

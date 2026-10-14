@@ -103,8 +103,7 @@ export function familySurface(family: SurfaceFamily, parameters: SurfaceParamete
 
 /** Draws `surface` on `side` from now on: what a host switching faces in place writes. */
 export function sided(surface: PageSurface, side: Side) {
-  surface.doubleSided = side === 'double'
-  surface.backSide = side === 'back'
+  surface.side = side
 }
 
 /** Numbers stored as 32-bit floats, `itemSize` per vertex. */

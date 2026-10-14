@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceFrontOnly, surfaceOf, surfaceSide } from './surface.ts'
+import { surfaceFrontOnly, surfaceOf } from './surface.ts'
 import { copySurface, declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts'
@@ -25,10 +25,10 @@ test('the side answers what the record holds now, with no reread in between', ()
   const material = G.basicSurface({ side: G.FRONT_SIDE })
   assert.equal(surfaceFrontOnly(material), true)
   G.sided(material, G.DOUBLE_SIDE)
-  assert.equal(surfaceSide(material), 'double')
+  assert.equal(material.side, 'double')
   assert.equal(surfaceFrontOnly(material), false)
   G.sided(material, G.BACK_SIDE)
-  assert.equal(surfaceSide(material), 'back')
+  assert.equal(material.side, 'back')
   assert.equal(surfaceFrontOnly(material), false)
 })
 
@@ -70,7 +70,7 @@ test('a list wears its first surface, and an empty one a shared front, opaque re
   assert.equal(surfaceOf([opaque, blended]), opaque, 'the first element decides')
   const empty = surfaceOf([])
   assert.equal(empty.transparent, false)
-  assert.equal(surfaceSide(empty), 'front', 'an empty declaration is drawn front only')
+  assert.equal(empty.side, 'front', 'an empty declaration is drawn front only')
   assert.equal(surfaceOf([]), empty, 'one shared record')
 })
 

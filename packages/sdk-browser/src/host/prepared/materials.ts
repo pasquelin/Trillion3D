@@ -63,7 +63,7 @@ export function wearVariant(
 ) {
   if (vertexColors) surface.vertexColors = true
   if (flatShading) surface.flatShading = true
-  if (twoSided) Object.assign(surface, { doubleSided: true, backSide: false })
+  if (twoSided) surface.side = 'double'
   return surface
 }
 

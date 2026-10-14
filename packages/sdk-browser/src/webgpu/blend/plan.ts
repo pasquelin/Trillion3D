@@ -1,6 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts'
-import { surfaceSide, type PageSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
@@ -143,7 +143,7 @@ function sidesOf(item: BlendGpuItem) {
   // The record is read here, as its owner wrote it last: the plan is what must see a side
   // switched in place (see the room reserved above).
   const surface = item.surface
-  const side = surfaceSide(surface),
+  const side = surface.side,
     base = modeBase(surface, !!item.transmissive)
   if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front]
   if (side === 'front') return [base + front]

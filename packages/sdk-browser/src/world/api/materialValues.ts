@@ -2,7 +2,7 @@
  *  (`materialApi.ts`). */
 import { EngineError, type Material } from '../../../../sdk-core/src/index.ts'
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
-import { surfaceSide, type PageSurface } from '../../page/surface.ts'
+import type { PageSurface } from '../../page/surface.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import { metalRoughFamily } from '../../scene/surfaceModel.ts'
@@ -46,7 +46,7 @@ export function read(id: number | string, surface: PageSurface): SceneMaterial {
     metalness: surface.metalness,
     roughness: surface.roughness,
     emissive: [...surface.emissive],
-    side: surfaceSide(surface),
+    side: surface.side,
     alphaMode: alphaModeOf(surface),
     alphaCutoff: surface.alphaTest,
     tiling: map ? [map.repeat.x, map.repeat.y] : null,

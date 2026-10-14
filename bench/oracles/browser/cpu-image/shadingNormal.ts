@@ -59,7 +59,7 @@ export function shadingNormal(
     Nz = nx * cy - ny * cx
   const world = tri.world.elements
   const face = screenFace * (matrixWindingCw(world) ? -1 : 1),
-    side = mat.backSide ? -1 : 1
+    side = mat.side === 'back' ? -1 : 1
   const normalAttr = page.attributes.normal,
     tangentAttr = page.attributes.tangent
   normalMatrix3(normalScratch, world)
@@ -95,7 +95,7 @@ export function shadingNormal(
     Nx *= inverse
     Ny *= inverse
     Nz *= inverse
-    if (mat.doubleSided) {
+    if (mat.side === 'double') {
       Nx *= face
       Ny *= face
       Nz *= face
@@ -163,7 +163,7 @@ export function shadingNormal(
       scaleVector3(T, scale)
       scaleVector3(B, scale)
     }
-    if (mat.doubleSided && normalAttr) {
+    if (mat.side === 'double' && normalAttr) {
       scaleVector3(T, face)
       scaleVector3(B, face)
     }

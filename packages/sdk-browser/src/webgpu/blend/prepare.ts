@@ -120,13 +120,13 @@ function blendFlags(copy: BlendCopy, paged: boolean, fromPages: boolean, waterRa
     { attributes } = copy.geometry
   let flags = 0
   if (mat.lit) flags |= FLAG_LIT
-  if (mat.doubleSided) flags |= FLAG_DOUBLE
+  if (mat.side === 'double') flags |= FLAG_DOUBLE
   // Its own atlas may hold a second UV set alone (`buffers.ts`): the normals are the geometry's.
   if (attributes.normal) flags |= FLAG_HAS_NORMAL
   // A page stores no tangent: the fragment stage rebuilds the frame, as the opaque resolve does.
   if (attributes.tangent && !fromPages) flags |= FLAG_HAS_TANGENT
   if (mat.vertexColors && attributes.color) flags |= FLAG_HAS_COLOR
-  if (mat.backSide) flags |= FLAG_BACK
+  if (mat.side === 'back') flags |= FLAG_BACK
   if (paged) flags |= FLAG_PAGED
   if (fromPages) flags |= FLAG_CLUSTER_PAGE
   if (waterRank) flags |= FLAG_TRANSMISSIVE | (waterRank << WATER_RANK_SHIFT)

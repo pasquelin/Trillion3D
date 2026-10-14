@@ -5,7 +5,6 @@ import assert from 'node:assert/strict'
 import { materialSurface } from './pageObjects.ts'
 import type { Material } from '../../../sdk-core/src/index.ts'
 import { alphaModeFields } from './prepared/materials.ts'
-import { surfaceSide } from '../page/surface.ts'
 
 const CONTRACT: Material = {
   baseColor: [0.25, 0.5, 0.75],
@@ -34,7 +33,7 @@ test('a repainted surface draws its alpha mode by the one rule the open draws a 
 
 test('a surface built from the contract declares the side, the cutoff and its colours', () => {
   const surface = materialSurface(CONTRACT, false)
-  assert.equal(surfaceSide(surface), 'double')
+  assert.equal(surface.side, 'double')
   assert.equal(surface.alphaTest, 0.4, 'a masked surface carries its cutoff')
   assert.equal(surface.transparent, false, 'masking is not blending')
   assert.deepEqual(surface.baseColor, [0.25, 0.5, 0.75])

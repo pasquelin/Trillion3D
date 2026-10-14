@@ -11,7 +11,7 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import type { HostMesh, HostMaterials } from '../../host/resources.ts'
 import { clothPrimitives, preparedGraph } from '../../host/prepared/graph.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
-import { surfaceOf, surfaceSide } from '../../page/surface.ts'
+import { surfaceOf } from '../../page/surface.ts'
 import { emptyGeometryBlock, rowMaterial } from '../../webgpu/row/pageRowMaterial.ts'
 import { FLAG_DOUBLE } from '../../visibility/types.ts'
 import { createdSurface, assignment, PLAIN } from '../api/createdMaterials.ts'
@@ -26,19 +26,18 @@ import { drawSourceOf } from '../../page/selection/drawSource.ts'
 /**
  * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by
  * and the cut's cones open on, the row flag the material pass flips a back face's normal by and the
- * shadow raster culls nothing on, and the material record's own two-sided mark.
+ * shadow raster culls nothing on, both read off the record's side.
  */
 function faces(surface: HostMaterials) {
   const record = surfaceOf(surface)
   const layers = { mapLayer: new Map(), dataLayer: new Map() }
   return {
-    side: surfaceSide(record),
+    side: record.side,
     rowDouble: (rowMaterial(record, emptyGeometryBlock(), layers).flags & FLAG_DOUBLE) !== 0,
-    record: record.doubleSided,
   }
 }
-const BOTH = { side: 'double', rowDouble: true, record: true }
-const FRONT = { side: 'front', rowDouble: false, record: false }
+const BOTH = { side: 'double', rowDouble: true }
+const FRONT = { side: 'front', rowDouble: false }
 
 /** A world resource of one triangle, its pages none. */
 const cut = (): Cut =>

@@ -8,7 +8,6 @@ import {
   HALF_SLOTS,
 } from '../../../gpu/draw/draw.ts'
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts'
-import { surfaceSide } from '../../../page/surface.ts'
 import { windingCw } from '../render/winding.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
 
@@ -40,7 +39,7 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
 }
 
 export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {
-  const side = surfaceSide(rec.material)
+  const side = rec.material.side
   if (side === 'double') return BIN_NONE
   // Indirect pipelines share ccw front faces; a mirrored transform swaps which side
   // must be culled instead of requiring three more draw slots.

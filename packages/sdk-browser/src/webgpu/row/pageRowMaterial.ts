@@ -157,14 +157,14 @@ export function rowMaterial(
   let flags = 0
   if (mat.lit) flags |= FLAG_LIT
   if (mat.fog === false) flags |= FLAG_FOG_FREE
-  if (mat.doubleSided) flags |= FLAG_DOUBLE
+  if (mat.side === 'double') flags |= FLAG_DOUBLE
   if (geo?.hasUv) flags |= FLAG_HAS_UV
   if (map) flags |= FLAG_HAS_MAP
   if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL
   if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT
   // A dashed line cuts its gaps where a masked surface cuts its cutout (`maskKeep`).
   if (mat.alphaTest > 0 || mat.dashSize !== undefined) flags |= FLAG_MASK
-  if (mat.backSide) flags |= FLAG_BACK
+  if (mat.side === 'back') flags |= FLAG_BACK
   if (rough || metal) flags |= FLAG_HAS_ORM
   if (normal) flags |= FLAG_HAS_NORMAL_MAP
   // The material asks for its vertex colours, and the geometry has some: the forward rule.

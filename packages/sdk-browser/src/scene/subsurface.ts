@@ -16,6 +16,7 @@ export const SUBSURFACE_TARGET = loadOnlyTarget(
 )
 export function wantsSubsurface(rt: WebgpuPagesRuntime) {
   return surfacesOfRows(rt.layout.rows).some(
-    (surface) => surface.doubleSided && surface.subsurfaceColor?.some((component) => component > 0),
+    (surface) =>
+      surface.side === 'double' && surface.subsurfaceColor?.some((component) => component > 0),
   )
 }

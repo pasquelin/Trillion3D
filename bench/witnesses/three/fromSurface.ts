@@ -7,6 +7,7 @@
  */
 import * as THREE from 'three'
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts'
+import type { Side } from '../../../packages/sdk-core/src/index.ts'
 import { COLOUR_MAPS } from '../../../packages/sdk-core/src/world/material/material.ts'
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { PageSurface, SurfaceFamily } from '../../../packages/sdk-browser/src/page/surface.ts'
@@ -26,6 +27,12 @@ const FAMILIES: Record<SurfaceFamily, new () => THREE.Material> = {
   normal: THREE.MeshNormalMaterial,
   matcap: THREE.MeshMatcapMaterial,
   depth: THREE.MeshDepthMaterial,
+}
+/** The engine's sides in the library's numbers. */
+const SIDES: Record<Side, THREE.Side> = {
+  front: THREE.FrontSide,
+  back: THREE.BackSide,
+  double: THREE.DoubleSide,
 }
 /** The engine's blending words in the library's numbers. */
 const BLENDINGS: Record<Blending, THREE.Blending> = {
@@ -49,7 +56,7 @@ function parameters(s: PageSurface): Record<string, unknown> {
     coat = s.clearcoatNormalScale ?? [1, 1]
   return {
     name: s.name,
-    side: s.doubleSided ? THREE.DoubleSide : s.backSide ? THREE.BackSide : THREE.FrontSide,
+    side: SIDES[s.side],
     ...{ transparent: s.transparent, opacity: s.opacity, alphaTest: s.alphaTest },
     ...{ blending: BLENDINGS[s.blending], forceSinglePass: s.forceSinglePass },
     ...{ depthTest: s.depthTest, depthWrite: s.depthWrite, flatShading: s.flatShading },

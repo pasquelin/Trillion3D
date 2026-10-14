@@ -1,4 +1,4 @@
-import type { Texture } from '../../../sdk-core/src/index.ts'
+import type { Side, Texture } from '../../../sdk-core/src/index.ts'
 
 /** The anisotropy and clear-coat maps, in the order their record names them (`physicalTable.ts`). */
 export const PHYSICAL_MAP_FIELDS = [
@@ -15,8 +15,8 @@ export type VisMaterial = {
   lit: boolean
   /** False keeps this material's colour outside the scene's fog. */
   fog?: boolean
-  doubleSided: boolean
-  backSide: boolean
+  /** Which faces it draws: the pipelines' culling, the row's face flags, the cut's cones. */
+  side: Side
   alphaTest: number
   map?: Texture
   metalnessMap?: Texture

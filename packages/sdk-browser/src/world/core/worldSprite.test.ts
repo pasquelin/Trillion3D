@@ -17,7 +17,7 @@ import type { Seat } from './worldBatches.ts'
 import { boxTransform } from '../../../../sdk-core/src/index.ts'
 import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
-import { surfaceOf, surfaceSide } from '../../page/surface.ts'
+import { surfaceOf } from '../../page/surface.ts'
 import { blendSceneOf } from '../../webgpu/blend/plan.fixture.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
@@ -27,7 +27,7 @@ import { planCull } from '../../webgpu/blend/planCull.ts'
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false })
   const surface = hostSurface(picture, false, 'sprite')
-  assert.equal(surfaceSide(surface), 'double', 'a quad turned to the camera has no back')
+  assert.equal(surface.side, 'double', 'a quad turned to the camera has no back')
   assert.deepEqual(surface.sprite, { rotation: 0.4, sizeAttenuation: false })
   picture.rotation = 1.2
   picture.sizeAttenuation = true

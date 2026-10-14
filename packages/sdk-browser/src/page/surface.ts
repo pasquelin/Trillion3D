@@ -13,7 +13,6 @@
  * — are kept on it as declared, for a renderer that draws the family as it is.
  */
 import { saturate } from '../../../math/src/scalar/reals.ts'
-import type { Side } from '../../../sdk-core/src/index.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
 import type { Releasable } from '../host/graph/resource.ts'
@@ -67,12 +66,8 @@ const NOTHING = declareSurface({ family: 'basic' })
 export const surfaceOf = (material: HostMaterials): PageSurface =>
   Array.isArray(material) ? (material[0] ?? NOTHING) : material
 
-/** The side a record declares, in the engine's own enum: what the pipelines and their face
- *  culling, the cut's normal cones and the transparent plan compare against. */
-export const surfaceSide = (surface: PageSurface): Side =>
-  surface.doubleSided ? 'double' : surface.backSide ? 'back' : 'front'
 /** True when only the front faces are drawn: the one case a normal cone may reject a page. */
-export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) === 'front'
+export const surfaceFrontOnly = (surface: PageSurface) => surface.side === 'front'
 
 /** A surface's opacity, its colour factor's alpha, clamped: the light a blended one stops before
  *  its colour map's alpha, and what a masked one multiplies that alpha by before its cutoff. */
