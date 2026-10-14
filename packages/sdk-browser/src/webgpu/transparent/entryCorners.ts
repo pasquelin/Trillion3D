@@ -16,6 +16,7 @@ import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { liveBuffer } from '../core/liveEntries.ts'
 import { COMPOSE_ROWS_PASS } from '../../stage/passLabels.ts'
 import { composeGroup, heldGroup } from '../../placement/composeGroups.ts'
+import { passParams, writePassParams } from '../../placement/gpuComposeGpu.ts'
 import { grownRowBox } from '../../placement/rowInputPack.ts'
 import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
@@ -41,9 +42,8 @@ export function createEntryCorners() {
   return {
     inputs: undefined as GPUBuffer | undefined,
     list: undefined as GPUBuffer | undefined,
-    params: undefined as GPUBuffer | undefined,
+    params: passParams('Trillion3D transparent entry params'),
     absent: undefined as GPUBuffer | undefined,
-    words: new Uint32Array(4),
     scratch: new Uint32Array(0),
     box: new Float64Array(6),
     /** Every entry is derived at the next pass; else the first `count` of `targets`. */
@@ -133,11 +133,6 @@ export function encodeEntryCorners(
     listed = held.all ? capacity : held.count
   if (!listed || !worlds || !held.inputs) return
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  held.params ??= device.createBuffer({
-    label: 'Trillion3D transparent entry params',
-    size: 16,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
   held.absent ??= device.createBuffer({ label: 'Trillion3D no entry list', size: 16, usage })
   if (!held.all) {
     held.list = sizedBuffer(
@@ -149,14 +144,10 @@ export function encodeEntryCorners(
     )
     device.queue.writeBuffer(held.list, 0, held.targets, 0, held.count)
   }
-  const { words } = held
-  words[0] = rt.layout.selectionRoots.length
-  words[1] = listed
-  words[2] = held.all ? 1 : 0
-  device.queue.writeBuffer(held.params, 0, words)
+  writePassParams(device, held.params, rt.layout.selectionRoots.length, listed, held.all ? 1 : 0)
   const pipeline = entryKernel(device).get()
   held.group.identity.entries[0] ??= sequentialEntries([
-    liveBuffer(() => held.params),
+    liveBuffer(() => held.params.buffer),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => held.inputs),
     liveBuffer(() => held.corners),
@@ -176,5 +167,6 @@ export function encodeEntryCorners(
 
 /** The entries pass's buffers, destroyed with the transparent table. */
 export function disposeEntryCorners(held: EntryCorners | undefined) {
-  for (const buffer of [held?.inputs, held?.list, held?.params, held?.absent]) buffer?.destroy()
+  for (const buffer of [held?.inputs, held?.list, held?.params.buffer, held?.absent])
+    buffer?.destroy()
 }
