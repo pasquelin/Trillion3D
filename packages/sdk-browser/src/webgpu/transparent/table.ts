@@ -5,6 +5,7 @@ import type { BlendGpuItem } from '../blend/state.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
@@ -171,25 +172,21 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
   return table
 }
 
-/** The entries of `table` made room for `needed` of them. */
+/** The entries of `table` made room for `needed` of them, a group at least, by the one growth rule
+ *  of a table (`resized`): the spans and pages beside them at the entries' new capacity. */
 function growEntries(table: TransparentTable, needed: number) {
   if (table.capacity && needed <= table.capacity) return
-  const capacity = Math.max(TRANSPARENT_GROUP, needed, table.length ? 2 * table.capacity : 0)
   // Padding entries name no cluster: never selected, never drawn.
-  const entries = new Uint32Array(capacity).fill(NO_INDEX)
-  entries.set(table.entries)
-  const spans = new Uint32Array(capacity * 4)
-  spans.set(table.spans)
-  const pageOfEntry = new Int32Array(capacity).fill(-1)
-  pageOfEntry.set(table.pageOfEntry)
-  Object.assign(table, { entries, spans, pageOfEntry, capacity })
+  const entries = resized(table.entries, Math.max(TRANSPARENT_GROUP, needed), NO_INDEX),
+    capacity = entries.length
+  table.entries = entries
+  table.spans = resized(table.spans, capacity * 4)
+  table.pageOfEntry = resized(table.pageOfEntry, capacity, -1)
+  table.capacity = capacity
   table.groupCount = workgroupCount(capacity, TRANSPARENT_GROUP)
 }
 
-/** The item ranges of `table` made room for `needed` items. */
+/** The item ranges of `table` made room for `needed` items (`resized`). */
 function growItems(table: TransparentTable, needed: number) {
-  if (needed * 2 <= table.itemRanges.length) return
-  const ranges = new Uint32Array(Math.max(needed, 2 * table.pagedItems.length) * 2)
-  ranges.set(table.itemRanges)
-  table.itemRanges = ranges
+  table.itemRanges = resized(table.itemRanges, needed * 2)
 }

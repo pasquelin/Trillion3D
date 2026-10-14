@@ -5,6 +5,8 @@ import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts'
 import { writeVolumeTerms } from '../material/materialRecord.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 
 /** The volume's terms as its surface's record holds them (`writeVolumeTerms`: `transmission`, the
  *  refraction ratio 1 / ior, `thickness`, Fresnel's f0, then aligned the law's constant `k`), the
@@ -107,25 +109,26 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** The volume table made to hold the transmissive items the session holds now: the records it has
- *  stay at their rank, a table that fills is copied once into one twice as long. */
+ *  stay at their rank (`resized`), the buffer grown by the engine's one rule (`sizedBuffer`), the old
+ *  one retired; the records are written again with the scene (`writeVolumeRecords`). */
 export function growVolumes(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
-    held = blendState.volumePacked
-  const words = blendState.transmissive * VOLUME_WORDS
-  if (words <= held.length) return
-  const packed = new Float32Array(Math.max(words, 2 * held.length))
-  packed.set(held)
+    packed = resized(blendState.volumePacked, blendState.transmissive * VOLUME_WORDS)
+  if (packed === blendState.volumePacked) return
   blendState.volumePacked = packed
-  const outgrown = gpu.volumeBuffer
-  gpu.volumeBuffer = createVolumeBuffer(device, packed.length / VOLUME_WORDS)
-  outgrown?.destroy()
+  gpu.volumeBuffer = volumeBuffer(device, gpu.volumeBuffer, packed.length / VOLUME_WORDS)
 }
 
+/** `held` where it holds `transmissive` volumes, else one grown to hold them. */
+const volumeBuffer = (device: GPUDevice, held: GPUBuffer | undefined, transmissive: number) =>
+  sizedBuffer(
+    device,
+    held,
+    Math.max(1, transmissive) * VOLUME_WORDS * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    'Trillion3D transmissive volumes',
+  )
+
 /** Volume buffer, sized to the scene's transmissive-item count. */
-export function createVolumeBuffer(device: GPUDevice, transmissive: number) {
-  return device.createBuffer({
-    label: 'Trillion3D transmissive volumes',
-    size: Math.max(1, transmissive) * VOLUME_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-}
+export const createVolumeBuffer = (device: GPUDevice, transmissive: number) =>
+  volumeBuffer(device, undefined, transmissive)

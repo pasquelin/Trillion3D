@@ -8,6 +8,7 @@ import { validated } from '../../gpu/core/errorScope.ts'
 import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { uniformStride } from '../../residency/pools.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 
 /**
  * Everything the transparent pass holds of the SCENE, mounted at the open (`mountBlendResources`):
@@ -36,13 +37,15 @@ export async function prepareBlendKernels(rt: WebgpuPagesRuntime, device: GPUDev
 /**
  * The scene buffers of the blended items the session holds, mounted on the compiled kernels. The
  * open mounts them once; a session that gains blended items mounts them again over all of its
- * items (`growBlend`): everything the previous mount made is released here, expansion included,
- * and the groups that cited it are voided by their identity at the next pass.
+ * items (`growBlend`): the expansion is made again, and each scene buffer is the one held where it
+ * holds the items, else grown by the engine's one rule (`sizedBuffer`), the old one retired; the
+ * groups that cited a buffer replaced are voided by their identity at the next pass.
  */
 export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu
-  disposeBlendResources(blendState)
+  blendState.expand?.dispose()
+  blendState.expand = undefined
   // A paged item without quantized pages reads the concatenated geometry, the very same as the
   // opaque pass: its first vertex there is the block of its source geometry.
   for (const item of items)
@@ -64,16 +67,20 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // The verdict's buffers are new: no count read back before holds for them.
   blendState.verdictEpoch++
   refreshBlendScene(rt, device)
-  blendState.expandedBuffer = device.createBuffer({
-    label: 'Trillion3D blend expanded instances',
-    size: blendState.instanceCapacity * 8,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  blendState.argsBuffer = device.createBuffer({
-    label: 'Trillion3D blend indirect arguments',
-    size: slotCapacity(entries) * 16 * EXPAND_PASSES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
-  })
+  blendState.expandedBuffer = sizedBuffer(
+    device,
+    blendState.expandedBuffer,
+    blendState.instanceCapacity * 8,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    'Trillion3D blend expanded instances',
+  )
+  blendState.argsBuffer = sizedBuffer(
+    device,
+    blendState.argsBuffer,
+    slotCapacity(entries) * 16 * EXPAND_PASSES,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+    'Trillion3D blend indirect arguments',
+  )
   blendState.expand = mountBlendExpand(
     device,
     blendState.kernels!,
@@ -99,20 +106,24 @@ function allocateBlendRecords(blendState: WebgpuPagesRuntime['blendState'], devi
   const count = blendState.blendGpu.length
   blendState.itemPacked = new Float32Array(count * BLEND_ITEM_WORDS)
   blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer)
-  blendState.itemBuffer = device.createBuffer({
-    label: 'Trillion3D blend item records',
-    size: count * BLEND_ITEM_WORDS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  blendState.viewBuffer = device.createBuffer({
-    label: 'Trillion3D blend view uniform',
-    size: BLEND_VIEW_SIZE,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  blendState.itemBuffer = sizedBuffer(
+    device,
+    blendState.itemBuffer,
+    count * BLEND_ITEM_WORDS * 4,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    'Trillion3D blend item records',
+  )
+  blendState.viewBuffer = sizedBuffer(
+    device,
+    blendState.viewBuffer,
+    BLEND_VIEW_SIZE,
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    'Trillion3D blend view uniform',
+  )
 }
 
-/** Releases the transparent pass's scene buffers; the groups that cited them are voided by their
- *  identity at the next pass. */
+/** Releases the transparent pass's scene buffers, at the session's end or a refused mount; the
+ *  groups that cited them are voided by their identity at the next pass. */
 export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
   blendState.expand?.dispose()
   blendState.expand = undefined

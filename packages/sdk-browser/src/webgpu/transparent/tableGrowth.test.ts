@@ -80,6 +80,7 @@ test('a full table doubles, copies the rows it held once, and leaves the entries
   assert.equal(table.itemRanges.length, 8)
   table.append([roots[3], roots[4]], 3, [items[3], items[4]])
   assert.equal(table.capacity, 8 * TRANSPARENT_GROUP)
-  assert.equal(table.itemRanges.length, 12)
+  // The item ranges by the one growth rule of a table (`resized`): twice the words held.
+  assert.equal(table.itemRanges.length, 16)
   assert.equal(table.length, 5 * TRANSPARENT_GROUP)
 })
