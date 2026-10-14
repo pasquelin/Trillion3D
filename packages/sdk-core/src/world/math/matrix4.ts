@@ -20,8 +20,6 @@ const t = new Float64Array(3),
 const ORIGIN = [0, 0, 0],
   UNIT = [1, 1, 1]
 
-/** The 3×3 matrix, beside this one since the scene layer first read both from here. */
-
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {
   /** Always `true`: tells a 4×4 matrix apart. */ readonly isMatrix4 = true as const
