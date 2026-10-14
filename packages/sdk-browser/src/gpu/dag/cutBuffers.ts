@@ -70,9 +70,10 @@ export const cutBytes = (resources: {
   (resources.readbacks?.bytes ?? 0)
 
 /** What a cut holds that a resource of its own is admitted against (`cutBuffer`, `cutTexture`). */
-type CutHolder = Parameters<typeof cutBytes>[0] & {
+type CutHolder = {
   buffers: GPUBuffer[]
   textures: { texture: GPUTexture; bytes: number }[]
+  readbacks?: { readonly bytes: number }
   device: GPUDevice
   admit: CutAdmission
   share: number
