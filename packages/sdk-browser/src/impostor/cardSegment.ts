@@ -17,10 +17,19 @@ export function segmentOf(state: ImpostorCards, mesh: number): CardSegment {
     segment = {
       mesh,
       entry: state.baked.get(mesh)!,
-      ...{ start: state.slots.used, capacity: 0, count: 0, cards: [], holders: new Map() },
-      ...{ eligible: core.createDenseKeySet(), box: new Float64Array(6), stale: false },
-      ...{ radii: Float64Array.of(Infinity, 0), tiles: state.hooks.tilesOf(mesh) },
-      ...{ hold: core.createCardHold(), ready: false, gated: false, pending: [] },
+      start: state.slots.used,
+      capacity: 0,
+      count: 0,
+      cards: [],
+      holders: new Map(),
+      eligible: core.createDenseKeySet(),
+      box: new Float64Array(6),
+      stale: false,
+      radii: Float64Array.of(Infinity, 0),
+      tiles: state.hooks.tilesOf(mesh),
+      hold: core.createCardHold(),
+      state: 'unseen',
+      pending: [],
     }
     boxEmpty(segment.box, 0)
     state.segments.set(mesh, segment)

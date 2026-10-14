@@ -24,7 +24,8 @@ export function drawable(state: ImpostorCards, cam: EngineCamera, focal: number)
     if (frustumExcludesBox(cam.planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
       // Out of view, its maps' tiles go back to the queue: the view asks them again.
       state.hooks.release(hold)
-      if (!segment.gated) for (const rank of pending) cardAt(state, segment, rank, true)
+      if (segment.state !== 'waiting')
+        for (const rank of pending) cardAt(state, segment, rank, true)
       pending.length = 0
       continue
     }
@@ -32,13 +33,11 @@ export function drawable(state: ImpostorCards, cam: EngineCamera, focal: number)
     const { tiles } = segment
     const ready =
         tiles !== undefined && state.hooks.ready(tiles, cardAsk(segment, cam.eye, focal), hold),
-      held = segment.ready && !segment.gated,
-      gated = segment.gated
-    segment.ready = ready
-    segment.gated = !ready
+      was = segment.state
+    segment.state = ready ? 'ready' : 'waiting'
     // In view and not ready, its roots keep their clusters until its tiles land; once ready, each
-    // takes its card.
-    if (!ready ? !gated : !held) {
+    // takes its card: every root again whenever the state changed.
+    if (segment.state !== was) {
       const { list, count } = segment.eligible
       for (let i = 0; i < count; i++) cardAt(state, segment, list[i], ready)
     }
@@ -55,5 +54,5 @@ function cardAt(state: ImpostorCards, segment: CardSegment, rank: number, card: 
   if (!segment.eligible.has(rank)) return
   mark(state, rank, card)
   if (!card) giveCard(state, segment, rank)
-  else if (segment.ready) takeCard(state, segment, rank)
+  else if (segment.state === 'ready') takeCard(state, segment, rank)
 }

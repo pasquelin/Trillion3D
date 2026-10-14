@@ -50,10 +50,10 @@ export type CardSegment = {
   tiles: CardTiles | undefined
   /** What its cards hold of its maps while in view (`CardHold`). */
   hold: CardHold
-  /** Whether its maps held what its cards read the last image that asked them. */
-  ready: boolean
-  /** Asked in view and found not ready: its roots keep their clusters until its tiles land. */
-  gated: boolean
+  /** What the last image that asked its maps found: none asked yet (`unseen`); they held what its
+   *  cards read (`ready`); not ready, its roots keep their clusters until its tiles land
+   *  (`waiting`). */
+  state: 'unseen' | 'ready' | 'waiting'
   /** Roots switched this image while the mesh's maps were not ready: the view decides their bit. */
   pending: number[]
 }
