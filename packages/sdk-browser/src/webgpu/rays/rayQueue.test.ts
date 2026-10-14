@@ -7,6 +7,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { FakeDeviceOptions } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import type { ComputeBind } from '../../../../../tests/kit/gpu/fakeCompute.ts'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
+import { RAY_PARAMS } from './deformIndexWgsl.ts'
+import { HIT_FOUND, RAY_HIT } from './rayRecord.ts'
+import { rayFilterRanks } from './rayFilter.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
@@ -15,9 +22,15 @@ import { createRayQueue } from './rayQueue.ts'
 import { dagBindingOf } from '../../gpu/dag/shader/bindings.fixture.ts'
 
 /** A session's tables on the kit's device, as the queue reads them: `placements` placements, two
- *  rows, the cut's record tables one texel each. */
-function rig(placements = 1) {
-  const gpu = fakeDevice()
+ *  rows, the cut's record tables one texel each; `kernel`, a test's double of a kernel. */
+function rig(
+  placements = 1,
+  {
+    kernel,
+    selectionRoots = [],
+  }: Pick<FakeDeviceOptions, 'kernel'> & { selectionRoots?: unknown[] } = {},
+) {
+  const gpu = fakeDevice({ kernel, deferred: true })
   const buffer = (label: string) =>
     gpu.device.createBuffer({
       label,
@@ -45,7 +58,7 @@ function rig(placements = 1) {
     run: { lost: false, gpuSelection: { cutTables: () => tables } },
     gpu: { cache: { buffer: buffer('pool') } },
     vis: { pageTable: buffer('pages'), concatPos: buffer('positions'), zeroFlags: buffer('zero') },
-    layout: { rows, selectionRoots: [], packedPages: [], recordOf: () => undefined },
+    layout: { rows, selectionRoots, packedPages: [], recordOf: () => undefined },
     blendState: {},
   } as unknown as WebgpuPagesRuntime
   return { gpu, queue: createRayQueue(rt, gpu.device) }
@@ -108,5 +121,46 @@ test("a world of any size is traced by one dispatch, its tables at the culling's
   )
   // The trace's own group: its uniform, then its three storage buffers.
   assert.equal([...gpu.bindGroups.at(-1)!.entries].length, 4)
+  queue.dispose()
+})
+
+/** The trace's double: ray 0 meets triangle 1 of page 0 of placement 0, 8 along, facing +z — the
+ *  words the shipped kernel writes at the ray's rank (`rqAnswer`). */
+const traceDouble = (entry: string, bind: unknown) => {
+  if (entry !== 'traceRays') return undefined
+  return () => {
+    const data = (binding: number) =>
+      (bind as ComputeBind).entries.find((e) => e.binding === binding)!.resource.buffer.data
+    const params = data(0),
+      query = data(1)
+    const words = new Uint32Array(query.buffer, query.byteOffset, query.byteLength / 4),
+      floats = new Float32Array(query.buffer, query.byteOffset, query.byteLength / 4)
+    const at = new Uint32Array(params.buffer, params.byteOffset, RAY_PARAMS.words)[
+      RAY_PARAMS.at.hitWord
+    ]
+    words[at + RAY_HIT.at.flags] = HIT_FOUND
+    words[at + RAY_HIT.at.placement] = 0
+    words[at + RAY_HIT.at.page] = 0
+    words[at + RAY_HIT.at.triangle] = 1
+    floats.set([0, 0, 1], at + RAY_HIT.at.normal)
+    floats[at + RAY_HIT.at.distance] = 8
+  }
+}
+
+test('a cast answers the mesh whose instance row places the placement the trace met', async () => {
+  // A world's batch and a loaded model's meshes are placed by rows: the root's pages name no node,
+  // its row's owner is the mesh (`drawnNode`) — the one a hit names and a filter lists.
+  const mesh = new Object3D()
+  const root = { pages: [], placement: { rows: { sources: [mesh] }, index: 0 } }
+  const { queue } = rig(1, { kernel: traceDouble, selectionRoots: [root] })
+  const hit = await queue.cast(ray(0))
+  assert.ok(hit, 'the hit the trace wrote')
+  assert.equal(hit.object, mesh)
+  assert.equal(hit.distance, 8)
+  assert.deepEqual(hit.point.toArray(), [0, 0, -3])
+  assert.deepEqual(hit.normal.toArray(), [0, 0, 1])
+  assert.equal(hit.face, 1, `page 0, triangle 1 (${VIS_TRIANGLE_BITS} bits a page)`)
+  const roots = [root] as unknown as Parameters<typeof rayFilterRanks>[0]
+  assert.deepEqual(rayFilterRanks(roots, { objects: [mesh] }), { ranks: [0], include: true })
   queue.dispose()
 })

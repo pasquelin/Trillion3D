@@ -11,20 +11,22 @@ import { nextInSubtree } from '../../../../../sdk-core/src/world/transform-tree/
 type Roots = readonly ClusterRoot<PageRec>[]
 
 /** The entries of one list by their source node's slot in `tree`: the node and the entries' ranks.
- *  Built once per list and again when it grew in place. */
+ *  Built once per list and reading of its source (`sourceOf`), and again when it grew in place. */
 type BySlot = {
   tree: TransformTree
   length: number
   slots: Map<number, { node: Object3D; ranks: number[] }>
 }
-const bySlotOf = new WeakMap<readonly unknown[], BySlot>()
+const bySlotOf = new WeakMap<object, WeakMap<readonly unknown[], BySlot>>()
 
 function bySlot<E>(
   entries: readonly E[],
   sourceOf: (entry: E) => Object3D | undefined,
   tree: TransformTree,
 ) {
-  const held = bySlotOf.get(entries)
+  let lists = bySlotOf.get(sourceOf)
+  if (!lists) bySlotOf.set(sourceOf, (lists = new WeakMap()))
+  const held = lists.get(entries)
   if (held?.tree === tree && held.length === entries.length) return held.slots
   const slots: BySlot['slots'] = new Map()
   for (let i = 0; i < entries.length; i++) {
@@ -34,7 +36,7 @@ function bySlot<E>(
     if (at?.node === node) at.ranks.push(i)
     else slots.set(node.index, { node, ranks: [i] })
   }
-  bySlotOf.set(entries, { tree, length: entries.length, slots })
+  lists.set(entries, { tree, length: entries.length, slots })
   return slots
 }
 

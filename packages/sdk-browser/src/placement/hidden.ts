@@ -15,6 +15,14 @@ export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry
 export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(root: ClusterRoot<T>) =>
   root.pages[0]?.drawSource?.node
 
+/** The scene node a root draws: its first page's mesh (`rootSource`), or, for a root an instance
+ *  row places — a world's batch, a loaded model's mesh —, the mesh that row belongs to
+ *  (`PlacementRows.sources`). What a ray's hit and a ray's filter name (`../webgpu/rays/`). */
+export const drawnNode = <T extends { drawSource?: { node?: Object3D } }>(
+  root: ClusterRoot<T>,
+): Object3D | undefined =>
+  rootSource(root) ?? root.placement?.rows.sources?.[root.placement.index] ?? undefined
+
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 
