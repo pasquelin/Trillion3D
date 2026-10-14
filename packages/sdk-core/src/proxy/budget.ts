@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
-import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
+import { clamp, clampLowWins, lerp } from '../../../math/src/scalar/reals.ts'
 
 /**
  * THE ONE BUDGET OF THE PROXY'S RAYS, a GPU duration, never a ray count: the reflections' rays and the
@@ -56,9 +56,10 @@ export function createProxyBudget(budgetMs: number): ProxyBudget {
       if (!measured(probeMs)) return
       lastMs = probeMs
       samples++
-      const left = Math.max(
-        Math.min(share - (measured(reflectionMs) ? reflectionMs : 0), share * probeShare),
+      const left = clampLowWins(
+        share - (measured(reflectionMs) ? reflectionMs : 0),
         share * budgetFloor,
+        share * probeShare,
       )
       const wanted = clamp((load * left) / probeMs, budgetFloor, 1)
       load = clamp(lerp(load, wanted, budgetSmoothing), budgetFloor, 1)

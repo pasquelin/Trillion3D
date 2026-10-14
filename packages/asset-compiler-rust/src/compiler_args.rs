@@ -64,7 +64,9 @@ pub fn job_options(
     cancelled: Arc<AtomicBool>,
 ) -> std::result::Result<Options, String> {
     if let Some(key) = job.keys().find(|key| {
-        !JOB_FIELDS.contains(&key.as_str()) && key != ID_FIELD && key != TEXTURES_FORMAT_FIELD
+        !JOB_FIELDS.contains(&key.as_str())
+            && key.as_str() != ID_FIELD
+            && key.as_str() != TEXTURES_FORMAT_FIELD
     }) {
         return Err(format!("unknown job field {key}"));
     }
