@@ -17,7 +17,7 @@
  */
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
-import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
+import { grownByCopy } from '../gpu/core/tableGrowth.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import { joinedRanges } from '../gpu/dag/runWrites.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -72,8 +72,8 @@ export function noteRootWorld(rt: Pick<WebgpuPagesRuntime, 'rootWorlds'>, rank: 
   rootWorldsOf(rt).moved.mark(rank)
 }
 
-/** The tables at `roots` roots, grown when they no longer hold them by the one growth transaction
- *  (`pendingMade`): the roots held so far copied on the GPU into the new ones — worlds the
+/** The tables at `roots` roots, grown when they no longer hold them by the one growth's release
+ *  (`grownByCopy`): the roots held so far copied on the GPU into the new ones — worlds the
  *  composition wrote and boxes the root boxes pass derived among them —, never zeroed nor sent
  *  again, and the old ones retired, freed after the frame's submit that may still name them. */
 function ensureTables(device: GPUDevice, held: RootWorlds, roots: number) {
@@ -85,24 +85,18 @@ function ensureTables(device: GPUDevice, held: RootWorlds, roots: number) {
   const worlds = table('Trillion3D root worlds', ROOT_WORLD_WORDS),
     boxes = table('Trillion3D root world boxes', ROOT_BOX_WORDS),
     locals = table('Trillion3D root local boxes', ROOT_LOCAL_WORDS)
-  if (held.worlds && held.held) {
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D root worlds growth' })
-    const copy = (from: GPUBuffer, to: GPUBuffer, words: number) =>
-      encoder.copyBufferToBuffer(from, 0, to, 0, held.held * words * 4)
-    copy(held.worlds, worlds, ROOT_WORLD_WORDS)
-    copy(held.boxes!, boxes, ROOT_BOX_WORDS)
-    copy(held.locals!, locals, ROOT_LOCAL_WORDS)
-    device.queue.submit([encoder.finish()])
+  const old = [held.worlds, held.boxes, held.locals],
+    kept = held.worlds ? held.held : 0
+  const copy = (encoder: GPUCommandEncoder) => {
+    encoder.copyBufferToBuffer(old[0]!, 0, worlds, 0, kept * ROOT_WORLD_WORDS * 4)
+    encoder.copyBufferToBuffer(old[1]!, 0, boxes, 0, kept * ROOT_BOX_WORDS * 4)
+    encoder.copyBufferToBuffer(old[2]!, 0, locals, 0, kept * ROOT_LOCAL_WORDS * 4)
   }
-  const made = [worlds, boxes, locals]
-  pendingBuffers(device, made, () => {
-    const old = [held.worlds, held.boxes, held.locals]
-    held.worlds = worlds
-    held.boxes = boxes
-    held.locals = locals
-    held.capacity = capacity
-    return old
-  }).commit()
+  held.worlds = worlds
+  held.boxes = boxes
+  held.locals = locals
+  held.capacity = capacity
+  grownByCopy(device, old, kept ? copy : undefined, 'Trillion3D root worlds growth')
 }
 
 /** Roots `[from, to)`, past the session's, that the running cut took in place: their worlds and

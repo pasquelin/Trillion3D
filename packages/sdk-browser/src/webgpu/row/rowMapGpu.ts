@@ -1,8 +1,7 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { writeRanges } from '../../gpu/dag/runWrites.ts'
 import { ROW_MAP_HEAD } from './rowMapWgsl.ts'
-import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
-import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
 
 /** What the row cache's page→row map (`pageState.ts`) wrote since the GPU's copy was last sent:
  *  the slots, or a rebuild of its tables — then sent whole. */
@@ -38,7 +37,7 @@ const words = (a: Int32Array<ArrayBuffer>) => new Uint32Array(a.buffer, a.byteOf
  * second hash and no mirror on the host: the map is the cache's own. The CPU never reads it back.
  */
 export function createRowMapGpu(
-  device: Pick<GPUDevice, 'queue' | 'createBuffer'>,
+  device: GPUDevice,
   map: MapTables,
   journal: RowMapJournal,
   /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */

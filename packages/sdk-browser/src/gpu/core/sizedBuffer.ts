@@ -1,15 +1,20 @@
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
-import type { BufferMaker } from '../dag/cutBuffers.ts'
+import { grownByCopy } from './tableGrowth.ts'
+
+/** Makes a buffer, in place of `old` when it replaces one: a cut's (`../dag/cutBuffers.ts`,
+ *  `cutBuffer`), which may refuse. */
+export type BufferMaker = (descriptor: GPUBufferDescriptor, old?: GPUBuffer) => GPUBuffer
 
 /**
  * The engine's one rule for a GPU list or table grown by the CPU: `held` itself when it holds
- * `bytes`, else `held` destroyed and a buffer of `usage` made at the grown size (`grownLength`, twice
- * `held`'s at least) — what it held is not copied. The caller tells a buffer made anew by identity.
- * A buffer `make` makes in `held`'s place — a cut's (`cutBuffer`), which may refuse — is made
- * first: a refusal throws with `held` whole.
+ * `bytes`, else a buffer of `usage` made at the grown size (`grownLength`, twice `held`'s at
+ * least), then `held` released by the one growth's release (`grownByCopy`): retired, since the
+ * image being encoded may still name it. What it held is not copied: the caller tells a buffer
+ * made anew by identity. One order whatever makes it — the device, or `make` (a cut's, which may
+ * refuse: a refusal throws with `held` whole) —: made first, released after.
  */
 export function sizedBuffer(
-  device: Pick<GPUDevice, 'createBuffer'>,
+  device: GPUDevice,
   held: GPUBuffer | undefined,
   bytes: number,
   usage: GPUBufferUsageFlags,
@@ -18,11 +23,7 @@ export function sizedBuffer(
 ) {
   if (held && held.size >= bytes) return held
   const descriptor = { label, size: grownLength(held ? held.size : 0, bytes), usage }
-  if (!make) {
-    held?.destroy()
-    return device.createBuffer(descriptor)
-  }
-  const made = make(descriptor, held)
-  held?.destroy()
+  const made = make ? make(descriptor, held) : device.createBuffer(descriptor)
+  if (held) grownByCopy(device, [held])
   return made
 }

@@ -1,8 +1,7 @@
 import { createPoolSortKit, poolSortBytes } from '../../gpu/pool/sortKit.ts'
 import { ROW_BURST } from '../../gpu/dag/readoutWords.ts'
 import { ROW_SORT_WGSL } from './rowEvictSortWgsl.ts'
-import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
-import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
 
 /** Words of the sort's uniform: the clock, the live rows, the queue's first word in `out`, its
  *  burst. */

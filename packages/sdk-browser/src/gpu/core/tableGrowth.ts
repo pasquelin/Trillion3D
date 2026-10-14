@@ -38,9 +38,31 @@ export function pendingMade(
 ): PendingGrowth {
   return {
     bytes,
-    commit: () => adopt().forEach((held) => held && retire(device, held)),
+    commit: () => grownByCopy(device, adopt()),
     destroy: () => made.forEach((resource) => resource?.destroy()),
   }
+}
+
+/**
+ * THE ONE RELEASE OF A RESOURCE GROWN: the resources that replace `held` made and swapped in by the
+ * caller, what `copy` encodes of `held` into them submitted first — under `label` —, then `held`
+ * retired (`retire`): commands of this image not yet submitted may name it, so it is destroyed after
+ * the frame's submit. A growth that waits for no refusal calls it at once — a table grown by the
+ * CPU (`sizedBuffer.ts`), with no copy; the roots' tables (`../../placement/rootWorlds.ts`) and the
+ * proxy's arena (`../dag/proxyArena.ts`), copied —; a pending one at its `commit`.
+ */
+export function grownByCopy(
+  device: GPUDevice,
+  held: readonly Freed[],
+  copy?: (encoder: GPUCommandEncoder) => void,
+  label?: string,
+) {
+  if (copy) {
+    const encoder = device.createCommandEncoder({ label })
+    copy(encoder)
+    device.queue.submit([encoder.finish()])
+  }
+  for (const resource of held) if (resource) retire(device, resource)
 }
 
 /** The growth of `buffers`: `adopt` installs them and returns those they replace, then retired. */

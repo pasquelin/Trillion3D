@@ -15,7 +15,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { createSpans } from '../../bounce/spans.ts'
-import { retire } from '../core/frameRetire.ts'
+import { grownByCopy } from '../core/tableGrowth.ts'
 import {
   RUNTIME_HEADER_WORDS,
   RUNTIME_WORLD_WORDS,
@@ -123,17 +123,17 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     buffer = undefined
     if (!old) return
     const next = made()
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D run-time proxy growth' })
-    const copy = (from: number, to: number, count: number) =>
-      count > 0 && encoder.copyBufferToBuffer(old, byteAt(from), next, byteAt(to), count * 4)
-    copy(before.triangles, layout.triangles, triangles.extent * PROXY_TRIANGLE_FLOATS)
-    copy(before.bounds, layout.bounds, nodes.extent * PROXY_NODE_FLOATS)
-    copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
-    copy(before.deform, layout.deform, corners.extent)
-    device.queue.submit([encoder.finish()])
-    // The old buffer may be recorded in commands of this image not yet submitted: retired, it is
-    // destroyed after the frame's submit (`gpu/core/frameRetire.ts`), as every grown table's.
-    retire(device, old)
+    // The columns carried over, the old buffer retired by the one growth's release: commands of
+    // this image not yet submitted may name it (`grownByCopy`).
+    const carry = (encoder: GPUCommandEncoder) => {
+      const copy = (from: number, to: number, count: number) =>
+        count > 0 && encoder.copyBufferToBuffer(old, byteAt(from), next, byteAt(to), count * 4)
+      copy(before.triangles, layout.triangles, triangles.extent * PROXY_TRIANGLE_FLOATS)
+      copy(before.bounds, layout.bounds, nodes.extent * PROXY_NODE_FLOATS)
+      copy(before.children, layout.children, nodes.extent * PROXY_NODE_WORDS)
+      copy(before.deform, layout.deform, corners.extent)
+    }
+    grownByCopy(device, [old], carry, 'Trillion3D run-time proxy growth')
   }
 
   /** A surface's slot under a tint (`NO_TINT`: its own), its words written the first time and each

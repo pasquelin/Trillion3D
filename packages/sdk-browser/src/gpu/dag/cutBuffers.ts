@@ -72,8 +72,6 @@ type CutHeld = {
 /** A cut whose buffers a resource made joins (`cutBuffer`, `cutTexture`). */
 type CutHolder = CutHeld & { buffers: GPUBuffer[] }
 
-/** Makes a buffer, in place of `old` when it replaces one: a cut's (`cutBuffer`). */
-export type BufferMaker = (descriptor: GPUBufferDescriptor, old?: GPUBuffer) => GPUBuffer
 /** Makes a record texture's texture, `bytes` large, in place of `old` when it replaces one. */
 export type TextureMaker = (
   descriptor: GPUTextureDescriptor,

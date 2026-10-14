@@ -1,7 +1,6 @@
 import { createChangedRuns } from '../residency/ranges.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import type { BufferMaker } from '../../gpu/dag/cutBuffers.ts'
-import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
 
 /** The use words' buffer: a cut's (`cutBuffer`). */
 const LABEL = 'Trillion3D DAG row use'
@@ -111,7 +110,7 @@ export type RowUseWords = ReturnType<typeof createRowUseWords>
  * the buffer was made anew: the bind groups follow.
  */
 export function createRowUseWordsGpu(
-  device: Pick<GPUDevice, 'queue' | 'createBuffer'>,
+  device: GPUDevice,
   /** Makes its buffer, in place of the one it outgrew: the cut's (`cutBuffer`). */
   make: BufferMaker,
 ) {
