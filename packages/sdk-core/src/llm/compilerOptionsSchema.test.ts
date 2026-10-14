@@ -31,6 +31,8 @@ test('compiler arguments accept a real job and refuse missing, mistyped or unkno
     { simplification: false },
     { threads: 0 },
     { threads: 1.5 },
+    { threads: 65 },
+    { triangleBudget: 0 },
     { ramBudgetMb: 63 },
     { ramBudgetMb: '128' },
     { triangleBudget: 2.5 },

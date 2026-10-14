@@ -17,8 +17,10 @@ export const CLUSTERED_BLEND_FORMAT_VERSION = 12
 export const DAG_ERROR_MODEL = 'dag-group-qem-v3'
 /** The scope a model is compiled at when none is named: streamed in pages. */
 export const DEFAULT_SCOPE: AssetScope = 'slice'
-/** How a model is compiled: `'slice'` streams it in pages, `'full'` keeps it whole. */
-export type AssetScope = 'slice' | 'full'
+/** How a model may be compiled: `'slice'` streams it in pages, `'full'` keeps it whole. */
+export const ASSET_SCOPES = ['slice', 'full'] as const
+/** How a model is compiled, one of `ASSET_SCOPES`. */
+export type AssetScope = (typeof ASSET_SCOPES)[number]
 /** How far a compilation has got, step by step. */
 export interface PreparationProgress {
   /** The step it is in. */

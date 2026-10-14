@@ -13,3 +13,34 @@ pub const DEFAULT_TRIANGLE_BUDGET: usize = 150000;
 pub const DEFAULT_THREADS: usize = 2;
 /// The memory, in MB, of a compilation that names none.
 pub const DEFAULT_RAM_BUDGET_MB: usize = 256;
+/// The most threads one job may use.
+pub const MAX_THREADS: usize = 64;
+/// The least memory, in MB, one job needs to decode the smallest scene.
+pub const MIN_RAM_BUDGET_MB: usize = 64;
+/// The scopes a job may name.
+pub const SCOPES: [&str; 2] = ["slice", "full"];
+/// How meshes may be simplified; the first is the default.
+pub const SIMPLIFICATIONS: [&str; 2] = ["none", "qem-endpoints"];
+/// The fields of one compile job, as a batch file names them.
+pub mod job_field {
+    pub const SOURCE: &str = "source";
+    pub const CACHE: &str = "cache";
+    pub const SCOPE: &str = "scope";
+    pub const TRIANGLE_BUDGET: &str = "triangleBudget";
+    pub const THREADS: &str = "threads";
+    pub const RAM_BUDGET_MB: &str = "ramBudgetMb";
+    pub const RESOURCE_BASE_URL: &str = "resourceBaseUrl";
+    pub const SIMPLIFICATION: &str = "simplification";
+}
+/// The job fields in the order the command line takes them; its short forms leave out
+/// `simplification`, then `threads` and `ramBudgetMb`.
+pub const JOB_FIELDS: [&str; 8] = [
+    job_field::SOURCE,
+    job_field::CACHE,
+    job_field::SCOPE,
+    job_field::TRIANGLE_BUDGET,
+    job_field::THREADS,
+    job_field::RAM_BUDGET_MB,
+    job_field::RESOURCE_BASE_URL,
+    job_field::SIMPLIFICATION,
+];
