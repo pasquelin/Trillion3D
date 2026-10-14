@@ -3,7 +3,7 @@
 // are one record table (`cutTables.ts`): its sections are the kernel's, word for word.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dagFlagShape, flagSectionCaps, flagSectionStart, grownFlagShape } from './flagSections.ts'
+import { dagFlagShape, flagSectionStart, grownFlagShape } from './flagSections.ts'
 import { QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 
@@ -11,9 +11,8 @@ const packed = { queueEntries: 1811, worldCount: 600, pageCount: 1800, candCount
 
 test('a device that binds less than the reach starts each section within one binding', () => {
   const limits = { maxStorageBufferBindingSize: 12800 }
-  const cap = flagSectionCaps(limits),
-    shape = dagFlagShape(packed, limits)
-  assert.deepEqual(cap, { queueWords: 3200, candCap: 1066 })
+  // One binding's 3200 words: a queue's even count of them, a list's live entries three each.
+  const shape = dagFlagShape(packed, limits)
   assert.deepEqual(shape, { queueWords: 3200, candCap: 1066 })
   // Growth stops at the same bound: one rule for the start and the growth.
   const bounds = { entryCount: 1811, pageCount: 1800 }

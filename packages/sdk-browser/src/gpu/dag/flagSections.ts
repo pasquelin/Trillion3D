@@ -41,7 +41,7 @@ export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWor
 /** The most one section of a `flags` holds on a device of `limits`: a queue's words, two an entry,
  *  and a list's entries, the live list's three words each, the widest (`shader/liveWgsl.ts`). A
  *  cut starts within it (`dagFlagShape`) and grows no further (`grownFlagShape`). */
-export function flagSectionCaps(limits?: Parameters<typeof storageBufferCap>[0]) {
+function flagSectionCaps(limits?: Parameters<typeof storageBufferCap>[0]) {
   const words = storageBufferCap(limits) / 4
   return { queueWords: 2 * Math.floor(words / 2), candCap: Math.floor(words / 3) }
 }
