@@ -1,6 +1,7 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { computeStorageTextureEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /**
  * THE BOUNCE ATLAS: the probe cascades are a float texture read with `textureLoad` and written by
@@ -28,6 +29,13 @@ export const probeAtlasExtent = (side: number, levels: number): [number, number,
 /** Bytes of a bounce atlas of this extent. */
 export const atlasBytes = ([width, height, layers = 1]: readonly number[]) =>
   width * height * layers * texelBytesOf(BOUNCE_ATLAS_FORMAT)
+
+/** The layout entry of a bounce atlas at `binding`, one layer per cascade level: read with
+ *  `textureLoad`, or written as a storage texture when `out`. */
+export const atlasEntry = (binding: number, out = false) =>
+  out
+    ? computeStorageTextureEntry(binding, BOUNCE_ATLAS_FORMAT, 'write-only', '2d-array')
+    : computeTextureEntry(binding, 'unfilterable-float', '2d-array')
 
 /** Vector `k` of the probe whose first texel is `probe` — column, row, layer (`probeAddress`,
  *  `gridWgsl.ts`) —: the texel `k` columns further on its row, read with no division. */

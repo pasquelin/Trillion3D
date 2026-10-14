@@ -1,4 +1,4 @@
-import { computeBufferEntry } from '../core/computeBindings.ts'
+import { computeBufferEntries } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
@@ -56,7 +56,7 @@ export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
     'read-only-storage',
     'read-only-storage',
   ]
-  return types.map((type, binding) => computeBufferEntry(binding, type))
+  return computeBufferEntries(types)
 }
 
 export const drawShader = (layerSlots: number) => {

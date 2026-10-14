@@ -71,3 +71,13 @@ export const sequentialEntries = (
   resources: readonly GPUBindingResource[],
   first = 0,
 ): GPUBindGroupEntry[] => resources.map((resource, at) => ({ binding: first + at, resource }))
+
+/** Layout entries of buffers of `types`, in their order from binding 0, seen by the compute stage:
+ *  the layout of a kernel that binds buffers alone and numbers them as it lists them. */
+export const computeBufferEntries = (types: readonly GPUBufferBindingType[]) =>
+  types.map((type, binding) => computeBufferEntry(binding, type))
+
+/** Bind-group entries of `buffers`, whole, in their order from binding 0: the group of a
+ *  `computeBufferEntries` layout. */
+export const bufferEntries = (buffers: readonly GPUBuffer[]) =>
+  sequentialEntries(buffers.map((buffer) => ({ buffer })))

@@ -3,12 +3,16 @@ import { REST_COMPACT_SHADER } from './restCompactWgsl.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { cleanupFailedHiz } from '../hiz/pipelines.ts'
-import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { computeBufferEntry, sequentialEntries } from '../core/computeBindings.ts'
+import {
+  bufferEntries,
+  computeBufferEntries,
+  computeBufferEntry,
+  sequentialEntries,
+} from '../core/computeBindings.ts'
 import {
   createWebgpuBindIdentity,
   type WebgpuBindIdentity,
@@ -111,15 +115,17 @@ type RestState = NonNullable<Awaited<ReturnType<typeof restPipelines>>> & {
 
 /** The four stages of the compaction and their layouts; undefined when the module fails. */
 async function restPipelines(device: GPUDevice) {
-  const layout = bounceLayout(device, [
-    'storage',
-    'storage',
-    'read-only-storage',
-    'read-only-storage',
-    'read-only-storage',
-    'storage',
-    'uniform',
-  ])
+  const layout = device.createBindGroupLayout({
+    entries: computeBufferEntries([
+      'storage',
+      'storage',
+      'read-only-storage',
+      'read-only-storage',
+      'read-only-storage',
+      'storage',
+      'uniform',
+    ]),
+  })
   const module = device.createShaderModule({ code: REST_COMPACT_SHADER })
   if (await shaderFailed(module)) return undefined
   // The argument kernel's group 0 is its own: the dispatches it feeds replace it, for an arguments
@@ -204,7 +210,11 @@ function encodeRest(
   next[4] = buffers.flags
   next[5] = c.work
   next[6] = uniforms
-  if (c.bound.moved()) c.bindGroup = bounceGroup(device, c.layout, next as GPUBuffer[])
+  if (c.bound.moved())
+    c.bindGroup = device.createBindGroup({
+      layout: c.layout,
+      entries: bufferEntries(next as GPUBuffer[]),
+    })
   c.argsBound.next[0] = buffers.state
   if (c.argsBound.moved())
     c.argsGroup = device.createBindGroup({

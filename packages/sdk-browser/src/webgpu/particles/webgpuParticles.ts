@@ -2,7 +2,7 @@ import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/flu
 import { hasSubgroups } from '../../gpu/core/subgroups.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
+import { bufferEntries, computeBufferEntries } from '../../gpu/core/computeBindings.ts'
 import { createPoolStates, usedSlots } from './poolStates.ts'
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts'
 import { DRAW_FLOATS } from '../../particles/drawWords.ts'
@@ -56,9 +56,11 @@ const stateBytes = (pool: ParticlePool) => PARTICLE_STATE_HEAD + pool.capacity *
  * pipeline that could not be made, and every pool is then `refused`.
  */
 export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
-  const STEP_SLOTS = ['uniform', 'read-only-storage', 'storage', 'storage'] as const
-  const layout = bounceLayout(device, [...STEP_SLOTS]),
-    boundLayout = bounceLayout(device, [...STEP_SLOTS, 'storage'])
+  const STEP_SLOTS: GPUBufferBindingType[] = ['uniform', 'read-only-storage', 'storage', 'storage']
+  const layoutOf = (types: GPUBufferBindingType[]) =>
+    device.createBindGroupLayout({ entries: computeBufferEntries(types) })
+  const layout = layoutOf(STEP_SLOTS),
+    boundLayout = layoutOf([...STEP_SLOTS, 'storage'])
   let pipeline: StepPipelines | null | undefined
   compileStep(device, layout, boundLayout)
     .then((made) => (pipeline = made))
@@ -177,8 +179,10 @@ function makeState(
     ),
     args = buffer('window dispatch', PARTICLE_ARGS_BYTES, STORAGE | INDIRECT, [0, 1, 1])
   const steps = [step, staged, state, partials]
-  const group = bounceGroup(device, layouts.layout, steps),
-    bounds = bounceGroup(device, layouts.boundLayout, [...steps, args])
+  const groupOf = (layout: GPUBindGroupLayout, buffers: GPUBuffer[]) =>
+    device.createBindGroup({ layout, entries: bufferEntries(buffers) })
+  const group = groupOf(layouts.layout, steps),
+    bounds = groupOf(layouts.boundLayout, [...steps, args])
   return { step, staged, state, draw, partials, args, group, bounds }
 }
 

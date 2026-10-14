@@ -6,7 +6,7 @@ import { pendingBuffers } from '../core/tableGrowth.ts'
 import { writeChanged } from '../core/writeChanged.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
-import { sequentialEntries } from '../core/computeBindings.ts'
+import { bufferEntries } from '../core/computeBindings.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
 
@@ -42,7 +42,7 @@ export function drawBindGroup(
   bound.push(groupOffsets, maskBuffer, restBuf, slotUsedBuf)
   return device.createBindGroup({
     layout,
-    entries: sequentialEntries(bound.map((buffer) => ({ buffer }))),
+    entries: bufferEntries(bound),
   })
 }
 
