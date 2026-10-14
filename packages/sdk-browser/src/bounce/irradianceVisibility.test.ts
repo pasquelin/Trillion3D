@@ -1,4 +1,4 @@
-// The surface cache's direct term traced a shadow ray for the first four shadow-casting
+// A bounce point's direct term once traced a shadow ray for the first four shadow-casting
 // lights only; from the fifth on, a light behind a wall lit the cell through it, and the bounce
 // carried that light into the room. The engine's one light loop, in its irradiance term
 // (`lightsIrradiance`, `../lighting/direct/lightLoopWgsl.ts`), runs here against a flat wall.

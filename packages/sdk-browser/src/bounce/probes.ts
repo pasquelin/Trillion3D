@@ -35,7 +35,7 @@ PROBE_TYPES[PROBE_PROXY.worlds] = 'records'
 PROBE_TYPES[PROBE_PROXY.tree] = 'records'
 
 /**
- * The world grid's light lists, which the cache texels and the probe and reflection hits walk
+ * The world grid's light lists, which the probe and reflection hits walk
  * (`lightCellWgsl.ts`): the light grid's world pass over the last cascade level's lattice
  * (`createGpuLightTiles`), in the buffer every reader of a list binds, encoded on a frame where the
  * lights, that lattice or the buffer changed — a still scene lists nothing again. Their start goes to

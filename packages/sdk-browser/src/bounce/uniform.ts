@@ -10,8 +10,8 @@ const LISTS_WORD = 12
 const HEADER_WORDS = 16
 
 /**
- * Bytes of `BounceGrid`, the single source of truth: this uniform, the WGSL struct the three
- * bounce shaders declare, and the substitute buffer a frame without bounce reads all have the
+ * Bytes of `BounceGrid`, the single source of truth: this uniform, the WGSL struct its readers
+ * declare, and the substitute buffer a frame without bounce reads all have the
  * same size. An added cascade level grows it on all three sides at once, never on one —
  * a substitute smaller than the struct fails the binding, hence loses the device, and that
  * is exactly what a hand-written number has already cost.
@@ -19,8 +19,8 @@ const HEADER_WORDS = 16
 export const BOUNCE_GRID_BYTES = (HEADER_WORDS + BOUNCE_SETTINGS.cascadeLevels * LEVEL_WORDS) * 4
 
 /**
- * The uniform the three bounce shaders share: the probe pass, the surface-cache pass and
- * deferred resolve read the same cascade description, at the same slot.
+ * The uniform the bounce's readers share: the probe pass, deferred resolve and the reflections'
+ * proxy hits read the same cascade description, at the same slot.
  *
  * It is written once at construction for what never moves — range, sizes — and once per
  * encoded frame for what moves: the base cells of the levels that follow the camera, and

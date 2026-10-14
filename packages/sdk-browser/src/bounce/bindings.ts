@@ -1,25 +1,20 @@
 import { BOUNCE_ATLAS_FORMAT } from './atlas.ts'
 
 /**
- * Bindings of the bounce compute passes, described by their type alone.
- *
- * Both passes — surface cache and probes — read the same proxy columns at the same slots:
- * one way to describe a binding keeps the two shaders and the two groups from drifting
- * apart. An unused slot is not declared at all: a pass that no longer needs lights does
- * not bind them.
+ * Bindings of the bounce compute passes, described by their type alone: one way to describe a
+ * binding keeps a pass's shader and its group from drifting apart. An unused slot is not declared
+ * at all: a pass that no longer needs lights does not bind them.
  */
 
-/** An atlas (`atlas.ts`) read with `textureLoad`, or written as a storage texture (`-out`): flat,
- *  or one layer per cascade level (`-array`); or a record table (`records`,
- *  `../gpu/core/recordTexture.ts`), the culling's worlds the proxy is placed by. */
-type AtlasSlot = 'atlas' | 'atlas-array' | 'atlas-out' | 'atlas-array-out' | 'records'
+/** An atlas (`atlas.ts`), one layer per cascade level, read with `textureLoad` or written as a
+ *  storage texture (`-out`); or a record table (`records`, `../gpu/core/recordTexture.ts`), the
+ *  culling's worlds the proxy is placed by. */
+type AtlasSlot = 'atlas-array' | 'atlas-array-out' | 'records'
 /** A slot's type: a buffer, an atlas, or `null` for a slot the pass does not use. */
 export type BounceSlot = GPUBufferBindingType | AtlasSlot | null
 
 const ATLASES: Record<AtlasSlot, Omit<GPUBindGroupLayoutEntry, 'binding' | 'visibility'>> = {
-  atlas: { texture: { sampleType: 'unfilterable-float' } },
   'atlas-array': { texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' } },
-  'atlas-out': { storageTexture: { access: 'write-only', format: BOUNCE_ATLAS_FORMAT } },
   'atlas-array-out': {
     storageTexture: {
       access: 'write-only',

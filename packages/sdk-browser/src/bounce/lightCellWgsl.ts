@@ -19,8 +19,8 @@ export const BOUNCE_LIGHT_LIST_BINDING = 6
  * (`base.w`), which the lists' runs are widened past. Every reader of the irradiance walks it so — the bounce passes, the
  * reflections' proxy hits —: one behaviour of the loop.
  *
- * Cost: (B + R) · L light reads become (B + R) · L_cell, B the cache texels updated, R the probe
- * and reflection hits on owned leaves, L_cell the lights of their cells, for one pass over side²
+ * Cost: R · L light reads become R · L_cell, R the probe and reflection hits on owned leaves,
+ * L_cell the lights of their cells, for one pass over side²
  * columns and L lights a frame the lights change.
  */
 export const BOUNCE_LIGHT_CELL_WGSL = wgslBlock(

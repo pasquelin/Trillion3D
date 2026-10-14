@@ -2,14 +2,11 @@ import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
- * THE BOUNCE ATLASES: the probe cascades and the surface cache are float textures read
- * with `textureLoad` and written by their compute passes as storage textures — like a surface
- * cache atlas —, not storage buffers: the deferred lighting holds its storage buffers
- * within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit. A surface cache
- * texel `i` sits at `(i % width, i / width)`, row by row, in the extent every one-layer atlas
- * takes (`atlasExtent`, `floatAtlas.ts`); a probe at its column, row and layer
- * (`probeAtlasExtent`); no entry is ever dropped: a size the device cannot hold is refused before
- * anything is made (`limits.ts`).
+ * THE BOUNCE ATLAS: the probe cascades are a float texture read with `textureLoad` and written by
+ * their compute pass as a storage texture, not a storage buffer: the deferred lighting holds its
+ * storage buffers within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit.
+ * A probe sits at its column, row and layer (`probeAtlasExtent`); no entry is ever dropped: a size
+ * the device cannot hold is refused before anything is made (`limits.ts`).
  */
 export const BOUNCE_ATLAS_FORMAT: GPUTextureFormat = 'rgba32float'
 
