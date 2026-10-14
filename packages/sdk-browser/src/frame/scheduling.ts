@@ -1,3 +1,4 @@
+import { cpuNow } from '../diagnostic/stopwatch.ts'
 function active(signal: AbortSignal): void {
   signal.throwIfAborted()
 }
@@ -19,8 +20,8 @@ export function nextFrame(signal: AbortSignal): Promise<number> {
 
 /** When the current display frame began, ms: the timestamp `requestAnimationFrame` hands its
  *  callbacks, which the document timeline holds for the whole frame, so work done before the read
- *  does not shift it; `performance.now()` where there is no document. */
+ *  does not shift it; the CPU clock where there is no document. */
 export function frameStart(): number {
   const time = globalThis.document?.timeline?.currentTime
-  return typeof time === 'number' ? time : performance.now()
+  return typeof time === 'number' ? time : cpuNow()
 }

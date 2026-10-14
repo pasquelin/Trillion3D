@@ -1,3 +1,4 @@
+import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { prefetchHorizonMs } from '../../../engine/common.ts'
@@ -88,9 +89,9 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   // A scene without a cluster DAG waits for no readback: its counts are the image's own, and it has
   // no cut to move — held, or a still view of unpaged surfaces alone would never be.
   if (!run.gpuSelection) run.gpuMetricsReady = run.cutHeld = true
-  marks.adoptEnd = performance.now()
+  marks.adoptEnd = cpuNow()
   admitGpuCut(rt)
-  marks.admissionEnd = performance.now()
+  marks.admissionEnd = cpuNow()
 }
 
 /** The frame's encoder opened, the rows followed, and the cut dispatched into it; false when the image stops there. */
@@ -119,17 +120,17 @@ function encodeImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCa
   // An image whose lists no adoption touched would push eighty thousand records already in place:
   // the flag says so, the copy abstains.
   mirrorDrawnFromShown(run)
-  marks.selectionEnd = performance.now()
+  marks.selectionEnd = cpuNow()
   logFirstRenderPath(rt)
   const imageBeforeEncode = run.imageRevision
-  marks.encodeStart = performance.now()
+  marks.encodeStart = cpuNow()
   try {
     encodeDraws(rt, gpuDevice, cam)
   } finally {
     // An encode path that returned without submitting would strand the selection's readback slot.
     abandonFrameEncoder(rt)
   }
-  marks.cpuEnd = performance.now()
+  marks.cpuEnd = cpuNow()
   // The cut's own triangles came back with the readback; the meshes outside the DAG are counted
   // where they are drawn.
   if (run.gpuMetricsReady)

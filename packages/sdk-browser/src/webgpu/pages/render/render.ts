@@ -1,3 +1,4 @@
+import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
@@ -37,7 +38,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     run.frameHeld = false
   } else if (holdWebgpuFrame(rt, gpuDevice)) return
   drawFrameInputs(rt, gpuDevice, pixelError, cam)
-  const cpuStart = performance.now()
+  const cpuStart = cpuNow()
   resetFrameCounters(run)
   // The impostor plan: the cards, and the card bit of the roots they replace, read by the cut.
   rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam)
@@ -54,7 +55,7 @@ function enterImage(rt: WebgpuPagesRuntime, camera: HostCamera, aspect: number |
   if (context.signal?.aborted) context.signal.throwIfAborted()
   if (run.lost) throw new Error('WEBGPU_LOST')
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE')
-  rt.timing.marks.preStart = performance.now()
+  rt.timing.marks.preStart = cpuNow()
   // Placements grown in place join with the cut made over them, between two images; the growths
   // since the last image ask one cut more, made beside this one.
   adoptGrownCut(rt)
@@ -121,9 +122,9 @@ function drawFrameInputs(
   // What the previous image's feedback requested becomes resident, under the budgets. The pass
   // times itself on its budget clock — the one bound the textures stage reads —; the marks only
   // keep `worldMs` below to the world step alone.
-  marks.gateEnd = performance.now()
+  marks.gateEnd = cpuNow()
   restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging))
-  marks.tilesEnd = performance.now()
+  marks.tilesEnd = cpuNow()
   const worldsMoved = uploadWorlds(rt)
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
@@ -131,7 +132,7 @@ function drawFrameInputs(
   // still, the halves converge under the antialiasing jitter and an image can be held. The motion
   // is the view fingerprint's, the unjittered view and projection, since the last drawn image.
   run.occluderViewMoved = run.gate.takeViewMoved()
-  marks.blendStart = performance.now()
+  marks.blendStart = cpuNow()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {

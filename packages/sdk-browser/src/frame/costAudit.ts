@@ -1,3 +1,4 @@
+import { cpuNow } from '../diagnostic/stopwatch.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
@@ -67,7 +68,7 @@ export function createHostFrameCostAudit() {
   let last = -Infinity
   return (frame: number, metrics: FrameMetrics) => {
     if (!frameCostAuditEnabled()) return
-    const now = performance.now()
+    const now = cpuNow()
     if (now - last < 2000) return
     last = now
     // The provenance, a family the session opened with when the audit is on (`familyUse.ts`).

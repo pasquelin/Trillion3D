@@ -1,3 +1,4 @@
+import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
 import { prepareTexelTurn } from '../../tile/texelTurn.ts'
@@ -46,7 +47,7 @@ export async function prepareWebgpuTextures(
 ) {
   const { vis, diag, run } = rt
   reportTextureNeeds(rt, census)
-  const textureStarted = performance.now()
+  const textureStarted = cpuNow()
   const catalogues = textureCatalogues(rt, gpuDevice, census)
   const { choice, encoding, color, data } = catalogues
   // What the atlases holding a host texture reduce its mips with, and turn its raw texels with,

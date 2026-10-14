@@ -1,3 +1,4 @@
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { adaptivePixelError } from '../../../../sdk-core/src/index.ts'
 import type { CameraMotion } from '../../camera/world.ts'
@@ -11,11 +12,7 @@ export function resolvePixelError(
   motion: CameraMotion,
 ) {
   const base = context.pixelError ?? 0
-  const speed = readCameraMotion(
-    cam,
-    motion,
-    typeof performance !== 'undefined' ? performance.now() : 0,
-  )
+  const speed = readCameraMotion(cam, motion, typeof performance !== 'undefined' ? cpuNow() : 0)
   if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base
   return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1))
 }

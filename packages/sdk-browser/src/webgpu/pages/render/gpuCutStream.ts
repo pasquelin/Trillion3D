@@ -1,3 +1,4 @@
+import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { followCutRows } from '../prepare/growTables.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -26,13 +27,13 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   services.queueCutResidency()
   // The cache gives slots back in the order the main cut published (`../../residency/evictionFeed.ts`).
   if (selection && views.active === views.main) services.followEvictions(selection, run.frame)
-  marks.queueEnd = performance.now()
+  marks.queueEnd = cpuNow()
   ensurePageTable(rt, gpuDevice)
   // The readback the drawn view adopts.
   services.followCut(cutOf(rt)?.peek())
   const passed = services.syncRows(!run.textureConverging)
   run.rowsSyncedFrame = run.frame
-  marks.rowsEnd = performance.now()
+  marks.rowsEnd = cpuNow()
   // Only a pass over the table says anew what it could not hold: an image that skipped it asks
   // nothing more.
   const casters = services.blendCasters
@@ -45,7 +46,7 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   if (selection?.updateResidency(rows.residency, rows.residencyChanges, rows.markRowOfPage))
     run.gpuMetricsReady = false
   rows.clearResidencyChanges()
-  marks.residencyUploadEnd = performance.now()
+  marks.residencyUploadEnd = cpuNow()
 }
 
 /**
