@@ -3,7 +3,7 @@
 // for again, the list keeps the GPU's order, and the host budget counts every table it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MIRROR, closeAlone, closePairs, rowCache } from './rowCache.fixture.ts'
+import { FOLLOWER, closeAlone, closePairs, rowCache } from './rowCache.fixture.ts'
 import { createRowDemand } from './rowDemand.ts'
 import type { InstanceClosure } from './rowDemandState.ts'
 import { pageStateOf } from './pageState.fixture.ts'
@@ -48,9 +48,9 @@ test('a request resident when asked, its row dropped by a rebuild, is asked for 
   assert.deepEqual(cache.held(), [0, 2])
   // A new table: the rebuild places the resident pages in catalogue order, 2 left out.
   rows.rowsRevision++
-  MIRROR.dirty = true
+  FOLLOWER.dirty = true
   cache.frame()
-  MIRROR.dirty = true
+  FOLLOWER.dirty = true
   cache.frame()
   assert.ok(rows.rowOf(2) >= 0, 'the request takes a row back')
   assert.equal(rows.residentFlag(2), 1)

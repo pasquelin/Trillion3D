@@ -1,6 +1,6 @@
 import type { PageRec } from '../../page/selection/types.ts'
 import { updateTransparentSpan } from '../transparent/spans.ts'
-import { createWebgpuResidencyMirror } from '../residency/mirror.ts'
+import { createResidencyFollower } from '../residency/residencyFollow.ts'
 import { createPageRowWriter } from '../row/pageRowWriter.ts'
 import { createWebgpuRowSync } from '../row/sync.ts'
 import type { WebgpuResidencySets } from '../residency/sets.ts'
@@ -18,11 +18,11 @@ import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 
-/** The row table's sync: the residency mirror, the page-row writer, the row cache. */
+/** The row table's sync: the residency follower, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
   const { run, gpu } = rt,
     { rows, packedPages } = rt.layout
-  const mirror = createWebgpuResidencyMirror({
+  const follower = createResidencyFollower({
     table: rows,
     getCache: () => gpu.cache,
     onOffsetChange: (page, words) => (
@@ -50,7 +50,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
   // (`../row/slots.ts`).
   const rowSync = createWebgpuRowSync(
     rows,
-    mirror,
+    follower,
     packedPages,
     () => !!gpu.cache,
     writePageRow,

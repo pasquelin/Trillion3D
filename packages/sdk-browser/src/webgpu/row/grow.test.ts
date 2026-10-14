@@ -6,13 +6,13 @@ import assert from 'node:assert/strict'
 import { createWebgpuRowSync } from './sync.ts'
 import { FLAG_BLEND_CASTER, ROW_WORDS } from '../../visibility/types.ts'
 import { catalogue, mount } from './blendCasters.fixture.ts'
-import { closeAlone, MIRROR } from './rowCache.fixture.ts'
+import { closeAlone, FOLLOWER } from './rowCache.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 test('caster rows follow blendFirst after a grow, and the visibility rows keep their ranks', () => {
   const pages = catalogue(0.4)
   const { rows, writer } = mount(pages, 1)
-  const sync = createWebgpuRowSync(rows, MIRROR, pages, () => true, writer, closeAlone)
+  const sync = createWebgpuRowSync(rows, FOLLOWER, pages, () => true, writer, closeAlone)
   const casters = sync.blendCasters
   sync.syncRows()
   // One visibility row, the opaque triangle's; the blended one casts from the row behind it.

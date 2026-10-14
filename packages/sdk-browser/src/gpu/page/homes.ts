@@ -20,7 +20,7 @@ export type PageHomes = {
  * to a word, raised to the end of its own deformation tails, which stay at their offset
  * (`../../deformation/outputs.ts`) — one after the other in the catalogue's order, where a
  * fixed slot gives every page the width of the widest. Every reader reaches a page through its
- * offset (`../../webgpu/residency/mirror.ts`); a decode that reads a word past a page's end
+ * offset (`../../webgpu/residency/residencyFollow.ts`); a decode that reads a word past a page's end
  * keeps none of its bits (`homesDecode.test.ts`), so what lies after a page, a neighbour or
  * nothing, changes no value. `undefined` for a catalogue of no bytes: fixed slots hold it.
  */

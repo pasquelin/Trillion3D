@@ -4,7 +4,7 @@
 // any sync, and nothing is ever rebuilt from the catalogue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuResidencyMirror } from './mirror.ts'
+import { createResidencyFollower } from './residencyFollow.ts'
 import { createGpuPageCache } from '../../gpu/page/pages.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { pageAddress } from '../row/pageSlots.ts'
@@ -29,7 +29,7 @@ test('a key the pool takes is noted for each placement at its arrival, before an
       slots.push(words)
     },
   }
-  const mirror = createWebgpuResidencyMirror({
+  const follower = createResidencyFollower({
     table: {
       // Key `k` at packed ranks 0 and 2: two placements of one primitive page.
       instances: {
@@ -43,8 +43,8 @@ test('a key the pool takes is noted for each placement at its arrival, before an
     getCache: () => cache,
     onOffsetChange: (page, words) => noted.push([page, words]),
   })
-  mirror.sync()
-  mirror.sync()
+  follower.sync()
+  follower.sync()
   assert.deepEqual(
     noted,
     [
@@ -67,7 +67,7 @@ test('a key that moved is followed once per primitive page, by its least rank, w
   const keys = [pageAddress(k)]
   const ranks: number[] = [],
     primitives: number[] = []
-  const mirror = createWebgpuResidencyMirror({
+  const follower = createResidencyFollower({
     table: { instances },
     getCache: () => ({
       drainResidencyChanges: (into: string[], slots: number[]) => (
@@ -78,7 +78,7 @@ test('a key that moved is followed once per primitive page, by its least rank, w
     onOffsetChange: (page) => ranks.push(page),
     onPrimitiveChange: (page) => primitives.push(page),
   })
-  mirror.sync()
+  follower.sync()
   assert.deepEqual(
     ranks.sort((x, y) => x - y),
     [1, 2, 4, 6],

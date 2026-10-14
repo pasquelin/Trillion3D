@@ -1,5 +1,5 @@
 // The row cache's bench (#1483): `instances` opaque clusters, each at its own address, over a table
-// of `slots` visibility rows, the residency mirror and the readbacks driven by hand, and the GPU's
+// of `slots` visibility rows, the residency follower and the readbacks driven by hand, and the GPU's
 // cut of the rows each frame (`rowGpu`).
 import { createWebgpuRowState } from './state.ts'
 import { slotTable } from './pageState.fixture.ts'
@@ -17,8 +17,8 @@ import { ROW_BURST } from '../../gpu/dag/readoutWords.ts'
 import { ROW_PAGE, ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
 import type { WebgpuRowState } from './state.ts'
 
-/** A mirror with nothing to report: the fixtures move residency by hand. */
-export const MIRROR = { sync: () => {}, dirty: true }
+/** A residency follower with nothing to report: the fixtures move residency by hand. */
+export const FOLLOWER = { sync: () => {}, dirty: true }
 /** Without group links, an instance closes over itself alone: a counted closure whose difference
  *  is the ids' own. */
 export function closeAlone(): InstanceClosure {
@@ -130,7 +130,7 @@ export function rowCache(instances: number, slots: number) {
   let clock = FIRST_FRAME
   const sync = createWebgpuRowSync(
     rows,
-    MIRROR,
+    FOLLOWER,
     pages,
     () => true,
     writer,

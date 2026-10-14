@@ -1,7 +1,7 @@
 import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import type { PackedInstances } from '../row/instances.ts'
 
-type MirrorOptions = {
+type FollowerOptions = {
   /** Packed ranks by pool address: read live, as pages join in place. */
   table: { readonly instances: Pick<PackedInstances, 'each' | 'eachPrimitive'> }
   getCache: () => Pick<GpuPageCache, 'drainResidencyChanges'> | undefined
@@ -19,7 +19,7 @@ type MirrorOptions = {
  * the cache, where it is true (`../row/pageState.ts`, `offsetOf`): nothing is mirrored, so nothing
  * can drift and nothing is rebuilt.
  */
-export function createWebgpuResidencyMirror(options: MirrorOptions) {
+export function createResidencyFollower(options: FollowerOptions) {
   const { table, getCache } = options
   const residencyKeys: string[] = [],
     residencySlots: number[] = []

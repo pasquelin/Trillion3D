@@ -1,6 +1,6 @@
 import type { PageRec } from '../../page/selection/types.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
-import type { createWebgpuResidencyMirror } from '../residency/mirror.ts'
+import type { createResidencyFollower } from '../residency/residencyFollow.ts'
 import type { WebgpuRowState } from './state.ts'
 import type { PageRowWriter } from './pageRowWriter.ts'
 import { createWebgpuRowSlots } from './slots.ts'
@@ -9,12 +9,12 @@ import type { InstanceClosure } from './rowDemandState.ts'
 import { createBlendCasterRows } from './blendCasters.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
-type Mirror = Pick<ReturnType<typeof createWebgpuResidencyMirror>, 'sync' | 'dirty'>
+type Follower = Pick<ReturnType<typeof createResidencyFollower>, 'sync' | 'dirty'>
 
 /** Keeps the drawable row table a cache of what the GPU cut draws and asks for (`slots.ts`). */
 export function createWebgpuRowSync(
   rows: WebgpuRowState,
-  mirror: Mirror,
+  follower: Follower,
   packedPages: PageList,
   cacheReady: () => boolean,
   writePageRow: PageRowWriter,
@@ -41,7 +41,7 @@ export function createWebgpuRowSync(
     askOrder,
   )
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
-   *  mirror reports (`follow`), and the table's age here. */
+   *  follower reports (`follow`), and the table's age here. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange)
   /** The readback last followed: each is followed once, whichever view adopted it. */
   let followed: object | null = null
@@ -63,18 +63,18 @@ export function createWebgpuRowSync(
     if (!cacheReady() || !rows.pageTableFloats) return false
     // The journal describes only this pass: what it named has already been applied or dropped.
     rows.clearResidencyChanges()
-    mirror.sync()
+    follower.sync()
     blendCasters.refresh()
     // WebgpuRowState still owed recall the pass even if the cache has moved nothing more: they carry pages the
     // previous image left outside residency, for lack of time.
     if (
-      !mirror.dirty &&
+      !follower.dirty &&
       !rows.touched.count &&
       !slots.pending &&
       rows.rowsEpoch === rows.tableEpoch
     )
       return false
-    mirror.dirty = false
+    follower.dirty = false
     rows.rowsEpoch = rows.tableEpoch
     slots.apply(bounded ? budget : undefined)
     return true
