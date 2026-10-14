@@ -1,5 +1,5 @@
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
-import { ORDER_UNI_WORDS } from './orderBindings.ts'
+import { ORDER_UNI_WORDS } from './orderWgsl.ts'
 import { KEY_RECORD_WORDS } from './keyLayout.ts'
 import { orderFrameWords } from './frameHead.ts'
 import { verdictWords } from './verdictLayout.ts'

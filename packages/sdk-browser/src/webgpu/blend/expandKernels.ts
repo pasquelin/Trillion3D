@@ -1,7 +1,12 @@
 import { BLEND_EXPAND_ENTRIES, BLEND_EXPAND_SHADER } from './expandWgsl.ts'
 import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts'
-import { BLEND_ORDER_ENTRIES, BLEND_ORDER_SHADER, ORDER_BINDING } from './orderWgsl.ts'
-import { blendOrderBindEntries, ORDER_UNI_WORDS } from './orderBindings.ts'
+import {
+  BLEND_ORDER_ENTRIES,
+  BLEND_ORDER_SHADER,
+  ORDER_BINDING,
+  ORDER_UNI_WORDS,
+} from './orderWgsl.ts'
+import { blendOrderBindEntries } from './orderBindings.ts'
 import { BLEND_VERDICT_SHADER, blendVerdictBindEntries, VERDICT_BINDING } from './verdictWgsl.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'

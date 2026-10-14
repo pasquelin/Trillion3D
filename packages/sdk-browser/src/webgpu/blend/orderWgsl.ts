@@ -5,6 +5,7 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -59,6 +60,8 @@ const ORDER_UNI_FIELDS = [
 export const ORDER_UNI = Object.fromEntries(
   ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
 ) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
+/** Words of one dispatch's uniform (`OrderUni`), at its dynamic offset: its fields, whole rows. */
+export const ORDER_UNI_WORDS = 4 * ceilDiv(ORDER_UNI_FIELDS.length, 4)
 const orderUniformWgsl = () =>
   wgslBlock(
     'orderUniformWgsl',
