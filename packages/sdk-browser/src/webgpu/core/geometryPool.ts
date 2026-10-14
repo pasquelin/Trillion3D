@@ -13,16 +13,8 @@ import {
 import { createPoolStores, poolResources } from './geometryPoolStores.ts'
 import { fillScratch, releaseScratch, scratchFloats } from './geometryPoolScratch.ts'
 import { writeFloatAtlas } from './floatAtlas.ts'
-import {
-  claim,
-  holds,
-  placeBlock,
-  poolBytesOf,
-  put,
-  reserveTail,
-  writeBlock,
-  type Pool,
-} from './geometryPoolOps.ts'
+import { claim, placeBlock, poolBytesOf, reserveTail, writeBlock } from './geometryPoolOps.ts'
+import { holds, put, type Pool } from './geometryPoolWrite.ts'
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no

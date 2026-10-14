@@ -5,12 +5,12 @@ import { CARD_FLOATS } from '../../impostor/cardSlots.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import type { WebgpuTileAtlas } from '../tile/atlasTypes.ts'
 
-/** What the tile group is made over: the atlases' lane views and tables, and the maps' sampler. */
-type TileSources = { color: WebgpuTileAtlas; data: WebgpuTileAtlas; sampler: GPUSampler }
+/** The atlases the tile group is made over: their lane views and tables. */
+type TileAtlases = { color: WebgpuTileAtlas; data: WebgpuTileAtlas }
 
-/** Writes what the tile group binds of `tiles` into `next`, in its bindings' order
+/** Writes what the tile group binds of `atlases` and `sampler` into `next`, in its bindings' order
  *  (`cardTileEntries`): no array made for a group that stays. */
-function tileResources(next: unknown[], { color, data, sampler }: TileSources) {
+function tileResources(next: unknown[], { color, data }: TileAtlases, sampler: GPUSampler) {
   let at = 0
   for (const view of color.views) next[at++] = view
   next[at++] = color.pages.buffer
@@ -71,13 +71,13 @@ export function createImpostorPass(device: GPUDevice) {
       return image
     },
     /** The tile pool's group, group 1 of every stage: the one binding of every card's maps. */
-    tilesGroup(sources: TileSources) {
-      tileResources(tiles.next, sources)
+    tilesGroup(atlases: TileAtlases, sampler: GPUSampler) {
+      tileResources(tiles.next, atlases, sampler)
       if (tiles.moved())
         tilesGroup = device.createBindGroup({
           label: 'Trillion3D impostor tiles',
           layout: tilesLayout,
-          entries: core.cardTileEntries(sources, sources.sampler),
+          entries: core.cardTileEntries(atlases, sampler),
         })
       return tilesGroup!
     },

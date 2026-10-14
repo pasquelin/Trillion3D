@@ -97,12 +97,15 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
     volumes = rt.gpu.volumeBuffer
   const quiet = wanted && noWaterInView(blendState, expand)
   const rect = wanted && !quiet ? water?.rect : undefined
-  const bound = !!(rect && itemBuffer && volumes)
   expand.clearVerdict(encoder)
   const pass = encoder.beginComputePass({ label: BLEND_ORDER_PASS })
   expand.judge(pass)
-  if (rect && itemBuffer && volumes)
+  // The water's rectangle where it is wanted and its inputs stand: then the frame's water is bound.
+  let bound = false
+  if (rect && itemBuffer && volumes) {
     rect.encode(pass, expand.buffers, itemBuffer, volumes, blendState.transmissive)
+    bound = true
+  }
   for (let slice = 0; slice < seeds.length; slice++)
     if (runCount[slice])
       expand.encode(pass, slice, blendState.orderSteps[slice], {

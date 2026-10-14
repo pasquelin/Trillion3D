@@ -1,4 +1,5 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, ROW_WORDS } from '../../../visibility/types.ts'
+import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
 import type { PageSurface } from '../../../page/surface.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
@@ -110,5 +111,3 @@ export function pumpResidentTiles(
 ) {
   return (!converging && textures?.pump(frame).served) || 0
 }
-
-import { PAGE_INFO } from '../../../visibility/pageInfo.ts'

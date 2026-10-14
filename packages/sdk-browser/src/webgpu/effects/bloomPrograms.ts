@@ -5,6 +5,7 @@ import { BLOOM_PASS } from '../../stage/passLabels.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
 import { bloomLevelLayout } from './bloomLevel.ts'
+import { ADD_ONE } from '../blend/equations.ts'
 
 /** The bloom's three programs (`webgpuBloom.ts`) — down a level, back up adding, the composite —,
  *  their group layouts and the one sampler they share. */
@@ -16,11 +17,10 @@ export async function createBloomPrograms(device: GPUDevice) {
   })
   const layouts = { level: bloomLevelLayout(device), scene: imageLayout }
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS)
-  const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' }
   const [down, up, composite] = await Promise.all([
     makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: HDR_FORMAT }]),
     makeFullscreenPipeline(device, module, layouts.level, 'up', [
-      { format: HDR_FORMAT, blend: { color: add, alpha: add } },
+      { format: HDR_FORMAT, blend: { color: ADD_ONE, alpha: ADD_ONE } },
     ]),
     makeFullscreenPipeline(device, module, [layouts.level, layouts.scene], 'composite', [
       { format: HDR_FORMAT },

@@ -6,7 +6,7 @@ import { setWebgpuTemporalAntialiasing } from '../../taa/prepare.ts'
 import { flushWebgpuPages } from './render/flush.ts'
 import { captureSurfaceView } from './io/surfaceCapture.ts'
 import { captureColorView } from './io/colorCapture.ts'
-import { createRayQueue } from '../rays/rayQueue.ts'
+import { castWebgpuRay } from './io/castRay.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
 import { captureImage, rasterView, syncResident } from './io/hostApi.ts'
 import { pendingUrls, retainedRanks } from './io/hostLists.ts'
@@ -26,9 +26,9 @@ import { addWebgpuWorldRoots } from '../../placement/webgpuAppendWorld.ts'
 import { setWebgpuClearColor } from './io/clearColor.ts'
 import * as materials from './io/refreshMaterials.ts'
 import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
+import { sweepSession } from './io/sessionSweep.ts'
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
 import { families } from '../../host/families.ts'
-import { log } from '../../diagnostic/log.ts'
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts'
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
 import {
@@ -114,22 +114,6 @@ export function disposeSession(rt: WebgpuPagesRuntime, session: PagesSession) {
   ).finally(() => sweepSession(session)))
 }
 
-/**
- * What the closed session's handle still holds once torn down, destroyed through its ledger
- * (`GpuDeviceLedger.sweep`), which counts every buffer and texture made through the handle and
- * none of the device's shared caches: the buffers its holders keep between uses (`heldBuffers`),
- * its zero words — and any resource a teardown forgot, which the console names, so a leak stays
- * visible while it costs nothing.
- */
-function sweepSession(session: PagesSession) {
-  const swept = gpuDeviceLedgerOf(session.claim?.device)?.sweep() ?? []
-  if (!swept.length) return
-  const byLabel = new Map<string, number>()
-  for (const label of swept) byLabel.set(label, (byLabel.get(label) ?? 0) + 1)
-  const named = [...byLabel].map(([label, count]) => (count > 1 ? `${label} ×${count}` : label))
-  log.info(`A closed session destroyed what its handle still held: ${named.join(', ')}`)
-}
-
 /** What the host reads and asks of the engine: frames, captures, views, pages, metrics. */
 export function backendHostApi(rt: WebgpuPagesRuntime) {
   const { run } = rt
@@ -164,11 +148,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     capture() {
       return captureImage(rt)
     },
-    async castRay(ray, filter, reach) {
-      const device = rt.gpu.device
-      if (!device || run.lost) return null
-      return (rt.rays ??= createRayQueue(rt, device)).cast(ray, filter, reach)
-    },
+    castRay: (ray, filter, reach) => castWebgpuRay(rt, ray, filter, reach),
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     rasterView: () => rasterView(rt),
