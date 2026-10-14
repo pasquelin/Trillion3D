@@ -8,6 +8,7 @@ import { ROW_WORDS } from '../visibility/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageRec } from '../page/selection/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 
 /** Four rows — a float-pool block, a page's own results, the block again, a row with none —, a placement each. */
 function rig() {
@@ -26,7 +27,7 @@ function rig() {
     markRowWords: (r: number) => marked.push(r),
   }
   const spans = new Uint32Array(12),
-    dirtySpans = new Set<number>()
+    dirtySpans = createChangedRuns()
   spans.set([5, 6, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0]) // entry 0 drawn, entry 2 holds no corner
   // Placement 1 (the tail's page) holds a record at float 40 of the block, which starts at `base`.
   const deformation = {
@@ -58,7 +59,7 @@ test('the rows and spans of a moved float-pool block follow it; a tail stays', (
   assert.equal(ints[2 * words + PAGE_INFO.at.deformOutput], moved)
   assert.equal(ints[words + PAGE_INFO.at.deformOutput], deformOutputWord(own))
   assert.equal(ints[3 * words + PAGE_INFO.at.deformOutput], 0, 'a row with none names none')
-  assert.deepEqual([spans[2], spans[10], [...dirtySpans]], [moved, 0, [0]])
+  assert.deepEqual([spans[2], spans[10], [...dirtySpans.take()]], [moved, 0, [0]])
 })
 
 test("a row's record word follows the moved records; a row with none, or unmoved, is not written", () => {

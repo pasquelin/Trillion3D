@@ -137,6 +137,6 @@ export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blen
       output = page < 0 ? undefined : deformationOutputOf(page)
     if (!output || !table.spans[entry * 4 + 1]) continue
     writeSpanDeformation(table.spans, entry, output, table.spans[entry * 4 + 1])
-    dirtySpans.add(entry)
+    dirtySpans.mark(entry)
   }
 }

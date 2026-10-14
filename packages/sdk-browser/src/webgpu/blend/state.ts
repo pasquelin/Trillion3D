@@ -1,5 +1,6 @@
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { transparentOcclusionState } from '../transparent/entryCorners.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
@@ -109,7 +110,7 @@ function tableState() {
     compaction: undefined as TransparentCompaction | undefined,
     ...transparentOcclusionState(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
-    dirtySpans: new Set<number>(),
+    dirtySpans: createChangedRuns(),
     /** What the transparent groups currently name: a moved identity voids them. Two are held,
      *  with the groups of each: the shadow maps' tables a lit pass binds are double-buffered, and
      *  their frames take turns. */
