@@ -47,7 +47,7 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
  * old readout whole and says `false`, so the next truncated readout coarsens its cut
  * (`coarsening.ts`) — or the views aside cut without a region — rather than end on an error of the
  * whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in
- * `pageCones`, keeps its own (`layout.ts`).
+ * the cold words' table (`cutTables.ts`), keeps its own (`layout.ts`).
  */
 export async function growDagList(
   resources: DagResources,
@@ -58,25 +58,21 @@ export async function growDagList(
 ) {
   const bytes = readoutRow(listCap, regions, heldSlots).size
   if (bytes > storageBufferCap(resources.device.limits)) return false
-  const made: GPUBuffer[] = []
   // What the readout replaces leaves the share: the new one is made within what remains.
   const replaced = [resources.output, ...resources.ranks]
   // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).
   const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
-  const admit = admitBeside(
+  const admission = admitBeside<GPUBuffer>(
     resources,
     replaced.reduce((sum, buffer) => sum + buffer.size, 0),
     Math.max(0, ring),
   )
-  // Each buffer noted in `made`: one past the share is never made, and the growth is refused by
-  // name (`pastShare`): the view coarsens instead (`coarsening.ts`).
-  const make = (descriptor: GPUBufferDescriptor) => {
-    const label = descriptor.label,
-      bytes = descriptor.size
-    const buffer = admit({ label, bytes }, () => resources.device.createBuffer(descriptor))
-    made.push(buffer)
-    return buffer
-  }
+  // Each buffer noted in what the admission made: one past the share is never made, and the growth
+  // is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
+  const make = (descriptor: GPUBufferDescriptor) =>
+    admission.admit({ label: descriptor.label, bytes: descriptor.size }, () =>
+      resources.device.createBuffer(descriptor),
+    )
   let list: ReturnType<typeof createDagList> | undefined
   try {
     const { value, error } = await validationScope(
@@ -91,6 +87,7 @@ export async function growDagList(
   } catch {
     /* A creation the device throws on is a refusal too. */
   }
+  const made = admission.made.map(({ resource }) => resource)
   const growth = cutGrowth(resources, made, replaced, () => {
     const from = { output: resources.output, listCap: resources.listCap },
       grown = heldSlots > resources.heldSlots

@@ -83,14 +83,20 @@ export function admitInto<T>(
 /**
  * A growth's admission (`listGrowth.ts`, `queueGrowth.ts`): each resource it makes, in place of
  * the `freed` bytes it replaces, admitted (`admitInto`) beside the `reserved` bytes it keeps for
- * later and what it made so far, which the cut holds only once the growth commits.
+ * later and what it made so far, which the cut holds only once the growth commits. `made` holds
+ * each resource made and its bytes, in order: what the growth puts in place, or frees refused.
  */
-export function admitBeside(cut: CutHeld, freed: number, reserved = 0) {
+export function admitBeside<T>(cut: CutHeld, freed: number, reserved = 0) {
+  const made: { resource: T; bytes: number }[] = []
   let beside = reserved
-  return <T>(made: { label?: string; bytes: number }, build: () => T) => {
-    const resource = admitInto(cut, made, build, freed, beside)
-    beside += made.bytes
-    return resource
+  return {
+    made,
+    admit(resource: { label?: string; bytes: number }, build: () => T) {
+      const built = admitInto(cut, resource, build, freed, beside)
+      beside += resource.bytes
+      made.push({ resource: built, bytes: resource.bytes })
+      return built
+    },
   }
 }
 
