@@ -87,7 +87,7 @@ test('public material reaches the engine, and a color edit repaints without an A
   const version = paint.version
   paint.subsurfaceColor.set(0xff0000)
   assert.ok(paint.version > version)
-  repaintHostSurface(surface, paint)
+  repaintHostSurface(surface, paint, 'faces')
   const repainted = surface
   assert.deepEqual(repainted.subsurfaceColor, [1, 0, 0])
   const layers = { mapLayer: new Map([[repainted.subsurfaceMap!, 3]]), dataLayer: new Map() }

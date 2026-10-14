@@ -31,7 +31,7 @@ test('a sprite surface carries its turn and size rule, both sides, and a repaint
   assert.deepEqual(surface.sprite, { rotation: 0.4, sizeAttenuation: false })
   picture.rotation = 1.2
   picture.sizeAttenuation = true
-  repaintHostSurface(surface, picture)
+  repaintHostSurface(surface, picture, 'sprite')
   // The size rule sets the root mark, taken once at collection: a repaint never moves it.
   assert.deepEqual(surface.sprite, { rotation: 1.2, sizeAttenuation: false })
   // The same material worn by faces is no sprite.

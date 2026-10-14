@@ -1,80 +1,9 @@
-import {
-  MATERIAL_BOOKKEEPING,
-  type Material,
-} from '../../../../sdk-core/src/world/material/material.ts'
-import { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { composesWithBackground } from '../../scene/materialBlending.ts'
-import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
-import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
+import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import { hostSurface, repaintHostSurface } from './worldSurface.ts'
-
-/** The parameters a session lays out when it opens, and so the only ones never written in place:
- *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
- *  and `depthWrite` its pipeline, `vertexColors` which surface its wearers take, `transparentShadow`
- *  its shadow pass, `sizeAttenuation` a sprite's root mark (`spriteMark`), and `wireframe`,
- *  `flatShading` and `size` the triangles its wearers draw (`worldCuts.ts`). Every other field
- *  but a texture is a VALUE — a colour, a factor, a physical extension, a cutoff —, which a
- *  page-table row or a host surface reads again at the next frame (#335, #572); a texture's
- *  pictures, sampling and placement move on their own (#362). */
-const LAYOUT = new Set([
-  'kind',
-  'transparent',
-  'blending',
-  'transmission',
-  'side',
-  'depthTest',
-  'depthWrite',
-  'vertexColors',
-  'transparentShadow',
-  'sizeAttenuation',
-  'wireframe',
-  'flatShading',
-  'size',
-])
-
-/** Whether `material`'s field `name` is a value, written in place: neither bookkeeping, nor
- *  `LAYOUT`, nor a texture. */
-const isValue = (material: Material, name: string) =>
-  !MATERIAL_BOOKKEEPING.has(name) &&
-  !LAYOUT.has(name) &&
-  !(material[name] as { isTexture?: boolean } | null)?.isTexture
-
-/** One parameter value as a key: a texture by identity and its three counters — its picture's
- *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
- *  else by its own value. */
-function valueKey(value: unknown, pictures = true): string {
-  if (value === null || typeof value !== 'object') return String(value)
-  const shaped = value as Partial<Texture> & { isTexture?: boolean }
-  if (shaped.isTexture) {
-    const version = pictures ? shaped.version : ''
-    return `texture:${shaped.id}@${version}.${shaped.sampling}.${shaped.placement}`
-  }
-  if (Array.isArray(value)) return `[${value.map((each) => valueKey(each, pictures)).join(',')}]`
-  const numbers = Object.entries(value).filter(([, field]) => typeof field === 'number')
-  return `{${numbers.map(([name, field]) => `${name}:${field}`).join(',')}}`
-}
-
-/** The material's parameters as one string, by name; `values` false leaves the value fields out,
- *  which is what two materials must share for one to be repainted into the other's entry;
- *  `pictures` false leaves out what its textures' pictures are at. */
-function materialKey(material: Material, values = true, pictures = true) {
-  const fields = Object.keys(material)
-    .filter((name) => !MATERIAL_BOOKKEEPING.has(name) && (values || !isValue(material, name)))
-    .sort()
-    .map((name) => `${name}=${valueKey(material[name], pictures)}`)
-  return fields.join(';')
-}
-
-/** A surface drawn by the opaque passes, where a value is read from the row at every frame; a
- *  blended or transmissive one is laid out in its forward pass when the session opens, and so is
- *  one whose blending mode composes with the background, whatever `transparent` says. */
-const opaque = (material: Material) =>
-  !material.transparent &&
-  !composesWithBackground(material.blending) &&
-  !((material.transmission as number | undefined) ?? 0)
+import { hostSurface, readingRank, type SurfaceReading } from './worldSurface.ts'
+import { materialKey, repaint, repaintSurfaces, type Refresh } from './worldRepaint.ts'
 
 /** An entry of the table: the parameters as they were when the entry was made or repainted, and
  *  the surfaces built from them, one per way its wearers read it (`surfaceOf`). */
@@ -84,9 +13,6 @@ export type MaterialEntry = {
   readonly material: Material
   readonly surfaces: (PageSurface | undefined)[]
 }
-
-/** What a resource's triangles are read as by the surface that draws them. */
-type Reading = 'faces' | 'lines' | 'sprite' | 'sheet'
 
 /** The surface of `entry` for the triangles `drawn`, built once and shared by every wearer: one
  *  per material, a second one when the material asks for vertex colours and is worn by geometries
@@ -102,16 +28,14 @@ function surfaceFor(
 ) {
   const { material } = entry
   const tinted = !!material.vertexColors && !!drawn.colors,
-    reading: Reading = drawn.lines
+    reading: SurfaceReading = drawn.lines
       ? 'lines'
       : drawn.spriteRadius !== undefined
         ? 'sprite'
         : twoSided
           ? 'sheet'
           : 'faces'
-  const rank =
-    reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
-  return (entry.surfaces[rank] ??= hostSurface(material, tinted, reading))
+  return (entry.surfaces[readingRank(reading, tinted)] ??= hostSurface(material, tinted, reading))
 }
 
 /** Gives back the surfaces of `entries`. The textures they wore are the page's own records,
@@ -124,7 +48,7 @@ function release(entries: Iterable<MaterialEntry>) {
 }
 
 /** How an entry was repainted: its values written or its pictures alone, its alpha moved. */
-type Repaint = { values: boolean; alpha?: Omit<AlphaChange, 'surfaces'> }
+export type Repaint = { values: boolean; alpha?: Omit<AlphaChange, 'surfaces'> }
 /** An entry repainted since the last take, and how (`takeRepainted`). */
 export type RepaintedEntry = { entry: MaterialEntry } & Repaint
 
@@ -189,7 +113,7 @@ export function createWorldMaterials() {
 }
 
 /** What a world's material table holds (`createWorldMaterials`). */
-type MaterialsState = {
+export type MaterialsState = {
   entries: Map<string, MaterialEntry>
   /** The material objects each entry was last resolved from. */
   sources: Map<MaterialEntry, Set<Material>>
@@ -225,68 +149,4 @@ function entryOf(state: MaterialsState, material: Material): MaterialEntry {
   sources.set(entry, from.add(material))
   known.set(material, { version: material.version, entry })
   return entry
-}
-
-/** Writes `material`'s values into its sole entry, when nothing but values changed. */
-function repaintValues({ sources }: MaterialsState, material: Material, entry: MaterialEntry) {
-  const only = sources.get(entry)
-  if (only?.size !== 1 || !only.has(material)) return false
-  if (!opaque(material) || !opaque(entry.material)) return false
-  if (materialKey(material, false) !== materialKey(entry.material, false)) return false
-  // Only the fields the material holds: a kind never gains a field it does not declare.
-  for (const field of Object.keys(material)) {
-    if (!isValue(material, field)) continue
-    const value = material[field],
-      into = entry.material[field]
-    // A colour the entry does not hold yet — a specular written after it was made — is a copy.
-    if (value instanceof Color && into instanceof Color) into.copy(value)
-    else entry.material[field] = value instanceof Color ? value.clone() : value
-  }
-  return true
-}
-
-/** Keeps `material` on its entry under its new key, when only values changed, or only the
- *  pictures of its textures — which the entry's copy shares, so every wearer sees them, blended
- *  or shared: a video's frame, a canvas redrawn (#362). */
-function repaint(state: MaterialsState, material: Material, entry: MaterialEntry, key: string) {
-  const { entries, repainted } = state
-  if (entries.has(key)) return false
-  const pictures = materialKey(material, true, false) === materialKey(entry.material, true, false)
-  const { alphaTest } = entry.material,
-    from = alphaModeOf(entry.material)
-  if (!pictures && !repaintValues(state, material, entry)) return false
-  entries.delete(entry.key)
-  entries.set((entry.key = key), entry)
-  const before = repainted.get(entry),
-    done: Repaint = { values: !pictures || !!before?.values }
-  const to = alphaModeOf(entry.material)
-  // Between opaque and masked, or a cutout's cutoff: what its shadow reads (`AlphaChange`).
-  if (before?.alpha || alphaMoves(from, to, entry.material.alphaTest !== alphaTest))
-    done.alpha = { from: before?.alpha?.from ?? from, to }
-  repainted.set(entry, done)
-  return true
-}
-
-/** How a session reads repainted surfaces again (`EngineSceneUpdates.refreshMaterials`). */
-type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
-
-function repaintSurfaces(painted: readonly RepaintedEntry[], refresh?: Refresh) {
-  let written = false,
-    values = false
-  const moved = new Map<string, AlphaChange & { surfaces: PageSurface[] }>()
-  for (const { entry, alpha, values: wrote } of painted) {
-    const worn = entry.surfaces.filter((surface): surface is PageSurface => !!surface)
-    for (const surface of worn) repaintHostSurface(surface, entry.material)
-    if (!worn.length) continue
-    written = true
-    values ||= wrote
-    if (!alpha) continue
-    const way = `${alpha.from}>${alpha.to}`
-    const change = moved.get(way)
-    if (change) change.surfaces.push(...worn)
-    else moved.set(way, { ...alpha, surfaces: worn })
-  }
-  if (!refresh || !written) return true
-  const [first, ...others] = moved.values()
-  return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
 }

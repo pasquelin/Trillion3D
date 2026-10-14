@@ -16,7 +16,7 @@ test('anisotropy values reach the physical surface on creation and repaint', () 
   ]) {
     paint.anisotropy = strength
     paint.anisotropyRotation = rotation
-    repaintHostSurface(surface, paint)
+    repaintHostSurface(surface, paint, 'faces')
     assert.deepEqual(read(), [strength, rotation])
   }
   assert.ok(surface.version > version, 'the existing surface announces its changed values')
@@ -27,6 +27,6 @@ test('an undeclared anisotropy keeps its neutral defaults', () => {
     surface = hostSurface(paint, false)
   assert.deepEqual([surface.anisotropy, surface.anisotropyRotation], [0, 0])
   paint.roughness = 0.2
-  repaintHostSurface(surface, paint)
+  repaintHostSurface(surface, paint, 'faces')
   assert.deepEqual([surface.anisotropy, surface.anisotropyRotation], [0, 0])
 })

@@ -145,19 +145,30 @@ function worldDeclaration(
   }) as SurfaceDeclaration
 }
 
-/** How each world surface was read: what a repaint declares it with again. */
-const readings = new WeakMap<PageSurface, { vertexColors: boolean; reading: SurfaceReading }>()
+/** How each rank of a material entry's surfaces reads its triangles (`worldMaterials.ts`): faces,
+ *  then faces tinted by vertex colours, lines, a sprite, a cloth's faces, then tinted too. */
+export const RANK_READINGS: readonly SurfaceReading[] = [
+  'faces',
+  'faces',
+  'lines',
+  'sprite',
+  'sheet',
+  'sheet',
+]
+
+/** The rank of an entry's surface that reads its triangles as `reading`, tinted or not: a reading
+ *  listed twice has its tinted rank after its plain one, the others one rank for both. */
+export function readingRank(reading: SurfaceReading, tinted: boolean) {
+  const first = RANK_READINGS.indexOf(reading)
+  return RANK_READINGS[first + 1] === reading ? first + +tinted : first
+}
 
 /** The surface of a world material, for what the mesh wearing it draws. */
-export function hostSurface(
+export const hostSurface = (
   material: Material,
   vertexColors: boolean,
   reading: SurfaceReading = 'faces',
-) {
-  const surface = declareSurface(worldDeclaration(material, vertexColors, reading))
-  readings.set(surface, { vertexColors, reading })
-  return surface
-}
+) => declareSurface(worldDeclaration(material, vertexColors, reading))
 
 /**
  * Declares the surface built for `material` again, in place, and journals it: its values —
@@ -165,14 +176,15 @@ export function hostSurface(
  * family they put a physical kind in, a line's width, a dashed line's dash and gap, a sprite's
  * turn — reach every reader (`page/surface.ts`) at its next read, nothing built again. A sprite's
  * size rule stays the one it was built with (`readingFields`). Its maps are the material's texture
- * records themselves: their pictures, sampling and placement need no write.
+ * records themselves: their pictures, sampling and placement need no write. It is read as its
+ * rank in the entry says (`RANK_READINGS`), with the vertex colours it was declared with.
  */
-export function repaintHostSurface(surface: PageSurface, material: Material) {
-  const { vertexColors, reading } = readings.get(surface) ?? {
-    vertexColors: surface.vertexColors === true,
-    reading: 'faces' as const,
-  }
-  const declared = worldDeclaration(material, vertexColors, reading)
+export function repaintHostSurface(
+  surface: PageSurface,
+  material: Material,
+  reading: SurfaceReading,
+) {
+  const declared = worldDeclaration(material, surface.vertexColors === true, reading)
   const sizeAttenuation = surface.sprite?.sizeAttenuation ?? declared.sizeAttenuation
   redeclareSurface(surface, { ...declared, sizeAttenuation })
 }
