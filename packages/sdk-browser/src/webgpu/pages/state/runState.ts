@@ -21,6 +21,7 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     imageRevision: 0,
     diagnostic: 'beauty',
     diagnosticPixelError: 0,
+    diagnosticErrorShown: false,
     lastCamera: undefined,
     gpuSelection: undefined,
     hizPyramidFresh: false,

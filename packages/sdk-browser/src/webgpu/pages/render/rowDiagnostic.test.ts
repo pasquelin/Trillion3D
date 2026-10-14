@@ -20,7 +20,7 @@ test('the screen-error view writes each row’s own word, then gives the rows th
   const floats = new Float32Array(2 * ROW_WORDS).fill(7),
     marked: number[] = []
   const rt = {
-    run: { diagnostic: 'screen-error', diagnosticPixelError: 1 },
+    run: { diagnostic: 'screen-error', diagnosticPixelError: 1, diagnosticErrorShown: false },
     layout: {
       selectionRoots: roots,
       placement: postPackedBases(roots),
@@ -43,10 +43,12 @@ test('the screen-error view writes each row’s own word, then gives the rows th
     'no word of the next row written',
   )
   assert.deepEqual(marked, [0])
+  assert.equal(rt.run.diagnosticErrorShown, true, 'the run state holds the ratio shown')
   rt.run.diagnostic = 'lod'
   writeRowDiagnostics(rt, cam)
   assert.equal(word(0), 1, 'its level back')
   assert.deepEqual(marked, [0, 0])
+  assert.equal(rt.run.diagnosticErrorShown, false)
   writeRowDiagnostics(rt, cam)
   assert.deepEqual(marked, [0, 0], 'nothing more written')
 })

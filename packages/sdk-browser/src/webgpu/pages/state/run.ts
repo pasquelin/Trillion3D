@@ -28,6 +28,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   imageRevision: number
   diagnostic: DiagnosticMode
   diagnosticPixelError: number
+  /** The rows hold their screen-error ratio: the first image after that view gives them their
+   *  level back (`../render/rowDiagnostic.ts`). */
+  diagnosticErrorShown: boolean
   lastCamera: HostCamera | undefined
   gpuSelection: GpuSelection | undefined
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */

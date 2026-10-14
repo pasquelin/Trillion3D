@@ -6,10 +6,6 @@ import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 
-/** The runtimes whose rows hold their screen-error ratio: the first image after that view gives
- *  them their level back. */
-const errorShown = new WeakSet<object>()
-
 /**
  * THE ROWS' DIAGNOSTIC WORD as the drawn view reads it (`PAGE_INFO.at.diagnostic`, in the row's own
  * words): each packed row's screen-error ratio while the screen-error view is drawn — taken again
@@ -21,9 +17,8 @@ export function writeRowDiagnostics(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     { rows } = layout,
     floats = rows.pageTableFloats
   const errorView = run.diagnostic === 'screen-error'
-  if (!floats || (!errorView && !errorShown.has(rt))) return
-  if (errorView) errorShown.add(rt)
-  else errorShown.delete(rt)
+  if (!floats || (!errorView && !run.diagnosticErrorShown)) return
+  run.diagnosticErrorShown = errorView
   for (let row = 0; row < rows.packedCount; row++) {
     const rec = rows.packedRecs[row]
     if (!rec) continue
