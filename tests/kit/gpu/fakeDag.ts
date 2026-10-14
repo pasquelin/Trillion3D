@@ -56,10 +56,9 @@ export function packedFromBindings(
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
     worldCount = views[viewWord('worldCount')]
-  /** Word `at` of each primitive's frame row, read as integers or as floats. */
+  /** Word `at` of each primitive's frame row. */
   const intsAt = (at: number) =>
     Uint32Array.from({ length: worldCount }, (_, w) => frameWord(frames, w, at))
-  const floatsAt = (at: number) => new Float32Array(intsAt(at).buffer)
   const rootNodes = intsAt(1)
   // Each page's placement, from each placement's first page and page count (`worlds.ts`): the
   // kernels read it from the entries that carry it, the double indexes the placements.
