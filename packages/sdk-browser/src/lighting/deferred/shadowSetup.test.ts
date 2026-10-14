@@ -9,10 +9,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { functionText } from '../../bounce/wgslBody.fixture.ts'
 
 const surfaceOf = (shader: string) => shader.slice(shader.indexOf('fn lightSurface('))
-const functionText = (shader: string, name: string) =>
-  shader.slice(shader.indexOf(`fn ${name}(`)).split('\n}')[0]
 
 test('the surface reads its cell once and sets up its shadow read behind the cell flag', () => {
   for (const [bounce, narrow, shadowed] of [

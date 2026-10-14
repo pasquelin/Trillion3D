@@ -14,6 +14,7 @@ import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from './constants.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { functionText } from '../bounce/wgslBody.fixture.ts'
 
 /** The shaders that read the maps: every engine shader and the direct shadow read as each pass
  *  composes it. */
@@ -43,18 +44,9 @@ const declaredOf = (text: string, name: string) =>
 const bytesOf = (text: string, name: string) =>
   4 * fieldLayout(name, declaredOf(text, name) as Parameters<typeof fieldLayout>[1]).words
 
-/** `text` without the function `name` (the decode, which reads every field): from its name to the
- *  brace that balances its body's opening one. */
-function without(text: string, name: string) {
-  const at = text.indexOf(`fn ${name}(`)
-  if (at < 0) return text
-  let depth = 0
-  for (let end = text.indexOf('{', at); end < text.length; end++) {
-    if (text[end] === '{') depth++
-    else if (text[end] === '}' && --depth === 0) return text.slice(0, at) + text.slice(end + 1)
-  }
-  return text.slice(0, at)
-}
+/** `text` without the function `name` (the decode, which reads every field), when it holds it. */
+const without = (text: string, name: string) =>
+  text.includes(`fn ${name}(`) ? text.replace(functionText(text, name), '') : text
 
 /** The fields of `fields` that no text of `texts` reads as `<receiver>.field` (`receivers` the
  *  names a shader holds the block or a record under, `.field` alone when empty). */

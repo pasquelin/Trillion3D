@@ -5,6 +5,7 @@ import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_LIGHT_KIND_POINT } from './constants.ts'
 import {
@@ -122,7 +123,7 @@ test('a lit point not finite makes every light a candidate: its own test is the 
 })
 
 test('a pass of one light, or of suns alone, takes its lights as the candidates: no box, no barrier for it', () => {
-  const entry = PROJECTION_CODE.slice(PROJECTION_CODE.indexOf('fn vsmProjection('))
+  const entry = functionText(PROJECTION_CODE, 'vsmProjection')
   assert.match(
     entry,
     /var candidates=vec2u\(1u,0u\);\n if\(VSM_PROJECTION_KINDS==1u\)\{candidates=vsmLightsBelow\(lightCount\);\}\n else if\(!VSM_PROJECTION_ONE_LIGHT\)\{\n {2}vsmTileBound\(/,

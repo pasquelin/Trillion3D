@@ -10,6 +10,7 @@ import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { functionText } from '../../bounce/wgslBody.fixture.ts'
 
 /** The rectangle branch of the light loop: its term, the one the loop reads (every pixel sums its
  *  whole list, so no sampling weight is drawn). */
@@ -31,8 +32,7 @@ test('the rectless program is the full one less its rectangle branch', () => {
     assert.match(full, RECT_TERM)
     assert.equal(full.replace(RECT_TERM, ''), rectless)
     // No other call reaches the rectangle's shading from the loop.
-    const loop = rectless.slice(rectless.indexOf('fn declaredLight('))
-    assert.doesNotMatch(loop.split('\n}')[0], /rectLight\(|rectIrradiance\(/)
+    assert.doesNotMatch(functionText(rectless, 'declaredLight'), /rectLight\(|rectIrradiance\(/)
   }
 })
 

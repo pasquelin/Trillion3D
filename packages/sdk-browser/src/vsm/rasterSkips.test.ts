@@ -44,7 +44,7 @@ test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', (
 
 test('the pool max writes only a greater depth, and every word ends the max of its depths', () => {
   const pool = wgslModule(vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, LAYOUT))
-  const accessor = pool.slice(pool.indexOf('fn vsmPoolAtomicMax('))
+  const accessor = functionText(pool, 'vsmPoolAtomicMax')
   const parts = [...accessor.matchAll(/^ case \d+u:\{(.*)\}$/gm)].map((m) => m[1])
   assert.ok(parts.length >= 2, 'a part a slice at least')
   for (const body of parts)
