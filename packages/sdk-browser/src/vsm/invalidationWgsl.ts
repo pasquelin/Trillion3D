@@ -26,7 +26,8 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
 
-/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math keeps. */
+/** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
+ *  keeps. */
 export const UNBOUNDED_EXTENT = 1e15
 
 /** Instance flags, the two the host knows of a box: it casts shadows (a valid instance), and it is
@@ -146,9 +147,9 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
 `,
 )
 
-/** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its own
- *  group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of an
- *  instance's pages they call (`vsmStaleBoxPages`). */
+/** An invalidation module over the previous frame's maps (group 0, `VSM_INVALIDATION_SPECS`): its
+ *  own group 1 and entry point (`text`) with the declarations it names (`deps`), and the stale of
+ *  an instance's pages they call (`vsmStaleBoxPages`). */
 export function vsmInvalidationProgram(
   layout: VsmLayout,
   text: string,

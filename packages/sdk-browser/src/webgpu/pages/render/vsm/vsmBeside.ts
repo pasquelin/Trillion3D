@@ -43,12 +43,12 @@ export const heldBeside = (vsm: EngineVsm | undefined): HeldBeside => ({
 
 /**
  * Bytes the frame makes beside a set of `layout`: the maps' own buffers beside the set
- * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a layer per four casting
- * lights; the raster's draw context as large as the replaced set's, and never under the least
- * that draws every caster row (`vsmRenderFloorBytes`); and, while a blended caster casts, the
- * coloured atlas as large as the replaced set's, never under the first one and its least draw
- * context. The lists grow past these only within the room (`vsmChunkRowsWithin`). Without `mask`,
- * all but the mask, which a frame's own size sets (`vsmAskedBytes`).
+ * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a
+ * layer per four casting lights; the raster's draw context as large as the replaced set's, and
+ * never under the least that draws every caster row (`vsmRenderFloorBytes`); and, while a blended
+ * caster casts, the coloured atlas as large as the replaced set's, never under the first one and
+ * its least draw context. The lists grow past these only within the room (`vsmChunkRowsWithin`).
+ * Without `mask`, all but the mask, which a frame's own size sets (`vsmAskedBytes`).
  */
 export function bytesBeside(
   rt: WebgpuPagesRuntime,

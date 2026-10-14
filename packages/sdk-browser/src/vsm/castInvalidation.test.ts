@@ -1,8 +1,8 @@
 // The maps the shadow changes stale on the GPU (`castInvalidation.ts`) — an entry that may hold
-// cached pages, every map of it —, each map's word saying whether it draws its moving casters over a
-// receiver cover, which a moving box skips: read by the one filter of the one stale (`vsmStaleMap`,
-// `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing changed. And the CPU's
-// boxes as records of the one list that stale reads (`castBoxes.ts`).
+// cached pages, every map of it —, each map's word saying whether it draws its moving casters over
+// a receiver cover, which a moving box skips: read by the one filter of the one stale
+// (`vsmStaleMap`, `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing
+// changed. And the CPU's boxes as records of the one list that stale reads (`castBoxes.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmLightCache, type VsmCacheManager } from './cacheManager.ts'

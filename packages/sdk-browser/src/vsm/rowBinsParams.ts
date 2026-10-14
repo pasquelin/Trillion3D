@@ -3,10 +3,10 @@
  * around the camera, the reference a frame then reads its levels from — and the full-map local
  * lights binned jointly, around each light along its maps' clip rows (`rowBinsKeys.ts`), while
  * there are more rows than the worst case's chunk, lamps found unable to beat it left out until
- * they change. The moving rows are binned with
- * their radius grown by how far the moving placements went over the frames a histogram takes to
- * land and be read, twice over (`recentTravel`): a histogram read after they went farther counts
- * them whole (`rowPageBound.ts`). The tag holds what the CPU reads it by (`RowBinsTag`).
+ * they change. The moving rows are binned with their radius grown by how far the moving placements
+ * went over the frames a histogram takes to land and be read, twice over (`recentTravel`): a
+ * histogram read after they went farther counts them whole (`rowPageBound.ts`). The tag holds what
+ * the CPU reads it by (`RowBinsTag`).
  */
 import { recentTravel } from '../gpu/shadow/rowMotion.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'

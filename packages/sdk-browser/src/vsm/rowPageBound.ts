@@ -10,13 +10,13 @@
  * (half-extent ≤ r·√3) meets the level only when its Chebyshev distance to the centre, less that
  * half-extent, is ≤ hw, and there it spans at most ceil(2e/page) + 1 pages an axis. A row makes at
  * most one pair per physical page: at most `pages`. A local light's full map is bounded by `pages`,
- * a single-page map by its one page; a local light's rows meet at most 3 faces of a point light at a
- * positive depth, its rect ≤ 4e / (s − 2e) of NDC an axis (`rowBins.ts`).
+ * a single-page map by its one page; a local light's rows meet at most 3 faces of a point light at
+ * a positive depth, its rect ≤ 4e / (s − 2e) of NDC an axis (`rowBins.ts`).
  *
  * The rows are binned by (s, e) on the GPU (`rowBinsGpu.ts`), around a reference and along axes the
  * CPU sent, and read back a few frames late, never waited on. A frame reads the last histogram
- * landed against its own reference and axes, the levels of this frame: a level whose box reaches T =
- * hw + |centre − reference|∞ from the reference holds only rows of s ≤ T. Since that histogram's
+ * landed against its own reference and axes, the levels of this frame: a level whose box reaches T
+ * = hw + |centre − reference|∞ from the reference holds only rows of s ≤ T. Since that histogram's
  * frame (`../gpu/shadow/rowMotion.ts`), C rows were derived for another reason than a moving
  * placement's travel — each may reach every page: pairs(k) ≤ hist(k) + min(k, C)·pages, cmds(k) ≤
  * hist(k) + min(k, C)·cmdsPerRow —, and the moving rows, binned with their radius grown by a

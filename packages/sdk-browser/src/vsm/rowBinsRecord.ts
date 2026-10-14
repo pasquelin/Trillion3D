@@ -55,9 +55,9 @@ export interface RowBinsLanded extends RowBinsTag {
   movingRows: number
 }
 
-/** A bound's histograms: the last one's number, the last submitted, the last landed, the commits one
- *  took to land, and whether the lamps' bins pay (more rows than the worst case's chunk); the lamps'
- *  signature, as last read, their keys, and the keys found unable to beat the worst case. */
+/** A bound's histograms: the last one's number, the last submitted, the last landed, the commits
+ *  one took to land, and whether the lamps' bins pay (more rows than the worst case's chunk); the
+ *  lamps' signature, as last read, their keys, and the keys found unable to beat the worst case. */
 export function createRowBins() {
   return {
     seq: 0,

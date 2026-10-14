@@ -3,9 +3,9 @@
  * light, a sphere buffer made anew, residency, released representation changes
  * (`sdk-core/src/scene/light-shadow/changes.ts`). Each is a record of the rows' list
  * (`../webgpu/shadow/castChanges.ts`), in its format, which the stale appends to the list before
- * reading it (`castInvalidationWgsl.ts`): one record format, one list, one kernel over the same maps
- * (`vsmCastMaps`) through the same filter (`vsmStaleMap`). No light is filtered here: the kernel's
- * range test and map cull decide (`vsmStaleBoxPages`).
+ * reading it (`castInvalidationWgsl.ts`): one record format, one list, one kernel over the same
+ * maps (`vsmCastMaps`) through the same filter (`vsmStaleMap`). No light is filtered here: the
+ * kernel's range test and map cull decide (`vsmStaleBoxPages`).
  *
  * A record holds its box, never less: the cube of its largest half extent about its centre rounded
  * to an f32, that rounding added to the extent, rounded up in turn.
@@ -23,7 +23,8 @@ export interface VsmCastBoxes {
   count: number
 }
 
-/** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`, `createShadowChanges`). */
+/** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`,
+ *  `createShadowChanges`). */
 interface VsmShadowBoxSource {
   readonly count: number
   read(box: number): {
@@ -36,7 +37,8 @@ interface VsmShadowBoxSource {
 /** The centre of the box `writeBox` writes. */
 const centre = new Float64Array(3)
 
-/** The frame's boxes, rebuilt in place: read in the frame that wrote them (`encodeCastInvalidation`). */
+/** The frame's boxes, rebuilt in place: read in the frame that wrote them
+ *  (`encodeCastInvalidation`). */
 const boxes: VsmCastBoxes = { words: new Float32Array(CAST_RECORD_WORDS * 16), count: 0 }
 
 /** `x` rounded up to an f32: never below it, two ulps above at most. */

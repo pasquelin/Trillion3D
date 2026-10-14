@@ -1,12 +1,12 @@
 // The invalidation of an instance's pages, on the shared box cull (`boxCullWgsl.ts`), held to a
 // golden taken when it was proved to do what it did on its own: the pixel rect and pixel radius at
-// each mip, the page words written with their bits, in their order, over seeded lights — suns
-// and local lights, turned at random, or every value drawn with its edges — and instances about
-// them, on stand-in page tables, in the one stale's module (`castInvalidationWgsl.ts`). The instances
-// are the boxes a change stales, their axes the world's, and carry its flags: casts shadows, and
-// cached as dynamic or not, each in its own bits. Retaken on the kernel of before over the same
-// boxes as identity-rotation instances (the one kind it was handed): the box alone, its instance
-// now, makes the same writes.
+// each mip, the page words written with their bits, in their order, over seeded lights — suns and
+// local lights, turned at random, or every value drawn with its edges — and instances about them,
+// on stand-in page tables, in the one stale's module (`castInvalidationWgsl.ts`). The instances are
+// the boxes a change stales, their axes the world's, and carry its flags: casts shadows, and cached
+// as dynamic or not, each in its own bits. Retaken on the kernel of before over the same boxes as
+// identity-rotation instances (the one kind it was handed): the box alone, its instance now, makes
+// the same writes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'

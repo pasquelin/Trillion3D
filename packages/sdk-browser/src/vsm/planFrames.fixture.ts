@@ -84,7 +84,8 @@ export function planFrames() {
   /** Each buffer's bytes as the writes so far left them. */
   const contents = new Map<GPUBuffer, Uint8Array<ArrayBuffer>>()
 
-  /** Plans and encodes one frame of `world`; returns the plan, the writes and the groups it made. */
+  /** Plans and encodes one frame of `world`; returns the plan, the writes and the groups it
+   *  made. */
   function frame(world: PlanWorld) {
     const { eye } = world
     const groupsBefore = fake.bindGroups.length

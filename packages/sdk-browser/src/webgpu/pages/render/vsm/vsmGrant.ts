@@ -30,9 +30,9 @@ import { bytesBeside, heldBeside } from './vsmBeside.ts'
 /** What every reason this module gives the lights for reading no shadow starts with. */
 const UNAVAILABLE = 'virtual shadow maps'
 
-/** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`), the
- *  maps those lights want, and the set asked for them — an overflow regrow's, never asked again as
- *  the set that overflowed. */
+/** A set refused for the frame's lights: its refusal record (`../../../../gpu/core/refusal.ts`),
+ *  the maps those lights want, and the set asked for them — an overflow regrow's, never asked again
+ *  as the set that overflowed. */
 export type VsmRefusal = Refusal & {
   wanted: number
   directional: number
@@ -41,17 +41,18 @@ export type VsmRefusal = Refusal & {
 }
 
 /**
- * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages
- * up to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set
- * aside (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as
- * room. A set the device refuses — undone whole (`constructGpuResources`), or freed when its
- * verdict comes (`madeSet`) — is drawn again at half its bytes, the one rule of every pool
- * (`halvings`), down to the eighth: the lights keep casting, coarser. A pool short of the full one is said (`pool-shrunk`, `gpu-out-of-memory`) — or, when it
- * replaces a smaller one (`grownFrom`), its growth (`shadow-pool-regrown`) —, and the shadows'
- * resolution bias is its halvings from the full pool; its fill then raises the resolution bias as
- * the full pool's does (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no
- * shadow, by name (`pool-refused`), until the room holds the smallest pool or the lights change;
- * when the device refuses even the eighth, until its refusal's wait ends or the lights change.
+ * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages up
+ * to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set aside
+ * (`bytesBeside`, `vsmPoolWithin`); the set replaced is freed first, so its bytes count as room. A
+ * set the device refuses — undone whole (`constructGpuResources`), or freed when its verdict comes
+ * (`madeSet`) — is drawn again at half its bytes, the one rule of every pool (`halvings`), down to
+ * the eighth: the lights keep casting, coarser. A pool short of the full one is said
+ * (`pool-shrunk`, `gpu-out-of-memory`) — or, when it replaces a smaller one (`grownFrom`), its
+ * growth (`shadow-pool-regrown`) —, and the shadows' resolution bias is its halvings from the full
+ * pool; its fill then raises the resolution bias as the full pool's does
+ * (`VsmCacheManager.readPoolFeedback`). When none fits, the lights read no shadow, by name
+ * (`pool-refused`), until the room holds the smallest pool or the lights change; when the device
+ * refuses even the eighth, until its refusal's wait ends or the lights change.
  */
 export function grantEngineVsm(
   rt: WebgpuPagesRuntime,
