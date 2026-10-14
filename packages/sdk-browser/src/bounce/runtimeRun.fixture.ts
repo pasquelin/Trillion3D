@@ -9,6 +9,7 @@ import type { Hit, Vec } from './runtimeOracle.fixture.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
+  'rtBegin',
   'rtRadiance',
   'rtSurfaceOf',
   'rtSurfaceVec',
