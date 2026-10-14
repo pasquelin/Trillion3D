@@ -8,7 +8,7 @@ import { dSub } from '../../../../../math/src/wgsl/double.ts'
  * rounded once to single precision: the bits the host's `Math.fround(t - eye)` writes
  * (`worldToRenderOrigin`). The world at an eye takes it here (`worldAtEyeWgsl`).
  */
-export const TRANSLATION_AT_EYE_WGSL = wgslBlock(
+const TRANSLATION_AT_EYE_WGSL = wgslBlock(
   'TRANSLATION_AT_EYE_WGSL',
   [toF32, dSub],
   `

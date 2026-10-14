@@ -30,24 +30,6 @@ export function sphereFromBounds(
   out[o + 3] = boundsDiagonal(minX, minY, minZ, maxX, maxY, maxZ) * 0.5
 }
 
-/** True when the sphere of radius `ar` centred at `a[aAt]` and the one of radius `br` at `b[bAt]`
- *  overlap or touch: the squared distance of the centres, `distanceSqVector3`'s sum written in
- *  place, against the squared sum of the radii. */
-export function spheresOverlap(
-  a: ArrayLike<number>,
-  ar: number,
-  b: ArrayLike<number>,
-  br: number,
-  aAt = 0,
-  bAt = 0,
-) {
-  const s = ar + br,
-    dx = a[aAt] - b[bAt],
-    dy = a[aAt + 1] - b[bAt + 1],
-    dz = a[aAt + 2] - b[bAt + 2]
-  return dx * dx + dy * dy + dz * dz <= s * s
-}
-
 /**
  * Grows the sphere stored at `into[at]` (centre, then radius) to the smallest sphere around it and
  * the one read at `sphere[from]`. A negative or NaN radius is an empty sphere: one read is skipped,

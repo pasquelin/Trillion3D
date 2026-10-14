@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { DOUBLE_HELPERS, pair, type Pair } from '../../placement/composeDoubles.fixture.ts'
-import { TRANSLATION_AT_EYE_WGSL } from './shader/worldPoseWgsl.ts'
+import { DAG_WORLD_POSE_WGSL } from './shader/worldPoseWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { createCameraFrames } from './cameraFrames.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
@@ -32,7 +32,7 @@ const SUBTRACTION = DOUBLE_HELPERS.filter((name) => name !== 'dMul' && name !== 
 const run = shaderRun<{
   atEye(t: Pair, e: Pair): number
   translationAtEye(a: number[], b: number[], e0: number[], e1: number[]): number[]
-}>(TRANSLATION_AT_EYE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {})
+}>(DAG_WORLD_POSE_WGSL, [...SUBTRACTION, 'toF32', 'atEye', 'translationAtEye'], {})
 
 test('a translation the kernel reads at the eye is the rebased one, bit for bit', () => {
   const next = lcgRandom(1473)

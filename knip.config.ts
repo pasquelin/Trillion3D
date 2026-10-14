@@ -47,8 +47,6 @@ const config: KnipConfig = {
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
         // The water and anisotropy costs on Dawn, launched by hand.
         'bench/dawn/{waterCost,anisotropyCost}.ts',
-        // The residency replay (#1527, M1 and M2), offline: run by hand on recorded traces.
-        'bench/residency/replay.ts',
         'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
