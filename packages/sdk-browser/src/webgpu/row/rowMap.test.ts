@@ -22,7 +22,8 @@ test('the uploaded map answers every page as the cache does', () => {
   )
   const next = lcgRandom(5),
     seen = new Set<number>()
-  let made = 0
+  let made = 0,
+    held: GPUBuffer | undefined
   for (let step = 0; step < 4000; step++) {
     const page = next() < 0.5 ? Math.floor(next() * 128) : Math.floor(next() * 1e6)
     seen.add(page)
@@ -31,7 +32,9 @@ test('the uploaded map answers every page as the cache does', () => {
     else if (roll < 0.998) state.setRowOf(page, -1)
     else state.clearRows()
     if (step % 37 !== 0) continue
-    if (gpu.upload()) made++
+    gpu.upload()
+    if (gpu.buffer !== held) made++
+    held = gpu.buffer
     const map = words((gpu.buffer as unknown as { data: Uint8Array }).data)
     for (const at of seen) assert.equal(rowOfPageIn(map, at), state.rowOf(at), `page ${at}`)
   }
@@ -51,7 +54,9 @@ test('an upload with nothing written sends nothing', () => {
   state.setRowOf(3, 7)
   gpu.upload()
   const sent = writes.length
-  assert.equal(gpu.upload(), false)
+  const held = gpu.buffer
+  gpu.upload()
+  assert.equal(gpu.buffer, held, 'the buffer kept')
   assert.equal(writes.length, sent)
   state.setRowOf(3, 8)
   gpu.upload()

@@ -33,7 +33,7 @@ const words = (a: Int32Array<ArrayBuffer>) => new Uint32Array(a.buffer, a.byteOf
  * THE GPU'S COPY OF THE PAGE→ROW MAP (`rowMapWgsl.ts`): the slot count, the keys, the values, one
  * storage buffer. `upload` sends what the journal names before the frame's commands — the slots
  * written, by runs (`writeRanges`), or the tables whole after a rebuild —; the buffer is made anew
- * only when a growth outgrows it, O(log) times, and `upload` says so: the bind groups follow. No
+ * only when a growth outgrows it, O(log) times: the bind groups follow its identity (`buffer`). No
  * second hash and no mirror on the host: the map is the cache's own. The CPU never reads it back.
  */
 export function createRowMapGpu(
@@ -53,9 +53,8 @@ export function createRowMapGpu(
   const whole = () => {
     const n = map.keys.length,
       bytes = (ROW_MAP_HEAD + 2 * Math.max(1, n)) * 4,
-      held = buffer,
       usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-    buffer = sizedBuffer(device, held, bytes, usage, 'Trillion3D DAG row map', make)
+    buffer = sizedBuffer(device, buffer, bytes, usage, 'Trillion3D DAG row map', make)
     device.queue.writeBuffer(buffer, 0, new Uint32Array([n]))
     keys = map.keys
     const keyWords = words(map.keys),
@@ -70,16 +69,14 @@ export function createRowMapGpu(
     }
     journal.rebuilt = false
     journal.slots.clear()
-    return buffer !== held
   }
   return {
-    /** Sends what the map wrote since the last call; true when the buffer was made anew. */
+    /** Sends what the map wrote since the last call. */
     upload() {
       if (journal.rebuilt || keys !== map.keys) return whole()
-      if (!journal.slots.count) return false
+      if (!journal.slots.count) return
       const sorted = journal.slots.take()
       for (const source of sources) writeRanges(target, sorted, sorted.length, source)
-      return false
     },
     /** The buffer the closure binds (`rowOfPage`), made at the first `upload`. */
     get buffer() {
