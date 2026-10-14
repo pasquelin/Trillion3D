@@ -8,13 +8,9 @@ import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { VSM_MAP_UNSEEN } from './constants.ts'
-import {
-  createVsmFrameState,
-  finishVirtualShadowFrame,
-  planVirtualShadowFrame,
-  vsmLightSeen,
-  vsmSeenPlanes,
-} from './frameSetup.ts'
+import { createVsmFrameState } from './frameState.ts'
+import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
+import { vsmLightSeen, vsmSeenPlanes } from './seenLights.ts'
 
 const WIDTH = 1000,
   HEIGHT = 1000

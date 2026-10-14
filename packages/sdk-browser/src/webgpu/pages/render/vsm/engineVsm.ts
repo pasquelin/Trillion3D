@@ -24,14 +24,10 @@ import {
   rebindVsmPageManagement,
   releaseVsmPageManagement,
 } from '../../../../vsm/pageManagementPass.ts'
-import {
-  createVsmFrameState,
-  VSM_NEXT_MAP_BYTES,
-  type VsmFrameLight,
-  type VsmFramePlan,
-  type VsmFrameState,
-  vsmShadowed,
-} from '../../../../vsm/frameSetup.ts'
+import { createVsmFrameState, type VsmFrameState } from '../../../../vsm/frameState.ts'
+import { VSM_NEXT_MAP_BYTES } from '../../../../vsm/mapIds.ts'
+import type { VsmFrameLight, VsmFramePlan } from '../../../../vsm/frameSetup.ts'
+import { vsmShadowed } from '../../../../vsm/seenLights.ts'
 import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'

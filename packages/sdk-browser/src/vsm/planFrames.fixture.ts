@@ -8,11 +8,8 @@ import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createVsmResources } from './resources.ts'
-import {
-  createVsmFrameState,
-  finishVirtualShadowFrame,
-  planVirtualShadowFrame,
-} from './frameSetup.ts'
+import { createVsmFrameState } from './frameState.ts'
+import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
 import { encodeCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
 import { vsmCastBoxes } from './castBoxes.ts'
