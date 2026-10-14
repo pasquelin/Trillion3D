@@ -25,15 +25,25 @@ export const halfBytes = (width: number, height: number) => {
   return GRIDS * w * h * texelBytesOf(HALF_FORMAT)
 }
 
+/** A texture of the reflections' kernels, `format` at `size`: written by one as storage, read by the
+ *  next. */
+export const createKernelTexture = (
+  device: GPUDevice,
+  label: string,
+  size: GPUExtent3D,
+  format: GPUTextureFormat,
+) =>
+  device.createTexture({
+    label,
+    size,
+    format,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
+
 /** A surface's half grids of `size` texels (`GRIDS`), each written by one kernel and read by the next. */
 export function createHalfGrids(device: GPUDevice, label: string, size: GPUExtent3D) {
   const textures = Array.from({ length: GRIDS }, () =>
-    device.createTexture({
-      label,
-      size,
-      format: HALF_FORMAT,
-      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-    }),
+    createKernelTexture(device, label, size, HALF_FORMAT),
   )
   const views = textures.map((texture) => texture.createView())
   return {

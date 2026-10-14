@@ -5,7 +5,7 @@ import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
-import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
+import { createHalfGrids, createKernelTexture, halfBytes, halfExtent } from './halfTexture.ts'
 
 /**
  * THE TRANSPARENTS' FRONT LAYER, the one producer of what the reflections know of the transparents.
@@ -58,12 +58,7 @@ const LABEL = 'Trillion3D reflection front layer'
 
 /** The traced radiance's texture at `size`: written by the upsample, read by the forward programs. */
 const createFrontTraced = (device: GPUDevice, size: GPUExtent3D) =>
-  device.createTexture({
-    label: LABEL,
-    size,
-    format: FRONT_TRACED_FORMAT,
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  })
+  createKernelTexture(device, LABEL, size, FRONT_TRACED_FORMAT)
 
 /** Bytes of the front layer of a view at `width × height` as it is made: its depth and flags at that
  *  size where the scene has `blends`, a texel without; its normals, half grid, radiance and lobes a
