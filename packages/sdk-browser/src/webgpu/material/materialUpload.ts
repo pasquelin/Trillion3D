@@ -19,8 +19,14 @@ export function uploadMaterials(p: MaterialRecords, device: GPUDevice) {
   } else if (!p.records.hold(p.held)) return p.records.view
   const { from: low, to: high } = p.written
   if (low > high) return p.records.view
-  const words = MATERIAL_RECORD_WORDS * 4
-  p.records.write('Record', low, high - low + 1, p.ints.buffer, p.ints.byteOffset + low * words)
+  const recordBytes = MATERIAL_RECORD_WORDS * 4
+  p.records.write(
+    'Record',
+    low,
+    high - low + 1,
+    p.ints.buffer,
+    p.ints.byteOffset + low * recordBytes,
+  )
   p.written.from = Infinity
   p.written.to = -1
   return p.records.view

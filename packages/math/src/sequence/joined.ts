@@ -3,6 +3,9 @@ export function joinedWords(parts: Uint32Array[]) {
   if (parts.length === 1) return parts[0]
   const all = new Uint32Array(parts.reduce((n, p) => n + p.length, 0))
   let at = 0
-  for (const part of parts) all.set(part, (at += part.length) - part.length)
+  for (const part of parts) {
+    all.set(part, at)
+    at += part.length
+  }
   return all
 }
