@@ -16,8 +16,14 @@ export const HIT_WORDS = 6
 /** The bindings: the proxy's buffer, the records' table — worlds and instances — and the tree's, the
  *  rays, the hits, and the words of before: the worlds, the tree and the instances. */
 const B = {
-  ...{ proxy: 0, worlds: 1, rays: 2, hits: 3, oldWorlds: 4, tree: 5, oldTree: 6 },
-  ...{ oldInstances: 8 },
+  proxy: 0,
+  worlds: 1,
+  rays: 2,
+  hits: 3,
+  oldWorlds: 4,
+  tree: 5,
+  oldTree: 6,
+  oldInstances: 7,
 } as const
 
 const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f>;
