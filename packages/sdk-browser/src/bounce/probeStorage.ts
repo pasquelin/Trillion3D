@@ -22,24 +22,19 @@ export function createProbeStorage(
       size: queueBytes,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    const probes = device.createTexture({
-      label: 'Trillion3D bounce probes v3',
-      size: extent,
-      format: BOUNCE_ATLAS_FORMAT,
-      usage:
-        GPUTextureUsage.STORAGE_BINDING |
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.RENDER_ATTACHMENT,
-    })
-    const snapshot = device.createTexture({
-      label: 'Trillion3D bounce probes snapshot v3',
-      size: extent,
-      format: BOUNCE_ATLAS_FORMAT,
-      usage:
-        GPUTextureUsage.STORAGE_BINDING |
-        GPUTextureUsage.TEXTURE_BINDING |
-        GPUTextureUsage.RENDER_ATTACHMENT,
-    })
+    /** An atlas of `extent`: written as storage, read, and cleared a layer at a time. */
+    const atlas = (label: string) =>
+      device.createTexture({
+        label,
+        size: extent,
+        format: BOUNCE_ATLAS_FORMAT,
+        usage:
+          GPUTextureUsage.STORAGE_BINDING |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.RENDER_ATTACHMENT,
+      })
+    const probes = atlas('Trillion3D bounce probes v3')
+    const snapshot = atlas('Trillion3D bounce probes snapshot v3')
     /** One view per level of `atlas`, which a clear renders to. */
     const layers = (atlas: GPUTexture) =>
       Array.from({ length: extent[2] }, (_, level) =>
