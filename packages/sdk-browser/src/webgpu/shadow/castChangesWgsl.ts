@@ -1,8 +1,7 @@
 /**
  * ONE RECORD APPENDED TO THE SHADOW CHANGES (`castChanges.ts`), by the pass that knows a caster
  * changed: the rows pass (`../../placement/rowCastWgsl.ts`), for a row it derives again and for one
- * the CPU names for a change where it stands; the invalidation, for a box the CPU wrote of a change
- * no row says (`../../vsm/castInvalidationWgsl.ts`). Its host binds the list as
+ * the CPU names for a change where it stands. Its host binds the list as
  * `castChanges:array<atomic<u32>>`. A record is taken by one atomic add on the header's count; one
  * asked past the list sets the header's overflow flag and is not written.
  */

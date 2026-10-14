@@ -39,8 +39,10 @@ total is `shadowPoolBytes` (`webgpu/pages/render/vsm/vsmStats.ts`). Rules a cont
 Encoded in the direct-lighting step, after the visibility and material passes and before the
 lighting pass (`webgpu/pages/render/vsm/engineVsm.ts`, `vsmEncode.ts`), in this order:
 
-1. Invalidation: the frame's moved boxes sorted by light on the CPU, then one GPU dispatch
-   (`vsm/invalidationPass.ts`).
+1. Invalidation: one stale over the previous frame's maps, its dispatch sized on the GPU. It reads
+   the boxes the rows pass appended to the shadow changes' list (`webgpu/shadow/castChanges.ts`),
+   never read by the CPU, then the CPU's boxes of what no row says, records of the same format in
+   their own buffer (`vsm/castBoxes.ts`, `vsm/castInvalidation.ts`, `vsm/castStale.ts`).
 2. The plan: clipmaps, local lights, map ids, projection data (`vsm/frameSetup.ts`,
    `vsm/clipmap.ts`, `vsm/localLight.ts`, `vsm/cacheManager.ts`).
 3. Page address update, carrying last frame's pages to this frame's ids

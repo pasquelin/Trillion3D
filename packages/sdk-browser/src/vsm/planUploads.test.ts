@@ -53,6 +53,9 @@
 // Retaken when the raster's lists grew by the engine's one rule (`sizedBuffer`: the size asked,
 // then twice the held one), where they took a power of two of 256 bytes at least: the parameters'
 // and the views' buffers hashed at their own size, every word written the same.
+// Retaken when the stale read the CPU's boxes from their own buffer after the list, no kernel
+// appending them to it, and when the chunks' parameters left their unread pad word at 0 (it was
+// written 1): every word a shader reads kept.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

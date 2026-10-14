@@ -5,9 +5,9 @@
  * the pose it leaves and at the one it enters (`../../placement/rowCastWgsl.ts`); a row whose
  * shadow changed where it stands — a cutout's colour tile, a surface's alpha —, the box of its
  * sphere as it stands, the CPU naming the row alone (`nameCastRow`, `../../placement/rowWords.ts`);
- * a change no row says, the box the CPU wrote of it, appended by the invalidation itself
- * (`../../vsm/castBoxes.ts`). The CPU reads no record: it keeps the list large enough for what the
- * passes it encodes may append.
+ * a change no row says is no record of the list: the CPU writes its box into a buffer of its own,
+ * which the invalidation reads after the list (`../../vsm/castBoxes.ts`). The CPU reads no record:
+ * it keeps the list large enough for what the passes it encodes may append.
  *
  * Layout: a header of four words — the records asked so far, then a flag set for good once one was
  * asked past the list —, then `records` records, each a box's centre and its half extent, negative
@@ -18,7 +18,7 @@
  */
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
+import { grownByCopy } from '../../gpu/core/tableGrowth.ts'
 
 /** Words of the header, and of a record (centre, half extent). */
 export const CAST_HEADER_WORDS = 4,
@@ -54,32 +54,26 @@ export type CastChanges = ReturnType<typeof createCastChanges>
 
 /**
  * Room for `more` records beside those already pending, before a pass that may append them is
- * encoded: a list too small is made again, larger, what it holds copied into it — into `encoder`
- * when a pass encoded there before may append to the list it names, else by a command buffer of
- * its own, submitted at once: the frame's, should it be dropped, takes nothing with it. `rows`
- * bounds the list: past twice the table's rows — every row's two poses — the overflow stales every
- * page anyway.
+ * encoded: a list too small is made again, larger, what it holds copied into it by a command
+ * buffer of its own, submitted at once (`grownByCopy`) — the frame's, should it be dropped, takes
+ * no unread record with it. `rows` bounds the list: past twice the table's rows — every row's two
+ * poses — the overflow stales every page anyway.
  */
-export function reserveCasts(
-  casts: CastChanges,
-  device: GPUDevice,
-  more: number,
-  rows: number,
-  encoder?: GPUCommandEncoder,
-) {
+export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number, rows: number) {
   casts.pending += more
   casts.appended = true
   const ceiling = clampLowWins(2 * rows, CAST_FLOOR, CAST_CEILING)
   if (casts.pending <= casts.records || casts.records >= ceiling) return
   const records = Math.min(ceiling, grownLength(casts.records, casts.pending)),
     old = casts.buffer
-  casts.buffer = castBuffer(device, records)
-  const copy =
-    encoder ?? device.createCommandEncoder({ label: 'Trillion3D shadow cast changes growth' })
-  copy.copyBufferToBuffer(old, 0, casts.buffer, 0, old.size)
-  if (!encoder) device.queue.submit([copy.finish()])
+  const made = (casts.buffer = castBuffer(device, records))
   casts.records = records
-  retire(device, old)
+  grownByCopy(
+    device,
+    [old],
+    (encoder) => encoder.copyBufferToBuffer(old, 0, made, 0, old.size),
+    'Trillion3D shadow cast changes growth',
+  )
 }
 
 /** The list was read by the invalidation encoded into `encoder` before this: emptied after it. */

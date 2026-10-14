@@ -92,19 +92,12 @@ export function encodeVsmFrame(
   stats.render = undefined
   stats.projectionPasses = 0
   // The invalidation on the previous frame's maps, before the page addresses: the rows' shadow
-  // changes, appended by the rows pass earlier in this command buffer, and the CPU's boxes,
-  // appended to the same list — made for them when no light cast yet —, one stale.
+  // changes, appended by the rows pass earlier in this command buffer, then the CPU's boxes, one
+  // stale — the list, which it binds, made when no light cast yet.
   const boxes = vsm.pendingBoxes,
     casts = boxes ? (lights.casts ??= createCastChanges(device)) : lights.casts
   stats.invalidationThreads = casts
-    ? encodeCastInvalidation(encoder, res, {
-        device,
-        mapSlotCount: vsm.prevSlots,
-        maps: vsm.pendingCastMaps,
-        boxes,
-        casts,
-        rows: rt.layout.rows.casterSlots,
-      })
+    ? encodeCastInvalidation(encoder, res, device, vsm.prevSlots, vsm.pendingCastMaps, boxes, casts)
     : 0
   vsm.pendingBoxes = null
   vsm.pendingCastMaps = null
