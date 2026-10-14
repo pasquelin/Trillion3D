@@ -12,7 +12,7 @@ const rowSurfaces = new WeakMap<object, RowSurfaces>()
  * once the table ages — a record takes another surface in place (`wearDeclaration`) under a new
  * age, before its rows are written again.
  */
-export function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
+function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
   let held = rowSurfaces.get(rows)
   if (!held) rowSurfaces.set(rows, (held = { read: rowsUnread(), epoch: -1, surfaces: [] }))
   const moved = rowsMoved(held.read, rows.packedRecs, rows.packedCount, rows.rowWrites)
