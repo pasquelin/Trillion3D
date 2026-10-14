@@ -1,4 +1,5 @@
-import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
 import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 import { pointAt } from './bounds.ts'
@@ -17,9 +18,7 @@ export function edgesOf(geometry: Geometry) {
     const tri = [corners[t], corners[t + 1], corners[t + 2]]
     const p = tri.map((v) => pointAt(position, v))
     const keys = p.map(([x, y, z]) => `${x},${y},${z}`)
-    const e1 = p[1].map((x, i) => x - p[0][i]),
-      e2 = p[2].map((x, i) => x - p[0][i])
-    const n = crossVector3([0, 0, 0], e1, e2)
+    const n = triangleCross([0, 0, 0], 0, p.flat(), 0, 3, 6)
     normalizeVector3(n)
     for (let k = 0; k < 3; k++) {
       const [a, b] = [tri[k], tri[(k + 1) % 3]]
