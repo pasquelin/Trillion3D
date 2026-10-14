@@ -1,12 +1,11 @@
 import { EngineError } from '../contracts/cache.ts'
+import type { XYZLike } from '../world/math/likes.ts'
 import { Matrix4 } from '../world/math/matrix4.ts'
 import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts'
 import { SHAPE } from './layout.ts'
 import type { PhysicsPrimitive } from './options.ts'
 import { primitive, type ResolvedShape } from './shape.ts'
 import { lengthSqVector3 } from '../../../math/src/vector/vector.ts'
-
-type Scale = { x: number; y: number; z: number }
 
 /** A `KHR_implicit_shapes` shape as the page's primitives name it, sizes the extension leaves out
  *  at its defaults; `null` for a shape the module has no primitive of (a capsule that tapers). */
@@ -30,7 +29,7 @@ function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
  * implicit shape's primitive, or its cooked hull scaled. A shape the module makes no primitive of, or one
  * the scale bends (a sphere stretched), is refused by name: the body has no hull to fall back on.
  */
-export function declaredShape({ node, shape }: CookedBody, scale: Scale): ResolvedShape {
+export function declaredShape({ node, shape }: CookedBody, scale: XYZLike): ResolvedShape {
   if (shape.type === 'cooked')
     return { shape: SHAPE.cooked, size: [scale.x, scale.y, scale.z], triangles: 0 }
   const declared = implicitPrimitive(shape)
@@ -84,7 +83,7 @@ function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: reado
  * inertia to a declared mass and, about a declared centre, moved there (`inertiaAt`). Nothing
  * declared nor cooked, a mass of 0: the module weighs the shape at its matter's density.
  */
-export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
+export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: XYZLike) {
   const s = [scale.x, scale.y, scale.z],
     r = s.map((v, i) => v / cookedAt[i])
   // Stryker disable next-line ConditionalExpression: an implicit shape carries no `mass`

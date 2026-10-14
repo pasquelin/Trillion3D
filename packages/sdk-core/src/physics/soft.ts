@@ -1,4 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
+import type { XYZLike } from '../world/math/likes.ts'
 import type { Geometry } from '../world/geometry/geometry.ts'
 import { crossVector3, length3 } from '../../../math/src/vector/vector.ts'
 import { readPoints } from '../world/geometry/bounds.ts'
@@ -138,8 +139,6 @@ export interface SoftRecord {
   pressure: number
 }
 
-type Scale = { x: number; y: number; z: number }
-
 /**
  * The simulated vertices of `geometry`: those at one position welded into one (a sphere's seam
  * and poles would otherwise tear), their triangles (none for a rope: its vertices in order), and
@@ -148,7 +147,7 @@ type Scale = { x: number; y: number; z: number }
  */
 export function softBodyOf(
   geometry: Geometry,
-  scale: Scale,
+  scale: XYZLike,
   settings: SoftSettings,
   step: number,
 ): SoftRecord {
@@ -202,7 +201,7 @@ const edgeU = new Float64Array(3),
 /** Writes in each vertex's mass word the scaled area (no triangle: length) it holds; returns the
  *  whole. Each scaled edge is written into a scratch vector, the cross product into the first:
  *  the operations of fresh arrays, in their order, with no array made per triangle. */
-function spreadMass(vertices: Float32Array, indices: number[], count: number, s: Scale) {
+function spreadMass(vertices: Float32Array, indices: number[], count: number, s: XYZLike) {
   const scale = [s.x, s.y, s.z]
   /** `out` = the scaled edge from vertex `a` to vertex `b`. */
   const edge = (out: Float64Array, a: number, b: number) => {
