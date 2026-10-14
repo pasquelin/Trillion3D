@@ -12,6 +12,7 @@ import type { PlacementIndex } from '../../page/selection/placements.ts'
 import type { RootProxy } from '../../page/selection/types.ts'
 import type { createRecordTable } from './packRecords.ts'
 import type { ContentKeys } from './evict.ts'
+import type { StructureTable } from './structureTable.ts'
 
 /** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
  *  sphere, the floor and a flags word (`packNodes.ts`). A row of `frames` is the placement's words,
@@ -166,4 +167,7 @@ export type PackedDag = {
   /** The open counts the placements hold of their own (`heldOpen.ts`), set by the readiness that
    *  keeps them (`readiness.ts`): none until one does. */
   heldOpen?: HeldOpen
+  /** The placements' group structures as the GPU reads them, each primitive's once
+   *  (`structureTable.ts`): made as the frame words name them. */
+  structures?: StructureTable
 }
