@@ -25,8 +25,9 @@ const GAP_BYTES = 256
 /** Writes an upload makes at most; past it, the narrowest gaps join. */
 const CAP = 1024
 
-/** The runs a write joins its indices into: one scratch for every upload, `CAP` runs at most. */
-const spans = new Int32Array(CAP * 2)
+/** The runs a write joins its indices into (`joinedRanges`): one scratch for every upload, `CAP`
+ *  runs at most, `[first, last]` pairs the next join overwrites. */
+export const joinedSpans = new Int32Array(CAP * 2)
 /** The one rule every upload joins by, its gap set to the record's bytes. */
 const rule: RangeRule & { overflow: 'narrowest' } = {
   gap: 0,
@@ -49,13 +50,12 @@ function ruleFor(stride: number, count: number): RangeRule {
 
 /**
  * The `count` increasing indices of `sorted`, records of `stride` words, joined into ranges by the
- * engine's one rule (`ruleFor`, `coalesceRanges`): `[first, last]` pairs in the returned scratch,
- * which the next join overwrites; their count. What `writeRanges` sends, and what a writer that
- * packs its records itself sends a run at a time (`../../placement/rootWorlds.ts`).
+ * engine's one rule (`ruleFor`, `coalesceRanges`): `[first, last]` pairs in `joinedSpans`, which
+ * the next join overwrites; their count — nothing allocated. What `writeRanges` sends, and what a
+ * writer that packs its records itself sends a run at a time (`../../placement/rootWorlds.ts`).
  */
-export function joinedRanges(sorted: Int32Array, count: number, stride: number) {
-  return { runs: coalesceRanges(sorted, count, spans, ruleFor(stride, count)), spans }
-}
+export const joinedRanges = (sorted: Int32Array, count: number, stride: number) =>
+  coalesceRanges(sorted, count, joinedSpans, ruleFor(stride, count))
 
 /**
  * The one run writer of the engine's tables: the `count` increasing indices of `sorted` joined into
@@ -69,10 +69,10 @@ export function writeRanges(
   count: number,
   { data, sourceBase, targetBase, stride }: RangeSource,
 ) {
-  const { runs } = joinedRanges(sorted, count, stride)
+  const runs = joinedRanges(sorted, count, stride)
   for (let r = 0; r < runs; r++) {
-    const first = spans[r * 2],
-      bytes = (spans[r * 2 + 1] - first + 1) * stride * 4,
+    const first = joinedSpans[r * 2],
+      bytes = (joinedSpans[r * 2 + 1] - first + 1) * stride * 4,
       offset = (targetBase + first * stride) * 4,
       from = data.byteOffset + (sourceBase + first * stride) * 4
     target(offset, data.buffer as ArrayBuffer, from, bytes)
