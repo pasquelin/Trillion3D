@@ -65,7 +65,7 @@ export function createImpostorPass(device: GPUDevice) {
         tilesGroup = device.createBindGroup({
           label: 'Trillion3D impostor tiles',
           layout: tilesLayout,
-          entries: core.cardTileEntries(atlases, sampler),
+          entries: core.cardTileEntries(atlases, tiles.next),
         })
       return tilesGroup!
     },

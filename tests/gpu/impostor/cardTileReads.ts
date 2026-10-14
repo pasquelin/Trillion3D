@@ -8,6 +8,7 @@ import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   cardTileEntries,
+  cardTileResources,
   cardTileWgsl,
 } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
 import type { WebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlasTypes.ts'
@@ -105,8 +106,10 @@ export async function cardTileReads(
   maps: { colour: Chain; normalDepth: Chain; orm: Chain },
   taps: Float32Array<ArrayBuffer>,
 ) {
+  const held: unknown[] = []
+  cardTileResources(held, atlases, sampler)
   const pool = await run(device, poolKernel(), taps, (layout) =>
-    device.createBindGroup({ layout, entries: cardTileEntries(atlases, sampler) }),
+    device.createBindGroup({ layout, entries: cardTileEntries(atlases, held) }),
   )
   const chains = await run(device, chainKernel(), taps, (layout) =>
     referenceGroup(device, layout, sampler, maps),

@@ -6,7 +6,10 @@
 import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { createWebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlas.ts'
-import { cardTileEntries } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
+import {
+  cardTileEntries,
+  cardTileResources,
+} from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
 import type { TileTexture } from '../../../packages/sdk-browser/src/webgpu/tile/tileTexture.ts'
 import {
   cellOrigin,
@@ -102,10 +105,9 @@ export function cardTileAtlases(
   }
   const color = atlas('color', 0, maps.colours)
   const data = atlas('data', color.pages.entries, [maps.normalDepth, maps.orm])
-  const group = device.createBindGroup({
-    layout,
-    entries: cardTileEntries({ color, data }, sampler),
-  })
+  const held: unknown[] = []
+  cardTileResources(held, { color, data }, sampler)
+  const group = device.createBindGroup({ layout, entries: cardTileEntries({ color, data }, held) })
   return {
     group,
     color,
