@@ -60,7 +60,9 @@ test('a scene whose transparents come and go keeps the front layer: its fold fol
   const word = () => writes.filter((w) => w.buffer === table).at(-1)!.data[HIZ_LEVELS_FRONT_WORD]
   const clears = () =>
     passDescriptors.filter(
-      (d) => (d as GPURenderPassDescriptor | undefined)?.colorAttachments?.[0]?.view === front,
+      (d) =>
+        [...((d as GPURenderPassDescriptor | undefined)?.colorAttachments ?? [])][0]?.view ===
+        front,
     ).length
   assert.equal(word(), 1, 'the readers fold the layer this image writes')
   assert.equal(hiz.front(encoder, false), undefined, 'no front layer this image writes')
