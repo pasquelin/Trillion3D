@@ -7,20 +7,18 @@ import type { WebgpuTileAtlas } from '../tile/atlas.ts'
 
 /** What the tile group is made over: the atlases' lane views and tables, and the maps' sampler. */
 type TileSources = { color: WebgpuTileAtlas; data: WebgpuTileAtlas; sampler: GPUSampler }
-/** What a tile group binds of its sources. */
-type TileBound = {
-  colorViews: readonly GPUTextureView[]
-  dataViews: readonly GPUTextureView[]
-  colorPages: GPUBuffer
-  dataPages: GPUBuffer
-  sampler: GPUSampler
+
+/** Writes what the tile group binds of `tiles` into `next`, in its bindings' order
+ *  (`cardTileEntries`): no array made for a group that stays. */
+function tileResources(next: unknown[], { color, data, sampler }: TileSources) {
+  let at = 0
+  for (const view of color.views) next[at++] = view
+  next[at++] = color.pages.buffer
+  for (const view of data.views) next[at++] = view
+  next[at++] = data.pages.buffer
+  next[at++] = sampler
+  next.length = at
 }
-const bindsAs = (held: TileBound, { color, data, sampler }: TileSources) =>
-  held.colorViews === color.views &&
-  held.dataViews === data.views &&
-  held.colorPages === color.pages.buffer &&
-  held.dataPages === data.pages.buffer &&
-  held.sampler === sampler
 
 /**
  * What the card pass holds beside its pipelines (`cardPipelines`, checked where the session
@@ -41,11 +39,12 @@ export function createImpostorPass(device: GPUDevice) {
     buffer: undefined as unknown as GPUBuffer,
   }
   let cardBuffer: GPUBuffer | undefined
-  // The identifiers the visibility stage kept: a group for the view they are in, made again when it is.
-  let idsOf: { view: GPUTextureView; group: GPUBindGroup } | undefined
-  // The tile pool's group and what it was made over: made again when an atlas's views or table,
-  // or the sampler, are — a pool replaced, a table regrown.
-  let tilesOf: (TileBound & { group: GPUBindGroup }) | undefined
+  // The identifiers the visibility stage kept: a group for the view they are in, made again when it
+  // is. The tile pool's group: made again when an atlas's views or table, or the sampler, are — a
+  // pool replaced, a table regrown.
+  const ids = core.createWebgpuBindIdentity(),
+    tiles = core.createWebgpuBindIdentity()
+  let idsGroup: GPUBindGroup | undefined, tilesGroup: GPUBindGroup | undefined
   return {
     surfacePipeline,
     visPipeline,
@@ -55,7 +54,8 @@ export function createImpostorPass(device: GPUDevice) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4
       if (!cardBuffer || cardBuffer.size < bytes) {
         const size = core.grownLength(cardBuffer?.size ?? 0, bytes)
-        cardBuffer?.destroy()
+        // Named by this image's commands not yet submitted: retired, never destroyed at once.
+        if (cardBuffer) core.retire(device, cardBuffer)
         cardBuffer = device.createBuffer({
           label: 'Trillion3D impostor cards',
           size,
@@ -71,32 +71,26 @@ export function createImpostorPass(device: GPUDevice) {
       return image
     },
     /** The tile pool's group, group 1 of every stage: the one binding of every card's maps. */
-    tilesGroup(tiles: TileSources) {
-      if (tilesOf && bindsAs(tilesOf, tiles)) return tilesOf.group
-      const { color, data, sampler } = tiles
-      tilesOf = {
-        ...{ colorViews: color.views, dataViews: data.views, sampler },
-        ...{ colorPages: color.pages.buffer, dataPages: data.pages.buffer },
-        group: device.createBindGroup({
+    tilesGroup(sources: TileSources) {
+      tileResources(tiles.next, sources)
+      if (tiles.moved())
+        tilesGroup = device.createBindGroup({
           label: 'Trillion3D impostor tiles',
           layout: tilesLayout,
-          entries: core.cardTileEntries(tiles, sampler),
-        }),
-      }
-      return tilesOf.group
+          entries: core.cardTileEntries(sources, sources.sampler),
+        })
+      return tilesGroup!
     },
     /** The group over the identifiers texture `view`, group 2 of the surface stage. */
     idsGroup(view: GPUTextureView) {
-      if (idsOf?.view !== view)
-        idsOf = {
-          view,
-          group: device.createBindGroup({
-            label: 'Trillion3D impostor identifiers',
-            layout: idsLayout,
-            entries: sequentialEntries([view]),
-          }),
-        }
-      return idsOf.group
+      ids.next[0] = view
+      if (ids.moved())
+        idsGroup = device.createBindGroup({
+          label: 'Trillion3D impostor identifiers',
+          layout: idsLayout,
+          entries: sequentialEntries([view]),
+        })
+      return idsGroup!
     },
     dispose() {
       viewBuffer.destroy()
