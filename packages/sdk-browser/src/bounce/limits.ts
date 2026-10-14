@@ -8,12 +8,8 @@
  * refused bounce with the measurement that missed, never with a guess.
  */
 
-import { PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { BOUNCE_GRID_BYTES } from './uniform.ts'
-
-/** Bytes of one copy of `probes` probes on the GPU: never an empty binding. */
-export const bounceProbeBytes = (probes: number) => Math.max(16, probes * PROBE_FLOATS * 4)
 
 /** A planned binding: its diagnostic name, its bytes, and the limit that bounds it. */
 type BounceBinding = {

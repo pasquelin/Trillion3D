@@ -5,7 +5,7 @@
 // that does not come back bit for bit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { createBounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
@@ -13,7 +13,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
 import { PROBE_TEXELS, atlasBytes, probeAtlasExtent } from './atlas.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
-import { bounceProbeBytes, ensureBounceFits } from './limits.ts'
+import { ensureBounceFits } from './limits.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 
 type Probe = {
@@ -48,12 +48,12 @@ test('every probe vector has a texel of its own, read back bit for bit where it 
   vectors.forEach(([probe, k], i) => assert.deepEqual(run.probeAt(probe, k), value(i), `${i}`))
 })
 
-test('the probe atlas holds a level per layer and weighs what the buffer did', () => {
+test('the probe atlas holds a level per layer, every declared level, a probe its floats', () => {
   const cascades = createBounceCascades([0, 0, 0, 20, 3, 3])
   const extent = probeAtlasExtent(cascades.size, BOUNCE_SETTINGS.cascadeLevels)
   assert.equal(extent[0] * extent[1], cascades.probesPerLevel * PROBE_TEXELS, 'a level a layer')
   assert.equal(extent[2], BOUNCE_SETTINGS.cascadeLevels)
-  assert.equal(atlasBytes(extent), bounceProbeBytes(cascades.reserveCount))
+  assert.equal(atlasBytes(extent), cascades.reserveCount * PROBE_FLOATS * 4)
   assert.ok(extent[0] <= GUARANTEED_SIDE && extent[1] <= GUARANTEED_SIDE)
 })
 

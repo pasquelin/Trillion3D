@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
-import { bounceProbeBytes } from '../bounce/limits.ts'
+import { atlasBytes, probeAtlasExtent } from '../bounce/atlas.ts'
 import { vsmLayout } from '../vsm/layout.ts'
 import { vsmResourceBytes } from '../vsm/layoutBytes.ts'
 import {
@@ -41,4 +41,4 @@ export const SHADOW_POOL_BYTES = alignUp(oneSunShadowMaps().bytes, MIB)
  * probes and the snapshot frozen before each update). Fixed whatever the scene.
  */
 export const BOUNCE_PROBE_BYTES =
-  2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3)
+  2 * atlasBytes(probeAtlasExtent(BOUNCE_SETTINGS.cascadeSize, BOUNCE_SETTINGS.cascadeLevels))

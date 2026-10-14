@@ -10,7 +10,8 @@ import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
-import { bounceProbeBytes } from '../../bounce/limits.ts'
+import { atlasBytes, probeAtlasExtent } from '../../bounce/atlas.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
 import { poolWindowSizes } from '../../vsm/layoutBytes.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../../residency/shadowBudgetBytes.ts'
@@ -123,13 +124,17 @@ test('the shadow maps fit their share on any device, and totals below 512 MiB ne
   assert.ok(shadows + probes + g + t <= FIXED + 2)
 })
 
-test('the GPU total counts the bounce probes at their largest, before the pools', () => {
-  // Both copies of a city's cascades — every level followed — are the largest the probes take;
-  // a room holds fewer levels and fits inside.
-  const city = createBounceCascades([0, 0, 0, 8000, 300, 8000])
-  const room = createBounceCascades([0, 0, 0, 6, 3, 6])
-  assert.equal(2 * bounceProbeBytes(city.probes), BOUNCE_PROBE_BYTES)
-  assert.ok(2 * bounceProbeBytes(room.probes) < BOUNCE_PROBE_BYTES)
+test('the GPU total counts the bounce probes as their atlas holds them, before the pools', () => {
+  // Both copies of the atlas, a layer for every declared level whatever the scene: a city's and a
+  // room's weigh the same.
+  for (const bounds of [
+    [0, 0, 0, 8000, 300, 8000],
+    [0, 0, 0, 6, 3, 6],
+  ]) {
+    const { size } = createBounceCascades(bounds)
+    const extent = probeAtlasExtent(size, BOUNCE_SETTINGS.cascadeLevels)
+    assert.equal(2 * atlasBytes(extent), BOUNCE_PROBE_BYTES)
+  }
   for (const total of [DEFAULT_GPU_BUDGET, FIXED + 8 * MIB]) {
     const handle = budget(null, { gpu: total })
     const { shadowPool, bounceProbes, geometryPool, texturePool } = handle.split
