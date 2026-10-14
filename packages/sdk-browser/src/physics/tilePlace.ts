@@ -3,7 +3,8 @@ import type {
   CookedPhysics,
   CookedTile,
 } from '../../../sdk-core/src/physics/index.ts'
-import { boxPointDistance, boxTransform } from '../../../math/src/geometry/box.ts'
+import { boxTransform } from '../../../math/src/geometry/box.ts'
+import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
