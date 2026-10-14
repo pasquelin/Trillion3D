@@ -7,7 +7,7 @@
 import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { reflect, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
 import type { RigFrame } from './rigFrame.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
@@ -111,8 +111,7 @@ export function exactReflection(view: ReturnType<typeof camera>, x: number, y: n
   if (index < 0) return undefined
   const point = [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as V3
   const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius) as V3
-  const k = 2 * dotVector3(d, n)
-  const R = [d[0] - k * n[0], d[1] - k * n[1], d[2] - k * n[2]] as V3
+  const R = reflect(d, n)
   const hit = castSpheres(point, R, 1e-6)
   return {
     index: hit.index,

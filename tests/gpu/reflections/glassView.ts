@@ -2,6 +2,7 @@
 // against (`glassPage.ts`): the eye's rays, a ray's crossing of a pane, a point's pixel.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { reflect } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 export const WIDTH = 256,
   HEIGHT = 192
@@ -39,7 +40,5 @@ export function pixelOf(p: V3) {
 
 /** The mirror of `d` about the vertical pane of yaw `yaw`. */
 export function mirror(d: V3, yaw: number): V3 {
-  const n: V3 = [Math.sin(yaw), 0, Math.cos(yaw)]
-  const dn = d[0] * n[0] + d[1] * n[1] + d[2] * n[2]
-  return [d[0] - 2 * dn * n[0], d[1] - 2 * dn * n[1], d[2] - 2 * dn * n[2]]
+  return reflect(d, [Math.sin(yaw), 0, Math.cos(yaw)])
 }

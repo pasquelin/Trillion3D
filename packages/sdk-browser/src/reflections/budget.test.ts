@@ -6,6 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
+import { reflect, scale } from '../../../math/src/vector/vectorTuple.ts'
 import { reflectionRunner, sceneFromDepth } from './scene.fixture.ts'
 import { camera, type V3 } from './boxes.fixture.ts'
 
@@ -88,7 +89,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
       const V: V3 = [toEye[0] / away, toEye[1] / away, toEye[2] / away]
       const cosine = V[0] * N[0] + V[1] * N[1] + V[2] * N[2]
       if (cosine <= 0) continue
-      const R = [0, 1, 2].map((a) => 2 * cosine * N[a] - V[a]) as V3
+      const R = reflect(scale(V, -1), N)
       const alpha = 0.0028
       const lobe = run.reflectionLobeOf(R, alpha, [0, 0, 0, alpha])
       const ray = run.reflectionRay(P, N, lobe, run.reflectionPixelAt(P))

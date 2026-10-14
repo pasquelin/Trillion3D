@@ -2,22 +2,14 @@
 // form where one exists (sphere, ellipsoid, box, post, quad, disc) and the root of the torus's quartic
 // bracketed and bisected to 1e-9, in the shape's own frame; and the radiance a ray brings back through up
 // to three layers, as the proxy's contract says (a blended surface weighs its own radiance by its opacity and
-// lets the rest through, an opaque one ends the ray). Nothing here reads the engine.
-import { length3 } from '../../../packages/math/src/vector/vector.ts'
+// lets the rest through, an opaque one ends the ray). Nothing here reads the engine but the contract's layer
+// count (`RAY_LAYERS`).
+import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
+import { add, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
 export type Vec = [number, number, number]
-export const add = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-export const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-export const scale = (a: Vec, s: number): Vec => [a[0] * s, a[1] * s, a[2] * s]
-const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-export const cross = (a: Vec, b: Vec): Vec => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-]
-const length = (a: Vec) => length3(a[0], a[1], a[2])
-export const unit = (a: Vec): Vec => scale(a, 1 / length(a))
 
 /** A world vector in a shape's frame: the inverse of its pose, `pitch` about x then `yaw` about y. */
 function unturn(v: Vec, yaw: number, pitch: number): Vec {
@@ -33,7 +25,7 @@ const finalCentre = (s: Shape): Vec => (s.kind === 'skinned' ? s.centre : add(s.
 
 /** The parameters `t > 1e-6` at which the ray `o + t d` crosses shape `s`, ascending. */
 export function crossings(s: Shape, o: Vec, d: Vec): number[] {
-  const lo = unturn(sub(o, finalCentre(s)), s.yaw, s.pitch),
+  const lo = unturn(subtract(o, finalCentre(s)), s.yaw, s.pitch),
     ld = unturn(d, s.yaw, s.pitch)
   if (s.kind === 'skinned') {
     // The upper bone's move weighs linearly in height, from 0 at the foot to 1 at the top: the bent post is
@@ -57,7 +49,7 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
     const k: Vec = [1 / a, 1 / (a * (1 + 0.6 * s.weight)), 1 / a]
     const p: Vec = [lo[0] * k[0], lo[1] * k[1], lo[2] * k[2]],
       q: Vec = [ld[0] * k[0], ld[1] * k[1], ld[2] * k[2]]
-    hits.push(...quadratic(dot(q, q), 2 * dot(p, q), dot(p, p) - 1))
+    hits.push(...quadratic(dotVector3(q, q), 2 * dotVector3(p, q), dotVector3(p, p) - 1))
   } else if (s.kind === 'box') {
     let near = -Infinity,
       far = Infinity
@@ -103,8 +95,8 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
         const g = x * x + y * y + z * z + a * a - b * b
         return g * g - 4 * a * a * (x * x + z * z)
       }
-    const mid = -dot(lo, ld),
-      span = Math.sqrt(Math.max(0, reach * reach - (dot(lo, lo) - mid * mid)))
+    const mid = -dotVector3(lo, ld),
+      span = Math.sqrt(Math.max(0, reach * reach - (dotVector3(lo, lo) - mid * mid)))
     if (span > 0) {
       const steps = 256
       let previous = f(mid - span)
@@ -128,9 +120,6 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
   return hits.filter((t) => t > 1e-6).sort((x, y) => x - y)
 }
 
-/** Layers a ray holds at most (`RAY_LAYERS`): the proxy's own contract. */
-const LAYERS = 3
-
 /** What the ray brings back: the emission of what it meets, a blended surface weighing its own and letting
  *  the rest through, an opaque one (emitting or dark) ending it; the third layer is the last. The
  *  environment is black. `first` names the first thing met, or -1. */
@@ -145,7 +134,7 @@ export function radiance(c: FamilyCase, o: Vec, d: Vec): { rgb: Rgb; first: numb
   hits.sort((x, y) => x.t - y.t)
   const rgb: Rgb = [0, 0, 0]
   let through = 1
-  for (const { at } of hits.slice(0, LAYERS)) {
+  for (const { at } of hits.slice(0, RAY_LAYERS)) {
     const s = c.shapes[at],
       weight = through * s.opacity
     for (let k = 0; k < 3; k++) rgb[k] += weight * s.emission[k]

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cross, subtract, unit } from './vectorTuple.ts'
+import { add, cross, reflect, scale, subtract, unit } from './vectorTuple.ts'
 
 test('tuple products preserve inputs and allocate a distinct result on each call', () => {
   const a: [number, number, number] = [1, 2, 3]
@@ -23,4 +23,15 @@ test('normalization returns the same tuple and preserves zero and non-finite beh
   assert.deepEqual(unit([-0, 0, 0]), [-0, 0, 0])
   assert.deepEqual(unit([Infinity, 1, -1]), [NaN, 0, -0])
   assert.deepEqual(unit([NaN, 1, -1]), [NaN, 1, -1])
+})
+
+test('sums, scales and reflections give fresh tuples, the reflection about a unit normal', () => {
+  const a: [number, number, number] = [1, 2, 3]
+  assert.deepEqual(add(a, [4, 5, 6]), [5, 7, 9])
+  assert.deepEqual(scale(a, -2), [-2, -4, -6])
+  assert.notEqual(add(a, [0, 0, 0]), a)
+  // Off a floor of normal +y, a ray going down leaves going up; the normal's own direction turns.
+  assert.deepEqual(reflect([1, -1, 0], [0, 1, 0]), [1, 1, 0])
+  assert.deepEqual(reflect([0, 0, 1], [0, 0, 1]), [0, 0, -1])
+  assert.deepEqual(a, [1, 2, 3])
 })

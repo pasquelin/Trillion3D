@@ -4,10 +4,11 @@
 // by the split-sum term of the floor's reflectance. A pixel is decided when it is floor alone and neither it
 // nor its four neighbours have their mirror ray end on another shape: the pixels on the edge of a reflected
 // shape are antialiased, which no ray answers whole.
-import { TAU } from '../../../packages/math/src/constants.ts'
-import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { DEG2RAD, TAU } from '../../../packages/math/src/constants.ts'
+import { add, reflect, scale } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { GRID, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
-import { crossings, cross, radiance, scale, sub, unit, add, type Vec } from './runtimeFamilyRays.ts'
+import { crossings, radiance, type Vec } from './runtimeFamilyRays.ts'
 
 /**
  * The lobe's reference samples: ONE, the lobe's centre. The run-time proxy answers a lobe along its centre, one ray;
@@ -20,9 +21,6 @@ const LOBE_SAMPLES = 1
 /** The error the proof declares: relative to the expected value, plus an absolute floor. */
 export const TOLERANCE = { relative: 0.25, absolute: 0.02 }
 const FLOOR_REACH = 30
-
-const reflect = (v: Vec, h: Vec): Vec =>
-  sub(scale(h, 2 * (v[0] * h[0] + v[1] * h[1] + v[2] * h[2])), v)
 
 /** The split-sum term `f0 · A + B` of the GGX lobe (a public analytic fit of it). */
 function splitSum(f0: number, rough: number, nov: number) {
@@ -50,17 +48,9 @@ export function expectedFloor(
   height: number,
   lobeSamples = LOBE_SAMPLES,
 ): Decided[] {
-  const forward = unit(sub(c.target, c.eye)),
-    right = unit(cross(forward, [0, 1, 0])),
-    up = cross(right, forward),
-    slope = perspectiveSlope(c.fov),
-    aspect = width / height
   const eye: Vec = c.eye
-  const primary = (i: number, j: number) => {
-    const x = ((i + 0.5) / width) * 2 - 1,
-      y = 1 - ((j + 0.5) / height) * 2
-    return unit(add(add(forward, scale(right, x * slope * aspect)), scale(up, y * slope)))
-  }
+  const view = camera(eye, c.target, width, height, c.fov * DEG2RAD)
+  const primary = (i: number, j: number) => view.ray(i + 0.5, j + 0.5)
   /** The floor point of the ray `d` from the eye, or null when a shape or the sky comes first. */
   const floorPoint = (d: Vec): Vec | null => {
     if (d[1] >= -1e-6) return null
@@ -107,7 +97,8 @@ export function expectedFloor(
         const cosT = count === 1 ? 1 : Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
           sinT = Math.sqrt(1 - cosT * cosT),
           phi = TAU * radical
-        const l = reflect(v, [sinT * Math.cos(phi), cosT, sinT * Math.sin(phi)])
+        // The eye's direction mirrored about the half vector: the light's.
+        const l = reflect(scale(v, -1), [sinT * Math.cos(phi), cosT, sinT * Math.sin(phi)])
         if (l[1] <= 0) continue
         const { rgb } = radiance(c, here, l)
         for (let m = 0; m < 3; m++) total[m] += rgb[m] / count
