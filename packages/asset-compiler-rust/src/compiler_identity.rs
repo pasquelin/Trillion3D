@@ -105,7 +105,9 @@ mod tests {
 
     // Behaviour: the page codec and the maths are linked into the compiler: their sources are
     // hashed as the compiler's own, so a codec or maths edit moves the key. So does the cargo configuration, whose
-    // C++ flags change what the simplifier simplifies to. Read from the list the build hashed.
+    // C++ flags change what the simplifier simplifies to, and so does the physics cook: its source,
+    // every header it includes and the CMake file that sets its flags. Read from the list the build
+    // hashed, which is the list it watches and prints.
     #[test]
     fn the_build_hashes_its_path_dependencies_and_the_cpp_flags() {
         let inputs: Vec<&str> =
@@ -118,6 +120,9 @@ mod tests {
             "../math/rust/src/lib.rs",
             "../math/rust/Cargo.toml",
             "../../.cargo/config.toml",
+            "../physics-jolt-wasm/cook/cook.cpp",
+            "../physics-jolt-wasm/src/layout.h",
+            "../physics-jolt-wasm/CMakeLists.txt",
         ] {
             assert!(inputs.contains(&input), "{input} is not hashed");
         }

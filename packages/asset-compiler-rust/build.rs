@@ -11,6 +11,20 @@ use std::{
 /// `cook/cook.cpp`, built by the same CMake file as the web module (`-DCOOK=ON`).
 const PHYSICS: &str = "../physics-jolt-wasm";
 
+/// The cook's own sources, from `PHYSICS`: the one list the build watches, hashes and prints
+/// (`--build-inputs`), so a launch calls a binary stale exactly when its key moves. The headers are
+/// every one `cook/cook.cpp` includes, to the last; the CMake file sets the flags the cook is built
+/// with. The engine itself enters the key by its commit.
+const PHYSICS_INPUTS: [&str; 7] = [
+    "CMakeLists.txt",
+    "cook/cook.cpp",
+    "src/blob.h",
+    "src/layout.h",
+    "src/mesh.h",
+    "src/softSettings.h",
+    "src/words.h",
+];
+
 /// The repository's cargo configuration, which sets the C++ flags the C++ simplifier is built with.
 const CARGO_CONFIG: &str = "../../.cargo/config.toml";
 
@@ -29,17 +43,7 @@ fn physics_cook(output: &Path) -> String {
         jolt.join("Jolt/Jolt.h").exists(),
         "Jolt submodule missing.\nRun: git submodule update --init"
     );
-    for watched in [
-        "cook",
-        "src/blob.h",
-        "src/mesh.h",
-        "src/softSettings.h",
-        "src/words.h",
-        "CMakeLists.txt",
-        "JoltPhysics/Jolt",
-    ] {
-        println!("cargo:rerun-if-changed={PHYSICS}/{watched}");
-    }
+    println!("cargo:rerun-if-changed={PHYSICS}/JoltPhysics/Jolt");
     let commit = Command::new("git")
         .args(["-C", &jolt.to_string_lossy(), "rev-parse", "HEAD"])
         .output()
@@ -120,6 +124,7 @@ fn main() -> std::io::Result<()> {
         // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);
+    files.extend(PHYSICS_INPUTS.map(|input| Path::new(PHYSICS).join(input)));
     files.sort();
     // The whole source directories are watched, not each file in turn: a module added after the
     // previous build is in no per-file watch list, so the build script would not rerun and the
@@ -152,15 +157,6 @@ fn main() -> std::io::Result<()> {
     let jolt = physics_cook(&output);
     println!("cargo:rustc-env=JOLT_COMMIT={jolt}");
     digest.update(jolt.as_bytes());
-    for source in [
-        "cook/cook.cpp",
-        "src/blob.h",
-        "src/mesh.h",
-        "src/softSettings.h",
-        "src/words.h",
-    ] {
-        digest.update(fs::read(Path::new(PHYSICS).join(source))?);
-    }
     fs::write(
         output.join("implementation_hash.txt"),
         format!("{:x}", digest.finalize()),
