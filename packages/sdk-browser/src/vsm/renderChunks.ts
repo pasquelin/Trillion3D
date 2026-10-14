@@ -4,13 +4,13 @@
  * candidates and, for each chunk, its cull and expand pass and its raster pass.
  */
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_EXPAND,
   VSM_RENDER_ARGS_STRIDE_WORDS,
-  VSM_RENDER_CULL_SPECS,
-  VSM_RENDER_EXPAND_SPECS,
-} from './renderCullWgsl.ts'
+} from './renderParamsWgsl.ts'
+import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,

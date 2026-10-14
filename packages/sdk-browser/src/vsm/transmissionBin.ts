@@ -4,11 +4,8 @@
  * VSM tables once a frame set, the opaque raster's mechanism (`renderChunks.ts: renderGroups`) —,
  * then the candidates and, per chunk, the cull, its commands' redrawn pages and the bin.
  */
-import {
-  VSM_RENDER_ARGS_EXPAND,
-  VSM_RENDER_ARGS_STRIDE_WORDS,
-  VSM_RENDER_CULL_SPECS,
-} from './renderCullWgsl.ts'
+import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
+import { VSM_RENDER_ARGS_EXPAND, VSM_RENDER_ARGS_STRIDE_WORDS } from './renderParamsWgsl.ts'
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
@@ -20,7 +17,7 @@ import { vsmEnsureLists } from './chunkLists.ts'
 import { vsmWriteChunkParams } from './chunkParams.ts'
 import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from './resources.ts'
 import type { VsmRenderScene } from './renderPass.ts'
-import { VSM_TRANSMISSION_PAGES_SPECS } from './transmissionWgsl.ts'
+import { VSM_TRANSMISSION_PAGES_SPECS } from './transmissionPagesWgsl.ts'
 import { TRANSMISSION_LABEL, type VsmTransmission } from './transmissionMade.ts'
 import type { VsmTransmissionContext } from './transmissionContext.ts'
 import type { BinPlan } from './transmissionBinPlan.ts'

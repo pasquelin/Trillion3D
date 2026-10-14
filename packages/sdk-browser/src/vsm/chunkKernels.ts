@@ -10,12 +10,9 @@ import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import { vsmBindGroupLayoutEntries, vsmFrameSetHeld, type VsmPerFrameSet } from './resources.ts'
 import type { VsmListName } from './chunkLists.ts'
-import {
-  VSM_RENDER_ARGS_WGSL,
-  VSM_RENDER_CULL_SPECS,
-  VSM_RENDER_EXPAND_SPECS,
-  vsmRenderExpandWgsl,
-} from './renderCullWgsl.ts'
+import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
+import { VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
+import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
 import {
   createVsmRowBound,
   vsmBoundChunk,

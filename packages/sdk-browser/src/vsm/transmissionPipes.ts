@@ -11,15 +11,13 @@ import { vsmBindGroupLayoutEntries } from './resources.ts'
 import { vsmCandidatesEntries, vsmRenderParamsEntry } from './chunkParams.ts'
 import {
   VSM_TRANSMISSION_CLEAR_SPECS,
-  VSM_TRANSMISSION_PAGES_SPECS,
-  vsmTransmissionBinWgsl,
   vsmTransmissionCandidatesWgsl,
   vsmTransmissionClearWgsl,
-  vsmTransmissionNumberWgsl,
-  vsmTransmissionPagesWgsl,
-  vsmTransmissionPlaceWgsl,
-  vsmTransmissionResolveWgsl,
-} from './transmissionWgsl.ts'
+} from './transmissionClearWgsl.ts'
+import { VSM_TRANSMISSION_PAGES_SPECS, vsmTransmissionPagesWgsl } from './transmissionPagesWgsl.ts'
+import { vsmTransmissionBinWgsl } from './transmissionBinWgsl.ts'
+import { vsmTransmissionNumberWgsl, vsmTransmissionPlaceWgsl } from './transmissionNumberWgsl.ts'
+import { vsmTransmissionResolveWgsl } from './transmissionResolveWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from './transmissionLayout.ts'
 import { TRANSMISSION_LABEL } from './transmissionMade.ts'
 

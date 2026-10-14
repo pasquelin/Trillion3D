@@ -9,7 +9,7 @@ import { COMPUTE, computeBufferEntry, computeUniformEntry } from '../gpu/core/co
 import { writeChanged, writeChangedSlots } from '../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { VSM_MIPS } from './constants.ts'
-import { VSM_RENDER_PARAMS, VSM_RENDER_VIEW_DIRECTIONAL } from './renderCullWgsl.ts'
+import { VSM_RENDER_PARAMS, VSM_RENDER_VIEW_DIRECTIONAL } from './renderParamsWgsl.ts'
 import type { VsmBoundLight } from './rowPageBound.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view

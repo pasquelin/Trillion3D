@@ -6,8 +6,9 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts'
-import { vsmRenderCandidatesWgsl, vsmRenderCullWgsl } from './renderCullWgsl.ts'
-import { vsmTransmissionCandidatesWgsl } from './transmissionWgsl.ts'
+import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
+import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
+import { vsmTransmissionCandidatesWgsl } from './transmissionClearWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
 const candidates = vsmRenderCandidatesWgsl(),

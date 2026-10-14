@@ -16,7 +16,7 @@ const UNREAD = new Set([
 ])
 
 /** Group 0's entries of the shadow raster (`../../vsm/renderRasterWgsl.ts`) and of the
- *  transmission's bin (`../../vsm/transmissionWgsl.ts`, compute): the visibility layout, less what
+ *  transmission's bin (`../../vsm/transmissionBinWgsl.ts`, compute): the visibility layout, less what
  *  neither reads, seen by the compute stage too. The bin's compute stage reads five storage buffers
  *  there and three of its own, the eight any device holds. */
 export const shadowPageEntries = (): GPUBindGroupLayoutEntry[] =>

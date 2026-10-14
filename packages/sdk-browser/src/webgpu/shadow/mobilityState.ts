@@ -65,7 +65,7 @@ export function promoteRank(s: MobilityState, rank: number) {
 
 /** The bits a placement gives each of its rows. A blended caster follows its placement like any
  *  caster: the VSM transmission atlas keeps a still one in the static slice
- *  (`../../vsm/transmissionWgsl.ts`). */
+ *  (`../../vsm/transmissionClearWgsl.ts`). */
 export const rankBits = (s: MobilityState, rank: number, shadowless: (rank: number) => boolean) =>
   rank < 0
     ? 0

@@ -16,7 +16,7 @@ import {
 } from './chunkLists.ts'
 import { vsmChunkParamSlots, vsmRenderViews, type VsmRenderChunking } from './chunkParams.ts'
 import type { VsmRenderScene } from './renderPass.ts'
-import { VSM_TRANSMISSION_HEADER_BYTES, VSM_TRANSMISSION_PAGE_BYTES } from './transmissionWgsl.ts'
+import { VSM_TRANSMISSION_HEADER_BYTES, VSM_TRANSMISSION_PAGE_BYTES } from './transmissionShared.ts'
 import type { VsmTransmission } from './transmissionMade.ts'
 import type { VsmTransmissionContext } from './transmissionContext.ts'
 import type { VsmTransmissionFrame } from './transmissionPass.ts'

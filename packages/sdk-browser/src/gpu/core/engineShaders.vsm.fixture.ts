@@ -9,22 +9,22 @@ import {
 import { vsmPageManagementKernels } from '../../vsm/pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from '../../vsm/physicalPagesWgsl.ts'
 import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
-import {
-  VSM_RENDER_ARGS_WGSL,
-  vsmRenderCandidatesWgsl,
-  vsmRenderCullWgsl,
-  vsmRenderExpandWgsl,
-} from '../../vsm/renderCullWgsl.ts'
+import { vsmRenderCullWgsl } from '../../vsm/renderCullWgsl.ts'
+import { VSM_RENDER_ARGS_WGSL } from '../../vsm/renderParamsWgsl.ts'
+import { vsmRenderCandidatesWgsl } from '../../vsm/renderCandidatesWgsl.ts'
+import { vsmRenderExpandWgsl } from '../../vsm/renderExpandWgsl.ts'
 import { vsmRenderRasterWgsl } from '../../vsm/renderRasterWgsl.ts'
+import { vsmTransmissionBinWgsl } from '../../vsm/transmissionBinWgsl.ts'
 import {
-  vsmTransmissionBinWgsl,
   vsmTransmissionCandidatesWgsl,
   vsmTransmissionClearWgsl,
+} from '../../vsm/transmissionClearWgsl.ts'
+import {
   vsmTransmissionNumberWgsl,
-  vsmTransmissionPagesWgsl,
   vsmTransmissionPlaceWgsl,
-  vsmTransmissionResolveWgsl,
-} from '../../vsm/transmissionWgsl.ts'
+} from '../../vsm/transmissionNumberWgsl.ts'
+import { vsmTransmissionPagesWgsl } from '../../vsm/transmissionPagesWgsl.ts'
+import { vsmTransmissionResolveWgsl } from '../../vsm/transmissionResolveWgsl.ts'
 import { vsmLayout } from '../../vsm/layout.ts'
 import { ROW_BINS_WGSL } from '../../vsm/rowBinsWgsl.ts'
 

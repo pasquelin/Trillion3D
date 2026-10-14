@@ -1,11 +1,11 @@
 import { CONTRACT_BINDINGS_WGSL, surfaceBindingsWgsl } from '../../lighting/deferred/shaders.ts'
 import { VIEW_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
+import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
-  declaredLightingWgsl,
-} from '../../lighting/direct/lightingWgsl.ts'
-import { CONTRACT_TRACE_BINDINGS } from '../../lighting/direct/shadowWgsl.ts'
+  CONTRACT_TRACE_BINDINGS,
+} from '../../lighting/direct/shadowBindings.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
 import { WATER_LOBELESS_WGSL, WATER_LOBES_WGSL } from './waterLobesWgsl.ts'

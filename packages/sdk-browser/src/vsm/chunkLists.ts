@@ -10,7 +10,7 @@ import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { madeTextureBytes } from '../gpu/core/textureBytes.ts'
 import type { UniformSlots } from '../residency/pools.ts'
 import { VSM_RENDER_CANDIDATE_BYTES, VSM_RENDER_CMD_BYTES } from './constants.ts'
-import { VSM_RENDER_ARGS_STRIDE_WORDS, VSM_RENDER_COUNTS_HEAD } from './renderCullWgsl.ts'
+import { VSM_RENDER_ARGS_STRIDE_WORDS, VSM_RENDER_COUNTS_HEAD } from './renderParamsWgsl.ts'
 import type { VsmChunk } from './rowPageBound.ts'
 
 /** The lists a chunked raster holds, by name. */

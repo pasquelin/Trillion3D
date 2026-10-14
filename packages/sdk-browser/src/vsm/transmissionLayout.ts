@@ -1,7 +1,7 @@
 /**
  * The sizes of the coloured transmission, without a device: the readable memory's width and
  * format, the build buffer's counters and regions, the dispatch arguments, the first capacities
- * and every byte a transmission asks for (`transmissionWgsl.ts` lays the data out,
+ * and every byte a transmission asks for (`transmissionShared.ts` lays the data out,
  * `transmissionPass.ts` makes it). Only constants and arithmetic: the memory budget reads the
  * transmission's share here without the passes (`residency/shadowBudgetBytes.ts`).
  */

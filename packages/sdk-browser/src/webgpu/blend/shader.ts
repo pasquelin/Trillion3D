@@ -1,4 +1,4 @@
-import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
+import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'

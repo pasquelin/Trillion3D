@@ -1,4 +1,4 @@
-// Generated scenes for the exact transmission read (`transmissionWgsl.ts`), a brute-force cast in
+// Generated scenes for the exact transmission read (`transmissionReadWgsl.ts`), a brute-force cast in
 // f64 and the texel store the read replaced, to hold the read against.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { type Caster, pack, unpack } from './transmissionRead.fixture.ts'

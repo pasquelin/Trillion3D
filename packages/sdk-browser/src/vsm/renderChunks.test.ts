@@ -19,7 +19,7 @@ import {
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_PARAMS,
-} from './renderCullWgsl.ts'
+} from './renderParamsWgsl.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { DEFAULT_GROUP_WIDTH } from '../gpu/dispatch/grid.ts'

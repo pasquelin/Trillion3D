@@ -1,10 +1,10 @@
-// The exact read's edge rule (`transmissionWgsl.ts`: `vsmTInside`): every point of a sheet counted
+// The exact read's edge rule (`transmissionGeometryWgsl.ts`: `vsmTInside`): every point of a sheet counted
 // once — random points, points on shared edges and vertices, fans, the seams between clusters.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { vsmTransmissionBinWgsl } from './transmissionWgsl.ts'
+import { vsmTransmissionBinWgsl } from './transmissionBinWgsl.ts'
 import {
   type Tri,
   type V,

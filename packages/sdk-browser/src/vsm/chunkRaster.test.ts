@@ -7,7 +7,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { recordingRaster } from './recordingRaster.fixture.ts'
-import { VSM_RENDER_ARGS_DRAW, VSM_RENDER_ARGS_STRIDE_WORDS } from './renderCullWgsl.ts'
+import { VSM_RENDER_ARGS_DRAW, VSM_RENDER_ARGS_STRIDE_WORDS } from './renderParamsWgsl.ts'
 
 test('each chunk raster encodes its pipeline, two groups and its indirect draw, no bundle', () => {
   const fake = fakeDevice({

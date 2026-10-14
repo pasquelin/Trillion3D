@@ -11,7 +11,8 @@ import { VSM_PAGE_TEXELS } from './constants.ts'
 import { vsmComputePipe } from './passKit.ts'
 import { vsmBindGroupLayoutEntries, type VsmResources } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
-import { vsmRenderCandidatesWgsl, vsmRenderCullWgsl } from './renderCullWgsl.ts'
+import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
+import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,

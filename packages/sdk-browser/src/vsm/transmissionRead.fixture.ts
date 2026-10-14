@@ -1,10 +1,10 @@
-// The exact transmission read's proofs (`transmissionWgsl.ts`), its shipped WGSL run by
+// The exact transmission read's proofs (`transmissionReadWgsl.ts`), its shipped WGSL run by
 // `shaderRun`: generated scenes, a slice laid out as the resolve writes it, a brute-force cast and
 // the texel store the read replaced.
 import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
+import { vsmTransmissionReadWgsl } from './transmissionReadWgsl.ts'
 import { type Tri, type V, BLOCK, geometry } from './transmissionSheets.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'

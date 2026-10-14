@@ -20,12 +20,13 @@ import {
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts'
 import { VSM_PROJECTION_VSM_SPECS } from './projectionWgsl.ts'
-import { VSM_RENDER_CULL_SPECS, VSM_RENDER_EXPAND_SPECS } from './renderCullWgsl.ts'
+import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
+import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './renderRasterWgsl.ts'
-import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionWgsl.ts'
+import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionClearWgsl.ts'
 import { SHADOW_POOL_BYTES } from '../residency/shadowBudgetBytes.ts'
 import { vsmLayout, type VsmResourceOptions } from './layout.ts'
 import { vsmResourceBytes } from './layoutBytes.ts'

@@ -1,4 +1,4 @@
-// The bin's cells (`transmissionWgsl.ts`: `vsmTCellRange`, `vsmTCoversCell`): a point's cell lists
+// The bin's cells (`transmissionGeometryWgsl.ts`: `vsmTCellRange`, `vsmTCoversCell`): a point's cell lists
 // every triangle the read finds it in, for small, large, thin triangles and corners far off the page.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'

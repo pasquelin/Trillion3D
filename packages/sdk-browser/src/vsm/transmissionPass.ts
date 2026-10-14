@@ -1,5 +1,5 @@
 /**
- * Host side of the translucent casters' transmission (`transmissionWgsl.ts`): made with the first
+ * Host side of the translucent casters' transmission (`transmissionShared.ts`): made with the first
  * blended caster, then encoded each frame after the opaque VSM raster and before the projection,
  * in one compute pass, `TRANSMISSION_LABEL`:
  *
@@ -38,7 +38,8 @@ import {
 } from './resources.ts'
 import type { VsmBoundLight } from './rowPageBound.ts'
 import type { VsmRenderScene } from './renderPass.ts'
-import { VSM_TRANSMISSION_CLEAR_SPECS, VSM_TRANSMISSION_PAGE_GROUP } from './transmissionWgsl.ts'
+import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionClearWgsl.ts'
+import { VSM_TRANSMISSION_PAGE_GROUP } from './transmissionShared.ts'
 import {
   VSM_TRANSMISSION_ARGS_AT,
   VSM_TRANSMISSION_COUNTER_WORDS,

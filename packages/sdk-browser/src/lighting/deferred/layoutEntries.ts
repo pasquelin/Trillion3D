@@ -2,8 +2,11 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { receiverLayoutEntries } from '../../webgpu/visibility/receiver.ts'
-import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts'
-import { CONTRACT_TRACE_BINDINGS, CONTRACT_VSM_BINDINGS } from '../direct/shadowWgsl.ts'
+import {
+  CONTRACT_SHADOW_BINDINGS,
+  CONTRACT_TRACE_BINDINGS,
+  CONTRACT_VSM_BINDINGS,
+} from '../direct/shadowBindings.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 

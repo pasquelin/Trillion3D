@@ -26,8 +26,10 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
 import { VIEW_LAYOUT } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
-import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
-import { CONTRACT_VSM_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts'
+import {
+  CONTRACT_SHADOW_BINDINGS,
+  CONTRACT_VSM_BINDINGS,
+} from '../../../packages/sdk-browser/src/lighting/direct/shadowBindings.ts'
 import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

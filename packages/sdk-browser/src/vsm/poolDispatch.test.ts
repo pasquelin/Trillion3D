@@ -7,7 +7,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { DEFAULT_GROUP_WIDTH } from '../gpu/dispatch/grid.ts'
 import { VSM_GROUP_WIDTH, VSM_PAGE_TEXELS, VSM_TABLE_ROW_WIDTH } from './constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
-import { VSM_TRANSMISSION_PAGE_GROUP } from './transmissionWgsl.ts'
+import { VSM_TRANSMISSION_PAGE_GROUP } from './transmissionShared.ts'
 import { vsmLayout } from './layout.ts'
 
 test('the largest pool an entry addresses fits one row of every pool-wide dispatch', () => {
