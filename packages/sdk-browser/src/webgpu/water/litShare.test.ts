@@ -61,6 +61,7 @@ function runner(text: string) {
       'reflectionFrontDepth',
       'reflectionTrace',
       'reflectionLobeRadiance',
+      'reflectionCentreRadiance',
       'lobeAlpha',
       'reflectionShare',
       'f0Of',

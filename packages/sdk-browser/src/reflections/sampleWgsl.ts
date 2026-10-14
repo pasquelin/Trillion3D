@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_U32, PLASTIC_STEP, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
@@ -6,13 +6,23 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 
-/** One lobe of normal `N`, width `alpha` across and `lobe.w` along `lobe.xyz`, read along its centre
- *  (`reflectionLobeRadiance`): every program but the reflections' trace, `u` unread. */
+/** One lobe of normal `N`, width `alpha` across and `lobe.w` along `lobe.xyz`, read along its centre,
+ *  the mirror direction about `N` (`reflectedRadianceAlong`, which the program holds). */
+const reflectionCentreRadiance = wgslFn(
+  'reflectionCentreRadiance',
+  [],
+  `fn reflectionCentreRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f)->vec3f{
+ return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe);
+}`,
+)
+
+/** Every lobe read along its centre (`reflectionLobeRadiance`): every program but the reflections'
+ *  trace, `u` unread. */
 export const REFLECTION_CENTRE_WGSL = wgslBlock(
   'REFLECTION_CENTRE_WGSL',
-  [],
+  [reflectionCentreRadiance],
   `fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe);
+ return reflectionCentreRadiance(P,N,V,alpha,lobe);
 }`,
 )
 
@@ -50,6 +60,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     TWO_PI,
     mixWord,
     tangentFallback,
+    reflectionCentreRadiance,
   ],
   `fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
@@ -69,7 +80,7 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  return select(reflect(-V,N),L,dot(L,N)>0.0);
 }
 fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- if(!reflectionSampled(alpha)){return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe);}
+ if(!reflectionSampled(alpha)){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
  let spread=sqrt(1.0-REFLECTION_SAMPLE_CONE*REFLECTION_SAMPLE_CONE);
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha)*spread,u);
  return reflectedRadianceAlong(P,N,V,R,alpha*REFLECTION_SAMPLE_CONE,vec4f(lobe.xyz,lobe.w*REFLECTION_SAMPLE_CONE));

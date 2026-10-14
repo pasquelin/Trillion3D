@@ -12,7 +12,7 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
- * `R` is one function, `reflectedRadiance`, every program shares — the opaque surfaces in one
+ * `R` is one function, `reflectedRadianceAlong`, every program shares — the opaque surfaces in one
  * compute pass (`traceHalf.ts`), the transparents' front surface in the same pass (`frontLayer.ts`), the
  * blended surfaces and the water behind it inline in their fragment stage (`weight.ts`) — and it reads
  * what the view holds: its depth, the previous lit image of the same view, the resident proxy and the
@@ -43,7 +43,7 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
  * - `field.ts`: the lobe, the environment and the probes through it;
  * - `weight.ts`: what a surface keeps of the radiance, and how each program binds it;
  * - this file: `reflectionSeen`, the screen's answer along the lobe's centre, and
- *   `reflectedRadiance`, the chain.
+ *   `reflectedRadianceAlong`, the chain.
  */
 
 /** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
@@ -106,7 +106,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32)->Reflect
  * (`reflectionLobeOf`). It leaves in `reflectionHit` the distance of what answered the larger share
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
  * did: what the temporal accumulation reprojects a mirror's reflection by (`temporalWgsl.ts`).
- * `reflectedRadiance` is the lobe's centre, the mirror direction about `N` at the roughness's α.
+ * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
  * With `scene`, the proxy's bindings, the chain holds the proxy's stage; without, it has none.
  */
 export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
@@ -121,9 +121,6 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       LOBE_AXIS_WGSL,
     ],
     `var<private> reflectionHit:f32;
-fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
- return reflectedRadianceAlong(P,N,V,reflect(-V,N),lobeAlpha(rough),lobe);
-}
 fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
