@@ -38,7 +38,7 @@ test('the table grows by a GPU copy, no record sent again, the old texture retir
     [[old, grown]],
   )
   const after = textureWrites.slice(sent)
-  assert.ok(after.every((write) => write.destination.texture === grown))
+  assert.ok(after.every((write) => (write.destination.texture as unknown) === grown))
   assert.equal(
     after.some(({ destination }) => {
       const [x, y] = destination.origin as number[]
