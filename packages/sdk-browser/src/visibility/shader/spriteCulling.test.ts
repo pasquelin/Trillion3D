@@ -67,7 +67,9 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
       'return select(grownPlane(placedT*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));',
     ),
   )
-  // Word 3 of the placement's frame row, the one the host wrote the mark to above.
-  assert.ok(DAG_SELECTION_SHADER.includes('fn markOf(w:u32)->u32{return framesWord(w,3u);}'))
+  // The mark word of the placement's frame row, the one the host wrote the mark to above.
+  assert.ok(
+    DAG_SELECTION_SHADER.includes(`fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}`),
+  )
   fixture.geometry.dispose()
 })

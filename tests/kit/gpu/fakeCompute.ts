@@ -34,6 +34,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
 import { LIST_KERNELS, mirrorListStage } from './fakeLists.ts'
 import { hasBit, setBit } from '../../../packages/math/src/scalar/bits.ts'
+import { ROOT_WORD } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
  *  entries (a kept list's: `rankGroups`). */
@@ -154,9 +155,9 @@ export function simulateComputeDispatch(
     byBinding.get(dagBindingOf().views)!.data,
     dag.worlds.length,
   )
-  // So is each primitive's root, behind its stretch in the frame words: a parked one is NONE
-  // (`parkWorld`), and the cut skips it as the shader does.
-  const rootNodes = dag.rootNodes.map((_, w) => frameWord(boundFrames, w, 1))
+  // So is each primitive's root, its frame row's root word: a parked one is NONE (`parkWorld`),
+  // and the cut skips it as the shader does.
+  const rootNodes = dag.rootNodes.map((_, w) => frameWord(boundFrames, w, ROOT_WORD))
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
   fakeEvictions(byBinding, dag).stamp(
     [...result.pageIds, ...(result.drawablePageIds ?? [])],
