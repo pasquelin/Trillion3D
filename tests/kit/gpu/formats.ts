@@ -1,7 +1,8 @@
 /**
  * The texture formats as core WebGPU classes them, for the kit's validation (`validation.ts`): which
  * a shader stores to, which a pass renders to, which hold depth, and which views a format allows.
- * The spec's usage and stage numbers, as the rules read them whatever a test installed.
+ * The spec's usage numbers, as the rules read them whatever a test installed, and as
+ * `installGpuGlobals` (`globals.ts`) installs them.
  */
 
 /** `GPUBufferUsage`. */
@@ -10,8 +11,11 @@ export const BUFFER = {
   MAP_WRITE: 2,
   COPY_SRC: 4,
   COPY_DST: 8,
+  INDEX: 16,
+  VERTEX: 32,
   UNIFORM: 64,
   STORAGE: 128,
+  INDIRECT: 256,
   QUERY_RESOLVE: 512,
 } as const
 /** `GPUTextureUsage`. */
