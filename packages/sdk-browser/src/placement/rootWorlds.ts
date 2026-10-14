@@ -21,6 +21,7 @@ import { grownByCopy } from '../gpu/core/tableGrowth.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import { joinedRanges, joinedSpans } from '../gpu/dag/runWrites.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import { movedList, noteMoved } from './rootMoves.ts'
 import {
   cutRoots,
@@ -51,6 +52,9 @@ function createRootWorlds() {
     /** What the rows pass and the root boxes pass have still to derive. */
     rows: movedList(),
     roots: movedList(),
+    /** The roots' one compute pass and the maker of its command buffer, made at the first write
+     *  (`rootPasses.ts`). */
+    pass: undefined as { open: LazyComputePass; encoder: () => GPUCommandEncoder } | undefined,
   }
 }
 export type RootWorlds = ReturnType<typeof createRootWorlds>

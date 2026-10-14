@@ -19,26 +19,24 @@ import { sendRootWorlds } from './rootWorlds.ts'
 import { leafKernel, treeLeaves } from './treeLeaves.ts'
 import { createImagePart } from '../webgpu/pages/render/encoder.ts'
 
-/** The roots' one compute pass, opened by the first pass that runs, its command buffer made then
- *  (`rootsEncoder`): a frame where nothing moved since the last time makes none. */
-const rootsPass = new LazyComputePass(COMPOSE_ROOTS_PASS)
-
-/** Each runtime's maker of the roots' command buffer, made once: a part of the image it goes
- *  before, timed with it (`createImagePart`); a cut no image follows (a waiting selection's) times
- *  nothing. Submitted at once, never in the frame's command buffer: a second cut of the frame
- *  rewrites the passes' parameters, and an image dropped would drop the roots it took. */
-const encoders = new WeakMap<WebgpuPagesRuntime, () => GPUCommandEncoder>()
-function rootsEncoder(rt: WebgpuPagesRuntime) {
-  let make = encoders.get(rt)
-  if (make) return make
-  make = () => {
-    const device = rt.gpu.device!
-    return rt.timing.frameEncoder
-      ? createImagePart(rt, device)
-      : device.createCommandEncoder({ label: 'Trillion3D roots' })
-  }
-  encoders.set(rt, make)
-  return make
+/**
+ * Runtime `rt`'s roots' one compute pass, held with its root worlds (`RootWorlds.pass`), made once:
+ * opened by the first pass that runs, its command buffer made then — a frame where nothing moved
+ * since the last time makes none —, a part of the image it goes before, timed with it
+ * (`createImagePart`); a cut no image follows (a waiting selection's) times nothing. Submitted at
+ * once, never in the frame's command buffer: a second cut of the frame rewrites the passes'
+ * parameters, and an image dropped would drop the roots it took.
+ */
+function rootsPassOf(rt: WebgpuPagesRuntime) {
+  return (rt.rootWorlds!.pass ??= {
+    open: new LazyComputePass(COMPOSE_ROOTS_PASS),
+    encoder: () => {
+      const device = rt.gpu.device!
+      return rt.timing.frameEncoder
+        ? createImagePart(rt, device)
+        : device.createCommandEncoder({ label: 'Trillion3D roots' })
+    },
+  })
 }
 
 /** Runtime `rt`'s roots brought level on the GPU — the composition's passes first when `compose` —,
@@ -47,7 +45,8 @@ function writeRoots(rt: WebgpuPagesRuntime, compose: boolean, frames: GPUTexture
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
   sendRootWorlds(rt, device)
-  const open = rootsPass.begin(rootsEncoder(rt))
+  const held = rootsPassOf(rt),
+    open = held.open.begin(held.encoder)
   const composed = compose && encodeComposedRoots(rt, device, open)
   encodeRootBoxes(rt, device, open, composed, frames)
   const encoder = open.end()
