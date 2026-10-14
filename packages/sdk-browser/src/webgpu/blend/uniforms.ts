@@ -1,5 +1,4 @@
 import { viewProj } from '../pages/helpers.ts'
-import { pixelFootprint } from '../../../../math/src/projection/camera.ts'
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts'
 import {
   FLAG_DIAGNOSTIC_CLUSTERS,
@@ -74,10 +73,6 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // Zero when no list has been encoded, never those of another image.
   packed[VIEW.lightTiles] = tiles[1]
   packed[VIEW.lightTiles + 1] = tiles[2]
-  // A pixel's world size per unit of distance — or its size, under an orthographic camera —:
-  // the footprint the transparent surface reads its shadow level at.
-  // A display pixel's, whatever size the frame is drawn at: shadow detail is the display's.
-  packed[VIEW.pixelScale] = eye ? pixelFootprint(run.gate.cam.projection, rt.gpu.displaySize[1]) : 0
   writeViewFrame(rt, tiles)
   device.queue.writeBuffer(
     buffer,

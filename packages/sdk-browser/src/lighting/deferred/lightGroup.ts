@@ -6,7 +6,11 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
-import { CONTRACT_SHADOW_BINDINGS, CONTRACT_VSM_BINDINGS } from '../direct/shadowBindings.ts'
+import {
+  CONTRACT_SHADOW_BINDINGS,
+  CONTRACT_TRACE_BINDINGS,
+  CONTRACT_VSM_BINDINGS,
+} from '../direct/shadowBindings.ts'
 import type { ComposeInput } from './shaders.ts'
 import type { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import type { createCompositions } from './compositions.ts'
@@ -80,6 +84,7 @@ export function bindLight(
   next[8 + receiver.length] = vsmTransmission
   next[9 + receiver.length] = maskTiles
   next[10 + receiver.length] = reflection
+  next[11 + receiver.length] = vsm.view
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
@@ -156,6 +161,7 @@ function contractEntries(
       projectionData: { buffer: r.vsm.projectionData },
       uniforms: { buffer: r.vsm.uniforms },
     }),
+    { binding: CONTRACT_TRACE_BINDINGS.view, resource: { buffer: r.vsm.view } },
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
     { binding: DEFERRED_BINDINGS.maskTiles, resource: r.maskTiles },
     { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.vsmTransmission },

@@ -8,14 +8,6 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 
-/** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
- *  (\`shadowFootprint\`). */
-const BLEND_SHADOW_FOOTPRINT_WGSL = wgslBlock(
-  'BLEND_SHADOW_FOOTPRINT_WGSL',
-  [],
-  `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`,
-)
-
 const BLEND_SURFACE_NORMAL_WGSL = wgslBlock(
   'BLEND_SURFACE_NORMAL_WGSL',
   [unitOrZero],
@@ -78,7 +70,6 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
       ORM_LAW_WGSL,
       COTANGENT_FRAME_WGSL,
       BLEND_SURFACE_NORMAL_WGSL,
-      BLEND_SHADOW_FOOTPRINT_WGSL,
       COLOR_SAMPLE_WGSL,
       DATA_SAMPLE_WGSL,
       FACING_WGSL,

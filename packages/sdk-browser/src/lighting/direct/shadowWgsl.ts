@@ -10,7 +10,12 @@ import {
   type VsmTraceBindings,
 } from './shadowBindings.ts'
 import { vsmConsumerWgsl } from './vsmConsumerWgsl.ts'
-import { VSM_TRANSMISSION_AT_WGSL, vsmFragmentTraceWgsl, vsmMaskWgsl } from './shadowTraceWgsl.ts'
+import {
+  VSM_TRANSMISSION_AT_WGSL,
+  vsmFragmentTraceWgsl,
+  vsmMaskWgsl,
+  vsmTraceViewWgsl,
+} from './shadowTraceWgsl.ts'
 
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`): one
@@ -30,8 +35,9 @@ import { VSM_TRANSMISSION_AT_WGSL, vsmFragmentTraceWgsl, vsmMaskWgsl } from './s
  * `resolveTransmission` is the opaque resolve's binding of the translucent casters' transmission
  * (`DEFERRED_BINDINGS.transmissionResolve`), null in a blend or water pass; `maskBinding` the resolve's
  * mask array, and in the other passes, which declare no mask, their transmission. `trace`, the
- * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given). The names the passes write (footprint, receiver
- * offset and plane, view) are kept, so their bodies need no change. The block lists what it calls,
+ * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given),
+ * and the resolve's projection view, on the same number. The names the passes write (receiver
+ * offset and plane, eye) are kept, so their bodies need no change. The block lists what it calls,
  * the maths library's declarations included.
  */
 export const directShadowWgsl = (
@@ -62,6 +68,7 @@ export const directShadowWgsl = (
     label,
     [
       SHADOW_VIEW_WGSL,
+      vsmTraceViewWgsl(trace.view),
       vsmConsumerWgsl(vsm, { transmission: resolveTransmission, pool: false, kinds }),
       VSM_TRANSMISSION_AT_WGSL,
       vsmMaskWgsl(maskBinding),
@@ -77,7 +84,6 @@ export const directShadowWgsl = (
 /** The names every pass's shadow read writes, and \`shadowFactor\` reading a shadowed light's share
  *  through \`read\`. */
 const shadowFactorWgsl = (read: string) => `
-var<private> shadowFootprint:f32=0.0;
 var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 var<private> shadowReceiverPlane:vec3f=vec3f(0.0);
 var<private> shadowTransmission:vec3f=vec3f(1.0);

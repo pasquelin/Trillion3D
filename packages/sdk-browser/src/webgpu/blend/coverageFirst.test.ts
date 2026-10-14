@@ -45,7 +45,6 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'facingDiscarded',
     'lineDash',
     'floorMod',
-    'blendShadowFootprint',
     // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
     'blendPhysicalBegin',
     'blendLobes',
@@ -73,7 +72,6 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     environmentLighting: lit,
     surfaceReflection: lit,
     fogged: (rgb: number[]) => rgb,
-    shadowSetView: () => undefined,
     displayRoute: () => ({ keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] }),
     reflectionFrontOut: () => [0, 0, 0, 0],
     BlendGrads: (gradX: number[], gradY: number[], q0: number[], q1: number[]) => ({
@@ -95,10 +93,10 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
       geometric: v[9],
     }),
     BlendOut: (color: number[], request: number) => ({ color, request }),
-    uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], pixelScale: 0.01, eye: [0, 0, 5] },
+    uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5] },
     surfaceModel: 0,
     thinSubsurface: [0, 0, 0],
-    shadowFootprint: 0,
+    shadowCamera: [0, 0, 0],
   }
   // `discard` demotes and goes on: counted, it runs as a helper would. The program of a scene
   // without lobes: a lobed one sets none on a fragment whose item names no record.

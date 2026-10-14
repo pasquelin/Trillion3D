@@ -40,12 +40,38 @@ export interface VsmReceiverTraceHost {
   lone: boolean
 }
 
+/**
+ * THE NORMAL BIAS OF A RECEIVER, the one reading of it: the projection's trace (below) and the
+ * translucent casters' transmission read (`vsmReceiverFromEye`, `../lighting/direct/vsmConsumerWgsl.ts`)
+ * push a receiver by the same length, so the mask and the transmission read one point. Its inverse
+ * tangent is the projection's own (`halfFovTangents.z`, 1 under an orthographic view), its distance
+ * along the view axis under an orthographic view. The host declares `vsmView` and `vsm`.
+ */
+export const VSM_NORMAL_OFFSET_WGSL = wgslBlock(
+  'VSM_NORMAL_OFFSET_WGSL',
+  [VSM_CONSTANTS_WGSL],
+  /* wgsl */ `
+/** The distance to the camera from a view vector (along the view axis for an orthographic view). */
+fn vsmCameraDistance(v:vec3f)->f32{
+ var d=length(v);
+ if(vsmView.isOrtho!=0u){d*=d/dot(v,vsmView.viewForward);}
+ return d;
+}
+/** The normal bias length of a receiver \`fromEye\` from the eye (0.02 cm floor =
+ *  VSM_NORMAL_OFFSET_FLOOR). */
+fn vsmNormalOffset(fromEye:vec3f)->f32{
+ return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.halfFovTangents.z);
+}
+`,
+)
+
 export const vsmReceiverTraceWgsl = ({ pool, noise, hiz, lone }: VsmReceiverTraceHost) =>
   wgslBlock(
     `vsmReceiverTraceWgsl(${hiz.join(', ')}, ${lone})`,
     [
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      VSM_NORMAL_OFFSET_WGSL,
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_RESULT_WGSL,
       vsmTraceWgsl(pool, noise, lone),
@@ -70,17 +96,6 @@ struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:ve
  *  ray length and its blue noise — zero elsewhere, where no light reads them (the projection's
  *  \`vsmLightParticipates\`, the traces' \`participating\`). */
 struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,sceneDepth:f32,shifted:vec3f,screenRayWorld:f32,noise:f32,}
-/** The distance to the camera from a view vector (along the view axis for an orthographic view). */
-fn vsmCameraDistance(v:vec3f)->f32{
- var d=length(v);
- if(vsmView.isOrtho!=0u){d*=d/dot(v,vsmView.viewForward);}
- return d;
-}
-/** The normal bias length at a position (0.02 cm floor = VSM_NORMAL_OFFSET_FLOOR). */
-fn vsmNormalOffset(shiftedPosition:vec3f)->f32{
- let distanceToCamera=vsmCameraDistance(shiftedPosition-vsmView.shiftedEye);
- return vsmNormalOffsetLength(vsm.normalBias,distanceToCamera,vsmView.halfFovTangents.z);
-}
 /** The screen-space ray cast: the engine's screen march (\`screenMarch\`, \`gpu/hiz/screenMarch.ts\`)
  *  of the depth along the ray's length, whose reach is the ray's own and whose thickness is
  *  \`thickness\` pixels of footprint — the ray's depth span, so that a surface nearer than the ray
@@ -108,7 +123,7 @@ fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmT
  var shiftedPosition=pixel.shifted;
  var traceStart=pixel.screenRayWorld;
  if(participating){
-  if(!info.subsurface){shiftedPosition+=worldNormal*vsmNormalOffset(shiftedPosition);}
+  if(!info.subsurface){shiftedPosition+=worldNormal*vsmNormalOffset(shiftedPosition-vsmView.shiftedEye);}
   if(!info.subsurface&&pixel.screenRayWorld>0.0){
    traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.screenRayWorld/vsmPixelWorldSize(pixel.sceneDepth,vsmView.viewToClip,vsmView.viewPixels.xy));
   }

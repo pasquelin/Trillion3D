@@ -109,8 +109,7 @@ ${BLEND_DIAGNOSTIC}
    let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
    surfaceModel=select(select(${surfaceModel.MODEL_FLAG.physical}u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    thinSubsurface=s.subsurface;
-   shadowFootprint=blendShadowFootprint(in.view);
-   shadowSetView(uni.camPos.xyz,uni.viewport.x,shadowFootprint,in.view);
+   shadowCamera=uni.camPos.xyz;
    blendLobes(in,front,g,s,V,clamped);
    rgb=litSurface(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z),bounceLighting(rgb,m,s.N,in.view,s.ao),environmentLighting(rgb,m,s.N,s.ao),surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view),s.emissive);
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}

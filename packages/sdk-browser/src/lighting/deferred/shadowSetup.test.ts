@@ -1,7 +1,7 @@
 // The surface reads its cell of the light grid once — the record the lighting walks and the
-// shadow flag in its count's high bit — and sets up what a shadow read needs — its unjittered
-// footprint (eight neighbour depths, three reconstructions), its receiver offset
-// (recomputed from the visibility buffer) — only where the cell lists a shadowed light, the
+// shadow flag in its count's high bit — and sets up what a shadow read needs — the eye, its
+// receiver offset (recomputed from the visibility buffer); its normal bias is the projection's,
+// no neighbour depth read — only where the cell lists a shadowed light, the
 // one place a shadow is read; the program with no shadow code never does. Nothing else reads them,
 // so the sums are the same. The opaque shadow is the mask's: all but the mask's pixel is set only for
 // the translucent casters' point read, the one reader of the rest.
@@ -23,19 +23,20 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     const shader = contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true })
     const surface = surfaceOf(shader)
     assert.ok(surface.includes('let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);'))
-    assert.ok(surface.includes('if(shadowed){shadowSetup(coord,pixel,z,P);}'))
+    assert.ok(surface.includes('if(shadowed){shadowSetup(coord,pixel);}'))
     assert.ok(surface.includes(',emissive.a,cell);'), 'the lighting takes the cell read')
-    assert.doesNotMatch(surface, /pixelFootprint\(|shadowReceiver\(|shadowFootprint=/)
+    assert.doesNotMatch(surface, /shadowReceiver\(|shadowCamera=/)
+    assert.doesNotMatch(shader, /pixelFootprint|shadowFootprint|shadowAngularPixel/)
     // The lighting finds no cell again, nor reads the flag again.
     assert.doesNotMatch(
       functionText(shader, 'contractLighting'),
       /gridCell|pixelCell|TILE_SHADOWED/,
     )
     const setup = functionText(shader, 'shadowSetup')
-    // The mask's pixel first; the footprint, view and receiver only for the translucent casters' read.
+    // The mask's pixel first; the eye and receiver only for the translucent casters' read.
     assert.ok(setup.includes('{\n vsmMaskAt(coord);\n if(vsmTranslucentCasters()){'))
     const translucent = setup.slice(setup.indexOf('if(vsmTranslucentCasters()){'))
-    for (const read of ['pixelFootprint(', 'shadowViewAt(', 'shadowReceiver(pixel'])
+    for (const read of ['shadowCamera=view.camera.xyz;', 'shadowReceiver(pixel'])
       assert.ok(translucent.includes(read), read)
     const flag = shader.slice(shader.indexOf('fn cellShadowed(')).split('\n')[0]
     assert.equal(flag.includes('TILE_SHADOWED'), shadowed, 'the flag, read with shadow code')

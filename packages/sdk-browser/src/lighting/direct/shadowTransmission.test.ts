@@ -31,6 +31,16 @@ function pagedSample(p: V) {
   }
 }
 
+/** The projection's view at the eye, a perspective one whose inverse half-field tangent is 2. */
+const VIEW = {
+  isOrtho: 0,
+  viewForward: [0, 0, -1],
+  shiftedEye: [0, 0, 0],
+  originShiftHigh: [0, 0, 0],
+  originShiftLow: [0, 0, 0],
+  halfFovTangents: [0.5, 0.5, 2, 2],
+}
+
 /** The module run in JavaScript, with the stubs `extra`. */
 const run = <T>(names: string[], extra: object, source: string) =>
   shaderRun<T>(source, names, {
@@ -39,8 +49,7 @@ const run = <T>(names: string[], extra: object, source: string) =>
     vsm: { poolPages: 2048, poolPagesXY: [128, 16], normalBias: 0.0005 },
     shadowTransmission: [1, 1, 1],
     shadowCamera: [0, 0, 0],
-    shadowAngularPixel: 0.001,
-    shadowViewWidth: 1000,
+    vsmView: VIEW,
     VsmLocated: (sm: object, clipmap: boolean, fromMap: V) => ({ sm, clipmap, fromMap }),
     vsmEmptyRead: () => ({ valid: false }),
     vsmHandleOffset: (h: { id: number }, offset: number) => ({ ...h, id: h.id + offset }),
@@ -56,6 +65,8 @@ const RESOLVE_READ = [
   'vsmTransmissionRead',
   'vsmLocate',
   'vsmReceiverFromEye',
+  'vsmNormalOffset',
+  'vsmCameraDistance',
   'vsmNormalOffsetLength',
   'testTransmission',
 ]
@@ -154,4 +165,23 @@ test('the resolve reads the mask, and the transmission alone where a pane covers
             cases++
           }
   assert.equal(cases, 3 * 4 * 3 * 2 * 4)
+})
+
+test("the transmission read pushes its receiver by the projection's normal bias, orthographic too", () => {
+  // The receiver the mask's trace reads (`vsmNormalOffset`, the projection's inverse tangent and,
+  // under an orthographic view, the distance along its axis): the transmission reads the same one.
+  const P = [3, 4, -12],
+    N = [0, 1, 0]
+  for (const ortho of [false, true]) {
+    const vsmView = ortho
+      ? { ...VIEW, isOrtho: 1, halfFovTangents: [1, 1, 1, 1], shiftedEye: [3, 4, 0] }
+      : { ...VIEW, originShiftHigh: [100, -50, 7], shiftedEye: [100, -50, 7] }
+    const r = run<{ vsmReceiverFromEye: (P: V, N: V) => V }>(RESOLVE_READ, { vsmView }, RESOLVE)
+    // Orthographic: the eye straight behind the point, 12 along the axis.
+    const along = ortho ? 12 : Math.hypot(3, 4, 12)
+    const offset = Math.max(0.0002, (0.0005 * along) / (ortho ? 1 : 2))
+    const got = r.vsmReceiverFromEye(P, N)
+    assert.ok(Math.abs(got[1] - (4 + offset)) < 1e-12, `${ortho}: ${got[1]} against ${4 + offset}`)
+    assert.deepEqual([got[0], got[2]], [3, -12])
+  }
 })
