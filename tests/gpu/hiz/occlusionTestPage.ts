@@ -1,12 +1,12 @@
-// The engine's Hi-Z test kernel (`testHiz`, `gpu/hiz/shader.ts`) on the machine's device: one
+// The engine's Hi-Z test kernel (`testHiz`, `gpu/hiz/testWgsl.ts`) on the machine's device: one
 // dispatch per case, the box laid out as the partition packs it (`Bounds`, `TESTED_U32` words),
 // the verdict read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { HIZ_SHADER } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
 import {
-  HIZ_SHADER,
   HIZ_TEST_PAGES_ENTRIES,
   hizBindEntries,
-} from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
+} from '../../../packages/sdk-browser/src/gpu/hiz/bindEntries.ts'
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import {
   STATE_WORDS,

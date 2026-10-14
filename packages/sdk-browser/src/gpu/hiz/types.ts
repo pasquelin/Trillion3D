@@ -32,10 +32,11 @@ export type GpuHiz = {
    *  that order: a new object whenever one changes, which a reader's bind group follows. */
   depth(): HizDepth | undefined
   /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`):
-   *  zero where no transparent surface lies. Held exactly while `wanted` — an image whose
-   *  transparents' fold writes it —: level 0 made again with it, or without it, in `encoder` on a
-   *  change (`holdFrontLayer`), so no reader folds a layer this image did not write; an opaque
-   *  scene's level 0 is one layer. It changes identity on every target resize. */
+   *  zero where no transparent surface lies; none unless `wanted` — an image whose transparents'
+   *  fold writes it. Made in `encoder` at the first ask, then kept (`holdFrontLayer`): the readers
+   *  fold it by a frame word only while an image writes it, so no reader folds a layer this image
+   *  did not write; an opaque scene's level 0 is one layer. It changes identity on every target
+   *  resize. */
   front(encoder: GPUCommandEncoder, wanted: boolean): GPUTextureView | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after

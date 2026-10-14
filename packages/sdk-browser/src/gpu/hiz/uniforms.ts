@@ -3,6 +3,9 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** Word of the test slot that says the frame's counters are sampled (`counting` in `shader.ts`). */
 const TEST_COUNTING_WORD = 5
+/** Word of the first build pass's slot, the one that reads level 0, that says this image wrote its
+ *  front layer (`front` in `shader.ts`, `HIZ_FOLD_WGSL`). */
+export const HIZ_BUILD_FRONT_WORD = 6
 
 /**
  * The test slot at word `at` of `image`, the uniform buffer's words: `[width, height, rows]`, then

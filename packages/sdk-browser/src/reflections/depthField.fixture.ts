@@ -13,7 +13,7 @@ import {
   hizTextureSize,
   HIZ_WHOLE_FARTHEST,
 } from '../gpu/hiz/pyramidTexture.ts'
-import { hizLevelWords } from '../gpu/hiz/levelsUniform.ts'
+import { HIZ_LEVELS_FRONT_WORD, hizLevelWords } from '../gpu/hiz/levelsUniform.ts'
 import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
 
 /** The depth readers of `hizDepthWgsl` a march runs (`shaderRun`), the shipped functions by name. */
@@ -104,7 +104,8 @@ export function depthField(
     ],
     {
       [HIZ_NEAREST_BUILD]: true,
-      uni: { a: 0, b: width, c: height, upper },
+      // This image wrote the front layer: zero where no transparent surface lies.
+      uni: { a: 0, b: width, c: height, upper, front: 1 },
       level0,
       // Level 0's two layers: the opaque depth, then the nearest transparent surface's.
       textureLoad: (_: object, p: number[], layer: number) => [
@@ -144,6 +145,7 @@ export function depthField(
     return { layer, i: slice === HIZ_WHOLE_FARTHEST ? first + (at - layer * upper) : at }
   }
   const words = hizLevelWords(sizes, offsets, layout)
+  words[HIZ_LEVELS_FRONT_WORD] = 1
   return {
     width,
     height,

@@ -1,5 +1,7 @@
-import { holdFrontLayer, allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import { HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
+import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
+import { holdFrontLayer } from './level0.ts'
+import { HIZ_BUILD_FRONT_WORD, HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
+import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../core/writeChanged.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
@@ -34,8 +36,7 @@ export type HizState = HizPipelines & {
   idle: GPUBuffer
   buffers: GPUBuffer[]
   disposed: boolean
-  /** Whether the last image wrote level 0's front layer (`GpuHiz.front`): a pyramid made now holds
-   *  it. */
+  /** Whether an image asked level 0's front layer (`GpuHiz.front`): a pyramid made after holds it. */
   front: boolean
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
@@ -86,17 +87,21 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
   gpu.width = next?.width ?? 0
   gpu.height = next?.height ?? 0
   if (!next) return
-  sendHizBuild(h, next.drawn)
+  sendHizBuild(h, next)
   gpu.level0 = next.level0
   gpu.level0View = next.level0View
 }
 
 /** The drawn pyramid's build words, from word zero: of each pass's slot, the words its struct
- *  holds that changed go up, as a whole compare at 256 bytes sends them; and its levels uniform. */
-function sendHizBuild(h: HizState, { passes, words, levelWords }: Pyramid['drawn']) {
-  h.image.set(words, 0)
-  writeChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, passes.length)
-  h.device.queue.writeBuffer(h.levelTable, 0, levelWords)
+ *  holds that changed go up, as a whole compare at 256 bytes sends them; and its levels uniform.
+ *  Both carry its front word (`Pyramid.frontWritten`): the first pass's, which reads level 0. */
+function sendHizBuild(h: HizState, { drawn, frontWritten }: Pyramid) {
+  const front = frontWritten ? 1 : 0
+  h.image.set(drawn.words, 0)
+  h.image[HIZ_BUILD_FRONT_WORD] = front
+  writeChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, drawn.passes.length)
+  drawn.levelWords[HIZ_LEVELS_FRONT_WORD] = front
+  h.device.queue.writeBuffer(h.levelTable, 0, drawn.levelWords)
 }
 
 /** Verdict flags for `rows` rows, made now and put in place by `commit` (`GpuHiz.growFlags`). */
@@ -121,7 +126,7 @@ export function hizExtent(h: HizState, drawnWidth: number, drawnHeight: number) 
     hh = Math.min(at.height, drawnHeight)
   if (at.drawn.width === w && at.drawn.height === hh) return
   at.drawn = pyramidLayout(w, hh, h.slots)
-  sendHizBuild(h, at.drawn)
+  sendHizBuild(h, at)
 }
 
 /** The test of the compacted boxes, in the frame's compute pass (`GpuHiz.encodeTest`). */
@@ -175,14 +180,15 @@ export function hizResize(
   }
 }
 
-/** The drawn pyramid's front layer (`GpuHiz.front`), held in `encoder` exactly while `wanted`: its
- *  level 0 published again on a change, and every pyramid made after follows. */
+/** The drawn pyramid's front layer (`GpuHiz.front`), folded exactly while `wanted`: made in
+ *  `encoder` at the first ask, its level 0 published again, and every pyramid made after holds it;
+ *  its front word sent when it moved. */
 export function hizFront(h: HizState, gpu: GpuHiz, encoder: GPUCommandEncoder, wanted: boolean) {
   const { at } = h
   if (h.disposed || !at) return undefined
-  h.front = wanted
-  const view = holdFrontLayer(h.device, h.level0Usage, at, encoder, wanted)
+  h.front ||= wanted
+  if (holdFrontLayer(h.device, h.level0Usage, at, encoder, wanted)) sendHizBuild(h, at)
   gpu.level0 = at.level0
   gpu.level0View = at.level0View
-  return view
+  return wanted ? at.frontView : undefined
 }
