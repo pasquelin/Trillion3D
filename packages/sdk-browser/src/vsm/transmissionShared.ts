@@ -150,16 +150,12 @@ export const VSM_TRANSMISSION_PAGE_GROUP = 256
 /**
  * Threads of a group of the per-command kernels (`vsmTransmissionPages`, `vsmTransmissionBin`): one
  * group a command, its own width, not the dispatch's tunable one (`WORKGROUP_THREADS`) — the bin
- * holds a projected triangle a thread in the group's memory (\`tris\`, a \`VsmTTri\` of
- * \`VSM_T_TRI_BYTES\` each), which must stay within the 16 KiB of workgroup storage every device
- * holds (\`maxComputeWorkgroupStorageSize\`), with the command's five words beside it.
+ * holds a projected triangle a thread in the group's memory (\`tris\`, a \`VsmTTri\` each), which
+ * must stay within the 16 KiB of workgroup storage every device holds
+ * (\`maxComputeWorkgroupStorageSize\`), with the command's five words beside it
+ * (`transmissionGroup.test.ts` lays the bin's workgroup memory out as WGSL does and holds it there).
  */
 const VSM_TRANSMISSION_COMMAND_GROUP = 64
-/** Bytes of a \`VsmTTri\` as WGSL lays it: four corners (64), their uv (32), the shape and the box
- *  (32), the ray with the count (16), the transmittance word, padded to its 16-byte alignment. */
-const VSM_T_TRI_BYTES = 160
-if (VSM_TRANSMISSION_COMMAND_GROUP * VSM_T_TRI_BYTES + 5 * 4 > 16384)
-  throw new Error('VSM: the transmission bin passes the 16 KiB of workgroup storage')
 /** \`VSM_TRANSMISSION_COMMAND_GROUP\` as the per-command kernels name it. */
 export const VSM_T_COMMAND_GROUP_WGSL = wgslConst(
   'VSM_T_COMMAND_GROUP',
