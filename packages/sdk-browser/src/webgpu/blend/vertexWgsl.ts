@@ -12,10 +12,11 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { lowBits } from '../../../../math/src/wgsl/integer.ts'
 
-/** A lobed program's two UV sets of the vertex: the second where its geometry carries one — a
- *  fragment reads it only where its surface carries a lobe (`blendPhysicalBegin`). */
+/** A lobed program's two UV sets of the vertex: the second where its surface carries a lobe and
+ *  its geometry a second set — the only fragments that read it (`blendPhysicalBegin`). The lobe
+ *  word shares its texel with the maps the stage reads already (`materialAt`): no read more. */
 const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
- if(pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
+ if(m.lobes!=0u&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
  out.uv=vec4f(uv0,uv1);`
 
 /** What a lobed program's vertex stage adds (`blendVertexWgsl`): the second UV set beside the

@@ -13,8 +13,8 @@ import { blendShader } from './shader.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 
-const VERTEX = '6ee2a787bc4d6c1ad2b73b9f94fee642f2e1c91d2b74253a2c7bbf424ef8f858'
-const BLEND = 'c7f165ed5c667b02a43b4eb08c8041b5a2cb0bff9fa7f4302fb737ce164f9ca8'
+const VERTEX = 'f80487a5333cb7f224ad77d06a14bdbb61a101e3f24b35e2cb246d2a7891be32'
+const BLEND = '38f3f6442050172d5e036efef5e964855b9d90c04d05796807ad47b4d601c2e6'
 const WATER = 'f01a865ad14f642c24ea6fe531e7120e008453a7767d9f09aaccf4f15bc10c9a'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
@@ -41,4 +41,9 @@ test('the blend module text is pinned under every contract key', () => {
 
 test('the water composite text is pinned under every key', () => {
   assert.equal(digest(KEYS.map((key) => waterCompositeShader(key))), WATER)
+})
+
+test('a lobed vertex reads the second UV set only where its surface carries a lobe', () => {
+  const text = wgslModule(blendVertexWgsl(true))
+  assert.match(text, /if\(m\.lobes!=0u&&pageHasUv1\(page,h\)\)\{uv1=pageUv1\(/)
 })
