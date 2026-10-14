@@ -2,7 +2,11 @@
 // budget's room holds a larger pool than pressure left it (`vsmGrant.ts`).
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
-import { VSM_PRESSURE_CALM_FRAMES, VSM_POOL_PAGES } from '../../../../vsm/constants.ts'
+import {
+  VSM_POOL_PAGES,
+  VSM_PRESSURE_CALM_FRAMES,
+  VSM_PROJECTION_RECORD_BYTES,
+} from '../../../../vsm/constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
 import { directionalCount, engineVsmOptions, sunsOf } from './vsmLightMaps.ts'
@@ -10,10 +14,8 @@ import { engineVsmBytes } from './vsmStats.ts'
 import { growVsmTables } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
 import { rebindVsmPageManagement } from '../../../../vsm/pageManagementPass.ts'
-import { VSM_PROJECTION_RECORD_BYTES } from '../../../../vsm/constants.ts'
 import { VSM_NEXT_MAP_BYTES } from '../../../../vsm/mapIds.ts'
-import type { VsmResourceOptions } from '../../../../vsm/layout.ts'
-import { vsmLayout } from '../../../../vsm/layout.ts'
+import { vsmLayout, type VsmResourceOptions } from '../../../../vsm/layout.ts'
 import { vsmTableBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmPoolWithin } from '../../../../vsm/poolDraw.ts'
 import { bytesBeside, heldBeside } from './vsmBeside.ts'

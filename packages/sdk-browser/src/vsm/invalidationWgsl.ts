@@ -24,7 +24,6 @@ import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
 
 /** A box that bounds nothing finite reaches every page: as large an extent as f32 clip math
@@ -66,7 +65,7 @@ ${wgslConsts({ VSM_BOX_CASTS, VSM_BOX_MOVING })}
  *  every invalidation entry runs over the previous frame's maps. */
 const VSM_STALE_PAGES_WGSL = wgslBlock(
   'VSM_STALE_PAGES_WGSL',
-  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL, transformPoint],
+  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL],
   `
 /** Clips the page rect of a pixel rect to the allocated bounds (at map id · 8 + mip). */
 fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
@@ -88,23 +87,21 @@ fn vsmMarkStale(o:VsmTableCell,flags:u32){
 /** Invalidates the pages of one instance. */
 fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let sunMap=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
- // The box's centre in the shadow view's shifted space (the origin shift split high and low; the
- // record holds no low part: its zero is summed as the old split translation's was).
- let translation=(inst.centre+pd.originShiftHigh)+(vec3f(0.0)+pd.originShiftLow);
- // Its world axes and that translation, as a matrix: the products and sums its images take keep
- // the roundings, signed zeros and non-finite values of the general instance it replaced, bit for
- // bit (boxCullInvalidation.test.ts); a translation alone is all a record moves.
+ // The box's centre in the shadow view's shifted space (the origin shift split high and low).
+ let translation=(inst.centre+pd.originShiftHigh)+pd.originShiftLow;
+ // Its world axes and that translation, as a matrix. Its products with the box's point and axes
+ // stay: a zero times an infinite or NaN term — a record's infinite extent, a view's non-finite
+ // clip matrix — is NaN, where the sums written out would not be, so their pages could differ.
  let localToShifted=mat4x4f(
   vec4f(1.0,0.0,0.0,0.0),
   vec4f(0.0,1.0,0.0,0.0),
   vec4f(0.0,0.0,1.0,0.0),
   vec4f(translation,1.0));
  let boxRadius=length(inst.extent);
- // The bounds' shifted centre, which a local light's tests alone read.
- var shiftedCenter=vec3f(0.0);
- // Distance cull for local lights.
+ // Distance cull for local lights, on the bounds' shifted centre — the translation itself: its
+ // product with the matrix differs from it in a zero's sign alone, which a length cannot see.
+ let shiftedCenter=translation;
  if(!sunMap){
-  shiftedCenter=transformPoint(localToShifted,vec3f(0.0));
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }

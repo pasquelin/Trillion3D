@@ -76,7 +76,6 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
   const pipes = [
-    casts.append,
     casts.args,
     casts.stale,
     marking.clear('all'),

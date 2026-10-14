@@ -8,7 +8,7 @@ import type { UniformSlots } from '../residency/pools.ts'
 import { vsmWorstChunk, type VsmChunk } from './rowPageBound.ts'
 import { vsmChunkRows } from './chunkKernels.ts'
 import { vsmChunkListSizes, vsmChunkRowsWithin, vsmDrawFloorBytes } from './chunkLists.ts'
-import { vsmChunkParamSlots, vsmRenderViews, vsmSetChunking } from './chunkParams.ts'
+import { vsmChunkParamSlots, vsmRenderViews, type VsmRenderChunking } from './chunkParams.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import { VSM_TRANSMISSION_HEADER_BYTES, VSM_TRANSMISSION_PAGE_BYTES } from './transmissionWgsl.ts'
 import type { VsmTransmission } from './transmissionMade.ts'
@@ -55,15 +55,12 @@ export function vsmTransmissionFloorBytes(
 }
 
 /** What a frame's bin takes: its views, its chunks within the GPU budget's room
- *  (`vsmChunkRowsWithin`), and the commands and pages a chunk's lists hold. */
-export interface BinPlan {
+ *  (`vsmChunkRowsWithin`), and the commands and pages a chunk's lists hold — the chunking of the
+ *  opaque raster's parameter slots (`chunkParams.ts`), `rowCount` the blended rows. */
+export interface BinPlan extends VsmRenderChunking {
   views: number[]
-  rowCount: number
   used: number
   within: ReturnType<typeof vsmChunkRowsWithin<ReturnType<ReturnType<typeof transmissionSizes>>>>
-  chunks: number
-  cmds: number
-  pairs: number
 }
 
 /** The frame's bin: the blended rows' chunks the GPU budget's room holds (`vsmChunkRowsWithin`),
@@ -99,23 +96,14 @@ export function binPlan(
     transmissionSizes(used, rowCount, views.length, chosen, ctx.slots),
   )
   const chunkRows = within.rows
-  // The opaque raster's parameter slots (`chunkParams.ts`), `rowCount` = the blended rows.
-  if (within.size)
-    vsmSetChunking(
-      {
-        rowCount,
-        viewCount: views.length / 4,
-        chunks: ceilDiv(used, chunkRows),
-        chunkRows,
-      },
-      chosen,
-    )
   return {
     views,
     rowCount,
+    viewCount: views.length / 4,
     used,
     within,
     chunks: within.size ? ceilDiv(used, chunkRows) : 0,
+    chunkRows,
     cmds: chosen.cmds(chunkRows),
     pairs: chosen.pairs(chunkRows),
   }

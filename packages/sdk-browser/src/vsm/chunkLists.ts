@@ -46,13 +46,14 @@ export function vsmContextBytes(ctx: {
 }
 
 /** Bytes the device is asked for when `buffers` grow to `sizes` (`vsmEnsureLists`, `sizedBuffer`):
- *  each one short of its size made anew, the one it held freed first. */
+ *  each one short of its size made anew, whole, while the one it held still lives — retired after
+ *  the frame's submit (`grownByCopy`). */
 function growthBytes(buffers: Partial<Record<string, GPUBuffer>>, sizes: Record<string, number>) {
   let total = 0
   for (const name in sizes) {
     const held = buffers[name]?.size ?? 0,
       size = Math.max(sizes[name], LIST_FLOOR)
-    if (held < size) total += grownLength(held, size) - held
+    if (held < size) total += grownLength(held, size)
   }
   return total
 }

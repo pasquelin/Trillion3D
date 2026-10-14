@@ -45,12 +45,7 @@ import {
   vsmReleaseContext,
   type VsmListName,
 } from './chunkLists.ts'
-import {
-  vsmRenderViews,
-  vsmSetChunking,
-  vsmWriteChunkParams,
-  type VsmRenderCamera,
-} from './chunkParams.ts'
+import { vsmRenderViews, vsmWriteChunkParams, type VsmRenderCamera } from './chunkParams.ts'
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
 import { renderGroups, vsmEncodeChunks, type RasterTables } from './renderChunks.ts'
@@ -174,8 +169,15 @@ export function encodeVsmRender(
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
   const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
-  vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows }, chosen)
-  vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views, ctx.slots)
+  const chunking = {
+    rowCount: scene.rowCount,
+    viewCount,
+    chunks,
+    chunkRows,
+    cmds: chosen.cmds(chunkRows),
+    pairs: chosen.pairs(chunkRows),
+  }
+  vsmWriteChunkParams(device, scene.camera, chunking, params, viewsBuffer, views, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)

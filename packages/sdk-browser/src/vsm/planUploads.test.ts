@@ -53,6 +53,9 @@
 // Retaken when the raster's lists grew by the engine's one rule (`sizedBuffer`: the size asked,
 // then twice the held one), where they took a power of two of 256 bytes at least: the parameters'
 // and the views' buffers hashed at their own size, every word written the same.
+// Retaken when the stale read the CPU's boxes from their own buffer after the list, no kernel
+// appending them to it, and when the chunks' parameters left their unread pad word at 0 (it was
+// written 1): every word a shader reads kept.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -60,14 +63,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'a5bdf317097fccff5aec3310ca811ac3cbcd7aff56680153d65899f9f39b2abd',
-    '621c0a5f0c42f6e117b19bb81c1a2551a2119cbe81a13178f2b3a895ac8dcb57',
-    '6bca3abc7e9b9341eaab10d64fc80076bd81428e5f40ec1962a1665f91118658',
+    'd5493f876aad6dd5877e1ef68a3b141eef14b775d16b3e75f806c821414a94dc',
+    '3deb123cc7a065118dd4e08b14360393b77ffe07273051c65ea5088bc9013403',
+    '2c2e4f48838d2650caf71748cf6233418c5b239b161f40bb61752a5fa4fe431c',
   ],
   2: [
-    '0f62d3097aabdb4ea439953e4cbe367a9ccae11119441117cb69bc7cb8b31842',
-    '737aaacb47bb18ab88a85ba0111f9685a2febee00a3c2d2910dbb0999192cecc',
-    '20ded84adc828563c3938faa8dcef26402e27eca025ca5006ac4248917e17831',
+    '91a0923ab5742baee1bbb2d19ad1f7c000ee93dd74c70a04fe2d5be96af49a93',
+    '9cfb9b9be3ab4d737f487c62a3f478c53b021ae5829c620a43b690f83cf2a1f0',
+    'dff5951beb53974df0b77cb7a4a32e1d74d060f7974c9e43b20a1f0e63eb3e67',
   ],
 }
 

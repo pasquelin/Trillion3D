@@ -2,7 +2,7 @@
 // cached pages, every map of it —, each map's word saying whether it draws its moving casters over
 // a receiver cover, which a moving box skips: read by the one filter of the one stale
 // (`vsmStaleMap`, `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing
-// changed. And the CPU's boxes as records of the one list that stale reads (`castBoxes.ts`).
+// changed. And the CPU's boxes as records of the one format that stale reads (`castBoxes.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmLightCache, type VsmCacheManager } from './cacheManager.ts'
@@ -76,7 +76,8 @@ test('a CPU box as a record of the list: its centre an f32, its largest half ext
   const far = 1e6 + 1 / 3
   const words = boxes({ min: [far - 1, -2, 0], max: [far + 1, 2, 8], moving: true })!.words
   assert.deepEqual([...words.subarray(0, 3)], [Math.fround(far), 0, 4])
-  assert.ok(words[3] < -4 && words[3] > -4 * (1 + 2 ** -20), 'the largest half extent, moving')
+  // 4 is a float32: the least float32 at or above it is 4 itself.
+  assert.equal(words[3], -4, 'the largest half extent, moving')
   // A point far out: its extent the centre's rounding, so that the record still holds it.
   const point = boxes({ min: [far, 0, 0], max: [far, 0, 0], moving: false })!.words
   assert.ok(point[3] >= Math.abs(far - point[0]) && point[3] > 0)
@@ -94,10 +95,10 @@ test('a CPU box as a record of the list: its centre an f32, its largest half ext
   )
 })
 
-// The CPU's boxes once took a list of their own, its format apart, and a placeholder list when no
-// light had cast: now they are appended to the one list, which grows in the frame's own encoder —
-// the rows pass encoded there before names the list it held.
-test('the CPU boxes join the list before the stale reads it, the list grown in the same encoder', () => {
+// The CPU's boxes were once appended to the list by a kernel of their own, the list grown for them
+// in the frame's encoder: a frame dropped took the old list, its unread records with it. Now the
+// stale reads them after the list, from their own buffer: the list never grows for them.
+test('the stale reads the CPU boxes after the list, from their own buffer: the list never grows', () => {
   const fake = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
   })
@@ -110,32 +111,25 @@ test('the CPU boxes join the list before the stale reads it, the list grown in t
   const casts = createCastChanges(device, 4),
     held = casts.buffer
   const still = { min: [0, 0, 0], max: [1, 1, 1], moving: false }
-  const changed = vsmCastBoxes(cache(true), { count: 8, read: () => still })
+  const changed = vsmCastBoxes(cache(true), { count: 8, read: () => still })!
   const encoder = device.createCommandEncoder()
-  const submits = fake.submits.length
-  const threads = encodeCastInvalidation(encoder, res, {
-    device,
-    mapSlotCount: 1,
-    maps: new Uint32Array([0]),
-    boxes: changed,
-    casts,
-    rows: 0,
-  })
+  const maps = new Uint32Array([0])
+  const threads = encodeCastInvalidation(encoder, res, device, 1, maps, changed, casts)
   assert.equal(threads, 8)
-  assert.notEqual(casts.buffer, held, 'grown for the eight boxes')
+  assert.equal(casts.buffer, held, 'no room asked of the list for the eight boxes')
+  assert.deepEqual(fake.copies, [], 'nothing copied')
+  assert.deepEqual(dispatchedEntries(fake.dispatches), ['vsmCastArgs', 'vsmStaleCasts'])
+  const state = res.invalidation!
+  const written = fake.writes.find((write) => write.buffer === state.boxes)!
+  assert.deepEqual([...written.data], [...changed.words.subarray(0, 8 * 4)], 'the eight records')
+  const stale = state.groups.stale.group as unknown as GPUBindGroupDescriptor
   assert.deepEqual(
-    fake.copies.map((copy) => [copy.from, copy.to]),
-    [[held, casts.buffer]],
+    [...stale.entries].map((entry) => (entry.resource as GPUBufferBinding).buffer),
+    [state.params, state.maps, held, state.boxes],
+    'the list, then the boxes',
   )
-  assert.equal(fake.submits.length, submits, 'no command buffer of its own')
-  assert.deepEqual(dispatchedEntries(fake.dispatches), [
-    'vsmCastAppend',
-    'vsmCastArgs',
-    'vsmStaleCasts',
-  ])
   assert.ok(
-    fake.clears.some((clear) => clear.buffer === casts.buffer),
-    'emptied once read',
+    !fake.clears.some((clear) => clear.buffer === casts.buffer),
+    'a list no pass appended to left as it is',
   )
-  assert.equal(casts.appended, false)
 })

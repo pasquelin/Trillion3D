@@ -2,13 +2,13 @@
  * THE CPU'S CHANGE BOXES, AS SHADOW CHANGES: what no row says — geometry rewritten in place, a
  * light, a sphere buffer made anew, residency, released representation changes
  * (`sdk-core/src/scene/light-shadow/changes.ts`). Each is a record of the rows' list
- * (`../webgpu/shadow/castChanges.ts`), in its format, which the stale appends to the list before
- * reading it (`castInvalidationWgsl.ts`): one record format, one list, one kernel over the same
- * maps (`vsmCastMaps`) through the same filter (`vsmStaleMap`). No light is filtered here: the
+ * (`../webgpu/shadow/castChanges.ts`) in its format, in a buffer of its own, which the stale reads
+ * after the list (`castInvalidationWgsl.ts`): one record format, one kernel over the same maps
+ * (`vsmCastMaps`) through the same filter (`vsmStaleMap`). No light is filtered here: the
  * kernel's range test and map cull decide (`vsmStaleBoxPages`).
  *
  * A record holds its box, never less: the cube of its largest half extent about its centre rounded
- * to an f32, that rounding added to the extent, rounded up in turn.
+ * to an f32, that rounding added to the extent, rounded up in turn (`f32Up`).
  */
 import type { VsmCacheManager } from './cacheManager.ts'
 import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
@@ -16,6 +16,7 @@ import { CAST_RECORD_WORDS } from '../webgpu/shadow/castChanges.ts'
 import { CAST_MIN_EXTENT } from '../webgpu/shadow/castChangesWgsl.ts'
 import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
+import { f32Up } from '../../../math/src/float/bits.ts'
 
 /** The frame's boxes: `count` records in the first `count · CAST_RECORD_WORDS` words of `words`. */
 export interface VsmCastBoxes {
@@ -41,9 +42,6 @@ const centre = new Float64Array(3)
  *  (`encodeCastInvalidation`). */
 const boxes: VsmCastBoxes = { words: new Float32Array(CAST_RECORD_WORDS * 16), count: 0 }
 
-/** `x` rounded up to an f32: never below it, two ulps above at most. */
-const f32Above = (x: number) => Math.fround(x * (1 + 2 ** -22))
-
 /** Writes the box `[min, max]` as the record at word `at`: its centre as an f32, then its half
  *  extent, negative when its casters already move; the box holding the world, centred on the
  *  origin, when it is not finite, inverted, or past what f32 clip math keeps. */
@@ -63,7 +61,7 @@ function writeBox(at: number, min: ArrayLike<number>, max: ArrayLike<number>, mo
     words.fill(0, at, at + 3)
     extent = UNBOUNDED_EXTENT
   }
-  const e = Math.max(f32Above(extent), CAST_MIN_EXTENT)
+  const e = Math.max(f32Up(extent), CAST_MIN_EXTENT)
   words[at + 3] = moving ? -e : e
 }
 

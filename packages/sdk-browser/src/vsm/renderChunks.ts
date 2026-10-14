@@ -164,8 +164,8 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
  * again only when one of them moved, those over the VSM tables once a frame set (`rasterTables`).
  */
 export function renderGroups(ctx: VsmRenderContext, res: VsmResources, scene: VsmRenderScene) {
-  if (vsmSceneRowsMoved(ctx.bound, scene, ctx.buffers as Required<VsmRenderContext['buffers']>))
-    ctx.groups = undefined
-  ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], ctx.bound.next)
+  const lists = ctx.buffers as Required<VsmRenderContext['buffers']>
+  if (vsmSceneRowsMoved(ctx.bound, scene, lists)) ctx.groups = undefined
+  ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], scene, lists)
   return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx, ctx.groups)
 }

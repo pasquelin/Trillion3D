@@ -19,7 +19,7 @@ const localScratch: { light: SceneLight; setup: VsmLocalLightSetup }[] = []
 // The plan's lights, rebuilt in place: a plan lives until its frame ends.
 const allocationScratch: VsmLightAllocation[] = []
 
-/** The directional lights' shadows: one clipmap each, into `clipmaps`. */
+/** The directional lights' shadows: one clipmap each, into `clipmapScratch`. */
 function setupDirectionalLights(
   state: VsmFrameState,
   casting: readonly VsmFrameLight[],
@@ -38,7 +38,7 @@ function setupDirectionalLights(
   }
 }
 
-/** The local lights' shadows: one setup each, into `locals`. */
+/** The local lights' shadows: one setup each, into `localScratch`. */
 function setupLocalLights(
   state: VsmFrameState,
   casting: readonly VsmFrameLight[],

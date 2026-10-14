@@ -1,8 +1,9 @@
 /**
  * THE SHADOW CHANGES' STALE OF A FRAME SET (`castInvalidation.ts`), and what it holds while the set
- * lives: its three kernels (`castInvalidationWgsl.ts`) — the CPU's boxes appended to the list, the
- * dispatch sized from the list's count, the stale over the previous frame's tables —, its buffers,
- * and its groups, each made again when a buffer it names moved.
+ * lives: its two kernels (`castInvalidationWgsl.ts`) — the dispatch sized from the list's count and
+ * the CPU's boxes', the stale over the previous frame's tables —, its buffers, and its groups, their
+ * entries read live (`liveEntries.ts`), each made again when a buffer it names moved
+ * (`composeGroup`).
  *
  * Cache invalidation (step 7): one stale reads every change against the previous frame's maps
  * before `encodeVsmPageCarry`, atomically OR-ing STALE_STATIC_MARK / STALE_DYNAMIC_MARK into
@@ -11,17 +12,14 @@
  * (`VsmLightCache.updateCommon`), so the map is set up uncached (VSM_MAP_UNCACHED) and its next map
  * drops VSM_NEXT_KEEPS_PAGES; the collector skips such entries.
  */
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
-import { heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
+import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
+import { bufferEntry } from '../webgpu/core/liveEntries.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 import { CAST_RECORD_WORDS } from '../webgpu/shadow/castChanges.ts'
 import type { VsmCastBoxes } from './castBoxes.ts'
 import {
-  CAST_APPEND_ENTRY,
-  CAST_APPEND_WGSL,
   CAST_ARGS_ENTRY,
   CAST_ARGS_WGSL,
   CAST_INVALIDATION_ENTRY,
@@ -31,7 +29,6 @@ import {
 import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe } from './passKit.ts'
-import { vsmBufferGroup } from './passKit.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -41,7 +38,7 @@ import {
   type VsmResources,
 } from './resources.ts'
 
-/** The pass that stales the shadow changes, its three kernels in it. */
+/** The pass that stales the shadow changes, its two kernels in it. */
 const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
 
 /** The stale's kernels for `layout`, made once a device and source. */
@@ -50,9 +47,6 @@ export function vsmCastPipes(device: GPUDevice, layout: VsmLayout) {
     (type) => (binding: number) => computeBufferEntry(binding, type),
   )
   return {
-    append: vsmComputePipe(device, CAST_LABEL, CAST_APPEND_WGSL, CAST_APPEND_ENTRY, [
-      [uniform(0), read(1), write(2)],
-    ]),
     args: vsmComputePipe(device, CAST_LABEL, CAST_ARGS_WGSL, CAST_ARGS_ENTRY, [
       [uniform(0), read(1), write(2)],
     ]),
@@ -63,15 +57,15 @@ export function vsmCastPipes(device: GPUDevice, layout: VsmLayout) {
       CAST_INVALIDATION_ENTRY,
       [
         vsmBindGroupLayoutEntries(VSM_INVALIDATION_SPECS, layout, COMPUTE),
-        [uniform(0), read(1), read(2)],
+        [uniform(0), read(1), read(2), read(3)],
       ],
     ),
   }
 }
 
 /** What the stale of a set holds (`VsmResources.invalidation`): its kernels, its group over the
- *  set's tables, its buffers — the parameters, the maps, the CPU's boxes, the indirect arguments —
- *  and its own groups over them and the list. */
+ *  set's tables, its buffers — the parameters, the maps, the CPU's boxes, the indirect arguments —,
+ *  the list the frame hands it, and its own groups over them. */
 export interface VsmCastState {
   device: GPUDevice
   pipes: ReturnType<typeof vsmCastPipes>
@@ -80,12 +74,15 @@ export interface VsmCastState {
   maps?: GPUBuffer
   boxes?: GPUBuffer
   args?: GPUBuffer
-  groups: { append: HeldGroup; sizing: HeldGroup; stale: HeldGroup }
+  list?: GPUBuffer
+  groups: { sizing: HeldGroup; stale: HeldGroup }
 }
 
-/** The stale of `res`, made at its first use. */
+/** The stale of `res`, made at its first use: its groups' entries made once, each reading its
+ *  buffer from the state when the group is composed. */
 function castState(device: GPUDevice, res: VsmResources) {
-  return (res.invalidation ??= {
+  if (res.invalidation) return res.invalidation
+  const state: VsmCastState = (res.invalidation = {
     device,
     pipes: vsmCastPipes(device, res.layout),
     tables: vsmFrameSetHeld(),
@@ -94,22 +91,21 @@ function castState(device: GPUDevice, res: VsmResources) {
       size: VSM_CAST_PARAMS_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     }),
-    groups: { append: heldGroup(), sizing: heldGroup(), stale: heldGroup() },
+    groups: { sizing: heldGroup(), stale: heldGroup() },
   })
-}
-
-/** `held`'s group on `layout` over `buffers`, made again when one of them moved. */
-function castGroup(
-  state: VsmCastState,
-  held: HeldGroup,
-  layout: GPUBindGroupLayout,
-  buffers: readonly GPUBuffer[],
-) {
-  const { next } = held.identity
-  next.length = buffers.length
-  for (let i = 0; i < buffers.length; i++) next[i] = buffers[i]
-  if (held.identity.moved()) held.group = vsmBufferGroup(state.device, layout, buffers)
-  return held.group!
+  const params = bufferEntry(0, () => state.params)
+  state.groups.sizing.identity.entries[0] = [
+    params,
+    bufferEntry(1, () => state.list),
+    bufferEntry(2, () => state.args),
+  ]
+  state.groups.stale.identity.entries[0] = [
+    params,
+    bufferEntry(1, () => state.maps),
+    bufferEntry(2, () => state.list),
+    bufferEntry(3, () => state.boxes),
+  ]
+  return state
 }
 
 /** Group 0 of the stale over the tables of `res.current`. */
@@ -124,62 +120,50 @@ const paramsImage = new Uint32Array(VSM_CAST_PARAMS_BYTES / 4)
 
 /**
  * Records the stale of `res`'s previous frame's `maps` (`vsmCastMaps`) into `encoder`, its buffers
- * written: the CPU's `boxes` appended to the `list` first, room made for them, then the arguments'
- * kernel, then the stale over the dispatch it sized.
+ * written: the arguments' kernel over the `list`'s count and the CPU's `boxes`', then the stale over
+ * the dispatch it sized, the list's records then the boxes'.
  */
 export function encodeCastStale(
   encoder: GPUCommandEncoder,
   res: VsmResources,
   device: GPUDevice,
-  frame: { maps: Uint32Array; boxes: VsmCastBoxes | null; list: GPUBuffer },
+  maps: Uint32Array,
+  boxes: VsmCastBoxes | null,
+  list: GPUBuffer,
 ) {
   const state = castState(device, res),
     { pipes, groups, params } = state,
-    { maps, boxes, list } = frame,
     boxCount = boxes?.count ?? 0
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  const mapBuffer = (state.maps = sizedBuffer(
-    device,
-    state.maps,
-    maps.byteLength,
-    storage,
-    `${CAST_LABEL}.maps`,
-  ))
+  state.maps = sizedBuffer(device, state.maps, maps.byteLength, storage, `${CAST_LABEL}.maps`)
   // `vsmCastMaps`'s words, a view of its own buffer.
-  device.queue.writeBuffer(mapBuffer, 0, maps as Uint32Array<ArrayBuffer>)
+  device.queue.writeBuffer(state.maps, 0, maps as Uint32Array<ArrayBuffer>)
+  // A record at least: the stale's group binds the boxes on a frame that has none.
+  const words = boxCount * CAST_RECORD_WORDS
+  state.boxes = sizedBuffer(
+    device,
+    state.boxes,
+    Math.max(words, CAST_RECORD_WORDS) * 4,
+    storage,
+    `${CAST_LABEL}.boxes`,
+  )
+  if (boxCount) device.queue.writeBuffer(state.boxes, 0, boxes!.words, 0, words)
   paramsImage[0] = maps.length
   paramsImage[1] = boxCount
   device.queue.writeBuffer(params, 0, paramsImage)
   const indirect = GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT
-  const args = (state.args = sizedBuffer(device, state.args, 16, indirect, `${CAST_LABEL}.args`))
+  state.args = sizedBuffer(device, state.args, 16, indirect, `${CAST_LABEL}.args`)
+  state.list = list
+  composeGroup(device, groups.sizing, pipes.args.pipeline)
+  composeGroup(device, groups.stale, pipes.stale.pipeline, 1)
   const pass = encoder.beginComputePass({ label: CAST_LABEL })
-  if (boxes && boxCount) {
-    const words = boxCount * CAST_RECORD_WORDS
-    const boxBuffer = (state.boxes = sizedBuffer(
-      device,
-      state.boxes,
-      words * 4,
-      storage,
-      `${CAST_LABEL}.boxes`,
-    ))
-    device.queue.writeBuffer(boxBuffer, 0, boxes.words, 0, words)
-    pass.setPipeline(pipes.append.pipeline)
-    pass.setBindGroup(
-      0,
-      castGroup(state, groups.append, pipes.append.groups[0], [params, boxBuffer, list]),
-    )
-    dispatchRows(pass, ceilDiv(boxCount, WORKGROUP_THREADS))
-  }
   pass.setPipeline(pipes.args.pipeline)
-  pass.setBindGroup(0, castGroup(state, groups.sizing, pipes.args.groups[0], [params, list, args]))
+  pass.setBindGroup(0, groups.sizing.group!)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(pipes.stale.pipeline)
   pass.setBindGroup(0, vsmPerFrameSet(state.tables, res, tablesGroup, state))
-  pass.setBindGroup(
-    1,
-    castGroup(state, groups.stale, pipes.stale.groups[1], [params, mapBuffer, list]),
-  )
-  pass.dispatchWorkgroupsIndirect(args, 0)
+  pass.setBindGroup(1, groups.stale.group!)
+  pass.dispatchWorkgroupsIndirect(state.args, 0)
   pass.end()
 }
 

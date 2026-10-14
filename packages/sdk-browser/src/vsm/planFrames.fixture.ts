@@ -112,14 +112,7 @@ export function planFrames() {
     const lights = world.lights.map((light) => ({ light }))
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
-    encodeCastInvalidation(encoder, res, {
-      device,
-      mapSlotCount: prevSlots,
-      maps,
-      boxes: changed,
-      casts,
-      rows: 5000,
-    })
+    encodeCastInvalidation(encoder, res, device, prevSlots, maps, changed, casts)
     marking.encode(encoder.beginComputePass(), {
       fullMapCount: plan.fullMapCount,
       singlePageMapCount: plan.singlePageMapCount,

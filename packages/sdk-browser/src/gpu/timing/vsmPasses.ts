@@ -13,7 +13,7 @@ const VSM_FIXED_PASSES = 2 + 1 + 7 + 1 + 1 + 1 + 1
 const VSM_CHUNK_PASSES = 2
 /**
  * Chunks a frame is timed whole over. A chunk is at most `VSM_RENDER_PAIR_CAPACITY / pages` rows
- * (`vsm/renderPass.ts`, `renderChunking`: 1 024 at the default 2 048 pages), so 256 chunks hold
+ * (`vsm/renderBudget.ts`, `renderChunking`: 1 024 at the default 2 048 pages), so 256 chunks hold
  * 262 144 rows even where no bound shrinks them. The row table has no bound, so a frame past it is
  * not proven to fit: its image is flagged truncated (`encoder.ts`), never mistimed.
  */

@@ -10,7 +10,8 @@
  */
 import { recentTravel } from '../gpu/shadow/rowMotion.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
-import { FLOAT32_STEP, SQRT3 } from '../../../math/src/constants.ts'
+import { SQRT3 } from '../../../math/src/constants.ts'
+import { f32Up } from '../../../math/src/float/bits.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import { BIN_SPAN, E_BINS, rangeCuts } from './rowBins.ts'
@@ -22,12 +23,6 @@ import type { VsmBoundLight } from './rowPageBound.ts'
 
 /** Suns a histogram bins at most: past them, the bound keeps the worst case. */
 const MAX_SUNS = 4
-
-/** `v` as the nearest f32 at or above it. */
-const f32Up = (v: number) => {
-  const f = Math.fround(v)
-  return f >= v ? f : Math.fround(f + Math.abs(f) * FLOAT32_STEP)
-}
 
 /** Each light's range cuts, made once a set of keys. */
 const cutsOf = new WeakMap<Float64Array, Uint32Array>()
@@ -104,7 +99,7 @@ export function rowBinsRequest(
   if (!suns && !lamps) return
   const { motion } = scene.rowSpheres,
     margin = f32Up(recentTravel(motion, 2 * bins.latency + 1)),
-    values = frameSuns(frame.suns)
+    values = frameSuns(frame.suns, true)
   if (sameAsk(bins.asked, scene, range, margin, keys, frame.suns, values)) return
   const size = ROW_BINS_HEAD + suns * ROW_BINS_SHAPE + lamps * ROW_BINS_LAMP
   if (words.length < size) {

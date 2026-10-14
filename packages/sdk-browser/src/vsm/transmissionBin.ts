@@ -45,14 +45,16 @@ export interface ChunkTables {
 function chunkLists(
   ctx: VsmTransmissionContext,
   trans: VsmTransmission,
-  bound: readonly unknown[],
+  scene: VsmRenderScene,
+  b: Required<VsmTransmissionContext['buffers']>,
 ): ChunkLists {
   const { device } = ctx
   const { params, counts, pairs, cand, cull1, args } = vsmChunkListGroups(
     device,
     ctx,
     ctx.candidates.groups[0],
-    bound,
+    scene,
+    b,
     [trans.uniform],
   )
   return {
@@ -62,7 +64,7 @@ function chunkLists(
     args,
     pages1: vsmBufferGroup(device, ctx.pages.groups[1], [
       params,
-      ctx.buffers.cmds!,
+      b.cmds,
       counts,
       pairs,
       trans.build,
@@ -104,12 +106,8 @@ function chunkGroups(
   scene: VsmRenderScene,
 ) {
   const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
-  const bound = ctx.bound.next
-  bound[11] = trans.uniform
-  bound[12] = trans.build
-  bound[13] = trans.args
-  if (vsmSceneRowsMoved(ctx.bound, scene, b, 3)) ctx.lists = undefined
-  const lists = (ctx.lists ??= chunkLists(ctx, trans, bound))
+  if (vsmSceneRowsMoved(ctx.bound, scene, b, trans)) ctx.lists = undefined
+  const lists = (ctx.lists ??= chunkLists(ctx, trans, scene, b))
   return { lists, tables: vsmPerFrameSet(ctx.tables, res, chunkTables, ctx, lists) }
 }
 
@@ -124,7 +122,7 @@ export function binLists(
   plan: BinPlan,
 ) {
   const { params, views, counts, args } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slots)
+  vsmWriteChunkParams(ctx.device, scene.camera, plan, params, views, plan.views, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }
 }
