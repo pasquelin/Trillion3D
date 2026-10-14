@@ -14,7 +14,7 @@ export const ANCHORS = 16
 /** The heap of the roots whose measure is the eye's travel alone: `OFF` and `ON` ones. */
 export const TRAVEL = 1 << 10
 
-export type Heap = ReturnType<typeof createHeap<number>>
+type Heap = ReturnType<typeof createHeap<number>>
 /** What makes the heap a bucket's roots wait in (`createHeap`). */
 export type HeapMaker = (
   before: (a: number, b: number) => boolean,
