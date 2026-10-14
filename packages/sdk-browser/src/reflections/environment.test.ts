@@ -8,6 +8,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { IRRADIANCE_TERMS } from '../../../sdk-core/src/scene/core/irradianceTerms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
@@ -76,12 +77,12 @@ test('a stretched lobe filters each axis by its own width, a round one is the zo
   // 3z² − 1): its mean over a lobe of second moments E[ωωᵀ] is 2 + 3·E[(a·ω)²] − 1. Each axis keeps
   // the variance of the round lobe of its width, σ² = (1 − a₂)/3, so along the long axis T the
   // field reads 2 − a₂(αt), across it 2 − a₂(α), and along R 2 + a₂(α) + a₂(αt).
-  const basis = { constant: 0.2820948, z: 0.3153916, xy: 0.5462742 }
+  const basis = (k: number) => IRRADIANCE_TERMS[k].basis
   const field = (difference: number, zonal: number) => {
     const environment = zero()
-    environment[0] = [2 / basis.constant, 0, 0, 0]
-    environment[8] = [difference / basis.xy, 0, 0, 0]
-    environment[6] = [zonal / basis.z, 0, 0, 0]
+    environment[0] = [2 / basis(0), 0, 0, 0]
+    environment[8] = [difference / basis(8), 0, 0, 0]
+    environment[6] = [zonal / basis(6), 0, 0, 0]
     return environmentRun(environment, [0, 0, 0, 0])
   }
   const alongX = field(1.5, -0.5),
