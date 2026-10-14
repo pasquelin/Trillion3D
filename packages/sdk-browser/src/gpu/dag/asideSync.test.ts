@@ -56,7 +56,7 @@ const bytes = (view: ArrayBufferView, from = 0, to = view.byteLength) =>
 
 test('a view aside cut alone reads the tree refitted and the root word of a parked placement', async () => {
   const roots = placementField(20, 6)
-  const { packed, resources, selection, side, held, gpu, named } = await asideOver(roots)
+  const { packed, resources, selection, side, gpu, named } = await asideOver(roots)
   // The field's far corner moved a kilometre on: its leaf is named to the GPU's writer of leaves,
   // and the GPU refit of its group and the nodes above it is encoded in the aside cut's own command
   // buffer.
@@ -84,7 +84,7 @@ test('a view aside cut alone reads the links of a cell placed since', async () =
   const world = worldDag(),
     manifest = ruleDag(8) as unknown as DagRoot
   const roots = [...Array.from({ length: 12 }, () => manifest), world as never]
-  const { packed, resources, selection, side, held } = await asideOver(roots)
+  const { packed, resources, selection, side } = await asideOver(roots)
   for (let o = 4; o < 8; o++) selection.placeObject(o, o)
   await side()
   const { links, linkBase } = packed.world!

@@ -37,7 +37,7 @@ export function createDagRuntime(
   poolHeld?: (page: number) => boolean,
   roots?: RootsOnGpu,
 ): GpuSelection {
-  const { device, packed } = resources
+  const { packed } = resources
   const state = createDagRuntimeState()
   const chain = createDifferenceChain()
   const run: DagRun = {
