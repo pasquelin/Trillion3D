@@ -52,28 +52,34 @@ import {
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
-  vsmBufferGroup,
-  vsmChunkKernels,
   vsmChunkListGroups,
-  vsmChunkListSizes,
+  vsmSceneRowsMoved,
+} from './chunkGroups.ts'
+import { vsmBufferGroup } from './passKit.ts'
+import {
+  vsmChunkKernels,
   vsmChunkContext,
   vsmChunkPasses,
-  vsmChunkParamSlots,
   vsmChunkRows,
+  type VsmChunkKernels,
+} from './chunkKernels.ts'
+import {
+  vsmChunkListSizes,
   vsmChunkRowsWithin,
   vsmContextBytes,
   vsmDrawFloorBytes,
   vsmEnsureLists,
   vsmReleaseContext,
-  vsmRenderParamsEntry,
   vsmRenderStorage,
+} from './chunkLists.ts'
+import {
+  vsmChunkParamSlots,
+  vsmRenderParamsEntry,
   vsmRenderViews,
-  vsmSceneRowsMoved,
   vsmSetChunking,
   vsmWriteChunkParams,
-  type VsmChunkKernels,
-  type VsmRenderScene,
-} from './renderPass.ts'
+} from './chunkParams.ts'
+import type { VsmRenderScene } from './renderPass.ts'
 import {
   type VsmPerFrameSet,
   vsmFrameSetHeld,

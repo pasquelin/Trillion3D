@@ -1,6 +1,7 @@
 // The shadow maps' opaque raster, then the coloured light the translucent casters let through.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { encodeVsmRender, vsmRenderViews, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
+import { encodeVsmRender, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
+import { vsmRenderViews } from '../../../../vsm/chunkParams.ts'
 import {
   createVsmTransmission,
   encodeVsmTransmission,

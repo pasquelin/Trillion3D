@@ -11,7 +11,7 @@ import {
   type VsmBoundLight,
   type VsmRowBound,
 } from './rowPageBound.ts'
-import { vsmRenderViews } from './renderPass.ts'
+import { vsmRenderViews } from './chunkParams.ts'
 import {
   bruteForce,
   bruteForceLocal,

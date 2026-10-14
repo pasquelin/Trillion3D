@@ -31,7 +31,7 @@ import {
 import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe } from './passKit.ts'
-import { vsmBufferGroup } from './renderPass.ts'
+import { vsmBufferGroup } from './passKit.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,

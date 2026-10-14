@@ -81,7 +81,7 @@ const HANDED_IN = new Set([
   'vsm/passKit.ts',
   'vsm/pageManagementPass.ts',
   'vsm/projectionPass.ts',
-  'vsm/renderPass.ts',
+  'vsm/renderPipes.ts',
   'vsm/transmissionPass.ts',
 ])
 
