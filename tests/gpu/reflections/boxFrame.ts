@@ -11,7 +11,7 @@ import {
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import type { RigFrame } from './rigFrame.ts'
+import { rigFrameOf } from './rigFrame.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** A box of the frame: its geometry, its colour, and whether it is a mirror. */
@@ -40,16 +40,8 @@ export function boxFrame(
     blocks.map((block) => block.box),
   )
   const pixels = width * height
-  const frame: RigFrame = {
-    size: [width, height],
-    viewProjection: view.m,
-    eye,
-    depth: Float32Array.from(depth),
-    flags: new Uint8Array(pixels),
-    normals: new Float32Array(pixels * 4),
-    base: new Float32Array(pixels * 4),
-    radiance: new Float32Array(pixels * 4),
-  }
+  const frame = rigFrameOf([width, height], view.m, eye)
+  frame.depth.set(depth)
   for (let p = 0; p < pixels; p++) {
     if (shown[p] < 0) continue
     const block = blocks[Math.floor(shown[p] / 6)]

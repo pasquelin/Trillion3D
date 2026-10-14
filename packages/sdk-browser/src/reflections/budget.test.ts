@@ -68,8 +68,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         const floor = castHeightfield(eye, d, height)
         const wall = d[2] < 0 ? wallDistance / -d[2] : Infinity
         const t = Math.min(floor, wall)
-        const forward = d[0] * view.forward[0] + d[1] * view.forward[1] + d[2] * view.forward[2]
-        depth[y * WIDTH + x] = Number.isFinite(t) ? view.near / (t * forward) : 0
+        depth[y * WIDTH + x] = view.depthOf(d, t)
         surfaces.push(t === floor ? ([0, 1, 2].map((k) => eye[k] + d[k] * t) as V3) : undefined)
       }
     const run = reflectionRunner(...sceneFromDepth(view, depth))

@@ -5,7 +5,7 @@
 import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { openRig } from './rig.ts'
-import { HALF_NAN } from './rigFrame.ts'
+import { HALF_NAN, rigFrameOf } from './rigFrame.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: per size, the pixels the trace left as it found them. */
@@ -14,22 +14,15 @@ export type CoverageReading = { sizes: { size: number[]; unwritten: number }[] }
 /** A wall facing the eye at a depth of 0.3 of its near plane, lit: every pixel a mirror. */
 function wall(width: number, height: number) {
   const viewProjection = perspectiveProjection(new Float64Array(16), 60, width / height, 0.1, 1)
-  const pixels = width * height
-  const fill = (values: number[]) => {
-    const out = new Float32Array(pixels * values.length)
-    for (let p = 0; p < pixels; p++) out.set(values, p * values.length)
-    return out
+  const frame = rigFrameOf([width, height], viewProjection, [0, 0, 0])
+  frame.depth.fill(0.3)
+  frame.flags.fill(MODEL_FLAG.physical)
+  for (let p = 0; p < width * height; p++) {
+    frame.normals.set([0, 0, 1, 0], p * 4)
+    frame.base.set([1, 1, 1, 1], p * 4)
+    frame.radiance.set([0.5, 0.5, 0.5, 1], p * 4)
   }
-  return {
-    size: [width, height] as const,
-    viewProjection,
-    eye: [0, 0, 0] as const,
-    depth: new Float32Array(pixels).fill(0.3),
-    flags: new Uint8Array(pixels).fill(MODEL_FLAG.physical),
-    normals: fill([0, 0, 1, 0]),
-    base: fill([1, 1, 1, 1]),
-    radiance: fill([0.5, 0.5, 0.5, 1]),
-  }
+  return frame
 }
 
 export function run(sizes: number[][]) {

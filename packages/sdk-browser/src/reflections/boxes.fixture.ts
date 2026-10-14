@@ -34,8 +34,9 @@ export function castBoxes(o: V3, d: V3, boxes: Box[], from = 0) {
 /**
  * A reversed infinite perspective of vertical field `fov` from `eye` toward `target`, `width ×
  * height` pixels, near plane `near`: its column-major view-projection and inverse, the world size
- * of a pixel at a unit clip `w`, a point's projection (pixel x, y, depth, clip w) and the eye's
- * ray through a pixel point.
+ * of a pixel at a unit clip `w`, a point's projection (pixel x, y, depth, clip w), the eye's
+ * ray through a pixel point and the reversed depth, near / w, of the point `t` along a ray of it
+ * (0 when the ray meets nothing).
  */
 export function camera(
   eye: V3,
@@ -77,6 +78,7 @@ export function camera(
       ny = 1 - (y / height) * 2
     return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) * slope) as V3)
   }
+  const depthOf = (d: V3, t: number) => (Number.isFinite(t) ? near / (t * dotVector3(d, f)) : 0)
   return {
     eye,
     forward: f,
@@ -84,6 +86,7 @@ export function camera(
     inverse: invertMatrix4(new Float64Array(16), m),
     project,
     ray,
+    depthOf,
     width,
     height,
     near,
@@ -116,9 +119,7 @@ export function rasterize(view: Camera, boxes: Box[]) {
     for (let x = 0; x < view.width; x++) {
       const d = view.ray(x + 0.5, y + 0.5),
         { t, index } = castBoxes(view.eye, d, boxes)
-      depth[y * view.width + x] = Number.isFinite(t)
-        ? view.near / (t * dotVector3(d, view.forward))
-        : 0
+      depth[y * view.width + x] = view.depthOf(d, t)
       shown[y * view.width + x] =
         index < 0
           ? -1

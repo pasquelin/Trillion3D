@@ -8,7 +8,7 @@ import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/b
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { reflect, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
-import type { RigFrame } from './rigFrame.ts'
+import { rigFrameOf } from './rigFrame.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 export const SPHERES = {
@@ -63,19 +63,9 @@ function castSpheres(o: V3, d: V3, from = 0) {
 export function sphereFrame() {
   const { width, height, eye, target, fov } = SPHERES
   const view = camera(eye, target, width, height, fov)
-  const pixels = width * height
-  const shown = new Int32Array(pixels).fill(-1)
-  const frame: RigFrame = {
-    size: [width, height],
-    viewProjection: view.m,
-    eye,
-    depth: new Float32Array(pixels),
-    flags: new Uint8Array(pixels),
-    normals: new Float32Array(pixels * 4),
-    base: new Float32Array(pixels * 4),
-    radiance: new Float32Array(pixels * 4),
-    background: 0xffffff,
-  }
+  const shown = new Int32Array(width * height).fill(-1)
+  const frame = rigFrameOf([width, height], view.m, eye)
+  frame.background = 0xffffff
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const p = y * width + x
@@ -83,7 +73,7 @@ export function sphereFrame() {
         { t, index } = castSpheres(eye, d)
       shown[p] = index
       if (index === -1) continue
-      frame.depth[p] = view.near / (t * dotVector3(d, view.forward))
+      frame.depth[p] = view.depthOf(d, t)
       const point = [0, 1, 2].map((k) => eye[k] + d[k] * t) as V3
       if (index >= 0) {
         const c = SPHERES.centres[index]

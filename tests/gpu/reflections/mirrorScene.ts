@@ -22,21 +22,20 @@ const eye = () => camera([0, 0, 0], [0, 0, -1], MIRROR.size, MIRROR.size, Math.P
 /** The frame: its floor a polished metal, white and of metalness one, so that the share is the
  *  lobe's own weight. */
 export function mirrorScene(): RigFrame {
-  const { size, near, quad, floor } = MIRROR
+  const { size, quad, floor } = MIRROR
   const view = eye()
   const frame = rigFrameOf([size, size], view.m, [0, 0, 0])
   frame.base.fill(1)
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
       const at = py * size + px
-      // The ray through the pixel's centre, at a unit distance along -z.
+      // The eye ray through the pixel's centre, scaled to a unit distance along -z.
       const d = view.ray(px + 0.5, py + 0.5)
       const ray = d.map((c) => c / -d[2])
       const onQuad = Math.abs(ray[0] * 6) <= 0.5 && Math.abs(ray[1] * 6) <= 1
       const onFloor = !onQuad && ray[1] < 0
       if (!onQuad && !onFloor) continue
-      const distance = onQuad ? 6 : -1 / ray[1]
-      frame.depth[at] = near / distance
+      frame.depth[at] = view.depthOf(d, onQuad ? 6 / -d[2] : -1 / d[1])
       frame.flags[at] = onQuad ? MODEL_FLAG.diffuse : MODEL_FLAG.physical
       frame.normals.set(onQuad ? [0, 0, 1, 1] : [0, 1, 0, 0], at * 4)
       frame.radiance.set(onQuad ? quad : floor, at * 4)
