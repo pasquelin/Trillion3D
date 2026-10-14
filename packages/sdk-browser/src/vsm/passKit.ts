@@ -1,11 +1,12 @@
 /**
  * What the shadow maps' compute passes share: the compute pipeline of a WGSL source described
- * once a device and compiled the engine's one way (`preparedComputePipeline`), and a group of
+ * once a device and compiled the engine's one way (`preparedComputeStage`), and a group of
  * whole buffers (`vsmBufferGroup`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
  * the maths package's (`packages/math/src/scalar`).
  */
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../gpu/core/computeStages.ts'
 import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
@@ -40,11 +41,14 @@ const vsmKit = oncePerDevice((device: GPUDevice) => {
       const layouts = source.groups.map((entries, k) =>
         device.createBindGroupLayout({ label: `${label}.g${k}`, entries }),
       )
-      const prepared = preparedComputePipeline(device, {
+      const prepared = preparedComputeStage(
+        device,
+        device.createPipelineLayout({ label, bindGroupLayouts: layouts }),
+        modules.of(source),
+        entryPoint,
+        undefined,
         label,
-        layout: device.createPipelineLayout({ label, bindGroupLayouts: layouts }),
-        compute: { module: modules.of(source), entryPoint },
-      })
+      )
       return {
         groups: layouts,
         prepared,

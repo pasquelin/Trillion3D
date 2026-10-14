@@ -2,7 +2,7 @@
 // (`../../lighting/deferred/fullscreen.ts`): those prepare awaits together (`buildComputeStages`),
 // those started off the frame that a frame binds once ready (`startedComputeStages`), and the
 // auto-layout kernel a pass makes once a device (`autoKernel`). Every stage is one descriptor
-// (`computeStage`).
+// (`computeStage`), every prepared one made by `preparedComputeStage`.
 
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import {
@@ -24,6 +24,17 @@ const computeStage = (
   layout,
   compute: { module, entryPoint, ...(constants && { constants }) },
 })
+
+/** The stage `entryPoint` of `module` on `layout`, its overrides `constants`, prepared off the
+ *  frame (`preparedComputePipeline`): every prepared compute stage of the engine. */
+export const preparedComputeStage = (
+  device: GPUDevice,
+  layout: GPUPipelineLayout | 'auto',
+  module: GPUShaderModule,
+  entryPoint: string,
+  constants?: Record<string, number>,
+  label?: string,
+) => preparedComputePipeline(device, computeStage(layout, module, entryPoint, constants, label))
 
 /** The compute stages of one module on one layout, by entry point, compiled together off the
  *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
@@ -69,9 +80,13 @@ export function startedComputeStages<E extends string>(
     entryPoints.map((entryPoint) => [
       entryPoint,
       started(
-        preparedComputePipeline(
+        preparedComputeStage(
           device,
-          computeStage(layout, module, entryPoint, constants, `${label} ${entryPoint}`),
+          layout,
+          module,
+          entryPoint,
+          constants,
+          `${label} ${entryPoint}`,
         ),
       ),
     ]),
@@ -94,14 +109,12 @@ export function startedComputeStages<E extends string>(
  *  frame once a device. */
 export const autoKernel = (label: string, code: string, entryPoint: string) =>
   oncePerDevice((device) =>
-    preparedComputePipeline(
+    preparedComputeStage(
       device,
-      computeStage(
-        'auto',
-        device.createShaderModule({ label, code }),
-        entryPoint,
-        undefined,
-        label,
-      ),
+      'auto',
+      device.createShaderModule({ label, code }),
+      entryPoint,
+      undefined,
+      label,
     ),
   )

@@ -1,7 +1,7 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { COVERAGE_CHOOSE_WGSL, COVERAGE_COUNT_WGSL } from './mipsWgsl.ts'
-import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import {
@@ -35,16 +35,18 @@ const coverageProgram = oncePerDevice((device: GPUDevice) => {
       computeBufferEntry(2, 'storage', visibility),
     ],
   })
-  const pipeline = (code: string, bindGroupLayout: GPUBindGroupLayout, entryPoint: string) =>
-    preparedComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-      compute: { module: device.createShaderModule({ code }), entryPoint },
-    })
+  const stage = (code: string, bindGroupLayout: GPUBindGroupLayout, entryPoint: string) =>
+    preparedComputeStage(
+      device,
+      device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      device.createShaderModule({ code }),
+      entryPoint,
+    )
   return {
     layout,
     chooseLayout,
-    count: pipeline(wgslModule(COVERAGE_COUNT_WGSL), layout, 'count'),
-    pick: pipeline(COVERAGE_CHOOSE_WGSL, chooseLayout, 'choose'),
+    count: stage(wgslModule(COVERAGE_COUNT_WGSL), layout, 'count'),
+    pick: stage(COVERAGE_CHOOSE_WGSL, chooseLayout, 'choose'),
     picked: createWebgpuBindIdentity(),
     pickGroup: undefined as GPUBindGroup | undefined,
   }

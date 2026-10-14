@@ -1,6 +1,7 @@
 // THE POSE'S PROGRAM (`proxyPose.ts`): its layout — the arena, the float pool, the poses, the levels'
 // ids, the level's parameters — and its two kernels (`../../bounce/runtimePoseWgsl.ts`).
-import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts'
+import { started } from '../../lighting/deferred/fullscreen.ts'
+import { preparedComputeStage } from '../core/computeStages.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
 import { computeBufferEntry, computeUniformEntry } from '../core/computeBindings.ts'
 import { POSE_STEP_WORDS, RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
@@ -21,11 +22,7 @@ export const posePrograms = oncePerDevice((device: GPUDevice) => {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const kernel = (entryPoint: string) =>
     started(
-      preparedComputePipeline(device, {
-        label: PROXY_POSE_PASS,
-        layout: pipelineLayout,
-        compute: { module, entryPoint },
-      }),
+      preparedComputeStage(device, pipelineLayout, module, entryPoint, undefined, PROXY_POSE_PASS),
     )
   return { layout, corners: kernel('poseCorners'), fit: kernel('fitNodes') }
 })
