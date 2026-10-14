@@ -19,6 +19,8 @@ test('the trace binds no store of answers, reads no frame budget and counts no w
     'rtShare',
     'rtSpentHere',
     'rtGroupSpent',
+    // A placement's instance is read once, whole, never a texel load a word.
+    'rtInstanceWord',
   ])
     assert.ok(!TRACE_SHADER.includes(gone), gone)
   assert.ok(TRACE_SHADER.includes('rtCast('), 'the proxy stage casts its ray')
