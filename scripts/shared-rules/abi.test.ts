@@ -13,7 +13,7 @@ const ABI = 'packages/asset-compiler-rust/src/shared_math/abi.rs'
 function words(rust: string, head: string) {
   const start = rust.indexOf(head)
   assert.notEqual(start, -1, head)
-  const body = rust.slice(start, rust.indexOf(head.startsWith('pub mod') ? '}' : ';', start))
+  const body = rust.slice(start, rust.indexOf(head.startsWith('pub mod') ? '}' : '];', start))
   return [...body.matchAll(/"([^"]*)"/g)].map((match) => match[1])
 }
 
