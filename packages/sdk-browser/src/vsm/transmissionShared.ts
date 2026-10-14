@@ -151,8 +151,7 @@ export const VSM_TRANSMISSION_PAGE_GROUP = 256
  * Threads of a group of the per-command kernels (`vsmTransmissionPages`, `vsmTransmissionBin`): one
  * group a command, its own width, not the dispatch's tunable one (`WORKGROUP_THREADS`) — the bin
  * holds a projected triangle a thread in the group's memory (\`tris\`, a \`VsmTTri\` each), which
- * must stay within the 16 KiB of workgroup storage every device holds
- * (\`maxComputeWorkgroupStorageSize\`), with the command's five words beside it
+ * must stay within the workgroup storage every device holds (\`GUARANTEED_WORKGROUP_BYTES\`), with the command's five words beside it
  * (`transmissionGroup.test.ts` lays the bin's workgroup memory out as WGSL does and holds it there).
  */
 const VSM_TRANSMISSION_COMMAND_GROUP = 64

@@ -5,6 +5,9 @@
 export const GUARANTEED_SIDE = 8192
 /** WebGPU's guaranteed `maxTextureArrayLayers`, the layers every device grants an array. */
 export const PORTABLE_TEXTURE_LAYERS = 256
+/** WebGPU's guaranteed `maxComputeWorkgroupStorageSize`, the bytes of workgroup memory every
+ *  device holds: a kernel's workgroup arrays are planned within it. */
+export const GUARANTEED_WORKGROUP_BYTES = 16384
 
 /** The texture limits a device of `limits` grants — the widest side and the most array layers —,
  *  WebGPU's guaranteed ones for any it does not name: the one reader of the device's texture

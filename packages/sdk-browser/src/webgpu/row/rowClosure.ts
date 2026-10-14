@@ -12,10 +12,11 @@ import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
 import { startedComputeStages } from '../../gpu/core/computeStages.ts'
+import { GUARANTEED_WORKGROUP_BYTES } from '../../gpu/core/textureLimits.ts'
 
-/** Words of workgroup memory every device holds (`maxComputeWorkgroupStorageSize`, 16 KiB): the
- *  stacks of a workgroup's lanes. */
-const STACK_WORDS = 4096
+/** Words of workgroup memory every device holds (`GUARANTEED_WORKGROUP_BYTES`): the stacks of a
+ *  workgroup's lanes. */
+const STACK_WORDS = GUARANTEED_WORKGROUP_BYTES / 4
 
 /** The lanes and the stack, a power of two at least `bound`, a closure pipeline is compiled for: as
  *  many lanes as the workgroup's memory holds stacks, `WORKGROUP_THREADS` at most; `undefined` past

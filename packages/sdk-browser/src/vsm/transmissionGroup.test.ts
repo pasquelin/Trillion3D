@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { vsmLayout } from './layout.ts'
+import { GUARANTEED_WORKGROUP_BYTES } from '../gpu/core/textureLimits.ts'
 import { vsmTransmissionBinWgsl } from './transmissionBinWgsl.ts'
 import { vsmTransmissionPagesWgsl } from './transmissionPagesWgsl.ts'
 
@@ -54,5 +55,5 @@ test('the bin’s workgroup memory stays within the 16 KiB every device holds', 
     (sum, [, type]) => sum + layoutOf(code, type).size,
     0,
   )
-  assert.ok(bytes <= 16384, `${bytes} bytes of workgroup memory`)
+  assert.ok(bytes <= GUARANTEED_WORKGROUP_BYTES, `${bytes} bytes of workgroup memory`)
 })

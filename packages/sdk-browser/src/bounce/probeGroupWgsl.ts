@@ -3,9 +3,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { GOLDEN_ANGLE } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { GUARANTEED_WORKGROUP_BYTES } from '../gpu/core/textureLimits.ts'
 
-/** Bytes of workgroup memory every device holds (`maxComputeWorkgroupStorageSize`). */
-const GUARANTEED_GROUP_BYTES = 16384
 /** Bytes of workgroup memory a thread of the update holds: thirteen `vec3f` sums, 16 bytes each in
  *  an array, and one `vec2f` of travel. */
 const BYTES_PER_THREAD = 13 * 16 + 8
@@ -19,9 +18,11 @@ const BYTES_PER_THREAD = 13 * 16 + 8
 const PROBE_THREADS = BOUNCE_SETTINGS.raysPerProbe
 if (
   PROBE_THREADS & (PROBE_THREADS - 1) ||
-  PROBE_THREADS * BYTES_PER_THREAD > GUARANTEED_GROUP_BYTES
+  PROBE_THREADS * BYTES_PER_THREAD > GUARANTEED_WORKGROUP_BYTES
 )
-  throw new RangeError(`raysPerProbe ${PROBE_THREADS}: a power of two whose sums fit 16 KiB`)
+  throw new RangeError(
+    `raysPerProbe ${PROBE_THREADS}: a power of two whose sums fit ${GUARANTEED_WORKGROUP_BYTES} bytes`,
+  )
 
 /** The group's width — the probe's rays, one a thread —, its partial sums — nine basis accumulators, four of distance, the
  *  travel and the rays that answered —, and the direction of a ray. */
