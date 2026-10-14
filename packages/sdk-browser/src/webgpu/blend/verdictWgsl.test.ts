@@ -1,61 +1,26 @@
-// The GPU frustum verdict (`verdictWgsl.ts`), its shipped text run in JavaScript (`shaderRun`, the
-// `double.ts` contract: every operation the CPU's double), against the item walk
-// (`verdict.fixture.ts`) on adversarial scenes: one-ulp straddles, NaN, infinite and signed-zero
-// boxes and planes, items with no box, hidden and parked items, paged items the cut emptied.
+// The GPU frustum verdict (`verdictWgsl.ts`), its shipped text run in JavaScript (`shaderRun`),
+// against its contract on adversarial scenes — one-ulp straddles, NaN, infinite and signed-zero
+// boxes and planes, items with no box, hidden and parked items, paged items the cut emptied: it
+// keeps every item the exact double test keeps (`verdict.fixture.ts`, the float64 oracle), and
+// differs from it only on boxes within its rounding margin of a plane.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { BLEND_VERDICT_SHADER, VERDICT_GROUP } from './verdictWgsl.ts'
-import { VERDICT, verdictWords } from './verdictLayout.ts'
-import { writeKeyRecords } from './keyRecords.ts'
+import { gpuVerdict } from './verdictRun.fixture.ts'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { blendVerdictCpu } from './verdict.fixture.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
-import type { BlendGpuItem, WebgpuBlendState } from './state.ts'
+import { FLUSH, ROUNDING_GAMMA } from '../water/precision.ts'
+import type { BlendGpuItem } from './state.ts'
 
-type Kernel = { judgeLane(group: number, lane: number): void; packLane(g: number, l: number): void }
-
-const NAMES = ['judgeLane', 'packLane', 'judgeItem', 'boxExcluded', 'frameDouble', 'keyedDouble']
 const EDGES = [NaN, Infinity, -Infinity, -0, 0, Number.MAX_VALUE, -Number.MAX_VALUE, 5e-324]
-
-/** The verdict of `blendState` as the kernel computes it, its two barrier halves replayed group
- *  by group over fresh workgroup memory. */
-function gpuVerdict(blendState: WebgpuBlendState, counts: number[]) {
-  const items = blendState.blendGpu.length,
-    draws = blendState.drawsPacked
-  const scope = {
-    keyed: Array.from(writeKeyRecords(blendState)),
-    draws: Array.from({ length: items }, (_, i) => Array.from(draws.subarray(i * 4, i * 4 + 4))),
-    counts,
-    frame: Array.from(blendState.frameWords),
-    keep: new Array<number>(bitWords(items)).fill(0xdeadbeef),
-    verdict: new Array<number>(verdictWords(blendState.transmissive)).fill(7),
-    bits: new Array<number>(VERDICT_GROUP).fill(0),
-    tally: [0, 0],
-  }
-  scope.verdict[VERDICT.rejected] = scope.verdict[VERDICT.inView] = 0
-  // The kernel's own functions; the library's are reached on their own.
-  const kernel = shaderRun<Kernel>(BLEND_VERDICT_SHADER, NAMES, scope)
-  for (let group = 0; group * VERDICT_GROUP < items; group++) {
-    scope.tally[0] = scope.tally[1] = 0
-    for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.judgeLane(group, lane)
-    for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.packLane(group, lane)
-  }
-  const water = VERDICT.waterDraws
-  return {
-    keep: Uint32Array.from(scope.keep),
-    rejected: scope.verdict[VERDICT.rejected],
-    inView: scope.verdict[VERDICT.inView],
-    waterDraws: Uint32Array.from(scope.verdict.slice(water, water + blendState.transmissive)),
-  }
-}
 
 /** A box near the frustum's planes, a bound sometimes one ulp across, or a special value. */
 function box(next: () => number, edges: boolean) {
@@ -120,25 +85,81 @@ function scene(count: number, next: () => number, edges: boolean) {
   return { blendState, counts }
 }
 
+/** Whether the exact test's verdict on `box` may differ from the kernel's: a number the kernel
+ *  leaves out of single precision, or a plane the box lies behind within twice its margin. */
+function marginal(planes: Float64Array, box: Float64Array) {
+  const bounded = (v: number) => Math.abs(v) < 2 ** 60
+  if (!box.every(bounded) || !planes.every(bounded)) return true
+  for (let p = 0; p < 24; p += 4) {
+    const [a, b, c, d] = planes.subarray(p, p + 4)
+    const x = a > 0 ? box[3] : box[0],
+      y = b > 0 ? box[4] : box[1],
+      z = c > 0 ? box[5] : box[2]
+    const s = a * x + b * y + c * z + d,
+      m = Math.abs(a * x) + Math.abs(b * y) + Math.abs(c * z) + Math.abs(d),
+      r = Math.abs(a) + Math.abs(b) + Math.abs(c) + Math.abs(x) + Math.abs(y) + Math.abs(z)
+    if (s < 0 && s >= -2 * (ROUNDING_GAMMA * m + FLUSH * (1 + r))) return true
+  }
+  return false
+}
+
 function check(count: number, seed: number, edges: boolean) {
   const { blendState, counts } = scene(count, lcgRandom(seed), edges)
   // The compaction's four words a paged rank, its instance count the second.
   const instances = counts.filter((_, word) => word % 4 === 1)
-  assert.deepEqual(
-    gpuVerdict(blendState, counts),
-    blendVerdictCpu(blendState, instances),
-    `seed ${seed}, ${count} items`,
+  const gpu = gpuVerdict(blendState, counts),
+    exact = blendVerdictCpu(blendState, instances),
+    at = `seed ${seed}, ${count} items`
+  blendState.blendGpu.forEach((item, i) => {
+    const kept = hasBit(gpu.keep, i)
+    assert.ok(kept || !hasBit(exact.keep, i), `${at}: item ${i} culled, the exact test keeps it`)
+    if (kept !== hasBit(exact.keep, i))
+      assert.ok(marginal(blendState.blendPlanes, item.bounds!), `${at}: item ${i} off the margin`)
+  })
+  assert.ok(gpu.rejected <= exact.rejected, `${at}: no more rejected`)
+  assert.ok(gpu.inView >= exact.inView, `${at}: no less in view`)
+  exact.waterDraws.forEach((draws, rank) =>
+    assert.ok(gpu.waterDraws[rank] >= draws, `${at}: water rank ${rank} drawn`),
   )
+  // Words past the scene's are written by none: the keep words cover the items exactly.
+  assert.equal(gpu.keep.length, exact.keep.length)
 }
 
-test('random scenes: keep words, counts and water verdicts are the item walk, word for word', () => {
+test('random scenes: every item the exact test keeps is kept, the rest only in the margin', () => {
   for (let seed = 1; seed <= 16; seed++) check(150, seed, false)
 })
 
-test('NaN, infinite and signed-zero boxes and planes, one-ulp straddles: the CPU verdict', () => {
+test('NaN, infinite and signed-zero boxes and planes, one-ulp straddles: never a visible cull', () => {
   for (let seed = 101; seed <= 124; seed++) check(150, seed, true)
 })
 
 test('empty groups and the word edges', () => {
   for (const count of [1, 31, 32, 33, 63, 64, 65, 97]) check(count, 300 + count, true)
+})
+
+test('a box a rounding outside a plane is kept; one a unit outside is rejected', () => {
+  const near = scene(2, lcgRandom(7), false)
+  const items = near.blendState.blendGpu
+  // Six axis planes around the origin, the first `x ≤ 10`; no item paged.
+  for (let p = 0; p < 6; p++) {
+    const n = [0, 0, 0]
+    n[p >> 1] = p & 1 ? 1 : -1
+    near.blendState.blendPlanes.set([n[0], n[1], n[2], 10], p * 4)
+  }
+  near.blendState.drawsPacked.fill(NO_INDEX)
+  const outside = [10 + 2 ** -30, 11]
+  items.forEach((item, i) =>
+    Object.assign(item, {
+      hidden: false,
+      transmissive: false,
+      flags: 0,
+      placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
+      bounds: new Float64Array([outside[i], 0, 0, outside[i] + 1, 1, 1]),
+    }),
+  )
+  orderBlendPasses(near.blendState, [0, 0, 0])
+  const gpu = gpuVerdict(near.blendState, [])
+  assert.ok(hasBit(gpu.keep, 0), 'a box single precision cannot tell from the plane stays')
+  assert.ok(!hasBit(gpu.keep, 1), 'a box well outside goes')
+  assert.equal(gpu.rejected, 1)
 })

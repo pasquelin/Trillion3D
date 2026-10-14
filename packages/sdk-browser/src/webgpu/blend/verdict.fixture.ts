@@ -1,6 +1,6 @@
-// The frustum verdict item by item on the CPU, in doubles: the model the GPU verdict
-// (`verdictWgsl.ts`) is compared with word for word — by its JavaScript run here and by the Dawn
-// proofs' readback.
+// The frustum verdict item by item on the CPU, in exact doubles: the float64 oracle the GPU
+// verdict (`verdictWgsl.ts`, single precision under a proven margin) must contain — every item it
+// keeps kept, a difference only within the margin of a plane (`verdictWgsl.test.ts`).
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
