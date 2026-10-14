@@ -1,58 +1,22 @@
-import type { CutTables } from '../../gpu/dag/cutReaders.ts'
 import { dagReadEntries } from '../../gpu/dag/shader/bindings.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { autoKernel } from '../../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
-import type { RayRecords } from './rayRecords.ts'
+import type { RaySources } from './raySources.ts'
 import { DEFORM_INDEX_SHADER, RAY_PARAMS } from './deformIndexWgsl.ts'
 
 /** The ray query's label: its buffers, its kernels and its pass. */
 export const RAY_QUERY_PASS = 'Trillion3D ray query'
 
-/** What a batch of rays reads where it lies: the cut's tables (`../../gpu/dag/cutReaders.ts`), the
- *  records (`rayRecords.ts`), the page table and its visibility rows, the blended entries and their
- *  spans, the geometry pool's words and the float pool. */
-export type RaySources = {
-  tables: CutTables
-  records: RayRecords
-  pageTable: GPUBuffer
-  rows: number
-  entries: GPUBuffer
-  spans: GPUBuffer
-  entryCount: number
-  geometry: GPUBuffer
-  positions: GPUBuffer
-}
-
 /** A batch: its rays' records then their filter lists, as words (`rayRecord.ts`), and its rays. */
 export type RayBatch = { words: Uint32Array<ArrayBuffer>; rays: number; filterWord: number }
 
-/** A compute pipeline of the query on `module`, prepared off the frame. */
-const computeOf = (device: GPUDevice, module: GPUShaderModule, entryPoint: string) =>
-  preparedComputePipeline(device, {
-    label: RAY_QUERY_PASS,
-    layout: 'auto',
-    compute: { module, entryPoint },
-  })
-
 /** The trace kernel of a device, one whatever the world, and its deformation index kernel. */
-const traceKernel = oncePerDevice((device: GPUDevice) =>
-  computeOf(
-    device,
-    device.createShaderModule({ label: RAY_QUERY_PASS, code: RAY_QUERY_WGSL }),
-    'traceRays',
-  ),
-)
-const indexKernel = oncePerDevice((device: GPUDevice) =>
-  computeOf(
-    device,
-    device.createShaderModule({ label: RAY_QUERY_PASS, code: DEFORM_INDEX_SHADER }),
-    'indexDeformed',
-  ),
-)
+const traceKernel = autoKernel(RAY_QUERY_PASS, RAY_QUERY_WGSL, 'traceRays')
+const indexKernel = autoKernel(RAY_QUERY_PASS, DEFORM_INDEX_SHADER, 'indexDeformed')
 
 /** Whether both kernels of the query are compiled on `device`: when not, their compile is started
  *  and `then` is called once it lands — `failed`, with the device's reason, if it refuses it. */
@@ -67,37 +31,77 @@ export function rayKernelsCompiled(
   return false
 }
 
+/** A group of the pass and what it names. */
+const heldRayGroup = () => ({
+  identity: createWebgpuBindIdentity(),
+  group: undefined as unknown as GPUBindGroup,
+})
+type HeldRayGroup = ReturnType<typeof heldRayGroup>
+
+/** The pass's three groups — the index's, the trace's over the cut's tables, the trace's own —,
+ *  each held over what it names: made again only when the pipeline or a resource moved. */
+export const createRayGroups = () => ({
+  index: heldRayGroup(),
+  tables: heldRayGroup(),
+  trace: heldRayGroup(),
+})
+type RayGroups = ReturnType<typeof createRayGroups>
+
+/** `held`'s group, made by `make` when `named` — its pipeline, then its resources — moved. */
+function heldOver(held: HeldRayGroup, make: () => GPUBindGroup, ...named: unknown[]) {
+  const { next } = held.identity
+  next.length = named.length
+  for (let i = 0; i < named.length; i++) next[i] = named[i]
+  if (held.identity.moved()) held.group = make()
+  return held.group
+}
+
 /** The index, then the trace, in one compute pass. */
 export function encodeRayPass(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   sources: RaySources,
-  q: { buffer: GPUBuffer; params: GPUBuffer; rays: number },
+  q: { buffer: GPUBuffer; params: GPUBuffer; rays: number; groups: RayGroups },
 ) {
   const trace = traceKernel(device).get(),
     index = indexKernel(device).get(),
-    width = groupWidth(device.limits)
+    width = groupWidth(device.limits),
+    { pageTable, entries, spans, geometry, positions } = sources,
+    { views } = sources.tables
   const params = { buffer: q.params, size: RAY_PARAMS.words * 4 }
   const pass = encoder.beginComputePass({ label: RAY_QUERY_PASS })
   const indexed = sources.rows + sources.entryCount
   // Nothing to index: a dispatch of no workgroup is refused, and every lookup finds none.
   if (indexed > 0) {
     pass.setPipeline(index)
-    const own = [sources.pageTable, sources.entries, sources.spans].map((buffer) => ({ buffer }))
-    pass.setBindGroup(0, groupOf(device, index, 0, [params, { buffer: q.buffer }, ...own]))
+    const make = () =>
+      groupOf(device, index, 0, [
+        params,
+        ...[q.buffer, pageTable, entries, spans].map((buffer) => ({ buffer })),
+      ])
+    pass.setBindGroup(
+      0,
+      heldOver(q.groups.index, make, index, q.params, q.buffer, pageTable, entries, spans),
+    )
     dispatchRows(pass, ceilDiv(indexed, WORKGROUP_THREADS), 1, width)
   }
   pass.setPipeline(trace)
   // Group 0: the cut's record tables, at the culling's bindings (`dagReadEntries`).
+  const tables = () =>
+    device.createBindGroup({ layout: trace.getBindGroupLayout(0), entries: dagReadEntries(views) })
   pass.setBindGroup(
     0,
-    device.createBindGroup({
-      layout: trace.getBindGroupLayout(0),
-      entries: dagReadEntries(sources.tables.views),
-    }),
+    heldOver(q.groups.tables, tables, trace, views.nodes, views.frames, views.worlds, views.tree),
   )
-  const own = [q.buffer, sources.geometry, sources.positions].map((buffer) => ({ buffer }))
-  pass.setBindGroup(1, groupOf(device, trace, 1, [params, ...own]))
+  const own = () =>
+    groupOf(device, trace, 1, [
+      params,
+      ...[q.buffer, geometry, positions].map((buffer) => ({ buffer })),
+    ])
+  pass.setBindGroup(
+    1,
+    heldOver(q.groups.trace, own, trace, q.params, q.buffer, geometry, positions),
+  )
   dispatchRows(pass, ceilDiv(q.rays, WORKGROUP_THREADS), 1, width)
   pass.end()
 }

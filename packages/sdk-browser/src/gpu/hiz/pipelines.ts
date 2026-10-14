@@ -1,10 +1,5 @@
-import {
-  HIZ_NEAREST_BUILD,
-  HIZ_SHADER,
-  HIZ_TEST_ARGS_ENTRIES,
-  HIZ_TEST_PAGES_ENTRIES,
-  hizBindEntries,
-} from './shader.ts'
+import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
+import { HIZ_TEST_ARGS_ENTRIES, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './bindEntries.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'

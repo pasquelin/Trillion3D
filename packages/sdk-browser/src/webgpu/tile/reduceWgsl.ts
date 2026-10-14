@@ -1,4 +1,4 @@
-import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK } from './feedback.ts'
 import { TILE_STAMP_WGSL } from './stampWgsl.ts'
@@ -43,10 +43,12 @@ export const GATHER_WGSL = wgslProgram(
 @group(0) @binding(0) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(0) @binding(1) var<storage,read_write> hits:array<atomic<u32>>;
 @group(0) @binding(2) var<uniform> uni:GatherUni;
-@compute @workgroup_size(WORKGROUP_THREADS) fn gather(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=min(atomicLoad(&hits[0]),uni.cap)){return;}
- let rank=atomicLoad(&hits[1u+id.x]);
- atomicStore(&hits[1u+uni.cap+id.x],atomicExchange(&tileFeedback[rank],0u));
+@compute @workgroup_size(WORKGROUP_THREADS) fn gather(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ // In rows (\`dispatchRows\`): the list's cap grows with the image's pixels.
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
+ if(i>=min(atomicLoad(&hits[0]),uni.cap)){return;}
+ let rank=atomicLoad(&hits[1u+i]);
+ atomicStore(&hits[1u+uni.cap+i],atomicExchange(&tileFeedback[rank],0u));
 }`,
-  [WORKGROUP_THREADS_WGSL],
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
 )

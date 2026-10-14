@@ -50,8 +50,11 @@ function rig(
       tree: view('tree', 'r32uint'),
     },
     treeRoot: NO_INDEX,
-    ...{ placements, worldPlacement: NO_INDEX, cutLinks: [] },
-    ...{ recordShift: new Uint32Array(placements), recordCount: 1 },
+    placements,
+    worldPlacement: NO_INDEX,
+    cutLinks: [],
+    recordShift: new Uint32Array(placements),
+    recordCount: 1,
   }
   const rows = { packedCount: 2, rowsRevision: 0, offsetOf: () => -1 }
   const rt = {
@@ -162,5 +165,16 @@ test('a cast answers the mesh whose instance row places the placement the trace 
   assert.equal(hit.face, 1, `page 0, triangle 1 (${VIS_TRIANGLE_BITS} bits a page)`)
   const layout = { selectionRoots: [root] } as unknown as Parameters<typeof rayFilterRanks>[0]
   assert.deepEqual(rayFilterRanks(layout, { objects: [mesh] }), { ranks: [0], include: true })
+  queue.dispose()
+})
+
+test('a batch over the same buffers binds the groups the last one made: none made again', async () => {
+  const { gpu, queue } = rig()
+  assert.equal(await queue.cast(ray(0)), null)
+  const made = gpu.bindGroups.length
+  assert.equal(made, 3, 'the index, the tables and the trace')
+  assert.equal(await queue.cast(ray(1)), null)
+  assert.equal(gpu.dispatches.length, 4, 'the second batch traced')
+  assert.equal(gpu.bindGroups.length, made, 'its three groups held')
   queue.dispose()
 })

@@ -1,10 +1,7 @@
 import { shadeLayout } from './shadeLayout.ts'
 import { scoped } from './pipelines.ts'
-import {
-  preparedPipeline,
-  preparedPipelines,
-  type PreparedPipeline,
-} from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { shadeTargetFormats } from './shadeTargets.ts'

@@ -3,12 +3,15 @@ import { surfaceJournals } from '../../page/surfaceWrites.ts'
 import { variantPlain } from '../../page/surfaceVariant.ts'
 import type { MaterialLayers } from '../row/pageRowMaterial.ts'
 import type { MaterialSurface } from './materialRecord.ts'
-import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { uploadMaterials } from './materialUpload.ts'
 import { takeRank, writeEntry } from './materialWrite.ts'
 import { summarize } from './materialSummary.ts'
-import { emptySurfaceRow } from '../row/surfaceRow.ts'
-import type { MaterialEntry, MaterialRecords } from './materialState.ts'
+import {
+  createMaterialRecords,
+  surfaceSeen,
+  type MaterialEntry,
+  type MaterialRecords,
+} from './materialState.ts'
 
 /**
  * THE MATERIAL TABLE: one record per surface alive (`materialRecord.ts`), in one `rgba32uint`
@@ -31,14 +34,7 @@ import type { MaterialEntry, MaterialRecords } from './materialState.ts'
  * longer — is handed to the next surface, so the table is as tall as the surfaces alive.
  */
 export function createMaterialTable() {
-  const p: MaterialRecords = {
-    ...{ entries: new WeakMap(), seen: new WeakMap(), surfaces: [] },
-    ...{ freed: [], lobesFreed: [], lobeSlots: [], lobesHeld: 0 },
-    reclaim: new FinalizationRegistry<MaterialEntry>((entry) => release(p, entry)),
-    ints: new Uint32Array(MATERIAL_RECORD_WORDS),
-    ...{ held: 0, epoch: 0, written: { from: Infinity, to: -1 }, records: undefined },
-    ...{ moved: false, forgotten: false, journal: undefined },
-  }
+  const p = createMaterialRecords((entry) => release(p, entry))
   const table = {
     /** The view the passes bind, none before the first upload: a new one when the table grew. */
     get view() {
@@ -124,10 +120,7 @@ function refresh(
   let seen = p.seen.get(mat)
   const first = !seen
   if (!seen) {
-    seen = {
-      ...{ version: undefined, epoch: -1, rank: entry.rank, row: emptySurfaceRow() },
-      ...{ flags: 0, classKey: 0, facts: 0 },
-    }
+    seen = surfaceSeen(entry.rank)
     p.seen.set(mat, seen)
   }
   if (summarize(seen, mat, layers, changed, first)) p.moved = true

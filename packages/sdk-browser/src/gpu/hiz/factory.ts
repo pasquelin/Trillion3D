@@ -2,7 +2,7 @@ import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS_WORDS } from './levelsUniform.ts'
 import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
-import { HIZ_TEST_ARGS_BYTES } from './shader.ts'
+import { HIZ_TEST_ARGS_BYTES } from './bindEntries.ts'
 import { TESTED_U32 } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
@@ -83,8 +83,8 @@ function hizState(
     ...pipelines,
     device,
     // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own, and the
-    // front layer's making or dropping, which copies the opaque depth once (`holdFrontLayer`). The front layer
-    // is written by the transparents' fold, a storage texture.
+    // front layer's making, which copies the opaque depth once (`holdFrontLayer`). The front layer
+    // is written by the transparents' fold, a storage texture, and cleared as an attachment.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |

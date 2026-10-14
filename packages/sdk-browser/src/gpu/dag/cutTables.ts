@@ -67,7 +67,7 @@ export function createCutTables(
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
   const table = (layout: RecordLayout, field: string, source: Float32Array, words: number) => {
     const records = source.length / words,
-      made = createRecordTexture(device, layout, Math.max(1, records), read, make)
+      made = createRecordTexture(device, layout, records, read, make)
     made.write(field, 0, records, source.buffer as ArrayBuffer, source.byteOffset)
     return made
   }

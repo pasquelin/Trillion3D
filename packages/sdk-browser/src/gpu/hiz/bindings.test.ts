@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HIZ_SHADER, hizBindEntries } from './shader.ts'
+import { HIZ_SHADER } from './shader.ts'
+import { hizBindEntries } from './bindEntries.ts'
 import { hizDepthEntries, hizDepthWgsl } from './pyramidTexture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {

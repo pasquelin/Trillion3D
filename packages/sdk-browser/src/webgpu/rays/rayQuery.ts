@@ -1,14 +1,17 @@
-import { alignUp, nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { alignUp, halfLoadSlots } from '../../../../math/src/scalar/integers.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
+import { writeRanges } from '../../gpu/dag/runWrites.ts'
 import { RAY_HIT } from './rayRecord.ts'
-import type { RayRecords } from './rayRecords.ts'
+import { RECORD_WORDS, type RayRecords } from './rayRecords.ts'
 import { DEFORM_SLOT_WORDS, RAY_PARAMS } from './deformIndexWgsl.ts'
 import {
+  createRayGroups,
   encodeRayPass,
   RAY_QUERY_PASS,
   rayKernelsCompiled,
   type RayBatch,
-  type RaySources,
 } from './rayQueryPass.ts'
+import type { RaySources } from './raySources.ts'
 
 /** Where a batch lies in the query's buffer, in words: the records first, kept from batch to batch,
  *  the rays and their filters, the hits, then the deformation index. */
@@ -16,7 +19,7 @@ function queryLayout({ records, rows, entryCount }: RaySources, batch: RayBatch)
   const rayWord = records.words.length,
     hitWord = rayWord + batch.words.length,
     hashWord = alignUp(hitWord + batch.rays * RAY_HIT.words, DEFORM_SLOT_WORDS),
-    slots = nextPow2(Math.max(32, 2 * (rows + entryCount)))
+    slots = Math.max(32, halfLoadSlots(rows + entryCount))
   return {
     rayWord,
     hitWord,
@@ -38,18 +41,9 @@ type QueryLayout = ReturnType<typeof queryLayout>
  * are made yet.
  */
 export function createRayQuery(device: GPUDevice) {
-  const paramWords = new Uint32Array(RAY_PARAMS.words)
+  const paramWords = new Uint32Array(RAY_PARAMS.words),
+    groups = createRayGroups()
   let query: GPUBuffer | undefined, params: GPUBuffer | undefined, recordsIn: GPUBuffer | undefined
-  /** The query's buffer, of `bytes` at least: the records written whole into a new one. */
-  const queryOf = (bytes: number) => {
-    if (query && query.size >= bytes) return query
-    query?.destroy()
-    return (query = device.createBuffer({
-      label: RAY_QUERY_PASS,
-      size: nextPow2(Math.max(256, bytes)),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    }))
-  }
   /** The parameters, one uniform both kernels read. */
   const paramsOf = () =>
     (params ??= device.createBuffer({
@@ -65,15 +59,27 @@ export function createRayQuery(device: GPUDevice) {
     /** Encodes `batch` into `encoder` over `sources`; returns where its hits lie in `buffer`. */
     encode(encoder: GPUCommandEncoder, sources: RaySources, batch: RayBatch) {
       const rebuilt = sources.records.sync(sources.tables)
-      const at = queryLayout(sources, batch),
-        buffer = queryOf(at.words * 4)
+      const at = queryLayout(sources, batch)
+      // The records are written whole into a buffer made anew.
+      const buffer = (query = sizedBuffer(
+        device,
+        query,
+        at.words * 4,
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+        RAY_QUERY_PASS,
+      ))
       writeRecords(device, sources.records, buffer, rebuilt || buffer !== recordsIn)
       recordsIn = buffer
       device.queue.writeBuffer(buffer, at.rayWord * 4, batch.words)
       writeParams(paramWords, sources, batch, at)
       device.queue.writeBuffer(paramsOf(), 0, paramWords)
       encoder.clearBuffer(buffer, at.hashWord * 4, at.slots * DEFORM_SLOT_WORDS * 4)
-      encodeRayPass(device, encoder, sources, { buffer, params: paramsOf(), rays: batch.rays })
+      encodeRayPass(device, encoder, sources, {
+        buffer,
+        params: paramsOf(),
+        rays: batch.rays,
+        groups,
+      })
       return { buffer, offset: at.hitWord * 4, bytes: batch.rays * RAY_HIT.words * 4 }
     },
     dispose() {
@@ -85,17 +91,18 @@ export function createRayQuery(device: GPUDevice) {
 export type RayQuery = ReturnType<typeof createRayQuery>
 
 /** The records into the query's buffer: every one into a new buffer or a table built anew, else
- *  the runs written since. */
+ *  the runs written since (`writeRanges`). */
 function writeRecords(device: GPUDevice, records: RayRecords, buffer: GPUBuffer, whole: boolean) {
-  const runs = records.takeDirty(),
+  const changed = records.takeDirty(),
     { words } = records
   if (whole) return device.queue.writeBuffer(buffer, 0, words)
-  for (let i = 0; i < runs.length;) {
-    const first = runs[i]
-    let end = first + 1
-    while (++i < runs.length && runs[i] === end) end++
-    device.queue.writeBuffer(buffer, first * 16, words, first * 4, (end - first) * 4)
-  }
+  writeRanges(
+    (offset, data, dataOffset, size) =>
+      device.queue.writeBuffer(buffer, offset, data, dataOffset, size),
+    changed,
+    changed.length,
+    { data: words, sourceBase: 0, targetBase: 0, stride: RECORD_WORDS },
+  )
 }
 
 /** The uniform of a batch (`RAY_PARAMS`). */

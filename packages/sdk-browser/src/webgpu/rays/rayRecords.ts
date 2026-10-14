@@ -6,6 +6,7 @@ import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import { rowIndexCount } from '../row/pageRow.ts'
 import { emptyGeometryBlock, rowGeometry } from '../row/pageRowMaterial.ts'
 import type { WebgpuPagesCore } from '../pages/runtime.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
 
 /** Words of a record of the table: its pool slot plus one (zero out of the pool), its flags, the
  *  first vertex of its float geometry, and its corners. */
@@ -40,10 +41,14 @@ type Primitive = {
 export function createRayRecords(rt: WebgpuPagesCore) {
   const prims = new Map<number, Primitive>(),
     block = emptyGeometryBlock(),
-    dirty = new Set<number>()
+    dirty = createChangedRuns()
   let words = new Uint32Array(0),
     tables: CutTables | undefined,
-    signature = ''
+    /** What the table was built over beside the links: its records, the packing's pages and the
+     *  rows' revision. */
+    recordCount = -1,
+    packedCount = -1,
+    rowsRevision = -1
   /** Record `first + p`'s words from page `page`, its `p`th, of a primitive. */
   const write = (prim: Primitive, p: number) => {
     const page = prim.first + p,
@@ -64,7 +69,7 @@ export function createRayRecords(rt: WebgpuPagesCore) {
       (noArea(rec) ? RECORD_NO_AREA : 0)
     words[at + 2] = geo?.vertexBase ?? 0
     words[at + 3] = rowIndexCount(rec)
-    dirty.add(r)
+    dirty.mark(r)
   }
   /** Page `p` of `prim` in or out of the pool as the cache holds it, and the records whose
    *  readiness that moved. */
@@ -84,7 +89,10 @@ export function createRayRecords(rt: WebgpuPagesCore) {
       if (prims.has(base) || !links.pageCount) return
       const readiness = createCutReadiness(links.structure, undefined)
       const prim = {
-        ...{ base, first: links.pageBase, count: links.pageCount, readiness },
+        base,
+        first: links.pageBase,
+        count: links.pageCount,
+        readiness,
         sources: links.structure?.sources,
       }
       prims.set(base, prim)
@@ -99,9 +107,16 @@ export function createRayRecords(rt: WebgpuPagesCore) {
      *  True when it was: every word goes up. */
     sync(next: CutTables) {
       const { rows, packedPages } = rt.layout
-      const now = `${next.recordCount} ${packedPages.length} ${rows.rowsRevision}`
-      if (next.cutLinks === tables?.cutLinks && now === signature) return false
-      signature = now
+      if (
+        next.cutLinks === tables?.cutLinks &&
+        next.recordCount === recordCount &&
+        packedPages.length === packedCount &&
+        rows.rowsRevision === rowsRevision
+      )
+        return false
+      recordCount = next.recordCount
+      packedCount = packedPages.length
+      rowsRevision = rows.rowsRevision
       build(next)
       return true
     },
@@ -114,15 +129,12 @@ export function createRayRecords(rt: WebgpuPagesCore) {
       const prim = links && prims.get((links.pageBase + tables.recordShift[w]) >>> 0)
       if (prim) follow(prim, page - links.pageBase)
     },
-    /** The words, and the records written since the last call, in increasing runs. */
+    /** The words. */
     get words() {
       return words
     },
-    takeDirty() {
-      const runs = [...dirty].sort((a, b) => a - b)
-      dirty.clear()
-      return runs
-    },
+    /** The records written since the last call, increasing: a view the next call overwrites. */
+    takeDirty: () => dirty.take(),
   }
 }
 export type RayRecords = ReturnType<typeof createRayRecords>

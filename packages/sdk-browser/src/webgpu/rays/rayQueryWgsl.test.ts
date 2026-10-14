@@ -10,13 +10,14 @@ import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
 import { dagBindingOf } from '../../gpu/dag/shader/bindings.fixture.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { DEFORM_SLOT_WORDS } from './deformIndexWgsl.ts'
+import { mixWord } from '../../../../math/src/scalar/integers.ts'
 
 const params = { filterWord: 10, hashWord: 32, hashMask: 15 }
 const query = new Array<number>(128).fill(0)
 const run = shaderRun<{
   rqAdmits(w: number, first: number, word: number): boolean
   deformedOf(page: number): number[]
-}>(RAY_QUERY_WGSL, ['rqAdmits', 'deformedOf', 'deformSlot'], {
+}>(RAY_QUERY_WGSL, ['rqAdmits', 'deformedOf', 'deformSlot', 'mixWord'], {
   params,
   query,
 })
@@ -34,7 +35,8 @@ test('a filter admits its listed placements, or all others, as its include bit a
 })
 
 test('the deformation index answers each deformed page, and zeros for any other', () => {
-  // The index as the indexing kernel leaves it: from the page's slot on, the first free slot.
+  // The index as the indexing kernel leaves it: from the page's slot (the engine's word hash,
+  // `mixWord`, the shader's twin) on, the first free slot.
   const slots = params.hashMask + 1,
     deformed = new Map([
       [7, [101, 5]],
@@ -44,7 +46,7 @@ test('the deformation index answers each deformed page, and zeros for any other'
     ])
   query.fill(0, params.hashWord, params.hashWord + DEFORM_SLOT_WORDS * slots)
   for (const [page, words] of deformed) {
-    let slot = ((page * 2654435761) % 2 ** 32) & params.hashMask
+    let slot = mixWord(page) & params.hashMask
     while (query[params.hashWord + DEFORM_SLOT_WORDS * slot]) slot = (slot + 1) & params.hashMask
     const at = params.hashWord + DEFORM_SLOT_WORDS * slot
     query.splice(at, 3, page + 1, ...words)

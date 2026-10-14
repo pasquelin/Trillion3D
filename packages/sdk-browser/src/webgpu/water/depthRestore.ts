@@ -1,5 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { preparedPipeline, preparedPipelines } from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { RESTORE_RECT_BINDING, WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'

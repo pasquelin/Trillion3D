@@ -155,9 +155,9 @@ function enlist(state: ImpostorCards, rank: number) {
     segment = segmentOf(state, roots[rank].mesh!)
   segment.eligible.add(rank)
   grow(state, segment, rank)
-  if (segment.gated) return
+  if (segment.state === 'waiting') return
   // Its maps ready, the card at once; else the image's view of the mesh decides (`drawable`).
-  if (!segment.ready) return void segment.pending.push(rank)
+  if (segment.state === 'unseen') return void segment.pending.push(rank)
   mark(state, rank, true)
   takeCard(state, segment, rank)
 }

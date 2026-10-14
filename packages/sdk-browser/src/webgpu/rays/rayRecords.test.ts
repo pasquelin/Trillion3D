@@ -29,8 +29,11 @@ function rig() {
     vis: { geometryBlocks: new Map() },
   } as unknown as WebgpuPagesCore
   const tables = {
-    ...{ views: undefined, treeRoot: NO_INDEX },
-    ...{ placements: 2, worldPlacement: NO_INDEX, recordCount: 8 },
+    views: undefined,
+    treeRoot: NO_INDEX,
+    placements: 2,
+    worldPlacement: NO_INDEX,
+    recordCount: 8,
     cutLinks: [
       { pageBase: 0, pageCount: 1 },
       { pageBase: 1, pageCount: 1 },
@@ -55,7 +58,7 @@ test('a cluster the pool holds is tested out of every view; one it gives back is
   slots.delete('a')
   records.moved(0)
   assert.equal(flags(records.words, 3) & RECORD_DRAWABLE, 0, 'given back, not tested')
-  assert.deepEqual(records.takeDirty(), [3], 'one record to send')
+  assert.deepEqual([...records.takeDirty()], [3], 'one record to send')
   assert.equal(records.sync(tables), false, 'the table stands')
 })
 
@@ -69,5 +72,5 @@ test("a record's slot is the cache's, read when the log names its page", () => {
   records.moved(0)
   assert.equal(records.words[3 * RECORD_WORDS], 81, 'the slot the cache holds now, plus one')
   assert.ok(flags(records.words, 3) & RECORD_DRAWABLE, 'still in the pool, tested')
-  assert.deepEqual(records.takeDirty(), [3])
+  assert.deepEqual([...records.takeDirty()], [3])
 })

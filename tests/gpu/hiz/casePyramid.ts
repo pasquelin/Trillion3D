@@ -5,7 +5,7 @@ import {
   HIZ_FORMAT,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
-import { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
+import { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/bindEntries.ts'
 import {
   hizLayerWords,
   type PackedHiz,
