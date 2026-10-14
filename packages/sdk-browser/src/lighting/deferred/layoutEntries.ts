@@ -56,8 +56,8 @@ function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
     computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
-    // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms,
-    // and the pool's dynamic slice at its number.
+    // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms; the
+    // pool is the water composite's alone (`deferredLayoutEntries`).
     computeBufferEntry(CONTRACT_VSM_BINDINGS.pageTable, 'read-only-storage', fragment),
     computeBufferEntry(CONTRACT_VSM_BINDINGS.projectionData, 'read-only-storage', fragment),
     computeBufferEntry(CONTRACT_VSM_BINDINGS.uniforms, 'uniform', fragment),

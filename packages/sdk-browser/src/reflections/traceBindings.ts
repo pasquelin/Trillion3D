@@ -6,7 +6,7 @@ import { storageEntry } from './bindings.ts'
  * THE ONE TABLE OF THE TRACE'S GROUP 0, shared by the classification and the trace: the WGSL
  * declarations, the layouts and the entries read their numbers here. The surface targets, the
  * target it writes, the lights, the bounce cascades and their probes, the indirect arguments
- * (`work`), the trace's list with the frame's counters, the proxy's buffer and instances, the
+ * (`work`), the trace's list with the frame's counter, the proxy's buffer and instances, the
  * culling's worlds it places its meshes by and the placement tree its rays walk, and the light grid's buffer, whose world
  * lists the proxy hits walk.
  */

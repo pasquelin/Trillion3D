@@ -161,7 +161,7 @@ export async function createTraceStages(
   }
 }
 
-/** Bytes of the list of a view at `width × height`: the counters, then a tile a word. */
+/** Bytes of the list of a view at `width × height`: its counter, then a tile a word. */
 export const traceListBytes = (width: number, height: number) =>
   TRACE_LIST_FIRST * 4 + ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
 
