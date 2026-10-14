@@ -1,6 +1,7 @@
 //! FBX skin (all bones), inverse binds, blend-shape keys and source-key clips.
 //! The intermediate graph is flat; nodes and animation keys therefore use world poses.
 use super::*;
+use crate::gltf_codes::FLOAT;
 /// First skin and full-weight blend shapes, indexed by source vertex.
 pub(super) struct MeshDeform<'a> {
     skin: Option<&'a ufbx::SkinDeformer>,
@@ -143,7 +144,7 @@ impl Importer<'_> {
         }
         let view = self.bin.view(&f32_bytes(&matrices), None);
         self.accessors.push(
-            json!({"bufferView":view,"componentType":5126,"count":joints.len(),"type":"MAT4"}),
+            json!({"bufferView":view,"componentType":FLOAT,"count":joints.len(),"type":"MAT4"}),
         );
         let accessor = self.accessors.len() - 1;
         self.skins

@@ -1,6 +1,7 @@
 //! The sparse substitution an accessor of a published document declares, laid out for the runtime
 //! that writes the substituted elements into a copy of the base run, as the host loader does.
 use super::*;
+use crate::gltf_codes::INDEX_COMPONENTS;
 
 /// The sparse substitution of an accessor as the published document declares it: how many
 /// elements it replaces, where their ranks are and where their values are. `null` for none.
@@ -28,7 +29,7 @@ pub(super) fn sparse(declared: Option<&Value>, views: usize) -> Result<Value> {
     let component = declared
         .pointer("/indices/componentType")
         .and_then(Value::as_u64);
-    if !component.is_some_and(|c| matches!(c, 5121 | 5123 | 5125)) {
+    if !component.is_some_and(|c| INDEX_COMPONENTS.contains(&(c as usize))) {
         return Err(invalid("sparse indices componentType is not readable"));
     }
     Ok(json!({

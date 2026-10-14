@@ -55,10 +55,7 @@ pub(super) fn read(bytes: &[u8]) -> Descriptor {
 
 /// The descriptor's basic block: the section the header names, its total size skipped.
 fn basic(bytes: &[u8]) -> Option<&[u8]> {
-    let word = |at: usize| {
-        let field: [u8; 4] = bytes.get(at..at + 4)?.try_into().ok()?;
-        usize::try_from(u32::from_le_bytes(field)).ok()
-    };
+    let word = |at: usize| usize::try_from(crate::le::u32_at(bytes, at)?).ok();
     let (at, length) = (word(OFFSET)?, word(LENGTH)?);
     bytes.get(at..at.checked_add(length)?)?.get(TOTAL_SIZE..)
 }

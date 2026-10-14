@@ -18,7 +18,7 @@
 //! change neither geometry nor rendering, packed metal/smoothness maps and textures outside
 //! the registry.
 use super::*;
-use crate::import::{f32_bytes, normalise, SceneTables};
+use crate::import::{normalise, SceneTables};
 use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{

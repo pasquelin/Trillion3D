@@ -18,7 +18,7 @@ import {
   type Pixel,
   type V3,
 } from './projectionTiles.fixture.ts'
-import { singleUlp } from '../../../../bench/core/ulp.ts'
+import { singleUlp } from '../../../math/src/float/ulp.fixture.ts'
 
 test('the box test never drops a light a pixel of the tile is in, even with the roundings against it', () => {
   // The pixel's squared distance as binary32 rounds it, the box's square root two units high (it

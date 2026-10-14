@@ -10,6 +10,7 @@ use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
 use crate::plugins::image::{word, Transfer, MAX_LEVELS};
+use trillion3d_math::scalar::mip_size;
 
 /// End of `DDS_HEADER`: four magic-number bytes and one hundred and twenty-four of header.
 const HEADER_END: usize = 128;
@@ -44,11 +45,6 @@ pub(super) struct Surface {
     /// or `_UNORM` variant of its `dxgiFormat`; a legacy DDS stays silent, and convention lends
     /// it sRGB — Direct3D 9 had no sRGB format, and its colour textures carry the curve.
     pub(super) transfer: Transfer,
-}
-
-/// Dimension of a mip level: each level halves and stops at one pixel.
-fn level_size(size: u32, level: u32) -> u32 {
-    (size >> level.min(31)).max(1)
 }
 
 pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> {
@@ -138,7 +134,7 @@ fn chain_fits(
     available: usize,
 ) -> std::result::Result<(), &'static str> {
     let needed = (0..levels)
-        .map(|level| codec.level_bytes(level_size(width, level), level_size(height, level)))
+        .map(|level| codec.level_bytes(mip_size(width, level), mip_size(height, level)))
         .fold(0u64, u64::saturating_add);
     if needed <= available as u64 {
         Ok(())

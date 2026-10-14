@@ -12,6 +12,7 @@
 use self::build::Builder;
 use super::geom::Geometry;
 use super::TOPOLOGY_INVALID;
+use crate::import::Vertices;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -31,12 +32,8 @@ pub(super) struct FaceSet {
 pub(super) struct Part {
     /// The rank of the face set this part comes from, or `None` for faces with no face set.
     pub(super) faceset: Option<usize>,
-    pub(super) positions: Vec<f32>,
-    pub(super) normals: Vec<f32>,
-    pub(super) uvs: Vec<f32>,
-    pub(super) indices: Vec<u32>,
-    pub(super) min: [f32; 3],
-    pub(super) max: [f32; 3],
+    /// Its vertices and triangles, as every driver's primitive writer reads them.
+    pub(super) vertices: Vertices,
 }
 
 /// What the split met and the report must say.
@@ -116,7 +113,7 @@ pub(super) fn parts(
     let mut out: Vec<Part> = builders
         .into_iter()
         .map(|(faceset, builder)| builder.finish(faceset))
-        .filter(|part| !part.indices.is_empty())
+        .filter(|part| !part.vertices.indices.is_empty())
         .collect();
     out.sort_by_key(|part| (part.faceset.is_none(), part.faceset.unwrap_or(0)));
     Ok((out, counted))

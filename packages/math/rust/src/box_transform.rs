@@ -1,9 +1,10 @@
 //! `boxTransform` of `packages/math/src/geometry/box.ts` (which calls `boxCornersInto`, `boxEmpty`
 //! and `boxExpandByPoint`) in f64, term by term and parentheses included: the same bits as
-//! JavaScript (why: `packages/page-codec-wasm/src/math.rs`), with its `Math.min` and `Math.max`
+//! JavaScript (why: `packages/page-codec-wasm/src/wasm_math.rs`), with its `Math.min` and `Math.max`
 //! (`js`).
 
 use crate::js::{js_max, js_min};
+use crate::matrix::MATRIX_VALUES;
 
 /// Floats of a box laid out flat, like `BOX_VALUES` in `packages/math/src/geometry/box.ts`.
 pub const BOX_VALUES: usize = 6;
@@ -24,6 +25,19 @@ pub fn box_transform(out: &mut [f64], boxes: &[f64], m: &[f64]) {
     }
     if !affine_box(out, lo, hi, m) {
         corner_walk(out, lo, hi, m);
+    }
+}
+
+/// `n` boxes transformed by `n` matrices, the three buffers laid out flat and disjoint.
+pub fn box_transform_batch(out: &mut [f64], boxes: &[f64], mats: &[f64], n: usize) {
+    for i in 0..n {
+        let o = i * BOX_VALUES;
+        let m = i * MATRIX_VALUES;
+        box_transform(
+            &mut out[o..o + BOX_VALUES],
+            &boxes[o..o + BOX_VALUES],
+            &mats[m..m + MATRIX_VALUES],
+        );
     }
 }
 

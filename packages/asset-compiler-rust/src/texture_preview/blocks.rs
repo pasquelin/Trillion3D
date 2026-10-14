@@ -14,6 +14,7 @@
 //! bytes each; a side that is not a multiple of four is padded by repeating its
 //! edge, and the padded blocks are part of the level's bytes — WebGPU copies
 //! whole blocks.
+use crate::plugins::image::blocks::surface_bytes;
 use rayon::prelude::*;
 
 mod astc;
@@ -122,10 +123,10 @@ pub(super) fn blocks_of(width: u32, height: u32) -> (u32, u32) {
     (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
 }
 
-/// Compressed bytes of a `width` × `height` level.
+/// Compressed bytes of a `width` × `height` level: the one 4 × 4 block surface count
+/// (`surface_bytes`) at `BLOCK_BYTES` a block.
 pub fn level_block_bytes(width: u32, height: u32) -> usize {
-    let (across, down) = blocks_of(width, height);
-    across as usize * down as usize * BLOCK_BYTES
+    surface_bytes(width, height, BLOCK_BYTES as u64) as usize
 }
 
 /// Compresses one RGBA8 level in one family and layout. Blocks are written in

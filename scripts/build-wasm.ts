@@ -21,7 +21,7 @@ function rustc(...args: string[]): string {
 }
 
 /**
- * `-relaxed-simd`: the batch computation kernels of core (`packages/page-codec-wasm/src/math.rs`)
+ * `-relaxed-simd`: the batch computation kernels of core (`packages/page-codec-wasm/src/wasm_math.rs`)
  * match the bitwise output of the JavaScript version because WebAssembly has NO fused multiply-add
  * instruction — neither in base nor `simd128`. `relaxed-simd` has one (`f64x2.relaxed_madd`), whose
  * rounding is implementation-defined: a single such instruction would break exact bit equality silently.

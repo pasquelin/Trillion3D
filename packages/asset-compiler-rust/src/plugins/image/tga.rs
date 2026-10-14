@@ -7,6 +7,7 @@
 //! the structure of its header — each field in its domain and the fields consistent with each
 //! other. The 2.0 footer, when the given bytes go that far, is enough on its own.
 use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
+use crate::le::u16_at;
 
 pub(super) static TGA: Tga = Tga;
 pub(super) struct Tga;
@@ -66,10 +67,12 @@ fn has_footer(bytes: &[u8]) -> bool {
 fn header_is_coherent(head: &[u8]) -> bool {
     let map_type = head[1];
     let image_type = head[2];
-    let map_length = u16::from_le_bytes([head[5], head[6]]);
+    // The caller hands the whole 18-byte header: a field outside it reads as zero, refused below.
+    let field = |at: usize| u16_at(head, at).unwrap_or(0);
+    let map_length = field(5);
     let map_entry_size = head[7];
-    let width = u16::from_le_bytes([head[12], head[13]]);
-    let height = u16::from_le_bytes([head[14], head[15]]);
+    let width = field(12);
+    let height = field(14);
     let depth = head[16];
     let descriptor = head[17];
     if map_type > 1 || width == 0 || height == 0 || descriptor & 0b1100_0000 != 0 {

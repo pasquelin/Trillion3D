@@ -5,7 +5,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../matrix/matrix4.ts'
-import { createCameraFrame, perspectiveProjection, updateCameraFrame } from './camera.ts'
+import {
+  createCameraFrame,
+  perspectiveProjection,
+  perspectiveSlope,
+  updateCameraFrame,
+} from './camera.ts'
+import { DEG2RAD } from '../constants.ts'
+import { ulpBetween } from '../float/ulp.fixture.ts'
+import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 const isNear = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
 const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -103,4 +111,17 @@ test('allocation: CameraFrame buffers are the same objects across frames', () =>
   assert.equal(frame.viewProjection, vp)
   assert.equal(frame.planes, plans)
   assert.equal(updateCameraFrame(frame, projection, IDENTITY), frame, 'renders the same object')
+})
+
+test('perspectiveSlope is tan(DEG2RAD · fov / 2) to the bit, and the π/360 spelling to four ulps', () => {
+  // The cameras of the proofs and the bench read it: 50° and 55° are the GPU scenes' fields.
+  assert.ok(Object.is(perspectiveSlope(50), Math.tan((50 * Math.PI) / 360)))
+  assert.ok(Object.is(perspectiveSlope(55), Math.tan((55 / 2) * (Math.PI / 180))))
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const fov = haltonSpan(i, 2, 1, 179)
+    assert.ok(Object.is(perspectiveSlope(fov), Math.tan(DEG2RAD * 0.5 * fov)), `fov ${fov}`)
+    // `tan((fov · π) / 360)` rounds its angle apart, which the tangent magnifies toward 180°.
+    if (fov <= 120)
+      assert.ok(ulpBetween(Math.tan((fov * Math.PI) / 360), perspectiveSlope(fov)) <= 4, `${fov}`)
+  }
 })

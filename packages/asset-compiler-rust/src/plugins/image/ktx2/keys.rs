@@ -9,6 +9,7 @@
 //! and downward, is the image-contract orientation. `KTXswizzle` says which channel
 //! permutation to apply before reading the colour. Ignoring them without a word flipped a
 //! texture or swapped its channels with nothing signalling it.
+use crate::le::u32_at;
 use std::collections::BTreeMap;
 
 /// The two header words that name the section: its offset then its length.
@@ -43,10 +44,7 @@ pub(super) fn read(bytes: &[u8]) -> BTreeMap<&str, &str> {
 
 /// The key-value section as the header names it, bounded by the file length.
 fn section(bytes: &[u8]) -> Option<&[u8]> {
-    let word = |at: usize| {
-        let field: [u8; 4] = bytes.get(at..at + 4)?.try_into().ok()?;
-        usize::try_from(u32::from_le_bytes(field)).ok()
-    };
+    let word = |at: usize| usize::try_from(u32_at(bytes, at)?).ok();
     let (at, length) = (word(OFFSET)?, word(LENGTH)?);
     bytes.get(at..at.checked_add(length)?)
 }
@@ -54,8 +52,7 @@ fn section(bytes: &[u8]) -> Option<&[u8]> {
 /// The next entry, the cursor moved past it and past its alignment. A length that falls
 /// outside the section stops the walk: it never reads beside it.
 fn next<'a>(rest: &mut &'a [u8]) -> Option<&'a [u8]> {
-    let field: [u8; 4] = rest.get(..ENTRY_LENGTH)?.try_into().ok()?;
-    let length = usize::try_from(u32::from_le_bytes(field)).ok()?;
+    let length = usize::try_from(u32_at(rest, 0)?).ok()?;
     let end = ENTRY_LENGTH.checked_add(length)?;
     let entry = rest.get(ENTRY_LENGTH..end)?;
     *rest = rest.get(end.next_multiple_of(ALIGN)..).unwrap_or_default();

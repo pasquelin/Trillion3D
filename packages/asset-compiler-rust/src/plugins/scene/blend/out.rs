@@ -6,14 +6,6 @@
 use super::*;
 use crate::import::{borrowed_tables, Converted};
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
-use trillion3d_math::aabb::aabb_of_f32;
-
-/// The glTF component type of a single float, and that of a 32-bit unsigned integer.
-const FLOAT: u32 = 5126;
-const UINT: u32 = 5125;
-/// glTF view targets: vertex attributes, and indices.
-const ARRAY_BUFFER: u32 = 34962;
-const ELEMENT_ARRAY_BUFFER: u32 = 34963;
 
 /// The intermediate scene under construction.
 #[derive(Default)]
@@ -56,35 +48,6 @@ impl Out {
             ));
         }
         Ok(())
-    }
-    /// A float accessor, of a given component count, poured into the binary.
-    pub(super) fn floats(&mut self, values: &[f32], stride: usize, bounds: bool) -> usize {
-        let kind = if stride == 2 { "VEC2" } else { "VEC3" };
-        let view = self.bin.view(&f32_bytes(values), Some(ARRAY_BUFFER));
-        let mut accessor = json!({
-            "bufferView": view, "componentType": FLOAT,
-            "count": values.len() / stride, "type": kind,
-        });
-        if bounds {
-            let (low, high) = extent(values, stride);
-            accessor["min"] = json!(low);
-            accessor["max"] = json!(high);
-        }
-        self.accessors.push(accessor);
-        self.accessors.len() - 1
-    }
-    /// An index accessor, poured into the binary.
-    pub(super) fn indices(&mut self, values: &[u32]) -> usize {
-        let mut bytes = Vec::with_capacity(values.len() * 4);
-        for value in values {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        let view = self.bin.view(&bytes, Some(ELEMENT_ARRAY_BUFFER));
-        self.accessors.push(json!({
-            "bufferView": view, "componentType": UINT,
-            "count": values.len(), "type": "SCALAR",
-        }));
-        self.accessors.len() - 1
     }
     /// An image poured into the tables, with the texture that serves it.
     pub(super) fn image(&mut self, image: Value) -> usize {
@@ -130,22 +93,5 @@ impl SceneOutput for Out {
             stats: (mesh_nodes, self.triangles),
         }
         .write(plugin, directory, source, started)
-    }
-}
-
-/// Bounds of a vector array of two or three components, component by component: glTF requires
-/// them of positions.
-fn extent(values: &[f32], stride: usize) -> (Vec<f32>, Vec<f32>) {
-    fn of<const N: usize>(values: &[f32]) -> (Vec<f32>, Vec<f32>) {
-        let (low, high) = aabb_of_f32(values.as_chunks::<N>().0.iter().copied());
-        (low.to_vec(), high.to_vec())
-    }
-    if values.is_empty() {
-        return (vec![0.0; stride], vec![0.0; stride]);
-    }
-    if stride == 2 {
-        of::<2>(values)
-    } else {
-        of::<3>(values)
     }
 }

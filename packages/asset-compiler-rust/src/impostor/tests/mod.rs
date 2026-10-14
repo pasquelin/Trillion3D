@@ -78,10 +78,12 @@ pub(super) fn tree() -> Traceable {
             quad(&mut out, centre, a, [0.0, 0.75, 0.0], 0);
         }
     }
-    let golden = std::f64::consts::PI * (3.0 - 5f64.sqrt());
     for k in 0..60 {
         let y = 1.0 - 2.0 * (k as f64 + 0.5) / 60.0;
-        let (r, phi) = ((1.0 - y * y).sqrt(), golden * k as f64);
+        let (r, phi) = (
+            (1.0 - y * y).sqrt(),
+            trillion3d_math::GOLDEN_ANGLE * k as f64,
+        );
         let centre = [0.8 * r * phi.cos(), 2.1 + 0.8 * y, 0.8 * r * phi.sin()];
         let a = [0.2 * phi.sin(), 0.0, -0.2 * phi.cos()];
         let b = [0.2 * y * phi.cos(), -0.2 * r, 0.2 * y * phi.sin()];

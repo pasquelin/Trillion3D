@@ -1,4 +1,5 @@
 use super::*;
+use crate::gltf_codes::INDEX_COMPONENTS;
 
 pub(super) fn validate(g: &Value, primitive: &Value, mesh: &Mesh, mode: usize) -> Result<()> {
     let compressed = primitive["extensions"][DRACO]["attributes"]
@@ -48,10 +49,10 @@ pub(super) fn validate(g: &Value, primitive: &Value, mesh: &Mesh, mode: usize) -
             "accessor",
         )?;
         if a.get("type").and_then(Value::as_str) != Some("SCALAR")
-            || !matches!(
-                required_index(a.get("componentType"), "indices.componentType")?,
-                5121 | 5123 | 5125
-            )
+            || !INDEX_COMPONENTS.contains(&required_index(
+                a.get("componentType"),
+                "indices.componentType",
+            )?)
             || (mode == 4
                 && required_index(a.get("count"), "indices.count")?
                     != product(mesh.num_faces(), 3)?)

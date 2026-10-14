@@ -1,4 +1,7 @@
 use super::*;
+use crate::gltf_codes::{
+    BYTE, FLOAT, INDEX_COMPONENTS, SHORT, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT,
+};
 
 impl Accessor<'_> {
     pub(super) fn bytes_at(&self, i: usize, c: usize) -> Result<&[u8]> {
@@ -38,23 +41,23 @@ impl Accessor<'_> {
     }
     pub(super) fn decoded_value(&self, b: &[u8]) -> Result<f64> {
         let raw = match self.component {
-            5120 => (b[0] as i8) as f64,
-            5121 => b[0] as f64,
-            5122 => i16::from_le_bytes([b[0], b[1]]) as f64,
-            5123 => u16::from_le_bytes([b[0], b[1]]) as f64,
-            5125 => u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64,
-            5126 => f32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64,
+            BYTE => (b[0] as i8) as f64,
+            UNSIGNED_BYTE => b[0] as f64,
+            SHORT => i16::from_le_bytes([b[0], b[1]]) as f64,
+            UNSIGNED_SHORT => u16::from_le_bytes([b[0], b[1]]) as f64,
+            UNSIGNED_INT => u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64,
+            FLOAT => f32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64,
             _ => return Err(invalid("Unsupported component")),
         };
         if !self.normalized {
             return Ok(raw);
         }
         Ok(match self.component {
-            5120 => (raw / 127.).max(-1.),
-            5121 => trillion3d_math::scalar::byte_to_unit(b[0]),
-            5122 => (raw / 32767.).max(-1.),
-            5123 => raw / 65535.,
-            5125 => raw / 4294967295.,
+            BYTE => (raw / 127.).max(-1.),
+            UNSIGNED_BYTE => trillion3d_math::scalar::byte_to_unit(b[0]),
+            SHORT => (raw / 32767.).max(-1.),
+            UNSIGNED_SHORT => raw / 65535.,
+            UNSIGNED_INT => raw / 4294967295.,
             _ => return Err(invalid("Unsupported normalized component")),
         })
     }
@@ -67,7 +70,7 @@ impl Accessor<'_> {
             return Ok(value);
         }
         match self.component {
-            5126 => {
+            FLOAT => {
                 let value = f32::from_le_bytes([b[0], b[1], b[2], b[3]]);
                 if !value.is_finite()
                     || value.fract() != 0.
@@ -92,13 +95,13 @@ impl Accessor<'_> {
         Ok(value)
     }
     pub(super) fn collect_u32(&self) -> Result<Vec<u32>> {
-        if self.normalized || !matches!(self.component, 5121 | 5123 | 5125) {
+        if self.normalized || !INDEX_COMPONENTS.contains(&self.component) {
             return Err(invalid("Indices require an unsigned integer accessor"));
         }
         let mut out = reserve(self.count)?;
         if !self.has_buffer_view {
             out.resize(self.count, 0);
-        } else if self.width == 1 && self.stride == self.bytes && self.component != 5126 {
+        } else if self.width == 1 && self.stride == self.bytes && self.component != FLOAT {
             let slice = self.packed_bytes(self.count, self.bytes)?;
             out.extend(
                 slice
@@ -133,7 +136,7 @@ impl Accessor<'_> {
         let mut out = reserve(n)?;
         if !self.has_buffer_view {
             out.resize(n, 0.0);
-        } else if self.component == 5126 && self.stride == self.width * self.bytes {
+        } else if self.component == FLOAT && self.stride == self.width * self.bytes {
             let slice = self.packed_bytes(n, 4)?;
             for chunk in slice.as_chunks::<4>().0 {
                 let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);

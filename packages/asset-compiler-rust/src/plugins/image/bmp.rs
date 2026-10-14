@@ -22,7 +22,8 @@
 //! is a loss, so it is rejected before any decode, by name. Compressions that wrap another format
 //! (`BI_JPEG`, `BI_PNG`) and those outside the read format (`BI_ALPHABITFIELDS`, the CMYK
 //! variants) are named the same way.
-use super::{crate_image, u16_at, u32_at, ImageDecoded, ImageDecoder, Plugin};
+use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
+use crate::le::{u16_at, u32_at};
 
 pub(super) static BMP: Bmp = Bmp;
 pub(super) struct Bmp;

@@ -1,6 +1,6 @@
 // `checkInstructionSet` rejects any module that does not carry `simd128`, or that carries a
 // "relaxed" feature — the only WebAssembly instruction family with non-guaranteed rounding, which would break
-// bit-for-bit equality of `packages/page-codec-wasm/src/math.rs` kernels. Each case is a minimal dummy
+// bit-for-bit equality of `packages/page-codec-wasm/src/wasm_math.rs` kernels. Each case is a minimal dummy
 // WebAssembly module (header + custom `target_features` section), without going through
 // `cargo build`: importing this script never triggers it (`main()` only runs via CLI).
 import test from 'node:test'

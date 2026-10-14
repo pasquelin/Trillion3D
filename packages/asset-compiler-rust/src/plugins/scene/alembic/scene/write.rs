@@ -61,10 +61,16 @@ pub(super) fn digest(parts: &[Part], facesets: &[FaceSet]) -> String {
             .and_then(|rank| facesets.get(rank))
             .map_or("", |faceset| faceset.name.as_str());
         material.extend_from_slice(name.as_bytes());
-        material.extend_from_slice(&f32_bytes(&part.positions));
-        material.extend_from_slice(&f32_bytes(&part.normals));
-        material.extend_from_slice(&f32_bytes(&part.uvs));
-        material.extend(part.indices.iter().flat_map(|index| index.to_le_bytes()));
+        let vertices = &part.vertices;
+        material.extend_from_slice(&f32_bytes(&vertices.positions));
+        material.extend_from_slice(&f32_bytes(&vertices.normals));
+        material.extend_from_slice(&f32_bytes(&vertices.uvs));
+        material.extend(
+            vertices
+                .indices
+                .iter()
+                .flat_map(|index| index.to_le_bytes()),
+        );
     }
     hash(&material)
 }

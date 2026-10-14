@@ -21,12 +21,9 @@ pub(super) fn world_exponent(world: &WorldDag) -> i32 {
         .filter(|(cluster, origin)| origin.is_none() && cluster.lod_error > 0.0)
         .map(|(cluster, _)| cluster.lod_error)
         .min_by(f64::total_cmp);
-    let widest = if extent > 0.0 {
-        extent.log2().floor() as i32
-    } else {
-        0
-    };
-    grid_exponent(extent, finest, widest)
+    // No tile caps the world: `grid_exponent` reads the extent's exponent itself, the same on
+    // every host.
+    grid_exponent(extent, finest, i32::MAX)
 }
 
 /// The world's attributes a page of `layout` carries, in the order a page writes them.

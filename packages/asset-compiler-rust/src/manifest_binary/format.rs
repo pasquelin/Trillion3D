@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_validate::finite;
 
 pub(super) fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_MANIFEST", message)
@@ -19,7 +20,7 @@ impl Column {
     pub(super) fn i32(&mut self, value: i32) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
-    pub(super) fn u32(&mut self, value: u32) {
+    pub(crate) fn u32(&mut self, value: u32) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
     /// A digest is stored as its 64 ASCII hexadecimal characters: one decode for the whole column,
@@ -34,7 +35,7 @@ impl Column {
         Ok(())
     }
     /// Bytes already in column format, copied as is.
-    pub(super) fn raw(&mut self, value: &[u8]) {
+    pub(crate) fn raw(&mut self, value: &[u8]) {
         self.bytes.extend_from_slice(value);
     }
     pub(super) fn zeros(&mut self, count: usize) {
@@ -53,9 +54,7 @@ pub(super) fn array<'a>(value: &'a Value, what: &str) -> Result<&'a Vec<Value>> 
         .ok_or_else(|| bad(format!("{what} is not an array")))
 }
 pub(super) fn number(value: Option<&Value>, what: &str) -> Result<f64> {
-    value
-        .and_then(Value::as_f64)
-        .ok_or_else(|| bad(format!("{what} is not a number")))
+    finite(value).ok_or_else(|| bad(format!("{what} is not a finite number")))
 }
 pub(super) fn integer(value: Option<&Value>, what: &str) -> Result<i64> {
     value

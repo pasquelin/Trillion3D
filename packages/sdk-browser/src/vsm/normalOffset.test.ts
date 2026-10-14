@@ -13,7 +13,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { VSM_CONSTANTS_WGSL, VSM_NORMAL_BIAS } from './constants.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
-import { singleUlp } from '../../../../bench/core/ulp.ts'
+import { singleUlp } from '../../../math/src/float/ulp.fixture.ts'
 
 const source = wgslModule(VSM_CONSTANTS_WGSL)
 const { vsmNormalOffsetLength } = shaderRun<{

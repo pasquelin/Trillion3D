@@ -7,11 +7,10 @@
 //! document's one buffer (`source.bin`), so every view offset is an offset into it.
 use super::sparse::sparse;
 use super::*;
+use crate::gltf_codes::component_bytes;
 
 /// The element types a reader knows the width of.
 const TYPES: [&str; 7] = ["SCALAR", "VEC2", "VEC3", "VEC4", "MAT2", "MAT3", "MAT4"];
-/// The component types a vertex attribute or an index list may use.
-const COMPONENTS: [u64; 6] = [5120, 5121, 5122, 5123, 5125, 5126];
 
 fn views(g: &Value) -> Result<Vec<Value>> {
     let Some(views) = g.get("bufferViews").and_then(Value::as_array) else {
@@ -51,7 +50,9 @@ fn accessors(g: &Value, views: usize) -> Result<Vec<Value>> {
             }
             let kind = accessor.get("type").and_then(Value::as_str).unwrap_or("");
             let component = accessor.get("componentType").and_then(Value::as_u64);
-            if !TYPES.contains(&kind) || !component.is_some_and(|c| COMPONENTS.contains(&c)) {
+            if !TYPES.contains(&kind)
+                || !component.is_some_and(|c| component_bytes(c as usize).is_some())
+            {
                 return Err(invalid("accessor type or componentType is not readable"));
             }
             Ok(json!({

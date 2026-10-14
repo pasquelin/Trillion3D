@@ -103,6 +103,16 @@ pub fn mean(values: impl IntoIterator<Item = f64>) -> f64 {
     sum / count as f64
 }
 
+/// The median of `values` by rank `len / 2` in `total_cmp` order (the upper one of an even count),
+/// found by a partial selection: `values` is left partitioned around it, the lower ranks before it
+/// and the higher after, as a full sort would rank them. Panics when `values` is empty.
+#[inline]
+pub fn median_in_place(values: &mut [f64]) -> f64 {
+    *values
+        .select_nth_unstable_by(values.len() / 2, f64::total_cmp)
+        .1
+}
+
 /// `mean` in single precision.
 #[inline]
 pub fn mean_f32(values: impl IntoIterator<Item = f32>) -> f32 {

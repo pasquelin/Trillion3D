@@ -1,4 +1,5 @@
 use super::*;
+use crate::gltf_codes::{component_bytes, FLOAT};
 
 /// `validated` holds the identifiers an upstream pass already validated — the
 /// deduplicated set from `plan_buffers`. `validate` is a pure function with no
@@ -19,27 +20,18 @@ pub(super) fn accessor<'a>(
     let a = item(accessors, id, "accessor")?;
     let component = required_index(a.get("componentType"), "accessor.componentType")?;
     let normalized = a.get("normalized").and_then(Value::as_bool) == Some(true);
-    if normalized && component == 5126 {
+    if normalized && component == FLOAT {
         return Err(invalid("FLOAT accessor cannot be normalized"));
     }
-    let bytes = match component {
-        5120 | 5121 => 1,
-        5122 | 5123 => 2,
-        5125 | 5126 => 4,
-        _ => {
-            return Err(CompilerError::new(
-                "UNSUPPORTED_COMPONENT",
-                component.to_string(),
-            ))
-        }
-    };
+    let bytes = component_bytes(component)
+        .ok_or_else(|| CompilerError::new("UNSUPPORTED_COMPONENT", component.to_string()))?;
     let width = match a.get("type").and_then(Value::as_str) {
         Some("SCALAR") => 1,
         Some("VEC2") => 2,
         Some("VEC3") => 3,
         Some("VEC4") => 4,
         // A skin's inverse bind matrices: sixteen floats, no column padding.
-        Some("MAT4") if component == 5126 => 16,
+        Some("MAT4") if component == FLOAT => 16,
         _ => {
             return Err(CompilerError::new(
                 "UNSUPPORTED_ACCESSOR_TYPE",

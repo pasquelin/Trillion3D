@@ -1,24 +1,15 @@
 // The GPU proofs' scene numbers, now read from packages/math, against the expressions they were
-// written as. Every one is the same double: a tangent of the same angle, a power of two that
-// scales without rounding, a length whose sum of squares is exact on these inputs. The proofs
+// written as. Every one is the same double: a power of two that scales without rounding; the
+// tangents and lengths are held in packages/math (`camera.test.ts`, `lengthRange.test.ts`). The proofs
 // draw the same scenes; the helpers that normalise a draw or a model normal read the same f32 words.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DEG2RAD, TAU } from '../../packages/math/src/constants.ts'
-import { perspectiveSlope } from '../../packages/math/src/projection/camera.ts'
-import { length2, length3 } from '../../packages/math/src/vector/vector.ts'
 import { distanceVector3 } from '../../packages/math/src/vector/vector.ts'
 import { resolveRandom } from './lighting/resolveCases.ts'
 import { angleBetween, inverseTransposeShipped, unit } from './math/inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './math/normalTransformCases.ts'
-import { ulpBetween } from '../../bench/core/ulp.ts'
-
-test('the cameras open the same tangent through perspectiveSlope', () => {
-  // `facingWorld.ts` (50°), `computeRasterScene.ts` and `waterCostScene.ts` (55°).
-  assert.ok(Object.is(perspectiveSlope(50), Math.tan((50 * Math.PI) / 360)))
-  assert.ok(Object.is(perspectiveSlope(55), Math.tan((55 / 2) * (Math.PI / 180))))
-  assert.ok(Object.is(perspectiveSlope(55), Math.tan((55 * Math.PI) / 360)))
-})
+import { ulpBetween } from '../../packages/math/src/float/ulp.fixture.ts'
 
 test('the turned objects and lights turn by the same radians', () => {
   assert.ok(Object.is(30 * DEG2RAD, Math.PI / 6))
@@ -29,11 +20,6 @@ test('the turned objects and lights turn by the same radians', () => {
     assert.ok(Object.is((i / 64) * TAU, (i / 64) * Math.PI * 2), `light ${i}`)
     assert.ok(Object.is((i * TAU) / 60, (i * Math.PI) / 30), `frame ${i}`)
   }
-})
-
-test("the moving proxy's rays keep their lengths", () => {
-  assert.ok(Object.is(length2(1, 0.05), Math.hypot(1, 0.05)))
-  assert.ok(Object.is(length3(0.3, 0.2, 1), Math.hypot(0.3, 0.2, 1)))
 })
 
 test('the resolve proofs draw the same f32 unit vectors, and their distances within two ulps', () => {

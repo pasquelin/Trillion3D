@@ -6,10 +6,10 @@
 use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
+use crate::import::Vertices;
 use crate::plugins::scene::{cancel, ngon::Ngon};
 use crate::{CompilerError, Result};
 use std::{collections::HashMap, sync::atomic::AtomicBool};
-use trillion3d_math::aabb::extend_aabb_f32;
 
 /// A part under construction, with the table of corners already emitted.
 #[derive(Default)]
@@ -19,13 +19,7 @@ pub(super) struct Builder {
     /// mesh of a thousand faces does not allocate a thousand rings.
     cutter: Ngon,
     ring: Vec<u32>,
-    positions: Vec<f32>,
-    normals: Vec<f32>,
-    uvs: Vec<f32>,
-    indices: Vec<u32>,
-    min: [f32; 3],
-    max: [f32; 3],
-    started: bool,
+    vertices: Vertices,
 }
 
 impl Builder {
@@ -54,7 +48,7 @@ impl Builder {
         };
         for triangle in self.cutter.triangles() {
             let corners = triangle.map(|rank| self.ring[rank]);
-            self.indices.extend_from_slice(&corners);
+            self.vertices.indices.extend_from_slice(&corners);
         }
         Ok(exact)
     }
@@ -91,46 +85,33 @@ impl Builder {
         Ok(rank)
     }
 
-    /// Writes the values of a new vertex, and tracks the position extent.
+    /// Writes the values of a new vertex.
     fn push(&mut self, geometry: &Geometry, vertex: usize, normal: u32, uv: u32) {
-        let position = &geometry.positions[vertex * 3..vertex * 3 + 3];
-        let point = [position[0], position[1], position[2]];
-        if !self.started {
-            (self.min, self.max) = (point, point);
-        }
-        extend_aabb_f32(&mut self.min, &mut self.max, point);
-        self.started = true;
-        self.positions.extend_from_slice(position);
+        let out = &mut self.vertices;
+        out.positions
+            .extend_from_slice(&geometry.positions[vertex * 3..vertex * 3 + 3]);
         if let Some(values) = geometry.normals.as_ref().and_then(|p| p.value(normal)) {
-            self.normals.extend_from_slice(values);
+            out.normals.extend_from_slice(values);
         }
         // glTF places the texture-coordinate origin at the top left, Alembic at the bottom left:
         // only the second coordinate changes direction, and the round-trip is exact.
         if let Some(values) = geometry.uv.as_ref().and_then(|p| p.value(uv)) {
-            self.uvs.extend_from_slice(&[values[0], 1.0 - values[1]]);
+            out.uvs.extend_from_slice(&[values[0], 1.0 - values[1]]);
         }
     }
 
     /// The finished part. An attribute array that does not cover every vertex does not enter
     /// glTF, where each attribute has exactly as many elements as positions.
     pub(super) fn finish(self, faceset: Option<usize>) -> Part {
-        let vertices = self.positions.len() / 3;
-        let full = |values: Vec<f32>, width: usize| {
-            if values.len() == vertices * width {
-                values
-            } else {
-                Vec::new()
-            }
-        };
-        Part {
-            faceset,
-            normals: full(self.normals, 3),
-            uvs: full(self.uvs, 2),
-            positions: self.positions,
-            indices: self.indices,
-            min: self.min,
-            max: self.max,
+        let mut vertices = self.vertices;
+        let count = vertices.count();
+        if vertices.normals.len() != count * 3 {
+            vertices.normals = Vec::new();
         }
+        if vertices.uvs.len() != count * 2 {
+            vertices.uvs = Vec::new();
+        }
+        Part { faceset, vertices }
     }
 }
 

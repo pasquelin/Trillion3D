@@ -1,4 +1,7 @@
 use super::*;
+use crate::gltf_codes::{
+    component_bytes, BYTE, FLOAT, SHORT, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT,
+};
 use draco_core::{DataType, PointIndex};
 
 pub(super) fn decode(
@@ -11,19 +14,21 @@ pub(super) fn decode(
     let attribute = mesh
         .attribute_by_unique_id(id)
         .ok_or_else(|| invalid("Draco attribute id is absent"))?;
-    let (component, scalar) = match attribute.data_type() {
-        DataType::Int8 => (5120, 1),
-        DataType::Uint8 => (5121, 1),
-        DataType::Int16 => (5122, 2),
-        DataType::Uint16 => (5123, 2),
-        DataType::Uint32 => (5125, 4),
-        DataType::Float32 => (5126, 4),
+    let component = match attribute.data_type() {
+        DataType::Int8 => BYTE,
+        DataType::Uint8 => UNSIGNED_BYTE,
+        DataType::Int16 => SHORT,
+        DataType::Uint16 => UNSIGNED_SHORT,
+        DataType::Uint32 => UNSIGNED_INT,
+        DataType::Float32 => FLOAT,
         _ => {
             return Err(invalid(
                 "Draco attribute type cannot be represented in glTF",
             ));
         }
     };
+    let scalar = component_bytes(component)
+        .ok_or_else(|| invalid("Draco attribute type cannot be represented in glTF"))?;
     let width = match accessor.get("type").and_then(Value::as_str) {
         Some("SCALAR") => 1,
         Some("VEC2") => 2,

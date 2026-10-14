@@ -1,5 +1,6 @@
 //! Source-key clips refined against ufbx evaluation for rotation/scale and hierarchy motion.
 use super::*;
+use crate::gltf_codes::FLOAT;
 
 impl Importer<'_> {
     /// One clip per animation stack of `scene` that moves one of the `written` nodes.
@@ -131,7 +132,7 @@ fn accessor(importer: &mut Importer<'_>, values: &[f32], kind: &str, mut extra: 
     };
     let view = importer.bin.view(&f32_bytes(values), None);
     extra["bufferView"] = json!(view);
-    extra["componentType"] = json!(5126);
+    extra["componentType"] = json!(FLOAT);
     extra["count"] = json!(values.len() / width);
     extra["type"] = json!(kind);
     importer.accessors.push(extra);

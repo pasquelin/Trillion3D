@@ -13,6 +13,8 @@ import {
 import { lengthQuaternion } from '../quaternion/quaternion.ts'
 import { hypot2, hypot3, hypot4 } from '../float/hypot.ts'
 import { halton } from '../sequence/halton.ts'
+import { ulpBetween } from '../float/ulp.fixture.ts'
+import { HALTON_SWEEP, edgeValues, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 const N = 4096
 const same = (a: number, b: number, what: string) =>
@@ -97,4 +99,15 @@ test('a zero length is +0, a NaN component NaN, an infinite one Infinity', () =>
   normalizeVector3(nan)
   assert.deepEqual([...zero], [0, -0, 0])
   assert.ok(Number.isNaN(nan[0]) && nan[1] === 1)
+})
+
+test('length3 and length2 read the lengths Math.hypot does, to two units in the last place', () => {
+  assert.ok(Object.is(length2(1, 0.05), Math.hypot(1, 0.05)))
+  assert.ok(Object.is(length3(0.3, 0.2, 1), Math.hypot(0.3, 0.2, 1)))
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const [x, y, z] = [2, 3, 5].map((base) => haltonSpan(i, base, -1e3, 1e3))
+    assert.ok(ulpBetween(Math.hypot(x, y, z), length3(x, y, z)) <= 2, `length3 of ${x}, ${y}, ${z}`)
+    assert.ok(ulpBetween(Math.hypot(x, y), length2(x, y)) <= 2, `length2 of ${x}, ${y}`)
+  }
+  for (const x of edgeValues(-1e3, 1e3)) assert.ok(ulpBetween(Math.hypot(x, 1), length2(x, 1)) <= 2)
 })

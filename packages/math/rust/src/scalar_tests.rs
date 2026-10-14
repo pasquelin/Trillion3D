@@ -118,3 +118,12 @@ fn mean_sums_in_order_from_negative_zero_and_divides() {
     let texels = [17.0f32, 3.5, 255.0, 0.25, 9.0, 1.0, 2.0, 100.0];
     assert_eq!(mean_f32(texels), texels.iter().sum::<f32>() / 8.0);
 }
+
+#[test]
+fn median_in_place_takes_the_upper_middle_rank_and_partitions_around_it() {
+    let mut values = [5.0, -1.0, 3.0, 9.0, 0.5, 7.0];
+    assert_eq!(median_in_place(&mut values), 5.0);
+    assert!(values[..3].iter().all(|&v| v <= 5.0));
+    assert!(values[4..].iter().all(|&v| v >= 5.0));
+    assert_eq!(median_in_place(&mut [2.0]), 2.0);
+}

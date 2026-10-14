@@ -7,6 +7,7 @@
 //! primitives (sphere, capsule, cylinder, plane) have an editor-specific tessellation that
 //! cannot be reproduced faithfully: they are counted in the report, never approximated.
 use super::*;
+use crate::import::{primitive, Vertices};
 use std::collections::HashMap;
 
 /// GUID of the editor's built-in resources, as it appears in scenes.
@@ -57,66 +58,24 @@ const FACES: [([f32; 3], [f32; 3], [f32; 3]); 6] = [
 ];
 
 fn cube(material: Option<usize>, scene: &mut SceneTables) -> usize {
-    let (mut positions, mut normals, mut uvs, mut indices) =
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let mut cube = Vertices::default();
     for (normal, u, v) in FACES {
-        let first = (positions.len() / 3) as u16;
+        let first = cube.count() as u32;
         for (du, dv) in [(-HALF, -HALF), (HALF, -HALF), (HALF, HALF), (-HALF, HALF)] {
             for axis in 0..3 {
-                positions.push(normal[axis] * HALF + u[axis] * du + v[axis] * dv);
+                cube.positions
+                    .push(normal[axis] * HALF + u[axis] * du + v[axis] * dv);
             }
-            normals.extend_from_slice(&normal);
-            uvs.extend_from_slice(&[du + HALF, dv + HALF]);
+            cube.normals.extend_from_slice(&normal);
+            cube.uvs.extend_from_slice(&[du + HALF, dv + HALF]);
         }
-        indices.extend_from_slice(&[first, first + 1, first + 2, first, first + 2, first + 3]);
+        cube.indices
+            .extend_from_slice(&[first, first + 1, first + 2, first, first + 2, first + 3]);
     }
-    let count = positions.len() / 3;
-    let position = accessor(
-        scene,
-        &f32_bytes(&positions),
-        json!({"componentType":5126,"count":count,"type":"VEC3",
-               "min":[-HALF,-HALF,-HALF],"max":[HALF,HALF,HALF]}),
-        Some(34962),
-    );
-    let normal = accessor(
-        scene,
-        &f32_bytes(&normals),
-        json!({"componentType":5126,"count":count,"type":"VEC3"}),
-        Some(34962),
-    );
-    let uv = accessor(
-        scene,
-        &f32_bytes(&uvs),
-        json!({"componentType":5126,"count":count,"type":"VEC2"}),
-        Some(34962),
-    );
-    let index_bytes: Vec<u8> = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
-    let index = accessor(
-        scene,
-        &index_bytes,
-        json!({"componentType":5123,"count":indices.len(),"type":"SCALAR"}),
-        Some(34963),
-    );
-    let mut primitive =
-        json!({"attributes":{"POSITION":position,"NORMAL":normal,"TEXCOORD_0":uv},"indices":index});
-    if let Some(material) = material {
-        primitive["material"] = json!(material);
-    }
+    let primitive = primitive(&cube, &mut scene.bin, &mut scene.accessors, material);
     scene
         .meshes
         .push(json!({"name":"UnityBuiltinCube","primitives":[primitive]}));
-    scene.mesh_triangles.push(indices.len() / 3);
+    scene.mesh_triangles.push(cube.indices.len() / 3);
     scene.meshes.len() - 1
-}
-
-fn accessor(
-    scene: &mut SceneTables,
-    bytes: &[u8],
-    mut fields: Value,
-    target: Option<u32>,
-) -> usize {
-    let view = scene.bin.view(bytes, target);
-    fields["bufferView"] = json!(view);
-    scene.accessors.push(fields);
-    scene.accessors.len() - 1
 }

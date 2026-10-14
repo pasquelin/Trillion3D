@@ -44,7 +44,8 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
     }
     let word = |entry: usize, index: usize| {
         let at = (entry * PREVIEW_WORDS + index) * 4;
-        u32::from_le_bytes(words[at..at + 4].try_into().expect("four bytes"))
+        // The column holds `entries` whole entries, checked above.
+        crate::le::u32_at(words, at).unwrap_or(0)
     };
     (0..entries)
         .map(|entry| {

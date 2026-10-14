@@ -10,6 +10,7 @@
 //! children and outputs) lies in a `u32` pool after the records, a record naming its first word
 //! and its length.
 use super::*;
+use crate::manifest_binary::format::Column;
 
 pub(crate) const TABLE_MAGIC: &[u8; 4] = b"WRTB";
 pub(crate) const DAG_MAGIC: &[u8; 4] = b"WRTD";
@@ -40,19 +41,19 @@ fn finite(value: f64) -> f64 {
     }
 }
 
-/// A record file being written: its words, then its pool.
+/// A record file being written: its words, in the one little-endian column writer, then its pool.
 #[derive(Default)]
 pub(super) struct Records {
-    pub(super) out: Vec<u8>,
+    pub(super) out: Column,
     pub(super) pool: Vec<u32>,
 }
 impl Records {
     pub(super) fn word(&mut self, value: u32) {
-        self.out.extend(value.to_le_bytes());
+        self.out.u32(value);
     }
     /// `value`, NaN when it is not finite.
     pub(super) fn float(&mut self, value: f64) {
-        self.out.extend(finite(value).to_le_bytes());
+        self.out.f64(finite(value));
     }
     /// `values`, or as many NaN for none.
     pub(super) fn floats<const N: usize>(&mut self, values: Option<&[f64; N]>) {
@@ -86,11 +87,11 @@ impl Records {
     /// The pool's length written at byte `at`, then the pool after the records.
     pub(super) fn end(mut self, at: usize) -> Vec<u8> {
         let words = (self.pool.len() as u32).to_le_bytes();
-        self.out[at..at + 4].copy_from_slice(&words);
+        self.out.bytes[at..at + 4].copy_from_slice(&words);
         for value in std::mem::take(&mut self.pool) {
             self.word(value);
         }
-        self.out
+        self.out.bytes
     }
 }
 
@@ -147,7 +148,7 @@ pub(super) fn encode_table(
 ) -> Result<Vec<u8>> {
     let objects: usize = cells.iter().map(|cell| cell.objects.len()).sum();
     let mut r = Records::default();
-    r.out.extend(TABLE_MAGIC);
+    r.out.raw(TABLE_MAGIC);
     r.word(WORLD_ROOTS_VERSION);
     for value in [top.budget, top.pinned, top.pinned_bytes] {
         r.word(index(value)?);
@@ -155,19 +156,19 @@ pub(super) fn encode_table(
     for count in [bundles.len(), pages.len(), cells.len(), objects] {
         r.word(count as u32);
     }
-    let pool_words = r.out.len();
+    let pool_words = r.out.bytes.len();
     r.word(0); // the pool's length, known once every list is in it
     let length = payload.len() as u64;
     r.word(length as u32);
     r.word((length >> 32) as u32);
-    r.out.extend(digest_bytes(payload));
+    r.out.raw(&digest_bytes(payload));
     for bundle in bundles {
         r.word(bundle.offset as u32);
         r.word((bundle.offset as u64 >> 32) as u32);
         r.word(index(bundle.bytes)?);
         r.word(index(bundle.count)?);
         r.pooled(bundle.dependencies.iter())?;
-        r.out.extend(bundle.sha256);
+        r.out.raw(&bundle.sha256);
     }
     for page in pages {
         for value in [page.bundle, page.offset, page.level, page.bytes] {

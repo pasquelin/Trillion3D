@@ -1,4 +1,5 @@
 use super::*;
+use crate::gltf_codes::UNSIGNED_INT;
 use draco_core::{DecodeLimits, DecoderBuffer, FaceIndex, Mesh, MeshDecoder};
 mod attributes;
 mod layout;
@@ -113,7 +114,7 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
         let id = append(
             g,
             &mut out,
-            json!({"componentType":5125,"type":"SCALAR","count":count}),
+            json!({"componentType":UNSIGNED_INT,"type":"SCALAR","count":count}),
             &indices,
             budget,
         )?;

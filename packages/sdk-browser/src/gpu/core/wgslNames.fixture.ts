@@ -10,15 +10,24 @@
 
 import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 
-/** WGSL's own words: keywords, the phony assignment's `_`, types, address spaces, access modes,
- *  texel formats, built-in functions. The only names a shader uses without declaring them. */
-const WGSL_OWN = new Set(
+/** The words WGSL's grammar takes as keywords: no member, variable nor parameter may spell one. */
+const WGSL_KEYWORDS = new Set(
   (
-    '_ alias array atomic bitcast bool break case const continue continuing default diagnostic ' +
-    'discard else enable f16 f32 false fn for function i32 if let loop mat2x2f mat3x3f mat3x4f mat4x4f ' +
-    'override private ptr read read_write return sampler sampler_comparison storage struct ' +
-    'switch true u32 uniform var vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
-    'vec4u while workgroup write ' +
+    'alias break case const const_assert continue continuing default diagnostic discard else ' +
+    'enable false fn for if let loop override requires return struct switch true var while'
+  ).split(' '),
+)
+
+/** WGSL's own words: its keywords (`WGSL_KEYWORDS`), the phony assignment's `_`, types, address
+ *  spaces, access modes, texel formats, built-in functions. The only names a shader uses without
+ *  declaring them. */
+const WGSL_OWN = new Set([
+  ...WGSL_KEYWORDS,
+  ...(
+    '_ array atomic bitcast bool f16 f32 function i32 mat2x2f mat3x3f mat3x4f mat4x4f ' +
+    'private ptr read read_write sampler sampler_comparison storage ' +
+    'u32 uniform vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
+    'vec4u workgroup write ' +
     'texture_2d texture_2d_array texture_3d texture_cube texture_depth_2d texture_depth_2d_array ' +
     'texture_storage_2d texture_storage_2d_array texture_multisampled_2d ' +
     'r32float r32uint rg32float rg32uint rgba8unorm rgba16float rgba32float rgba32uint ' +
@@ -33,7 +42,7 @@ const WGSL_OWN = new Set(
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
     'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
-)
+])
 
 /** Every name the module declares: its functions, structures, aliases, constants and variables,
  *  module-scope or local, and, once member names and case colons are gone, every name a type
@@ -118,14 +127,6 @@ export function reservedNames(source: string) {
     if (WGSL_KEYWORDS.has(name) && name !== 'default') found.push(name)
   return found.sort()
 }
-
-/** The words WGSL's grammar takes as keywords: no member, variable nor parameter may spell one. */
-const WGSL_KEYWORDS = new Set(
-  (
-    'alias break case const const_assert continue continuing default diagnostic discard else ' +
-    'enable false fn for if let loop override requires return struct switch true var while'
-  ).split(' '),
-)
 
 /** Where `source`'s braces or parentheses fail to pair, comments aside: the first closing one
  *  with nothing open (`'}' at 1203`), or what is left open at the end (`'(' open`); '' when
