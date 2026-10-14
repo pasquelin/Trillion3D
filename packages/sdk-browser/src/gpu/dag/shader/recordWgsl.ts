@@ -27,7 +27,8 @@ fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,2u);}
 fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
 fn poolBase()->u32{return 2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` keys (\`../layout.ts\`), whatever the readout's cap. */
-fn recordKeyBase()->u32{return poolBase()+1u+min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
+fn poolListCap()->u32{return min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
+fn recordKeyBase()->u32{return poolBase()+1u+poolListCap();}
 fn keyWordBase()->u32{return recordKeyBase()+max(1u,views[0u].recordCount);}
 fn keyGroupBase()->u32{return keyWordBase()+max(1u,views[0u].keyCount);}
 fn groupParentBase()->u32{return keyGroupBase()+max(1u,views[0u].keyCount);}

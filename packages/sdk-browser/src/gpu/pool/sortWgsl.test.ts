@@ -64,3 +64,18 @@ for (const [label, slots, burst] of [
     assert.deepEqual(first.queue, mirror.queue, 'the mirror: by rank, then slot')
     assert.equal(first.placed, mirror.total)
   })
+
+test('a burst cut to the slots lists the same queue as a wider one', () => {
+  // A host whose burst is no more than its slots (`evictWgsl.ts`, `poolBurst`) sizes the scratch
+  // for those slots alone: every slot ranked, the boundary falls on the last rank; one in seven not
+  // ranked, every one ranked is staged. Either way the queue and the total are the wide burst's.
+  for (const skip of [0, 7]) {
+    const random = mulberry32(31 + skip)
+    const ranks = Array.from({ length: 700 }, (_, j) =>
+      skip && j % skip === 0 ? POOL_RANKS : 600 + Math.floor(random() * 6),
+    )
+    const cut = queueOf(ranks, ranks.length, 3),
+      wide = queueOf(ranks, 1024, 3)
+    assert.deepEqual(cut, wide, skip ? 'some slots not ranked' : 'every slot ranked')
+  }
+})

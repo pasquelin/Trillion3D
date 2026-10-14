@@ -8,17 +8,14 @@ import { cameraCutBuffers } from './bufferTable.ts'
 import { createGpuDagSelection, packDagSelection, type PackedDag } from './selection.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../pool/sortWords.ts'
-import { SELECTION_LIST_CAP } from './layout.ts'
-import { EVICTION_BURST } from './readoutWords.ts'
+import { POOL_SORT_WORDS } from '../pool/sortWords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const LIMIT = 64 << 10
-/** `pageCount` pages, a thousand unless named, over ten nodes and ten primitives, `big` past one
- *  64 KiB binding. */
-const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones', pageCount = 1000) =>
+/** A thousand pages over ten nodes and ten primitives, `big` past one 64 KiB binding. */
+const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones') =>
   ({
-    pageCount,
+    pageCount: 1000,
     nodeCount: 10,
     worldCount: 10,
     ...Object.fromEntries(
@@ -44,9 +41,11 @@ test('every table past one binding is a record table: two storage buffers, whate
     'storage bindings',
   )
   // The flags too: a list starts within one binding's worth and grows no further
-  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table. The
-  // binding holds `work` — the eviction sort's words and scratch, whatever the pages — and no more.
-  const roots = { ...dag(), worldCount: 4000, nodeCount: 4000 }
+  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table, and
+  // the eviction sort's scratch behind its sections (`evictScratchWords`). The binding holds `work`
+  // — 8,704 bytes: 2,176 words, 126 of a thousand pages' blocks and counters, 2,050 the sort's
+  // (`POOL_SORT_WORDS`) — and no more; two thousand roots' queue is 16,000 bytes.
+  const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
   const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
   const { shape } = cameraCutBuffers(roots, section)
   assert.ok(
@@ -57,26 +56,26 @@ test('every table past one binding is a record table: two storage buffers, whate
 })
 
 test('`work` holds no word per page: a binding past one list section holds the cut', () => {
-  // Three thousand pages: 36,000 bytes the live list of `flags`, past `work` and its eviction
-  // sort's scratch; the kept lists' ranks follow the readout's list (`keptRanks.ts`), never the
-  // pages.
-  const pages = dag(undefined, 3000)
-  const limits = { maxStorageBufferBindingSize: 36000 }
+  // 12,000 bytes the live list of `flags`, past `work`'s 8,704 (the first test); the kept lists'
+  // ranks follow the readout's list (`keptRanks.ts`), never the pages, and the eviction sort's
+  // scratch lies in `flags` (`evictScratchWords`).
+  const pages = dag(),
+    limits = { maxStorageBufferBindingSize: 12000 }
   assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(pages, limits).rows
-  // Past the eviction sort's words and scratch, a constant whatever the pages (`POOL_SORT_WORDS`).
-  const sortWords = POOL_SORT_WORDS + poolScratchWords(SELECTION_LIST_CAP, EVICTION_BURST)
-  const perPages = rows.work.size - 4 * sortWords
-  assert.ok(perPages < 3000, `\`work\` is ${perPages} bytes for three thousand pages`)
+  // Past the eviction sort's words, a constant whatever the pages (`POOL_SORT_WORDS`): 504 bytes,
+  // sixteen blocks of six words and thirty counters and rows.
+  const perPages = rows.work.size - 4 * POOL_SORT_WORDS
+  assert.equal(perPages, 504, `\`work\` is ${perPages} bytes for a thousand pages`)
   assert.deepEqual(
     Object.keys(rows).filter((name) => name.startsWith('ranks')),
     [],
     'no ranks',
   )
   // One live word past the binding: the lists start one entry shorter, and grow no further.
-  const narrow = { ...limits, maxStorageBufferBindingSize: 35996 }
+  const narrow = { ...limits, maxStorageBufferBindingSize: 11996 }
   assert.equal(dagDeviceRefusal(narrow, pages), undefined, 'the lists start within the binding')
-  assert.equal(cameraCutBuffers(pages, narrow).shape.candCap, 2999)
+  assert.equal(cameraCutBuffers(pages, narrow).shape.candCap, 999)
 })
 
 test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {

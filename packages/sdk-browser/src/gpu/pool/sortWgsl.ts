@@ -95,12 +95,14 @@ fn poolPlace(@builtin(local_invocation_index) lane:u32){
 )
 
 /** The sort's words over \`words\`, an array of atomic u32 of the host's: word \`i\` at \`at(i)\` —
- *  the counts, the places, the boundary and the total (\`POOL_SORT_WORDS\`) —, scratch word \`i\` at
- *  \`scratchAt(i)\` (\`poolScratchWords\`). */
+ *  the counts, the places, the boundary and the total (\`POOL_SORT_WORDS\`) —, then scratch word \`i\`
+ *  at \`scratchAt(i)\` (\`poolScratchWords\`). A host whose scratch lies elsewhere omits \`scratchAt\`
+ *  and declares \`poolScratchLoad\` and \`poolScratchStore\` over its own bindings: no lane of the
+ *  sort writes a scratch word another lane of its dispatch reads, so no atomic is needed there. */
 export const poolSortWordsWgsl = (
   words: string,
   at: (i: string) => string,
-  scratchAt: (i: string) => string,
+  scratchAt?: (i: string) => string,
 ) =>
   wgslBlock(
     `poolSortWords ${words}`,
@@ -108,7 +110,11 @@ export const poolSortWordsWgsl = (
     `fn poolCountAdd(i:u32,v:u32)->u32{return atomicAdd(&${words}[${at('i')}],v);}
 fn poolCountLoad(i:u32)->u32{return atomicLoad(&${words}[${at('i')}]);}
 fn poolCountStore(i:u32,v:u32){atomicStore(&${words}[${at('i')}],v);}
-fn poolScratchLoad(i:u32)->u32{return atomicLoad(&${words}[${scratchAt('i')}]);}
+${
+  scratchAt
+    ? `fn poolScratchLoad(i:u32)->u32{return atomicLoad(&${words}[${scratchAt('i')}]);}
 fn poolScratchStore(i:u32,v:u32){atomicStore(&${words}[${scratchAt('i')}],v);}
-`,
+`
+    : ''
+}`,
   )
