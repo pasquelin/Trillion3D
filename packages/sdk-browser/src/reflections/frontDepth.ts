@@ -72,16 +72,6 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
       size: frontPitch(width) * height * 4,
       usage: GPUBufferUsage.STORAGE,
     },
-    box: {
-      label: FRONT_LABEL,
-      size: BOX.words * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    },
-    args: {
-      label: FRONT_LABEL,
-      size: ARGS_BYTES,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
-    },
     rect: {
       label: FRONT_LABEL,
       size: RECT_BYTES,
@@ -98,6 +88,16 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
       label: FRONT_LABEL,
       size: ARGS_BYTES,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+    },
+    box: {
+      label: FRONT_LABEL,
+      size: BOX.words * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    },
+    args: {
+      label: FRONT_LABEL,
+      size: ARGS_BYTES,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
     },
   } satisfies Record<string, GPUBufferDescriptor>
   return { written, carried }
