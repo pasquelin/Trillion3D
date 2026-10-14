@@ -20,9 +20,10 @@ const MOST_UNITS = 2 ** 31
  * units a frame (`spent`, read back without a wait) over its pass's GPU time give the device's rate,
  * smoothed, and the next frame's reflection rays may spend `rate × budgetMs` units (`units`). The
  * pass's time holds the screen march beside the proxy's rays, so the rate is a lower bound and the
- * pass stays inside the share. The probes take `budgetMs` less what the reflection trace's pass took, never past their own part of it (`probeShare`) — a scene
- * without reflections leaves them no more than they had alone —, their fraction of the published
- * ceiling (`load`) servoed on their own pass's time, bounded between the progress floor and one.
+ * pass stays inside the share. The probes take `budgetMs` less what the reflection trace's pass took,
+ * never past their own part of it (`probeShare`) — a scene without reflections leaves them no more
+ * than they had alone —, their fraction of the published ceiling (`load`) servoed on their own
+ * pass's time, bounded between the progress floor and one.
  *
  * A missing, zero or non-finite measure moves nothing: the loop never follows an artificial zero.
  */
