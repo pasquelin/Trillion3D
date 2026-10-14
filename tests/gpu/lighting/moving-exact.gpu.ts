@@ -75,7 +75,8 @@ const sets: Lamp[][] = [1, 2, 3, 4, 5, 6, 9, 17, 33, 48, 64, 65, 120, 200, 256].
   lamps(n, 0.7),
 )
 for (let k = 0; k < 6; k++) sets.push(lamps(1 + Math.floor(r() * 256), between(0.2, 0.9)))
-sets.push([...lamps(20, 0.5), oneSample(), ...lamps(19, 0.5)]) // a lamp touching one sample
+/** The set whose lamp 20 touches one sample. */
+const edge = sets.push([...lamps(20, 0.5), oneSample(), ...lamps(19, 0.5)]) - 1
 sets.push(lamps(LIST, 0, true), lamps(256, 0, true)) // a tile every lamp reaches
 const lists = sets.map(listOf)
 
@@ -129,7 +130,6 @@ before(async () => {
     'a list past its record',
   )
   // The lamp over one sample reaches it and no other, and its tile lists it.
-  const edge = sets.findIndex((set) => set.length === 40)
   const { position, range } = sets[edge][20]
   const reached = points.filter((P) => distanceVector3(P, position) < range)
   assert.equal(reached.length, 1, 'one sample in reach')
