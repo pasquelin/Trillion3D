@@ -51,6 +51,14 @@ export function deriveEveryRow(state: RowWords) {
   state.emits = 0
 }
 
+/** A buffer the pass binds was made anew: every row derived at the next pass
+ *  (`deriveEveryRow`); a sphere buffer made anew staled every page already (`spheresMadeAnew`), so
+ *  the rows named are forgotten, the staled ones too. */
+export function partsMadeAnew(state: RowWords, spheresAnew: boolean) {
+  if (spheresAnew) forgetTargets(state)
+  deriveEveryRow(state)
+}
+
 /** The pass encoded into `encoder` took the rows named: the staled ones kept until the next, their
  *  command buffer may be dropped, and the list emptied. */
 export function targetsTaken(state: RowWords, encoder: GPUCommandEncoder) {

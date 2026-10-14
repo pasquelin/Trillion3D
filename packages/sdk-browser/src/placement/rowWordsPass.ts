@@ -32,7 +32,7 @@ import {
 } from './rowWordsGpu.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
 import type { RowWords } from './rowWords.ts'
-import { forgetTargets, targetsTaken } from './rowTargets.ts'
+import { partsMadeAnew, targetsTaken } from './rowTargets.ts'
 import { writeMovedRoots } from './rootPasses.ts'
 import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
 
@@ -126,10 +126,7 @@ export function encodeRowWords(
   gpu.frame[0] = rt.lights.spheres?.buffer
   gpu.frame[1] = rt.vis.gpuPartition?.corners
   gpu.frame[2] = rt.lights.rowLods?.buffer
-  if (partsMoved(rt, gpu)) {
-    state.all = true
-    if (spheresAnew) forgetTargets(state)
-  }
+  if (partsMoved(rt, gpu)) partsMadeAnew(state, spheresAnew)
   const composed = composedRows(rt, device)
   const all = state.all,
     listed = all ? rows.casterSlots : state.count,
