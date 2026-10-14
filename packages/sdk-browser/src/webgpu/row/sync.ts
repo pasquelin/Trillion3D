@@ -25,8 +25,17 @@ export function createWebgpuRowSync(
   onCoverageChange: (rec: PageRec, page: number) => void = () => {},
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
+  /** The host's frame, the clock the GPU stamps the rows' use with (`rowWords.ts`). */
+  frame: () => number = () => 0,
 ) {
-  const slots = createWebgpuRowSlots(rows, packedPages, writePageRow, onResidenceChange, closure)
+  const slots = createWebgpuRowSlots(
+    rows,
+    packedPages,
+    writePageRow,
+    onResidenceChange,
+    closure,
+    frame,
+  )
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange)
@@ -75,6 +84,8 @@ export function createWebgpuRowSync(
     followCut,
     rowsOwed,
     blendCasters,
+    /** The rows' use words the GPU stamps (`rowWords.ts`). */
+    rowWords: slots.words,
     /** Bytes of the row cache's own tables (`slots.ts`). */
     get cacheBytes() {
       return slots.bytes

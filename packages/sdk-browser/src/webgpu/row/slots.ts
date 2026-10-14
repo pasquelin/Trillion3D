@@ -7,6 +7,7 @@ import type { PageRowWriter } from './pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { createRowUse } from './rowUse.ts'
+import { createRowWords } from './rowWords.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import {
   closeFreeRows,
@@ -39,6 +40,8 @@ export function createWebgpuRowSlots(
   /** A counted closure over the instances, per placement: a request's readiness needs its
    *  groups' rows (`rowDemand.ts`). */
   closure: () => InstanceClosure,
+  /** The host's frame, the clock the GPU stamps the rows' use with (`rowWords.ts`). */
+  frame: () => number,
 ) {
   const { recordOf } = createPageCatalogue(packedPages)
   const use = createRowUse(0)
@@ -53,6 +56,8 @@ export function createWebgpuRowSlots(
     drawsRow,
     onResidenceChange,
     use,
+    words: createRowWords(),
+    frame,
     free: { rows: new Int32Array(0), count: 0 },
     claims: createWebgpuRowClaims(),
     demand: createRowDemand(rows, use, drawsRow, closure),
@@ -78,8 +83,10 @@ export function createWebgpuRowSlots(
     },
     /** Bytes of the cache's own tables: a word per row, a mark per instance, the demand. */
     get bytes() {
-      return use.bytes + s.demand.bytes
+      return use.bytes + s.words.bytes + s.demand.bytes
     },
+    /** The rows' use words the GPU stamps (`rowWords.ts`). */
+    words: s.words,
   }
 }
 
@@ -96,6 +103,7 @@ function applyRows(
     seen.fitted = rows.generation
     if (s.free.rows.length < rows.blendFirst) s.free.rows = new Int32Array(rows.blendFirst)
     s.use.fit(rows.blendFirst)
+    s.words.fit(rows.blendFirst)
     // The table grew: the requests it refused are served again from their head.
     demand.restart()
   }

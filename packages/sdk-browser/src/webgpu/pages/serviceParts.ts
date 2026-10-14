@@ -67,6 +67,8 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
       noteResidenceChange(rt.lights, selectionRoots, placement, page, rec)
     },
     rt.clock,
+    // The host's frame: the clock every cut stamps with, the rows' use words too.
+    () => run.frame,
   )
   return rowSync
 }
