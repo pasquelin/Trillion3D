@@ -8,8 +8,8 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  * prev page marks, prev allocated page rect bounds; the invalidation bits are OR'ed into the prev
  * page requests, which the pool's page carry (step 4) folds into the pool page info.
  *
- * An instance (`VsmInvalidationInstance`) is a world box and two flags (casts shadows, cached as
- * dynamic): its centre, its half extent along the world's axes. The one entry that builds them is
+ * An instance (`VsmInvalidationInstance`) is a world box and one flag (cached as dynamic): its
+ * centre, its half extent along the world's axes. The one entry that builds them is
  * the shadow changes' (`castInvalidationWgsl.ts`), from the list's records.
  */
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
@@ -30,10 +30,8 @@ import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
  *  keeps. */
 export const UNBOUNDED_EXTENT = 1e15
 
-/** Instance flags, the two the host knows of a box: it casts shadows (a valid instance), and it is
- *  cached as dynamic (the engine's box moving), else as static. */
-const VSM_BOX_CASTS = 1 << 0
-const VSM_BOX_MOVING = 1 << 1
+/** The instance flag: its box is cached as dynamic (its casters already moving), else as static. */
+const VSM_BOX_MOVING = 1
 
 /** Group 0: the previous frame's VSM state */
 export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
@@ -50,13 +48,13 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
   },
 ]
 
-/** The world box an invalidation stales the pages of, and its two flags. */
+/** The world box an invalidation stales the pages of, and its flag. */
 const VSM_INVALIDATION_INSTANCE_WGSL = wgslBlock(
   'VSM_INVALIDATION_INSTANCE_WGSL',
   [],
   `
 struct VsmInvalidationInstance{centre:vec3f,flags:u32,extent:vec3f,}
-${wgslConsts({ VSM_BOX_CASTS, VSM_BOX_MOVING })}
+${wgslConsts({ VSM_BOX_MOVING })}
 `,
 )
 
