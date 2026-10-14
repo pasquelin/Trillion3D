@@ -20,6 +20,7 @@ function session() {
   deriveRootRows(rt, 0)
   rt.rowWords!.all = false
   rt.rowWords!.roots.length = 0
+  rt.rowWords!.rootListed.fill(0)
   return rt.rowWords!
 }
 
@@ -87,4 +88,13 @@ test('a buffer the pass binds made anew keeps the staled rows alone; new spheres
   nameCastRow({ rowWords: state }, 4)
   partsMadeAnew(state, true)
   assert.deepEqual([state.all, state.count, state.emits, state.stales], [true, 0, 0, 0])
+})
+
+test('a root named twice before a follow is listed once: its pages are walked once', () => {
+  const state = session(),
+    rt = { rowWords: state }
+  deriveRootRows(rt, 3)
+  deriveRootRows(rt, 1)
+  deriveRootRows(rt, 3)
+  assert.deepEqual(state.roots, [3, 1])
 })
