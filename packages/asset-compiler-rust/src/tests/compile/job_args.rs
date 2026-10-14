@@ -1,87 +1,41 @@
 //! Reading one compile job from the command line or a batch file (`compiler_args.rs`).
 use super::*;
 
+/// The command line's job read from `line`, under a fresh cancellation flag.
+fn parse(line: &[&str]) -> std::result::Result<Options, String> {
+    let line: Vec<String> = line.iter().map(|arg| arg.to_string()).collect();
+    parse_compiler_args(&line, Arc::new(AtomicBool::new(false)))
+}
+
 #[test]
 fn parse_accepts_five_to_eight_args() {
-    let cancelled = Arc::new(AtomicBool::new(false));
-    let five = parse_compiler_args(
-        &[
-            "s".into(),
-            "c".into(),
-            "slice".into(),
-            "12".into(),
-            "/assets/".into(),
-        ],
-        cancelled.clone(),
-    )
-    .expect("five");
+    let five = parse(&["s", "c", "slice", "12", "/assets/"]).expect("five");
     assert_eq!(five.threads, 2);
     assert_eq!(five.ram_budget_mb, 256);
     assert_eq!(five.simplification, "none");
-    let seven = parse_compiler_args(
-        &[
-            "s".into(),
-            "c".into(),
-            "full".into(),
-            "12".into(),
-            "4".into(),
-            "128".into(),
-            "/a/".into(),
-        ],
-        cancelled.clone(),
-    )
-    .expect("seven");
+    let seven = parse(&["s", "c", "full", "12", "4", "128", "/a/"]).expect("seven");
     assert_eq!(seven.threads, 4);
     assert_eq!(seven.ram_budget_mb, 128);
-    let eight = parse_compiler_args(
-        &[
-            "s".into(),
-            "c".into(),
-            "full".into(),
-            "12".into(),
-            "4".into(),
-            "128".into(),
-            "/a/".into(),
-            "qem-endpoints".into(),
-        ],
-        cancelled,
-    )
-    .expect("eight");
-    assert_eq!(eight.simplification, "qem-endpoints");
+    let eight = parse(&["s", "c", "full", "12", "4", "128", "/a/", "qem-endpoints"]);
+    assert_eq!(eight.expect("eight").simplification, "qem-endpoints");
     // A value out of its choices is refused by the one check of a job's values, whichever form
     // named it, and the refusal names the field.
-    let bicubic = parse_compiler_args(
-        &[
-            "s".into(),
-            "c".into(),
-            "full".into(),
-            "12".into(),
-            "4".into(),
-            "128".into(),
-            "/a/".into(),
-            "bicubic".into(),
-        ],
-        Arc::new(AtomicBool::new(false)),
-    )
-    .expect("bicubic parses");
-    let refusal = validate_compile_options(&bicubic).expect_err("bicubic");
+    let bicubic = parse(&["s", "c", "full", "12", "4", "128", "/a/", "bicubic"]);
+    let refusal = validate_compile_options(&bicubic.expect("bicubic parses")).expect_err("bicubic");
     assert_eq!(refusal.code, "INVALID_OPTIONS");
     assert!(refusal.message.contains(job_field::SIMPLIFICATION));
-    assert!(parse_compiler_args(
-        &[
-            "s".into(),
-            "c".into(),
-            "full".into(),
-            "12".into(),
-            "4".into(),
-            "128".into(),
-            "/a/".into(),
-            "qem-endpoints".into(),
-            "dag".into()
-        ],
-        Arc::new(AtomicBool::new(false))
-    )
-    .is_err());
+    let nine = [
+        "s",
+        "c",
+        "full",
+        "12",
+        "4",
+        "128",
+        "/a/",
+        "qem-endpoints",
+        "dag",
+    ];
+    assert!(parse(&nine).is_err());
 }
 // Behaviour: the command line's job and a batch file's job are one reading (`job_options`): the
 // same values give the same options, and the budget is read under `triangleBudget`, the name the
@@ -142,6 +96,32 @@ fn an_unknown_job_field_is_refused_by_name() {
     let named =
         json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","texturesFormat":"none"});
     job_options(named.as_object().expect("object"), &defaults, cancelled).expect("named");
+}
+// Behaviour: a text field holding another type is refused by name, never read as absent: a
+// `simplification` of `true` or a `scope` of `1` would otherwise cook at the default unannounced.
+#[test]
+fn a_mistyped_text_field_is_refused_by_name() {
+    let defaults = JobDefaults {
+        scope: "full",
+        threads: DEFAULT_THREADS,
+        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
+    };
+    let read = |job: Value| {
+        let flag = Arc::new(AtomicBool::new(false));
+        job_options(job.as_object().expect("object"), &defaults, flag)
+    };
+    for field in [
+        job_field::SIMPLIFICATION,
+        job_field::SCOPE,
+        "texturesFormat",
+        "id",
+    ] {
+        let mut job = json!({"source":"s","cache":"c","resourceBaseUrl":"/a/"});
+        job[field] = json!(true);
+        let refused = read(job).err().expect("refused");
+        assert!(refused.contains(field), "{refused}");
+    }
+    read(json!({"source":"s","cache":"c","resourceBaseUrl":"/a/","scope":null})).expect("null");
 }
 // Behaviour: a cook writes every block family unless told otherwise — each device then streams
 // the blocks it samples, PNG the last fallback —, one family by name, or none.

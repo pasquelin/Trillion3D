@@ -56,19 +56,21 @@ const ID_FIELD: &str = "id";
 
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
 /// command line's values keyed by `JOB_FIELDS`. A key outside `JOB_FIELDS`, `id` and
-/// `texturesFormat` is refused by name: a misspelt field never cooks at its default unannounced.
-/// The values themselves are checked by `compile`.
+/// `texturesFormat`, or a text field holding another type, is refused by name: a misspelt or
+/// mistyped field never cooks at its default unannounced. The values are checked by `compile`.
 pub fn job_options(
     job: &Map<String, Value>,
     defaults: &JobDefaults,
     cancelled: Arc<AtomicBool>,
 ) -> std::result::Result<Options, String> {
-    if let Some(key) = job.keys().find(|key| {
-        !JOB_FIELDS.contains(&key.as_str())
-            && key.as_str() != ID_FIELD
-            && key.as_str() != TEXTURES_FORMAT_FIELD
-    }) {
-        return Err(format!("unknown job field {key}"));
+    for (key, value) in job {
+        let key = key.as_str();
+        if !JOB_FIELDS.contains(&key) && key != ID_FIELD && key != TEXTURES_FORMAT_FIELD {
+            return Err(format!("unknown job field {key}"));
+        }
+        if !NUMBER_FIELDS.contains(&key) && !value.is_string() && !value.is_null() {
+            return Err(format!("{key} must be a string"));
+        }
     }
     let text = |name: &str| job.get(name).and_then(Value::as_str);
     let number = |name: &str, default: usize| positive(job.get(name), default, name);
