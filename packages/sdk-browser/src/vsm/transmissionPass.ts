@@ -147,12 +147,10 @@ function transmissionGroups(
     place: vsmBufferGroup(device, ctx.place.groups[0], [uniform, build]),
     resolve: device.createBindGroup({
       layout: ctx.resolve.groups[0],
-      entries: [
-        ...sequentialEntries([
-          ...[uniform, build, table, pool, links].map((buffer) => ({ buffer })),
-          trans.storageView,
-        ]),
-      ],
+      entries: sequentialEntries([
+        ...[uniform, build, table, pool, links].map((buffer) => ({ buffer })),
+        trans.storageView,
+      ]),
     }),
   })
 }

@@ -3,7 +3,7 @@
  * layouts they bind — the clear, the candidates, the pages, the bin, the number, the place and the
  * resolve, its two entry points one module.
  */
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeStorageTextureEntry } from '../gpu/core/computeBindings.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe } from './passKit.ts'
@@ -32,11 +32,7 @@ function transmissionGroupTables(layout: VsmLayout) {
     [
       buf(0, 'uniform'),
       ...[1, 2, 3, 4].map((b) => buf(b, 'storage')),
-      {
-        binding: 5,
-        visibility: C,
-        storageTexture: { access: 'write-only', format: VSM_TRANSMISSION_FORMAT },
-      } as GPUBindGroupLayoutEntry,
+      computeStorageTextureEntry(5, VSM_TRANSMISSION_FORMAT),
     ],
   ]
   return {

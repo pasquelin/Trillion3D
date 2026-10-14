@@ -6,7 +6,7 @@
  */
 import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { UniformSlots } from '../residency/pools.ts'
-import type { vsmComputePipe } from './passKit.ts'
+import type { VsmComputePipe } from './passKit.ts'
 import type { VsmPerFrameSet } from './resources.ts'
 import type { VsmRowBound } from './rowPageBound.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
@@ -21,18 +21,16 @@ import { vsmTransmissionPipes } from './transmissionPipes.ts'
 import { TRANSMISSION_LABEL, type VsmTransmission } from './transmissionMade.ts'
 import type { ChunkLists, ChunkTables } from './transmissionBin.ts'
 
-type Pipe = ReturnType<typeof vsmComputePipe>
-
 export interface VsmTransmissionContext extends VsmChunkKernels {
   device: GPUDevice
-  clear: Pipe
-  candidates: Pipe
-  pages: Pipe
-  bin: Pipe
-  number: Pipe
-  place: Pipe
-  resolve: Pipe
-  headers: Pipe
+  clear: VsmComputePipe
+  candidates: VsmComputePipe
+  pages: VsmComputePipe
+  bin: VsmComputePipe
+  number: VsmComputePipe
+  place: VsmComputePipe
+  resolve: VsmComputePipe
+  headers: VsmComputePipe
   /** The groups over one transmission's buffers (`transmissionGroups`), made again for another. */
   groups?: TransmissionGroups
   buffers: Partial<Record<VsmListName, GPUBuffer>>
