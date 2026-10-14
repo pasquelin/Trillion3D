@@ -89,8 +89,8 @@ function onePixel(base: Rgba, layers: Layer[], masked = 1) {
     pixel = each.routed(pixel, masked)
   }
   // The display filter pass: the composed lit target times the tint, plus the added value.
-  const tinted = blend(TINT_EQUATIONS.multiply!, pixel.tint, rgba(display(pixel.lit), 1))
-  const shown = clamp(rgb(blend(ADD_EQUATIONS.additive!, pixel.add, tinted)))
+  const tinted = blend(TINT_EQUATIONS.multiply, pixel.tint, rgba(display(pixel.lit), 1))
+  const shown = clamp(rgb(blend(ADD_EQUATIONS.additive, pixel.add, tinted)))
   return { witness: canvas, develop: display(lit), routed: shown }
 }
 

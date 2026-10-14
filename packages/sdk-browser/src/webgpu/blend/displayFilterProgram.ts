@@ -26,7 +26,7 @@ function createProgram(device: GPUDevice) {
       primitive: { topology: 'triangle-list' },
     })
   const both: GPUTextureFormat[] = [DISPLAY_FORMAT, 'bgra8unorm']
-  const [tint, add] = [TINT_EQUATIONS.multiply!, ADD_EQUATIONS.additive!]
+  const [tint, add] = [TINT_EQUATIONS.multiply, ADD_EQUATIONS.additive]
   return {
     layout,
     sampler: device.createSampler({ magFilter: 'linear', minFilter: 'linear' }),

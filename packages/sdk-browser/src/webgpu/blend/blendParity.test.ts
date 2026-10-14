@@ -108,8 +108,8 @@ test('subtractive and multiply over paper show the witness in display space', ()
       () => [...add],
     )
     const at = filter.screen(0)
-    const tinted = blend(TINT_EQUATIONS.multiply!, filter.tint(at).canvas, shown(paper))
-    const onScreen = blend(ADD_EQUATIONS.additive!, filter.add(at).canvas, tinted)
+    const tinted = blend(TINT_EQUATIONS.multiply, filter.tint(at).canvas, shown(paper))
+    const onScreen = blend(ADD_EQUATIONS.additive, filter.add(at).canvas, tinted)
     const owed = WITNESS[mode](shown(ink), shown(paper))
     close(onScreen.slice(0, 3), owed, `${mode} display`, 1e-5)
   }
