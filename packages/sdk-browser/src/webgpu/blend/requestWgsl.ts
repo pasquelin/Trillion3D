@@ -1,6 +1,6 @@
 import { FLAG_SAMPLED } from '../../visibility/types.ts'
 import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts'
-import { BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
+import { BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -12,7 +12,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  *
  * With `lobes`, a lobed program's: a fragment whose item names a physical record (`physicalOn`,
  * `physicalWgsl.ts`) asks for its four maps' tiles after the others, each at its own UV set
- * (`physicalRequest`, `BLEND_PHYSICAL_WGSL`'s lobes core), as an opaque row does
+ * (`physicalRequest`, `BLEND_PHYSICAL_RECORD_WGSL`'s lobes core), as an opaque row does
  * (`../../visibility/shader/request.ts`).
  */
 export const blendRequestWgsl = (lobes: boolean) => {
@@ -20,7 +20,7 @@ export const blendRequestWgsl = (lobes: boolean) => {
   const own = lobes ? 'select(0u,1u,in.emissive.w!=0.0)' : ''
   return wgslBlock(
     `blendRequestWgsl(${lobes})`,
-    [TILE_REQUEST_WGSL, FEEDBACK_RULE_WGSL, ...(lobes ? [BLEND_PHYSICAL_WGSL] : [])],
+    [TILE_REQUEST_WGSL, FEEDBACK_RULE_WGSL, ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [])],
     `fn blendPick(in:VSOut,p:RequestPick,missing:bool,gradX:vec2f,gradY:vec2f)->u32{
  ${lobes ? `if(physicalOn&&p.sel>=MAP_CHOICES+${own}){return physicalRequest(p,missing,p.sel-MAP_CHOICES-${own});}\n ` : ''}if(p.sel==MAP_CHOICES){return colorRequestIndex(u32(in.emissive.w),in.uv.xy,gradX,gradY,p.next,1u,false,${sampled},missing);}
  return mapRequest(p,missing,vec2u(in.ids.x,in.ids.z),in.maps,in.uv.xy,gradX,gradY,${sampled});
