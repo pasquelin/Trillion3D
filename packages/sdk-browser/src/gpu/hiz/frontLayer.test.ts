@@ -25,12 +25,14 @@ test('an opaque scene’s level 0 is one layer: the front layer is made at the f
   const layers = (texture: GPUTexture) => texture.depthOrArrayLayers
   const opaque = hiz.level0
   assert.equal(layers(opaque), 1, 'no byte for transparents an opaque scene does not hold')
+  assert.equal(hiz.holdsFront, false)
   const depth = hiz.depth()
   const encoder = device.createCommandEncoder()
   const front = hiz.front(encoder, true)
   assert.ok(front)
   assert.equal(level0s().length, 2)
   assert.equal(layers(hiz.level0), 2, 'the opaque depth and the front depth')
+  assert.equal(hiz.holdsFront, true, 'the budget counts the layer it holds')
   assert.deepEqual(
     textureCopies.map(({ from, to, size }) => [from.texture, to.texture, size]),
     [[opaque, hiz.level0, [16, 8, 1]]],
@@ -66,6 +68,7 @@ test('a scene whose transparents come and go keeps the front layer: its fold fol
     ).length
   assert.equal(word(), 1, 'the readers fold the layer this image writes')
   assert.equal(hiz.front(encoder, false), undefined, 'no front layer this image writes')
+  assert.equal(hiz.holdsFront, true, 'kept while the glass is away')
   assert.equal(word(), 0, 'the fold reads the opaque depth alone, never the last glass')
   assert.equal(hiz.level0, glass, 'level 0 kept: nothing made, copied or bound again')
   assert.equal(hiz.depth(), depth)

@@ -38,6 +38,9 @@ export type GpuHiz = {
    *  did not write; an opaque scene's level 0 is one layer. It changes identity on every target
    *  resize. */
   front(encoder: GPUCommandEncoder, wanted: boolean): GPUTextureView | undefined
+  /** Whether level 0 holds the front layer: once an image asked it (`front`), this pyramid and
+   *  every one made after keep it, which the frame's budget counts. */
+  readonly holdsFront: boolean
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does

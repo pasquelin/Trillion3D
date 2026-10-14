@@ -144,6 +144,9 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
     front: (encoder, wanted) => hizFront(h, gpu, encoder, wanted),
+    get holdsFront() {
+      return h.front
+    },
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)
