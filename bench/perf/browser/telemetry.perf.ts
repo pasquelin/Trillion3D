@@ -1,9 +1,10 @@
 // Telemetry: frame intervals, against its oracle. The hexadecimal digest left
 // this bench: `toHex` has no engine caller (`sha256Hex` writes its own loop).
-import { frameStatistics } from '../../../packages/sdk-core/src/index.ts'
+import { frameStatistics } from '../../../packages/sdk-core/src/runtime/stats.ts'
 import { UNMEASURED } from '../../../packages/sdk-browser/src/world/diagnostic/metrics.ts'
 import { FrameProfile } from '../../../packages/sdk-browser/src/diagnostic/frameProfile.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceIntervals } from '../../oracles/browser/telemetry.ts'
 

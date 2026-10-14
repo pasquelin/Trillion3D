@@ -1,13 +1,13 @@
 // Shared tools of the foundation equivalence lines: a line of the common table, capture of a
 // raise, and the TRS decomposition read on both sides in the same form.
 import * as THREE from 'three'
-import { decomposeMatrix4 } from '../../../../packages/sdk-core/src/index.ts'
+import { decomposeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Trs.ts'
 import {
   SINGULAR_DETERMINANT,
   normalizedLinearDeterminant,
 } from '../../../../packages/math/src/matrix/singular.ts'
-import { compare } from '../../../core/index.ts'
-import type { Measurement } from '../../../core/index.ts'
+import { compare } from '../../../core/measureStress.ts'
+import type { Measurement } from '../../../kit/measureTypes.ts'
 
 // Warm-up and the round floor are the harness's (`bench/core/chrono.ts`): five samples after one
 // warm-up call spread up to 474 % run to run.

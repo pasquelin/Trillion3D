@@ -6,11 +6,11 @@ import { multiplyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
 import {
   basisMatrix4,
-  composeMatrix4,
   decomposeMatrix4,
   uniformScaleMatrix4,
 } from '../../../packages/math/src/matrix/matrix4Trs.ts'
-import { rapport } from '../../core/index.ts'
+import { composeMatrix4 } from '../../../packages/math/src/matrix/matrix4Compose.ts'
+import { rapport } from '../../core/report.ts'
 import {
   N,
   duel,

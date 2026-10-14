@@ -1,4 +1,4 @@
-import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
+import { srgbToLinear } from '../../../../packages/math/src/color/color.ts'
 import type { triangleAt } from './projection.ts'
 import { backgroundRgb, sampleLinear, sampleMap } from './math.ts'
 import { shadingNormal } from './shadingNormal.ts'

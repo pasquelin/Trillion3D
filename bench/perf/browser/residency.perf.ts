@@ -1,9 +1,10 @@
 // GPU residency bits, DAG readback and world stretch.
-import { maxStretch } from '../../../packages/sdk-core/src/index.ts'
+import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts'
 import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceUpdateResidency, residencyColumn } from '../../oracles/browser/residency.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'

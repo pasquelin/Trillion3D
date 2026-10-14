@@ -9,7 +9,7 @@ import {
   updateNodeWorldMatrix,
 } from '../../../packages/sdk-core/src/world/transform-tree/update.ts'
 import { visitSubtree } from '../../../packages/sdk-core/src/world/transform-tree/structure.ts'
-import { rapport } from '../../core/index.ts'
+import { rapport } from '../../core/report.ts'
 import { N, duel } from '../../oracles/core/three-duel.ts'
 import { buildTrees } from '../../oracles/core/three-tree.ts'
 

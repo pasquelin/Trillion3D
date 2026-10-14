@@ -2,10 +2,7 @@
 // geometry (`packages/sdk-core/src/world/geometry`): a latitude–longitude sphere stretched per axis
 // for a rock, a capped cylinder standing on the ground (a tower) and a ground grid. Pure: `gltf.ts`
 // writes them.
-import {
-  cylinder as cylinderGeometry,
-  plane,
-} from '../../../packages/sdk-core/src/world/geometry/basic.ts'
+import { cylinder, plane } from '../../../packages/sdk-core/src/world/geometry/basic.ts'
 import { sphereArrays } from '../../../packages/sdk-core/src/world/geometry/sphere.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 
@@ -46,9 +43,9 @@ function arraysOf(
 }
 
 /** A cylinder of radius `r` from y = 0 to `height`, `segments` around: `4·segments` triangles. */
-export const cylinder = (r: number, height: number, segments: number): MeshData =>
+export const tower = (r: number, height: number, segments: number): MeshData =>
   // The engine's stands on its middle: lifted by half its height onto the ground.
-  arraysOf(cylinderGeometry(r, r, height, segments), (p, at) => void (p[at + 1] += height / 2))
+  arraysOf(cylinder(r, r, height, segments), (p, at) => void (p[at + 1] += height / 2))
 
 /** A flat grid of `side` metres centred on the origin, `cells` a side: `2·cells²` triangles. */
 export function ground(side: number, cells: number): MeshData {

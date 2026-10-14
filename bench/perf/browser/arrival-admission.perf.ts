@@ -6,7 +6,9 @@ import {
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referenceAdmission,

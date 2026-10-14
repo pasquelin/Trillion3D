@@ -1,7 +1,8 @@
 // the probe batch encoded by a bounce image, and the control loop of this batch on the
 // "Bounce" stage duration measured on the GPU.
 import { bounceBatchOf, createProxyBudget } from '../../../packages/sdk-core/src/proxy/budget.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceBounceBatch, referenceBudgetSequence } from '../../oracles/core/bounce-probes.ts'
 import type { ReferenceBudget } from '../../oracles/core/bounce-probes.ts'

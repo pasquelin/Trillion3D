@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three'
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts'
-import type { Side } from '../../../packages/sdk-core/src/index.ts'
+import type { Side } from '../../../packages/sdk-core/src/contracts/material.ts'
 import { COLOUR_MAPS } from '../../../packages/sdk-core/src/world/material/material.ts'
 import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
 import type { PageSurface, SurfaceFamily } from '../../../packages/sdk-browser/src/page/surface.ts'

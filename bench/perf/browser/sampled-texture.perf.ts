@@ -1,8 +1,10 @@
 // the bytes of a sampled texture.
-import type { Texture } from '../../../packages/sdk-core/src/index.ts'
+import type { Texture } from '../../../packages/sdk-core/src/texture/contract.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { textureRgba } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceTextureRgba } from '../../oracles/browser/sampled-texture.ts'
 

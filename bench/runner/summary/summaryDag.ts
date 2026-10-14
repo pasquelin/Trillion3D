@@ -1,7 +1,7 @@
 // The DAG stalls of the measured cache, in `resume.md`: per side, the compiler's stall table
 // (`worstStalls`, the ten primitives that kept the most level-0 triangles as roots, with the cause
 // it named), as the engine's `dag-warnings` diagnostic carries it, in the compiler's order.
-import type { PrimitiveDagStall } from '../../../packages/sdk-core/src/index.ts'
+import type { PrimitiveDagStall } from '../../../packages/sdk-core/src/contracts/dag.ts'
 import type { BenchReport } from '../report/types.ts'
 import { tableLines } from '../../core/table.ts'
 

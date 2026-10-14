@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mapTexel } from '../../../../../../packages/sdk-browser/src/visibility/math.ts'
-import type { Texture, WrapMode } from '../../../../../../packages/sdk-core/src/index.ts'
+import type { Texture, WrapMode } from '../../../../../../packages/sdk-core/src/texture/contract.ts'
 import { nearestTexel } from '../../../../../../tests/gpu/texture/addressingCases.ts'
 
 const CLAMP: WrapMode = 'clamp',

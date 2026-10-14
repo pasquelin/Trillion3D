@@ -4,11 +4,13 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import {
   RequestStamps,
   collectPendingUrls,
-} from '../../../packages/sdk-browser/src/page/selection/selection.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
+} from '../../../packages/sdk-browser/src/page/selection/requests.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts'
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceCutComplete, referencePendingUrls } from '../../oracles/browser/cut-diff.ts'
 

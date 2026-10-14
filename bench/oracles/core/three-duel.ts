@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { copyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
-import { measure } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { counter, note } from '../../core/ulp.ts'
 

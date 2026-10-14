@@ -3,7 +3,7 @@
 // textures it binds (the most it can read). Facts of the encoding, not guesses of the GPU: the
 // floors the report sets against a pass's time start from them.
 
-import { hookAfter as after, onMade, type Proto } from './hook.ts'
+import { hookAfter, onMade, type Proto } from './hook.ts'
 import { describeTexture, describeView, textures, views, workgroupSize } from './passSizes.ts'
 
 /** What one pass encoded. `calls`: direct dispatches and draws of some size. `indirect`: indirect
@@ -47,15 +47,15 @@ export function installWorkHooks(
   lookup: (pass: object) => PassWork | undefined,
 ) {
   const device = g.GPUDevice.prototype
-  after(device, 'createTexture', (_s, [d], made) =>
+  hookAfter(device, 'createTexture', (_s, [d], made) =>
     textures.set(made as object, describeTexture(d as GPUTextureDescriptor)),
   )
-  after(g.GPUTexture.prototype, 'createView', (self, [d], made) => {
+  hookAfter(g.GPUTexture.prototype, 'createView', (self, [d], made) => {
     const texture = textures.get(self)
     if (texture)
       views.set(made as object, describeView(self, texture, d as GPUTextureViewDescriptor))
   })
-  after(device, 'createShaderModule', (_s, [d], made) =>
+  hookAfter(device, 'createShaderModule', (_s, [d], made) =>
     codes.set(made as object, (d as GPUShaderModuleDescriptor).code),
   )
   const pipeline = (_s: object, [d]: never[], made: unknown) => {
@@ -63,9 +63,9 @@ export function installWorkHooks(
     const size = workgroupSize(codes.get(module) ?? '', entryPoint, constants)
     onMade(made, (p) => sizes.set(p, size))
   }
-  after(device, 'createComputePipeline', pipeline)
-  after(device, 'createComputePipelineAsync', pipeline)
-  after(device, 'createBindGroup', (_s, [d], made) => {
+  hookAfter(device, 'createComputePipeline', pipeline)
+  hookAfter(device, 'createComputePipelineAsync', pipeline)
+  hookAfter(device, 'createBindGroup', (_s, [d], made) => {
     const resources = new Map<object, number>()
     for (const { resource } of (d as GPUBindGroupDescriptor).entries) {
       const r = resource as { buffer?: GPUBuffer; size?: number; offset?: number } & GPUTextureView
@@ -79,13 +79,13 @@ export function installWorkHooks(
   })
   for (const kind of ['GPUComputePassEncoder', 'GPURenderPassEncoder']) {
     const proto = g[kind].prototype
-    after(proto, 'setPipeline', (self, [pipeline]) => {
+    hookAfter(proto, 'setPipeline', (self, [pipeline]) => {
       if (!lookup(self)) return
       const state = passes.get(self)
       if (state) state.size = sizes.get(pipeline as object) ?? 0
       else passes.set(self, { size: sizes.get(pipeline as object) ?? 0, seen: new Set() })
     })
-    after(proto, 'setBindGroup', (self, [, group]) => {
+    hookAfter(proto, 'setBindGroup', (self, [, group]) => {
       const work = lookup(self)
       if (!work) return
       let state = passes.get(self)
@@ -99,7 +99,7 @@ export function installWorkHooks(
     })
     // A vertex or index buffer is read by the draws as a bound buffer is: its slice counts once.
     for (const name of ['setVertexBuffer', 'setIndexBuffer']) {
-      after(proto, name, (self, args) => {
+      hookAfter(proto, name, (self, args) => {
         const work = lookup(self)
         const buffer = (name === 'setVertexBuffer' ? args[1] : args[0]) as GPUBuffer | null
         if (!work || !buffer) return
@@ -115,7 +115,7 @@ export function installWorkHooks(
     const compute = kind === 'GPUComputePassEncoder'
     /** A direct call of `items` threads or vertices: counted when it has some. */
     const direct = (name: string, items: (a: number[]) => number) =>
-      after(proto, name, (self, args) => {
+      hookAfter(proto, name, (self, args) => {
         const work = lookup(self)
         if (!work) return
         const n = items(args as unknown as number[])
@@ -132,7 +132,7 @@ export function installWorkHooks(
     direct('draw', ([v, i = 1]) => v * i)
     direct('drawIndexed', ([v, i = 1]) => v * i)
     for (const name of ['dispatchWorkgroupsIndirect', 'drawIndirect', 'drawIndexedIndirect'])
-      after(proto, name, (self) => {
+      hookAfter(proto, name, (self) => {
         const work = lookup(self)
         if (work) {
           work.indirect++
@@ -140,7 +140,7 @@ export function installWorkHooks(
         }
       })
   }
-  after(g.GPURenderPassEncoder.prototype, 'executeBundles', (self, [bundles]) => {
+  hookAfter(g.GPURenderPassEncoder.prototype, 'executeBundles', (self, [bundles]) => {
     const work = lookup(self)
     const held = bundles as { length?: number; size?: number }
     if (work && (held.length ?? held.size ?? 1) > 0) {

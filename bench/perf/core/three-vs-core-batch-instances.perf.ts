@@ -1,19 +1,17 @@
 // Per-instance batches: identical seeded inputs; flattening belongs to the untimed oracle.
 import * as THREE from 'three'
-import {
-  boxEmpty,
-  boxUnionBatch,
-  decomposeMatrix4Batch,
-  transformPointsByMatricesBatch,
-} from '../../../packages/math/src/index.ts'
+import { boxEmpty } from '../../../packages/math/src/geometry/box.ts'
+import { boxUnionBatch } from '../../../packages/math/src/batch/batch.ts'
+import { decomposeMatrix4Batch } from '../../../packages/math/src/batch/transforms.ts'
+import { transformPointsByMatricesBatch } from '../../../packages/math/src/batch/points.ts'
 import {
   createBoxTransformLot,
   madeLot,
 } from '../../../packages/sdk-browser/src/page/decode/batch/batchRuntime.ts'
-import { rapport } from '../../core/index.ts'
-import type { Measurement } from '../../core/index.ts'
-import { duel } from '../../oracles/core/three-duel.ts'
-import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts'
+import { rapport } from '../../core/report.ts'
+import type { Measurement } from '../../kit/measureTypes.ts'
+import { duel, N } from '../../oracles/core/three-duel.ts'
+import { prepareBatchData } from '../../oracles/core/batch-duel.ts'
 
 const { mats, pts, outPts, outThreePts, oraclePts, boxes, threeBoxes } = prepareBatchData()
 const lines: Measurement[] = []

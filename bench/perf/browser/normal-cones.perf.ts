@@ -6,7 +6,8 @@ import {
   indexSourceBytes,
 } from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import {
   referenceMaterialsAndTangentsCount,
   referenceIndexSourceBytes,

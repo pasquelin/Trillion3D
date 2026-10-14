@@ -10,7 +10,7 @@ import {
   transformAffinePoint,
 } from '../../../packages/math/src/vector/vector.ts'
 import { hslToRgb, srgbToLinear } from '../../../packages/math/src/color/color.ts'
-import { rapport } from '../../core/index.ts'
+import { rapport } from '../../core/report.ts'
 import {
   N,
   SRGB_REFERENCE_GAP,

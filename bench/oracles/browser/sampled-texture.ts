@@ -1,5 +1,5 @@
 // Oracle, texture side: `packages/sdk-browser/src/visibility/types.ts:129-142`, copied as-is.
-import type { Texture } from '../../../packages/sdk-core/src/index.ts'
+import type { Texture } from '../../../packages/sdk-core/src/texture/contract.ts'
 
 /** `textureRgba`: a view and an object allocated on every sampled texel. */
 export function referenceTextureRgba(texture: Texture) {

@@ -2,7 +2,7 @@
 // (`packages/sdk-browser/src/gpu/core/selection.ts`), and what one view's uniform block holds,
 // read back field by field by the names the kernels read it by
 // (`packages/sdk-browser/src/gpu/dag/viewLayout.ts`, `uniforms.ts`).
-import { maxStretch } from '../../../packages/sdk-core/src/index.ts'
+import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { aheadViewOf } from '../../../packages/sdk-browser/src/gpu/core/aheadView.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { AHEAD_VIEW } from '../../../packages/sdk-browser/src/gpu/dag/shader/aheadWgsl.ts'

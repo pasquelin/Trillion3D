@@ -3,7 +3,7 @@
 // engine's one sampler (`packages/sdk-core/src/world/animation/sample.ts`), against `AnimationMixer.update` on the same clips, on the rigs of `support/animationRigs.ts`.
 import * as THREE from 'three'
 import { advanceMixers } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
-import { rapport } from '../../core/index.ts'
+import { rapport } from '../../core/report.ts'
 import { duel } from '../../oracles/core/three-duel.ts'
 import { FRAME, NODES, animationRigs } from './support/animationRigs.ts'
 

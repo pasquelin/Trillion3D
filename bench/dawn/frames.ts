@@ -3,8 +3,8 @@
 // next frame's, the GPU idle at both ends — in which everything it set off is counted: its passes,
 // timed on the GPU, a command buffer the engine submitted late, the main thread's busy time.
 import { performance as loop, type EventLoopUtilization } from 'node:perf_hooks'
-import type { World } from '../../packages/sdk-browser/src/index.ts'
-import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts'
+import type { World } from '../../packages/sdk-browser/src/world/core/world.ts'
+import type { GpuPassTimings } from '../../packages/sdk-core/src/contracts/metrics.ts'
 import type { BenchGpu, Counts } from './device.ts'
 import type { BenchBrowser } from './dom.ts'
 import type { FrameGpu } from './passSpans.ts'

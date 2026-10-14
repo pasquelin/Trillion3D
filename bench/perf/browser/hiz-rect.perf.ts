@@ -3,7 +3,9 @@
 // to confront; its correctness is held by `packages/sdk-browser/src/hiz/occlusion.test.ts`, and
 // the line says so rather than staying silent. `visibilityDepth` left this bench: only tests call it.
 import { hizTestRect } from '../../oracles/browser/hizOcclusion.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { rectangles, type SceneRect } from './support/scenes.ts'
 
 const rects = rectangles({ count: 20000 })

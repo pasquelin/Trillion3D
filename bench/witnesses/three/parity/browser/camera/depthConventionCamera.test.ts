@@ -22,7 +22,7 @@ import {
 } from '../../../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import { projectVisibilityVertex } from '../../../../../oracles/browser/cpu-image/projection.ts'
 import { IDENTITY_WORLD } from '../../../../../../packages/sdk-browser/src/host/matrixElements.ts'
-import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
+import { perspectiveProjection } from '../../../../../../packages/math/src/projection/camera.ts'
 
 const WIDTH = 800,
   HEIGHT = 450,

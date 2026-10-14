@@ -8,7 +8,7 @@ import { tableLines } from '../../core/table.ts'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from 'playwright'
-import { SHAPE } from '../../../packages/sdk-core/src/physics/index.ts'
+import { SHAPE } from '../../../packages/sdk-core/src/physics/layout.ts'
 import type { BodyRecord } from '../../../packages/sdk-core/src/physics/bodyRecord.ts'
 import type {
   PhysicsPart,

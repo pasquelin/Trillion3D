@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { Row } from '../report/types.ts'
 import { mib } from '../../dawn/reportText.ts'
 

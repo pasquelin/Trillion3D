@@ -1,15 +1,15 @@
 // Three.js vs sdk-core, matrix batches: n matrices per call, flat buffers, zero allocation.
 // Tested against Three's for loop on 200 000 elements, bit for bit.
 import * as THREE from 'three'
+import { composeMatrix4Batch } from '../../../packages/math/src/matrix/matrix4Compose.ts'
 import {
-  composeMatrix4Batch,
   invertMatrix4Batch,
   normalMatrix3Batch,
-} from '../../../packages/math/src/index.ts'
-import { rapport } from '../../core/index.ts'
-import type { Measurement } from '../../core/index.ts'
-import { duel, points, quaternion } from '../../oracles/core/three-duel.ts'
-import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts'
+} from '../../../packages/math/src/batch/transforms.ts'
+import { rapport } from '../../core/report.ts'
+import type { Measurement } from '../../kit/measureTypes.ts'
+import { duel, points, quaternion, N } from '../../oracles/core/three-duel.ts'
+import { prepareBatchData } from '../../oracles/core/batch-duel.ts'
 
 const BATCH = 'packages/math/src/batch/batch.ts'
 const { mats, outMats, outMatViews, outThreeMats, oracleMats } = prepareBatchData()

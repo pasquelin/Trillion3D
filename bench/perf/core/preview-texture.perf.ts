@@ -1,7 +1,9 @@
 // the geometry of a preview entry.
 import { previewGeometry } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
-import type { MeasureCase } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
+import type { MeasureCase } from '../../core/measure.ts'
 import { referenceExpectedGeometry } from '../../oracles/core/preview-texture.ts'
 
 const DIMENSIONS: [number, number][] = [

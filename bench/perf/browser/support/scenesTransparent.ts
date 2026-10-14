@@ -15,7 +15,7 @@ import { refreshBlendPlan } from '../../../../packages/sdk-browser/src/webgpu/bl
 import { buildBlendStatics } from '../../../../packages/sdk-browser/src/webgpu/blend/statics.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
-import { frustumExcludesBox } from '../../../../packages/sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../../packages/math/src/geometry/frustum/box.ts'
 
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
  *  picked from the engine's item so a renamed field fails the type check, not the bench run. */

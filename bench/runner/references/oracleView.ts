@@ -3,7 +3,7 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from 'playwright'
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { ENGINES } from '../harness/sideOptions.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'

@@ -17,13 +17,11 @@ import { parseArgs } from 'node:util'
 import { Worker, isMainThread, workerData } from 'node:worker_threads'
 import {
   PHYSICS_STEP,
-  CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
-  LAYER,
-  MOTION,
   PHYSICS_MATERIALS,
-  SHAPE,
-} from '../../packages/sdk-core/src/physics/index.ts'
+} from '../../packages/sdk-core/src/physics/options.ts'
+import { CommandWriter } from '../../packages/sdk-core/src/physics/commands.ts'
+import { LAYER, MOTION, SHAPE } from '../../packages/sdk-core/src/physics/layout.ts'
 import { summaryOf } from '../../packages/math/src/scalar/quantile.ts'
 import { Quaternion } from '../../packages/sdk-core/src/world/math/quaternion.ts'
 import { openJolt, startJolt } from '../../packages/sdk-browser/src/physics/joltModule.ts'

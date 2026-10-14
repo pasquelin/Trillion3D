@@ -10,10 +10,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
-import {
-  decomposeMatrix4,
-  transformAffinePoint,
-} from '../../../../../../packages/sdk-core/src/index.ts'
+import { decomposeMatrix4 } from '../../../../../../packages/math/src/matrix/matrix4Trs.ts'
+import { transformAffinePoint } from '../../../../../../packages/math/src/vector/vector.ts'
 
 const HOSTILE_CASES: Array<
   [

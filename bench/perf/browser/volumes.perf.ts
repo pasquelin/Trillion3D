@@ -1,8 +1,9 @@
 // Volume bench: sdk-core against Three.js.
-import { stress, rapport } from '../../core/index.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { boxCases } from './support/volumeBoxCases.ts'
 import { casTronc } from './support/volumeFrustumCases.ts'
-import { boxEmpty } from '../../../packages/sdk-core/src/index.ts'
+import { boxEmpty } from '../../../packages/math/src/geometry/box.ts'
 
 // Warm-up and the round floor are the harness's (`bench/core/chrono.ts`).
 const options = { tours: 30, budgetMs: 500 }

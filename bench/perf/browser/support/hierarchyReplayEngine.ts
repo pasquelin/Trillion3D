@@ -3,26 +3,34 @@
 // the same order and under the same form: `compare` confronts them with `Object.is`.
 import {
   addTransformNode,
-  createCameraFrame,
   createTransformTree,
-  decomposeMatrix4,
-  determinantMatrix4,
-  lookAtNode,
-  nodeWorldDirection,
-  nodeWorldPosition,
-  nodeWorldQuaternion,
-  perspectiveProjection,
-  removeTransformNode,
-  reparentTransformNode,
   setNodeAutoUpdate,
   setNodeLocalMatrix,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
+} from '../../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
+import {
+  createCameraFrame,
+  perspectiveProjection,
   updateCameraFrame,
+} from '../../../../packages/math/src/projection/camera.ts'
+import { decomposeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Trs.ts'
+import { determinantMatrix4 } from '../../../../packages/math/src/matrix/matrix4.ts'
+import { lookAtNode } from '../../../../packages/sdk-core/src/world/transform-tree/lookAt.ts'
+import {
+  nodeWorldDirection,
+  nodeWorldPosition,
+  nodeWorldQuaternion,
+} from '../../../../packages/sdk-core/src/world/transform-tree/read.ts'
+import {
+  removeTransformNode,
+  reparentTransformNode,
+} from '../../../../packages/sdk-core/src/world/transform-tree/structure.ts'
+import {
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/sdk-core/src/world/transform-tree/update.ts'
 import type { HierarchyOp, CameraSpec } from './hierarchyScenarios.ts'
 
 // Two reads the SDK does not export, written here on its own decomposition and

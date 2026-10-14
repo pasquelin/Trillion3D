@@ -4,7 +4,8 @@ import { UNIFORM_U32 } from '../../../packages/sdk-browser/src/gpu/partition/con
 import { writeSplitDouble } from '../../../packages/math/src/float/splitDouble.ts'
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referencePartitionUniform,

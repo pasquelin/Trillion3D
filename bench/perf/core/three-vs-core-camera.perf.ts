@@ -11,8 +11,8 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumPlanesFromMatrix,
 } from '../../../packages/math/src/geometry/frustum/frustum.ts'
-import { rapport } from '../../core/index.ts'
-import type { Measurement } from '../../core/index.ts'
+import { rapport } from '../../core/report.ts'
+import type { Measurement } from '../../kit/measureTypes.ts'
 import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts'
 
 const ASPECT = 1.5,

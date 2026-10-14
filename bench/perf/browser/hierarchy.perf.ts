@@ -2,8 +2,9 @@
 // Real `Object3D` and camera chains, replayed operation by operation on both sides —
 // hostile frozen chains, non-finite values, a live scene that moves frame after frame, `lookAt`
 // and degenerate projections. A single bit of delta and the bench fails.
-import { compare, rapport } from '../../core/index.ts'
-import type { MeasureCase } from '../../core/index.ts'
+import { compare } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
+import type { MeasureCase } from '../../core/measure.ts'
 import { joueNous } from './support/hierarchyReplayEngine.ts'
 import { joueThree } from './support/hierarchyReplayThree.ts'
 import { chainesFigees } from './support/hierarchyScenarios.ts'

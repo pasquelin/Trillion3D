@@ -5,7 +5,7 @@
  * is column-major and maps to the frame of `origin` (`tileViewInverse`), where points are given
  * (`toTileFrame`); `depthRows` are the render matrix's depth and w rows in that frame.
  */
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { cross, dot } from '../../../tests/gpu/math/f32Vec3.ts'
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
 

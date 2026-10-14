@@ -5,7 +5,7 @@
 // dependency: a few separable Gaussian filters, below. Checked against the metric's reference
 // implementation (version 1.7) on the fixtures of `references/imageDiff.test.ts` and on random
 // and structured images: same mean, each pixel within 3e-5.
-import { srgbToLinear } from '../../../packages/sdk-core/src/index.ts'
+import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 
 type Planes = [Float32Array, Float32Array, Float32Array]
 

@@ -1,9 +1,6 @@
 // Oracles, page-source side: `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is. No host library here: the unit tests read these.
-import type {
-  ClusterManifest,
-  GeometryPageDescriptor,
-  Page,
-} from '../../../packages/sdk-core/src/index.ts'
+import type { ClusterManifest, Page } from '../../../packages/sdk-core/src/contracts/geometry.ts'
+import type { GeometryPageDescriptor } from '../../../packages/sdk-core/src/page/contracts.ts'
 
 /** A manifest page whose optional `geometry` descriptor is present. */
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor }

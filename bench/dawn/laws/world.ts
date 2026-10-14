@@ -4,7 +4,7 @@
 // pebbles, rocks and towers at their seeded places (`scatter.ts`), each kind one shape
 // (`meshes.ts`) and one matte paint.
 import type { SceneMesh } from './gltf.ts'
-import { cylinder, ground, sphere } from './meshes.ts'
+import { tower, ground, sphere } from './meshes.ts'
 import { scatter, sideOf } from './scatter.ts'
 
 /** Metres the ground reaches past the objects' square, all around together. */
@@ -27,7 +27,7 @@ export function lawWorld(count: number) {
     },
     { name: 'pebble', data: sphere([0.15, 0.12, 0.15], 24, 16), material: matte(0.55, 0.53, 0.5) },
     { name: 'rock', data: sphere([0.9, 0.6, 0.8], 64, 40), material: matte(0.4, 0.38, 0.36) },
-    { name: 'tower', data: cylinder(1.5, 8, 64), material: matte(0.7, 0.66, 0.6) },
+    { name: 'tower', data: tower(1.5, 8, 64), material: matte(0.7, 0.66, 0.6) },
   ]
   return { meshes, placed: scatter(count) }
 }

@@ -1,7 +1,8 @@
 // Performance bench: the batches' WebAssembly kernels, each checked against its oracle, each
 // element alone by its single-element function, on the same inputs (`batchOracles.fixture.ts`).
-import { measure, rapport } from '../../core/index.ts'
-import type { MeasureCase } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
+import type { MeasureCase } from '../../core/measure.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import {
   createBoxTransformLot,

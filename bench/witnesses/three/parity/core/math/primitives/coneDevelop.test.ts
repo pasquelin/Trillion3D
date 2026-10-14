@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { boxConeRejects } from '../../../../../../../packages/sdk-core/src/index.ts'
+import { boxConeRejects } from '../../../../../../../packages/math/src/geometry/cone.ts'
 import { coneCases } from '../../../../../../oracles/core/hot-path-math.ts'
 
 /** The SHA-256 of the 300 000 verdicts, one byte each, and how many of them reject. */

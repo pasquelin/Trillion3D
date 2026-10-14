@@ -4,7 +4,7 @@ import {
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/math/src/vector/vector.ts'
 import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import type { MatrixElements } from '../../../../packages/sdk-browser/src/host/matrixElements.ts'
 import { spriteAt } from '../../../../packages/sdk-browser/src/visibility/shader/spriteWgsl.ts'

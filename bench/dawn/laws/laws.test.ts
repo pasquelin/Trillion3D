@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { exponentOf, lawName, linearFit } from './fit.ts'
 import { sceneGltf } from './gltf.ts'
-import { cylinder, ground, sphere, trianglesOf } from './meshes.ts'
+import { tower, ground, sphere, trianglesOf } from './meshes.ts'
 import { LAWS, lawOf } from './points.ts'
 import { DENSITY, KINDS, scatter, sideOf } from './scatter.ts'
 
 test('the shapes hold the triangles their sizes give', () => {
   assert.equal(trianglesOf(sphere([1, 1, 1], 24, 16)), 2 * 24 * 15)
-  assert.equal(trianglesOf(cylinder(1, 2, 64)), 4 * 64)
+  assert.equal(trianglesOf(tower(1, 2, 64)), 4 * 64)
   assert.equal(trianglesOf(ground(10, 8)), 2 * 64)
   const ball = sphere([2, 1, 3], 8, 6)
   for (let i = 0; i < ball.normals.length; i += 3)

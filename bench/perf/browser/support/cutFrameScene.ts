@@ -8,7 +8,7 @@ import {
   MANIFEST_IDENTITY,
   clusterSphere,
 } from '../../../../packages/sdk-browser/src/engine/pagesEngine.fixture.ts'
-import type { ClusterManifest } from '../../../../packages/sdk-core/src/index.ts'
+import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
 
 const CELL = 4,
   BLOCK = 4,

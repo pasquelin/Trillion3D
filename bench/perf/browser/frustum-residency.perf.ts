@@ -4,9 +4,12 @@
 // `packages/sdk-browser/src/page/selection/streamingBundles.test.ts`. Each line says so rather than
 // staying silent.
 import * as THREE from 'three'
-import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core/src/index.ts'
+import { clipPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
+import { frustumClipBox } from '../../../packages/math/src/geometry/frustum/box.ts'
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
-import { measure, rapport, stress } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
+import { stress } from '../../core/measureStress.ts'
 import { boxes, camera, type SceneBox } from './support/scenes.ts'
 import { pageRecFixture } from './support/pageRecFixture.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'

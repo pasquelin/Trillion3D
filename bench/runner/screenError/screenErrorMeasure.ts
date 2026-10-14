@@ -11,7 +11,8 @@ import {
   createCameraFrame,
   perspectiveProjection,
   updateCameraFrame,
-} from '../../../packages/math/src/index.ts'
+  focalPixels,
+} from '../../../packages/math/src/projection/camera.ts'
 import {
   addTransformNode,
   createTransformTree,
@@ -26,7 +27,7 @@ import {
 } from '../../../packages/sdk-core/src/collision/closest.ts'
 import { buildTriangleTree, type TriangleTree } from './triangleTree.ts'
 import { forEachTriangleInBox, nearestTriangleOnRay } from './triangleQuery.ts'
-import { focalPixels } from '../../../packages/math/src/projection/camera.ts'
+
 import { summaryOf } from '../../../packages/math/src/scalar/quantile.ts'
 
 /** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner

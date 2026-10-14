@@ -8,10 +8,12 @@ import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import {
   clipPlanesFromMatrix,
+  frustumPlanesFromMatrix,
+} from '../../../../../../../packages/math/src/geometry/frustum/frustum.ts'
+import {
   frustumClipBox,
   frustumExcludesBox,
-  frustumPlanesFromMatrix,
-} from '../../../../../../../packages/sdk-core/src/index.ts'
+} from '../../../../../../../packages/math/src/geometry/frustum/box.ts'
 import { box3 } from '../../../../../../oracles/core/volumes.ts'
 import {
   frustumClipBoxBefore,

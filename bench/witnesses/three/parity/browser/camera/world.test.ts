@@ -12,7 +12,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
-import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
+import { perspectiveProjection } from '../../../../../../packages/math/src/projection/camera.ts'
 import {
   enginePose,
   readCameraWorld,

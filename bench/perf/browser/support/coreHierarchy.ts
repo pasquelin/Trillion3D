@@ -3,13 +3,13 @@
 // then parent × local in the reference order. Both sides read the same position, quaternion
 // and scale, node by node.
 import * as THREE from 'three'
+import { composeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Compose.ts'
 import {
-  composeMatrix4,
   determinantMatrix4,
-  invertMatrix4,
   multiplyMatrix4,
-  normalMatrix3,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../packages/math/src/matrix/matrix4Inverse.ts'
+import { normalMatrix3 } from '../../../../packages/math/src/matrix/matrix3.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { f64, referenceNormal, trs } from './coreLine.ts'
 import {

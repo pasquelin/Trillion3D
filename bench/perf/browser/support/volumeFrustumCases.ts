@@ -2,14 +2,14 @@
 // and cone reject of `sdk-core` against Three.js, on the hostile inputs of `scenesVolumes.ts`.
 // The three-state test is also opposed to the old `boxClip` in the previous plane order:
 // reordering the planes changes no verdict. Only the "identical" column decides, bit-exact.
+import { boxConeRejects } from '../../../../packages/math/src/geometry/cone.ts'
+import { clipPlanesFromMatrix } from '../../../../packages/math/src/geometry/frustum/frustum.ts'
 import {
-  boxConeRejects,
-  clipPlanesFromMatrix,
   frustumClipBox,
   frustumExcludesBox,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/math/src/geometry/frustum/box.ts'
 import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
-import type { MeasureCase } from '../../../core/index.ts'
+import type { MeasureCase } from '../../../core/measure.ts'
 import { viewBoxes, casCones, matrices, projectionViews } from './scenesVolumes.ts'
 import type { ConeCase, ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts'
 import {

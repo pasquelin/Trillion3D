@@ -1,6 +1,7 @@
 // coplanar layer units against their golden.
 import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 
 const alea = xorshiftRandom(107)

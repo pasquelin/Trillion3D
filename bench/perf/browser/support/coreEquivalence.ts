@@ -4,16 +4,19 @@
 import * as THREE from 'three'
 import {
   crossVector3,
-  decomposeMatrix4,
-  determinantMatrix4,
   dotVector3,
-  invertMatrix4,
-  multiplyMatrix4,
-  normalMatrix3,
   transformAffinePoint,
   transformHomogeneousPoint,
-} from '../../../../packages/sdk-core/src/index.ts'
-import { parElement, type Measurement } from '../../../core/index.ts'
+} from '../../../../packages/math/src/vector/vector.ts'
+import { decomposeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Trs.ts'
+import {
+  determinantMatrix4,
+  multiplyMatrix4,
+} from '../../../../packages/math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../packages/math/src/matrix/matrix4Inverse.ts'
+import { normalMatrix3 } from '../../../../packages/math/src/matrix/matrix3.ts'
+import { parElement } from '../../../core/measure.ts'
+import type { Measurement } from '../../../kit/measureTypes.ts'
 import { chainesHostiles, lectureReference, lectureSocle } from './coreHierarchy.ts'
 import { f64, ligne, m4, referenceNormal, trsReference } from './coreLine.ts'
 import { affines, matrices, pairs, pairs32, points } from './scenesCore.ts'

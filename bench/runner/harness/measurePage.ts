@@ -1,10 +1,11 @@
 // What both measurement pages (`lighting/lightingPage.ts`, `witness/threeBarePage.ts`) do the same: the moving
 // light on its small circle, the capture sent to Node, the bytes transferred on the network.
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
-import type { MeasuredWorld } from '../../witnesses/measurement.ts'
-import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
-import type { MemoryBudgets } from '../../witnesses/measurement.ts'
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { MemoryBudgets } from '../../../packages/sdk-browser/src/residency/pools.ts'
 import type { LiveTuning, NetworkBytes } from '../report/types.ts'
 import type { LivePools } from './benchSettings.ts'
 import { residentBudget } from './poolFill.ts'

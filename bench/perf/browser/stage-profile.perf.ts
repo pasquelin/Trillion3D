@@ -2,9 +2,9 @@
 // stages, and GPU passes read by their label.
 import {
   stageQuantiles,
-  type GpuPassTimings,
   type StageQuantiles,
-} from '../../../packages/sdk-core/src/index.ts'
+} from '../../../packages/sdk-core/src/runtime/stageProfile.ts'
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import {
   addGpuPasses,
   directLightTimings,
@@ -18,7 +18,9 @@ import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
-import { measure, parElement, stress, rapport } from '../../core/index.ts'
+import { measure, parElement } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   referenceAddCpuSteps,

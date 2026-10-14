@@ -1,4 +1,5 @@
-import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
+import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { TrajectoryCheckpoint } from './trajectoryProof.ts'
 import { HOLD_FRAME_LIMIT } from '../harness/measurePage.ts'
 

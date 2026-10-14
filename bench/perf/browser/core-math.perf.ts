@@ -1,5 +1,5 @@
 // Performance bench: math foundation (sdk-core against Three.js).
-import { rapport } from '../../core/index.ts'
+import { rapport } from '../../core/report.ts'
 import { lignesEquivalence, hierarchyNodes } from './support/coreEquivalence.ts'
 import { lignesConsommateursBrowser } from './support/coreConsumersBrowser.ts'
 import './support/coreDiffs.ts'

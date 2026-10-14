@@ -2,7 +2,7 @@
 // measurer's orbit, wheel turns, camera poses, or the events a person played recorded frame by
 // frame (`recorder.js`) — in named segments, each measured and optionally captured on its own.
 import { lerp } from '../../packages/math/src/scalar/reals.ts'
-import type { World } from '../../packages/sdk-browser/src/index.ts'
+import type { World } from '../../packages/sdk-browser/src/world/core/world.ts'
 import { WORLD_SCENARIO } from './worldScenario.ts'
 import type { BenchBrowser } from './dom.ts'
 import { TAU } from '../../packages/math/src/constants.ts'

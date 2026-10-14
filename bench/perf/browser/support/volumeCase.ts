@@ -3,8 +3,9 @@
 // at the point they are concrete, and hands back one opaque, deferred `run`: the aggregate list
 // in `volumes.perf.ts` stays a single type without erasing what each case measures, and the
 // timed call itself only fires when `volumes.perf.ts` awaits it, in list order.
-import { measure } from '../../../core/index.ts'
-import type { Measurement, MeasureCase } from '../../../core/index.ts'
+import { measure } from '../../../core/measure.ts'
+import type { Measurement } from '../../../kit/measureTypes.ts'
+import type { MeasureCase } from '../../../core/measure.ts'
 
 /** Settings `measure` times under; `volumes.perf.ts` passes the same ones to every case. */
 interface ReglagesVolume {

@@ -3,7 +3,8 @@
 // redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts'
 
 const NODES = 20000

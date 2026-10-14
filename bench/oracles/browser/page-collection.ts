@@ -3,12 +3,12 @@
 import * as THREE from 'three'
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { DAG_ERROR_MODEL } from '../../../packages/sdk-core/src/contracts/base.ts'
+import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
 import {
-  DAG_ERROR_MODEL,
-  EngineError,
   primitiveUsesClusterErrors,
   type ClusterManifest,
-} from '../../../packages/sdk-core/src/index.ts'
+} from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import type { DrawSource } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import type {
   PageRec,

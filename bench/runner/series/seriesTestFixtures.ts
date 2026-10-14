@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import type { Page } from 'playwright'
 import type { RunContext } from '../report/types.ts'
 import type { Side } from '../harness/sideOptions.ts'
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 
 /** A mock Playwright `page`: `evaluate` directly returns the metrics provided to it, without
  *  ever entering a page — `measureView` (`lighting/lightingPage.ts`) does not run there. */

@@ -5,7 +5,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { World } from '../../packages/sdk-browser/src/index.ts'
+import type { World } from '../../packages/sdk-browser/src/world/core/world.ts'
 import { measureOutput } from '../core/paths.ts'
 
 /** Where a held-out validation page lies: outside the repository, never tuned against. */

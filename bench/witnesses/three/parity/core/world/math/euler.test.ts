@@ -5,9 +5,9 @@ import { Euler } from '../../../../../../../packages/sdk-core/src/world/math/eul
 import { Matrix4 } from '../../../../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { listen } from '../../../../../../../packages/sdk-core/src/world/observed.ts'
 import * as THREE from 'three'
-import { near as within } from '../../../../../../../packages/math/src/float/near.fixture.ts'
+import { near } from '../../../../../../../packages/math/src/float/near.fixture.ts'
 
-const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7)
+const close = (a: number[], b: number[]) => near(a, b, 'rotation', 1e-7)
 
 test('Euler conversion retains rotations for every order, including positive and negative poles', () => {
   for (const order of ['XYZ', 'YXZ', 'ZXY', 'ZYX', 'YZX', 'XZY']) {
@@ -63,7 +63,7 @@ test('Euler owners receive explicit writes while lazy quaternion reads stay quie
   close(value.toArray().slice(0, 3) as number[], [0.7, 0.8, 0.9])
 })
 
-const near = (actual: number, expected: number) =>
+const within = (actual: number, expected: number) =>
   assert.ok(Math.abs(actual - expected) < 1e-12, `${actual} differs from ${expected}`)
 
 test('each component getter follows a change confined to one quaternion component', () => {
@@ -75,13 +75,13 @@ test('each component getter follows a change confined to one quaternion componen
     const value = new Euler().setFromQuaternion(source)
     value._follow(source)
     source[axis] = -0.6
-    near(value[axis], -angle)
+    within(value[axis], -angle)
   }
   const source = new Quaternion(0.6, 0, 0, 0.8)
   const value = new Euler().setFromQuaternion(source)
   value._follow(source)
   source.w = -0.8
-  near(value.x, -angle)
+  within(value.x, -angle)
 })
 
 test('component setters resolve pending source changes before preserving the explicit edit', () => {
@@ -91,9 +91,9 @@ test('component setters resolve pending source changes before preserving the exp
     value._follow(source)
     source.setFromEuler(new Euler(0.2, 0.3, 0.4))
     value[axis] = 0.8
-    near(value.x, axis === 'x' ? 0.8 : 0.2)
-    near(value.y, axis === 'y' ? 0.8 : 0.3)
-    near(value.z, axis === 'z' ? 0.8 : 0.4)
+    within(value.x, axis === 'x' ? 0.8 : 0.2)
+    within(value.y, axis === 'y' ? 0.8 : 0.3)
+    within(value.z, axis === 'z' ? 0.8 : 0.4)
   }
   const source = new Quaternion()
   const value = new Euler()
@@ -101,9 +101,9 @@ test('component setters resolve pending source changes before preserving the exp
   source.setFromEuler(new Euler(0.2, 0.3, 0.4))
   value.order = 'ZYX'
   assert.equal(value.order, 'ZYX')
-  near(value.x, 0.2)
-  near(value.y, 0.3)
-  near(value.z, 0.4)
+  within(value.x, 0.2)
+  within(value.y, 0.3)
+  within(value.z, 0.4)
 })
 
 test('explicit conversions notify, silent ones do not', () => {

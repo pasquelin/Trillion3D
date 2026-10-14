@@ -2,7 +2,8 @@
 // bounding sphere of a box (Object.is), empty box included.
 import test from 'node:test'
 import * as THREE from 'three'
-import { boxTransform, sphereFromBounds } from '../../../../../../../packages/sdk-core/src/index.ts'
+import { boxTransform } from '../../../../../../../packages/math/src/geometry/box.ts'
+import { sphereFromBounds } from '../../../../../../../packages/math/src/geometry/sphere.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import { aPlat, box3 } from '../../../../../../oracles/core/volumes.ts'
 

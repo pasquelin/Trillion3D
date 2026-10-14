@@ -10,7 +10,7 @@ import {
   boxIsEmpty,
   boxTransform,
   boxUnion,
-} from '../../../../../../../packages/sdk-core/src/index.ts'
+} from '../../../../../../../packages/math/src/geometry/box.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import { aPlat, box3 } from '../../../../../../oracles/core/volumes.ts'
 

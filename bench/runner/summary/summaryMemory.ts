@@ -1,5 +1,5 @@
 import { go, mo } from './summaryTextures.ts'
-import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
+import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { BenchReport } from '../report/types.ts'
 import { tableLines } from '../../core/table.ts'
 

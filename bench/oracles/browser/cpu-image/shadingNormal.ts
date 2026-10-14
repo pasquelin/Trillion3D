@@ -4,12 +4,12 @@ import {
   copyScaledVector3,
   crossVector3,
   lengthSqVector3,
-  matrixWindingCw,
-  normalMatrix3,
   normalizeVector3,
   scaleVector3,
   transformDirectionVector3,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/math/src/vector/vector.ts'
+import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
+import { normalMatrix3 } from '../../../../packages/math/src/matrix/matrix3.ts'
 import type { triangleAt } from './projection.ts'
 import { attr2, sampleLinear } from './math.ts'
 import type { VisMaterial } from '../../../../packages/sdk-browser/src/visibility/materialType.ts'

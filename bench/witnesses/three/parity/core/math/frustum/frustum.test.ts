@@ -11,7 +11,7 @@ import * as THREE from 'three'
 import {
   clipPlanesFromMatrix,
   frustumPlanesFromMatrix,
-} from '../../../../../../../packages/sdk-core/src/index.ts'
+} from '../../../../../../../packages/math/src/geometry/frustum/frustum.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 
 /** The six planes of the independent extraction copied flat, normal then constant, read in

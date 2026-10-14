@@ -8,7 +8,9 @@ import {
   indexManifestBundles,
   indexManifestPages,
 } from '../../../packages/sdk-browser/src/scene/manifestPageIndex.ts'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts'
 import { referenceExactPagesBounds } from '../../oracles/browser/bounds-and-index.ts'
@@ -17,7 +19,8 @@ import {
   referenceIndexManifestPages,
 } from '../../oracles/browser/manifest-index.ts'
 import { manifesteEtScene } from './support/scenesLoading.ts'
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../packages/sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../packages/sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 
 /** A box the reference returns, or the engine's six numbers. */
 type Box = { readonly min: { toArray(): number[] }; readonly max: { toArray(): number[] } }

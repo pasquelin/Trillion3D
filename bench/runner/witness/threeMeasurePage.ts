@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { lamp, octets } from './threeBareScene.ts'
 import { createWitnessRenderer, readWitnessImage } from './threeRenderer.ts'
 import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts'
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
 import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 

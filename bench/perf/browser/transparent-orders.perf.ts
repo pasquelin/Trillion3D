@@ -1,7 +1,9 @@
 // GEO-2: transparents in a few orders — the blend passes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { measure, stress, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { stress } from '../../core/measureStress.ts'
+import { rapport } from '../../core/report.ts'
 import { FACES, glisse, ITEMS, regimes, type Frame } from './support/scenesTransparent.ts'
 import { callsOf, sceneDe } from './support/transparentRounds.ts'
 

@@ -4,7 +4,8 @@
 // own `worldMs` bound reads on a 0.1 ms one. This is the measurement a WebAssembly kernel is gated
 // on: a loop under 0.1 ms per image keeps its JavaScript form.
 import * as THREE from 'three'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { changedWorlds } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'

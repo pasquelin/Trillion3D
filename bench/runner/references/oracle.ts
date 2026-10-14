@@ -13,7 +13,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { launchChrome } from '../harness/chrome.ts'
 import { ENGINES, resolveCache } from '../harness/sideOptions.ts'
 import { VIEWS, poseAt } from '../trajectory/poses.ts'

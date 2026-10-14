@@ -5,7 +5,8 @@ import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixtur
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { material, porte } from './scenesCut.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../../packages/sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in

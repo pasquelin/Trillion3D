@@ -1,6 +1,7 @@
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts'
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
-import { measure, rapport } from '../../core/index.ts'
+import { measure } from '../../core/measure.ts'
+import { rapport } from '../../core/report.ts'
 import { referenceAttachments } from '../../oracles/browser/view-frame.ts'
 const DUMMY_TEXTURE = {} as GPUTexture
 const buildSurfaces = (): SurfaceBuffer => {

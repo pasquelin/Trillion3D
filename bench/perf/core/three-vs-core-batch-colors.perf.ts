@@ -1,8 +1,8 @@
 // Colour batches compare the same N RGB colours, i.e. 3N scalar channels, in both directions.
 import * as THREE from 'three'
-import { linearToSrgbBatch, srgbToLinearBatch } from '../../../packages/math/src/index.ts'
-import { rapport } from '../../core/index.ts'
-import type { Measurement } from '../../core/index.ts'
+import { linearToSrgbBatch, srgbToLinearBatch } from '../../../packages/math/src/batch/color.ts'
+import { rapport } from '../../core/report.ts'
+import type { Measurement } from '../../kit/measureTypes.ts'
 import {
   N,
   SRGB_REFERENCE_GAP,

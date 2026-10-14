@@ -15,7 +15,7 @@ import { SPHERE_FLOATS, referenceClusterSphere } from '../../../oracles/browser/
 import { affines, matrices, points } from './scenesCore.ts'
 import { enregistrements } from './scenesCoreConsumers.ts'
 import { ligne } from './coreLine.ts'
-import { parElement } from '../../../core/index.ts'
+import { parElement } from '../../../core/measure.ts'
 
 // One light, so `store.count` holds and `noteResidenceChange` actually notes a change; its
 // change list's `representationChanged` is replaced per case below to capture the bounds it is

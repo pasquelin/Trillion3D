@@ -9,9 +9,9 @@ import {
   boxIsEmpty,
   boxTransform,
   boxUnion,
-  sphereFromBounds,
-} from '../../../../packages/sdk-core/src/index.ts'
-import type { MeasureCase } from '../../../core/index.ts'
+} from '../../../../packages/math/src/geometry/box.ts'
+import { sphereFromBounds } from '../../../../packages/math/src/geometry/sphere.ts'
+import type { MeasureCase } from '../../../core/measure.ts'
 import { hierarchicalBoxes } from './scenesHierarchies.ts'
 import { boxes, matrices } from './scenesVolumes.ts'
 import { aPlat, box3 } from '../../../oracles/core/volumes.ts'

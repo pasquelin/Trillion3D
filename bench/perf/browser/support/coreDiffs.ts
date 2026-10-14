@@ -4,14 +4,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SRGBToLinear } from 'three/src/math/ColorManagement.js'
+import { composeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Compose.ts'
+import { decomposeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Trs.ts'
 import {
-  composeMatrix4,
-  decomposeMatrix4,
   determinantMatrix4,
   linearPartDeterminant,
-  linearToSrgb,
-  srgbToLinear,
-} from '../../../../packages/sdk-core/src/index.ts'
+} from '../../../../packages/math/src/matrix/matrix4.ts'
+import { linearToSrgb, srgbToLinear } from '../../../../packages/math/src/color/color.ts'
 import { hierarchyNodes } from './coreEquivalence.ts'
 import { SRGB_REFERENCE_GAP } from '../../../oracles/core/three-duel.ts'
 import { dotVector3, length3 } from '../../../../packages/math/src/vector/vector.ts'

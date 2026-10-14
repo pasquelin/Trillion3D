@@ -1,18 +1,20 @@
 // Three.js vs sdk-core, vector and box batches: n elements per call, zero allocation.
 // Tested against Three's for loop on 200 000 elements, bit for bit.
 import * as THREE from 'three'
+import { SPHERE_VALUES } from '../../../packages/math/src/batch/strides.ts'
+import { boxUnionBatch } from '../../../packages/math/src/batch/batch.ts'
 import {
-  SPHERE_VALUES,
-  boxUnionBatch,
   frustumKeepsBoxBatch,
   sphereFromBoundsBatch,
+} from '../../../packages/math/src/batch/culling.ts'
+import {
   transformDirectionsBatch,
   transformPointsBatch,
-} from '../../../packages/math/src/index.ts'
-import { rapport } from '../../core/index.ts'
-import type { Measurement } from '../../core/index.ts'
-import { duel } from '../../oracles/core/three-duel.ts'
-import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts'
+} from '../../../packages/math/src/batch/points.ts'
+import { rapport } from '../../core/report.ts'
+import type { Measurement } from '../../kit/measureTypes.ts'
+import { duel, N } from '../../oracles/core/three-duel.ts'
+import { prepareBatchData } from '../../oracles/core/batch-duel.ts'
 
 const BATCH = 'packages/math/src/batch/batch.ts'
 const {
