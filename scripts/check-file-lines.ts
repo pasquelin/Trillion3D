@@ -1,7 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
-import { gitPaths } from './git-paths.ts'
-import { isTestModule, unitOf } from './repository-files.ts'
+import { changedFiles, isTestModule, repositoryFiles, unitOf } from './repository-files.ts'
 
 export const MAX_LINES = 200
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
@@ -29,23 +27,6 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
 export const keepsLineBound = (file: string): boolean =>
   !unitOf(file) || isTestModule(file) || file.endsWith('/index.ts') || file.endsWith('/index.mts')
 
-/**
- * `-z` is an option, not a path. Placed after the `--` that opens the list of files, it is
- * read as a path to filter: `diff --name-only <ref> -- -z` then returns no names, and the
- * line check declared "no files modified" whatever we change. It is therefore inserted before
- * the separator, or at the end of arguments when there is none.
- */
-export function nulSeparated(args: string[]): string[] {
-  const separator = args.indexOf('--')
-  return separator === -1
-    ? [...args, '-z']
-    : [...args.slice(0, separator), '-z', ...args.slice(separator)]
-}
-
-function nulPaths(args: string[]): Promise<string[]> {
-  return gitPaths(nulSeparated(args))
-}
-
 export function lineCount(source: string): number {
   if (!source) return 0
   return source.split('\n').length - Number(source.endsWith('\n'))
@@ -69,20 +50,8 @@ export function lineLimitViolations(
 
 async function main(): Promise<void> {
   const changedOnly = process.argv.includes('--changed')
-  const paths = new Set(await nulPaths(['ls-files', '-co', '--exclude-standard']))
-  const changed = new Set(
-    changedOnly
-      ? [
-          ...(await nulPaths([
-            'diff',
-            '--name-only',
-            process.env.TRILLION3D_BASE_REF ?? 'develop',
-            '--',
-          ])),
-          ...(await nulPaths(['ls-files', '--others', '--exclude-standard'])),
-        ]
-      : [...paths],
-  )
+  const paths = new Set(repositoryFiles())
+  const changed = changedOnly ? await changedFiles() : paths
   const lines = new Map(
     [...paths]
       .filter((file) => sourceFile.test(file) && existsSync(file))
@@ -98,4 +67,4 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()
+if (import.meta.main) await main()

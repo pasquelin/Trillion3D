@@ -2,24 +2,9 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-/**
- * What the release build of the compiler reads beside the list its binary prints, relative to its
- * crate: the message catalogue it embeds and the physics cook's sources `build.rs` hashes. Always
- * inputs, so one newer than the binary is enough. The Jolt submodule itself is left out — a change
- * there is a new commit, already in the key — and so is anything a cook could write.
- */
-const READ_BESIDE = [
-  '../sdk-node/src/messages/messages.json',
-  '../physics-jolt-wasm/cook',
-  '../physics-jolt-wasm/src/blob.h',
-  '../physics-jolt-wasm/src/mesh.h',
-  '../physics-jolt-wasm/src/softSettings.h',
-  '../physics-jolt-wasm/src/words.h',
-  '../physics-jolt-wasm/CMakeLists.txt',
-]
-
-/** The cargo configuration, whose C and C++ flags the build hashes: outside every crate folder. */
-const CARGO_CONFIG = '../../.cargo/config.toml'
+/** The message catalogue the compiler embeds, from its crate: read by the release build but left out
+ *  of its hash on purpose (no cache byte depends on it, `messages.rs`), so not in the list it prints. */
+const CATALOGUE = '../sdk-node/src/messages/messages.json'
 
 /** In a crate's folder, its build products and installs: never an input. */
 const PRODUCTS = new Set(['target', 'node_modules'])
@@ -151,17 +136,24 @@ export function sourceNewerThan(
 ): string | null {
   const built = modified(binary)
   if (!built || !modified(join(crate, 'Cargo.toml'))) return null
-  for (const input of READ_BESIDE) {
-    const newer = firstNewer(join(crate, input), built.mtimeMs)
-    if (newer) return newer
-  }
   const { listing: read, lastGood } = listOf(binary, built.mtimeMs, ask)
-  const folders = (read ?? lastGood)?.folders ?? LINKED_FOLDERS
-  const walked = folders.map((folder) => join(crate, folder))
-  const newer = [join(crate, CARGO_CONFIG), ...walked].reduce<string | null>(
-    (found, path) => found ?? firstNewer(path, built.mtimeMs, product),
-    null,
-  )
+  const known = read ?? lastGood
+  const folders = known?.folders ?? LINKED_FOLDERS
+  // The inputs outside every crate folder — the catalogue, and of the hashed files the cargo
+  // configuration and the physics cook's sources — are in no walk: each, newer, is enough.
+  const inside = (file: string) =>
+    folders.some((folder) =>
+      folder === '.' ? !file.startsWith('../') : file.startsWith(`${folder}/`),
+    )
+  const beside = [CATALOGUE, ...(known?.files ?? []).filter((file) => !inside(file))]
+  const newerOf = (paths: string[], skip?: (name: string) => boolean) =>
+    paths.reduce<string | null>(
+      (found, path) => found ?? firstNewer(join(crate, path), built.mtimeMs, skip),
+      null,
+    )
+  const outside = newerOf(beside)
+  if (outside) return outside
+  const newer = newerOf(folders, product)
   if (!newer || !read) return newer
   const inputs = read.files.map((file) => join(crate, file))
   return inputs.find((input) => (modified(input)?.mtimeMs ?? 0) > built.mtimeMs) ?? null

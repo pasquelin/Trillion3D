@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, type PathLike } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { gitPathsSync } from './git-paths.ts'
+import { gitPaths, gitPathsSync } from './git-paths.ts'
 import { localPaths } from './local-files.ts'
 
 /** The repository's root folder, the one place every script, bench and test reads it from. */
@@ -36,6 +36,19 @@ export function repositoryFiles(directory = REPOSITORY_ROOT): string[] | null {
       ),
     ),
   ]
+}
+
+/** The base a branch is compared with: the one the pre-push hook names, else `develop`. */
+const BASE_REF = process.env.TRILLION3D_BASE_REF ?? 'develop'
+
+/** The files a branch changes against its base, untracked ones included. A rename is its two
+ *  paths, the one left and the one taken, for every gate alike. */
+export async function changedFiles(directory = REPOSITORY_ROOT): Promise<Set<string>> {
+  const [diff, untracked] = await Promise.all([
+    gitPaths(['diff', '--name-only', '--no-renames', '-z', BASE_REF, '--'], directory),
+    gitPaths(['ls-files', '--others', '--exclude-standard', '-z'], directory),
+  ])
+  return new Set([...diff, ...untracked])
 }
 
 /** The `.gitignore` local paths as globs: a bare name at any depth, a path from the root. */

@@ -5,6 +5,7 @@
 // and does not move on a missing, zero, or non-finite sample. Constants come from the contract so
 // that the oracle does not silently drift.
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 export function referenceBounceBatch(ceiling: number, load: number) {
   return Math.max(1, Math.round(ceiling * load))
@@ -22,7 +23,6 @@ export interface ReferenceBudget {
 export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
   const { budgetSmoothing, budgetFloor, probeShare } = BOUNCE_SETTINGS
   const measured = (ms: number | null): ms is number => ms !== null && Number.isFinite(ms) && ms > 0
-  const bornee = (f: number) => Math.min(1, Math.max(budgetFloor, f))
   const state: { load: number; lastMs: number | null; samples: number } = {
     load: 1,
     lastMs: null,
@@ -47,8 +47,8 @@ export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
         Math.min(budgetMs - spent, budgetMs * probeShare),
         budgetMs * budgetFloor,
       )
-      const voulue = bornee((state.load * left) / ms)
-      state.load = bornee(state.load + (voulue - state.load) * budgetSmoothing)
+      const voulue = clamp((state.load * left) / ms, budgetFloor, 1)
+      state.load = clamp(state.load + (voulue - state.load) * budgetSmoothing, budgetFloor, 1)
     },
   }
 }

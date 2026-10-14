@@ -19,7 +19,6 @@
 //                five groups the tree holds today are named there, and a sixth fails. The file is
 //                written by hand as groups are broken; `--write-baseline` prints the ones the tree
 //                holds, for that shrinking, and a name the tree does not have is reported too.
-import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { isTestModule, sourceFilesOf, unitOf } from './repository-files.ts'
 import { normalized } from './check-calls-normalize.ts'
@@ -154,7 +153,7 @@ export function newRings(rings: string[][], baseline: readonly string[]): string
   return rings.filter((ring) => !known.has(ringKey(ring)))
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const maintained = (file: string) => !!unitOf(file) && !isTestModule(file)
   const inMath = (file: string) => file.startsWith(MATH_UNIT + '/')
   // One read of the tree: the maintained modules for the rings, the maths with its tests for layering.

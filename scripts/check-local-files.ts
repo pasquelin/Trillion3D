@@ -1,4 +1,3 @@
-import { pathToFileURL } from 'node:url'
 import { REPOSITORY_ROOT } from './repository-files.ts'
 import { gitPathsSync } from './git-paths.ts'
 
@@ -10,7 +9,7 @@ export function trackedIgnoredFiles(root: string): string[] {
   )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const files = trackedIgnoredFiles(REPOSITORY_ROOT)
   if (files.length) {
     console.error(`Ignored files must stay untracked:\n${files.join('\n')}`)

@@ -13,10 +13,13 @@ import { normalMatrix3 } from '../../../../packages/math/src/matrix/matrix3.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { f64, referenceNormal, trs } from './coreLine.ts'
 import {
+  EXTREME_SCALES,
   HOSTILE_POSITIONS,
+  HOSTILE_ROTATIONS,
   MIRRORED_SCALES,
   hostileChains,
   hostilePose,
+  randomRotation,
 } from './hostileHierarchy.ts'
 
 /** A node on both sides: the reference object and the foundation buffers. */
@@ -64,19 +67,15 @@ function metAJour(nodes: HierarchyNode[]) {
 }
 
 /** Hostile scales: negative on one axis or three, non-uniform, zero, extremes. */
-const SCALES = [...MIRRORED_SCALES, [1e-300, 1, 1], [1e150, 1e150, 1e150], [1, 1e-8, 1], [7, 7, 7]]
+const SCALES = [...MIRRORED_SCALES, ...EXTREME_SCALES, [1, 1e-8, 1], [7, 7, 7]]
 const alea = xorshiftRandom(0x41e7)
-const tourne = () =>
-  new THREE.Quaternion(alea() - 0.5, alea() - 0.5, alea() - 0.5, alea() - 0.5).normalize().toArray()
-/** Rotations: identity, arbitrary, half-turn (`w = 0`), tiny angle. */
+/** Rotations: identity, half-turn (`w = 0`), quarter-turn, tiny angle, arbitrary. */
 const ROTATIONS = [
-  [0, 0, 0, 1],
-  tourne(),
-  tourne(),
-  [0, 1, 0, 0],
-  [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
+  ...HOSTILE_ROTATIONS,
   new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), 1e-9).toArray(),
-  tourne(),
+  randomRotation(alea),
+  randomRotation(alea),
+  randomRotation(alea),
 ]
 /** Positions: origin, negative zeros, ordinary, extremes. */
 const POSITIONS = [...HOSTILE_POSITIONS, [alea() * 1000, alea() * 1000, alea() * 1000]]

@@ -7,7 +7,6 @@
 // those of a `packages/math` function, whatever its name and its parameters' names, is a copy of
 // the maths, a declared oracle aside (`scripts/lint-maths.ts`). `pnpm run check:helpers`;
 // `scripts/check-helpers.test.ts` plants a copy.
-import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts'
 import { NATIVE_CRATES } from './native-crates.ts'
@@ -139,7 +138,7 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
     .map(([, group]) => group)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const files = sourceFilesOf(/\.(?:m?ts|rs)$/, REPOSITORY_ROOT)
   const groups = duplicateHelpers(files)
   for (const group of groups)

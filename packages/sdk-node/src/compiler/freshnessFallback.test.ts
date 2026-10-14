@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rm, utimes } from 'node:fs/promises'
+import { mkdir, rm, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { sourceNewerThan } from './freshness.mts'
 import { linkedCrates, stubBinary } from './freshness.fixture.ts'
@@ -76,6 +76,25 @@ test("an older build's kept listing names the folders a newer unlisting build wa
       sourceNewerThan(binary, root, () => null),
       source,
     )
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})
+
+// Behaviour: a file the build hashed outside every crate folder — a physics cook header — is read
+// from the binary's own list, by its date: newer, the compiler is stale, with no list of its own.
+test('a hashed file beside the crates, newer, reports the compiler stale', async () => {
+  const { packages, root, binary } = await linkedCrates()
+  const header = join(packages, 'physics-jolt-wasm/src/layout.h')
+  const inputs = (binary: string) =>
+    stubBinary().inputs(binary).concat(['../physics-jolt-wasm/src/layout.h'])
+  try {
+    await mkdir(join(packages, 'physics-jolt-wasm/src'), { recursive: true })
+    await writeFile(header, '')
+    await utimes(header, 1_000, 1_000)
+    assert.equal(sourceNewerThan(binary, root, inputs), null)
+    await utimes(header, 3_000, 3_000)
+    assert.equal(sourceNewerThan(binary, root, inputs), header)
   } finally {
     await rm(packages, { recursive: true, force: true })
   }

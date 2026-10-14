@@ -1,12 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
 import { relatedTests } from './affected-tests.ts'
 import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts'
-import { gitPaths } from './git-paths.ts'
 import { goldenChecks } from './golden-checks.ts'
 import { heavyStep } from './heavy-lock.ts'
 import { pnpmCommand } from './only-pnpm.ts'
-import { repositoryFiles } from './repository-files.ts'
+import { changedFiles, repositoryFiles } from './repository-files.ts'
 import { run } from './run.ts'
 import { compileCaches } from './scene-caches.ts'
 import { changedTypeErrors, tsProjects } from './ts-projects.ts'
@@ -24,17 +22,12 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 }
 
 async function main(): Promise<void> {
-  const base = process.env.TRILLION3D_BASE_REF ?? 'develop'
-  const [diff, untracked, paths] = await Promise.all([
-    gitPaths(['diff', '--name-only', '--no-renames', '-z', base, '--']),
-    gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
-    gitPaths(['ls-files', '-z']),
-  ])
-  const changed = new Set([...diff, ...untracked])
+  const changed = await changedFiles()
+  const paths = repositoryFiles() ?? []
   const existing = existingChangedFiles(changed)
   const code = isCodeChange([...changed])
   const files = new Map(
-    [...new Set([...paths, ...existing])]
+    paths
       .filter((file) => code && sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   )
@@ -44,9 +37,7 @@ async function main(): Promise<void> {
   if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
   // A changed reference value runs the golden tests that read it, Rust and TypeScript: a reader
   // not yet added to the index (untracked, not ignored) is a candidate too.
-  const golden = withTests
-    ? goldenChecks(changed, [...new Set([...paths, ...untracked])])
-    : { crates: [], tests: [] }
+  const golden = withTests ? goldenChecks(changed, paths) : { crates: [], tests: [] }
   const testFiles = !withTests
     ? []
     : [...new Set([...relatedTests(files, changed), ...golden.tests])]
@@ -123,4 +114,4 @@ function runRust(): void {
   run('node', ['scripts/native.ts', 'lint'])
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()
+if (import.meta.main) await main()

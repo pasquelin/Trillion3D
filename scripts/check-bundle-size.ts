@@ -10,7 +10,6 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { BUNDLE_ENTRY } from './build-bundle.ts'
 import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts'
@@ -80,7 +79,7 @@ export function ciNode(root = '.') {
   return /node-version:\s*'([\d.]+)'/.exec(action)?.[1]
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const ci = ciNode()
   const ciBinary = join(
     process.env.NVM_DIR ?? join(homedir(), '.nvm'),

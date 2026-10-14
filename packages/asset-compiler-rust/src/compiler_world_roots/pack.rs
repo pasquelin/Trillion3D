@@ -15,7 +15,7 @@ use super::cells::object_dependencies;
 use super::dag_records::encode_dag;
 use super::merge::WorldDag;
 use super::pages::encode_pages;
-use super::records::{digest, encode_table, Bundle, Page, Top};
+use super::records::{encode_table, Bundle, Page, Top};
 use super::top::{held_by, refuse_over_budget};
 use super::*;
 use crate::compiler_primitive_bundle::index_bytes;
@@ -86,7 +86,7 @@ pub(super) fn pack_world(
             bytes: bytes.len(),
             count: members.len(),
             dependencies: closed[index].clone(),
-            sha256: digest(bytes),
+            sha256: digest_bytes(bytes),
         });
     }
     let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();

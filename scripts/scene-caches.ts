@@ -107,4 +107,4 @@ export function compileCaches(required = true, scenes = Object.values(TEST_SCENE
   })
 }
 
-if (import.meta.filename === process.argv[1]) compileCaches()
+if (import.meta.main) compileCaches()

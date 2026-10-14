@@ -4,7 +4,6 @@
 // the declared oracles (`scripts/lint-maths.ts`) are not read. `pnpm run check:wgsl-library`;
 // `scripts/check-wgsl-library.test.ts` plants a declaration.
 import { matchesGlob } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import type { WgslDecl } from '../packages/math/src/wgsl/decl.ts'
 import { WGSL_LIBRARY } from '../packages/math/src/wgsl/library.fixture.ts'
@@ -43,7 +42,7 @@ export function libraryRedeclarations(
   return [...new Set(found)]
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const found = libraryRedeclarations(sourceFilesOf(/\.[cm]?ts$/))
   for (const line of found)
     console.error(`${line} is the WGSL library's: list its declaration instead of writing it`)

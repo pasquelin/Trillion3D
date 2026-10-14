@@ -166,7 +166,7 @@ export function assertOpensUnderCap(
   assert.ok(opened.peakMb <= capMb)
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (import.meta.main) {
   const [manifest, cap] = process.argv.slice(2)
   const result = await openUnderCap(manifest, Number(cap))
   process.stdout.write(`${JSON.stringify(result)}\n`)

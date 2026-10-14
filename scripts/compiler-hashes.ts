@@ -171,7 +171,7 @@ function compare(paths: string[], collidersMayDiffer: boolean, againstBase: bool
   return equal
 }
 
-if (import.meta.filename === process.argv[1]) {
+if (import.meta.main) {
   const [first, ...rest] = process.argv.slice(2)
   if (first === '--compare') {
     const flags = rest.filter((a) => a.startsWith('--'))

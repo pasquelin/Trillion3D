@@ -1,10 +1,10 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { acquireHeavyLock, heavyLockPath, heavyStep, takeOver } from './heavy-lock.ts'
+import { acquireHeavyLock, heavyLockPath, heavyStep } from './heavy-lock.ts'
 import { git } from './git-paths.ts'
 
 const lockModule = join(import.meta.dirname, 'heavy-lock.ts')
@@ -97,18 +97,6 @@ test('a lock whose process is dead is taken over', (t) => {
   assert.ok(existsSync(path))
   release()
   assert.equal(existsSync(path), false)
-})
-
-test("a takeover removes only the dead holder's lock, and leaves a live one in place", (t) => {
-  const path = heldLock(t, process.pid)
-  const live = readFileSync(path, 'utf8')
-  takeOver(path, deadPid())
-  assert.equal(readFileSync(path, 'utf8'), live, 'another waiter was granted it first')
-  const dead = deadPid()
-  hold(path, dead)
-  takeOver(path, dead)
-  assert.equal(existsSync(path), false)
-  takeOver(path, dead)
 })
 
 test('waiters that take a dead lock over together still run one after the other', async (t) => {

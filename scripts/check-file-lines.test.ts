@@ -1,25 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unitOf } from './repository-files.ts'
-import { keepsLineBound, lineCount, lineLimitViolations, nulSeparated } from './check-file-lines.ts'
-
-test('the null separator is an option, never a path behind the `--`', () => {
-  // The fixed defect: `-z` placed at the end of arguments became the only filtered path, and the list
-  // of modified files returned empty whatever we change.
-  assert.deepEqual(nulSeparated(['diff', '--name-only', 'develop', '--']), [
-    'diff',
-    '--name-only',
-    'develop',
-    '-z',
-    '--',
-  ])
-  assert.deepEqual(nulSeparated(['ls-files', '-co', '--exclude-standard']), [
-    'ls-files',
-    '-co',
-    '--exclude-standard',
-    '-z',
-  ])
-})
+import { keepsLineBound, lineCount, lineLimitViolations } from './check-file-lines.ts'
 
 test('counts physical lines, including an unterminated final line', () => {
   assert.equal(lineCount('one\ntwo\n'), 2)

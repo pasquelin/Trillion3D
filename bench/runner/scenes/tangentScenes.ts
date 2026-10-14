@@ -18,7 +18,7 @@
 // (`tests/gpu/webgpu/page-tangents.gpu.ts`).
 // =====================================================================================
 import { cpSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { ASSETS } from '../assets/scene.ts'
 import { sceneGltfFile } from '../assets/assetsCatalogue.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
@@ -101,5 +101,4 @@ function writeTangentScenes() {
   process.stdout.write(`node bench/runner/assets/assets.ts --only ${names.join(',')}\n`)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename))
-  writeTangentScenes()
+if (import.meta.main) writeTangentScenes()

@@ -6,7 +6,6 @@
 // name is reported on line 0. `pnpm run check:webgpu-only`.
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { repositoryFiles, REPOSITORY_ROOT } from './repository-files.ts'
 
 const join = (...pieces: string[]) => pieces.join('')
@@ -103,7 +102,7 @@ export function glHits(directory?: string): Hit[] {
   return hits
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const hits = glHits(process.argv[2])
   for (const hit of hits) console.error(`${hit.file}:${hit.line}: ${hit.match}`)
   if (hits.length) process.exitCode = 1

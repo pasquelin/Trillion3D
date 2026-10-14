@@ -32,7 +32,7 @@ export function publierRapport(source: string, dest: string): string {
   writeFileSync(join(reports, 'index.json'), JSON.stringify(index) + '\n')
   return folder
 }
-if (import.meta.filename === process.argv[1]) {
+if (import.meta.main) {
   const flags = parseArgs(process.argv.slice(2))
   const from = resolve(flags.get('from') ?? measureOutput('global', 'report-data'))
   const target = flags.get('to')

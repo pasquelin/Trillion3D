@@ -14,7 +14,6 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
@@ -117,7 +116,7 @@ async function measureCache(full: string) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const full = process.argv[2]
   if (!full) throw new Error('usage: pageQuantization.ts <cache>/native/full')
   console.log(JSON.stringify(await measureCache(full), null, 2))

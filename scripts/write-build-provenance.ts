@@ -1,7 +1,6 @@
 import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts'
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve, relative, basename } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { filesUnder, posixPath } from './repository-files.ts'
 
 export async function fingerprintBuild(
@@ -19,7 +18,7 @@ export async function fingerprintBuild(
   return { hash: sha256(JSON.stringify(modules)), modules }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const directory = resolve('dist')
   const provenance = {
     version: 1,

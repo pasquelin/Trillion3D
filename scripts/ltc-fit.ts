@@ -23,7 +23,6 @@
  * A cook tool, never loaded at run time: `node scripts/ltc-fit.ts` prints the table
  * `ltcTable.ts` keeps, about two minutes of fitting.
  */
-import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
 import { unit } from '../packages/math/src/vector/vectorTuple.ts'
 import { ggxDistribution, ggxVisibility } from '../packages/sdk-core/src/lighting/ggxLobe.ts'
@@ -173,5 +172,4 @@ export function fitLtcTable(size: number, side: number) {
   return table
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
-  console.log(encodeLtcTable(fitLtcTable(LTC_SIZE, 24)))
+if (import.meta.main) console.log(encodeLtcTable(fitLtcTable(LTC_SIZE, 24)))

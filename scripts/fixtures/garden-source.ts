@@ -5,22 +5,7 @@ import { geometry } from '../../packages/sdk-core/src/world/geometry/index.ts'
 import type { Geometry } from '../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { crossVector3 } from '../../packages/math/src/vector/vector.ts'
 import { hypot3 } from '../../packages/math/src/float/hypot.ts'
-
-interface GltfBufferView {
-  buffer: number
-  byteOffset: number
-  byteLength: number
-  target: number
-}
-
-interface GltfAccessor {
-  bufferView: number
-  componentType: number
-  count: number
-  type: 'VEC3' | 'SCALAR'
-  min: number[]
-  max: number[]
-}
+import { bufferPacker } from './gltf.ts'
 
 interface GltfMesh {
   name: string
@@ -39,34 +24,9 @@ interface GltfNode {
 }
 
 export async function writeGarden(directory: string) {
-  const chunks: Buffer[] = [],
-    views: GltfBufferView[] = [],
-    accessors: GltfAccessor[] = [],
-    meshes: GltfMesh[] = [],
+  const { views, accessors, chunks, accessor, byteLength } = bufferPacker(0)
+  const meshes: GltfMesh[] = [],
     nodes: GltfNode[] = []
-  let byteLength = 0
-  function accessor(values: number[], size: number, target: number): number {
-    const data = target === 34963 ? new Uint32Array(values) : new Float32Array(values)
-    const bufferView = views.length
-    views.push({ buffer: 0, byteOffset: byteLength, byteLength: data.byteLength, target })
-    chunks.push(Buffer.from(data.buffer))
-    byteLength += data.byteLength
-    const min = Array(size).fill(Infinity),
-      max = Array(size).fill(-Infinity)
-    values.forEach((v, i) => {
-      min[i % size] = Math.min(min[i % size], v)
-      max[i % size] = Math.max(max[i % size], v)
-    })
-    accessors.push({
-      bufferView,
-      componentType: target === 34963 ? 5125 : 5126,
-      count: values.length / size,
-      type: size === 3 ? 'VEC3' : 'SCALAR',
-      min,
-      max,
-    })
-    return accessors.length - 1
-  }
   function surface(
     name: string,
     material: number,
@@ -83,8 +43,8 @@ export async function writeGarden(directory: string) {
       const x = a.map((n, i) => n - p[i]),
         y = b.map((n, i) => n - p[i])
       const n = crossVector3([0, 0, 0], x, y)
-      // `hypot3`, the bits of `Math.hypot`, not `length3`: the committed normals' bounds in
-      // `garden.gltf` hold its bits.
+      // `hypot3`, the bits of `Math.hypot`, not `length3`: the committed normals in `garden.bin`
+      // hold its bits.
       const length = hypot3(n[0], n[1], n[2]) || 1
       positions.push(...p)
       normals.push(...n.map((c) => c / length))
@@ -119,10 +79,9 @@ export async function writeGarden(directory: string) {
     const indices = accessor(
       Array.from({ length: positions.length / 3 }, (_, i) => i),
       1,
-      34963,
     )
-    const position = accessor(positions, 3, 34962),
-      normal = accessor(normals, 3, 34962)
+    const position = accessor(positions, 3),
+      normal = accessor(normals, 3)
     meshes.push({
       name,
       primitives: [{ attributes: { POSITION: position, NORMAL: normal }, indices, material }],
@@ -178,7 +137,7 @@ export async function writeGarden(directory: string) {
       doubleSided: true,
       pbrMetallicRoughness: { baseColorFactor, metallicFactor: 0.15, roughnessFactor: 0.4 },
     })),
-    buffers: [{ uri: 'garden.bin', byteLength }],
+    buffers: [{ uri: 'garden.bin', byteLength: byteLength() }],
     bufferViews: views,
     accessors,
   }
@@ -186,5 +145,5 @@ export async function writeGarden(directory: string) {
   await writeFile(resolve(directory, 'garden.bin'), Buffer.concat(chunks))
   await writeFile(resolve(directory, 'garden.gltf'), JSON.stringify(gltf))
 }
-if (process.argv[1] === import.meta.filename)
+if (import.meta.main)
   await writeGarden(resolve(process.argv[2] ?? 'tests/fixtures/scenes/kinetic-garden/source'))

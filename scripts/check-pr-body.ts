@@ -8,7 +8,6 @@
 // pull request body, and GITHUB_TOKEN + GITHUB_REPOSITORY so that it reads the issue itself; in
 // the CI a missing token fails the check rather than skip the Proof lines.
 import { readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
 import { issuesApi, namedIssues, prose, withoutComments } from './close-named-issues.ts'
 import { GENERATED_FOOTER } from './check-commit-identity.ts'
 
@@ -135,7 +134,7 @@ async function issueBodies(body: string): Promise<string[]> {
   return Promise.all(namedIssues(body).map(async (issue) => (await api(`${issue}`)).body ?? ''))
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   const body = readFileSync(0, 'utf8')
   const draft = process.env.PR_DRAFT === 'true'
   // A draft is still under review, so its issue is not read yet.

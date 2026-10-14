@@ -13,13 +13,13 @@
 // bench's `overview` view flies over it.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { parseArgs } from '../harness/flags.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
-import { boxFromPoints } from '../../../packages/math/src/geometry/box.ts'
 import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
+import { bufferPacker } from '../../../scripts/fixtures/gltf.ts'
 import { groundHeight, groundTile, lathe, PROPS, type ShapeMesh } from './aerialModel.ts'
 
 /** The world: `TILES`² ground tiles of `TILE` metres, `CELLS`² quads each, `RELIEF` metres of relief. */
@@ -41,49 +41,16 @@ type Node = Record<string, unknown>
 
 /** The binary chunk and the accessors of every mesh, one primitive each. */
 function meshTables(meshes: { name: string; material: number; shape: ShapeMesh }[]) {
-  const chunks: Buffer[] = [],
-    bufferViews: Node[] = [],
-    accessors: Node[] = []
-  let offset = 0
-  const view = (data: Float32Array | Uint32Array, target: number) => {
-    const bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
-    chunks.push(bytes)
-    bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: bytes.length, target })
-    offset += bytes.length
-    return bufferViews.length - 1
-  }
-  const accessor = (entry: Node) => accessors.push(entry) - 1
+  const { views, accessors, chunks, accessor } = bufferPacker(0)
   const gltfMeshes = meshes.map(({ name, material, shape }) => {
-    const count = shape.positions.length / 3,
-      box = new Float64Array(6)
-    boxFromPoints(box, 0, shape.positions, 0, count)
-    const min = Array.from(box.subarray(0, 3)),
-      max = Array.from(box.subarray(3, 6))
     const attributes = {
-      POSITION: accessor({
-        bufferView: view(shape.positions, 34962),
-        componentType: 5126,
-        type: 'VEC3',
-        count,
-        min,
-        max,
-      }),
-      NORMAL: accessor({
-        bufferView: view(shape.normals, 34962),
-        componentType: 5126,
-        type: 'VEC3',
-        count,
-      }),
+      POSITION: accessor(shape.positions, 3),
+      NORMAL: accessor(shape.normals, 3),
     }
-    const indices = accessor({
-      bufferView: view(shape.indices, 34963),
-      componentType: 5125,
-      type: 'SCALAR',
-      count: shape.indices.length,
-    })
+    const indices = accessor(shape.indices, 1)
     return { name, primitives: [{ attributes, indices, material }] }
   })
-  return { binary: Buffer.concat(chunks), bufferViews, accessors, meshes: gltfMeshes }
+  return { binary: Buffer.concat(chunks), bufferViews: views, accessors, meshes: gltfMeshes }
 }
 
 /** The whole scene for `seed`: its glTF, its binary, and what it counts. */
@@ -181,4 +148,4 @@ function main() {
   )
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) main()
+if (import.meta.main) main()
