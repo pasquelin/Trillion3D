@@ -64,13 +64,7 @@ export function createTreeTable(
   // Sampled by the culling and the rays, written by the host and by the refit's storage binding.
   const usage =
     GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.STORAGE_BINDING
-  const table = createRecordTexture(
-    device,
-    TREE_TABLE,
-    Math.max(1, treeNodeCount(tree)),
-    usage,
-    make,
-  )
+  const table = createRecordTexture(device, TREE_TABLE, treeNodeCount(tree), usage, make)
   const nodeTarget = table.target('Node'),
     alwaysTarget = table.target('Always')
   if (tree) {

@@ -18,7 +18,7 @@ import { LIMITS, cut, region, surface, writes } from './proxyInstances.fixture.t
 const proxyOn = (device: GPUDevice, packed: PackedDag) => {
   const usage =
     GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
-  const worlds = createRecordTexture(device, WORLD_TABLE, Math.max(1, packed.worldCount), usage)
+  const worlds = createRecordTexture(device, WORLD_TABLE, packed.worldCount, usage)
   return createProxyInstances({ device, packed, frames: { worlds } })
 }
 

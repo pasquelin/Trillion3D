@@ -76,12 +76,8 @@ export function createRowClosure(
   const flush = (table: StructureTable) => {
     const usage =
       GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
-    structures ??= createRecordTexture(
-      device,
-      STRUCTURE_TABLE,
-      Math.max(1, table.words),
-      usage,
-      (d, bytes) => make(d, bytes, structures?.texture),
+    structures ??= createRecordTexture(device, STRUCTURE_TABLE, table.words, usage, (d, bytes) =>
+      make(d, bytes, structures?.texture),
     )
     if (sent < table.count && !structures.hold(table.words)) return false
     const target = structures.target('Word')
