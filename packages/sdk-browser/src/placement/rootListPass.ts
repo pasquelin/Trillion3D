@@ -16,7 +16,7 @@ import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIden
 import { passParams, writePassParams } from '../gpu/core/passParams.ts'
 
 /** The first `count` words of `words` into `held`, made again when they outgrow it
- *  (`sizedBuffer`): the buffer that holds them. */
+ *  (`sizedBuffer`, four words at least: a binding is never empty): the buffer that holds them. */
 export function sendWords(
   device: GPUDevice,
   held: GPUBuffer | undefined,
@@ -25,8 +25,8 @@ export function sendWords(
   label: string,
 ) {
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    buffer = sizedBuffer(device, held, count * 4, usage, label)
-  device.queue.writeBuffer(buffer, 0, words, 0, count)
+    buffer = sizedBuffer(device, held, Math.max(4, count) * 4, usage, label)
+  if (count) device.queue.writeBuffer(buffer, 0, words, 0, count)
   return buffer
 }
 
@@ -114,11 +114,7 @@ export const rootListEntries = (
   reads: readonly GPUBufferBinding[],
 ) =>
   sequentialEntries([
-    liveBuffer(
-      () => list.params[g].buffer,
-      undefined,
-      () => list.params[g].words.byteLength,
-    ),
+    liveBuffer(() => list.params[g].buffer),
     ...reads,
     liveBuffer(() => (g ? rt.compose?.gpu?.rankList : list.list) ?? list.absent),
   ])

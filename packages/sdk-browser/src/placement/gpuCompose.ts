@@ -15,7 +15,7 @@
  *
  * The temporal motion of a linked root is the CPU's to the word (`../taa/motion.ts`): the motion
  * pass computes it from the root's composed single-precision world and the one the GPU holds for it
- * at the last accumulated image, as the temporal pass decides this image (`composedMotion.ts`). That
+ * at the last accumulated image, as the temporal pass decides this image (`composedMotionPass.ts`). That
  * decision is a uniform written before the motion pass is encoded into the image's command buffer
  * (`composedMotionPass.ts`), as the CPU motion's own write is: every reader of the motion sees it.
  *

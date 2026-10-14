@@ -32,9 +32,8 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
     locals,
     parentOf,
     parents: undefined as GPUBuffer | undefined,
-    /** The roots pass's parameters and the worlds pass's (`passParams`). */
-    rootParams: passParams('Trillion3D compose params'),
-    worldParams: passParams('Trillion3D compose world params'),
+    /** The parameters the worlds, roots and motion passes read alike (`passParams`). */
+    params: passParams('Trillion3D compose params'),
     previous,
     motionMode,
     /** The composed roots and their rows as the passes read them (`sendList`). */
@@ -51,8 +50,7 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
       locals.destroy()
       parentOf.destroy()
       this.parents?.destroy()
-      this.rootParams.buffer?.destroy()
-      this.worldParams.buffer?.destroy()
+      this.params.buffer?.destroy()
       previous.destroy()
       motionMode.destroy()
       this.rankList?.destroy()

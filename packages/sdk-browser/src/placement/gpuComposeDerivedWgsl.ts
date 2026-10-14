@@ -21,6 +21,7 @@ import { affineAxis, dBoxAffine } from '../../../math/src/wgsl/doubleAffine.ts'
 import { dIsFinite } from '../../../math/src/wgsl/doubleRound.ts'
 import { dIsNan } from '../../../math/src/wgsl/doubleWords.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
+import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { LOD_BIT, LOD_INPUT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
@@ -108,7 +109,7 @@ fn composeBox(rank:u32,at:u32,world:array<vec2u,16>){
  *  the world, the radii, the radius of the root's world box, the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
-  [splitDouble, affineAxis, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
+  [splitDouble, toF32, affineAxis, STRETCH_DOUBLE_WGSL, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
   `
 fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
  for(var axis=0u;axis<3u;axis++){

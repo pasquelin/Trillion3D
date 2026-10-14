@@ -16,7 +16,7 @@ test('a still frame sends the roots pass no parameter, one block whatever the wo
     true,
   )
   frame()
-  const block = rt.compose!.gpu!.rootParams.buffer
+  const block = rt.compose!.gpu!.params.buffer
   assert.ok(block, 'the roots pass ran')
   assert.equal(block.size, 16, 'one block of four words')
   const params = () => writes.filter((write) => write.buffer === block).length

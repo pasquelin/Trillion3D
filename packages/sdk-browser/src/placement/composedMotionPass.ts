@@ -1,13 +1,14 @@
 /**
  * THE LINKED PLACEMENTS' MOTION (`gpuCompose.ts`), in the image's own command buffer. The roots
  * pass goes before every cut in a command buffer submitted at once (`rootPasses.ts`), before the
- * temporal pass decides this image: the motion it bound is written here, after the decision
- * (`decideComposedMotion`), so the uniform it reads is the decided one, in queue order.
+ * temporal pass decides this image: the decision is written here, then the motion pass encoded, so
+ * the uniform it reads is the decided one, in queue order.
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { composeGroup } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_MOTION_PASS } from '../stage/passLabels.ts'
-import { decideComposedMotion, MOTION_KEEP, MOTION_RESET, MOTION_SCAN } from './composedMotion.ts'
+import { MOTION_KEEP, MOTION_RESET, MOTION_SCAN } from './composedMotionWgsl.ts'
 import { composeKernels } from './gpuComposeFrame.ts'
 import { motionEntries } from './gpuComposeEntries.ts'
 import { dispatchGroup } from './rootListPass.ts'
@@ -26,13 +27,24 @@ export function encodeComposedMotion(
   history: boolean,
   scan: boolean,
 ) {
-  const mode = !history ? MOTION_RESET : scan ? MOTION_SCAN : MOTION_KEEP
-  decideComposedMotion(rt, device, eye, mode)
   const state = rt.compose,
-    gpu = state?.gpu,
-    listed = state?.rankList.set.count ?? 0
-  if (!state || !gpu?.rankList || !listed || state.frame !== rt.run.frame) return
+    gpu = state?.gpu
+  if (!state || !gpu || state.frame !== rt.run.frame) return
   if (!state.motionBound || state.motionBound !== rt.gpu.temporal?.motion.buffer) return
+  const mode = !history ? MOTION_RESET : scan ? MOTION_SCAN : MOTION_KEEP
+  state.motionMode[0] = mode
+  packDoubles(state.motionMode, 2, eye, 0, 3)
+  device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
+  // What the pass leaves: a restart takes every world as reference with no motion; a compared
+  // image takes them too, its motion identity where the reference was current already; a kept one
+  // writes identity and keeps the reference (`COMPOSE_MOTION_WGSL`).
+  if (mode === MOTION_RESET) state.previousCurrent = state.motionIdentity = true
+  else if (mode === MOTION_SCAN) {
+    state.motionIdentity = state.ranCurrent
+    state.previousCurrent = true
+  } else state.motionIdentity = true
+  const listed = state.rankList.set.count
+  if (!gpu.rankList || !listed) return
   const pipeline = composeKernels.motion(device).get(),
     held = gpu.motionGroup
   held.identity.entries[0] ??= motionEntries(rt, gpu)

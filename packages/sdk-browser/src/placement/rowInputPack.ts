@@ -24,8 +24,9 @@ const INPUT_CENTRE = 0,
 export const INPUT_LOD = 12
 /** The bits' double, which the shader reads as one integer word. */
 export const INPUT_FLAGS = INPUT_LOD + LOD_INPUT.flags
-/** The bit of the flags word a row holding a page sets: a row without one has every derived word
- *  zero — its sphere, its corners — and its detail drawn by every page. */
+/** The bit of the flags word a row holding a page sets, past the detail's (`LOD_BIT`), OR-ed in: a
+ *  row without one has every derived word zero — its sphere, its corners — and its detail drawn by
+ *  every page. */
 export const ROW_HAS_RECORD = 32
 
 /** A row's box, flat, as the growth by its reach reads it. */
@@ -76,7 +77,7 @@ export function rowInputs(
     into[o + INPUT_HALF + axis] = (max[axis] - min[axis]) / 2 + reach
   growInto(into, o + INPUT_BOX, min, max, reach)
   if (lod) rowLodInputs(into, o + INPUT_LOD, rec, root, ready, childReady)
-  into[o + INPUT_FLAGS] += ROW_HAS_RECORD
+  into[o + INPUT_FLAGS] = into[o + INPUT_FLAGS] | ROW_HAS_RECORD
 }
 
 /** The inputs `scratch` holds, packed at word `base` of `out` as the GPU reads them: each double two

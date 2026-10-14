@@ -45,11 +45,7 @@ export const castsBound = (rt: WebgpuPagesRuntime) =>
 /** The pass's entries for its dispatch `g` (`DERIVE_ROWS_WGSL`), read live. */
 export const rowEntries = (rt: WebgpuPagesRuntime, gpu: RowWordsGpu, g: number) =>
   sequentialEntries([
-    liveBuffer(
-      () => gpu.params[g].buffer,
-      undefined,
-      () => gpu.params[g].words.byteLength,
-    ),
+    liveBuffer(() => gpu.params[g].buffer),
     liveBuffer(() => rt.rootWorlds!.worlds),
     liveBuffer(() => rt.vis.pageTable),
     liveBuffer(() => gpu.frame[0] ?? gpu.absent[0]),
