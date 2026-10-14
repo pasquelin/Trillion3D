@@ -70,7 +70,7 @@ function joue(items: ReturnType<typeof item>[]) {
         feedback: { buffer: {} },
       },
       mapsSampler: {},
-      materialTable: { view: {} },
+      materialTable: { view: {}, viewFor: () => ({}) },
     },
     gpu: {
       // The front depth the blends write (`frontAttachment`).

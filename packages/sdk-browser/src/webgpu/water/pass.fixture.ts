@@ -172,7 +172,11 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       .filter((rank) => rank >= 0)
   const rt = {
     // A textured scene: its pipelines write the feedback.
-    vis: { blendPipelines: anyPipelines(), writesFeedback: true, materialTable: {} },
+    vis: {
+      blendPipelines: anyPipelines(),
+      writesFeedback: true,
+      materialTable: { viewFor: () => undefined },
+    },
     gpu,
     capture: { capturing: false },
     lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
