@@ -6,7 +6,13 @@ import { uniformSlots } from '../../residency/pools.ts'
 import { TEXTURE_EVICTION_PASS } from '../../stage/passLabels.ts'
 import { POOL_MAX_LAYERS, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { TILE_BURST, TILE_SORT_WGSL } from './evictSortWgsl.ts'
-import { createQueueCuts, TILE_QUEUES, TILE_QUEUE_WORDS, type TileQueueCut } from './queueCut.ts'
+import {
+  createQueueCuts,
+  TILE_QUEUE_BYTES,
+  TILE_QUEUES,
+  TILE_QUEUE_WORDS,
+  type TileQueueCut,
+} from './queueCut.ts'
 import type { TileSlotUse } from './slotUse.ts'
 
 /** Words of a lane's uniform: its first place, its places, the clock, its queue's first word. */
@@ -36,9 +42,12 @@ export function createTileEvictions(device: GPUDevice) {
   // The sort's words, then its scratch over the most places a lane pool holds.
   const sortBytes = poolSortBytes(POOL_MAX_LAYERS * TILES_PER_LAYER, TILE_BURST)
   const sortWords = buffer('counts', sortBytes, GPUBufferUsage.STORAGE)
-  const cuts = createQueueCuts((bytes) =>
-    buffer('queues', bytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC),
+  const queues = buffer(
+    'queues',
+    TILE_QUEUE_BYTES,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   )
+  const cuts = createQueueCuts(queues)
   const slots = uniformSlots(device.limits, TILE_QUEUES, UNIFORM_WORDS)
   const uniform = buffer('uniforms', slots.bytes, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
   const words = new Uint32Array(slots.bytes / 4)
@@ -89,15 +98,7 @@ export function createTileEvictions(device: GPUDevice) {
         const pool = record.pools[q]
         if (!pool) continue
         const a = Math.floor(q / lanes)
-        kit.bind(
-          pass,
-          a,
-          atlases[a].slotUse.buffer,
-          sortWords,
-          cuts.buffer,
-          uniform,
-          slots.offset(q),
-        )
+        kit.bind(pass, a, atlases[a].slotUse.buffer, sortWords, queues, uniform, slots.offset(q))
         kit.encode(pass, pool.tiles)
       }
       pass.end()
@@ -106,7 +107,7 @@ export function createTileEvictions(device: GPUDevice) {
     },
     destroy() {
       sortWords.destroy()
-      cuts.buffer.destroy()
+      queues.destroy()
       uniform.destroy()
     },
   }

@@ -16,7 +16,7 @@ import { PICK_CYCLE } from './pickCycle.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { feedbackBuffers } from './feedbackBuffers.ts'
-import type { TileQueueCut } from './queueCut.ts'
+import { TILE_QUEUE_BYTES, type TileQueueCut } from './queueCut.ts'
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
@@ -99,7 +99,7 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
     (mapped, staging, generation) => {
       // A queue names places, never ranks: read whatever the generation.
       const record = stagedOf(staging)
-      if (record.cut) record.cut.read(new Uint32Array(mapped, record.at, record.cut.bytes / 4))
+      if (record.cut) record.cut.read(new Uint32Array(mapped, record.at, TILE_QUEUE_BYTES / 4))
       if (generation !== gen.generation) return
       const { capacity, words } = gen
       let slot = record.came
@@ -151,10 +151,10 @@ export function createWebgpuTileFeedback(device: GPUDevice, entries: number): We
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),
     encode(encoder, cut) {
       if (encoded) return
-      const target = ring.take(gen.generation, gen.listBytes + (cut?.bytes ?? 0))
+      const target = ring.take(gen.generation, gen.listBytes + (cut ? TILE_QUEUE_BYTES : 0))
       if (!target) return
       encoder.copyBufferToBuffer(gen.list, 0, target, 0, gen.listBytes)
-      if (cut) encoder.copyBufferToBuffer(cut.buffer, 0, target, gen.listBytes, cut.bytes)
+      if (cut) encoder.copyBufferToBuffer(cut.buffer, 0, target, gen.listBytes, TILE_QUEUE_BYTES)
       const record = stagedOf(target)
       record.cut = cut
       record.at = gen.listBytes
