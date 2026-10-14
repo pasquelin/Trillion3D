@@ -21,7 +21,7 @@ import type { SessionDeformation } from '../../deformation/session.ts'
 import { writeRowDeformation } from '../../deformation/outputs.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import { packedRowBase, rowIndexCount } from './pageRow.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { PAGE_INFO, levelDiagnostic } from '../../visibility/pageInfo.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type PageRowResources = MaterialLayers & {
@@ -131,7 +131,7 @@ function writeRow(
   )
   ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
-  floats[base + PAGE_INFO.at.pad1] = rec.role === 'coarse' ? 1 : 0
+  floats[base + PAGE_INFO.at.pad1] = levelDiagnostic(rec)
   // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
   // layer 0, one calculation source for the hardware path and the software raster alike.
   ints[base + PAGE_INFO.at.depthBias] = depthLayerUnits(rec.depthLayer)

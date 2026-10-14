@@ -1,8 +1,4 @@
 import { requestFrameTargets } from '../prepare/targetGrant.ts'
-import { ROW_WORDS } from '../../../visibility/types.ts'
-import { projectedPageError } from '../../../page/selection/diagnostic.ts'
-import { rootOf, rootOfPacked } from '../../../page/selection/placements.ts'
-import { screenErrorRatio } from '../../../diagnostic/colors.ts'
 import { viewProj } from '../helpers.ts'
 import { taaRenderMatrix } from '../../../taa/frame.ts'
 import { abandonFrameEncoder } from './encoder.ts'
@@ -20,6 +16,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
+import { writeRowDiagnostics } from './rowDiagnostic.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -54,38 +51,19 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * Brings the row table up to date, once an image and before anything reads it — the deformation,
- * the cut, the raster: the table made, the screen-error view's words written, then every reader of
- * the row table's dirty marks followed — draw records, mobility, the occlusion history, the rows
- * pass's inputs and rows — and the rows uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
+ * the cut, the raster: the table made, the rows' diagnostic words written (`rowDiagnostic.ts`), then
+ * every reader of the row table's dirty marks followed — draw records, mobility, the occlusion
+ * history, the rows pass's inputs and rows — and the rows uploaded, the marks cleared. A reader
+ * skipped would keep another occupant's words (#198). Each
  * costs the rows that changed. An image with no visibility row follows them too: the blended
  * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
  * being held.
  */
 export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
-  const { run, vis, timing } = rt,
-    { rows } = rt.layout,
-    { viewport } = rt.setup
+  const { vis, timing } = rt
   timing.encodeCounts.itemsUploaded = 0
   ensurePageTable(rt, device)
-  if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
-    for (let row = 0; row < rows.packedCount; row++) {
-      const rec = rows.packedRecs[row]
-      if (!rec) continue
-      rows.pageTableFloats[row * ROW_WORDS + 56] = screenErrorRatio(
-        projectedPageError(
-          rec,
-          rootOf(
-            rt.layout.selectionRoots,
-            rootOfPacked(rt.layout.placement, rows.packedPageIndex[row]),
-          ).world,
-          cam,
-          viewport,
-        ),
-        run.diagnosticPixelError,
-      )
-      rows.markRowWords(row)
-    }
-  }
+  writeRowDiagnostics(rt, cam)
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
   forgetRewrittenRows(rt)
