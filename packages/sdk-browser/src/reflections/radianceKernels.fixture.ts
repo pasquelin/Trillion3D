@@ -4,6 +4,21 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { heldImage } from './radiance.ts'
+import type { encodeRadiancePyramid } from './radianceBuild.ts'
+
+/** A radiance pyramid of `levels` over `width × height` as `encodeRadiancePyramid` reads it: its
+ *  level 0 the view `view`, no image held, no group built. */
+export const fakePyramid = (levels: number, width: number, height: number, view: unknown = {}) =>
+  ({
+    levels,
+    width,
+    height,
+    image: { view },
+    held: heldImage(),
+    build: { identity: createWebgpuBindIdentity(2), slots: [] },
+  }) as unknown as Parameters<typeof encodeRadiancePyramid>[2]
 
 export type Image = { width: number; height: number; texels: number[][] }
 export const image = (

@@ -4,9 +4,8 @@
 // the image's energy — and folds the drawn image, its coverage held within one, into its hash.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
+import { fakePyramid, image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 
 /** The frame's HDR target, its three levels the pyramid's (`hdrTargetDescriptor`). */
 const HDR = { mipLevelCount: 3, createView: () => ({}) }
@@ -22,14 +21,7 @@ function firstDispatch(size: [number, number]) {
   }
   const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
   const pipelines = {} as Parameters<typeof encodeRadiancePyramid>[3]
-  const pyramid = {
-    levels: 3,
-    width: size[0],
-    height: size[1],
-    image: { view: {} },
-    held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
-    build: { identity: createWebgpuBindIdentity(2), slots: [] },
-  } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+  const pyramid = fakePyramid(3, size[0], size[1])
   const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
   encodeRadiancePyramid(
     pass as unknown as GPUComputePassEncoder,
@@ -162,14 +154,7 @@ function firstPipelines(images: [number, number, number][]) {
     setBindGroup() {},
     dispatchWorkgroups() {},
   } as unknown as GPUComputePassEncoder
-  const pyramid = {
-    levels: 3,
-    width: 64,
-    height: 64,
-    image: { view: {} },
-    held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
-    build: { identity: createWebgpuBindIdentity(2), slots: [] },
-  } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+  const pyramid = fakePyramid(3, 64, 64)
   const device = { createBindGroup: () => ({}) } as unknown as GPUDevice
   const inputs = { texture: HDR, view: {}, hash: {} } as unknown as RadianceInputs
   return images.map(([width, height, m]) => {

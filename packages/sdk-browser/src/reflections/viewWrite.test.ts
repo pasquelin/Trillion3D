@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
-import type { HeldImage } from './radiance.ts'
+import { heldImage } from './radiance.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
@@ -39,12 +39,7 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   const viewProjection = perspectiveProjection(new Float64Array(16), 60, 2, 0.1, 1)
   const { device, buffer, held: sent } = viewDevice()
   const write = createReflectionViewWriter(device, buffer)
-  const held: HeldImage = {
-    valid: false,
-    viewProjection: new Float64Array(16).fill(2),
-    size: [200, 100],
-    still: false,
-  }
+  const held = heldImage({ viewProjection: new Float64Array(16).fill(2), size: [200, 100] })
   const frame = {
     viewProjection,
     size: [400, 300] as const,
@@ -96,12 +91,7 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
 test("the slab follows the projection: a perspective's depth at infinity, an orthographic one's step", () => {
   const slab = (viewProjection: number[], size: readonly [number, number]) => {
     const { device, buffer, held: sent } = viewDevice()
-    const held: HeldImage = {
-      valid: false,
-      viewProjection: new Float64Array(16),
-      size: [0, 0],
-      still: false,
-    }
+    const held = heldImage()
     createReflectionViewWriter(device, buffer)(
       { viewProjection, size, depthDrawn: true, proxyError: 0 },
       held,
@@ -127,12 +117,12 @@ test('a still view with transparents writes its view once: the front pass sets a
   // the transparents' front surface, image after image, sends the same words.
   const { device, buffer, held: sent } = viewDevice()
   const write = createReflectionViewWriter(device, buffer)
-  const held: HeldImage = {
+  const held = heldImage({
     valid: true,
     viewProjection: new Float64Array(16).fill(1),
     size: [64, 32],
     still: true,
-  }
+  })
   const frame = {
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
@@ -153,12 +143,12 @@ test('a still view with transparents writes its view once: the front pass sets a
 test('the reflections’ turn and quiet images are the view’s, and a frozen view sends nothing', () => {
   const { device, buffer, held: sent } = viewDevice()
   const write = createReflectionViewWriter(device, buffer)
-  const held: HeldImage = {
+  const held = heldImage({
     valid: true,
     viewProjection: new Float64Array(16).fill(1),
     size: [64, 32],
     still: true,
-  }
+  })
   const frame = {
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,

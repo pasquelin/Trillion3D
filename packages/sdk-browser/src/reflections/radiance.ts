@@ -76,6 +76,15 @@ export type HeldImage = {
   still: boolean
 }
 
+/** A held image of `fields`, by default none: not valid, no view-projection, no size, not still. */
+export const heldImage = (fields: Partial<HeldImage> = {}): HeldImage => ({
+  valid: false,
+  viewProjection: new Float64Array(16),
+  size: [0, 0],
+  still: false,
+  ...fields,
+})
+
 /** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
  *  past level 0 of the frame's, whose level 0 the frame's targets count (`frameTargetBytes`). */
 export function radianceBytes(width: number, height: number) {
@@ -110,12 +119,7 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
       minFilter: 'linear',
       mipmapFilter: 'linear',
     }),
-    held: {
-      valid: false,
-      viewProjection: new Float64Array(16),
-      size: [0, 0],
-      still: false,
-    } as HeldImage,
+    held: heldImage(),
     /** The build's groups (`buildGroups`) for each of the HDR targets it was made over, by the
      *  slot of their identity: the two take turns, each finds its groups held. */
     build: {

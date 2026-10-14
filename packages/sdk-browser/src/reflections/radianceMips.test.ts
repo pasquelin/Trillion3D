@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { fakePyramid } from './radianceKernels.fixture.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
@@ -22,14 +22,7 @@ test("the build reads and writes the levels of the frame's HDR target, mip by mi
   const device = {
     createBindGroup: ({ entries }: GPUBindGroupDescriptor) => void groups.push([...entries]),
   } as unknown as GPUDevice
-  const pyramid = {
-    levels: 5,
-    width: 64,
-    height: 64,
-    image: { view: 'previous' },
-    held: { valid: false, viewProjection: new Float64Array(16), size: [0, 0], still: false },
-    build: { identity: createWebgpuBindIdentity(2), slots: [] },
-  } as unknown as Parameters<typeof encodeRadiancePyramid>[2]
+  const pyramid = fakePyramid(5, 64, 64, 'previous')
   const pass = {
     setPipeline() {},
     setBindGroup() {},
