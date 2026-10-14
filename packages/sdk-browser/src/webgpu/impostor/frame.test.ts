@@ -136,7 +136,11 @@ test('a card out of the view asks no tile and leaves its root to the card', asyn
 
 /** `bench` with a second baked mesh beside the first, its root a copy of the first's, planned
  *  from 200 units away. */
-function plannedWithSecondMesh({ rt, roots, land }: Awaited<ReturnType<typeof bench>>) {
+function plannedWithSecondMesh({
+  rt,
+  roots,
+  land,
+}: Pick<Awaited<ReturnType<typeof bench>>, 'rt' | 'roots' | 'land'>) {
   const other = { ...impostorSection.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
   rt.context.metadata.impostors = {
     ...impostorSection,
