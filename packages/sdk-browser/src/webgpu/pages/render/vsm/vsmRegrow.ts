@@ -100,11 +100,7 @@ export function regrowEngineVsm(
  * cache and the passes' state kept, the groups that bound the old tables made again. Made whole
  * or not at all (`constructGpuResources`); false when `options` asks no more than held.
  */
-function growEngineVsmTables(
-  device: GPUDevice,
-  vsm: EngineVsm,
-  options: VsmResourceOptions,
-) {
+function growEngineVsmTables(device: GPUDevice, vsm: EngineVsm, options: VsmResourceOptions) {
   const layout = constructGpuResources(device, () => growVsmTables(device, vsm.res, options))
   if (!layout) return false
   vsm.suns = Math.max(vsm.suns, sunsOf(options))
