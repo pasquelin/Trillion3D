@@ -7,9 +7,9 @@
  * kernel compiles off the thread: the bound keeps the worst case until it has.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import { composeGroup, heldGroup } from '../placement/composeGroups.ts'
@@ -88,17 +88,6 @@ function gpuOf(device: GPUDevice, bound: VsmRowBound) {
   return made
 }
 
-/** `held` when it holds `bytes`, else a buffer of `usage` grown by the one rule. */
-function sized(device: GPUDevice, held: GPUBuffer | undefined, bytes: number, usage: number) {
-  if (held && held.size >= bytes) return held
-  held?.destroy()
-  return device.createBuffer({
-    label: LABEL,
-    size: grownLength(held ? held.size : 0, bytes),
-    usage: usage | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-}
-
 /** What the pass reads of the frame: the rows' spheres and mobility words, and what changed in
  *  the spheres (`VsmRowSpheres`). */
 interface RowBinsScene {
@@ -127,9 +116,10 @@ export function encodeRowBins(
     bytes = tag.words * 4
   const staging = gpu.ring.take(tag, bytes)
   if (!staging) return
-  gpu.params = sized(device, gpu.params, params.byteLength, 0)
+  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  gpu.params = sizedBuffer(device, gpu.params, params.byteLength, storage, LABEL)
   device.queue.writeBuffer(gpu.params, 0, params)
-  gpu.bins = sized(device, gpu.bins, bytes, GPUBufferUsage.COPY_SRC)
+  gpu.bins = sizedBuffer(device, gpu.bins, bytes, storage | GPUBufferUsage.COPY_SRC, LABEL)
   const resources = [scene.spheres, scene.mobility, gpu.params, gpu.tables, gpu.bins]
   const entries = (gpu.held.identity.entries[0] ??= resources.map((buffer, binding) => ({
     binding,

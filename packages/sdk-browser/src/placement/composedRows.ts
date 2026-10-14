@@ -13,7 +13,7 @@ import {
   takeMirrored,
   type MirroredKeys,
 } from '../webgpu/cut/denseKeys.ts'
-import { grownLength } from '../../../math/src/sequence/resized.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { writeRanges } from '../gpu/dag/runWrites.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
@@ -22,7 +22,7 @@ import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /**
  * `list` in `held` on the GPU, the buffer returned: one made again — the list sent whole — when the
- * list outgrows it, at a capacity grown by the one rule (`grownLength`); else the places written
+ * list outgrows it, at a capacity grown by the one rule (`sizedBuffer`); else the places written
  * since sent in the cut's one run writer's runs. Nothing when none was.
  */
 export function sendList(
@@ -33,22 +33,17 @@ export function sendList(
 ) {
   const { set, moves } = list,
     count = set.count
-  if (!held || held.size < count * 4) {
-    const capacity = grownLength(held ? held.size / 4 : 0, Math.max(4, count))
-    held?.destroy()
-    const buffer = device.createBuffer({
-      label,
-      size: capacity * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    buffer = sizedBuffer(device, held, Math.max(4, count) * 4, usage, label)
+  if (buffer !== held) {
     moves.clear()
     if (count) device.queue.writeBuffer(buffer, 0, set.list, 0, count)
     return buffer
   }
-  if (!moves.count) return held
+  if (!moves.count) return buffer
   const moved = takeMirrored(list)
   const into = (offset: number, data: ArrayBuffer, from: number, size: number) =>
-    device.queue.writeBuffer(held, offset, data, from, size)
+    device.queue.writeBuffer(buffer, offset, data, from, size)
   if (moved.length)
     writeRanges(into, moved, moved.length, {
       data: mirroredWords(list),
@@ -56,7 +51,7 @@ export function sendList(
       targetBase: 0,
       stride: 1,
     })
-  return held
+  return buffer
 }
 
 /** Whether `row` is a caster row the table holds: a drawn row, or a blended caster's. */

@@ -4,12 +4,14 @@
  * (`rowWords.ts`) — or every caster row, when a buffer it writes or reads was made anew. It runs in
  * the frame's command buffer after the compose worlds pass and before any reader of the words. The
  * composed rows go first: a row both lists name has its shadow change appended from the pose it
- * left, before the second derivation finds it where it already stands (`rowCastWgsl.ts`).
+ * left, before the second derivation finds it where it already stands (`rowCastWgsl.ts`). A row the
+ * CPU named for a shadow change where it stands (`ROW_STALES`) appends the box of the sphere it
+ * holds before its thread derives it; while every row is derived, those rows' list goes first.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROWS_PASS } from '../stage/passLabels.ts'
 import {
@@ -29,33 +31,24 @@ import {
   type RowWordsGpu,
 } from './rowWordsGpu.ts'
 import { followComposedRows, sendList } from './composedRows.ts'
-import { forgetTargets, type RowWords } from './rowWords.ts'
+import type { RowWords } from './rowWords.ts'
+import { forgetTargets, targetsTaken } from './rowTargets.ts'
 import { writeMovedRoots } from './rootPasses.ts'
 import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
-import { askNamedCasts, encodeNamedCasts } from '../webgpu/shadow/namedCasts.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */
 const rowsKernel = autoKernel(COMPOSE_ROWS_PASS, DERIVE_ROWS_WGSL, DERIVE_ROWS_ENTRY)
 
-/** Asks the rows kernel and the named rows' (`namedCasts.ts`) at a frame's entry once the table
- *  holds a row (`../webgpu/frame/framePipelines.ts`). */
+/** Asks the rows kernel at a frame's entry once the table holds a row
+ *  (`../webgpu/frame/framePipelines.ts`). */
 export function askRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (!rt.layout.rows.casterSlots) return
-  rowsKernel(device).ask()
-  askNamedCasts(device)
+  if (rt.layout.rows.casterSlots) rowsKernel(device).ask()
 }
 
 /** The rows the CPU named, sent; a list made again when they outgrow it. */
 function sendTargets(device: GPUDevice, gpu: RowWordsGpu, state: RowWords) {
-  if (state.all || !state.count) return
-  if (!gpu.list || gpu.list.size < state.count * 4) {
-    gpu.list?.destroy()
-    gpu.list = device.createBuffer({
-      label: 'Trillion3D rows pass list',
-      size: grownLength(gpu.list ? gpu.list.size : 0, state.count * 4),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-  }
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  gpu.list = sizedBuffer(device, gpu.list, state.count * 4, usage, 'Trillion3D rows pass list')
   device.queue.writeBuffer(gpu.list, 0, state.targets, 0, state.count)
 }
 
@@ -109,13 +102,13 @@ type RowDispatch = {
 
 /**
  * The rows pass, before anything reads a row's words this frame: the composed rows when their
- * worlds moved, then the named rows — every caster row when a buffer it binds was made anew —, the
- * rows named for a shadow change where they stand first (`encodeNamedCasts`), from the spheres the
- * derivations have not written again yet. Nothing on a frame where
- * no row was written, no root moved and no row was named. The shadow changes it may append have their
- * room first (`reserveCasts`): two a row whose change is asked, the pose left and the one entered,
- * one a row named; a pass over every row appends into the room the list holds, past which it stales
- * every page.
+ * worlds moved, then the named rows — every caster row when a buffer it binds was made anew, the
+ * rows named for a shadow change where they stand listed first then (`ROW_STALES`). A sphere buffer
+ * made anew staled every page already (`spheresMadeAnew`): the rows named are forgotten. Nothing on
+ * a frame where no row was written, no root moved and no row was named. The shadow changes it may
+ * append have their room first (`reserveCasts`): two a row whose change is asked, the pose left and
+ * the one entered, one a row staled; a pass over every row appends into the room the list holds,
+ * past which it stales every page.
  */
 export function encodeRowWords(
   rt: WebgpuPagesRuntime,
@@ -129,30 +122,34 @@ export function encodeRowWords(
   // The root boxes the detail reads, of a world moved since the cut wrote them, first.
   writeMovedRoots(rt)
   const gpu = (state.gpu ??= createRowWordsGpu(device))
+  const spheresAnew = gpu.named[4] !== rt.lights.spheres?.buffer
   gpu.frame[0] = rt.lights.spheres?.buffer
   gpu.frame[1] = rt.vis.gpuPartition?.corners
   gpu.frame[2] = rt.lights.rowLods?.buffer
-  if (partsMoved(rt, gpu)) state.all = true
+  if (partsMoved(rt, gpu)) {
+    state.all = true
+    if (spheresAnew) forgetTargets(state)
+  }
   const composed = composedRows(rt, device)
   const all = state.all,
-    listed = all ? rows.casterSlots : state.count
-  const casts = castsBound(rt) ? rt.lights.casts : undefined,
-    named = casts?.named.count ?? 0
-  if (!listed && !composed && !named) return
-  sendTargets(device, gpu, state)
-  if (casts)
-    reserveCasts(casts, device, 2 * ((all ? 0 : composed) + state.emits) + named, rows.casterSlots)
+    listed = all ? rows.casterSlots : state.count,
+    staledFirst = all && state.stales > 0
+  if (!listed && !composed) return
+  if (state.count && (!all || staledFirst)) sendTargets(device, gpu, state)
+  const casts = castsBound(rt) ? rt.lights.casts : undefined
+  if (casts) {
+    const asked = 2 * ((all ? 0 : composed) + state.emits) + state.stales
+    reserveCasts(casts, device, asked, rows.casterSlots)
+  }
   const pipeline = rowsKernel(device).get()
   const pass = encoder.beginComputePass({ label: COMPOSE_ROWS_PASS })
-  // The rows named for a change where they stand, from the spheres their shadows were drawn
-  // from: before this frame's derivations write them again.
-  if (named) encodeNamedCasts(rt, device, encoder, pass)
   pass.setPipeline(pipeline)
-  if (composed && !all)
-    dispatch(rt, device, pass, { gpu, pipeline, g: 1, listed: composed, all, emitAll: true })
-  if (listed) dispatch(rt, device, pass, { gpu, pipeline, g: 0, listed, all, emitAll: all })
+  const run = { gpu, pipeline, all: false, emitAll: true }
+  if (composed && !all) dispatch(rt, device, pass, { ...run, g: 1, listed: composed })
+  // Every row derived: the staled rows' list first, every change asked, as the whole pass asks.
+  if (staledFirst) dispatch(rt, device, pass, { ...run, g: 0, listed: state.count })
+  if (listed)
+    dispatch(rt, device, pass, { ...run, g: staledFirst ? 1 : 0, listed, all, emitAll: all })
   pass.end()
-  state.all = false
-  forgetTargets(state)
-  state.encodedInto = encoder
+  targetsTaken(state, encoder)
 }

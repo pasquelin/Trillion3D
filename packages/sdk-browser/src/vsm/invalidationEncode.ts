@@ -2,7 +2,8 @@
  * The invalidation's phases recorded (step 7): each packed (`packPhase`, `invalidationPack.ts`) and
  * dispatched in its own slot (`dispatchPhase`, `invalidationPass.ts`).
  */
-import { dispatchPhase, slotOf, type VsmInvalidationPhase } from './invalidationPass.ts'
+import { dispatchPhase, slotOf } from './invalidationPass.ts'
+import type { VsmInvalidationPhase } from './invalidationPhase.ts'
 import { packPhase } from './invalidationPack.ts'
 import type { VsmResources } from './resources.ts'
 
@@ -28,11 +29,9 @@ export function encodeVsmInvalidations(
   let total = 0,
     k = 0
   for (const phase of phases) {
-    if (!phase || phase.batch.instances.length === 0) continue
-    const slot = slotOf(prevFrame.device, res, k++)
-    const packed = packPhase(phase)
+    const packed = phase && packPhase(phase)
     if (!packed) continue
-    dispatchPhase(encoder, res, prevFrame.device, slot, packed)
+    dispatchPhase(encoder, res, prevFrame.device, slotOf(prevFrame.device, res, k++), packed)
     total += packed.threads
   }
   return total

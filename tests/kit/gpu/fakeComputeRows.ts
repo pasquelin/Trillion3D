@@ -7,6 +7,7 @@ import {
   DERIVE_ROWS_WGSL,
   ROW_EMITS,
   ROW_NAMED,
+  ROW_STALES,
 } from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
 import {
   COMPOSE_WORLDS_ENTRY,
@@ -65,14 +66,16 @@ const ROW_FUNCTIONS = [
     'writeCorners',
     'composeCorners',
   ],
-  ...['lodCentre', 'composeLod', 'castCode', 'emitCast', 'emitSphere', 'castRow', 'deriveRow'],
+  ...['lodCentre', 'composeLod', 'castCode', 'castState', 'rowSphere', 'emitCast', 'emitSphere'],
+  ...['castRow', 'staleRow', 'deriveRow'],
 ]
 
 /** Replays a dispatch of the rows pass (`DERIVE_ROWS_WGSL`): every row its list names, or every
- *  row of the table, each row's shadow change asked as the dispatch or its list entry asks it. */
+ *  row of the table, each row's shadow change asked as the dispatch or its list entry asks it, a
+ *  listed row marked staled appending the box of the sphere it holds first. */
 function simulateDeriveRows(bind: ComputeBind) {
   const [rootCount, parts, listed, all, emitAll] = boundWords(bind, 0)
-  const run = shaderRun<{ deriveRow(row: number, emit: boolean): void }>(
+  const run = shaderRun<{ deriveRow(row: number, emit: boolean, stale: boolean): void }>(
     DERIVE_ROWS_WGSL,
     ROW_FUNCTIONS,
     {
@@ -92,7 +95,8 @@ function simulateDeriveRows(bind: ComputeBind) {
   const list = boundWords(bind, 8)
   for (let j = 0; j < listed; j++) {
     const named = all ? j : list[j]
-    run.deriveRow(named & ROW_NAMED, emitAll !== 0 || (named & ROW_EMITS) !== 0)
+    const stale = !all && (named & ROW_STALES) !== 0
+    run.deriveRow(named & ROW_NAMED, emitAll !== 0 || (named & ROW_EMITS) !== 0, stale)
   }
 }
 

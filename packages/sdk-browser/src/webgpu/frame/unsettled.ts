@@ -67,7 +67,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending
   // A shadow page stale and read, a request report on its way, a representation change held
   // until the camera rests: each must find a frame (`shadowsUnsettled`).
-  if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending
+  if (shadowsUnsettled(lights, rt.rowWords)) mask |= BIT.shadowsPending
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending
   return mask

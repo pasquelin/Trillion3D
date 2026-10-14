@@ -20,7 +20,8 @@ const ROWS = 2,
 const NAMES = [
   ...DOUBLE_HELPERS,
   ...['toF32', 'fromF32', 'splitDouble', 'composeSphere', 'clearRow'],
-  ...['castCode', 'emitCast', 'emitSphere', 'castRow', 'deriveRow'],
+  ...['castCode', 'castState', 'rowSphere', 'emitCast', 'emitSphere', 'castRow', 'staleRow'],
+  ...['deriveRow'],
 ]
 
 /** Two rows, each its own root's, a cube of half extent `HALF` about its origin; a change list of
@@ -43,7 +44,8 @@ function rig(records = 16) {
     for (let k = 0; k < 16; k++) rootWorlds[rank * 16 + k] = pair(world[k])
   }
   for (let rank = 0; rank < ROWS; rank++) place(rank, rank * 10)
-  const run = shaderRun<{ deriveRow(row: number, emit: boolean): void }>(DERIVE_ROWS_WGSL, NAMES, {
+  type Run = { deriveRow(row: number, emit: boolean, stale?: boolean): void }
+  const run = shaderRun<Run>(DERIVE_ROWS_WGSL, NAMES, {
     arrayLength: (ref: { get(): { length: number } }) => ref.get().length,
     params: { rootCount: ROWS, parts: PART_SPHERES | PART_CASTS },
     rootWorlds,
@@ -146,4 +148,29 @@ test('a change past the list sets its overflow flag, which stales every page', (
   run.deriveRow(0, true)
   assert.equal(castChanges[0], 2, 'two asked')
   assert.equal(castChanges[1], 1, 'the second past the list: the flag set')
+})
+
+// The rows the CPU names for a shadow change where they stand (`ROW_STALES`): the old code staled
+// them in a kernel of their own; the rows pass now appends the sphere a row holds before deriving it.
+test('a row staled where it stands appends the sphere its shadows were drawn from, then derives', () => {
+  const { run, place, mobility, taken } = rig()
+  run.deriveRow(0, true)
+  taken()
+  place(0, 6)
+  run.deriveRow(0, false, true)
+  const [held, ...rest] = taken()
+  assert.deepEqual(rest, [])
+  assert.ok(holds(held, 0) && !held.moving, 'the sphere it held, before this derivation')
+  run.deriveRow(0, false, true)
+  assert.ok(holds(taken()[0], 6), 'derived: the next stale reads where it stands now')
+  mobility[0] = MOBILITY_MOVING
+  run.deriveRow(0, false, true)
+  assert.equal(taken()[0].moving, false, 'static when drawn, moving now: both slices')
+  run.deriveRow(0, false, true)
+  assert.equal(taken()[0].moving, true, 'moving at both: the moving casters alone')
+  mobility[0] = MOBILITY_SHADOWLESS
+  run.deriveRow(0, false, true)
+  assert.equal(taken().length, 1, 'cast when drawn: its box')
+  run.deriveRow(0, false, true)
+  assert.deepEqual(taken(), [], 'shadowless at both: nothing')
 })

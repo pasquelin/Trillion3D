@@ -31,8 +31,11 @@ export const PART_SPHERES = 1,
   PART_LODS = 4,
   PART_CASTS = 8
 
-/** A listed row's word: the row, and whether its shadow change is asked (`ROW_EMITS`). */
-export const ROW_NAMED = 0x7fffffff,
+/** A listed row's word: the row, whether its shadow change is asked (`ROW_EMITS`), and whether its
+ *  shadow changed where it stands (`ROW_STALES`): a cutout's colour tile came or went, its surface's
+ *  alpha moved — the box of the sphere it holds appended before it is derived (`staleRow`). */
+export const ROW_NAMED = 0x3fffffff,
+  ROW_STALES = 0x40000000,
   ROW_EMITS = 0x80000000
 
 /**
@@ -116,7 +119,8 @@ export const DERIVE_ROWS_ENTRY = 'deriveRows'
  * holding one, its root's world as single-precision words and, each part when its buffer is bound
  * (`params.parts`), its sphere (`composeSphere`) and its cast state (`castCode`), its corners
  * (`composeCorners`) and its detail (`composeLod`). The row keeps the Hi-Z slot the CPU gave it:
- * its corners describe it. A row whose shadow change is asked — every row of the table or of the
+ * its corners describe it. A listed row marked `ROW_STALES` first appends the box of the sphere it
+ * holds, the one its shadow pages were drawn from (`staleRow`). A row whose shadow change is asked — every row of the table or of the
  * composed list (`params.emitAll`), or a listed row marked `ROW_EMITS` — appends it (`castRow`).
  */
 export const DERIVE_ROWS_WGSL = wgslProgram(
@@ -132,14 +136,16 @@ export const DERIVE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(8) var<storage,read> rowList:array<u32>;
 @group(0) @binding(9) var<storage,read> mobility:array<u32>;
 @group(0) @binding(10) var<storage,read_write> castChanges:array<atomic<u32>>;
-fn deriveRow(row:u32,emit:bool){
+fn deriveRow(row:u32,emit:bool,stale:bool){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let base=row*${ROW_WORDS}u;
- if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
  let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*8u<=arrayLength(&spheres);
- let casting=emit&&sphered&&(params.parts&${PART_CASTS}u)!=0u;
+ let casts=sphered&&(params.parts&${PART_CASTS}u)!=0u;
+ if(stale&&casts){staleRow(row);}
+ if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
+ let casting=emit&&casts;
  var was:array<f32,8>;
- if(casting){for(var k=0u;k<8u;k++){was[k]=spheres[row*8u+k];}}
+ if(casting){was=rowSphere(row);}
  if((inputs[at+${INPUT_FLAGS}u].x&${ROW_HAS_RECORD}u)==0u){
   if(casting){castRow(row,was,false,false);}
   clearRow(row);
@@ -167,12 +173,14 @@ fn deriveRow(row:u32,emit:bool){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  var row=j;
  var emit=params.emitAll!=0u;
+ var stale=false;
  if(params.all==0u){
   let named=rowList[j];
   row=named&${ROW_NAMED}u;
   emit=emit||(named&${ROW_EMITS}u)!=0u;
+  stale=(named&${ROW_STALES}u)!=0u;
  }
- deriveRow(row,emit);
+ deriveRow(row,emit,stale);
 }`,
   [
     toF32,

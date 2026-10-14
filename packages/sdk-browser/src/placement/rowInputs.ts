@@ -9,7 +9,8 @@
 import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
 import { INPUT_FLAGS, ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { grownLength, resized } from '../../../math/src/sequence/resized.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 
 /** Words of a row's inputs, packed. */
 const ROW_INPUT_WORDS = ROW_INPUT_DOUBLES * 2
@@ -29,20 +30,14 @@ type RowInputs = ReturnType<typeof createRowInputs>
 
 /**
  * The inputs buffer at the table's caster rows (`casterSlots`), made again — at a capacity grown by
- * the one rule (`grownLength`) — when it holds another count: true then, every row's inputs to be
+ * the one rule (`sizedBuffer`) — when it holds another count: true then, every row's inputs to be
  * sent again, a buffer made anew holding none.
  */
 export function ensureRowInputs(held: RowInputs, device: GPUDevice, rows: number) {
   if (held.buffer && held.rows === rows) return false
   const bytes = Math.max(1, rows) * ROW_INPUT_WORDS * 4
-  if (!held.buffer || held.buffer.size < bytes) {
-    held.buffer?.destroy()
-    held.buffer = device.createBuffer({
-      label: 'Trillion3D row inputs',
-      size: grownLength(held.buffer?.size ?? 0, bytes),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-  }
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  held.buffer = sizedBuffer(device, held.buffer, bytes, usage, 'Trillion3D row inputs')
   held.rows = rows
   return true
 }

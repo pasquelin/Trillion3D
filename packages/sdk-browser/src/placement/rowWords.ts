@@ -19,9 +19,9 @@ import { sendRootWorlds } from './rootWorlds.ts'
 import { takeMovedRows } from './rootMoves.ts'
 import { followComposedRun } from './composedRows.ts'
 import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
-import { resized } from '../../../math/src/sequence/resized.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
-import { ROW_EMITS, ROW_NAMED } from './rowWordsWgsl.ts'
+import { ROW_EMITS, ROW_STALES } from './rowWordsWgsl.ts'
+import { deriveEveryRow, target } from './rowTargets.ts'
 
 function createRowWords() {
   return {
@@ -33,13 +33,19 @@ function createRowWords() {
     sentWhole: false,
     /** The command encoder the last pass was encoded into. */
     encodedInto: undefined as GPUCommandEncoder | undefined,
-    /** The rows named since the last pass, the first `count` of `targets` (`ROW_NAMED`, and
-     *  `ROW_EMITS` when its shadow change is asked), `emits` of them asking it; each row's place
-     *  among them plus one (`at`), 0 for a row not named. */
+    /** The rows named since the last pass, the first `count` of `targets` (`ROW_NAMED`, with
+     *  `ROW_EMITS` when its shadow change is asked and `ROW_STALES` when its shadow changed where
+     *  it stands), `emits` and `stales` of them so marked; each row's place among them plus one
+     *  (`at`), 0 for a row not named (`rowTargets.ts`). */
     targets: new Uint32Array(64),
     count: 0,
     emits: 0,
+    stales: 0,
     at: new Int32Array(0),
+    /** The rows the last pass staled, the first `staledCount`: named again should its command
+     *  buffer be dropped (`rowWordsDropped`). */
+    staled: new Uint32Array(0),
+    staledCount: 0,
     /** The roots whose rows the next follow names, their shadow changes asked (`deriveRootRows`). */
     roots: [] as number[],
     /** The pass's GPU side (`rowWordsPass.ts`), made at its first run. */
@@ -54,29 +60,11 @@ export type RowWords = ReturnType<typeof createRowWords>
 /** The runtime's rows pass work, made at its first follow. */
 const rowWordsOf = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>) => (rt.rowWords ??= createRowWords())
 
-/** Row `row` derived at the next pass, its shadow change asked when `emits`: a row named already
- *  keeps its place, and asks it when either naming did. */
-function target(state: RowWords, row: number, emits = false) {
-  if (state.all) return
-  state.at = resized(state.at, row + 1)
-  const place = state.at[row] - 1,
-    bit = emits ? ROW_EMITS : 0
-  if (place >= 0) {
-    if (emits && !(state.targets[place] & ROW_EMITS)) state.emits++
-    state.targets[place] = (state.targets[place] | bit) >>> 0
-    return
-  }
-  state.targets = resized(state.targets, state.count + 1)
-  state.targets[state.count] = (row | bit) >>> 0
-  state.at[row] = ++state.count
-  if (emits) state.emits++
-}
-
-/** The rows named forgotten: the pass took them, or every row is derived. */
-export function forgetTargets(state: RowWords) {
-  for (let k = 0; k < state.count; k++) state.at[state.targets[k] & ROW_NAMED] = 0
-  state.count = state.emits = 0
-}
+/** Row `row`'s shadow changed where it stands — a cutout's colour tile came or went, its surface's
+ *  alpha moved —: the box of the sphere the rows pass holds for it, the one its shadow pages were
+ *  drawn from, appended at the next pass before the row is derived (`ROW_STALES`, `staleRow`). */
+export const nameCastRow = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, row: number) =>
+  target(rowWordsOf(rt), row, ROW_STALES)
 
 /** Root `rank`'s rows derived at the next pass, their shadow changes asked: it moved — a node's
  *  move, a row posed past what its shadows hold, a parent let go —, or its casting or its mobility
@@ -110,7 +98,7 @@ function targetRootRows(rt: WebgpuPagesRuntime, state: RowWords, rank: number, e
     const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
     if (row < 0 || row >= rows.casterSlots) continue
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
-    target(state, row, emits)
+    target(state, row, emits ? ROW_EMITS : 0)
   }
 }
 
@@ -134,8 +122,7 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const moved = takeMovedRows(rt.rootWorlds!)
   state.sentWhole = fresh || !moved
   if (state.sentWhole) {
-    state.all = true
-    forgetTargets(state)
+    deriveEveryRow(state)
     if (rows.casterSlots) sendRowInputs(rt, device, state.inputs, 0, rows.casterSlots - 1)
     state.derived += rows.casterSlots
   }

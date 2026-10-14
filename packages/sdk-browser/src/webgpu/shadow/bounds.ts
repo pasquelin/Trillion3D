@@ -123,17 +123,10 @@ export function uploadDirtyRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice
   rows.forEachDirtyRun(sourceOf(rt, device), mobilityRun)
 }
 
-/** Two flat world boxes and their halves, allocated once, that a change is declared with: the
- *  rows the static layer holds, then the rows already moving. */
-const changeBoxes = [0, 1].map(() => {
-  const box = new Float64Array(6)
-  return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) }
-})
-
-/** True when the placement of rank `rank` already moves: the static layer does not hold its
- *  casters, and a change of its own redraws the moving casters alone. */
-const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
-  rank >= 0 && mobility.moves(rank)
+/** The flat world box a residence change is declared with, and its halves, allocated once. */
+const changeBox = new Float64Array(6),
+  changeMin = changeBox.subarray(0, 3),
+  changeMax = changeBox.subarray(3, 6)
 
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
@@ -158,10 +151,9 @@ export function noteResidenceChange(
   const { store, changes } = lights
   if (!store.count) return
   const rank = rootOfPacked(placement, packed) ?? -1
-  const onlyMoving = moving ?? recordMoves(lights, rank)
-  const { box, min, max } = changeBoxes[+onlyMoving]
-  boxEmpty(box, 0)
-  growClusterBox(rec, roots, box, rank)
-  if (atOnce) changes.residencyChanged(min, max, onlyMoving)
-  else changes.representationChanged(min, max, onlyMoving)
+  const onlyMoving = moving ?? (rank >= 0 && lights.mobility.moves(rank))
+  boxEmpty(changeBox, 0)
+  growClusterBox(rec, roots, changeBox, rank)
+  if (atOnce) changes.residencyChanged(changeMin, changeMax, onlyMoving)
+  else changes.representationChanged(changeMin, changeMax, onlyMoving)
 }

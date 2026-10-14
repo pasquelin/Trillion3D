@@ -7,7 +7,8 @@
  * entries of a moved root alone, never the table.
  */
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
-import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
@@ -84,14 +85,10 @@ export function targetEntry(held: EntryCorners, entry: number) {
 /** The inputs buffer at `capacity` entries, made again when it holds fewer: true then. */
 export function ensureEntryInputs(device: GPUDevice, held: EntryCorners, capacity: number) {
   const bytes = Math.max(1, capacity) * ENTRY_WORDS * 4
-  if (held.inputs && held.inputs.size >= bytes) return false
-  held.inputs?.destroy()
-  held.inputs = device.createBuffer({
-    label: 'Trillion3D transparent entry inputs',
-    size: grownLength(held.inputs?.size ?? 0, bytes),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  return true
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    old = held.inputs
+  held.inputs = sizedBuffer(device, old, bytes, usage, 'Trillion3D transparent entry inputs')
+  return held.inputs !== old
 }
 
 /** Entries `[from, to]`'s inputs sent, a write each `RUN_ENTRIES` entries: an entry naming no page,
@@ -142,15 +139,16 @@ export function encodeEntryCorners(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   held.absent ??= device.createBuffer({ label: 'Trillion3D no entry list', size: 16, usage })
-  if (!held.all && (!held.list || held.list.size < held.count * 4)) {
-    held.list?.destroy()
-    held.list = device.createBuffer({
-      label: 'Trillion3D transparent entry list',
-      size: grownLength(held.list?.size ?? 0, held.count * 4),
+  if (!held.all) {
+    held.list = sizedBuffer(
+      device,
+      held.list,
+      held.count * 4,
       usage,
-    })
+      'Trillion3D transparent entry list',
+    )
+    device.queue.writeBuffer(held.list, 0, held.targets, 0, held.count)
   }
-  if (!held.all) device.queue.writeBuffer(held.list!, 0, held.targets, 0, held.count)
   const { words } = held
   words[0] = rt.layout.selectionRoots.length
   words[1] = listed

@@ -20,6 +20,8 @@ import { quadScene, camera } from '../testScenes.fixture.ts'
 import { surfaceOf } from '../../../page/surface.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
+import { ROW_NAMED, ROW_STALES } from '../../../placement/rowWordsWgsl.ts'
+import { forgetTargets } from '../../../placement/rowTargets.ts'
 
 /** The records the material table sent up last (`Trillion3D material records`). */
 const lastRecords = (textureWrites: ReturnType<typeof fakeDevice>['textureWrites']) =>
@@ -146,10 +148,14 @@ test('an opaque surface turned masked cuts every row of its material', async () 
 // A cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
 // session opened on it: its redrawn shadow pages land in other pool slots, and a shadow read
 // depended on the slot. Read texel-exact wherever a page lies, they draw that session's
-// image: the move is taken in place, the shadow over its rows drawn again.
+// image: the move is taken in place, the shadow over its rows drawn again — its row named to the
+// rows pass, which stales the box of the sphere it holds (`ROW_STALES`, `staleRow`). No box is
+// made on the CPU.
 test('an alpha move is taken in place under a casting light, the shadow over its rows drawn again', () => {
   const { material } = quadScene()
   const worlds: number[][] = []
+  const staled = ({ targets, count } = runtime.rowWords!) =>
+    [...targets.subarray(0, count)].filter((word) => word & ROW_STALES).map((w) => w & ROW_NAMED)
   const cutout = {
     material: surfaceOf(material),
     min: [-1, -1, 0],
@@ -158,6 +164,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   const runtime = {
     lights: {
       store: { count: 1 },
+      casts: {},
       mobility: { moves: () => false },
       changes: { worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]) },
     },
@@ -182,7 +189,9 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   } as unknown as Parameters<typeof refreshWebgpuMaterials>[0]
   const alpha = { surfaces: [material], from: 'mask', to: 'mask' } as const
   assert.equal(refreshWebgpuMaterials(runtime, true, alpha), true, 'no new session')
-  assert.equal(worlds.length, 1, 'the shadow pages over the cutout drawn again')
+  assert.deepEqual(staled(), [0], 'the shadow pages over the cutout drawn again')
+  assert.equal(worlds.length, 0, 'from the sphere the GPU holds: no box made on the CPU')
+  forgetTargets(runtime.rowWords!)
   assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place')
-  assert.equal(worlds.length, 1, 'and stale no shadow')
+  assert.deepEqual([staled(), worlds.length], [[], 0], 'and stale no shadow')
 })

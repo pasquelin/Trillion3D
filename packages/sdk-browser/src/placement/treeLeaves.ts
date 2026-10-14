@@ -7,9 +7,9 @@
  * leaves read it. No leaf is taken on the CPU, and none is kept there.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { TreeLeaves } from '../gpu/dag/treeFollow.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
@@ -80,14 +80,8 @@ function sendList(
   ranks: Int32Array<ArrayBuffer>,
   count: number,
 ) {
-  if (!gpu.list || gpu.list.size < count * 4) {
-    gpu.list?.destroy()
-    gpu.list = device.createBuffer({
-      label: 'Trillion3D tree leaves list',
-      size: grownLength(gpu.list ? gpu.list.size : 0, count * 4),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-  }
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  gpu.list = sizedBuffer(device, gpu.list, count * 4, usage, 'Trillion3D tree leaves list')
   device.queue.writeBuffer(gpu.list, 0, ranks, 0, count)
 }
 

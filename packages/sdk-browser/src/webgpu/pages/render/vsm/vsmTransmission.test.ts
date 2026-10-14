@@ -66,9 +66,13 @@ test('a short transmission the room cannot grow is capped: said once, never aske
     store: { count: 1, unlit: false },
     vsm,
   } as unknown as WebgpuLightState
-  assert.equal(shadowsUnsettled(lights), false)
+  assert.equal(shadowsUnsettled(lights, undefined), false)
   a.held.wanted = a.wanted
-  assert.equal(shadowsUnsettled(lights), true, 'a short transmission still to grow is waited for')
+  assert.equal(
+    shadowsUnsettled(lights, undefined),
+    true,
+    'a short transmission still to grow is waited for',
+  )
 })
 
 test('a short transmission whose growth the room holds exactly grows to what was wanted', () => {

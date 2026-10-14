@@ -3,16 +3,27 @@
  * (box, map) instances, filtered per light (`vsmInvalidationPhaseFromShadowBoxes`). Its GPU half,
  * the dispatch that stales their pages, is `invalidationPass.ts`.
  */
-import type { VsmCacheManager, VsmInstanceInvalidation, VsmLightCache } from './cacheManager.ts'
+import type {
+  VsmCacheManager,
+  VsmInstanceInvalidation,
+  VsmInvalidationBatch,
+  VsmLightCache,
+} from './cacheManager.ts'
 import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { vsmMapWord } from './staleMapWgsl.ts'
-import type { VsmInvalidationPhase } from './invalidationPass.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
 export const BOX_WORDS = 7
+
+/** One invalidation call: the collector's batch and the boxes its instances name — box `b` at
+ *  `BOX_WORDS · b`, each drawn as one instance of identity rotation (`packBox`, `invalidationPack.ts`). */
+export interface VsmInvalidationPhase {
+  batch: VsmInvalidationBatch
+  boxes: Float64Array
+}
 
 /** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`, `createShadowChanges`). */
 interface VsmShadowBoxSource {
@@ -62,8 +73,8 @@ const phaseEntries: VsmLightCache[] = []
  * move's are the rows' own, on the GPU (`castInvalidation.ts`) —,
  * filtered per light like the collector's: no entry fully cached, uncached
  * or invalidated; local lights cull by radius. Each instance names its map by its word
- * (`vsmMapWord`): a moving box skips a receiver-cover map on the GPU (`vsmStaleMap`), as the rows'
- * changes do.
+ * (`vsmMapWord`). A moving box skips a receiver-cover map here, where the box says it moves; the
+ * rows' changes skip it on the GPU (`vsmStaleMap`), the word the same.
  * One instance per box (identity rotation, world AABB); `moving` (already moving, outside the
  * static layer) = cached as dynamic, else static. Read the boxes before the plan consumes them
  * (`changes.settled()`). Returns null when the invalidation processing would skip (no cache data).
@@ -87,6 +98,7 @@ export function vsmInvalidationPhaseFromShadowBoxes(
     const finite = writeBox(boxes, b * BOX_WORDS, min, max, moving),
       radius = length3(lastBox[3], lastBox[4], lastBox[5])
     for (const entry of entries) {
+      if (moving && entry.useCover) continue
       if (finite && !entry.affectsBounds(lastBox, radius)) continue
       for (let i = 0; i < entry.mapCaches.length; i++)
         instances.push({

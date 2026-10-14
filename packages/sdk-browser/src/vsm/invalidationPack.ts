@@ -9,8 +9,7 @@ import {
   VSM_BOX_CASTS,
 } from './invalidationWgsl.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { BOX_WORDS } from './invalidationPhase.ts'
-import type { VsmInvalidationPhase } from './invalidationPass.ts'
+import { BOX_WORDS, type VsmInvalidationPhase } from './invalidationPhase.ts'
 
 // The scratch of `encodeVsmInvalidations`, rewritten for each phase: its items, its boxes as the
 // shader reads them.

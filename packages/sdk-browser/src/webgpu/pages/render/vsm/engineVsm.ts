@@ -18,10 +18,8 @@ import { workgroupCount, alignUp } from '../../../../../../math/src/scalar/integ
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { createVsmResources, growVsmTables, type VsmResources } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
-import {
-  releaseVsmInvalidation,
-  type VsmInvalidationPhase,
-} from '../../../../vsm/invalidationPass.ts'
+import { releaseVsmInvalidation } from '../../../../vsm/invalidationPass.ts'
+import type { VsmInvalidationPhase } from '../../../../vsm/invalidationPhase.ts'
 import {
   rebindVsmPageManagement,
   releaseVsmPageManagement,

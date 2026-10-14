@@ -111,7 +111,7 @@ export function encodeVsmProjection(
   inputs.size = gpu.allocatedSize
   inputs.lights = projected
   const held = vsm.projectionHold.held(mask.array)
-  if (held && !shadowsUnsettled(lights)) return 0
+  if (held && !shadowsUnsettled(lights, rt.rowWords)) return 0
   // The depth the screen ray marches, its pyramid complete (`encodeDepthPyramid`).
   const hizDepth = rt.vis.gpuHiz?.depth()
   if (!hizDepth) return 0

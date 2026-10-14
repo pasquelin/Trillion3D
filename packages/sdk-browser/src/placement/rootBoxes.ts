@@ -7,9 +7,9 @@
  * CPU no box and no stretch, and the list of the roots it moved alone.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
+import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -68,14 +68,8 @@ const entries = (rt: WebgpuPagesRuntime, gpu: RootBoxesGpu, g: number) => [
 
 /** The moved roots `ranks`, sent; a list made again when they outgrow it. */
 function sendList(device: GPUDevice, gpu: RootBoxesGpu, ranks: Int32Array<ArrayBuffer>) {
-  if (!gpu.list || gpu.list.size < ranks.byteLength) {
-    gpu.list?.destroy()
-    gpu.list = device.createBuffer({
-      label: 'Trillion3D moved roots',
-      size: grownLength(gpu.list ? gpu.list.size : 0, ranks.byteLength),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
-  }
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  gpu.list = sizedBuffer(device, gpu.list, ranks.byteLength, usage, 'Trillion3D moved roots')
   device.queue.writeBuffer(gpu.list, 0, ranks)
 }
 

@@ -88,7 +88,7 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const revision = () => rt.gpu.cache?.residencyRevision
   let drains = 0,
     seen = revision()
-  const again = () => drainsAgain(seen, revision(), () => shadowsUnsettled(lights))
+  const again = () => drainsAgain(seen, revision(), () => shadowsUnsettled(lights, rt.rowWords))
   for (; drains < SHADOW_DRAIN_LIMIT && again(); drains++) {
     renderWebgpuPages(rt, rt.run.lastCamera!)
     seen = revision()

@@ -1,7 +1,7 @@
 /**
  * WHAT THE ROWS PASS HOLDS ON THE GPU (`rowWordsPass.ts`): its parameters, the list of the rows the
  * CPU named, a stand-in for each part not made, its two bind groups — the named rows', the composed
- * rows' — and the buffers it last bound, one of which made anew has every row derived. The shadow
+ * rows' or every row's — and the buffers it last bound, one of which made anew has every row derived. The shadow
  * changes it appends to and the mobility words it reads them by are the lights' (`castsBound`).
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -15,7 +15,8 @@ const PARAMS_BYTES = 32
 export function createRowWordsGpu(device: GPUDevice) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   return {
-    /** The parameters of the named rows' dispatch, then of the composed rows'. */
+    /** The parameters of the named rows' dispatch, then of the composed rows' — or of every row's,
+     *  after the staled rows' list (`encodeRowWords`). */
     params: [0, 1].map(() =>
       device.createBuffer({
         label: 'Trillion3D rows pass params',
