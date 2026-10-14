@@ -114,8 +114,9 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
     768,
     'one aligned uniform per level',
   )
+  // Largest first (`ledgerSnapshot`): one level's bins (`LEVEL_BIN_BYTES`) above the uniforms.
   assert.deepEqual(Object.keys(caches.snapshot().byLabel), [
-    'Trillion3D texture mips uniforms',
     'Trillion3D coverage bins',
+    'Trillion3D texture mips uniforms',
   ])
 })
