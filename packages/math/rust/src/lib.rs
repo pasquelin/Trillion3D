@@ -55,6 +55,11 @@ pub const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 /// `GOLDEN` on 32 bits: its high half, the fractional part of the golden ratio times 2³².
 pub const GOLDEN_32: u32 = 0x9E37_79B9;
 
+/// The golden angle in radians, `π·(3 − √5)`: the turn between two successive points of a
+/// sunflower spiral, the one that spreads them most evenly (`GOLDEN_ANGLE`,
+/// `packages/math/src/constants.ts`).
+pub const GOLDEN_ANGLE: f64 = 2.399963229728653;
+
 #[cfg(test)]
 mod golden_geometry;
 #[cfg(test)]
