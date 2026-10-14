@@ -1,9 +1,5 @@
-import {
-  type ClusterManifest,
-  type GeometryPageDescriptor,
-  type Page,
-  type Primitive,
-} from '../contracts/index.ts'
+import type { ClusterManifest, Page, Primitive } from '../contracts/geometry.ts'
+import type { GeometryPageDescriptor } from '../page/contracts.ts'
 import { decodeCulling, decodeStreams, decodeStructure } from './binaryDecodeParts.ts'
 import { decodeTexturePreviews } from './binaryPreview.ts'
 import * as format from './binaryFormat.ts'

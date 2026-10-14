@@ -1,5 +1,6 @@
-import { EngineError, type Primitive, type ClusterManifest } from '../contracts/index.ts'
-import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
+import { EngineError } from '../contracts/cache.ts'
+import type { Primitive, ClusterManifest } from '../contracts/geometry.ts'
+import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
 /** Where the binary sits and how a cluster, a packed page and a bundle name their object. */
 export interface ManifestBinaryDescriptor {

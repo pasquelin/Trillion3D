@@ -2,10 +2,13 @@ import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifest/ma
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeManifestBinary } from './binaryDecode.ts'
-import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
+import {
+  MANIFEST_BINARY_VERSION,
+  MANIFEST_BINARY_HEADER_WORDS,
+} from '../contracts/writtenFormats.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
-import { COLUMN_NAMES, MANIFEST_BINARY_HEADER_WORDS } from './binaryFormat.ts'
-import type { EngineError } from '../contracts/index.ts'
+import { COLUMN_NAMES } from './binaryFormat.ts'
+import type { EngineError } from '../contracts/cache.ts'
 
 function encoded() {
   const { manifest: slim, binary } = encodeManifestBinary(manifest(), TEMPLATES)

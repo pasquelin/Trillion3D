@@ -1,5 +1,5 @@
+export { NODE_AUTO_UPDATE } from './nodeFlags.ts'
 export {
-  NODE_AUTO_UPDATE,
   addTransformNode,
   createTransformTree,
   setNodeAutoUpdate,

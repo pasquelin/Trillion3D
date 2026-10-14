@@ -5,7 +5,7 @@ import {
   previewAtlasName,
   type TextureBlockFormat,
   type TextureLayout,
-} from '../manifest/binaryFormat.ts'
+} from './previewFormat.ts'
 
 /** What a level file holds: the lossless PNG, or the blocks of one family in one layout. */
 export type TextureLevelFormat =

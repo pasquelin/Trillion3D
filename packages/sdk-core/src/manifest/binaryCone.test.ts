@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
-import { EngineError } from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
 
 // A version-9 page always has a cone: a hand-written page without one gets the open cone.
 test('a page without a cone decodes the open cone, and a malformed cone is refused', () => {

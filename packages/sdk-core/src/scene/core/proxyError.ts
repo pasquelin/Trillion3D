@@ -1,4 +1,4 @@
-import { EngineError } from '../../contracts/index.ts'
+import { EngineError } from '../../contracts/cache.ts'
 
 /** A malformed resident proxy must be refused before its columns reach a ray. */
 export const invalidProxy = (message: string, details: Record<string, unknown>) =>

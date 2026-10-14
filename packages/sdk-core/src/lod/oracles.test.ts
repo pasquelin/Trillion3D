@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clusterErrorPixels, dotVector3, coneRejects, maxStretch } from '../index.ts'
+import { clusterErrorPixels } from './screenErrorBound.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import { coneRejects, maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 
 test('wide cone must not reject a visible normal', () => {
   const angle = (2 * Math.PI) / 3

@@ -12,7 +12,7 @@ import {
 import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { crossVector3, dotVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { ObservedComponents } from '../observed.ts'
-import type { EulerLike, XYZLike as V, XYZWLike as Q } from './likes.ts'
+import type { EulerLike, XYZLike, XYZWLike } from './likes.ts'
 
 const other = new Float64Array(4),
   axis = new Float64Array(3),
@@ -20,13 +20,13 @@ const other = new Float64Array(4),
   turn = new Float64Array(4),
   rows = new Float64Array(9)
 /** A vector read into flat numbers, for the core functions that take them. */
-const loadVector = (into: Float64Array, v: V) => {
+const loadVector = (into: Float64Array, v: XYZLike) => {
   into[0] = v.x
   into[1] = v.y
   into[2] = v.z
   return into
 }
-const load = (into: Float64Array, q: Q) => {
+const load = (into: Float64Array, q: XYZWLike) => {
   into[0] = q.x
   into[1] = q.y
   into[2] = q.z
@@ -65,7 +65,7 @@ export class Quaternion extends ObservedComponents {
     return this.set(from[0], from[1], from[2], from[3], quiet)
   }
   /** Takes the numbers of another quaternion. */
-  copy(q: Q) {
+  copy(q: XYZWLike) {
     return this.set(q.x, q.y, q.z, q.w)
   }
   /** A new quaternion with the same numbers. */
@@ -77,7 +77,7 @@ export class Quaternion extends ObservedComponents {
     return this.set(0, 0, 0, 1)
   }
   /** Becomes a turn of `angle` radians around the axis `v`, made unit first (`normalizeVector3`). */
-  setFromAxisAngle(v: V, angle: number) {
+  setFromAxisAngle(v: XYZLike, angle: number) {
     normalizeVector3(loadVector(axis, v))
     return this.written(axisAngleQuaternion(other, axis, angle))
   }
@@ -97,7 +97,7 @@ export class Quaternion extends ObservedComponents {
     return this.written(other)
   }
   /** The shortest rotation taking unit vector `a` onto unit vector `b`. */
-  setFromUnitVectors(a: V, b: V) {
+  setFromUnitVectors(a: XYZLike, b: XYZLike) {
     const r = dotVector3(loadVector(axis, a), loadVector(onto, b)) + 1
     if (r < 1e-8)
       return Math.abs(a.x) > Math.abs(a.z)
@@ -108,15 +108,15 @@ export class Quaternion extends ObservedComponents {
     return this.written(other).normalize()
   }
   /** Adds the turn `q` after this one. */
-  multiply(q: Q) {
+  multiply(q: XYZWLike) {
     return this.written(multiplyQuaternion(other, this.elements, load(turn, q)))
   }
   /** Adds the turn `q` before this one. */
-  premultiply(q: Q) {
+  premultiply(q: XYZWLike) {
     return this.written(multiplyQuaternion(other, load(turn, q), this.elements))
   }
   /** Becomes `a` followed by `b`. */
-  multiplyQuaternions(a: Q, b: Q) {
+  multiplyQuaternions(a: XYZWLike, b: XYZWLike) {
     return this.written(multiplyQuaternion(other, load(other, a), load(turn, b)))
   }
   /** Becomes the turn that undoes this one. */
@@ -128,7 +128,7 @@ export class Quaternion extends ObservedComponents {
     return this.invert()
   }
   /** How much two rotations agree, from −1 to 1. */
-  dot(q: Q) {
+  dot(q: XYZWLike) {
     return dotQuaternion(this.elements, load(turn, q))
   }
   /** The size of the four numbers together (`lengthQuaternion`). */
@@ -141,17 +141,17 @@ export class Quaternion extends ObservedComponents {
     return this.written(normalizeQuaternion(other))
   }
   /** The angle between two rotations, in radians. */
-  angleTo(q: Q) {
+  angleTo(q: XYZWLike) {
     return quaternionAngle(this.elements, load(turn, q))
   }
   /** Spherical interpolation towards `q`, along the shorter arc. */
-  slerp(q: Q, t: number) {
+  slerp(q: XYZWLike, t: number) {
     const line = slerpQuaternion(other, this.elements, 0, load(turn, q), 0, t)
     this.written(other)
     return line ? this.normalize() : this
   }
   /** Whether two quaternions hold the same numbers. */
-  equals(q: Q) {
+  equals(q: XYZWLike) {
     return this.x === q.x && this.y === q.y && this.z === q.z && this.w === q.w
   }
   /** Reads four numbers from a list. */

@@ -4,8 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from './cache.ts'
+import { IMPOSTOR_VERSION } from './writtenFormats.ts'
 import {
-  IMPOSTOR_VERSION,
   assertImpostorSection,
   impostorMeshBaked,
   validateImpostorSection,

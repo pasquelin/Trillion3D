@@ -17,8 +17,9 @@ import {
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { fromSpherical } from '../../../../math/src/vector/spherical.ts'
 import { ObservedComponents } from '../observed.ts'
-import type { Matrix4, Matrix3 } from './matrix4.ts'
-import type { XYZLike as XYZ, XYZWLike as Q } from './likes.ts'
+import type { Matrix4 } from './matrix4.ts'
+import type { Matrix3 } from './matrix3.ts'
+import type { XYZLike, XYZWLike } from './likes.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 const a = new Float64Array(3),
@@ -26,7 +27,7 @@ const a = new Float64Array(3),
   h = new Float64Array(4),
   q = new Float64Array(4)
 /** A vector read into flat numbers, for the core functions that take them. */
-const load = (into: Float64Array, v: XYZ) => {
+const load = (into: Float64Array, v: XYZLike) => {
   into[0] = v.x
   into[1] = v.y
   into[2] = v.z
@@ -59,32 +60,32 @@ export class Vector3 extends ObservedComponents {
   /** Sets x, y and z to one value. */ setScalar(s: number) {
     return this.set(s, s, s)
   }
-  /** Takes x, y and z of another point. */ copy(v: XYZ) {
+  /** Takes x, y and z of another point. */ copy(v: XYZLike) {
     return this.set(v.x, v.y, v.z)
   }
   /** A new vector with the same numbers. */ clone() {
     return new Vector3(this.x, this.y, this.z)
   }
-  /** Adds another vector. */ add(v: XYZ) {
+  /** Adds another vector. */ add(v: XYZLike) {
     return this.written(addVector3(a, this.elements, load(b, v)))
   }
   /** Adds `s` to x, y and z. */ addScalar(s: number) {
     return this.set(this.x + s, this.y + s, this.z + s)
   }
-  /** Becomes `u + v`. */ addVectors(u: XYZ, v: XYZ) {
+  /** Becomes `u + v`. */ addVectors(u: XYZLike, v: XYZLike) {
     return this.written(addVector3(a, load(a, u), load(b, v)))
   }
-  /** Adds `v` times `s`. */ addScaledVector(v: XYZ, s: number) {
+  /** Adds `v` times `s`. */ addScaledVector(v: XYZLike, s: number) {
     return this.written(addScaledVector3(load(a, this), load(b, v), s))
   }
-  /** Takes another vector away. */ sub(v: XYZ) {
+  /** Takes another vector away. */ sub(v: XYZLike) {
     return this.written(subVector3(a, this.elements, load(b, v)))
   }
   /** Becomes `u − v`: `u` copied first, then `v` taken from what was written. */
-  subVectors(u: XYZ, v: XYZ) {
+  subVectors(u: XYZLike, v: XYZLike) {
     return this.copy(u).written(subVector3(a, this.elements, load(b, v)))
   }
-  /** Multiplies x, y and z one by one. */ multiply(v: XYZ) {
+  /** Multiplies x, y and z one by one. */ multiply(v: XYZLike) {
     return this.set(this.x * v.x, this.y * v.y, this.z * v.z)
   }
   /** Multiplies x, y and z by `s`. */ multiplyScalar(s: number) {
@@ -96,19 +97,19 @@ export class Vector3 extends ObservedComponents {
   /** Points the other way. */ negate() {
     return this.multiplyScalar(-1)
   }
-  /** Keeps the smaller of each number. */ min(v: XYZ) {
+  /** Keeps the smaller of each number. */ min(v: XYZLike) {
     return this.set(Math.min(this.x, v.x), Math.min(this.y, v.y), Math.min(this.z, v.z))
   }
-  /** Keeps the larger of each number. */ max(v: XYZ) {
+  /** Keeps the larger of each number. */ max(v: XYZLike) {
     return this.set(Math.max(this.x, v.x), Math.max(this.y, v.y), Math.max(this.z, v.z))
   }
-  /** How much two arrows point the same way. */ dot(v: XYZ) {
+  /** How much two arrows point the same way. */ dot(v: XYZLike) {
     return dotVector3(this.elements, load(b, v))
   }
-  /** Becomes the arrow square to both. */ cross(v: XYZ) {
+  /** Becomes the arrow square to both. */ cross(v: XYZLike) {
     return this.crossVectors(this, v)
   }
-  /** Becomes the arrow square to `u` and `v`. */ crossVectors(u: XYZ, v: XYZ) {
+  /** Becomes the arrow square to `u` and `v`. */ crossVectors(u: XYZLike, v: XYZLike) {
     return this.written(crossVector3(a, load(a, u), load(b, v)))
   }
   /** The length, squared: quicker to get. */ lengthSq() {
@@ -125,19 +126,23 @@ export class Vector3 extends ObservedComponents {
     normalizeVector3(a)
     return this.written(a)
   }
-  /** The distance to a point, squared. */ distanceToSquared(v: XYZ) {
+  /** The distance to a point, squared. */ distanceToSquared(v: XYZLike) {
     return distanceSqVector3(this.elements, load(b, v))
   }
-  /** The distance to a point. */ distanceTo(v: XYZ) {
+  /** The distance to a point. */ distanceTo(v: XYZLike) {
     return distanceVector3(this.elements, load(b, v))
   }
-  /** Moves `t` of the way to `v`. */ lerp(v: XYZ, t: number) {
+  /** Moves `t` of the way to `v`. */ lerp(v: XYZLike, t: number) {
     return this.lerpVectors(this, v, t)
   }
-  /** Becomes the point `t` of the way from `u` to `v`. */ lerpVectors(u: XYZ, v: XYZ, t: number) {
+  /** Becomes the point `t` of the way from `u` to `v`. */ lerpVectors(
+    u: XYZLike,
+    v: XYZLike,
+    t: number,
+  ) {
     return this.set(lerp(u.x, v.x, t), lerp(u.y, v.y, t), lerp(u.z, v.z, t))
   }
-  /** Whether two vectors hold the same numbers. */ equals(v: XYZ) {
+  /** Whether two vectors hold the same numbers. */ equals(v: XYZLike) {
     return this.x === v.x && this.y === v.y && this.z === v.z
   }
   /** Point transform, divided by the projective row. */
@@ -153,7 +158,7 @@ export class Vector3 extends ObservedComponents {
   transformDirection(m: Matrix4) {
     return this.written(transformDirectionVector3(a, m.elements, this.x, this.y, this.z))
   }
-  /** Turns the vector by a quaternion. */ applyQuaternion(r: Q) {
+  /** Turns the vector by a quaternion. */ applyQuaternion(r: XYZWLike) {
     q[0] = r.x
     q[1] = r.y
     q[2] = r.z
@@ -176,6 +181,6 @@ export class Vector3 extends ObservedComponents {
 }
 
 /** `[x, y, z]` or a vector, read as three numbers. */
-export type Vec3Input = XYZ | readonly [number, number, number]
+export type Vec3Input = XYZLike | readonly [number, number, number]
 export const readVec3 = (v: Vec3Input): [number, number, number] =>
-  Array.isArray(v) ? [v[0], v[1], v[2]] : [(v as XYZ).x, (v as XYZ).y, (v as XYZ).z]
+  Array.isArray(v) ? [v[0], v[1], v[2]] : [(v as XYZLike).x, (v as XYZLike).y, (v as XYZLike).z]

@@ -10,7 +10,7 @@
  * reader can reject an entry whose written numbers disagree with them.
  */
 import { PREVIEW_BASE } from '../contracts/writtenFormats.ts'
-import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts'
+import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from './previewFormat.ts'
 import { ceilDiv, floorLog2, mipSize } from '../../../math/src/scalar/integers.ts'
 
 export { PREVIEW_BASE }

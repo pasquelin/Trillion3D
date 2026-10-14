@@ -1,11 +1,11 @@
-import {
-  EngineError,
-  type ClusterGroup,
-  type ClusterStructure,
-  type CullingHierarchy,
-  type StreamBundle,
-  type StreamCatalogue,
-} from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
+import type {
+  ClusterGroup,
+  ClusterStructure,
+  CullingHierarchy,
+  StreamBundle,
+  StreamCatalogue,
+} from '../contracts/geometry.ts'
 import type { SlimPrimitiveBinary } from './binaryTypes.ts'
 
 /** Where the walk over the shared columns currently is. Each decoder advances its own cursor. */

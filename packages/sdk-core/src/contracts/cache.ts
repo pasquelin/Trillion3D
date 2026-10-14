@@ -5,7 +5,7 @@ import {
   type AssetScope,
 } from './base.ts'
 import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts'
-import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts'
+import { TEXTURE_PREVIEW_VERSION } from './writtenFormats.ts'
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.

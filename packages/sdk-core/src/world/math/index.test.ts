@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { math, Vector3 } from './index.ts'
+import { math } from './index.ts'
+import { Vector3 } from './vector3.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 

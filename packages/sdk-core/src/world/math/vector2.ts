@@ -1,7 +1,7 @@
 import { toSpherical } from '../../../../math/src/vector/spherical.ts'
 import { length2, normalizeVector2 } from '../../../../math/src/vector/vector.ts'
 import { Observed } from '../observed.ts'
-import type { XYLike as XY } from './likes.ts'
+import type { XYLike } from './likes.ts'
 
 /** The two numbers `normalize` hands to `normalizeVector2`. */
 const plane = new Float64Array(2)
@@ -43,7 +43,7 @@ export class Vector2 extends Observed {
     return this._changed()
   }
   /** Takes the numbers of another 2D vector. */
-  copy(v: XY) {
+  copy(v: XYLike) {
     return this.set(v.x, v.y)
   }
   /** A new 2D vector with the same numbers. */
@@ -51,11 +51,11 @@ export class Vector2 extends Observed {
     return new Vector2(this._x, this._y)
   }
   /** Adds another 2D vector. */
-  add(v: XY) {
+  add(v: XYLike) {
     return this.set(this._x + v.x, this._y + v.y)
   }
   /** Takes another 2D vector away. */
-  sub(v: XY) {
+  sub(v: XYLike) {
     return this.set(this._x - v.x, this._y - v.y)
   }
   /** Multiplies both numbers by `s`. */
@@ -74,7 +74,7 @@ export class Vector2 extends Observed {
     return this.set(plane[0], plane[1])
   }
   /** How far it is from another 2D point. */
-  distanceTo(v: XY) {
+  distanceTo(v: XYLike) {
     return length2(this._x - v.x, this._y - v.y)
   }
   /** Reads two numbers from a list. */

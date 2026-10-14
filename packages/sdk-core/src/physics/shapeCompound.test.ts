@@ -4,7 +4,7 @@ import { box } from '../world/geometry/basic.ts'
 import { SHAPE } from './layout.ts'
 import type { PhysicsShape } from './options.ts'
 import { resolveShape } from './shape.ts'
-import { ball, refusedShape as refused, twice } from './shape.fixture.ts'
+import { ball, refusedShape, twice } from './shape.fixture.ts'
 
 test('a compound places its primitives in the body, scaled', () => {
   const raft = resolveShape(box(), twice, 'dynamic', {
@@ -41,13 +41,17 @@ test('a compound stretched, flattened or mirrored is refused naming its scale an
     [1, -1, 1, true],
     [1, 1, -1, true],
   ] as const) {
-    const message = refused(made({ x, y, z }, 'raft'), 'raft')
+    const message = refusedShape(made({ x, y, z }, 'raft'), 'raft')
     assert.ok(message.includes(`${x}, ${y}, ${z}`), message)
     assert.equal(/mirror/.test(message), mirrored, message)
     assert.equal(message.endsWith(`${x}, ${y}, ${z}.`), !mirrored, 'the scale said last')
   }
   // Below the tolerance a scale is uniform, never below 0.
   for (const axis of ['x', 'y', 'z'] as const)
-    for (const value of [0, -1e-8]) refused(made({ x: 1e-8, y: 1e-8, z: 1e-8, [axis]: value }), '')
-  assert.equal(refused(made({ x: 1, y: 2, z: 1 }), ''), refused(made({ x: 1, y: 2, z: 1 }, ''), ''))
+    for (const value of [0, -1e-8])
+      refusedShape(made({ x: 1e-8, y: 1e-8, z: 1e-8, [axis]: value }), '')
+  assert.equal(
+    refusedShape(made({ x: 1, y: 2, z: 1 }), ''),
+    refusedShape(made({ x: 1, y: 2, z: 1 }, ''), ''),
+  )
 })

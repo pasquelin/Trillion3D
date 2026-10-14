@@ -1,19 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { assertCacheIdentity, assertCachePointer, assertCacheReady, EngineError } from './cache.ts'
+import { CLUSTERED_BLEND_FORMAT_VERSION, DAG_ERROR_MODEL, FORMAT_VERSION } from './base.ts'
 import {
-  assertCacheIdentity,
-  assertCachePointer,
-  assertCacheReady,
-  CLUSTERED_BLEND_FORMAT_VERSION,
-  DAG_ERROR_MODEL,
-  EngineError,
-  FORMAT_VERSION,
   pageCarriesClusterError,
   primitiveIsDrawable,
   primitiveUsesClusterErrors,
   UNSPLIT_PASS,
-} from '../index.ts'
-import { MANIFEST_BINARY_VERSION } from '../manifest/binaryFormat.ts'
+} from './geometry.ts'
+import { MANIFEST_BINARY_VERSION } from './writtenFormats.ts'
 test('a cache whose pages carry their own cluster errors requires the DAG error model', () => {
   const page = (
     id: number,

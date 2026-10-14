@@ -1,15 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { assertFormat, assertCacheIdentity, EngineError } from './contracts/cache.ts'
 import {
-  assertFormat,
-  assertCacheIdentity,
   CLUSTERED_BLEND_FORMAT_VERSION,
   DAG_ERROR_MODEL,
-  EngineError,
   FORMAT_VERSION,
-  TEXTURE_PREVIEW_VERSION,
-  compareImages,
-} from './index.ts'
+} from './contracts/base.ts'
+import { TEXTURE_PREVIEW_VERSION } from './contracts/writtenFormats.ts'
+import { compareImages } from './runtime/compareImages.ts'
 
 /** One exact root page over the unit box, named by its id. */
 const page = (id: number) => ({

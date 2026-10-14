@@ -3,7 +3,8 @@
 // and `sizeAttenuation`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { object, Sprite } from './index.ts'
+import { object } from './index.ts'
+import { Sprite } from './sprite.ts'
 import { material } from '../material/index.ts'
 import { drawnTriangles } from '../geometry/drawn.ts'
 import type { Material } from '../material/material.ts'

@@ -1,6 +1,5 @@
+import { NODE_ALIVE, NODE_WORLD_LAZY } from '../../world/transform-tree/nodeFlags.ts'
 import {
-  NODE_ALIVE,
-  NODE_WORLD_LAZY,
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
@@ -20,7 +19,7 @@ import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError
 import type { SceneNodeOptions, SceneState } from './nodeContracts.ts'
 import type { SceneRoot } from './root.ts'
 
-export { type SceneNodeOptions } from './nodeContracts.ts'
+export type { SceneNodeOptions } from './nodeContracts.ts'
 
 /** A stable handle into one engine-owned transform hierarchy. */
 export class SceneNode {

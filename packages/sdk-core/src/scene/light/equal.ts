@@ -1,4 +1,5 @@
-import type { SceneEnvironment, SceneLight } from './contracts.ts'
+import type { SceneEnvironment } from '../core/environment.ts'
+import type { SceneLight } from './contracts.ts'
 import { sameSceneFog } from '../core/fog.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */

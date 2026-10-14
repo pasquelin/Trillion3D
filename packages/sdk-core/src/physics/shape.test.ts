@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { box, cylinder, plane, sphere } from '../world/geometry/basic.ts'
 import { capsule } from '../world/geometry/round.ts'
 import type { Geometry } from '../world/geometry/geometry.ts'
-import { ball, one, refusedShape as refused, triangle, twice } from './shape.fixture.ts'
+import { ball, one, refusedShape, triangle, twice } from './shape.fixture.ts'
 import { SHAPE } from './layout.ts'
 import { primitive, resolveShape } from './shape.ts'
 
@@ -141,6 +141,6 @@ test('any other mesh is triangles when static and a hull when it moves, its vert
 test('a dynamic body declared as triangles is refused naming the mesh: triangles hold no mass', () => {
   const as = (name?: string) => () =>
     resolveShape(box(), one, 'dynamic', { type: 'triangles' }, name)
-  refused(as('panel'), 'panel')
-  assert.equal(refused(as(), ''), refused(as(''), ''), 'an unnamed mesh is named ""')
+  refusedShape(as('panel'), 'panel')
+  assert.equal(refusedShape(as(), ''), refusedShape(as(''), ''), 'an unnamed mesh is named ""')
 })

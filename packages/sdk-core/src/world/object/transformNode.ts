@@ -4,8 +4,8 @@ import {
   NODE_LOCAL_CHANGED,
   NODE_TRS_DIRTY,
   NODE_WORLD_NEEDS_UPDATE,
-  markTransformNode,
-} from '../transform-tree/transformTree.ts'
+} from '../transform-tree/nodeFlags.ts'
+import { markTransformNode } from '../transform-tree/transformTree.ts'
 import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../transform-tree/update.ts'
 import * as read from '../transform-tree/read.ts'
 import { Matrix4 } from '../math/matrix4.ts'

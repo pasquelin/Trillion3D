@@ -4,7 +4,7 @@ import {
   dotVector3,
   signedAngleVector3,
 } from '../../../../math/src/vector/vector.ts'
-import { subtract as sub, cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { subtract, cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { GeometryBuilder, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
@@ -166,7 +166,8 @@ function sweep(
   const tangents = points.map((_, i) => {
     const a = points[Math.max(0, i - 1)],
       c = points[Math.min(count, i + 1)]
-    const t = closed && (i === 0 || i === count) ? sub(points[1], points[count - 1]) : sub(c, a)
+    const t =
+      closed && (i === 0 || i === count) ? subtract(points[1], points[count - 1]) : subtract(c, a)
     return unit(t)
   })
   // The first normal is any direction across the first tangent; each next one is the previous

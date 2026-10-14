@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { preview } from '../../../../tests/fixtures/manifest/manifestBinaryPreview.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
-import { EngineError } from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
 import { previewBlockBytes } from '../texture/previewLevels.ts'
 import {
   PREVIEW_FIRST_LEVEL,

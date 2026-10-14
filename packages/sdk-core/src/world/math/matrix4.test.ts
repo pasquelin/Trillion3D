@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Matrix3, Matrix4 } from './matrix4.ts'
+import { Matrix3 } from './matrix3.ts'
+import { Matrix4 } from './matrix4.ts'
 import { Vector3 } from './vector3.ts'
 import { Quaternion } from './quaternion.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'

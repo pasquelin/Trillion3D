@@ -2,11 +2,8 @@
 // setters, dirty marking, `matrixAutoUpdate`, capacity growth and `assertNode` guard.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { NODE_ALIVE, NODE_AUTO_UPDATE, NODE_LOCAL_CHANGED, NODE_TRS_DIRTY } from './nodeFlags.ts'
 import {
-  NODE_ALIVE,
-  NODE_AUTO_UPDATE,
-  NODE_LOCAL_CHANGED,
-  NODE_TRS_DIRTY,
   addTransformNode,
   assertNode,
   createTransformTree,

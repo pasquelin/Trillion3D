@@ -2,9 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { geometry } from './index.ts'
 import { drawnTriangles, readList } from './drawn.ts'
-import { BufferAttribute } from '../buffer/index.ts'
+import { BufferAttribute, pendingAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
-import { pendingAttribute } from '../buffer/attribute.ts'
 
 /** The corners of a drawn quad, four per segment: `a` twice, then `b` twice. */
 function corners(drawn: NonNullable<ReturnType<typeof drawnTriangles>>, quad: number) {

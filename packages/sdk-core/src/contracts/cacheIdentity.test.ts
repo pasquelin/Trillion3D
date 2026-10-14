@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { assertCacheIdentity } from './cache.ts'
 import { identity, refusesIdentity } from './cache.fixture.ts'
-import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts'
+import { TEXTURE_PREVIEW_VERSION } from './writtenFormats.ts'
 
 /** The texture levels' version this runtime reads (7 since the ETC2 family), and the one before. */
 const LEVELS = TEXTURE_PREVIEW_VERSION,

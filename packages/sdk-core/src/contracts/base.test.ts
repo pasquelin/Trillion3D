@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { basename, extname } from 'node:path'
 import test from 'node:test'
-import { CUTOUT_SHEET_FILE, DEFAULT_SCOPE, SDK_VERSION } from './base.ts'
+import { CUTOUT_SHEET_FILE } from './writtenFormats.ts'
+import { DEFAULT_SCOPE, SDK_VERSION } from './base.ts'
 import { assertCachePointer } from './cache.ts'
 
 test('the engine version parses as major.minor.patch for a host', () => {

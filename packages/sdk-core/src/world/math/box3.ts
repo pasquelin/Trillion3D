@@ -13,7 +13,7 @@ import {
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { Vector3 } from './vector3.ts'
 import type { Matrix4 } from './matrix4.ts'
-import type { XYZLike as XYZ } from './likes.ts'
+import type { XYZLike } from './likes.ts'
 
 /** What `setFromObject` walks: a node, its world matrix, and the box its own content spans. */
 export interface BoundedNode {
@@ -48,7 +48,7 @@ export class Box3 {
   }
 
   /** Sets both corners. */
-  set(min: XYZ, max: XYZ) {
+  set(min: XYZLike, max: XYZLike) {
     this.min.copy(min)
     this.max.copy(max)
     return this
@@ -72,7 +72,7 @@ export class Box3 {
     return new Box3().copy(this)
   }
   /** Grows the box just enough to hold a point. */
-  expandByPoint(p: XYZ) {
+  expandByPoint(p: XYZLike) {
     boxExpandByPoint(this.toFlat(flat), 0, p.x, p.y, p.z)
     return this.written()
   }
@@ -94,7 +94,7 @@ export class Box3 {
     return this.written()
   }
   /** The smallest box around a list of points. */
-  setFromPoints(points: XYZ[]) {
+  setFromPoints(points: XYZLike[]) {
     boxEmpty(flat, 0)
     for (const p of points) boxExpandByPoint(flat, 0, p.x, p.y, p.z)
     return this.written()
@@ -126,7 +126,7 @@ export class Box3 {
     return this.isEmpty() ? out.set(0, 0, 0) : out.subVectors(this.max, this.min)
   }
   /** Whether a point is inside the box, its faces included (`boxContainsPoint`). */
-  containsPoint(p: XYZ) {
+  containsPoint(p: XYZLike) {
     return boxContainsPoint(this.toFlat(flat), 0, p.x, p.y, p.z)
   }
   /** Whether two boxes overlap, touching faces included (`boxesOverlap`). */

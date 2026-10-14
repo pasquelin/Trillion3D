@@ -2,10 +2,11 @@
  *  `clusters.json`, its head page (every other field, the previews' sidecar) and its mesh pages
  *  (slim primitives, their sidecar), read whole through the scene partition's pager
  *  (`tablePartition.ts`, `readPagedManifest`). */
-import { EngineError, type ClusterManifest, type Primitive } from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
+import type { ClusterManifest, Primitive } from '../contracts/geometry.ts'
 import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/tablePages.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
-import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
+import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
 import { ownBuffer } from '../runtime/ownBuffer.ts'
 

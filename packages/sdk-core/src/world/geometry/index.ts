@@ -1,4 +1,4 @@
-import { BufferAttribute } from '../buffer/index.ts'
+import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 import { box, circle, cone, cylinder, plane, ring, sphere } from './basic.ts'
 import { capsule, lathe, torus, torusKnot, tube } from './round.ts'

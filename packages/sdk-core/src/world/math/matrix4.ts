@@ -11,7 +11,7 @@ import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { length3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
-import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts'
+import type { XYZSink, XYZWLike, XYZWSink } from './likes.ts'
 
 const t = new Float64Array(3),
   r = new Float64Array(4),
@@ -83,7 +83,7 @@ export class Matrix4 {
     return this
   }
   /** Builds the matrix from a position, a rotation and a size. */
-  compose(position: V, quaternion: Q, scale: V) {
+  compose(position: XYZSink, quaternion: XYZWLike, scale: XYZSink) {
     t[0] = position.x
     t[1] = position.y
     t[2] = position.z
@@ -98,7 +98,7 @@ export class Matrix4 {
     return this
   }
   /** Splits the matrix into position, rotation and size. */
-  decompose(position: V, quaternion: QOut, scale: V) {
+  decompose(position: XYZSink, quaternion: XYZWSink, scale: XYZSink) {
     decomposeMatrix4(this.elements, t, r, s)
     position.set(t[0], t[1], t[2])
     quaternion.set(r[0], r[1], r[2], r[3])
@@ -122,7 +122,7 @@ export class Matrix4 {
   /** Becomes a stretch by `(x, y, z)`. */ makeScale(x: number, y: number, z: number) {
     return this.set(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1)
   }
-  /** Becomes the turn a quaternion makes. */ makeRotationFromQuaternion(q: Q) {
+  /** Becomes the turn a quaternion makes. */ makeRotationFromQuaternion(q: XYZWLike) {
     r[0] = q.x
     r[1] = q.y
     r[2] = q.z

@@ -1,7 +1,7 @@
 import { Mesh } from './mesh.ts'
 import { plane } from '../geometry/basic.ts'
 import type { Material } from '../material/material.ts'
-import { material as materials } from '../material/index.ts'
+import { material } from '../material/index.ts'
 import { Vector2 } from '../math/vector2.ts'
 import { listen } from '../observed.ts'
 
@@ -22,16 +22,16 @@ export class Sprite extends Mesh {
    * @defaultValue (0.5, 0.5)
    */
   readonly center = new Vector2(0.5, 0.5)
-  constructor(material?: Material) {
-    super(plane(1, 1), spriteMaterial(material ?? materials.sprite()), 'sprite')
+  constructor(given?: Material) {
+    super(plane(1, 1), spriteMaterial(given ?? material.sprite()), 'sprite')
     listen(this.center, () => this._link?.content(this))
   }
   /** The sprite's `material.sprite`; set another to change it. */
   override get material(): Material | Material[] {
     return super.material
   }
-  override set material(material: Material | Material[]) {
-    super.material = spriteMaterial(material)
+  override set material(value: Material | Material[]) {
+    super.material = spriteMaterial(value)
   }
   /** A shallow clone shares this sprite's geometry and material, and keeps its centre. */
   protected override blank(): this {

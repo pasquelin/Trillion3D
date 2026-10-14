@@ -4,9 +4,9 @@
 // epoch, which the frame rereads to push its buffer.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_FIELD, createSceneLightStore } from './store.ts'
+import { LIGHT_FIELD, baseOf } from './fields.ts'
+import { createSceneLightStore } from './store.ts'
 import { SCENE_LIGHT_HEADER_FLOATS, type SceneLight } from './contracts.ts'
-import { baseOf } from './fields.ts'
 
 const LIGHT: SceneLight = {
   id: 'l0',

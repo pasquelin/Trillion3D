@@ -1,4 +1,5 @@
-import { NODE_ALIVE, NODE_LISTED, NODE_WORLD_LAZY, type TransformTree } from './transformTree.ts'
+import { NODE_ALIVE, NODE_LISTED, NODE_WORLD_LAZY } from './nodeFlags.ts'
+import type { TransformTree } from './transformTree.ts'
 import { nextStamp } from './structure.ts'
 import { nextInSubtree } from './links.ts'
 import { refreshNode } from './update.ts'

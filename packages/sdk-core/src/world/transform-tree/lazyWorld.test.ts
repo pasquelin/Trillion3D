@@ -3,8 +3,8 @@
 // pass writes, refreshed on the spot, by the same product in the same order.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { NODE_WORLD_LAZY } from './nodeFlags.ts'
 import {
-  NODE_WORLD_LAZY,
   addTransformNode,
   createTransformTree,
   setNodePosition,

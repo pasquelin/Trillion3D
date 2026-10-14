@@ -2,12 +2,8 @@
 // subtree traversal, removal (with index reuse) and reparenting (including the rejected cycle).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  addTransformNode,
-  createTransformTree,
-  NODE_ALIVE,
-  NODE_LOCAL_CHANGED,
-} from './transformTree.ts'
+import { addTransformNode, createTransformTree } from './transformTree.ts'
+import { NODE_ALIVE, NODE_LOCAL_CHANGED } from './nodeFlags.ts'
 import {
   nextStamp,
   releaseTransformNode,

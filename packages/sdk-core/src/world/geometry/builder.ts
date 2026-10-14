@@ -1,5 +1,5 @@
 import { crossVector3 } from '../../../../math/src/vector/vector.ts'
-import { BufferAttribute } from '../buffer/index.ts'
+import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 import { computeNormals } from './normals.ts'
 

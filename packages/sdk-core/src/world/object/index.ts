@@ -63,5 +63,5 @@ export const object = {
 }
 
 export { Object3D, Group, Mesh, Sprite, type Primitive }
-export type { SceneLink } from './object3d.ts'
+export type { SceneLink } from './sceneLink.ts'
 export { TransformNode } from './transformNode.ts'

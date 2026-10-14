@@ -1,5 +1,5 @@
 import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
-import { BufferAttribute } from '../buffer/index.ts'
+import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 import { pointAt } from './bounds.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'

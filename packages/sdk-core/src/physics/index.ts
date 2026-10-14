@@ -11,15 +11,14 @@ export {
   type ContactEventName,
   type PhysicsHost,
 } from './objectPhysics.ts'
-export {
-  Joint,
-  joint,
-  type JointKind,
-  type JointLimits,
-  type JointMotor,
-  type JointOptions,
-  type SixDofAxis,
-} from './joint.ts'
+export { Joint, joint } from './joint.ts'
+export type {
+  JointKind,
+  JointLimits,
+  JointMotor,
+  JointOptions,
+  SixDofAxis,
+} from './jointOptions.ts'
 export * from './vehicleLayout.ts'
 export { Vehicle } from './vehicle.ts'
 export { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts'

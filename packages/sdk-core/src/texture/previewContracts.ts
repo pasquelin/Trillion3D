@@ -1,4 +1,4 @@
-import type { TextureBlockFormat, TextureLayout } from '../manifest/binaryFormat.ts'
+import type { TextureBlockFormat, TextureLayout } from './previewFormat.ts'
 
 /**
  * The mip chain of an atlas texture: the tail in the sidecar — from the first level where no

@@ -10,8 +10,8 @@ import {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
-  type SceneProxyDescriptor,
-} from '../../contracts/proxy.ts'
+} from '../../contracts/writtenFormats.ts'
+import type { SceneProxyDescriptor } from '../../contracts/proxy.ts'
 import { decodeSceneProxy } from './proxy.ts'
 
 /** A mesh of `triangles` triangles under one node that holds them all in one leaf. */

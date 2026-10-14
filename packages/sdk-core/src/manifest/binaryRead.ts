@@ -1,14 +1,16 @@
-import { EngineError } from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
 import {
   BYTES_PER_ELEMENT,
   COLUMN_KIND,
   COLUMN_NAMES,
   COLUMN_STRIDE,
+  type ColumnName,
+} from './binaryFormat.ts'
+import {
   MANIFEST_BINARY_HEADER_WORDS,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
-  type ColumnName,
-} from './binaryFormat.ts'
+} from '../contracts/writtenFormats.ts'
 import { columnElements, type Counts } from './binaryLayout.ts'
 import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
 

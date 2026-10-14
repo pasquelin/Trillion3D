@@ -7,12 +7,10 @@ import {
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
-  type RuntimeCutProxy,
-  type SceneProxy,
-  type SceneProxyDescriptor,
-} from '../../contracts/proxy.ts'
-import { EngineError } from '../../contracts/index.ts'
-import { invalidProxy as bad } from './proxyError.ts'
+} from '../../contracts/writtenFormats.ts'
+import type { RuntimeCutProxy, SceneProxy, SceneProxyDescriptor } from '../../contracts/proxy.ts'
+import { EngineError } from '../../contracts/cache.ts'
+import { invalidProxy } from './proxyError.ts'
 
 /** The triangle count in bits 16–23 of a child's second word: a leaf's triangles, 0 for an inner
  *  child, whose link names a node. */
@@ -66,11 +64,21 @@ function checkChildren(mesh: number, children: Uint32Array, nodes: number, trian
       if (words >>> 24 === 0) continue
       const count = proxyChildCount(words)
       if (count === 0 && offset <= node)
-        throw bad('A scene proxy child does not point forward', { mesh, node, slot, offset })
+        throw invalidProxy('A scene proxy child does not point forward', {
+          mesh,
+          node,
+          slot,
+          offset,
+        })
       if (count === 0 && offset >= nodes)
-        throw bad('A scene proxy child names a node it does not have', { mesh, node, slot, offset })
+        throw invalidProxy('A scene proxy child names a node it does not have', {
+          mesh,
+          node,
+          slot,
+          offset,
+        })
       if (count > 0 && offset + count > triangles)
-        throw bad('A scene proxy leaf names triangles it does not have', {
+        throw invalidProxy('A scene proxy leaf names triangles it does not have', {
           mesh,
           node,
           offset,
@@ -95,7 +103,7 @@ export function decodeSceneProxy(
   assertSceneProxy(descriptor)
   const header = SCENE_PROXY_HEADER_WORDS * 4
   const wrongLength = (expected: number) =>
-    bad('The scene proxy object does not have the length its manifest declares', {
+    invalidProxy('The scene proxy object does not have the length its manifest declares', {
       bytes: buffer.byteLength,
       expected,
     })
@@ -103,7 +111,7 @@ export function decodeSceneProxy(
     throw wrongLength(Math.max(header, descriptor.bytes))
   const words = new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS)
   if (words[0] !== SCENE_PROXY_MAGIC)
-    throw bad('The scene proxy object has no WGPX signature', { magic: words[0] })
+    throw invalidProxy('The scene proxy object has no WGPX signature', { magic: words[0] })
   if (
     words[1] !== SCENE_PROXY_VERSION ||
     words[2] !== descriptor.meshes ||
@@ -111,7 +119,7 @@ export function decodeSceneProxy(
     words[4] !== descriptor.nodes ||
     words[5] !== 0
   )
-    throw bad('The scene proxy object disagrees with its manifest', {
+    throw invalidProxy('The scene proxy object disagrees with its manifest', {
       version: words[1],
       meshes: words[2],
       triangles: words[3],
@@ -164,6 +172,6 @@ export function decodeSceneProxy(
     nodeAt += nodeCount
   }
   if (triangleAt !== triangles || nodeAt !== nodes)
-    throw bad('The scene proxy table disagrees with its header', { triangleAt, nodeAt })
+    throw invalidProxy('The scene proxy table disagrees with its header', { triangleAt, nodeAt })
   return { ...descriptor, data: { meshes: list } }
 }

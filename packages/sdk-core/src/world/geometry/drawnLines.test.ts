@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { drawnTriangles, lineCorners } from './drawn.ts'
-import { BufferAttribute } from '../buffer/index.ts'
+import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 
 const attr = (values: number[], width: number) =>

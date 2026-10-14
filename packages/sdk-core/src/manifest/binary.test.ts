@@ -3,10 +3,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assertManifestBinary } from './binaryTypes.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
-import { MANIFEST_BINARY_MAGIC } from './binaryFormat.ts'
-import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
+import { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
+
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
-import { assertCacheIdentity, EngineError, type ClusterManifest } from '../contracts/index.ts'
+import { assertCacheIdentity, EngineError } from '../contracts/cache.ts'
+import type { ClusterManifest } from '../contracts/geometry.ts'
 import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts'
 
 /** The bytes a `Uint8Array` view owns, as a plain `ArrayBuffer`: `encodeManifestBinary` always

@@ -3,16 +3,17 @@ import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
-  type SceneEnvironment,
   type SceneLight,
   type SceneLightingView,
 } from './contracts.ts'
-import { sameSceneEnvironment, sameSceneLight } from './equal.ts'
 import {
+  type SceneEnvironment,
   SCENE_ENVIRONMENT_FLOATS,
   packEnvironment,
   validateSceneEnvironment,
 } from '../core/environment.ts'
+import { sameSceneEnvironment, sameSceneLight } from './equal.ts'
+
 import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
 import { validateSceneLight } from './validate.ts'
 import { createLightKinds } from './kinds.ts'

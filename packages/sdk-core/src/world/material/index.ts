@@ -1,4 +1,5 @@
-import { Material, type MaterialParameters } from './material.ts'
+import { Material } from './material.ts'
+import type { MaterialParameters } from './materialParameters.ts'
 import { DEFAULT_IOR, DEFAULT_SHININESS } from './defaults.ts'
 
 /** A member building one kind, with the values that kind starts from. */

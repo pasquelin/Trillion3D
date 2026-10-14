@@ -7,7 +7,7 @@ import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { Vector3 } from './vector3.ts'
 import type { Box3 } from './box3.ts'
 import type { Matrix4 } from './matrix4.ts'
-import type { XYZLike as XYZ } from './likes.ts'
+import type { XYZLike } from './likes.ts'
 
 /** A ball: centre and radius; a negative radius is the empty sphere. */
 export class Sphere {
@@ -22,7 +22,7 @@ export class Sphere {
     this.radius = radius
   }
   /** Sets the middle and the radius. */
-  set(center: XYZ, radius: number) {
+  set(center: XYZLike, radius: number) {
     this.center.copy(center)
     this.radius = radius
     return this
@@ -32,11 +32,11 @@ export class Sphere {
     return this.radius < 0
   }
   /** Whether a point is inside the ball. */
-  containsPoint(p: XYZ) {
+  containsPoint(p: XYZLike) {
     return this.center.distanceToSquared(p) <= this.radius * this.radius
   }
   /** How far a point is from the ball's surface; negative inside. */
-  distanceToPoint(p: XYZ) {
+  distanceToPoint(p: XYZLike) {
     return this.center.distanceTo(p) - this.radius
   }
   /** A new ball with the same middle and radius. */
@@ -58,23 +58,23 @@ export class Plane {
     this.constant = constant
   }
   /** Sets the normal and the distance. */
-  set(normal: XYZ, constant: number) {
+  set(normal: XYZLike, constant: number) {
     this.normal.copy(normal)
     this.constant = constant
     return this
   }
   /** The plane through `point`, facing along `normal`. */
-  setFromNormalAndCoplanarPoint(normal: XYZ, point: XYZ) {
+  setFromNormalAndCoplanarPoint(normal: XYZLike, point: XYZLike) {
     this.normal.copy(normal)
     this.constant = -this.normal.dot(point)
     return this
   }
   /** How far a point is from the plane; negative behind it. */
-  distanceToPoint(p: XYZ) {
+  distanceToPoint(p: XYZLike) {
     return this.normal.dot(p) + this.constant
   }
   /** The point of the plane closest to `p`. */
-  projectPoint(p: XYZ, out = new Vector3()) {
+  projectPoint(p: XYZLike, out = new Vector3()) {
     return out.copy(p).addScaledVector(this.normal, -this.distanceToPoint(p))
   }
   /** A new plane with the same normal and distance. */
@@ -99,7 +99,7 @@ export class Ray {
     this.direction = direction
   }
   /** Sets the start and the direction. */
-  set(origin: XYZ, direction: XYZ) {
+  set(origin: XYZLike, direction: XYZLike) {
     this.origin.copy(origin)
     this.direction.copy(direction)
     return this
@@ -146,7 +146,7 @@ export class Triangle {
     this.c = c
   }
   /** Sets the three corners. */
-  set(a: XYZ, b: XYZ, c: XYZ) {
+  set(a: XYZLike, b: XYZLike, c: XYZLike) {
     this.a.copy(a)
     this.b.copy(b)
     this.c.copy(c)
@@ -188,7 +188,7 @@ export class Frustum {
     return !frustumExcludesBox(this.planes, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
   }
   /** Whether a point is in view (`frustumContainsPoint`). */
-  containsPoint(p: XYZ) {
+  containsPoint(p: XYZLike) {
     return frustumContainsPoint(this.planes, p.x, p.y, p.z)
   }
 }

@@ -12,7 +12,7 @@ import { lastTrue } from '../../../math/src/scalar/search.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import {
   WORLD_ROOTS_BIN,
-  refuseWorldRoots as refuse,
+  refuseWorldRoots,
   type WorldRoots,
   type WorldRootsCluster,
   type WorldRootsPageFacts,
@@ -38,8 +38,8 @@ function opened(
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const word = (at: number) => view.getUint32(at, true)
   if (bytes.byteLength < header || String.fromCharCode(...bytes.subarray(0, 4)) !== magic)
-    refuse(`not a ${magic} file`)
-  if (word(4) !== VERSION) refuse(`version ${word(4)}`)
+    refuseWorldRoots(`not a ${magic} file`)
+  if (word(4) !== VERSION) refuseWorldRoots(`version ${word(4)}`)
   const at = poolAt(word)
   const words = (bytes.byteLength - at) / 4
   // Aligned it is viewed in place; a caller's unaligned view is copied once.
@@ -51,7 +51,7 @@ function opened(
   const list = (at: number) => {
     const first = word(at),
       count = word(at + 4)
-    if (first + count > pool.length) refuse(`a list at ${at} past the pool`)
+    if (first + count > pool.length) refuseWorldRoots(`a list at ${at} past the pool`)
     return pool.subarray(first, first + count)
   }
   return { view, word, pool, list }
@@ -69,8 +69,8 @@ function tableBundles(bytes: Uint8Array, { word, list }: Opened, count: number) 
     const at = TABLE_HEADER + rank * BUNDLE,
       dependencies = list(at + 16)
     if (uint64FromWords(word(at), word(at + 4)) !== end)
-      refuse(`bundle ${rank} is not the next range`)
-    if (!below(dependencies, count)) refuse(`bundle ${rank} dependencies`)
+      refuseWorldRoots(`bundle ${rank} is not the next range`)
+    if (!below(dependencies, count)) refuseWorldRoots(`bundle ${rank} dependencies`)
     const offset = end
     end += word(at + 8)
     const sha256 = hexOfBytes(bytes.subarray(at + 24, at + BUNDLE))
@@ -108,14 +108,15 @@ function tableCells(
   let next = 0
   for (let cell = 0; cell < cellCount; cell++) {
     const count = word(cellsAt + cell * CELL + 4)
-    if (word(cellsAt + cell * CELL) !== next) refuse(`cell ${cell} objects`)
+    if (word(cellsAt + cell * CELL) !== next) refuseWorldRoots(`cell ${cell} objects`)
     for (const first of list(cellsAt + cell * CELL + 8))
-      if (first !== NO_INDEX && first >= count) refuse(`cell ${cell} nodes`)
+      if (first !== NO_INDEX && first >= count) refuseWorldRoots(`cell ${cell} nodes`)
     next += count
   }
-  if (next !== objectCount) refuse('cells and objects')
+  if (next !== objectCount) refuseWorldRoots('cells and objects')
   for (let object = 0; object < objectCount; object++)
-    if (!below(list(objectsAt + object * OBJECT + 16), bundleCount)) refuse('object dependencies')
+    if (!below(list(objectsAt + object * OBJECT + 16), bundleCount))
+      refuseWorldRoots('object dependencies')
   return {
     count: cellCount,
     first: (cell) => word(cellsAt + cell * CELL),
@@ -146,7 +147,7 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
   const file = opened(bytes, 'WRTB', TABLE_HEADER, (w) => {
     const counts = [w(20), w(24), w(28), w(32)]
     const records = counts[0] * BUNDLE + counts[1] * PAGE + counts[2] * CELL + counts[3] * OBJECT
-    if (TABLE_HEADER + records + w(36) * 4 !== bytes.byteLength) refuse('table length')
+    if (TABLE_HEADER + records + w(36) * 4 !== bytes.byteLength) refuseWorldRoots('table length')
     return TABLE_HEADER + records
   })
   const { word } = file
@@ -158,11 +159,11 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     objectsAt = cellsAt + cellCount * CELL
   const { bundles, end } = tableBundles(bytes, file, bundleCount)
   // No pinned bundle is a world whose objects all stand alone: each held with its cell.
-  if (pinned > bundleCount) refuse(`pinned ${pinned}`)
+  if (pinned > bundleCount) refuseWorldRoots(`pinned ${pinned}`)
   const payloadBytes = uint64FromWords(word(40), word(44))
-  if (payloadBytes !== end) refuse('payload')
+  if (payloadBytes !== end) refuseWorldRoots('payload')
   const top = bundles.slice(0, pinned).reduce((sum, bundle) => sum + bundle.bytes, 0)
-  if (pinnedTopBytes !== top) refuse('pinnedTopBytes')
+  if (pinnedTopBytes !== top) refuseWorldRoots('pinnedTopBytes')
   return {
     version: VERSION,
     budgetBytes: word(8),
@@ -202,8 +203,8 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts | null {
 export function readWorldRootsDag(bytes: Uint8Array) {
   const { view, word, list } = opened(bytes, 'WRTD', DAG_HEADER, (w) => {
     const records = DAG_HEADER + w(8) * CLUSTER + w(12) * GROUP + w(20) * NODE
-    if (records + w(16) * 4 !== bytes.byteLength) refuse('DAG length')
-    if (w(8) > 0 && w(20) === 0) refuse('a DAG without its culling hierarchy')
+    if (records + w(16) * 4 !== bytes.byteLength) refuseWorldRoots('DAG length')
+    if (w(8) > 0 && w(20) === 0) refuseWorldRoots('a DAG without its culling hierarchy')
     return records
   })
   const clusterCount = word(8)
@@ -235,7 +236,8 @@ export function readWorldRootsDag(bytes: Uint8Array) {
   const groups: ClusterGroup[] = Array.from({ length: word(12) }, (_, group) => {
     const at = groupsAt + group * GROUP
     const [children, outputs] = [list(at + 4), list(at + 12)]
-    if (!below(children, clusterCount) || !below(outputs, clusterCount)) refuse(`group ${group}`)
+    if (!below(children, clusterCount) || !below(outputs, clusterCount))
+      refuseWorldRoots(`group ${group}`)
     const [error, ...sphere] = floats(at + 24, 5)
     return { level: word(at), error, sphere, children: [...children], outputs: [...outputs] }
   })

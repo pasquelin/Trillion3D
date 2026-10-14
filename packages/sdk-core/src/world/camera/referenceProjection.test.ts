@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { camera, type CameraParameters } from './index.ts'
+import { camera } from './index.ts'
+import type { CameraParameters } from './camera.ts'
 import {
   drawnView,
   orthographicProjection,

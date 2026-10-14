@@ -1,4 +1,5 @@
-import { PREVIEW_BLOCK_FORMATS, type ColumnName, type TextureBlockFormat } from './binaryFormat.ts'
+import { PREVIEW_BLOCK_FORMATS, type TextureBlockFormat } from '../texture/previewFormat.ts'
+import type { ColumnName } from './binaryFormat.ts'
 
 /** How many rows each part of a binary manifest holds. */
 export interface Counts {

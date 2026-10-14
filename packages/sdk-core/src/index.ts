@@ -14,21 +14,27 @@ export {
   TRANSPARENT_DEPTH_LAYER,
   depthLayerUnits,
 } from './lod/depthLayer.ts'
-export { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from './manifest/binaryFormat.ts'
 export {
+  MANIFEST_BINARY_MAGIC,
+  MANIFEST_BINARY_VERSION,
   PREVIEW_BASE,
   TEXTURE_PREVIEW_VERSION,
+} from './contracts/writtenFormats.ts'
+export {
   previewFirstLevel,
   previewIsWhole,
   previewLastLevel,
   previewLevelSize,
-} from './manifest/binary.ts'
+  blocksAcross,
+  levelBlockBytes,
+  previewBlockBytes,
+} from './texture/previewLevels.ts'
 export { assertManifestBinary } from './manifest/binaryTypes.ts'
 export { decodeManifestBinary } from './manifest/binaryDecode.ts'
 export { readPagedManifest } from './manifest/paged.ts'
 export { textureLevelFormat, textureLevelUrl, type TextureLevelFormat } from './texture/levelUrl.ts'
+export { GEOMETRY_PAGE_CODEC } from './manifest/binaryFormat.ts'
 export {
-  GEOMETRY_PAGE_CODEC,
   PREVIEW_ATLAS_COLOR,
   PREVIEW_ATLAS_COVERAGE,
   PREVIEW_ATLAS_DATA,
@@ -40,9 +46,9 @@ export {
   PREVIEW_LOSSLESS_FORMAT,
   type TextureBlockFormat,
   type TextureLayout,
-} from './manifest/binaryFormat.ts'
+} from './texture/previewFormat.ts'
 export { GEOMETRY_PAGE_FORMAT_VERSION } from './page/format.ts'
-export { blocksAcross, levelBlockBytes, previewBlockBytes } from './texture/previewLevels.ts'
+
 export type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
@@ -89,8 +95,9 @@ export { maxStretch, coneRejects } from '../../math/src/projection/projectionOra
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
 export * from '../../math/src/index.ts'
 export * from './world/transform-tree/index.ts'
-export { SceneNode, type SceneNodeOptions } from './scene/core/node.ts'
-export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'
+export { SceneNode } from './scene/core/node.ts'
+export { type SceneNodeOptions, SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'
+
 export type { SceneState } from './scene/core/nodeContracts.ts'
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts'
@@ -132,18 +139,14 @@ export {
   addUniformIrradiance,
   emptyIrradiance,
 } from './scene/core/environment.ts'
-export type { SceneToneMapping } from './scene/core/environment.ts'
+export type { SceneToneMapping, SceneEnvironment } from './scene/core/environment.ts'
 export type { SceneExponentialFog, SceneFog, SceneLinearFog } from './scene/core/fog.ts'
-export type {
-  SceneEnvironment,
-  SceneLight,
-  SceneLightingView,
-  ShadowViewpoint,
-} from './scene/light/contracts.ts'
+export type { SceneLight, SceneLightingView, ShadowViewpoint } from './scene/light/contracts.ts'
 export type { LightingCapabilities } from './scene/light/capabilities.ts'
 export { validateSceneLight } from './scene/light/validate.ts'
 export { validateSceneEnvironment } from './scene/core/environment.ts'
-export { LIGHT_FIELD, createSceneLightStore } from './scene/light/store.ts'
+export { LIGHT_FIELD } from './scene/light/fields.ts'
+export { createSceneLightStore } from './scene/light/store.ts'
 export type { SceneLightStore } from './scene/light/store.ts'
 export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
 export type { Counts } from './manifest/binaryLayout.ts'

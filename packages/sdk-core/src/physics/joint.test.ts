@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Object3D } from '../world/object/object3d.ts'
-import { joint, Joint, type JointKind, type JointOptions } from './joint.ts'
+import { joint, Joint } from './joint.ts'
+import type { JointKind, JointOptions } from './jointOptions.ts'
 
 const limits = { min: -1, max: 2 }
 const spring = { frequency: 3 }

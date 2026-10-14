@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { object, Object3D } from './index.ts'
+import { object } from './index.ts'
+import { Object3D } from './object3d.ts'
 import { geometry } from '../geometry/index.ts'
 import { material } from '../material/index.ts'
-import { light } from '../light/index.ts'
+import { light } from '../light/light.ts'
 
 test('a clone keeps every field a saved scene keeps, and shares nothing', () => {
   const group = object.group()

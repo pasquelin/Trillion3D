@@ -1,12 +1,12 @@
 import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
+import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import {
   NODE_AUTO_UPDATE,
   NODE_LOCAL_CHANGED,
   NODE_TRS_DIRTY,
   NODE_WORLD_NEEDS_UPDATE,
-  type TransformTree,
-} from './transformTree.ts'
+} from './nodeFlags.ts'
+import type { TransformTree } from './transformTree.ts'
 import { nextStamp, visitSubtree } from './structure.ts'
 import { nextInSubtree } from './links.ts'
 

@@ -1,7 +1,7 @@
 import { composeMatrix4At } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { eulerFromRotationMatrix } from '../../../../math/src/matrix/euler.ts'
 import { Observed } from '../observed.ts'
-import type { XYZWLike as Q } from './likes.ts'
+import type { XYZWLike } from './likes.ts'
 
 const rotation = new Float64Array(16),
   turn = new Float64Array(4),
@@ -19,7 +19,7 @@ export class Euler extends Observed {
   private _order: string
   /** The quaternion the angles follow (`_follow`), or `null`; `_seen` is the one they were read
    *  from. */
-  private _source: Q | null = null
+  private _source: XYZWLike | null = null
   private readonly _seen = new Float64Array(4)
 
   constructor(x = 0, y = 0, z = 0, order = 'XYZ') {
@@ -91,7 +91,7 @@ export class Euler extends Observed {
     return this.fromElements(m.elements, order, quiet)
   }
   /** The three angles that make the same turn as a quaternion. */
-  setFromQuaternion(q: Q, order = this._order, quiet = false) {
+  setFromQuaternion(q: XYZWLike, order = this._order, quiet = false) {
     turn[0] = q.x
     turn[1] = q.y
     turn[2] = q.z
@@ -114,7 +114,7 @@ export class Euler extends Observed {
    * derived again, quietly, when read after `q` changed. A node's owner writes its quaternion
    * alone, thousands a frame for the physics, and pays for the angles the page reads, not all.
    */
-  _follow(q: Q) {
+  _follow(q: XYZWLike) {
     const seen = this._seen
     this._source = q
     seen[0] = q.x

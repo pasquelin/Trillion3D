@@ -1,4 +1,5 @@
-import { EngineError, type TexturePreview } from '../contracts/index.ts'
+import { EngineError } from '../contracts/cache.ts'
+import type { TexturePreview } from '../texture/previewContracts.ts'
 import * as format from './binaryFormat.ts'
 import { levelBlockBytes, type previewGeometry } from '../texture/previewLevels.ts'
 

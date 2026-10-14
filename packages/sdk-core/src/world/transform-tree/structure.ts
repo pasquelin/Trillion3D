@@ -1,11 +1,6 @@
 import { EngineError } from '../../contracts/cache.ts'
-import {
-  NODE_LISTED,
-  NODE_LOCAL_CHANGED,
-  assertNode,
-  markTransformNode,
-  type TransformTree,
-} from './transformTree.ts'
+import { NODE_LISTED, NODE_LOCAL_CHANGED, NODE_WORLD_LAZY } from './nodeFlags.ts'
+import { assertNode, markTransformNode, type TransformTree } from './transformTree.ts'
 import {
   hangDepths,
   linkTransformNode,
@@ -14,7 +9,6 @@ import {
   takeOffList,
   unlinkTransformNode,
 } from './links.ts'
-import { NODE_WORLD_LAZY } from './nodeFlags.ts'
 
 /**
  * Hierarchy structure: subtree walk, removal, release, reparenting. Every operation reads the

@@ -1,6 +1,5 @@
-export { TEXTURE_PREVIEW_VERSION } from './binaryFormat.ts'
+export { TEXTURE_PREVIEW_VERSION, PREVIEW_BASE } from '../contracts/writtenFormats.ts'
 export {
-  PREVIEW_BASE,
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
