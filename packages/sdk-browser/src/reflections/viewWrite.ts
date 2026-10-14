@@ -1,8 +1,6 @@
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
-import { frontPitch } from './frontDepth.ts'
 import type { HeldImage } from './radiance.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 
@@ -18,35 +16,32 @@ export type ReflectionFrame = {
   proxyError: number
   /** The run-time proxy's epoch (`proxyStore.ts`, `follow`): what its answers are stamped with. */
   epoch?: number
+  /** Whether this image's trace answers the transparents' front surface (`frontLayer.ts`). */
+  front?: boolean
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
 
 /**
  * The writer of a view uniform `buffer`: it stages this image's view — the view-projection, the
- * radiance image's view-projection and its inverse, drawn size and top level (`levels` − 1), this
+ * radiance image's view-projection, drawn size and top level (`levels` − 1), this
  * image's drawn size, the geometry of a surface's thickness (`screenSlab`) with the world size of a
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
- * is traced, the resident proxy's error, its epoch and the surroundings. The words that differ from those it
- * sent go up (`writeChanged`): a still view writes once, and nothing in it is a frame index or a
- * seed. Nothing is allocated by a call.
+ * is traced, the resident proxy's error, its epoch, whether the trace answers the transparents' front
+ * surface, and the surroundings. The words that differ from those it sent go up (`writeChanged`): a
+ * still view writes once, transparents or not, and nothing in it is a frame index or a seed. Nothing
+ * is allocated by a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
   const staged = new Float32Array(REFLECTION_VIEW_WORDS)
   const words = new Uint32Array(staged.buffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
   const runtime = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.runtime * 4, 4)
-  const inverse = new Float64Array(16)
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
     copyMatrix4(staged, m, REFLECTION_VIEW_AT.viewProj)
     copyMatrix4(staged, held.viewProjection, REFLECTION_VIEW_AT.radianceViewProj)
-    copyMatrix4(
-      staged,
-      invertMatrix4(inverse, held.viewProjection),
-      REFLECTION_VIEW_AT.radianceInverse,
-    )
     const [, height] = frame.size
     staged[REFLECTION_VIEW_AT.radiance] = held.size[0]
     staged[REFLECTION_VIEW_AT.radiance + 1] = held.size[1]
@@ -55,9 +50,9 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
     traced[1] = frame.size[0]
     traced[2] = frame.size[1]
-    traced[3] = frontPitch(frame.size[0])
     staged[REFLECTION_VIEW_AT.proxy] = frame.proxyError
     runtime[0] = frame.epoch ?? 0
+    runtime[1] = frame.front ? 1 : 0
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

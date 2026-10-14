@@ -31,7 +31,7 @@ export type GpuHiz = {
    *  opaque depth, and the front depth once asked (`front`) —, the pyramid and its levels uniform, in
    *  that order: a new object whenever one changes, which a reader's bind group follows. */
   depth(): HizDepth | undefined
-  /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`):
+  /** Level 0's front layer, which the transparents' front pass writes (`reflections/frontLayer.ts`):
    *  zero where no transparent surface lies; none unless `wanted` — an image whose transparents'
    *  fold writes it. Made in `encoder` at the first ask, then kept (`holdFrontLayer`): the readers
    *  fold it by a frame word only while an image writes it, so no reader folds a layer this image

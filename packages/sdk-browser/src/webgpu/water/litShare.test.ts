@@ -56,6 +56,7 @@ function runner(text: string) {
       'lobeThrough',
       'litSurface',
       'lobeRoughness',
+      'forwardTrace',
       'reflectionTrace',
       'reflectionShare',
       'f0Of',
@@ -82,6 +83,8 @@ function runner(text: string) {
       uni: { viewFlags: 0, eye: [0, 1, 0, 0] },
       viewToEye: () => [0, 0.6, 0.8],
       Reflected: (base: number[], coat: number[]) => ({ base, coat }),
+      // No front pass this image: the chain traces the pixel's lobes.
+      reflectionView: { runtime: [0, 0, 0, 0] },
       waterFacing: (normal: number[]) => normal,
       declaredLightingPair: () => pixel.declared,
       bounceLighting: () => (lit++, pixel.bounce),

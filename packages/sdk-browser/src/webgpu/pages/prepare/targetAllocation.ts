@@ -20,8 +20,8 @@ import type { FrameSize } from '../state/renderScale.ts'
 const DISPLAY_BYTES = 4
 
 /**
- * Whether the scene has blends — water included —, which write the front depth the reflections
- * march (`createFrontDepth`'s `blends`): laid out when the session opens, none enters or leaves it
+ * Whether the scene has blends — water included —, which the front pass draws into the transparents'
+ * front layer (`createFrontLayer`'s `blends`): laid out when the session opens, none enters or leaves it
  * (`webgpuMaterialClassRefusal`). Any other scene keeps a texel of its target and nothing else, and
  * draws what it drew before.
  */

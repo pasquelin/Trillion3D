@@ -81,7 +81,7 @@ export type Pyramid = HizPyramid & {
    *  build as storage, read by the others as a texture. */
   pyramid: GPUTexture
   pyramidView: GPUTextureView
-  /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`): zero
+  /** Level 0's front layer, which the transparents' front pass writes (`reflections/frontLayer.ts`): zero
    *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. None until a
    *  scene's transparents ask it, then kept (`holdFrontLayer`). */
   frontView: GPUTextureView | undefined

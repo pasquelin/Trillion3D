@@ -11,6 +11,7 @@ import { directLightResources } from '../prepare/contractLight.ts'
 import { voidStaleBlendGroups } from '../../blend/identity.ts'
 import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { ContractKey } from '../../../lighting/deferred/contractCuts.ts'
 import { transparentCounts } from '../state/transparentCounts.ts'
 
 /** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
@@ -63,28 +64,41 @@ export function prepareBlend(
   return true
 }
 
-/** Draws the transparents of an image, as `prepareBlend` prepared them (`ready`). */
+/**
+ * What the transparents of an image draw with, once `prepareBlend` prepared them, before any pass of
+ * theirs — the front pass the reflection trace reads (`encodeFrontPass`) and the blend pass —: the blend
+ * view, the material records the item records name, and the groups, a real resource voiding a
+ * placeholder's group. Returns the frame's lights' key, which picks the blend and water programs
+ * (`createForwardVariants`).
+ */
+export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { timing } = rt
+  const cpuStart = cpuNow()
+  writeBlendView(rt, device)
+  const contract = directLightResources(rt)
+  // The material records the item records named go up before a group names their texture.
+  rt.vis.materialTable.viewFor(device)
+  voidStaleBlendGroups(rt, blendLightResources(rt, contract))
+  const elapsed = msSince(cpuStart)
+  timing.transparentPrepareMs += elapsed
+  timing.transparentEncodeMs += elapsed
+  return contract
+}
+
+/** Draws the transparents of an image, bound by `bindBlend`, lit with the lights' key `contract` it
+ *  returned; none where they were not prepared (`contract` absent). */
 export function encodeBlend(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   composes: boolean,
-  ready: boolean,
+  contract: Partial<ContractKey> | undefined,
 ) {
   const { run, timing, blendState, diag } = rt
   // Every image reaches this stage: the particles step here, beside the water.
   encodeParticles(rt, device, encoder)
-  if (!ready) return
-  const cpuStart = cpuNow()
-  writeBlendView(rt, device)
-  // Resolve lighting resources once; a real resource voids a placeholder's bind group. Their key
-  // picks the blend and water programs (`createForwardVariants`).
-  const contract = directLightResources(rt)
-  // The material records the item records named go up before a group names their texture.
-  rt.vis.materialTable.viewFor(device)
-  voidStaleBlendGroups(rt, blendLightResources(rt, contract))
+  if (!contract) return
   const prepared = cpuNow()
-  timing.transparentPrepareMs += prepared - cpuStart
   drawBlendPass(rt, device, encoder, false, contract)
   // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
   // Without the pass — a diagnostic view or variant, a second-camera capture, an image no
@@ -93,7 +107,7 @@ export function encodeBlend(
     drawBlendPass(rt, device, encoder, true, contract)
   const finished = cpuNow()
   timing.transparentDrawMs += finished - prepared
-  timing.transparentEncodeMs += finished - cpuStart
+  timing.transparentEncodeMs += finished - prepared
   if (diag.traceEnabled)
     diag.traceDiagnostic(
       'transparent-encoding',

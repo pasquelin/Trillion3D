@@ -112,8 +112,8 @@ export const hizDepthBindEntries = (binding: number, depth: HizDepth): GPUBindGr
   sequentialEntries(depth.resources, binding)
 
 /** The layers of the level-0 texture: the opaque depth and — only for a scene whose transparents
- *  ever wrote a front depth (blends, water, transmission: `FrontDepth.wanted`) — the nearest
- *  transparent surface's (`reflections/frontDepth.ts`, a depth a pixel, zero for none), made at the
+ *  ever drew a front pass (blends, water, transmission) — the nearest
+ *  transparent surface's (`reflections/frontLayer.ts`, a depth a pixel, zero for none), made at the
  *  first ask and kept (`GpuHiz.front`). An opaque scene's level 0 is one layer: it pays no byte for
  *  transparents. */
 export const HIZ_OPAQUE_LAYER = 0

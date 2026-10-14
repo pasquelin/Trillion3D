@@ -49,16 +49,10 @@ export function createWaterPasses() {
     light(hdr: GPUTextureView) {
       target.view = hdr
     },
-    /** The surface pass, with the lobes target where `lobed`, the `front` depth and the feedback
-     *  `written`. */
-    surface(
-      lobed: boolean,
-      front: GPURenderPassColorAttachment,
-      written: GPURenderPassColorAttachment | undefined,
-    ) {
+    /** The surface pass, with the lobes target where `lobed` and the feedback `written`. */
+    surface(lobed: boolean, written: GPURenderPassColorAttachment | undefined) {
       attachments.length = 4
       if (lobed) attachments.push(lobes)
-      attachments.push(front)
       if (written) attachments.push(written)
       return surfacePass
     },

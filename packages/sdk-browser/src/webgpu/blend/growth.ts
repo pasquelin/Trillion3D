@@ -76,9 +76,8 @@ async function grantWater(rt: WebgpuPagesRuntime, device: GPUDevice, copies: rea
 export const waitsForWater = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
   copies.some(transmits) && !(rt.gpu.backdrop?.active && rt.vis.writesEmissiveAo)
 
-/** Whether the copies wait for the front depth the blend pass writes: the reflection's target, a texel
- *  in a session opened without a blend (`createFrontDepth`), is remade full size by the frame's
- *  targets (`targetsFit`). */
+/** Whether the copies wait for the transparents' front layer: a texel in a session opened without a
+ *  blend (`createFrontLayer`), remade full size by the frame's targets (`targetsFit`). */
 export const waitsForFrontDepth = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
   copies.length > 0 && !rt.gpu.reflection?.front.wanted
 

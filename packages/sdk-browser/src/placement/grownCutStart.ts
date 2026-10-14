@@ -31,12 +31,11 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
       added,
       rt.layout.selectionRoots.length + growth.appended,
     )
-    // A cut made beside it is for fewer roots: dropped when it lands, or now if it landed unadopted.
-    growth.made++
     // No cut made beside it will be adopted: the moves are its own.
     rt.run.movedWorlds.since = undefined
     growth.appended = growth.roots.length
-    if (growth.ready && !growth.ready.inPlace) growth.ready.cut.dispose()
+    // One landed beside it, unadopted, is for fewer roots: released.
+    dropLanded(growth)
     const roots = rt.layout.selectionRoots.length + growth.roots.length
     growth.ready = { cut, roots, moved: new Set(), inPlace: true }
     return
@@ -58,20 +57,25 @@ function grownCutCapacity(rt: WebgpuPagesRuntime, roots: readonly ClusterRoot<Pa
   }
 }
 
-/** The GPU cut over the session's roots and those waiting, made beside the running one; a later
- *  growth makes another, and this one is dropped. The pool's slots that move meanwhile are logged
- *  (`logTouched`) and replayed alone at the swap (`webgpuGrownCut.ts`). */
+/** The cut made beside the running one, landed and never adopted, released — not one over `roots`
+ *  roots, which is the cut asked: the one place a ready cut is let go before its adoption. */
+function dropLanded(growth: GrowthInFlight, roots?: number) {
+  const { ready } = growth
+  if (!ready || ready.inPlace || ready.roots === roots) return
+  ready.cut.dispose()
+  growth.ready = undefined
+}
+
+/** The GPU cut over the session's roots and those waiting, made beside the running one, one at a
+ *  time (`growth.making`). The pool's slots that move meanwhile are logged (`logTouched`) and replayed
+ *  alone at the swap (`webgpuGrownCut.ts`). */
 async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<void> {
-  const made = ++growth.made,
-    roots = [...rt.layout.selectionRoots, ...growth.roots],
+  const roots = [...rt.layout.selectionRoots, ...growth.roots],
     { rows } = rt.layout,
     moved = new Set<number>()
   // A cut made for fewer roots, landed but never adopted, is no cut this one can wait for: its
   // tables are released before this one's are asked.
-  if (growth.ready && !growth.ready.inPlace && growth.ready.roots !== roots.length) {
-    growth.ready.cut.dispose()
-    growth.ready = undefined
-  }
+  dropLanded(growth, roots.length)
   growth.moved = moved
   rows.logTouched(moved)
   // The poses named while it is made reach it at its swap (`replayMoves`).
@@ -90,7 +94,7 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
   if (!attempt.cut && !rt.signal.aborted && !rt.run.lost)
     attempt = await make({ ...capacity, ahead: false })
   const { cut, refused, error } = attempt
-  if (made !== growth.made || rt.signal.aborted || rt.run.lost) return cut?.dispose()
+  if (rt.signal.aborted || rt.run.lost) return cut?.dispose()
   rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
   // The running cut goes on and the roots wait parked, as for any content the session cannot take:
@@ -105,7 +109,7 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
     )
   }
   // The running cut that took roots in place stays the session's until this one replaces it.
-  if (!growth.ready?.inPlace) growth.ready?.cut.dispose()
+  dropLanded(growth)
   growth.ready = { cut, roots: roots.length, moved }
 }
 

@@ -8,20 +8,20 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  * order: what the reflection knows of the view beyond the deferred lighting's own (`View`: the
  * pixel's world point, the eye, the drawn size, the exposure, the display curve and the background
  * are read there, from the one uniform every pass of the image reads).
- *  - `viewProj`, the view-projection the depth was drawn with, `radianceViewProj`, the one the
- *    radiance pyramid's image was drawn with, and `radianceInverse`, its inverse: the transparents'
- *    front depth of that image is carried to this one's pixels with the two (`frontDepth.ts`);
+ *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
+ *    radiance pyramid's image was drawn with;
  *  - `radiance`, the radiance image's drawn size and its top level (`z`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
  *    spans under an orthographic projection (`z`), and whether the projection is a perspective
  *    (`w`);
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
- *    depth and the radiance pyramid an earlier image of this view), this image's drawn size
- *    (`yz`) and the words of a row of the front depth's buffer (`w`);
+ *    depth and the radiance pyramid an earlier image of this view) and this image's drawn size
+ *    (`yz`);
  *  - `proxy`, the resident proxy's certified error in metres (`x`), the distance a ray leaves a surface
  *    off its normal;
- *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with;
+ *  - `runtime`, the run-time proxy's epoch (`x`): what its answers are stamped with, and whether this
+ *    image's trace answers the transparents' front surface (`y`, one or zero, `frontLayer.ts`);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
@@ -29,7 +29,6 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
   ['radianceViewProj', 'mat4x4f'],
-  ['radianceInverse', 'mat4x4f'],
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
   ['traced', 'vec4u'],
@@ -64,6 +63,9 @@ export const REFLECTION_LIGHT_VIEW_BINDING = 7
  *  the lit image itself at its level 0 and level `k` at its mip `k` (`radiance.ts`). */
 export const REFLECTION_IMAGE_BINDING = 9
 
+/** The binding of the transparents' front depth in the reflection group (`frontLayer.ts`). */
+export const REFLECTION_FRONT_BINDING = 10
+
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
  * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
@@ -87,4 +89,16 @@ export const reflectionLightViewWgsl = (group: number) =>
     `reflectionLightViewWgsl(${group})`,
     [VIEW_WGSL],
     `@group(${group}) @binding(${REFLECTION_LIGHT_VIEW_BINDING}) var<uniform> view:View;`,
+  )
+
+/** The transparents' front surface as a program of the reflection group `group` reads it
+ *  (`frontLayer.ts`): whether this image's trace answered it (`reflectionView.runtime.y`), and its depth
+ *  at a pixel — the front pass's own depth. One reading for the trace and the forward programs. */
+export const reflectionFrontWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionFrontWgsl(${group})`,
+    [reflectionBindingsWgsl(group)],
+    `@group(${group}) @binding(${REFLECTION_FRONT_BINDING}) var reflectionFront:texture_2d<f32>;
+fn reflectionFrontTraced()->bool{return reflectionView.runtime.y!=0u;}
+fn reflectionFrontDepth(coord:vec2i)->f32{return textureLoad(reflectionFront,coord,0).r;}`,
   )

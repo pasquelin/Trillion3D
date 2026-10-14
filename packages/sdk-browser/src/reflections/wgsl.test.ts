@@ -78,12 +78,14 @@ test('the screen gives way to the environment over the last level below the pyra
 test('nothing a reflection reads turns with the frame: no seed, no frame rank, no history', () => {
   // The code, not the declarations nor the comments: the bounce grid it shares with the diffuse
   // declares the probe update's frame counters, which nothing here reads.
-  const text = withoutComments(
-    wgslModule(reflectedRadianceWgsl(1, { group: 0, proxy: 20, worlds: 21, tree: 22 })),
-  ).replace(/struct \w+\{[^}]*\}/g, '')
+  const text = withoutComments(wgslModule(reflectedRadianceWgsl(1))).replace(
+    /struct \w+\{[^}]*\}/g,
+    '',
+  )
   for (const name of ['jitter', 'seed', 'noise', 'history', 'random', 'hash'])
     assert.doesNotMatch(text, new RegExp(`\\b${name}\\b`, 'i'), name)
-  // The frame's rank is a member of the cascades' grid (`bounce.frame`) and of nothing else; the
-  // proxy's tree names a box its `frame`, a parameter.
+  // The frame's rank is a member of the cascades' grid (`bounce.frame`) and of nothing else. The chain
+  // without the proxy's stage, a forward fragment's behind the front: the proxy's answers are the trace's,
+  // kept under an epoch (`bounce/runtimeAnswerWgsl.ts`).
   assert.doesNotMatch(text, /\.frame\b/, 'the rank of the frame')
 })

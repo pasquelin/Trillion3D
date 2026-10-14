@@ -3,6 +3,7 @@ import { refreshBlendPlan } from './plan.ts'
 import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
+import { blendReflects } from './frontStageWgsl.ts'
 
 /**
  * Records, volumes and the encode plan, rebuilt after a scene change.
@@ -36,21 +37,24 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
   writeVolumeRecords(rt, device)
 }
 
-/** Every record written whole, and the lobe switches derived from them. */
+/** Every record written whole, and the lobe and reflection switches derived from them. */
 function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUBuffer) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
     packed = blendState.itemPacked
   let lobed = false,
-    waterLobed = false
+    waterLobed = false,
+    reflects = false
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     lobed ||= item.lobed
     waterLobed ||= item.lobed && !!item.transmissive
+    reflects ||= blendReflects(item.surface)
   }
   blendState.lobed = lobed
   blendState.waterLobed = waterLobed
+  blendState.reflects = reflects
   // A transmissive surface that brings a lobe: the water's lobed stage compiles, off the frame, the
   // frames held until it lands (`lobedStage.ts`).
   if (waterLobed) blendState.water?.lobed.ask()

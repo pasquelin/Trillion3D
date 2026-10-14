@@ -2,12 +2,19 @@ import { STORE_LAYERS, storeBytes } from '../bounce/runtimeLayout.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { retire } from '../gpu/core/frameRetire.ts'
+
+/** The cells a pixel holds: its opaque surface's, and its transparents' front one's (`rtLayer`) once a
+ *  transparent reflects. */
+const cells = (front: boolean) => (front ? 2 : 1)
 
 /**
  * THE STORE OF THE RUN-TIME PROXY'S ANSWERS (`bounce/runtimeLayout.ts`), one home: made with the view
  * when a placement wears a proxy (`wantsProxyStore`), else when the first does (`followProxyStore`) — its
  * bytes asked of the frame's allocation as the lobes target's are —, none before: the trace binds the
- * engine's stand-in (`deferred.placeholders`).
+ * engine's stand-in (`deferred.placeholders`). Each pixel holds its opaque surface's cell, and, from the
+ * first image a transparent reflects (`holdFront`), its transparents' front surface's past it
+ * (`rtLayer`, `frontLayer.ts`): the store is then made again with both, once, its answers cast again.
  */
 export function createProxyStore(
   device: GPUDevice,
@@ -17,17 +24,18 @@ export function createProxyStore(
 ) {
   let made: GPUTexture | undefined
   let view: GPUTextureView | undefined
+  let front = false
   /** The store made, if it was not: the bytes it adds, none if it was. */
   const ensure = () => {
     if (made) return 0
     made = device.createTexture({
       label: 'Trillion3D run-time proxy store',
-      size: [width, height, STORE_LAYERS],
+      size: [width, height, STORE_LAYERS * cells(front)],
       format: 'r32uint',
       usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC,
     })
     view = made.createView({ dimension: '2d-array' })
-    return storeBytes(width, height)
+    return cells(front) * storeBytes(width, height)
   }
   if (wanted) ensure()
   const camera = new Float64Array(16)
@@ -66,6 +74,16 @@ export function createProxyStore(
     /** The store the trace reads and writes, if the view holds one. */
     get view() {
       return view
+    },
+    /** The front surface's cells held from now on: the store made again with them where it was made
+     *  without, the one it replaces retired after the frame. The bytes it adds. */
+    holdFront() {
+      if (front) return 0
+      front = true
+      if (!made) return 0
+      retire(device, made)
+      made = undefined
+      return ensure() - storeBytes(width, height)
     },
     /** Made now, if it was not: the bytes it adds, none if it was. */
     make: ensure,

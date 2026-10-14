@@ -61,8 +61,9 @@ export const WATER_COLOR_WGSL = wgslBlock(
   // One walk of the declared lights, two sums: the surface's, and the null albedo's below.
   let declared=declaredLightingPair(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ);
   // What the surface reflects, its lobes traced once: weighed on its colour for the lit share, on
-  // the volume's reflectance for the specular share, as the Fresnel term above is.
-  let traced=reflectionTrace(P,Nv,V,rough);
+  // the volume's reflectance for the specular share, as the Fresnel term above is. The front's
+  // radiance where the water is the front surface and faces the eye with its own normal (\`Nv\` is it).
+  let traced=forwardTrace(P,Nv,V,rough,vec4f(pixel.xy,fragZ,1.0),dot(normal.xyz,V)>0.0);
   if(t<1.0){lit=litSurface(declared.lit,bounceLighting(base.rgb,metal,Nv,P,ao),environmentLighting(base.rgb,metal,Nv,ao),reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V),emissiveAo.rgb);}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the specular
   // lobe stays.

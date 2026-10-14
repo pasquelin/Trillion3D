@@ -122,3 +122,32 @@ test("the slab follows the projection: a perspective's depth at infinity, an ort
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1]
   assert.deepEqual(slab(identity, [10, 4]), [0.5, 0, 1, 0])
 })
+
+test('a still view with transparents writes its view once: the front pass sets a flag, never a frame rank', () => {
+  // The settle waits for a still image's view to stop moving (`settle.ts`): an image whose trace answers
+  // the transparents' front surface, image after image, sends the same words.
+  const { device, buffer, held: sent } = viewDevice()
+  const write = createReflectionViewWriter(device, buffer)
+  const held: HeldImage = {
+    valid: true,
+    viewProjection: new Float64Array(16).fill(1),
+    size: [64, 32],
+    still: true,
+  }
+  const frame = {
+    viewProjection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
+    size: [64, 32] as const,
+    depthDrawn: true,
+    proxyError: 0,
+    epoch: 3,
+    front: true,
+  }
+  write(frame, held, 6)
+  assert.equal(sent.bits[REFLECTION_VIEW_AT.runtime + 1], 1, 'the front answered')
+  const writes = sent.writes
+  for (let image = 0; image < 4; image++) write(frame, held, 6)
+  assert.equal(sent.writes, writes, 'nothing sent again')
+  frame.front = false
+  write(frame, held, 6)
+  assert.equal(sent.bits[REFLECTION_VIEW_AT.runtime + 1], 0, 'no front answered')
+})

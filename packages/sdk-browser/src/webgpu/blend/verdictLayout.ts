@@ -30,8 +30,6 @@ const VERDICT_RECORD = fieldLayout('Verdict', [
   ['copyArgs', 'vec4u'],
   // `drawIndirect` of the rectangle's quad: the depth restore, then the composite.
   ['quadArgs', 'vec4u'],
-  // `dispatchWorkgroupsIndirect` of the next image's front-depth scatter over the rectangle.
-  ['frontArgs', 'vec4u'],
   // One word per water rank, the last: the item draws this image.
   ['waterDraws', 'u32'],
 ] as const)

@@ -5,6 +5,7 @@ import { REFLECTION_SIDE } from './constants.ts'
 import { BEGIN_BINDINGS, TRACE_BINDINGS } from './traceBindings.ts'
 import type { createTraceStages } from './trace.ts'
 import type { TraceTiles } from './traceTiles.ts'
+import type { FrontLayer } from './frontLayer.ts'
 
 /** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
  *  resident proxy, the deferred lighting's view. */
@@ -40,6 +41,9 @@ type TraceResources = {
   uniform: GPUBuffer
   tiles: TraceTiles
   trace: { identity: WebgpuBindIdentity; groups?: TraceGroups }
+  /** The transparents' front layer: the surface the trace reads of it and the radiance it writes
+   *  (`frontLayer.ts`), a texel of each without blends. */
+  front: { views: FrontLayer['views'] }
 }
 
 /** The bind groups of `reflection`'s trace over `inputs`, made again when a resource they name is
@@ -49,7 +53,8 @@ function traceGroups(
   stages: Awaited<ReturnType<typeof createTraceStages>>,
   inputs: TraceInputs,
 ) {
-  const { device, targetView, tiles, trace } = reflection
+  const { device, targetView, tiles, trace } = reflection,
+    front = reflection.front.views
   const { next } = trace.identity
   next.length = 0
   next.push(
@@ -66,6 +71,10 @@ function traceGroups(
     inputs.proxyTree,
     inputs.store,
     inputs.lightLists,
+    front.flags,
+    front.normals,
+    front.lobes,
+    front.traced,
   )
   if (!trace.identity.moved() && trace.groups) return trace.groups
   return (trace.groups = {
@@ -86,12 +95,17 @@ function traceGroups(
         proxy: { buffer: inputs.proxy },
         proxyWorlds: inputs.proxyWorlds,
         proxyTree: inputs.proxyTree,
+        frontFlags: front.flags,
+        frontNormals: front.normals,
+        frontLobes: front.lobes,
+        frontTarget: front.traced,
       }),
     }),
     classify: device.createBindGroup({
       layout: stages.classifyLayout,
       entries: namedEntries(TRACE_BINDINGS, {
         flags: inputs.flags,
+        frontFlags: front.flags,
         work: { buffer: tiles.args },
         list: { buffer: tiles.list },
       }),

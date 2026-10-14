@@ -1,6 +1,6 @@
 import { BLEND_BINDINGS } from '../core/bindLayout.ts'
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
-import { physicalCoreWgsl } from '../../visibility/shader/physicalWgsl.ts'
+import { PHYSICAL_TEXEL_WGSL, physicalCoreWgsl } from '../../visibility/shader/physicalWgsl.ts'
 import { materialTableWgsl } from '../material/materialWgsl.ts'
 import { LOBES_LIGHTING_WGSL } from '../../lighting/direct/lobesWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../../lighting/lobeAxisWgsl.ts'
@@ -22,6 +22,7 @@ export const BLEND_PHYSICAL_WGSL = wgslBlock(
   'BLEND_PHYSICAL_WGSL',
   [
     physicalCoreWgsl('physicalSampled'),
+    PHYSICAL_TEXEL_WGSL,
     materialTableWgsl(BLEND_BINDINGS.material),
     LOBES_LIGHTING_WGSL,
     LOBE_AXIS_WGSL,
@@ -45,6 +46,16 @@ fn blendPhysicalValues(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->Physica
  let flags=in.ids.y;
  let coatFace=select(1.0,select(-1.0,1.0,front),(flags&${FLAG_DOUBLE}u)!=0u&&(flags&${FLAG_HAS_NORMAL}u)!=0u);
  return physicalValues(s.N,s.geometric,g.q0,g.q1,-1.0,coatFace);
+}
+/** The lobes of a fragment of surface \`s\` as the lobes target holds them, and whether it carries one:
+ *  the water surface stage's and the front stage's texel (\`../water/surfaceWgsl.ts\`,
+ *  \`frontStageWgsl.ts\`), zero and false where it carries neither lobe. */
+struct BlendLobed{texel:vec4u,on:bool,}
+fn blendLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->BlendLobed{
+ if(!physicalOn){return BlendLobed(vec4u(0u),false);}
+ let v=blendPhysicalValues(in,front,g,s);
+ if(physicalLobeless(v)){return BlendLobed(vec4u(0u),false);}
+ return BlendLobed(physicalTexel(v),true);
 }
 /** The lobes of a lit fragment of surface \`s\`, seen along \`V\`, set for its lights at its
  *  roughness. */

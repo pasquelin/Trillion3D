@@ -23,7 +23,7 @@ export const REFLECTION_CONSTANTS = {
    *  8-bit channel of a radiance of one. */
   REFLECTION_EPSILON: 2 ** -11,
   /** The coverage from which a blended fragment is a surface of the depth a ray meets
-   *  (`reflectionFrontOut`): one that hides more than half of what lies behind it. A fainter one
+   *  (`fsFront`, `../webgpu/blend/frontStageWgsl.ts`): one that hides more than half of what lies behind it. A fainter one
    *  tints its backdrop and is no wall to a ray. */
   REFLECTION_FRONT_COVERAGE: 0.5,
   /** The bound of the half-vector's angle (`REFLECTION_CONE_WGSL`): tan 40°. */

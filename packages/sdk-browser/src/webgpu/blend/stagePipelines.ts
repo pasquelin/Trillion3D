@@ -1,4 +1,5 @@
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
+import type { FrontOutputs } from '../../reflections/frontLayer.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import {
   TRANSPARENT_DEPTH_LAYER,
@@ -29,6 +30,13 @@ export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPU
 export type RankedPipelines = {
   at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline | undefined
   skips?(rank: number): boolean
+}
+
+/** The front stage's pipelines of what a front pass writes (`frontStage.ts`): its three culls, picked by
+ *  a plan rank's cull, whether they are compiled, and their compile asked. */
+export type FrontStagePipelines = RankedPipelines & {
+  readonly ready: boolean
+  ask(): void
 }
 
 /** What a transparent pass compiles per blending mode (`BLEND_MODES`): each mode's pipelines, one
@@ -85,6 +93,9 @@ export const declaredBlendModes = (
 export interface BlendModePipelines extends RankedPipelines {
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number }
+  /** The front stage's of what a front pass writes (`FrontOutputs`), one set each, every program's
+   *  the same (`frontPass.ts`). */
+  front(outputs: FrontOutputs): FrontStagePipelines
   /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
    *  or not (`createForwardVariants`). */
   lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines
@@ -120,7 +131,8 @@ export async function blendStagePipelines(
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
- *  display mask's layout of a filtered image's pipelines. Each draws one coplanar layer over the
+ *  display mask's layout of a filtered image's pipelines; without `reflected`, the blend group alone —
+ *  a stage that reads no reflection, the front stage (`frontStage.ts`). Each draws one coplanar layer over the
  *  opaque depth (`TRANSPARENT_DEPTH_LAYER`): a glass lying on its base covers it, as the opaque
  *  layers and the lines cover the faces they lie on. */
 export function stageDescriptors(
@@ -130,10 +142,13 @@ export function stageDescriptors(
   fragment: GPUFragmentState,
   depthWrite: boolean,
   mask?: GPUBindGroupLayout,
+  reflected = true,
 ): GPURenderPipelineDescriptor[] {
   // The reflection's group (`REFLECTION_GROUP`) behind the blend's, the display mask's last.
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, reflectionLayout(device), ...(mask ? [mask] : [])],
+    bindGroupLayouts: reflected
+      ? [layout, reflectionLayout(device), ...(mask ? [mask] : [])]
+      : [layout],
   })
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,

@@ -63,6 +63,8 @@ export const TRANSMISSION_PASS = 'Trillion3D transmission'
 export const BLEND_ORDER_PASS = 'Trillion3D blend order and expansion'
 export const DISPLAY_MASK_PASS = 'Trillion3D display mask'
 export const DISPLAY_FILTER_PASS = 'Trillion3D display filter'
+/** The transparents' front surface the reflection trace reads (`../reflections/frontLayer.ts`). */
+export const TRANSPARENT_FRONT_PASS = 'Trillion3D transparent front'
 /** The transparents' compaction (`../webgpu/transparent/compact.ts`) and occlusion test
  *  (`../gpu/core/transparentOcclusion.ts`). */
 export const TRANSPARENT_COMPACTION_PASS = 'Trillion3D transparent compaction'
@@ -90,8 +92,6 @@ export const REFLECTION_TRACE_PASS = 'Trillion3D reflection trace'
 export const PROXY_POSE_PASS = 'Trillion3D proxy pose'
 /** The radiance pyramid of the lit image, which the next image's reflections read. */
 export const REFLECTION_RADIANCE_PASS = 'Trillion3D reflection radiance'
-/** The pass that carries the last image's transparents' front depth to this one's pixels. */
-export const FRONT_DEPTH_PASS = 'Trillion3D reflection front depth'
 /** The deferred lighting pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting'
 /** The seed of the as-is share the temporal resolve reads (`../lighting/deferred/asIsShare.ts`). */
@@ -155,6 +155,7 @@ export const ENGINE_PASSES = [
   definePass({ label: BLEND_ORDER_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_MASK_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_FILTER_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: TRANSPARENT_FRONT_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: PARTICLE_DRAW_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
@@ -164,7 +165,6 @@ export const ENGINE_PASSES = [
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_TRACE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),
-  definePass({ label: FRONT_DEPTH_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: DEFERRED_LIGHTING_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: AS_IS_SHARE_PASS, stage: 'antialiasing', block: 'other' }),

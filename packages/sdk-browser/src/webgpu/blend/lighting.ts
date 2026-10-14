@@ -26,8 +26,7 @@ export function blendLightResources(
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
-    proxy: contract.proxy?.buffer ?? placeholders.runtime,
-    proxyWorlds: contract.proxy?.worlds ?? placeholders.runtimeWorlds,
-    proxyTree: contract.proxy?.tree ?? placeholders.runtimeTree,
+    // The front's radiance the trace wrote (`frontLayer.ts`), a texel until a transparent reflects.
+    frontTraced: rt.gpu.reflection!.front.views.traced,
   }
 }

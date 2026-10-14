@@ -73,7 +73,7 @@ function joue(items: ReturnType<typeof item>[]) {
       materialTable: { view: {}, viewFor: () => ({}) },
     },
     gpu: {
-      // The front depth the blends write (`frontAttachment`).
+      // The transparents' front layer and the proxy's store, a texel each.
       reflection: reflectionFront(),
       hdrView: {},
       colorView: {},

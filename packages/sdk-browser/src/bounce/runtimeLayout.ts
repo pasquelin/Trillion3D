@@ -8,8 +8,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * copies, a surface per drawn material, then the arena of the meshes' own proxies — the columns of a
  * `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
  * what grows with the meshes, never with the placements. What grows with them lies in record tables a
- * program binds beside this buffer, sampled textures, no storage binding — the forward programs'
- * fragment stage binds the eight storage buffers WebGPU guarantees —: the culling's, read where they
+ * program binds beside this buffer, sampled textures, no storage binding — the culling's own, never a
+ * copy —: the culling's, read where they
  * lie — the placements' records, each world and each instance (`gpu/dag/worldTable.ts`), and the tree
  * above them (`gpu/dag/treeTable.ts`).
  *
@@ -102,7 +102,8 @@ export const RAY_ERROR_FLOOR = 1e-3
  * reads and writes where it traces. Layer 0 is the pixel's mean radiance, premultiplied by its confidence, as
  * a shared-exponent `rgb9e5`; layer 1 holds the confidence on sixteen bits and, above them, the epoch's
  * stamp on eight (`rtStamp`): the low bits of an epoch (`follow`), never zero, so that a pixel never answered
- * holds none.
+ * holds none. Where the scene has transparents, two layers more past them: the cell of the pixel's
+ * transparents' front surface (`rtLayer`, `reflections/frontLayer.ts`), answered as the opaque one's.
  *
  * The frame's counters live in the trace's list (`TRACE_LIST`): the tiles the classification listed, the
  * workgroups holding a pixel whose answer is older than the epoch (`left`: what the settle waits for,

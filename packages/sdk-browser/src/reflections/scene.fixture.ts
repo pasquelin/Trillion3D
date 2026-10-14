@@ -89,10 +89,7 @@ export function reflectionRunner(
       surface: { pixel: number[]; plane: number[]; thickness: number },
     ) => { color: number[]; weight: number }
   }>(
-    wgslModule(
-      reflectedRadianceWgsl(1, { group: 0, proxy: 20, worlds: 21, tree: 22 }),
-      reflectionLightViewWgsl(REFLECTION_GROUP),
-    ),
+    wgslModule(reflectedRadianceWgsl(1), reflectionLightViewWgsl(REFLECTION_GROUP)),
     [
       'reflectionLobeOf',
       'reflectionBands',

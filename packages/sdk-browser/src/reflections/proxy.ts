@@ -3,17 +3,7 @@ import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './footprint.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
-import { runtimeRadianceWgsl } from '../bounce/runtimeRadianceWgsl.ts'
-import { runtimeAnswerWgsl, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
-import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
-
-/** The bindings a program reads the proxy through: with the store the opaque trace keeps its answers in
- *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */
-export type ProxyBindings = SceneBindings | RuntimeBindings
-
-/** What names a fragment of a program over `runtime`: its bindings, and whether it keeps its answers. */
-export const proxyKey = (runtime: ProxyBindings) =>
-  'store' in runtime ? `${sceneKey(runtime)}, ${runtime.list}, ${runtime.store}` : sceneKey(runtime)
+import { runtimeAnswerWgsl, runtimeKey, type RuntimeBindings } from '../bounce/runtimeAnswerWgsl.ts'
 
 /**
  * The proxy's answer to a reflection (`reflectionProxied`), where the screen does not give one: the engine's
@@ -22,26 +12,24 @@ export const proxyKey = (runtime: ProxyBindings) =>
  * a certified error of the proxy off its normal (`ReflectionView.proxy`), so that it never meets the proxy's own
  * copy of the surface it leaves. Its confidence comes from the hit alone, for every width of the lobe, a
  * mirror's included: the share of the ray the surfaces met stop. Zero where it hits nothing, or where the scene
- * has no proxy. The opaque trace keeps each pixel's answer from image to image within its frame's budget
- * (`rtAnswer`, `bounce/runtimeAnswerWgsl.ts`); a forward program casts its fragment's ray and binds nothing
- * writable (a binding its stage could write would cost the pass its early depth reject).
+ * has no proxy. The trace keeps each pixel's answer, on each of its surfaces — the opaque one and the
+ * transparents' front one (`frontLayer.ts`) —, from image to image within its frame's budget (`rtAnswer`,
+ * `bounce/runtimeAnswerWgsl.ts`): no other program casts a ray of the proxy.
  */
-export const reflectionProxyWgsl = (group: number, runtime: ProxyBindings) => {
-  const answers = 'store' in runtime
-  return wgslBlock(
-    `reflectionProxyWgsl(${group}, ${proxyKey(runtime)})`,
+export const reflectionProxyWgsl = (group: number, runtime: RuntimeBindings) =>
+  wgslBlock(
+    `reflectionProxyWgsl(${group}, ${runtimeKey(runtime)})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_CONE_WGSL,
-      answers ? runtimeAnswerWgsl(runtime) : runtimeRadianceWgsl(runtime),
+      runtimeAnswerWgsl(runtime),
     ],
     `struct ReflectionProxied{color:vec3f,confidence:f32,}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionProxied{
  let tangent=max(reflectionConeTangent(lobe.widths.x),reflectionConeTangent(lobe.widths.y)/REFLECTION_TAPS);
- let seen=${answers ? 'rtAnswer' : 'rtRadiance'}(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
+ let seen=rtAnswer(P+N*max(reflectionView.proxy.x,rtProxy.error),lobe.R,REFLECTION_FAR,tangent);
  return ReflectionProxied(seen.color,seen.confidence);
 }`,
   )
-}

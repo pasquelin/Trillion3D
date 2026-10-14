@@ -43,7 +43,7 @@ export function level0Of(
  * readers fold it is the frame word `frontWritten` (`HIZ_FOLD_WGSL`): an image that does not write
  * it folds the opaque depth alone, bit for bit, so no reader folds the last glass. What the layer
  * holds is the front depth's, which clears it before it folds into it again
- * (`reflections/frontDepth.ts`). Whether the word moved.
+ * (`reflections/frontLayer.ts`). Whether the word moved.
  */
 export function holdFrontLayer(
   device: GPUDevice,

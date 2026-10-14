@@ -55,7 +55,6 @@ export type GrowthInFlight = {
    *  roots hold their ranks (`growBlend`). */
   copies: BlendCopy[]
   appended: number
-  made: number
   asked: boolean
   making?: Promise<void>
   moved?: Set<number>
@@ -63,7 +62,7 @@ export type GrowthInFlight = {
 }
 /** The growth of `rt`, begun when none is. */
 const growing = (rt: WebgpuPagesRuntime) =>
-  (rt.growth ??= { roots: [], copies: [], appended: 0, made: 0, asked: false })
+  (rt.growth ??= { roots: [], copies: [], appended: 0, asked: false })
 
 /** Whether the session grows the rows in place, asked before any is (`growth.ts`). */
 function webgpuGrowsInPlace(rt: WebgpuPagesRuntime) {

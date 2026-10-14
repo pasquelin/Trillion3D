@@ -156,6 +156,9 @@ function waterState() {
      *  (`../water/lobedStage.ts`, `wantsPhysicalLobes`). Both set with the records. */
     lobed: false,
     waterLobed: false,
+    /** An item reflects (lit, of the physical model): the front pass writes the reflecting surface
+     *  the trace answers (`frontPass.ts`). Set with the records. */
+    reflects: false,
   }
 }
 

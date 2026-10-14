@@ -14,6 +14,7 @@ const FUNCTIONS = [
   'rtRadiance',
   'rtAnswer',
   'rtCellRead',
+  'rtCellLayer',
   'rtCellWrite',
   'rtCellAnswer',
   'rtPackShared',
@@ -52,7 +53,7 @@ const FUNCTIONS = [
 ]
 const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14, list: 8, store: 9 }
 
-/** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. It
+/** The store of the answers as the shader reads it: its layers of words a pixel, keyed by texel. It
  *  answers its own loads and stores, as every texture the interpreter binds (`shaderRunBuiltins`). */
 export function makeStore() {
   const words = new Map<string, number>()
@@ -73,6 +74,7 @@ const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
 fn testReset(){rtWork=0u;rtTests=0u;}
 fn testPixel(x:u32,y:u32,n:u32){rtPixel=vec2u(x,y);rtCalls=0u;rtRank=n;}
+fn testLayer(layer:u32){rtLayer=layer;}
 fn testShare(){rtGroupAdd();rtGroupSend();for(var k=0u;k<3u;k++){atomicStore(&rtGroup[k],0u);}rtSpentHere=0u;rtCastHere=false;rtLeftHere=false;}
 `
 
@@ -101,51 +103,61 @@ export function runOver(
     testReset: () => void
     testPixel: (x: number, y: number, rank: number) => void
     testShare: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel', 'testShare'], {
-    rtProxy: header,
-    rtWorlds: w.worlds,
-    rtTree: w.tree,
-    rtWork: 0,
-    rtTests: 0,
-    rtExtra: 0,
-    rtAnyHit: false,
-    rtLost: false,
-    rtPixel: [0, 0],
-    rtCalls: 0,
-    rtRank: 0,
-    rtSpentHere: 0,
-    rtCastHere: false,
-    rtLeftHere: false,
-    rtGroup: [0, 0, 0],
-    traceList: list,
-    rtStore: store,
-    reflectionView: { runtime: [epoch, 0, 0, 0] },
-    // The lights are not this program's: a surface lit is its tint, the lighting a unit.
-    surfaceLit: (tint: Vec) => tint,
-    RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
-      tint,
-      opacity,
-      emission,
-      blended,
-    }),
-    RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
-    RtCell: (premult: Vec, confidence: number, stamp: number) => ({ premult, confidence, stamp }),
-    Box: (low: Vec, high: Vec) => ({ low, high }),
-    ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
-      box,
-      offset,
-      count,
-      present,
-    }),
-    InvT3: (adj: unknown, scale: number, regular: boolean) => ({ adj, scale, regular }),
-    PlacedRay: (origin: Vec, direction: Vec, regular: boolean) => ({ origin, direction, regular }),
-    RtHit: (distance: number, placement: number, triangle: number, found: boolean) => ({
-      distance,
-      placement,
-      triangle,
-      found,
-    }),
-  })
+    testLayer: (layer: number) => void
+  }>(
+    text,
+    [...FUNCTIONS, 'testWork', 'testTests', 'testReset', 'testPixel', 'testShare', 'testLayer'],
+    {
+      rtProxy: header,
+      rtWorlds: w.worlds,
+      rtTree: w.tree,
+      rtWork: 0,
+      rtTests: 0,
+      rtExtra: 0,
+      rtAnyHit: false,
+      rtLost: false,
+      rtPixel: [0, 0],
+      rtCalls: 0,
+      rtRank: 0,
+      rtLayer: 0,
+      rtSpentHere: 0,
+      rtCastHere: false,
+      rtLeftHere: false,
+      rtGroup: [0, 0, 0],
+      traceList: list,
+      rtStore: store,
+      reflectionView: { runtime: [epoch, 0, 0, 0] },
+      // The lights are not this program's: a surface lit is its tint, the lighting a unit.
+      surfaceLit: (tint: Vec) => tint,
+      RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
+        tint,
+        opacity,
+        emission,
+        blended,
+      }),
+      RtRadiance: (color: Vec, confidence: number) => ({ color, confidence }),
+      RtCell: (premult: Vec, confidence: number, stamp: number) => ({ premult, confidence, stamp }),
+      Box: (low: Vec, high: Vec) => ({ low, high }),
+      ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
+        box,
+        offset,
+        count,
+        present,
+      }),
+      InvT3: (adj: unknown, scale: number, regular: boolean) => ({ adj, scale, regular }),
+      PlacedRay: (origin: Vec, direction: Vec, regular: boolean) => ({
+        origin,
+        direction,
+        regular,
+      }),
+      RtHit: (distance: number, placement: number, triangle: number, found: boolean) => ({
+        distance,
+        placement,
+        triangle,
+        found,
+      }),
+    },
+  )
 }
 
 /** Cubes along a line of sight from the origin, `gap` apart, the first at `gap`. */

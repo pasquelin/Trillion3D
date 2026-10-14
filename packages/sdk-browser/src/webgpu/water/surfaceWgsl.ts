@@ -2,21 +2,17 @@
 // (`transmissionCode.ts`): the core holds the rank alone.
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
-import { REFLECTION_FRONT_WGSL, TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
- *  `lobed`, the lobes target, then the front depth the reflections march. The virtual-texture
- *  feedback follows them (`waterSurfaceTargets`). */
+ *  `lobed`, the lobes target. The virtual-texture feedback follows them (`waterSurfaceTargets`). */
 export const waterOutFields = (lobed: boolean): [string, string][] => [
   ...['baseMetal', 'normalRough', 'emissiveAo', 'word'].map((name): [string, string] => [
     name,
     'vec4f',
   ]),
   ...(lobed ? [['lobes', 'vec4u'] as [string, string]] : []),
-  TRANSPARENT_FRONT.out,
 ]
 
 /** One entry of the stage: `fsWater`, or with `lobed` `fsWaterLobed`, which reads the item's
@@ -33,7 +29,7 @@ function waterEntry(lobed: boolean) {
  if(!blendKeeps(in,base,front)){discard;return ${name}Out(${zero});}
  ${lobed ? 'blendPhysicalBegin(in,g);' : ''}
  let s=blendSurface(in,front,g,base);
- return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'waterLobedTexel(in,front,g,s),' : ''}reflectionFrontOut(in.position,s.alpha),s.request);
+ return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'blendLobedTexel(in,front,g,s).texel,' : ''}s.request);
 }`
 }
 
@@ -49,12 +45,7 @@ function waterEntry(lobed: boolean) {
 export const waterSurfaceWgsl = (lobes: boolean) =>
   wgslBlock(
     'waterSurfaceWgsl',
-    [
-      blendSurfaceWgsl(lobes),
-      waterSurfaceWordWgsl(lobes),
-      REFLECTION_FRONT_WGSL,
-      ...(lobes ? [WATER_LOBED_WGSL] : []),
-    ],
+    [blendSurfaceWgsl(lobes), waterSurfaceWordWgsl(lobes), ...(lobes ? [WATER_LOBED_WGSL] : [])],
     `
 ${waterEntry(false)}`,
   )
@@ -72,18 +63,11 @@ fn waterSurfaceWord(in:VSOut,s:BlendSurface)->vec4f{
 }`,
   )
 
-/** The lobed entry and what it stores: the fragment's lobes as the lobes target holds them. */
+/** The lobed entry: it stores the fragment's lobes as the lobes target holds them (\`blendLobedTexel\`). */
 const WATER_LOBED_WGSL = wgslBlock(
   'WATER_LOBED_WGSL',
-  [PHYSICAL_TEXEL_WGSL, blendSurfaceWgsl(true), BLEND_PHYSICAL_WGSL, waterSurfaceWordWgsl(true)],
+  [blendSurfaceWgsl(true), BLEND_PHYSICAL_WGSL, waterSurfaceWordWgsl(true)],
   `
-/** The fragment's lobes as the lobes target holds them, zero without either. */
-fn waterLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->vec4u{
- if(!physicalOn){return vec4u(0u);}
- let v=blendPhysicalValues(in,front,g,s);
- if(physicalLobeless(v)){return vec4u(0u);}
- return physicalTexel(v);
-}
 ${waterEntry(true)}`,
 )
 /** The composite's reading of that fourth word: rank and opacity, as the stage packed them. */

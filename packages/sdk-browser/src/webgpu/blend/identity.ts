@@ -39,9 +39,7 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       bounceGrid: () => rt.blendState.lighting?.bounceGrid,
       probes: () => rt.blendState.lighting?.probes,
       tileLights: () => rt.blendState.lighting?.tileLights,
-      proxy: () => rt.blendState.lighting?.proxy,
-      proxyWorlds: () => rt.blendState.lighting?.proxyWorlds,
-      proxyTree: () => rt.blendState.lighting?.proxyTree,
+      frontTraced: () => rt.blendState.lighting?.frontTraced,
       material: () => rt.vis.materialTable.view,
     }),
   )
