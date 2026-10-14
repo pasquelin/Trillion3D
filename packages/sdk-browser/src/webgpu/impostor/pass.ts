@@ -43,18 +43,19 @@ export function createImpostorPass(device: GPUDevice) {
     surfacePipeline,
     visPipeline,
     viewBuffer,
-    /** The image's group over a card buffer of at least `cards` records (`grownLength`). */
+    /** The image's group over a card buffer of at least `cards` records, grown by the engine's
+     *  one rule (`sizedBuffer`: doubled, the old one retired after the image that names it). */
     imageGroup(cards: number) {
       const bytes = Math.max(1, cards) * CARD_FLOATS * 4
-      if (!cardBuffer || cardBuffer.size < bytes) {
-        const size = core.grownLength(cardBuffer?.size ?? 0, bytes)
-        // Named by this image's commands not yet submitted: retired, never destroyed at once.
-        if (cardBuffer) core.retire(device, cardBuffer)
-        cardBuffer = device.createBuffer({
-          label: 'Trillion3D impostor cards',
-          size,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        })
+      const held = cardBuffer
+      cardBuffer = core.sizedBuffer(
+        device,
+        held,
+        bytes,
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        'Trillion3D impostor cards',
+      )
+      if (cardBuffer !== held) {
         image.buffer = cardBuffer
         image.group = device.createBindGroup({
           label: 'Trillion3D impostor image',
