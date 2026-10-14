@@ -108,3 +108,25 @@ test('a view presents at its rectangle: the canvas keeps its size and what it sh
   assert.equal(passes.length, 2, 'the next frame, not yet drawn whole, keeps its last image')
   presenter.dispose()
 })
+
+test('the whole canvas and a view placed on it are drawn by one present program', () => {
+  const current = { createView: () => ({}) }
+  const canvas = {
+    width: 64,
+    height: 48,
+    getContext: () => ({ configure() {}, getCurrentTexture: () => current, unconfigure() {} }),
+  } as unknown as HTMLCanvasElement
+  const { device, passes } = fakeDevice()
+  const encoder = device.createCommandEncoder()
+  const presenter = createGpuPresenter(device, canvas)
+  const image = { createView: () => ({}) } as GPUTexture
+  presenter.present(encoder, image, 64, 48)
+  presenter.present(encoder, image, 16, 8, { x: 8, y: 4, width: 16, height: 8 })
+  const pipelineOf = (pass: (typeof passes)[number]) =>
+    pass.commands.find(([name]) => name === 'setPipeline')?.[1][0]
+  assert.equal(passes.length, 2)
+  assert.ok(pipelineOf(passes[0]))
+  assert.equal(pipelineOf(passes[0]), pipelineOf(passes[1]), 'one program, compiled once')
+  assert.equal(passes[0].colors[0]?.loadOp, 'clear', 'the whole canvas, cleared first')
+  presenter.dispose()
+})
