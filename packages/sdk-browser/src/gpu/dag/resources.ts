@@ -8,7 +8,7 @@ import { createMaskSwap } from './swap.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
 import type { CutSteps } from './cutSteps.ts'
-import { cutBuffer, cutTexture, type CutAdmission } from './cutBuffers.ts'
+import { cutBuffer, cutTexture, type CutAdmission, type TextureMaker } from './cutBuffers.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 import { recordsIdentity } from './recordsFollow.ts'
 
@@ -58,10 +58,10 @@ export async function createDagResources(
   const setup = { buffers, textures, device, admit, share }
   /** A buffer of this cut's: the runtime's dispose destroys them all (`cutBuffer`). */
   const own = (descriptor: GPUBufferDescriptor) => cutBuffer(setup, descriptor)
-  /** A record texture of this cut's (`../core/recordTexture.ts`), `bytes` large: the same
-   *  admission, the same end. */
-  const ownTexture = (descriptor: GPUTextureDescriptor, bytes: number) =>
-    cutTexture(setup, descriptor, bytes)
+  /** A record texture of this cut's (`../core/recordTexture.ts`), `bytes` large, in `old`'s place
+   *  when a table grows (`hold`): the same admission, the same end, the replaced bytes leaving it. */
+  const ownTexture: TextureMaker = (descriptor, bytes, old) =>
+    cutTexture(setup, descriptor, bytes, old)
   /** Every resource made so far, each destroyed whatever the others do: a partial setup must not
    *  leak. */
   const destroyAll = () => {

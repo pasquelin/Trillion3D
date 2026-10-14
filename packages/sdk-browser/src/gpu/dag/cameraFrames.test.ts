@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDagResources } from './resources.ts'
+import { cutBytes } from './cutBuffers.ts'
 import { packDagSelection } from './pack.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
@@ -76,4 +77,20 @@ test("the host's rows and words land at their placement's record, never on the s
   frames.flushWords()
   assert.equal(words[stretchAt], f32Bits(3), "the GPU's stretch kept")
   assert.equal(words[row + MARK_WORD], 9, 'the row sent')
+})
+
+test("a record table grown in place leaves the cut's ledger the bytes it replaced", async () => {
+  // The worlds grow for the proxy's copies (`proxyState.ts`, `hold`): the cut holds the new
+  // texture in the old one's place, never both — a ledger holding both refuses a later growth
+  // that fits (`admitInto`).
+  const { resources } = await narrow()
+  const { worlds } = resources.frames,
+    before = cutBytes(resources),
+    replaced = worlds.texture,
+    held = worlds.bytes
+  assert.ok(worlds.hold(2 * worlds.capacity + 1), 'the table grows')
+  assert.equal(cutBytes(resources), before - held + worlds.bytes, 'the replaced bytes left')
+  const textures = resources.textures.map(({ texture }) => texture)
+  assert.ok(!textures.includes(replaced), "the replaced texture is no longer the cut's")
+  assert.ok(textures.includes(worlds.texture), 'the grown one is')
 })

@@ -1,3 +1,4 @@
+import type { TextureMaker } from './cutBuffers.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import type { RecordLayout } from '../core/recordLayout.ts'
 import { recordTextureWgsl, type RecordBinding } from '../core/recordTextureWgsl.ts'
@@ -59,7 +60,7 @@ ${written ? `fn ${name}SetWord(n:u32,k:u32,v:u32){${name}NodeStore(n,k,vec4u(v,0
 export function createTreeTable(
   device: GPUDevice,
   tree: PlacementTree | undefined,
-  make?: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture,
+  make?: TextureMaker,
 ) {
   // Sampled by the culling and the rays, written by the host and by the refit's storage binding.
   const usage =

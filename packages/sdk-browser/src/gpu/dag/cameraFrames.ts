@@ -1,3 +1,4 @@
+import type { TextureMaker } from './cutBuffers.ts'
 import { createWorldOrigins } from './worldOrigins.ts'
 import type { PackedDag } from './types.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
@@ -22,7 +23,7 @@ export function createCameraFrames(
   worldCount: number,
   worlds: Float32Array,
   sources: PackedDag['worldSources'],
-  make?: (descriptor: GPUTextureDescriptor, bytes: number) => GPUTexture,
+  make?: TextureMaker,
 ) {
   // Worlds: written by the host and by the composition of the poses
   // (`../../placement/gpuComposeWgsl.ts`), copied once when the proxy's copies outgrow them
