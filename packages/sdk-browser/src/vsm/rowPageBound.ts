@@ -34,7 +34,8 @@ import type { VsmLightAllocation } from './frameSetup.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import { answer, createScratch, type BoundFrame, type Scratch } from './rowBoundMeasure.ts'
 import { lampKeysOf } from './rowBinsKeys.ts'
-import { boundLights, sunAxes } from './rowBinsParams.ts'
+import { boundLights } from './rowBinsParams.ts'
+import { sunAxes } from './rowBinsSuns.ts'
 import { createRowBins, type RowBins, type RowBinsLanded } from './rowBinsRecord.ts'
 
 /** The rows' spheres as the bound reads them: the GPU's (`lights.spheres`), and what changed in
@@ -87,6 +88,8 @@ export const createVsmRowBound = (): VsmRowBound => ({
 })
 
 const axes = new Float64Array(6)
+/** What the frame adds to the histogram (`BoundFrame`), rewritten by each bound. */
+const frame: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carried: false }
 /** Whether `landed` binned this frame's suns, in order, along the axes they hold now. */
 function sunsHold(landed: RowBinsLanded, suns: readonly VsmClipmap[]) {
   if (landed.suns.length !== suns.length) return false
@@ -127,7 +130,8 @@ export function vsmBoundChunk(
     bins.latency = Math.max(1, motion.commits - landed.commits)
   }
   // The rows beside the bins: the single-page maps', and the full maps' the bins do not hold.
-  const frame: BoundFrame = { pairs: 0, cmds: 0, lamps, unplaced: 0, carried: false }
+  frame.pairs = frame.cmds = 0
+  frame.lamps = lamps
   for (const light of lights) {
     if (!light.shouldRender || light.kind === 'directional') continue
     if (light.singlePage) frame.pairs += light.count
