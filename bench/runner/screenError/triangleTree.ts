@@ -1,4 +1,5 @@
-import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
+import { ceilDiv, workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
+import { selectByKey } from '../../../packages/math/src/select.ts'
 
 /**
  * A STATIC TRIANGLE TREE, the screen-error measure's own (`screenErrorMeasure.ts`): a
@@ -7,9 +8,13 @@ import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
  * on the GPU, over what it draws (`packages/sdk-browser/src/webgpu/rays/`); the bench measures the
  * source mesh on the CPU in doubles, a reference no engine path reads.
  *
- * BUILD. A median split over the triangles' centres (`centreTree.ts`): a
- * balanced tree, so a query's stack is a fixed array. Triangles are then copied in leaf order: a
- * leaf reads a contiguous run, no index list survives.
+ * BUILD. Top-down, a median split over the triangles' centres: a node's triangles are split near
+ * the median of their centres along the longest axis of the centres' box — the left side rounded
+ * up to whole leaves — until a node holds at most `LEAF_TRIANGLES`. The tree stays balanced
+ * whatever the triangles, so a query's stack is a fixed array. The median is selected in linear
+ * time (a partition, not a sort): the build is `O(T log T)`. Nodes are in pre-order: the left
+ * child follows its parent. Triangles are then copied in leaf order: a leaf reads a contiguous
+ * run, no index list survives.
  *
  * MEMORY. Exactly `36 T` bytes of triangles (nine float32) plus `32` bytes per node (six
  * float32 bounds, two int32 links), exactly `2 ceil(T / LEAF) - 1` nodes: about 52 bytes per
@@ -43,7 +48,7 @@ export interface TriangleTree {
  *  `ranks`, when given, receives the rank in `source` of each triangle of the tree, in order. */
 export function buildTriangleTree(source: ArrayLike<number>, ranks?: Uint32Array): TriangleTree {
   const count = Math.floor(source.length / 9)
-  const capacity = centreTreeNodes(count, LEAF_TRIANGLES)
+  const capacity = 2 * workgroupCount(count, LEAF_TRIANGLES) - 1
   const bounds = new Float32Array(capacity * 6),
     links = new Int32Array(capacity),
     counts = new Int32Array(capacity),
@@ -54,9 +59,25 @@ export function buildTriangleTree(source: ArrayLike<number>, ranks?: Uint32Array
     for (let k = 0; k < 3; k++)
       centres[3 * t + k] = (source[9 * t + k] + source[9 * t + 3 + k] + source[9 * t + 6 + k]) / 3
   }
-  buildCentreTree(centres, order, count, LEAF_TRIANGLES, links, counts, (node, start, end) =>
-    boxOf(bounds, node, source, order, start, end),
-  )
+  let nodes = 0
+  const build = (start: number, end: number): number => {
+    const node = nodes++
+    boxOf(bounds, node, source, order, start, end)
+    if (end - start <= LEAF_TRIANGLES) {
+      links[node] = start
+      counts[node] = end - start
+      return node
+    }
+    // The left half takes a whole number of full leaves: every leaf but the last is full.
+    const axis = longestAxis(centres, order, start, end),
+      middle = start + LEAF_TRIANGLES * ceilDiv(end - start, 2 * LEAF_TRIANGLES)
+    // The median centre on `axis` at `middle`, the smaller before it and the larger after.
+    selectByKey(order, (entry) => centres[3 * entry + axis], start, end, middle)
+    build(start, middle)
+    links[node] = build(middle, end)
+    return node
+  }
+  build(0, count)
   ranks?.set(order)
   const triangles = new Float32Array(count * 9)
   for (let i = 0; i < count; i++)
@@ -83,4 +104,20 @@ function boxOf(
         if (value < bounds[at + k]) bounds[at + k] = value
         if (value > bounds[at + 3 + k]) bounds[at + 3 + k] = value
       }
+}
+
+function longestAxis(centres: Float32Array, order: Uint32Array, start: number, end: number) {
+  let axis = 0,
+    widest = -1
+  for (let k = 0; k < 3; k++) {
+    let low = Infinity,
+      high = -Infinity
+    for (let i = start; i < end; i++) {
+      const value = centres[3 * order[i] + k]
+      low = Math.min(low, value)
+      high = Math.max(high, value)
+    }
+    if (high - low > widest) [widest, axis] = [high - low, k]
+  }
+  return axis
 }
