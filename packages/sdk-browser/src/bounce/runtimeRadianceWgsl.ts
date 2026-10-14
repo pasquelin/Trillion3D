@@ -85,10 +85,7 @@ fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,wo
  * (\`runtimeLayout.ts\`).
  */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
- rtWork=0u;
- rtTests=0u;
- rtExtra=0u;
- rtLost=false;
+ rtBegin();
  var color=vec3f(0.0);
  var through=1.0;
  var start=origin;
@@ -121,10 +118,7 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
  *  \`reach\` where it meets nothing. An exhausted ray carries zero weight (\`runtimeLayout.ts\`): its distance is
  *  then negative, and the probe leaves it out of its estimate. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- rtWork=0u;
- rtTests=0u;
- rtExtra=0u;
- rtLost=false;
+ rtBegin();
  let hit=rtScene(origin,direction,reach);
  if(rtSpent()){return vec4f(0.0,0.0,0.0,-1.0);}
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}

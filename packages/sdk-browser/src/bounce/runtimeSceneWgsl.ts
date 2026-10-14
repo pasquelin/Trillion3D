@@ -73,6 +73,8 @@ var<private> rtAnyHit:bool;
 /** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
  *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
 var<private> rtLost:bool;
+/** A ray begins: nothing spent, nothing charged, nothing lost. */
+fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;}
 fn rtSpent()->bool{return rtWork>=RT_WORK||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
