@@ -11,6 +11,7 @@ import { baseOpen, linksFor } from '../../page/cut/links.ts'
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
 import { hierarchyLevelSizes } from './hierarchy.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import type { DagCapacity } from './packCapacity.ts'
 
 /** A ROOT PLACED IN A PACKING (`pack.ts`): its primitive's nodes, shared by its placements, its
  *  world, mark and links, and the shift that leads its pages to their records. */
