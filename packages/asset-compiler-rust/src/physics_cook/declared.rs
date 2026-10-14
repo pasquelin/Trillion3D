@@ -5,16 +5,18 @@
 //! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
 use super::hull::{cooked_hull, Hull};
 use super::pieces::declared_breakable;
-use super::stage::{place, trs};
+use super::stage::place;
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
 use crate::compiler_validate::values;
-use crate::compiler_world::{rotation_matrix, scaling, translation, Mat4};
+use crate::compiler_world::Mat4;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::matrix::multiply_matrix4_from_zero;
+use trillion3d_math::linear::decompose_trs;
+use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
+use trillion3d_math::rotation::rotation_matrix;
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
@@ -53,7 +55,7 @@ fn body(
     cooked: &mut BTreeMap<usize, Hull>,
 ) -> Result<Value> {
     let declared = &nodes[index]["extensions"]["KHR_physics_rigid_bodies"];
-    let pose = trs(&world[index])
+    let pose = decompose_trs(&world[index])
         .ok_or_else(|| refused("A body's node shears or has no scale.".into()))?;
     let field = |key: &str| declared.pointer(&format!("/collider/geometry/{key}"));
     let breakable = declared_breakable(&nodes[index])?;

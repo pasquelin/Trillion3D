@@ -2,12 +2,12 @@
 //! quantizes under the display quantum, and a kilometre terrain takes the finest grid its root
 //! page fits.
 
-use super::TILE_EXTENT_LOG2;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page_quant::primitive_exponent;
 use crate::tests::fixtures::grid_indices;
 use crate::tests::random::Xorshift;
 use trillion3d_page_codec::bits::grid::finest_exponent;
+use trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 use trillion3d_page_codec::encode::encode;
 

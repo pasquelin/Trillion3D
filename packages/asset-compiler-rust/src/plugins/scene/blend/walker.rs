@@ -5,6 +5,7 @@
 //! materials are those of its slots; an object that replaces one is counted on the report, the
 //! driver following the mesh. Everything that is not rendered is counted, never silenced.
 use super::*;
+use trillion3d_math::linear::uniform_scale;
 
 /// What the walk has at hand.
 pub(super) struct Scene<'a> {
@@ -79,7 +80,7 @@ impl Scene<'_> {
     /// Blender orients its lamps toward their `-Z`, like glTF: nothing to rotate.
     fn light(&mut self, object: &At<'_>) {
         let matrix = object::world(object);
-        let scale = crate::shared_math::uniform_scale(&matrix.map(f64::from));
+        let scale = uniform_scale(&matrix.map(f64::from));
         let name = short(object, "Light");
         let Some(light) = light::build(object.follow("data"), name.clone(), scale, &mut self.out)
         else {

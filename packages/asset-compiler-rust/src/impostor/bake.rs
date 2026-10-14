@@ -2,10 +2,9 @@
 //! through the alpha-aware filter, four rotated-grid rays a texel.
 use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
-use crate::shared_math::normalized_or;
 use rayon::prelude::*;
 use trillion3d_math::scalar::{byte_to_unit, mean as scalar_mean, unit_to_byte};
-use trillion3d_math::vec3::{add, scale};
+use trillion3d_math::vec3::{add, normalized_or, scale};
 use trillion3d_math::vecn::mean as mean_of;
 
 /// Rotated-grid subsamples of a texel, in texel units.

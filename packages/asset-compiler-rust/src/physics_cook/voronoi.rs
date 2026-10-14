@@ -3,12 +3,11 @@
 //! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
 //! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
 //! the edges no touched face walks back: every cell comes out a closed mesh.
-use crate::shared_math::unit;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use trillion3d_math::aabb::{centre, corner};
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{dot, point, scale, sub, triple};
+use trillion3d_math::vec3::{dot, point, scale, sub, triple, unit};
 use trillion3d_math::vecn::lerp;
 
 type Point = [f64; 3];

@@ -175,7 +175,7 @@ impl Surface {
 
 /// A normal brought back to length one; a null normal becomes glTF's up axis.
 fn unit([x, y, z]: [f32; 3]) -> [f32; 3] {
-    let unit = crate::shared_math::normalized_or(
+    let unit = trillion3d_math::vec3::normalized_or(
         [f64::from(x), f64::from(y), f64::from(z)],
         [0.0, 1.0, 0.0],
     );

@@ -1,10 +1,11 @@
 //! Tiled grids: a primitive narrower than a tile of the world keeps the grid it had, a wider one
 //! is quantized tile by tile on the same absolute grid, and every page still fits its field.
 
-use super::{tile_log2, TILE_EXTENT_LOG2};
 use crate::geometry_page_quant::primitive_exponent;
 use crate::tests::random::Xorshift;
-use trillion3d_page_codec::bits::grid::{finest_exponent, grid_exponent};
+use trillion3d_page_codec::bits::grid::{
+    finest_exponent, grid_exponent, tile_log2, TILE_EXTENT_LOG2,
+};
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles: a tile no primitive reaches leaves the extent rule whole.

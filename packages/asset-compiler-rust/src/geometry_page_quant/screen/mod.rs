@@ -40,7 +40,7 @@ struct Page {
 }
 
 /// A primitive as the compiler holds it: positions, carried attributes, triangles, whether it
-/// blends, the largest world scale it is placed under, and its tile (`tile::tile_log2`).
+/// blends, the largest world scale it is placed under, and its tile (`bits::grid::tile_log2`).
 struct Primitive<'a> {
     positions: &'a [f32],
     carried: &'a [&'a Attribute],

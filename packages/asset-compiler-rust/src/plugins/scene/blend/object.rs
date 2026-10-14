@@ -12,10 +12,9 @@
 //! compiler's shared helpers at that precision: the output bits stay those Blender files have
 //! always compiled to.
 use super::*;
-use crate::compiler_world::{identity, quaternion_wxyz, turn};
 use trillion3d_math::euler::{euler_matrix, ORDERS_BY_NAME};
 use trillion3d_math::matrix::multiply_matrix4;
-use trillion3d_math::rotation::half_angle_wxyz;
+use trillion3d_math::rotation::{half_angle_wxyz, identity, quaternion_wxyz, turn};
 use trillion3d_math::vec3::normalize_finite_f32;
 
 /// The object type that holds a mesh.

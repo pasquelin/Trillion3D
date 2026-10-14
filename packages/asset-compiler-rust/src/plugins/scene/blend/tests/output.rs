@@ -1,7 +1,7 @@
 //! What the driver produced, read as a caller would read it: the scene compiled in a throwaway
 //! directory, then the values the tests compare.
 use super::*;
-pub(super) use crate::tests::directories::scratch;
+use crate::tests::directories::scratch;
 use std::sync::atomic::AtomicBool;
 
 /// Compiles these bytes through the driver in a throwaway directory, and yields the glTF and the

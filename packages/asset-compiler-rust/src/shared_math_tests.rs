@@ -1,4 +1,5 @@
 use crate::shared_math::*;
+use trillion3d_math::vec3::{normalized_or, unit};
 
 #[test]
 fn pad_to_4_covers_every_remainder_and_the_top_of_usize() {

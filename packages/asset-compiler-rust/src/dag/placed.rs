@@ -10,6 +10,7 @@
 use super::clusters::position_key;
 use super::*;
 use crate::qem::solve::SolvedRegion;
+use trillion3d_math::vec3::unit;
 use trillion3d_page_codec::encode::Attribute as Carried;
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
@@ -56,7 +57,7 @@ impl<'r> Local<'r> {
             );
             let first = if normals {
                 let normal = [0, 1, 2].map(|c| f64::from(placed[c]));
-                let unit = crate::shared_math::unit(normal).map(|n| n.map(|c| c as f32));
+                let unit = unit(normal).map(|n| n.map(|c| c as f32));
                 placed[..3].copy_from_slice(unit.as_ref().map_or(&source[..3], |n| &n[..]));
                 3
             } else {

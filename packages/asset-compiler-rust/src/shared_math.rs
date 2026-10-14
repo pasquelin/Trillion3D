@@ -6,9 +6,6 @@
 
 pub(crate) mod abi;
 
-pub(crate) use trillion3d_math::linear::{linear_columns, uniform_scale};
-pub(crate) use trillion3d_math::vec3::{normalized_or, unit};
-
 /// Padding bytes to reach next multiple of four: zero when already
 /// aligned. Alignment binary format requires of views.
 pub(crate) fn pad_to_4(length: usize) -> usize {

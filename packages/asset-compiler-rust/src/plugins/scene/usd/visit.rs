@@ -5,6 +5,8 @@
 //! that names the data, so two instances of the same prototype cite the same glTF mesh without
 //! walking the prototype separately.
 use super::*;
+use trillion3d_math::linear::uniform_scale;
+use trillion3d_math::matrix::IDENTITY;
 
 /// Maximum depth of a hierarchy, unfolded instances included.
 const MAX_DEPTH: usize = 64;
@@ -90,10 +92,10 @@ fn node(
 ) -> Option<usize> {
     let mut node = json!({ "name": prim.path().name().unwrap_or("Prim") });
     let local = xform::local(world, prim);
-    if local != matrix::IDENTITY {
+    if local != IDENTITY {
         node["matrix"] = json!(local);
     }
-    let scale = scale * matrix::uniform_scale(&local);
+    let scale = scale * uniform_scale(&local);
     if type_name == "Mesh" {
         if let Some(mesh) = mesh::build(world, prim, &data_key(prim)) {
             node["mesh"] = json!(mesh);

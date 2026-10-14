@@ -149,7 +149,7 @@ pub(super) fn check_pages(built: &Built, label: &str) {
             .filter(|c| c.level > 0)
             .map(|c| c.lod_error),
         false,
-        crate::geometry_page_quant::tile::TILE_EXTENT_LOG2,
+        trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2,
     );
     for cluster in &built.dag {
         let encoded = encode::encode(

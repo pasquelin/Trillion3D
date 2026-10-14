@@ -13,10 +13,10 @@
 //! · … · opₙ` in columns, which applies the last written operation first — Alembic's order,
 //! where a translation, rotation, scale stack scales before rotating then translating.
 use super::VALUES_INVALID;
-pub(super) use crate::compiler_world::IDENTITY;
-use crate::compiler_world::{axis_angle, scaling, translation, Mat4};
+use crate::compiler_world::Mat4;
 use crate::{CompilerError, Result};
-use trillion3d_math::matrix::multiply_matrix4;
+use trillion3d_math::matrix::{multiply_matrix4, scaling, translation, IDENTITY};
+use trillion3d_math::rotation::axis_angle;
 
 /// How many values each operation consumes, by operation code.
 fn arity(code: u8) -> Option<usize> {

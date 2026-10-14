@@ -61,7 +61,7 @@ pub(in crate::tests) fn translations(gltf: &Value, name: &str) -> Vec<[f64; 3]> 
 /// Matrix of a glTF node, rounded to the millionth; identity when it carries none.
 pub(in crate::tests) fn matrix(node: &Value) -> Vec<f64> {
     let Some(values) = node["matrix"].as_array() else {
-        return crate::compiler_world::IDENTITY.to_vec();
+        return trillion3d_math::matrix::IDENTITY.to_vec();
     };
     values
         .iter()

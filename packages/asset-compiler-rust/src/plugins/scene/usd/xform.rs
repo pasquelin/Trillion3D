@@ -6,6 +6,8 @@
 //! arbitrary matrix, which is not computed so as not to invent a transform.
 use super::*;
 use trillion3d_math::euler::compose_turns_from_zero;
+use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation, IDENTITY};
+use trillion3d_math::rotation::turn;
 
 /// Prefix USD puts in front of an operation to invert.
 const INVERT: &str = "!invert!";
@@ -18,9 +20,9 @@ const PREFIX: &str = "xformOp:";
 pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
     let order = match read::first(&prim.attribute("xformOpOrder")) {
         Some((sdf::Value::TokenVec(order), _)) => order,
-        _ => return matrix::IDENTITY,
+        _ => return IDENTITY,
     };
-    let mut out = matrix::IDENTITY;
+    let mut out = IDENTITY;
     for entry in &order {
         let entry = entry.as_str();
         if entry == RESET {
@@ -32,7 +34,7 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
             None => (false, entry),
         };
         match operation(world, prim, name, inverted) {
-            Some(op) => out = matrix::multiply_matrix4_from_zero(&out, &op),
+            Some(op) => out = multiply_matrix4_from_zero(&out, &op),
             None => world.refuse(world::XFORM_UNSUPPORTED),
         }
     }
@@ -40,7 +42,7 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
         return out;
     }
     world.refuse(world::XFORM_INVALID);
-    matrix::IDENTITY
+    IDENTITY
 }
 
 /// Matrix of a named operation, or `None` when this driver does not compose it.
@@ -58,11 +60,11 @@ fn operation(
     match kind {
         "translate" => {
             let t = read::triple(&value)?;
-            Some(matrix::translation(signed(t, inverted)))
+            Some(translation(signed(t, inverted)))
         }
         "scale" => {
             let s = read::triple(&value)?;
-            Some(matrix::scaling(if inverted { inverse(s) } else { s }))
+            Some(scaling(if inverted { inverse(s) } else { s }))
         }
         "transform" => (!inverted).then(|| read::matrix(&value)).flatten(),
         "orient" => {
@@ -109,7 +111,7 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     Some(compose_turns_from_zero(
         steps
             .into_iter()
-            .map(|(axis, angle)| matrix::turn(axis, angle.to_radians())),
+            .map(|(axis, angle)| turn(axis, angle.to_radians())),
     ))
 }
 

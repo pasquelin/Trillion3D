@@ -11,9 +11,10 @@
 //! Maya writes each of these vectors as a block — `.t` — or component by component — `.tx` —,
 //! often both in the same file: both writings are read, the component winning.
 use super::*;
-use crate::compiler_world::{axis_rotation, scaling, translation, Mat4, IDENTITY};
+use crate::compiler_world::Mat4;
 use trillion3d_math::euler::{euler_matrix_from_zero, ORDERS_BY_CYCLE};
-use trillion3d_math::matrix::multiply_matrix4_from_zero;
+use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation, IDENTITY};
+use trillion3d_math::rotation::axis_rotation;
 
 /// Suffixes of the components of an axis vector, `.tx` for `.t`.
 const AXES: [&str; 3] = ["x", "y", "z"];

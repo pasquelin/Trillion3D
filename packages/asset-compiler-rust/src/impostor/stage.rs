@@ -10,12 +10,11 @@ use crate::compiler_validate::values;
 use crate::compiler_world::{world_matrices, Mat4};
 use crate::proxy::placement::primitives_by_mesh;
 use crate::proxy::{stage_proxy, ProxyInputs, SceneProxy};
-use crate::shared_math::linear_columns;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::aabb::diagonal;
-use trillion3d_math::linear::longest_column;
+use trillion3d_math::linear::{linear_columns, longest_column};
 use trillion3d_math::matrix::transform_point;
 use trillion3d_page_codec::proxy::bvh;
 

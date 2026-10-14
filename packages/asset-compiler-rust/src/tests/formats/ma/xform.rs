@@ -41,7 +41,7 @@ fn the_single_components_of_a_transform_pose_it_like_the_compound_attributes() {
          \tsetAttr \".r\" -type \"double3\" 0 90 0;\n\
          \tsetAttr \".s\" -type \"double3\" 1 1 2;\n",
     );
-    assert_ne!(whole, crate::compiler_world::IDENTITY.to_vec());
+    assert_ne!(whole, trillion3d_math::matrix::IDENTITY.to_vec());
     assert_eq!(split, whole, "`.tx` poses the node like the first of `.t`");
 }
 

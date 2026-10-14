@@ -12,7 +12,7 @@ pub mod tile;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
-/// one shows through a transparent surface. `tile_log2` is its tile (`tile::tile_log2`).
+/// one shows through a transparent surface. `tile_log2` is its tile (`bits::grid::tile_log2`).
 pub fn primitive_exponent(
     pos: &[f32],
     errors: impl Iterator<Item = f64>,

@@ -89,7 +89,7 @@ fn source_range(
     }
     Ok(range)
 }
-pub(crate) use meshopt::expand as meshopt_views;
+pub(crate) use meshopt::meshopt_views;
 
 pub(crate) fn draco_primitives(
     g: &mut Value,

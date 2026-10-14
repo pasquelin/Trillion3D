@@ -5,7 +5,7 @@ pub fn world_plane(
     matrix: &crate::compiler_world::Mat4,
     plane: &plane::ClusterPlane,
 ) -> Option<([f64; 3], f64, f64)> {
-    let direction = crate::compiler_world::cofactor_direction(matrix, plane.normal);
+    let direction = trillion3d_math::linear::cofactor_direction(matrix, plane.normal);
     let scale = trillion3d_math::vec3::length(direction);
     if !matches!(scale.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater)) {
         return None;

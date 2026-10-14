@@ -1,8 +1,8 @@
 use super::cut::tolerance;
 use super::declared::declared_matter;
-use super::stage::trs;
 use super::*;
 use crate::dag::DagCluster;
+use trillion3d_math::linear::decompose_trs;
 
 /// The golden tile: a 2 × 2 m quad tilted up along x, two triangles, cooked by native Jolt. The
 /// physics module's tests restore these very bytes (`packages/sdk-browser/src/physics`).
@@ -123,7 +123,7 @@ fn a_node_matrix_splits_into_a_pose() {
         }
     }
     m[12..16].copy_from_slice(&[1.0, 2.0, 3.0, 1.0]);
-    let (t, q, s) = trs(&m).unwrap();
+    let (t, q, s) = decompose_trs(&m).unwrap();
     let half = std::f64::consts::FRAC_1_SQRT_2;
     assert_eq!((t, s), ([1.0, 2.0, 3.0], [2.0, 2.0, 2.0]));
     assert!(
@@ -131,7 +131,7 @@ fn a_node_matrix_splits_into_a_pose() {
         "{q:?}"
     );
     m[5] += 0.5;
-    assert!(trs(&m).is_none());
+    assert!(decompose_trs(&m).is_none());
 }
 
 // Behaviour: a placement carries the friction and restitution its node's collider declares, and

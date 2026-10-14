@@ -5,18 +5,13 @@
 //! transpose of the object's matrix, texture sets as they are, colour four-wide. A mirrored
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
-use crate::compiler_world::cofactor_direction;
 use crate::proxy::placement::place;
-use crate::shared_math::unit;
-use trillion3d_math::linear::{determinant, longest_column};
+use trillion3d_math::linear::{cofactor_direction, determinant, longest_column};
 use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec3::unit;
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::min_ball::ball_of_balls;
-use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL};
-
-/// The attributes a world vertex may carry, in the order a page writes them, at the width a world
-/// page stores each: the page format's own.
-pub(super) use trillion3d_page_codec::OPTIONAL as LAYOUT;
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, OPTIONAL};
 
 /// Root clusters as the builder takes them: triangles, and the error and sphere each was
 /// published at.
@@ -27,9 +22,10 @@ pub(super) fn layout_of(cover: &RootCover) -> u32 {
     cover.carried.iter().fold(0, |flags, a| flags | a.flag)
 }
 
-/// The attributes of `layout`, empty, in `LAYOUT` order.
+/// The attributes of `layout`, empty, in `OPTIONAL` order: the attributes a world vertex may
+/// carry, in the order and at the width a page writes them.
 pub(super) fn empty(layout: u32) -> Vec<Attribute> {
-    LAYOUT
+    OPTIONAL
         .iter()
         .filter(|(flag, _)| layout & flag != 0)
         .map(|&(flag, width)| Attribute {

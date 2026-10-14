@@ -54,7 +54,7 @@ pub(super) fn mesh_json(
                 if has_normal {
                     let n = mesh.vertex_normal.values[mesh.vertex_normal.indices[c] as usize];
                     let [x, y, z] =
-                        crate::shared_math::normalized_or([n.x, n.y, n.z], [0.0, 1.0, 0.0]);
+                        trillion3d_math::vec3::normalized_or([n.x, n.y, n.z], [0.0, 1.0, 0.0]);
                     values[CORNER_NORMAL].copy_from_slice(&[x as f32, y as f32, z as f32]);
                 }
                 if has_uv {

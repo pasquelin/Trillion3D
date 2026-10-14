@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) fn expand(
+pub(crate) fn meshopt_views(
     g: &mut Value,
     binary: Binary,
     offsets: &mut Vec<usize>,

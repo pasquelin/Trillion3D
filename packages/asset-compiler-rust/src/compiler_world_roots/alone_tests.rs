@@ -7,8 +7,8 @@ use super::pack::pack_world;
 use super::tests::{cooked, covers, sizes, world};
 use super::world::world_dag;
 use super::*;
-use crate::compiler_world::translation;
 use crate::dag::DAG_GROUP_MAX;
+use trillion3d_math::matrix::translation;
 
 /// The materials the island wears beside the lone ones: one the whole world shares, then one per
 /// cell, from `REGIONAL`.

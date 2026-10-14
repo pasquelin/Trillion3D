@@ -15,10 +15,7 @@ use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-
-/// A node matrix as translation, rotation (x, y, z, w) and scale; `None` when it shears, which no
-/// body pose can carry.
-pub(crate) use trillion3d_math::linear::decompose_trs as trs;
+use trillion3d_math::linear::decompose_trs;
 
 /// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's, a
 /// rigid body's or a soft body's.
@@ -89,7 +86,7 @@ pub(crate) fn stage_physics(
             let mut entry = declared_matter(g, &nodes[node]);
             entry["node"] = json!(node);
             entry["collider"] = json!(collider);
-            match trs(&world[node]) {
+            match decompose_trs(&world[node]) {
                 Some(placement) => {
                     place(&mut entry, placement);
                     instances.push(entry);

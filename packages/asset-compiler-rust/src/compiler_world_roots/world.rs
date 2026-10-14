@@ -3,13 +3,14 @@
 //! its cells continued to the top. An object nothing grouped is given a parent of its own
 //! (`stand_alone`): every placed object has a world parent that stands in for it.
 use super::merge::WorldDag;
-use super::place::{empty, gather, layout_of, Roots, LAYOUT};
+use super::place::{empty, gather, layout_of, Roots};
 use super::*;
 use crate::dag::clusters::cluster_triangles;
 use crate::dag::{
     build_dag_from_roots, DagAttributes, DagCluster, DagGroup, Grown, DAG_CLUSTER_TRIANGLES,
 };
 use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::OPTIONAL;
 
 impl WorldDag {
     /// Every placed object still a root — alone in its material, or in a group whose reduction
@@ -95,7 +96,7 @@ pub(super) fn world_dag(
         })
         .collect::<Result<Vec<_>>>()?;
     let mut world = WorldDag {
-        carried: empty(LAYOUT.iter().fold(0, |all, (flag, _)| all | flag)),
+        carried: empty(OPTIONAL.iter().fold(0, |all, (flag, _)| all | flag)),
         ..WorldDag::default()
     };
     let mut tops: BTreeMap<(Option<u64>, u32), Vec<usize>> = BTreeMap::new();

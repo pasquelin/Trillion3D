@@ -10,7 +10,7 @@ use crate::qem::compact_region;
 use trillion3d_page_codec::culling::{build_culling_bvh, CullingNode};
 use trillion3d_page_codec::encode::Attribute;
 
-/// Every cluster of the world, on one world-space vertex buffer and the attributes of `LAYOUT` on
+/// Every cluster of the world, on one world-space vertex buffer and the attributes of `OPTIONAL` on
 /// it — each empty while no build carries it, zero on a vertex whose build does not. Level 0 is
 /// the placed objects, each with its `origin`, the instance it places; every other cluster is a
 /// super-root, written in its `layout`. `cells` names, per cluster, the cells it covers. Once built,

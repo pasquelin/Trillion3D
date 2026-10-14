@@ -3,6 +3,7 @@
 //! what the DAG builder guarantees on it, `cache.rs` what the compiled cache guarantees, and
 //! `run.rs` asserts both on every case of every family.
 use super::*;
+use crate::tests::random::Xorshift;
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 mod attributes;
@@ -18,8 +19,6 @@ mod solids;
 mod topology;
 mod uv;
 mod uv_degenerate;
-
-pub(super) use crate::tests::random::Xorshift;
 
 /// The generator of a case: the corpus xorshift, its seed spread over the whole state so that
 /// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.

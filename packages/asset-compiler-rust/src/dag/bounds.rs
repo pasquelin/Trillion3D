@@ -2,9 +2,6 @@ use trillion3d_math::aabb::{aabb_of, centre};
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_page_codec::culling::CullingCluster;
 
-/// Monotone parent bounds: the sphere enclosing every input sphere, merged in order.
-pub use trillion3d_math::sphere::enclosing_sphere;
-
 /// AABB centre plus the farthest vertex. Conservative and deterministic.
 pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     let (min, max) = aabb_of(indices.iter().map(|&id| point(positions, id)));

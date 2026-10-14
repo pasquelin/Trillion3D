@@ -5,7 +5,7 @@ use core::f64::consts::GOLDEN_RATIO;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use trillion3d_math::scalar::lerp;
-use trillion3d_math::vec3::{add, length};
+use trillion3d_math::vec3::{add, length, normalized_or};
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
 
@@ -13,7 +13,7 @@ pub(super) type V = [f64; 3];
 
 /// A unit vector along `v`.
 pub(super) fn normalize(v: V) -> V {
-    crate::shared_math::normalized_or(v, [0.0, 0.0, 1.0])
+    normalized_or(v, [0.0, 0.0, 1.0])
 }
 
 /// A mesh: positions, normals, optional texture coordinates, triangles.

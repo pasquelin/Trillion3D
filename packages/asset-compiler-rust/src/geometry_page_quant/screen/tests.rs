@@ -3,10 +3,10 @@ use super::building::building;
 use super::meshes::{sphere, terrain, Mesh};
 use super::vegetation::vegetation;
 use super::{assert_within_margin, exact_pixels, measure, Page, Primitive};
-use crate::geometry_page_quant::tile::tile_log2;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::path::Path;
+use trillion3d_page_codec::bits::grid::tile_log2;
 
 fn measured(mesh: &Mesh, tile_log2: i32) -> Vec<Page> {
     let attributes = mesh.attributes();

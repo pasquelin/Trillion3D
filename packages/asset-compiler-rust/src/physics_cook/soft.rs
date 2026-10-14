@@ -8,7 +8,7 @@
 use super::cut::store_shape;
 use super::declared::declared_matter;
 use super::soft_record::{soft_record, SoftDeclared};
-use super::stage::{place, trs};
+use super::stage::place;
 use super::{refused, soft_settings, PHYSICS_COOK_FAILED, SOFT_VERTEX_WORDS};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
@@ -16,6 +16,7 @@ use crate::compiler_world::Mat4;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
+use trillion3d_math::linear::decompose_trs;
 
 const KINDS: [&str; 3] = ["cloth", "rope", "volume"];
 
@@ -96,8 +97,8 @@ fn soft_body(
         .get("indices")
         .map(|id| accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32())
         .transpose()?;
-    let placement =
-        trs(matrix).ok_or_else(|| refused("A soft body's node shears or has no scale.".into()))?;
+    let placement = decompose_trs(matrix)
+        .ok_or_else(|| refused("A soft body's node shears or has no scale.".into()))?;
     let s = placement.2;
     let record = soft_record(&pos, corners.as_deref(), s, &declared).map_err(refused)?;
     let (stretch, bend) = (declared.stretch as f32, declared.bend as f32);

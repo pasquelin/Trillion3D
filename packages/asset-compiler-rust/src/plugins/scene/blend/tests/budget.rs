@@ -21,7 +21,7 @@ fn a_bare_file_past_a_gigabyte_is_read_in_place_under_a_small_budget() {
     head[length..length + 4].copy_from_slice(&PADDING.to_le_bytes());
     let mut tail = Vec::new();
     block(&mut tail, b"ENDB", 0, 0, &[]);
-    let root = output::scratch("blend", "sparse");
+    let root = crate::tests::directories::scratch("blend", "sparse");
     let path = root.join("scene.blend");
     let mut written = fs::File::create(&path).expect("file");
     written.write_all(&head).expect("head");

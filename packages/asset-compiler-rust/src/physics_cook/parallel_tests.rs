@@ -128,7 +128,7 @@ fn primitive(
     let mut o = crate::texture_preview::tests::options(root);
     o.simplification = "qem-endpoints".into();
     let demand = crate::proxy::cut::cut_demand(None, 4096, triangles.len() / 3, 0);
-    let tile = crate::geometry_page_quant::tile::tile_log2(None);
+    let tile = trillion3d_page_codec::bits::grid::tile_log2(None);
     let uv = crate::geometry_page_quant::primitive_uv_exponent(&[], false);
     let store = |slice: &[u32], pos: &[f32], carried: &[&_], _: &[u32], exponent: i32| {
         let none = Default::default();

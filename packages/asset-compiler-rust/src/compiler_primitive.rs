@@ -178,7 +178,7 @@ pub(super) fn compile_primitive(
             &index_values,
             demand,
             clustered_blend,
-            crate::geometry_page_quant::tile::tile_log2(scale),
+            trillion3d_page_codec::bits::grid::tile_log2(scale),
             &store,
         )?
     } else {

@@ -1,12 +1,8 @@
 use super::*;
 
-// The matrices and rotations every scene driver composes with, from the maths crate.
-pub(super) use trillion3d_math::linear::cofactor_direction;
-use trillion3d_math::matrix::{compose_trs, multiply_matrix4_from_zero};
-pub(super) use trillion3d_math::matrix::{scaling, translation, IDENTITY};
-pub(super) use trillion3d_math::rotation::{
-    axis_angle, axis_rotation, identity, quaternion_wxyz, rotation_matrix, turn,
-};
+// The matrices a node's transform composes with, from the maths crate; a scene driver imports the
+// ones it composes with from there too.
+use trillion3d_math::matrix::{compose_trs, multiply_matrix4_from_zero, IDENTITY};
 
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];

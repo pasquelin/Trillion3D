@@ -79,7 +79,7 @@ impl World<'_> {
             let values = properties.sample(self.archive, ".vals", POD_F64, None)?;
             self.animated(&properties, ".vals");
             let matrix = xform::matrix(ops.unwrap_or_default(), &f64s(values.unwrap_or_default()))?;
-            if matrix != xform::IDENTITY && xform::is_finite(&matrix) {
+            if matrix != trillion3d_math::matrix::IDENTITY && xform::is_finite(&matrix) {
                 node["matrix"] = json!(matrix);
             } else if !xform::is_finite(&matrix) {
                 self.scene.report.add("alembic-transform-invalid");

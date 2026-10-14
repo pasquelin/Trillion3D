@@ -34,6 +34,7 @@ use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
 use retries::{with_lock_retries, Endpoint};
+use trillion3d_math::sphere::enclosing_sphere;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {

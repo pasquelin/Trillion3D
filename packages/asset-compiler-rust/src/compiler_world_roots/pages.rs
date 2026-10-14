@@ -3,7 +3,7 @@
 //! lie on one grid for the whole world — an eighth of its finest super-root error, never finer
 //! than the page field allows on the world's extent (`grid_exponent`) —, so a vertex two pages
 //! share decodes to one float; texture coordinates on the format's grid, normals octahedral,
-//! colour on bytes, each in its cluster's layout (`place::LAYOUT`).
+//! colour on bytes, each in its cluster's layout (`trillion3d_page_codec::OPTIONAL`).
 use super::merge::WorldDag;
 use super::*;
 use trillion3d_page_codec::bits::grid::{grid_exponent, UV_EXPONENT};

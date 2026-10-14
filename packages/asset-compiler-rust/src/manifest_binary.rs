@@ -5,7 +5,7 @@
 //! it is a single `fetch` and a handful of views. `columns` cuts one page of a manifest in two: the
 //! small JSON a reader parses, and the columns it maps.
 //!
-//! Layout, little-endian, mirrored byte for byte by `packages/sdk-core/src/manifest/binary.ts`:
+//! Layout, little-endian, mirrored byte for byte by `packages/sdk-core/src/manifest/binaryDecode.ts`:
 //!
 //!   u32 magic 'WGMB' · u32 version · u32 columnCount · u32 reserved
 //!   columnCount × (u32 byteOffset, u32 byteLength)

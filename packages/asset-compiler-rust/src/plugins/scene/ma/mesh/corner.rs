@@ -7,6 +7,7 @@
 use super::*;
 use crate::import::Vertices;
 use crate::plugins::scene::ngon::Ngon;
+use trillion3d_math::vec3::normalized_or;
 
 impl Surface {
     /// Pours a face ring into the cutter and cuts it. Yields `None` when cancellation stops the
@@ -66,7 +67,7 @@ impl Surface {
         let position = self.positions.get(vertex as usize)?;
         out.positions.extend(position.map(|axis| axis as f32));
         let written = self.normals.get(shade).copied().unwrap_or([0.0, 1.0, 0.0]);
-        let normal = crate::shared_math::normalized_or(written, [0.0, 1.0, 0.0]);
+        let normal = normalized_or(written, [0.0, 1.0, 0.0]);
         out.normals.extend(normal.map(|axis| axis as f32));
         if textured {
             let [u, v] = uv.map_or([0.0, 0.0], |slot| self.uvs[slot]);

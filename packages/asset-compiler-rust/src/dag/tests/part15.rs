@@ -2,6 +2,7 @@
 //! cases, then on whole DAGs of smooth meshes.
 use super::*;
 use tight::point_sphere;
+use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vec3::{length, point, sub};
 use trillion3d_page_codec::min_ball::ball_of_balls;
 

@@ -11,12 +11,11 @@
 //! error, and so the triangle's width, is under a pixel — a column the level flattened into a
 //! sliver draws a line, whatever its normals. Its error already said what it lost.
 use super::DagCluster;
-use crate::shared_math::unit;
 use crate::{CompilerError, Result};
 use rayon::prelude::*;
 use trillion3d_math::acos::acos;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, dot, length, sub};
+use trillion3d_math::vec3::{add, dot, length, sub, unit};
 
 /// Largest angle, in degrees, a coarse cluster may put between a face and the normal its centre is
 /// shaded with, unless the source triangles it descends from already go further. Past 90° the face
