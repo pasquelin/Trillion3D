@@ -42,14 +42,13 @@ test('every table past one binding is a record table: two storage buffers, whate
     dagDeviceRefusal({ ...limits, maxStorageBuffersPerShaderStage: 1 }, dag())?.buffer,
     'storage bindings',
   )
-  // The flags too: a list starts within one binding's worth and grows no further
-  // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table, and
-  // the eviction sort's scratch behind its sections (`evictScratchWords`). The binding holds `work`
+  // The flags too: every section starts at the reach, past one binding if it must, in its record
+  // table, the eviction sort's scratch behind them (`evictScratchWords`). The binding holds `work`
   // — 8,704 bytes: 2,176 words, 126 of a thousand pages' blocks and counters, 2,050 the sort's
   // (`POOL_SORT_WORDS`) — and no more; two thousand roots' queue is 16,000 bytes.
   const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
   const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
-  const { shape } = cameraCutBuffers(roots, section)
+  const { shape } = cameraCutBuffers(roots)
   assert.ok(
     shape.queueWords * 4 > section.maxStorageBufferBindingSize,
     'the roots past one binding',
@@ -64,7 +63,7 @@ test('`work` holds no word per page: a binding past one list section holds the c
   const pages = dag(),
     limits = { maxStorageBufferBindingSize: 12000 }
   assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
-  const rows = cameraCutBuffers(pages, limits).rows
+  const rows = cameraCutBuffers(pages).rows
   // Past the eviction sort's words, a constant whatever the pages (`POOL_SORT_WORDS`): 504 bytes,
   // sixteen blocks of six words and thirty counters and rows.
   const perPages = rows.work.size - 4 * POOL_SORT_WORDS
@@ -74,10 +73,10 @@ test('`work` holds no word per page: a binding past one list section holds the c
     [],
     'no ranks',
   )
-  // One live word past the binding: the lists start one entry shorter, and grow no further.
+  // One live word past the binding: the lists still start at every page, in their record table.
   const narrow = { ...limits, maxStorageBufferBindingSize: 11996 }
-  assert.equal(dagDeviceRefusal(narrow, pages), undefined, 'the lists start within the binding')
-  assert.equal(cameraCutBuffers(pages, narrow).shape.candCap, 999)
+  assert.equal(dagDeviceRefusal(narrow, pages), undefined, 'the lists past the binding held')
+  assert.equal(cameraCutBuffers(pages).shape.candCap, 1000)
 })
 
 test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {

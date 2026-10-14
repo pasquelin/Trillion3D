@@ -26,7 +26,7 @@ export function dagTables(
   listCap: number,
   heldSlots: number,
 ) {
-  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed, device.limits)
+  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed)
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * VIEW_BLOCK_WORDS)
   const frameData = primitiveFrameWords(packed)

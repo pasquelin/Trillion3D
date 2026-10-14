@@ -20,7 +20,7 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * (`listCap.ts`): refused only if not one rank fits; `work`, a quarter of a byte a page, past it.
  */
 export function dagDeviceRefusal(limits: DagDeviceLimits, packed: PackedDag) {
-  const table = cameraCutBuffers(packed, limits)
+  const table = cameraCutBuffers(packed)
   const past = pastBinding(limits, { ...table.rows, out: readoutRow(1) })
   if (past) return past
   // The layout's own storage bindings: never a count of its own.

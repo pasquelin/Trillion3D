@@ -63,12 +63,7 @@ export function readDagSlot(
     { coarse, cutFactor, flags } = growth
   const grownFlags =
     dropped && !flags.full
-      ? grownFlagShape(
-          growth.limits,
-          { ...flags, pageCount: growth.pageCount },
-          flags.shape,
-          dropped,
-        )
+      ? grownFlagShape({ ...flags, pageCount: growth.pageCount }, flags.shape, dropped)
       : undefined
   const past = (!!parsed?.truncated && !grown) || (!!dropped && !grownFlags)
   const moved =
