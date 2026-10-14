@@ -41,7 +41,7 @@ export function gate(command: string, args: string[], env: Record<string, string
     Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
   )
   try {
-    runChecked(command, args, { stdio: 'inherit', env: { ...own, ...env }, cmd: true })
+    runChecked(command, args, { stdio: 'inherit', env: { ...own, ...env } })
   } catch {
     refuse(`${args[0]} failed: fix it before this command goes through.`)
   }
