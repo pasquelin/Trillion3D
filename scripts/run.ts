@@ -12,14 +12,14 @@ export function run(
 }
 
 /** How `runChecked` starts a command: its folder, its environment, where its output goes (`pipe`,
- *  the default, returns it; anything else passes it through or drops it), and whether a shell
- *  starts it — on Windows by default, where a `.cmd` (pnpm, npm) starts no other way; a real
- *  executable whose arguments carry quotes or spaces passes `shell: false`. */
+ *  the default, returns it; anything else passes it through or drops it), and whether it may be a
+ *  `.cmd` (pnpm, npm, a hook's tool), which on Windows starts only through a shell. A real
+ *  executable starts without one, its arguments passed as they are, quotes and spaces kept. */
 interface RunOptions {
   cwd?: string
   env?: NodeJS.ProcessEnv
   stdio?: StdioOptions
-  shell?: boolean
+  cmd?: boolean
 }
 
 /** Runs `command` and returns its output, or throws with its status and error output when it fails.
@@ -27,7 +27,7 @@ interface RunOptions {
 export function runChecked(
   command: string,
   args: readonly string[],
-  { cwd, env, stdio = 'pipe', shell = process.platform === 'win32' }: RunOptions = {},
+  { cwd, env, stdio = 'pipe', cmd = false }: RunOptions = {},
 ): string {
   const result = spawnSync(command, args, {
     cwd,
@@ -35,7 +35,7 @@ export function runChecked(
     encoding: 'utf8',
     stdio,
     maxBuffer: 1 << 30,
-    shell,
+    shell: cmd && process.platform === 'win32',
   })
   if (result.error) throw result.error
   if (result.status !== 0)

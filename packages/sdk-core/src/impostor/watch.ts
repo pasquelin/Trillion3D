@@ -100,23 +100,21 @@ export function createImpostorWatch(makeHeap: HeapMaker = createHeap<number>) {
     ) {
       s.changedCount = 0
       s.frame++
-      if (roots !== s.roots || section !== s.section || focal !== s.focal || cos !== s.cos)
+      const was = s.table
+      if (roots !== was?.roots || section !== was?.section || focal !== was?.focal || cos !== s.cos)
         s.every = true
-      if (focal !== s.focal || cos !== s.cos) s.bound.fill(NaN)
+      if (focal !== was?.focal || cos !== s.cos) s.bound.fill(NaN)
       // A list grown in place: the roots appended are read, the others keep their verdict; one
       // shortened is read whole.
       const held = s.count
       if (roots.length < held) s.every = true
       if (roots.length !== held) fit(s, roots.length)
-      s.roots = roots
-      s.section = section
-      s.focal = focal
       s.cos = cos
       // One reading a watch, its fields set each update: nothing made an image.
       const reading = s.reading
       reading.view = view
       reading.byMesh = bakedLookup(section)
-      reading.table = s.table = switchTable(s.holder, roots, section, focal)
+      s.table = switchTable(was, roots, section, focal)
       reading.carded = carded
       const moved = !keepNumbers(s.view, view)
       eyeOf(view, s.eye)

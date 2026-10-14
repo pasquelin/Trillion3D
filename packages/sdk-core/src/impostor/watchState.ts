@@ -3,9 +3,8 @@
  * it waits in, the anchors its heaps are keyed from, and the reading of the update under way.
  */
 import type { createHeap } from '../../../math/src/sequence/heap.ts'
-import type { ImpostorSection } from '../contracts/impostor.ts'
 import type { BakedLookup } from './baked.ts'
-import type { ImpostorRoot, SwitchTable } from './switchTable.ts'
+import type { SwitchTable } from './switchTable.ts'
 
 /** The relative margin each class bound keeps from the switch's own, far past its rounding. */
 export const SAFE = 1e-9
@@ -28,10 +27,6 @@ export type Anchor = { eye: Float64Array; forward: Float64Array; heaps: Map<numb
 export function createState(makeHeap: HeapMaker) {
   return {
     makeHeap,
-    holder: {},
-    roots: undefined as readonly ImpostorRoot[] | undefined,
-    section: undefined as ImpostorSection | undefined,
-    focal: NaN,
     cos: NaN,
     view: new Float64Array(16).fill(NaN),
     eye: new Float64Array(3),
@@ -54,6 +49,8 @@ export function createState(makeHeap: HeapMaker) {
     changed: new Int32Array(8),
     changedCount: 0,
     touched: [] as number[],
+    /** The switch's numbers of each root, and the root list, section and focal length they were
+     *  taken from. */
     table: undefined as SwitchTable | undefined,
     /** Each root's `ON` bound and the three numbers it was taken from — its switch depths and
      *  sphere —, taken again when one changes; NaN for a new focal length or frustum. */
@@ -75,6 +72,5 @@ export function waiting(s: State) {
 export type Reading = {
   view: ArrayLike<number>
   byMesh: BakedLookup
-  table: SwitchTable
   carded?: (rank: number) => boolean
 }

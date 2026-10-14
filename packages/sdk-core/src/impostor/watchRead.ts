@@ -93,9 +93,10 @@ function onDistance(c: number, a: number, b: number, rho: number) {
 
 /** Root `rank`'s `ON` bound, its sphere's reach about the pivot taken from its world and entry;
  *  kept while its switch depths and sphere stay. */
-function onBound(s: State, reading: Reading, rank: number, a: number, b: number) {
-  const world = s.roots![rank].world.elements,
-    centre = reading.table.entries[rank]?.centre ?? [0, 0, 0]
+function onBound(s: State, rank: number, a: number, b: number) {
+  const table = s.table!,
+    world = table.roots[rank].world.elements,
+    centre = table.entries[rank]?.centre ?? [0, 0, 0]
   const x = centre[0],
     y = centre[1],
     z = centre[2]
@@ -104,7 +105,7 @@ function onBound(s: State, reading: Reading, rank: number, a: number, b: number)
     transformDirectionRow(world, 1, x, y, z),
     transformDirectionRow(world, 2, x, y, z),
   )
-  const rho = reading.table.radius[rank] + offset,
+  const rho = table.radius[rank] + offset,
     of = s.boundOf,
     at = rank * 3
   if (Number.isNaN(s.bound[rank]) || of[at] !== a || of[at + 1] !== b || of[at + 2] !== rho) {
@@ -120,11 +121,11 @@ function onBound(s: State, reading: Reading, rank: number, a: number, b: number)
 export function read(s: State, reading: Reading, rank: number) {
   if (s.readAt[rank] === s.frame) return
   s.readAt[rank] = s.frame
-  const { table } = reading,
+  const table = s.table!,
     entry = readRoot(
       table,
       rank,
-      s.roots![rank],
+      table.roots[rank],
       reading.byMesh,
       reading.view,
       reading.carded?.(rank) !== false,
@@ -138,7 +139,7 @@ export function read(s: State, reading: Reading, rank: number) {
     b = table.triangleDepth[rank],
     d = length3(point[0], point[1], point[2])
   const never = Math.max(a, b) * (1 - SAFE),
-    always = onBound(s, reading, rank, a, b)
+    always = onBound(s, rank, a, b)
   if (d < never) {
     setVerdict(s, rank, false)
     return wait(s, rank, TRAVEL, never - d)

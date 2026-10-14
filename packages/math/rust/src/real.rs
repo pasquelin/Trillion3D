@@ -22,6 +22,7 @@ pub trait Real:
     fn cos(self) -> Self;
     fn tan(self) -> Self;
     fn sqrt(self) -> Self;
+    fn abs(self) -> Self;
 }
 
 macro_rules! real {
@@ -50,6 +51,10 @@ macro_rules! real {
             #[inline]
             fn sqrt(self) -> Self {
                 <$float>::sqrt(self)
+            }
+            #[inline]
+            fn abs(self) -> Self {
+                <$float>::abs(self)
             }
         }
     };

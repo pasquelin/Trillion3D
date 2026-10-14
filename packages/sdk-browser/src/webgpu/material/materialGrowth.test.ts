@@ -8,6 +8,7 @@ import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 
 const lit = () => ({ ...surfaceOf([]), lit: true })
 const layers = () => ({
@@ -48,7 +49,7 @@ test('the table grows by a GPU copy, no record sent again, the old texture retir
     'the first record not sent again',
   )
   const roughness = grown.words![MATERIAL_RECORD.at.roughness]
-  assert.equal(new Float32Array(new Uint32Array([roughness]).buffer)[0], 0.5, 'copied on the GPU')
+  assert.equal(fromF32Bits(roughness), 0.5, 'copied on the GPU')
   // A pass of this image encoded earlier still binds the old view: its submit comes after.
   assert.equal(destroyed.includes(old), false, 'not destroyed while the image is encoded')
   assert.equal(fences(), 0, 'no promise per texture: the frame-end retire list holds it')

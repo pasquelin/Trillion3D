@@ -11,6 +11,7 @@ import { createCharacterDriver } from './characterDriver.ts'
 import { standCharacter, startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
 import { gripOf } from '../../../sdk-core/src/collision/grip.ts'
+import { joinedWords } from '../../../math/src/sequence/joined.ts'
 
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false }
 const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false }
@@ -51,9 +52,7 @@ function live(
     const move = driver.command(PHYSICS_STEP, jolt.active() > 0)
     const extra = each(jolt, t)
     const words = [extra, move].filter((w) => w !== null)
-    const all = new Uint32Array(words.reduce((n, w) => n + w.length, 0))
-    words.reduce((at, w) => (all.set(w, at), at + w.length), 0)
-    const count = jolt.step(all, PHYSICS_STEP)
+    const count = jolt.step(joinedWords(words), PHYSICS_STEP)
     const poses = jolt.poses(count),
       floats = new Float32Array(poses.buffer, poses.byteOffset, poses.length)
     for (let r = 0; r < count; r++)

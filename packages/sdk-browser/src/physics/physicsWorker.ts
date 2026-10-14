@@ -115,7 +115,7 @@ function advance({ to, steps: count }: Extract<ToPhysics, { type: 'advance' }>) 
     }
     owing = count
   }
-  for (; owing > 0; owing--, at++, clock.times.steps++) {
+  for (; owing > 0; owing--, at++) {
     if (!results!.room()) return false
     run(step)
   }

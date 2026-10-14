@@ -23,7 +23,7 @@ const out = resolve(folder)
 const run =
   (inherit: boolean): Run =>
   (command, args, cwd, env) =>
-    runChecked(command, args, { cwd, env, stdio: inherit ? 'inherit' : 'pipe' })
+    runChecked(command, args, { cwd, env, stdio: inherit ? 'inherit' : 'pipe', cmd: true })
 
 if (step === 'pack') {
   mkdirSync(out, { recursive: true })

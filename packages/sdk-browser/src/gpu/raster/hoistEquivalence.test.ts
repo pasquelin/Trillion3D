@@ -67,12 +67,13 @@ test('product hoisted once == product recomputed per vertex, large scale', () =>
   assertSameVertices(LARGE_SCALE, MIRROR_X, TRIANGLE)
 })
 
-test('determinant hoisted once per page equals recomputed determinant, including mirror', () => {
-  for (const world of [IDENTITY, MIRROR_X, NEAR_SINGULAR, LARGE_SCALE]) {
-    const once = linearPartDeterminant(world)
-    const again = linearPartDeterminant(world)
-    assert.equal(once, again)
-  }
-  assert.ok(linearPartDeterminant(MIRROR_X) < 0, 'mirror has a negative determinant')
-  assert.ok(linearPartDeterminant(IDENTITY) > 0)
+test('determinant hoisted once per page equals the linear part determinant, including mirror', () => {
+  // Each linear part is triangular: its determinant is its diagonal's product, taken by hand.
+  const cases: [Mat4, number][] = [
+    [IDENTITY, 1],
+    [MIRROR_X, -1],
+    [NEAR_SINGULAR, 1e-9 * 1e-6],
+    [LARGE_SCALE, 1e15],
+  ]
+  for (const [world, determinant] of cases) assert.equal(linearPartDeterminant(world), determinant)
 })

@@ -63,6 +63,6 @@ export function compileFullCache({
       resourceBase,
       simplification,
     ],
-    { cwd, stdio, shell: false },
+    { cwd, stdio },
   )
 }

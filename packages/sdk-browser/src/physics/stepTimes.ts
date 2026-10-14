@@ -13,11 +13,15 @@ export function createStepTimes() {
     /** What the next results report: `clear` once they went. */
     times,
     start: () => void (started = cpuNow()),
-    /** The step started ends: its ms, counted, and kept when it is the slowest fixed one. */
+    /** The step started ends: its ms, counted; a fixed one counted a step, its ms kept when it is
+     *  the slowest. */
     stop(fixed: boolean) {
       const ms = msSince(started)
       times.stepMs += ms
-      if (fixed) times.stepMaxMs = Math.max(times.stepMaxMs, ms)
+      if (fixed) {
+        times.steps++
+        times.stepMaxMs = Math.max(times.stepMaxMs, ms)
+      }
       return ms
     },
     clear: () => void (times.steps = times.stepMs = times.stepMaxMs = 0),

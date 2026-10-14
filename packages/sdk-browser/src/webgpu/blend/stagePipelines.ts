@@ -17,7 +17,7 @@ import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
-export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal!
+export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal
 
 /** The three pipelines a plan entry picks by rank (`plan.ts`): none, front, back. */
 export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline]

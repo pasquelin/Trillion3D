@@ -48,7 +48,7 @@ const MULTIPLY: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'src', opera
 
 /** The equation of each mode, colour and alpha as the witness (three@0.174, straight alpha)
  *  writes them; `undefined` is no blending at all — the source replaces the target. */
-export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
+export const BLEND_EQUATIONS = {
   normal: {
     color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
@@ -60,7 +60,7 @@ export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
   },
   multiply: { color: MULTIPLY, alpha: MULTIPLY },
   none: undefined,
-}
+} satisfies Record<Blending, GPUBlendState | undefined>
 
 /** A mode whose colour weighs the source by its alpha (`normal`, `additive`): its alpha is
  *  coverage. The others draw the colour under alpha 0 as it is. */
