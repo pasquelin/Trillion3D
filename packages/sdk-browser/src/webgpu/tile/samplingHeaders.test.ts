@@ -45,10 +45,17 @@ test('one write among ten thousand textures visits one slot', () => {
 })
 
 // A still scene weighs no coverage rule: the host maps' rules are read again only where a reader
-// was filed again, or on a sync. Old code: every render weighed every host colour map's readers.
+// was filed since the last weighing — by a written surface or by anyone else —, or on a sync. Old
+// code: every render weighed every host colour map's readers.
 test('a still scene weighs no host map’s coverage rule', () => {
   let weighed = 0
-  const readers = { cutoff: () => (weighed++, 128), follow() {} }
+  const readers = {
+    filings: 0,
+    cutoff: () => (weighed++, 128),
+    follow() {
+      readers.filings++
+    },
+  }
   const map = new Texture(null)
   const colour = atlas([map]),
     data = atlas([])
@@ -68,5 +75,11 @@ test('a still scene weighs no host map’s coverage rule', () => {
   surfaces.add(undefined as never)
   follow(false, new Set(), copies)
   assert.equal(weighed, 1, 'a reader filed: its maps weighed once')
+  follow(false, new Set(), copies)
+  assert.equal(weighed, 1, 'weighed once only')
+  // A surface added at run time is filed by `read`, outside the journal: its maps are weighed.
+  readers.filings++
+  follow(false, new Set(), copies)
+  assert.equal(weighed, 2, 'a reader filed by anyone: its maps weighed')
   textureJournals.close(journal)
 })

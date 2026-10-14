@@ -122,16 +122,18 @@ export function samplingHeaders(
     other = atlasHeaders(data)
   return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
     // The readers first: a picture copied again below reduces under the rule they declare now. A
-    // rule moves only where a reader was filed again, or on a sync: else no map is weighed.
+    // rule moves only where a reader was filed since the last weighing, or on a sync: else no map
+    // is weighed.
     if (force) coverage.sync()
-    const filed = surfaces.size > 0
-    if (copies && filed) coverage.follow(surfaces)
+    if (copies && surfaces.size) coverage.follow(surfaces)
     let result = 0
     if (force || journal.size) {
       result = colour(force, colorMoved, copies) | other(force, undefined, copies)
       if (!force) journal.clear()
     }
-    return copies && (force || filed) ? result | coverage.reduce(copies.reduce, colorMoved) : result
+    return copies && (force || coverage.filed())
+      ? result | coverage.reduce(copies.reduce, colorMoved)
+      : result
   }
 }
 
@@ -140,6 +142,8 @@ export function samplingHeaders(
 function coverageRules(atlas: WebgpuTileAtlas) {
   let readers: CoverageReaders | undefined
   const hosts = new Map<number, { map: Texture; rule?: number }>()
+  /** The readers' filings at the last weighing (`CoverageReaders.filings`). */
+  let weighed = -1
   const ruleOf = (map: Texture) => readers?.cutoff(map)
   // Preserve the last uploaded rule for unchanged slots; retirement removes every strong map
   // reference, and reuse starts with the rule its new tail was actually reduced under.
@@ -161,12 +165,15 @@ function coverageRules(atlas: WebgpuTileAtlas) {
       readers?.follow(surfaces)
       surfaces.clear()
     },
+    /** Whether a reader was filed since the last weighing: by this atlas's journal or by anyone. */
+    filed: () => readers !== undefined && readers.filings !== weighed,
     copied(slot: number) {
       const host = hosts.get(slot)
       if (host) host.rule = ruleOf(host.map)
     },
     reduce(reduce: PictureCopy, moved?: Set<number>) {
       let result = 0
+      if (readers) weighed = readers.filings
       for (const [slot, host] of hosts) {
         const rule = ruleOf(host.map)
         if (rule === host.rule) continue

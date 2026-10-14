@@ -24,6 +24,9 @@ export class CoverageReaders {
   /** Per colour texture, its readers filed — as a base or emissive map — and whether each takes
    *  its alpha for coverage. */
   private readers = new WeakMap<Texture, Map<PageSurface, boolean>>()
+  /** How many times a surface was filed: a rule can have moved only since this count did,
+   *  whoever filed it — a surface written (`follow`) or one added at run time (`read`). */
+  filings = 0
   /** Files a surface's colour maps once per version; false when already filed. */
   read(surface: PageSurface) {
     const held = this.filed.get(surface)
@@ -61,6 +64,7 @@ export class CoverageReaders {
     if (emissiveMap) this.wear(maps, emissiveMap, surface, false)
     if (subsurfaceMap) this.wear(maps, subsurfaceMap, surface, false)
     this.filed.set(surface, { version: surface.version, maps })
+    this.filings++
   }
   private wear(maps: Texture[], texture: Texture, surface: PageSurface, coverage: boolean) {
     let readers = this.readers.get(texture)
