@@ -6,7 +6,7 @@
 
 use crate::tests::random::Xorshift;
 use sha2::{Digest, Sha256};
-use trillion3d_math::vec3::cross_f32;
+use trillion3d_math::vec3::cross;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 
@@ -39,7 +39,7 @@ fn field(rng: &mut Xorshift, side: usize, flat: bool, flags: u32) -> Mesh {
                 [0, 1, 2].map(|k| b[k] - a[k]),
                 [0, 1, 2].map(|k| c[k] - a[k]),
             );
-            let n = cross_f32(u, v);
+            let n = cross(u, v);
             for p in [a, b, c] {
                 indices.push((positions.len() / 3) as u32);
                 positions.extend(p);

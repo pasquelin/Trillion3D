@@ -1,6 +1,7 @@
 //! Base surfaces of the corpus, each parameterised and drawn from the seed.
 use super::*;
-use trillion3d_math::vec3::{cross_f32, divide_f32, length_f32};
+use trillion3d_math::vec3::{cross, divide_f32};
+use trillion3d_math::vecn::length;
 
 /// The quads a corpus sheet is cut into, unless the case needs another shape.
 pub(super) const NX: usize = 64;
@@ -154,6 +155,6 @@ pub(super) fn face_normal(positions: &[f32], first: usize) -> [f32; 3] {
         [b[0] - a[0], b[1] - a[1], b[2] - a[2]],
         [c[0] - a[0], c[1] - a[1], c[2] - a[2]],
     );
-    let n = cross_f32(u, w);
-    divide_f32(n, length_f32(n))
+    let n = cross(u, w);
+    divide_f32(n, length(n))
 }

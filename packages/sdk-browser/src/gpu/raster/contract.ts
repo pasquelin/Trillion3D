@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { clipToPixel } from '../../../../math/src/wgsl/projection.ts'
+import { ndcToPixel, perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 /**
  * Compute-raster contract: one writing of the numbers that both the WGSL and the encoder read.
  * The raster takes the share of the opaque and masked cut that the split gives it, up to the
@@ -40,9 +40,9 @@ export const COMPUTE_ALL = 1e9
  */
 export const COMPUTE_TAKES_WGSL = wgslBlock(
   'COMPUTE_TAKES_WGSL',
-  [clipToPixel],
+  [ndcToPixel, perspectiveDivide],
   `
-fn screen(p:vec4f)->vec2f{return clipToPixel(p,uni.viewport);}
+fn screen(p:vec4f)->vec2f{return ndcToPixel(perspectiveDivide(p).xy,uni.viewport);}
 struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
 /** Screen-extent box clamped to the frame, and its span in integer pixels. */
 fn boxOf(lo:vec2f,hi:vec2f)->ScreenBox{

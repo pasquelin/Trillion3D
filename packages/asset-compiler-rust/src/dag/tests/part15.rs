@@ -3,7 +3,8 @@
 use super::*;
 use tight::point_sphere;
 use trillion3d_math::sphere::enclosing_sphere;
-use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::min_ball::ball_of_balls;
 
 /// Deterministic uniform draws in [-1, 1).

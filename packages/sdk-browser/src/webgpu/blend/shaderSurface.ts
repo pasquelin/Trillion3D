@@ -1,6 +1,6 @@
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
-import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
+import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'

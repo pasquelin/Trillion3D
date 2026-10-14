@@ -17,7 +17,8 @@ mod vegetation;
 use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
 use trillion3d_page_codec::encode::Attribute;
 

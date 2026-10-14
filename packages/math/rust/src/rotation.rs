@@ -42,10 +42,10 @@ pub fn rotation_matrix<T: Real>([x, y, z, w]: [T; 4]) -> [T; MATRIX_VALUES] {
 }
 
 /// Rotation of a quaternion written `(w, x, y, z)`, divided by its length first
-/// (`quaternion::length`, `quaternion::divide`). A length `usable` refuses rotates nothing: the
+/// (`vecn::length`, `quaternion::divide`). A length `usable` refuses rotates nothing: the
 /// guard is each driver's own.
 pub fn quaternion_wxyz<T: Real>(q: [T; 4], usable: impl Fn(T) -> bool) -> [T; MATRIX_VALUES] {
-    let length = crate::quaternion::length(q);
+    let length = crate::vecn::length(q);
     if !usable(length) {
         return identity();
     }
@@ -73,7 +73,7 @@ pub fn axis_rotation(axis: usize, radians: f64) -> [f64; MATRIX_VALUES] {
 /// Rotation of `radians` around an arbitrary axis, by Rodrigues' formula: an axis with no usable
 /// length rotates nothing rather than carrying `NaN`. The Alembic driver's.
 pub fn axis_angle(axis: [f64; 3], radians: f64) -> [f64; MATRIX_VALUES] {
-    let norm = crate::vec3::length(axis);
+    let norm = crate::vecn::length(axis);
     if !norm.is_finite() || norm < 1e-12 {
         return IDENTITY;
     }

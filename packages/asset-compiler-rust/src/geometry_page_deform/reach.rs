@@ -2,7 +2,7 @@
 //! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
 //! so that culling never drops a visible deformed cluster.
 use trillion3d_math::aabb::{centre, extend_aabb};
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::encode::deformation::Deformation;
 
 /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.

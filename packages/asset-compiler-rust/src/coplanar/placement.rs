@@ -6,7 +6,7 @@ pub fn world_plane(
     plane: &plane::ClusterPlane,
 ) -> Option<([f64; 3], f64, f64)> {
     let direction = trillion3d_math::linear::cofactor_direction(matrix, plane.normal);
-    let scale = trillion3d_math::vec3::length(direction);
+    let scale = trillion3d_math::vecn::length(direction);
     if !matches!(scale.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater)) {
         return None;
     }
@@ -23,7 +23,7 @@ pub fn world_plane(
             plane.normal[2] * plane.offset,
         ],
     );
-    let (normal, offset) = plane::canonical(unit, trillion3d_math::vec3::dot(unit, point));
+    let (normal, offset) = plane::canonical(unit, trillion3d_math::vecn::dot(unit, point));
     Some((normal, offset, scale))
 }
 

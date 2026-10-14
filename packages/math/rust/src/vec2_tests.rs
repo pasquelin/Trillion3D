@@ -1,11 +1,6 @@
 use super::*;
 
 #[test]
-fn sub_takes_each_axis_apart() {
-    assert_eq!(sub([3.0, -1.0], [1.0, 2.0]), [2.0, -3.0]);
-}
-
-#[test]
 fn cross_is_twice_the_signed_area_with_the_origin() {
     assert_eq!(cross([1.0, 0.0], [0.0, 1.0]), 1.0);
     assert_eq!(cross([0.0, 1.0], [1.0, 0.0]), -1.0);

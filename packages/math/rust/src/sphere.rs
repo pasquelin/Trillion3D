@@ -2,7 +2,7 @@
 //! the recurrence of `sphereUnion` (`packages/math/src/geometry/sphere.ts`): sequential and
 //! not commutative, so `enclosing_sphere` neither reorders nor splits its list.
 
-use crate::vec3::{length, sub};
+use crate::vecn::{length, sub};
 
 /// The sphere enclosing `left` and `right`: either one when it holds the other, else the sphere
 /// through their two far points, its centre moved from `left`'s along the line of centres.

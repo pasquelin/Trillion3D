@@ -47,8 +47,8 @@ pub fn surface_at(
         origin[2] + ray[2] * hit.distance,
     ];
     let facing = normal_of(world, hit.triangle);
-    let normal = if trillion3d_math::vec3::dot(facing, ray) > 0.0 {
-        trillion3d_math::vec3::scale(facing, -1.0)
+    let normal = if trillion3d_math::vecn::dot(facing, ray) > 0.0 {
+        trillion3d_math::vecn::scale(facing, -1.0)
     } else {
         facing
     };

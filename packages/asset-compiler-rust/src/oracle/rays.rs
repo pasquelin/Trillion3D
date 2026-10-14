@@ -5,7 +5,8 @@ use crate::proxy::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
 use trillion3d_math::random::splitmix_unit;
 use trillion3d_math::scalar::perspective_slope;
-use trillion3d_math::vec3::{cross, sub, unit_or_itself};
+use trillion3d_math::vec3::{cross, unit_or_itself};
+use trillion3d_math::vecn::sub;
 use trillion3d_math::{GOLDEN, GOLDEN_32};
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,

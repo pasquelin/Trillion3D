@@ -5,7 +5,7 @@ import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CORNER_VALUES, FLAG_CLIP } from '../partition/contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FAR_VALUE, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
-import { ndcToPixelFlip } from '../../../../math/src/wgsl/projection.ts'
+import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
 
 const SLACK = wgslF32(SCREEN_SLACK_K),
   GROW = wgslF32(DEPTH_GROW)
@@ -58,7 +58,7 @@ export const PARTITION_UNI_WGSL = wgslBlock(
  */
 export const BOX_PROJECT_WGSL = wgslBlock(
   'BOX_PROJECT_WGSL',
-  [PROJECTION_SLACK_WGSL, FAR_VALUE, INFINITE_THRESHOLD, ndcToPixelFlip],
+  [PROJECTION_SLACK_WGSL, FAR_VALUE, INFINITE_THRESHOLD, ndcToPixel],
   `
 /** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
  *  that forbids any rejection. */
@@ -105,8 +105,8 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
  let wF=f32(uni.width);let hF=f32(uni.height);
  let slack=${SLACK}*max(wF,hF)+1.0e-4;
  let rect=vec4i(
-  vec2i(floor(ndcToPixelFlip(vec2f(lowX,highY),vec2f(wF,hF))-slack)),
-  vec2i(ceil(ndcToPixelFlip(vec2f(highX,lowY),vec2f(wF,hF))+slack)));
+  vec2i(floor(ndcToPixel(vec2f(lowX,highY),vec2f(wF,hF))-slack)),
+  vec2i(ceil(ndcToPixel(vec2f(highX,lowY),vec2f(wF,hF))+slack)));
  var nearest=nearestZ;
  if(nearest>0.0){nearest=biasedDepth(nearest*${GROW},layer);}
  return BoxProj(rect,nearest,0u);

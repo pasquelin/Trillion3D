@@ -1,6 +1,10 @@
 //! Small vector algebra on `[f64; 3]`, shared by the codec's normal cone and minimal ball and every
-//! compiler stage that reads geometry: one implementation of each. The `_f32` forms are for the
-//! sites that round in single precision on purpose.
+//! compiler stage that reads geometry: one implementation of each. The sum, difference, product by
+//! a scalar, dot product and length are `vecn`'s, any width and precision. The `_f32` forms are for
+//! the sites that round in single precision on purpose.
+
+use crate::real::Real;
+use crate::vecn::{dot, length, scale};
 
 /// Vertex `id` of a flat `x, y, z` position array, in float64.
 #[inline]
@@ -18,52 +22,19 @@ pub fn point_checked(positions: &[f32], id: u32) -> Option<[f64; 3]> {
     let i = id as usize * 3;
     positions.get(i + 2).map(|_| point(positions, id))
 }
+/// `a × b` in the caller's precision, `[a₁b₂ − a₂b₁, a₂b₀ − a₀b₂, a₀b₁ − a₁b₀]`.
 #[inline]
-pub fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
-#[inline]
-pub fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-#[inline]
-pub fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-#[inline]
-pub fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+pub fn cross<T: Real>(a: [T; 3], b: [T; 3]) -> [T; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     ]
-}
-#[inline]
-pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
-    [a[0] * k, a[1] * k, a[2] * k]
 }
 /// Divides each axis by `k`: not `scale(a, 1.0 / k)`, which rounds once more.
 #[inline]
 pub fn divide(a: [f64; 3], k: f64) -> [f64; 3] {
     [a[0] / k, a[1] / k, a[2] / k]
-}
-#[inline]
-pub fn length(a: [f64; 3]) -> f64 {
-    dot(a, a).sqrt()
-}
-/// `length` in single precision: `√((x² + y²) + z²)` rounded in `f32`.
-#[inline]
-pub fn length_f32(a: [f32; 3]) -> f32 {
-    (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt()
-}
-/// `cross` in single precision, in the same term order.
-#[inline]
-pub fn cross_f32(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
 }
 /// `divide` in single precision.
 #[inline]
@@ -125,11 +96,11 @@ pub fn unit_or_itself(a: [f64; 3]) -> [f64; 3] {
     unit_unless_zero(a).unwrap_or(a)
 }
 
-/// `normalize` in single precision (`length_f32`, `divide_f32`) for a finite, non-zero length;
+/// `normalize` in single precision (`vecn::length`, `divide_f32`) for a finite, non-zero length;
 /// `None` otherwise.
 #[inline]
 pub fn normalize_finite_f32(a: [f32; 3]) -> Option<[f32; 3]> {
-    let norm = length_f32(a);
+    let norm = length(a);
     (norm.is_finite() && norm != 0.0).then(|| divide_f32(a, norm))
 }
 

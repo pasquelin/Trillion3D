@@ -1,15 +1,7 @@
-//! Plane vectors on `[f64; 2]`.
+//! Plane vectors on `[f64; 2]`: what only the plane has. Their difference and length are `vecn`'s
+//! (the length the plain root of the two squares; `js::hypot` scales first and rounds apart).
 
-/// `√(x² + y²)`, the plain root of the two squares (`js::hypot` scales first and rounds apart).
-#[inline]
-pub fn length(a: [f64; 2]) -> f64 {
-    (a[0] * a[0] + a[1] * a[1]).sqrt()
-}
-
-#[inline]
-pub fn sub(a: [f64; 2], b: [f64; 2]) -> [f64; 2] {
-    [a[0] - b[0], a[1] - b[1]]
-}
+use crate::vecn::sub;
 
 /// The plane cross product `a₀b₁ − a₁b₀`: twice the signed area of the triangle `a` and `b` close
 /// with the origin.

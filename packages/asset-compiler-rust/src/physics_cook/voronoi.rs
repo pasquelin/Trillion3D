@@ -7,8 +7,8 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use trillion3d_math::aabb::{centre, corner};
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{dot, point, scale, sub, triple, unit};
-use trillion3d_math::vecn::lerp;
+use trillion3d_math::vec3::{point, triple, unit};
+use trillion3d_math::vecn::{dot, lerp, scale, sub};
 
 type Point = [f64; 3];
 /// A convex polytope: its faces, each a polygon wound as the solid's faces are.

@@ -6,8 +6,7 @@ use super::{point, Caps};
 use trillion3d_math::aabb::EMPTY_FLAT;
 use trillion3d_math::js::{js_max, js_min};
 use trillion3d_math::triangle::triangle_area;
-use trillion3d_math::vec3::{length, sub};
-use trillion3d_math::vecn::distance2;
+use trillion3d_math::vecn::{distance2, length, sub};
 
 /// The squared diagonal of the least box that holds `triangles` triangles of total area
 /// `triangles · area / count` side by side, the longest of them `longest` across: a square of that
@@ -37,7 +36,7 @@ struct Run<'a> {
 
 impl Run<'_> {
     /// The area and longest edge of `(a, b, c)`, and the run's box grown by it. A length is the
-    /// plain root (`vec3::length`): squares of coordinates read from 32-bit floats never leave the
+    /// plain root (`vecn::length`): squares of coordinates read from 32-bit floats never leave the
     /// normal range.
     fn measure(&mut self, a: u32, b: u32, c: u32) {
         let [pa, pb, pc] = [a, b, c].map(|v| point(self.positions, v));

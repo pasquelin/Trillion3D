@@ -5,7 +5,8 @@
 
 use crate::matrix::MATRIX_VALUES;
 use crate::rotation::rotation_quaternion;
-use crate::vec3::{cross, divide, dot, length};
+use crate::vec3::{cross, divide};
+use crate::vecn::{dot, length};
 
 /// The three columns of the linear part.
 #[inline]
@@ -37,7 +38,7 @@ pub fn uniform_scale(m: &[f64; MATRIX_VALUES]) -> f64 {
     determinant(m).abs().cbrt()
 }
 
-/// The longest of the three columns (`vec3::length` each), from `0.0` by `f64::max` in column
+/// The longest of the three columns (`vecn::length` each), from `0.0` by `f64::max` in column
 /// order: a NaN length is passed over.
 #[inline]
 pub fn longest_column(m: &[f64; MATRIX_VALUES]) -> f64 {

@@ -4,7 +4,7 @@
 // page-table row —, then a readback. The page sits at a non-zero word offset, as in the engine's
 // pool: the addressing is proved too, not only the arithmetic.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts'
+import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/cotangentFrameWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
 import { FLAG_CLUSTER_PAGE, ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'

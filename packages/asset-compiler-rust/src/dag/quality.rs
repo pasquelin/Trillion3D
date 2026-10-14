@@ -15,7 +15,8 @@ use crate::{CompilerError, Result};
 use rayon::prelude::*;
 use trillion3d_math::acos::acos;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, dot, length, sub, unit};
+use trillion3d_math::vec3::{point_checked, unit};
+use trillion3d_math::vecn::{add, dot, length, sub};
 
 /// Largest angle, in degrees, a coarse cluster may put between a face and the normal its centre is
 /// shaded with, unless the source triangles it descends from already go further. Past 90° the face
@@ -104,17 +105,9 @@ fn triangle_deviation(
     Some(acos(dot(face, shading).clamp(-1.0, 1.0)).to_degrees())
 }
 
-/// Three floats of `values` at vertex `v`, if it has them.
-fn vector(values: &[f32], v: u32) -> Option<[f64; 3]> {
-    let i = v as usize * 3;
-    values
-        .get(i..i + 3)
-        .map(|n| [n[0] as f64, n[1] as f64, n[2] as f64])
-}
-
 /// Unit normal of vertex `v`, if it has a non-zero one.
 pub(super) fn unit_normal(normals: &[f32], v: u32) -> Option<[f64; 3]> {
-    vector(normals, v).and_then(unit)
+    point_checked(normals, v).and_then(unit)
 }
 
 /// A triangle thinner than this share of its longest edge draws a line, not a face: its face
@@ -124,7 +117,7 @@ const SLIVER: f64 = 1e-3;
 /// Unit face normal of a triangle by its winding, and its width — its height over its longest
 /// edge; `None` for a sliver.
 pub(crate) fn face_normal(positions: &[f32], tri: &[u32; 3]) -> Option<([f64; 3], f64)> {
-    let [a, b, c] = [tri[0], tri[1], tri[2]].map(|v| vector(positions, v));
+    let [a, b, c] = [tri[0], tri[1], tri[2]].map(|v| point_checked(positions, v));
     let (a, b, c) = (a?, b?, c?);
     let normal = triangle_cross(a, b, c);
     // |normal| is twice the area, the longest edge times the width.

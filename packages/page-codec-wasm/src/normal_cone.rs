@@ -15,7 +15,8 @@
 use crate::min_ball::min_ball;
 use trillion3d_math::js::hypot;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, divide, dot, point};
+use trillion3d_math::vec3::{divide, point};
+use trillion3d_math::vecn::{add, dot};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
 /// of the true angle, an ulp of which is at most two ulps of fdlibm's result where it crosses a

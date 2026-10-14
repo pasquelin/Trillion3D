@@ -17,7 +17,8 @@
 //! - quaternion `(-x, -y, z, w)` — the reflection sends axis `a` to `S·a` and angle `θ` to `-θ` ;
 //! - scale unchanged, since `S·diag(s)·S = diag(s)`.
 use serde_json::{json, Value};
-use trillion3d_math::quaternion::{divide, length, length_squared};
+use trillion3d_math::quaternion::divide;
+use trillion3d_math::vecn::{length, squared_length};
 
 /// A Unity local transform, already converted into glTF space.
 #[derive(Clone, Copy)]
@@ -56,7 +57,7 @@ impl Trs {
         finite(&self.translation)
             && finite(&self.rotation)
             && finite(&self.scale)
-            && length_squared(self.rotation) > 1e-12
+            && squared_length(self.rotation) > 1e-12
     }
     /// Fields of a glTF node, omitted when they equal the format default.
     pub(super) fn write(&self, node: &mut Value) {

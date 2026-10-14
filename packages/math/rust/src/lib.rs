@@ -3,7 +3,8 @@
 //!
 //! - `vec3`, `vec2`: vector algebra on `[f64; 3]` (its normalisations, and its single-precision
 //!   forms) and `[f64; 2]` (the plane cross product, signed area and barycentric weights);
-//! - `vecn`: vectors of any width in either precision, their lerp, weighted sums and means;
+//! - `vecn`: vectors of any width in either precision: their sum, difference, scale, dot product
+//!   and length, their lerp, weighted sums and means;
 //! - `scalar`: lerp and mix, remap, the unit interval on a byte, Hermite's cubic, means;
 //! - `js`: JavaScript's `Math.min`, `Math.max`, `Math.hypot` and their clamp to `[0, 1]`, to the
 //!   bit;

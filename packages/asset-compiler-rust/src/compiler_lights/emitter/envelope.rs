@@ -9,7 +9,7 @@
 use super::*;
 use crate::compiler_accessor_create::accessor;
 use trillion3d_math::matrix::transform_point;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 
 /// Radius of the envelope around `centre`, if an emissive body is linked to the node's light.
 /// Multiple bodies linked to the same light: the tightest sphere wins, because excluding

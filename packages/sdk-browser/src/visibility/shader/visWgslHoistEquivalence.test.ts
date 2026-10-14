@@ -11,7 +11,7 @@ import {
   NEAR_SINGULAR,
   LARGE_SCALE,
   type Mat4,
-  type Vec4,
+  type Point,
 } from '../../../../../bench/oracles/browser/mat4HoistOracle.ts'
 
 // The hardware fallback draws the WHOLE opaque cut: the compute raster having taken triangles
@@ -40,16 +40,16 @@ test('the hardware raster reads the share in the same text as the compute raster
   assert.equal(VIS_SHADER.match(/let id=hardwareCorner\(page,h,corner,shape\);/g)?.length, 2)
 })
 
-function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {
+function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Point[]) {
   const a = hoisted(viewProj, world, vertices)
   const b = perVertex(viewProj, world, vertices)
   assert.deepEqual(a, b)
 }
 
-const TRIANGLE: readonly Vec4[] = [
-  [0.1, -0.2, 0.3, 1],
-  [1, 1, 0.5, 1],
-  [-2, 0.4, 0.9, 1],
+const TRIANGLE: readonly Point[] = [
+  [0.1, -0.2, 0.3],
+  [1, 1, 0.5],
+  [-2, 0.4, 0.9],
 ]
 
 test('identical projected vertices, identity matrix', () => {

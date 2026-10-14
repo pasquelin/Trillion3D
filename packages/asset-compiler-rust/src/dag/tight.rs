@@ -13,7 +13,8 @@
 use super::bounds::bounding_sphere;
 use super::{DagCluster, DagGroup};
 use rayon::prelude::*;
-use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::min_ball::{ball_of_balls, min_ball};
 
 /// The smallest sphere of `indices`' vertices, never larger than [`bounding_sphere`]'s.

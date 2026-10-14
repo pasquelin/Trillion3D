@@ -4,9 +4,10 @@
  * (`currentCompilerExecutable`: `TRILLION3D_COMPILER_BIN`, else this checkout's release build,
  * refused while older than its sources) — and one triangle budget for every full cache.
  */
-import { spawnSync, type StdioOptions } from 'node:child_process'
+import type { StdioOptions } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts'
+import { runChecked } from './run.ts'
 
 /** The triangle budget of a `full` cache, the one every measured scene uses. */
 export const TRIANGLE_BUDGET = '150000'
@@ -50,7 +51,7 @@ export function compileFullCache({
   stdio = 'inherit',
   executable = nativeCompiler(),
 }: FullCompile) {
-  const result = spawnSync(
+  runChecked(
     executable,
     [
       source,
@@ -62,11 +63,6 @@ export function compileFullCache({
       resourceBase,
       simplification,
     ],
-    { cwd, stdio },
+    { cwd, stdio, shell: false },
   )
-  if (result.error) throw result.error
-  if (result.status !== 0)
-    throw new Error(
-      `The native compiler failed on ${source} (status ${result.status}, signal ${result.signal}).`,
-    )
 }

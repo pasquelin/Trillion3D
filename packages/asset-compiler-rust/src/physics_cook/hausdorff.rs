@@ -4,7 +4,8 @@
 //! and a query widens ring by ring until no nearer cell can remain.
 use trillion3d_math::aabb::{extend_aabb, longest_side};
 use trillion3d_math::triangle::closest_point;
-use trillion3d_math::vec3::{dot, point, sub};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{dot, sub};
 use trillion3d_page_codec::hash::WordMap;
 
 mod bounded;

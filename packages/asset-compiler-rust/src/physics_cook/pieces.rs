@@ -13,8 +13,8 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 use trillion3d_math::aabb::{aabb_of, diagonal};
 use trillion3d_math::random::splitmix_draw;
-use trillion3d_math::vec3::{dot, length, point, sub};
-use trillion3d_math::vecn::weighted_mean;
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{dot, length, sub, weighted_mean};
 
 /// Most pieces a breakable body is cut into.
 pub(super) const PIECES: usize = 12;

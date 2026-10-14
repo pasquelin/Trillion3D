@@ -7,8 +7,8 @@
 use trillion3d_math::aabb::{aabb_of_boxes, centre};
 use trillion3d_math::random::xorshift64;
 use trillion3d_math::sphere::enclosing_sphere;
-use trillion3d_math::vec3::{add, cross, dot, length, scale, sub};
-use trillion3d_math::vecn::lerp;
+use trillion3d_math::vec3::cross;
+use trillion3d_math::vecn::{add, dot, length, lerp, scale, sub};
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);

@@ -6,7 +6,8 @@ use super::*;
 use super::{decoded::decoded, world::world_dag};
 use crate::dag::{build_dag_tallied, DagAttributes, Grown, DAG_CLUSTER_TRIANGLES};
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
-use trillion3d_math::vec3::{cross, dot, sub};
+use trillion3d_math::vec3::cross;
+use trillion3d_math::vecn::{self, dot, sub};
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
 
@@ -21,12 +22,7 @@ fn vertex_normals(positions: &[f32], indices: &[u32]) -> Vec<f32> {
         }
     }
     for n in normals.as_chunks_mut::<3>().0 {
-        let length = n
-            .iter()
-            .map(|x| x * x)
-            .sum::<f32>()
-            .sqrt()
-            .max(f32::MIN_POSITIVE);
+        let length = vecn::length(*n).max(f32::MIN_POSITIVE);
         n.iter_mut().for_each(|x| *x /= length);
     }
     normals

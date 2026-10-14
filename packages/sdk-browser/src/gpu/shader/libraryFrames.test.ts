@@ -14,8 +14,8 @@ import {
 } from '../../../../math/src/wgsl/basis.ts'
 import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'
 import {
+  clipToFramebuffer,
   ndcToPixel,
-  ndcToPixelFlip,
   perspectiveDivide,
   transformHomogeneousPoint,
 } from '../../../../math/src/wgsl/projection.ts'
@@ -32,7 +32,7 @@ const run = shaderRun<Record<string, F>>(
     outOfFrame,
     cofactor3,
     ndcToPixel,
-    ndcToPixelFlip,
+    clipToFramebuffer,
     perspectiveDivide,
     transformHomogeneousPoint,
   ),
@@ -43,7 +43,7 @@ const run = shaderRun<Record<string, F>>(
     'outOfFrame',
     'cofactor3',
     'ndcToPixel',
-    'ndcToPixelFlip',
+    'clipToFramebuffer',
     'perspectiveDivide',
     'transformHomogeneousPoint',
   ],
@@ -115,17 +115,18 @@ test('the cofactor matrix is det · M⁻ᵀ: each column of M against it gives d
   )
 })
 
-test('the flipped pixel is the pixel ndcToPixel gives, the unflipped uv keeps y', () => {
-  for (const ndc of [
-    [-1, -1],
-    [1, 1],
-    [0.25, -0.6],
+test('the pixel of a clip point is ndcToPixel of its divided xy, its depth beside', () => {
+  for (const clip of [
+    [-2, -2, 1, 2],
+    [1, 1, 0.5, 1],
+    [0.25, -0.6, 0.3, 0.5],
   ]) {
-    const flip: V = run.ndcToPixelFlip(ndc, [640, 360])
-    const other: V = run.ndcToPixel(ndc, [640, 360])
-    flip.forEach((x, i) => nearRelative(x, other[i], `${ndc}`))
+    const divided: V = run.perspectiveDivide(clip)
+    const pixel: V = run.ndcToPixel(divided.slice(0, 2), [640, 360])
+    assert.deepEqual(run.clipToFramebuffer(clip, [640, 360]), [...pixel, divided[2]])
   }
-  assert.deepEqual(run.ndcToPixelFlip([-1, 1], [640, 360]), [0, 0])
+  assert.deepEqual(run.ndcToPixel([-1, 1], [640, 360]), [0, 0])
+  assert.deepEqual(run.ndcToPixel([1, -1], [640, 360]), [640, 360])
   const m = new Mat([2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 1, 5, 6, 7, 0])
   assert.deepEqual(run.transformHomogeneousPoint(m, [1, 1, 1]), [7, 9, 11, 1])
 })

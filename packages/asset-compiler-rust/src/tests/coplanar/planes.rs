@@ -1,5 +1,5 @@
 use crate::coplanar::plane::*;
-use trillion3d_math::vec3::dot;
+use trillion3d_math::vecn::dot;
 
 // Behavior 1: plane_of_triangles yields plane for flat cluster, None otherwise.
 #[test]

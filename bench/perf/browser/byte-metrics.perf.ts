@@ -15,11 +15,9 @@ import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceVertexBytes } from '../../oracles/browser/byte-metrics.ts'
+import { installGpuGlobals } from '../../../tests/kit/gpu/globals.ts'
 
-Object.assign(globalThis, {
-  GPUBufferUsage: { STORAGE: 128, COPY_DST: 8, COPY_SRC: 4, UNIFORM: 64, INDIRECT: 256 },
-  GPUTextureUsage: { COPY_SRC: 1, COPY_DST: 2, TEXTURE_BINDING: 4 },
-})
+installGpuGlobals()
 
 // A device fixture standing in for the real WebGPU one: only the members the measured functions
 // read are implemented, as the rest of this codebase's own GPUDevice fixtures do. The blend's
