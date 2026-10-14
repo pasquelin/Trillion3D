@@ -23,10 +23,12 @@ test('each list is armed in the pass after the kernel that fills it, before the 
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches, armements, boundGroups } = witness.read()
   const kernels = dispatches.map((l) => l.kernel)
-  // Before the journal's clear (the previous frame's drawn count), before level 2 (the queue level
-  // 1 filled), after the descent (the candidates), after `dagWanted` (the live clusters).
+  // Before the journal's clear (the previous frame's drawn count), before each level past pass 0
+  // (the queue the level before it filled), after the descent (the candidates), after `dagWanted`
+  // (the live clusters).
   assert.deepEqual(armements, [
     kernels.indexOf('dagClearDrawn'),
+    kernels.indexOf('dagLevel1'),
     kernels.indexOf('dagLevel2'),
     kernels.indexOf('dagWanted'),
     kernels.indexOf('dagMask'),
@@ -35,6 +37,7 @@ test('each list is armed in the pass after the kernel that fills it, before the 
     dispatches.filter((l) => l.groups === 'indirect').map((l) => [l.kernel, l.list]),
     [
       ['dagClearDrawn', DRAWN],
+      ['dagLevel1', QUEUE + 1],
       ['dagLevel2', QUEUE + 2],
       ['dagWanted', CAND],
       ['dagMask', LIVE],
@@ -47,13 +50,13 @@ test('each list is armed in the pass after the kernel that fills it, before the 
   )
   // The arming group in place, then the selection's back before any kernel of the cut.
   const arm = boundGroups.flatMap((g, at) => ((g as { nom?: string }).nom ? [at] : []))
-  assert.equal(arm.length, 4)
+  assert.equal(arm.length, 5)
   for (const at of arm) assert.notEqual((boundGroups[at + 1] as { nom?: string }).nom, 'armGroup')
 })
 
-test('a level past the first is dispatched on what the level before it deposited', () => {
-  // Stages [2, 9, 40, 150, 600]: past level 1, the bound would be every placement's nodes of the
-  // level, the world's; each is dispatched on its queue's armed groups instead.
+test('every level past the first is dispatched on what the level before it deposited', () => {
+  // Stages [2, 9, 40, 150, 600]: no count of the layout bounds a level's queue — the world's
+  // nodes at best —; each level past pass 0 is dispatched on its queue's armed groups instead.
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources(5))
   const { dispatches } = witness.read()
@@ -62,7 +65,7 @@ test('a level past the first is dispatched on what the level before it deposited
     levels.map((l) => [l.kernel, l.groups === 'indirect' ? l.list : l.groups]),
     [
       ['dagLevel0', 1],
-      ['dagLevel1', 1],
+      ['dagLevel1', QUEUE + 1],
       ['dagLevel2', QUEUE + 2],
       ['dagLevel0', QUEUE],
       ['dagLevel1', QUEUE + 1],
@@ -71,22 +74,33 @@ test('a level past the first is dispatched on what the level before it deposited
 })
 
 test('a flat dispatch past the device width runs in rows of it', () => {
-  // Level 1 of 1000 entries, capped at 1000 queued entries: 16 groups on a device four groups wide.
+  // Pass 0 over 1000 placements: 16 groups on a device four groups wide.
   const base = cutResources(2),
     device = { limits: { maxComputeWorkgroupsPerDimension: 4 } }
-  const wide = {
-    ...base,
-    levelSizes: Uint32Array.of(2, 1000),
-    entryCount: 1000,
-    device,
-  } as unknown as typeof base
+  const wide = { ...base, worldCount: 1000, device } as unknown as typeof base
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, wide)
   const { dispatches } = witness.read()
   const levels = dispatches
     .filter((l) => /^dagLevel/.test(l.kernel))
     .map((l) => `${l.groups}x${l.rows ?? 1}`)
-  assert.deepEqual(levels, ['1x1', '4x4'])
+  assert.deepEqual(levels, ['4x4', 'indirectx1'])
+})
+
+test('with a tree, level 1 walks the members drawn whatever the view beside the tree nodes', () => {
+  // A member drawn whatever the view opens from queue 0 (`placementTreeWgsl.ts`): its root's
+  // children join level 1 beside the tree's two cells, which the layout counts alone at that
+  // level — the member's nodes lie `depth` levels lower there. Level 1 runs on its queue's armed
+  // count, so none of them is left unread.
+  const base = cutResources(5)
+  const packed = {
+    placementTree: { levels: [{ count: 1 }, { count: 2 }], always: { set: { count: 300 } } },
+  }
+  const cut = { ...base, packed, levelSizes: Uint32Array.of(1, 2, 67, 600, 900) }
+  const witness = witnessEncoder()
+  encodeDagKernels(witness.encoder, cut as unknown as typeof base)
+  const level1 = witness.read().dispatches.filter((l) => l.kernel === 'dagLevel1')
+  assert.deepEqual(level1[0], { kernel: 'dagLevel1', groups: 'indirect', list: QUEUE + 1 })
 })
 
 test('the camera cut sorts its requests once, then lists its evictions over the pool list', () => {

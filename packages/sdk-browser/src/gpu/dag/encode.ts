@@ -92,20 +92,15 @@ function encodeOnce(
   // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
   flat(pass, levelPipelines[0], width, levelEntries(resources))
   // Each following level reads only the nodes the previous one kept, and fills the next of the
-  // three queues — the one a level earlier cleared. Level 1 is dispatched flat on its stage's nodes,
-  // an upper bound the layout knows and a small one: the placement tree's second level, or the
-  // first below each root. Deeper, a stage counts every placement's nodes of that level, the
-  // world's: each level is dispatched on what the level before it deposited, its queue's groups
-  // armed in the pass (`shader/armWgsl.ts`) — threads follow the view, never the world.
+  // three queues — the one a level earlier cleared. Every level past pass 0 is dispatched on what
+  // the level before it deposited, its queue's groups armed in the pass (`shader/armWgsl.ts`):
+  // threads follow the view, never the world. No count the layout keeps bounds a queue: a member
+  // drawn whatever the view opens from queue 0 (`shader/placementTreeWgsl.ts`), so its root's
+  // children join level 1 beside the tree's own nodes, where the layout counts them levels lower.
   for (let level = 1; level < levelSizes.length; level++) {
-    const pipeline = levelPipelines[level % levelPipelines.length]
-    if (level >= 2) {
-      arm(pass, resources)
-      pass.setPipeline(pipeline)
-      pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.queues[level % 3])
-      continue
-    }
-    flat(pass, pipeline, width, Math.min(levelSizes[level], resources.entryCount))
+    arm(pass, resources)
+    pass.setPipeline(levelPipelines[level % levelPipelines.length])
+    pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.queues[level % 3])
   }
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)

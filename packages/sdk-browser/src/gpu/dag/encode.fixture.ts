@@ -28,8 +28,8 @@ const LIST_OF_RECORD = new Map<number, number>([
   ...DAG_ARGS.queues.map((record, q): [number, number] => [record, QUEUE + q]),
   [DAG_ARGS.pool, POOL],
 ])
-/** Nodes of each stage: the upper bound on which that level's pass dispatches flat. */
-export const ETAGES = [2, 9, 40, 150, 600]
+/** Nodes of each stage as the layout counts them: the levels the descent runs. */
+const ETAGES = [2, 9, 40, 150, 600]
 
 /** One of the kit's encoders, and `read()`: what the cut encoded on it — which kernel, dispatched
  *  flat or on which list. The arming kernel is not a launch of the cut's: `armements` holds, for

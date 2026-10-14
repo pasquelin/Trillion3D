@@ -4,11 +4,9 @@
 // `encode.test.ts` holds the number of commands a frame opens.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE, POOL } from './encode.fixture.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { witnessEncoder, cutResources, LIVE, CAND, QUEUE, POOL } from './encode.fixture.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
   const witness = witnessEncoder()
@@ -22,24 +20,23 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   }
   // Candidate pages, and them alone: a page under a rejected node is not read.
   assert.equal(byKernel.get('dagWanted')?.list, CAND)
-  // Descent: pass 0 starts from the roots, from a count known at packing, level 1 from its
-  // level's node count — known at packing too —, and each deeper level from the queue the level
-  // before it filled: no level visits the whole hierarchy, nor every placement's.
+  // Descent: pass 0 starts from the roots, from a count known at packing, and each later level
+  // from the queue the level before it filled: no level visits the whole hierarchy, nor every
+  // placement's.
   assert.deepEqual(dispatches.slice(2, 5), [
     { kernel: 'dagLevel0', groups: 1 },
-    { kernel: 'dagLevel1', groups: ceilDiv(ETAGES[1], WORKGROUP_THREADS) },
+    { kernel: 'dagLevel1', groups: 'indirect', list: QUEUE + 1 },
     { kernel: 'dagLevel2', groups: 'indirect', list: QUEUE + 2 },
   ])
   const ordre = dispatches.map((l) => l.kernel)
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'))
   assert.ok(ordre.indexOf('dagMask') > ordre.indexOf('dagWanted'))
-  // The count launched flat is that of primitives, blocks, a hierarchy level or one workgroup:
+  // The count launched flat is that of primitives, blocks, the roots' entries or one workgroup:
   // never that of clusters.
   const plats = dispatches.filter((l) => l.groups !== 'indirect').map((l) => l.kernel)
   assert.deepEqual(plats, [
     'dagPrepare',
     'dagLevel0',
-    'dagLevel1',
     'dagDrawPrefix',
     'dagCommitMask',
     'dagSortRequests',
