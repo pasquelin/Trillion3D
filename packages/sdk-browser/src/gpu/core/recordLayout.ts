@@ -52,26 +52,34 @@ export function recordExtent(layout: RecordLayout, records: number): [number, nu
   return layers === 1 ? [width, rows, 1] : [width, perLayer, layers]
 }
 
-/** One rectangle of texels a write sends: its origin, its extent, and the first texel of the field
- *  it carries. */
-type Piece = { x: number; y: number; layer: number; width: number; rows: number; first: number }
+/** Where a rectangle of texels a write sends lands — its origin, its extent — and the first texel
+ *  of the field it carries. */
+export type PieceVisit = (
+  x: number,
+  y: number,
+  layer: number,
+  width: number,
+  rows: number,
+  first: number,
+) => void
 
 /**
- * The rectangles a write of texels `[first, first + count)` of field `field` lands in. A field is one
- * line of texels — record `r`'s texel `k` is its texel `r · texels + k` —, folded into rows of
- * `texels << rowShift`: a row's tail, then whole rows of one layer, then a row's head — never a texel
- * of another field. A run of whole records is a run of their texels.
+ * The rectangles a write of texels `[first, first + count)` of field `field` lands in, each given to
+ * `visit` in order — nothing is allocated. A field is one line of texels — record `r`'s texel `k` is
+ * its texel `r · texels + k` —, folded into rows of `texels << rowShift`: a row's tail, then whole
+ * rows of one layer, then a row's head — never a texel of another field. A run of whole records is a
+ * run of their texels.
  */
 export function texelPieces(
   layout: RecordLayout,
   field: string,
   first: number,
   count: number,
-): Piece[] {
+  visit: PieceVisit,
+) {
   const width = layout.fields[field] << layout.rowShift,
     start = fieldStart(layout, field),
     rowMask = (1 << layout.layerShift) - 1
-  const pieces: Piece[] = []
   for (let t = first, end = first + count; t < end;) {
     const row = Math.floor(t / width),
       column = t - row * width,
@@ -81,10 +89,9 @@ export function texelPieces(
       rows = 1
     if (column || end - t < width) texels = Math.min(width - column, end - t)
     else rows = Math.min(Math.floor((end - t) / width), rowMask + 1 - y)
-    pieces.push({ x: start + column, y, layer, width: texels, rows, first: t })
+    visit(start + column, y, layer, texels, rows, t)
     t += rows === 1 ? texels : rows * width
   }
-  return pieces
 }
 
 /** The records an extent of `layout` holds (`recordExtent`): its rows' whole. */

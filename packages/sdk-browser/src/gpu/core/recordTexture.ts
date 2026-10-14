@@ -7,11 +7,12 @@ import {
   texelAt,
   texelBytes,
   texelPieces,
+  type PieceVisit,
   type RecordLayout,
 } from './recordLayout.ts'
 
 /**
- * A record table made on `device` for `records` records: its texture and the view every pass binds
+ * A record table made on `device` for `records` records — none still a row's worth —: its texture and the view every pass binds
  * (`2d-array`, whatever its layers), and the writes of the host — a run of records' field from the
  * bytes that hold it, or through a byte target (`target`), what the cut's run writer sends
  * (`../dag/runWrites.ts`, `writeRanges`). `usage` is the texture's, the caller's: a GPU writer adds
@@ -40,6 +41,22 @@ export function createRecordTexture(
     return { texture, size, held, view: arrayView(texture), capacity: heldRecords(layout, size) }
   }
   let table = made(records)
+  /** One write's descriptors, held and filled again at each piece: the queue reads them when called,
+   *  so a write allocates nothing. */
+  const origin = [0, 0, 0],
+    extent = [0, 0, 1],
+    destination: GPUTexelCopyTextureInfo = { texture: table.texture, origin },
+    source: GPUTexelCopyBufferLayout = { offset: 0, bytesPerRow: 0 },
+    sending = { data: new ArrayBuffer(0), dataOffset: 0, first: 0 }
+  const send: PieceVisit = (x, y, layer, width, rows, first) => {
+    origin[0] = x
+    origin[1] = y
+    origin[2] = layer
+    extent[0] = width
+    extent[1] = rows
+    source.offset = sending.dataOffset + (first - sending.first) * bytes
+    device.queue.writeTexture(destination, sending.data, source, extent)
+  }
   /** Texels `[first, first + count)` of field `field` (`texelPieces`), `data` holding them from
    *  `dataOffset` bytes, one after the other. */
   const writeTexels = (
@@ -49,14 +66,12 @@ export function createRecordTexture(
     data: ArrayBuffer,
     dataOffset: number,
   ) => {
-    const rowBytes = (layout.fields[field] << layout.rowShift) * bytes
-    for (const piece of texelPieces(layout, field, first, count))
-      device.queue.writeTexture(
-        { texture: table.texture, origin: [piece.x, piece.y, piece.layer] },
-        data,
-        { offset: dataOffset + (piece.first - first) * bytes, bytesPerRow: rowBytes },
-        [piece.width, piece.rows, 1],
-      )
+    destination.texture = table.texture
+    source.bytesPerRow = (layout.fields[field] << layout.rowShift) * bytes
+    sending.data = data
+    sending.dataOffset = dataOffset
+    sending.first = first
+    texelPieces(layout, field, first, count, send)
   }
   /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
    *  bytes, each record's field after the other. */

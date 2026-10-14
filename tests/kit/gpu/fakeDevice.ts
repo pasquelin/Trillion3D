@@ -9,7 +9,7 @@ import {
 } from './fakeRecords.ts'
 import { bundleMaker } from './fakeBundles.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
-import { refusing, texture, withGroups, writeTexels } from './fakeResources.ts'
+import { readDescriptors, refusing, texture, withGroups, writeTexels } from './fakeResources.ts'
 import { fakeBuffers } from './fakeBuffers.ts'
 import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
@@ -149,7 +149,8 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
         layout: GPUTexelCopyBufferLayout,
         size: GPUExtent3D,
       ) {
-        textureWrites.push({ destination, data: copyOf(data), layout, size, seq: seq++ })
+        const read = readDescriptors(destination, layout, size)
+        textureWrites.push({ ...read, data: copyOf(data), seq: seq++ })
         writeTexels(destination, data, layout, size)
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>

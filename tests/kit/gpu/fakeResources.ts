@@ -124,3 +124,23 @@ export const withGroups = <P extends object>(pipeline: P, layout: GPUPipelineLay
     writable: true,
     configurable: true,
   })
+
+/** A write's descriptors as they stood when the queue read them, as a device reads them when called:
+ *  a writer may fill the same ones again for its next write. */
+export const readDescriptors = (
+  destination: GPUTexelCopyTextureInfo,
+  layout: GPUTexelCopyBufferLayout,
+  size: GPUExtent3D,
+) => ({
+  destination: { ...destination, origin: copied(destination.origin) },
+  layout: { ...layout },
+  size: copied(size),
+})
+
+/** An origin or an extent as it stood: a list copied, a dictionary too. */
+const copied = <T extends GPUOrigin3D | GPUExtent3D | undefined>(at: T): T =>
+  (at === undefined
+    ? at
+    : Symbol.iterator in Object(at)
+      ? [...(at as Iterable<number>)]
+      : { ...at }) as T
