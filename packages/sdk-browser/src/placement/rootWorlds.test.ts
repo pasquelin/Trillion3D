@@ -74,3 +74,33 @@ test('roots a cut took in place before they join are sent and listed for the roo
     'the world of the second, at its rank',
   )
 })
+
+test('roots taken in place are not sent again when they join: their rows alone are named', () => {
+  const fake = fakeDevice(),
+    device = fake.device as unknown as GPUDevice
+  const growth = { roots: [at(3), at(4)], appended: 0 }
+  const selectionRoots = [at(1), at(2)]
+  const rt = {
+    layout: { selectionRoots, rows: { tableEpoch: 0 } },
+    growth,
+  } as never as Parameters<typeof sendRootWorlds>[0]
+  sendRootWorlds(rt, device)
+  const held = rt.rootWorlds!
+  held.roots.whole = held.rows.whole = false
+  growth.appended = 2
+  sendRootWorlds(rt, device)
+  held.roots.count = 0
+  // They join at the ranks they were taken at, with a third the cut never took.
+  selectionRoots.push(...growth.roots, at(5))
+  growth.appended = 0
+  fake.writes.length = 0
+  sendRootWorlds(rt, device)
+  const label = (write: (typeof fake.writes)[number]) => (write.buffer as { label?: string }).label
+  assert.deepEqual(
+    fake.writes.filter((write) => label(write) === 'Trillion3D root worlds').map((w) => w.offset),
+    [4 * ROOT_WORLD_WORDS * 4],
+    'the one the cut never took',
+  )
+  assert.deepEqual(Array.from(held.roots.ranks.subarray(0, held.roots.count)), [4])
+  assert.deepEqual(Array.from(held.rows.ranks.subarray(0, held.rows.count)), [2, 3, 4])
+})
