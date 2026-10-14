@@ -52,8 +52,9 @@ const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 
  * one copy an image, each mapped once its image is submitted, none ever waited for: the answer comes
  * some images later, and until then the view is unsettled. Only an image drawn from where the one
  * before it was is hashed (`radiance.ts`): a moving one is never the one a still view settles on.
- * The trace itself holds nothing from image to image (`traceHalf.ts`): a still view traces the same
- * bits every image, so nothing but the lit image is waited for.
+ * The reflections' history (`temporalWgsl.ts`) freezes once the view has been quiet (`quiet`) for
+ * `REFLECTION_HISTORY` images: from then on a still view reflects the same bits every image, and the
+ * lit image is all that is waited for.
  *
  * The view is settled once an image after the last one drawn for another reason — `busy` marks the
  * image about to be drawn for the lighting's, the cut's, the pages' own pending work — has the
@@ -90,6 +91,12 @@ export function createRadianceSettle(device: GPUDevice) {
     /** The image about to be drawn is drawn for another reason than the reflections'. */
     busy() {
       busy = images + 1
+    },
+    /** The images drawn since the last busy one, the one being drawn counted: zero on an image drawn
+     *  for a change — what the reflections' accumulation clamps on and freezes after
+     *  (`temporalWgsl.ts`). */
+    get quiet() {
+      return Math.max(0, images + 1 - busy)
     },
     /** Whether an image after the last busy one has the lit image of the one before it. */
     get verified() {

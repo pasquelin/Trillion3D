@@ -121,7 +121,11 @@ export function reflectionRunner(
       hizLevels: depth.levels,
       reflectionImage: token.image,
       reflectionSampler: {},
-      ReflectionSeen: (color: number[], confidence: number) => ({ color, confidence }),
+      ReflectionSeen: (color: number[], confidence: number, distance: number) => ({
+        color,
+        confidence,
+        distance,
+      }),
       ReflectionLobe: (R: V3, T: V3, bands: number[], widths: number[]) => ({
         R,
         T,

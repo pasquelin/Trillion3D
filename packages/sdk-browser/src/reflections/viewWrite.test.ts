@@ -150,3 +150,30 @@ test('a still view with transparents writes its view once: the front pass sets a
   write(frame, held, 6)
   assert.equal(sent.bits[REFLECTION_VIEW_AT.front], 0, 'no front answered')
 })
+
+test('the reflections’ turn and quiet images are the view’s, and a frozen view sends nothing', () => {
+  const { device, buffer, held: sent } = viewDevice()
+  const write = createReflectionViewWriter(device, buffer)
+  const held: HeldImage = {
+    valid: true,
+    viewProjection: new Float64Array(16).fill(1),
+    size: [64, 32],
+    still: true,
+  }
+  const frame = {
+    viewProjection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0],
+    size: [64, 32] as const,
+    depthDrawn: true,
+    proxyError: 0,
+    turn: 7,
+    quiet: 12,
+  }
+  write(frame, held, 6)
+  assert.deepEqual(
+    [sent.bits[REFLECTION_VIEW_AT.temporal], sent.bits[REFLECTION_VIEW_AT.temporal + 1]],
+    [7, 12],
+  )
+  const writes = sent.writes
+  write(frame, held, 6)
+  assert.equal(sent.writes, writes, 'the turn held, the quiet count capped: nothing sent')
+})

@@ -31,14 +31,32 @@ export const REFLECTION_CONSTANTS = {
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */
   REFLECTION_FAR: 2 ** 23,
-  /** The upsample's plane test (`upsampleWgsl.ts`), in pixels of the pixel's footprint: a traced
-   *  texel whose point lies this far off the pixel's tangent plane weighs nothing, one on the plane
-   *  whole — a texel two pixels away on the same surface lies on its plane to within its curvature,
-   *  a texel of a surface in front or behind lies off it by the depth between them. */
-  REFLECTION_UPSAMPLE_PLANE: 2,
-  /** The upsample's normal test: a texel weighs (N·Nₜ)^this, one under 10° apart (0.79), a tenth at
-   *  30°, nothing across a crease. */
-  REFLECTION_UPSAMPLE_NORMAL: 16,
+  /** The same-surface test's normals (`reflectionSameSurface`): a texel weighs (N·Nₜ)^this, 0.79 at
+   *  10° apart, a tenth at 30°, nothing across a crease. */
+  REFLECTION_NORMAL_POWER: 16,
+  /** The least N·V the same-surface test (`reflectionSameSurface`) divides by: a surface seen this
+   *  close to edge-on spans ⌈1/8⌉ = eight pixels' depth across a pixel, a steeper one no more. */
+  REFLECTION_GRAZING: 1 / 8,
+  /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
+   *  a texel: a history further from their mean than this is pulled back to it. */
+  REFLECTION_CLAMP: 1.25,
+  /** The share of a sampled lobe's width its ray keeps as its own cone (`sampleWgsl.ts`): the rest,
+   *  √(1 − ¼) of it, is spread by the sampled direction; widths add in quadrature, so the sampled
+   *  rays' average reads the whole lobe. */
+  REFLECTION_SAMPLE_CONE: 1 / 2,
+} as const
+
+/**
+ * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
+ */
+export const REFLECTION_COUNTS = {
+  /** The images a texel's history averages at most (`temporalWgsl.ts`): three turns of the 2×2 block's
+   *  four picks, and the count a still view's history freezes at. Four bits of the history's word. */
+  REFLECTION_HISTORY: 12,
+  /** The widest spatial reuse, in half texels (`spatialWgsl.ts`): two bits of the fresh texel's word. */
+  REFLECTION_REUSE_RADIUS: 3,
+  /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
+  REFLECTION_SEQUENCE: 4096,
 } as const
 
 /** The format of the reflection target and of the radiance pyramid: the lit image's. */

@@ -64,9 +64,9 @@ const reflectionSeenWgsl = (group: number) =>
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
     ],
-    `struct ReflectionSeen{color:vec3f,confidence:f32,}
+    `struct ReflectionSeen{color:vec3f,confidence:f32,distance:f32,}
 fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
- var seen=ReflectionSeen(vec3f(0.0),0.0);
+ var seen=ReflectionSeen(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let scale=reflectionView.slab.x;
  let ray=reflectionRay(P,N,lobe);
@@ -94,17 +94,21 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe)->ReflectionSeen{
  if(!(taps.color.a>0.0)){return seen;}
  seen.color=taps.color.rgb/taps.color.a;
  seen.confidence=confidence*min(taps.color.a/taps.weight,1.0);
+ seen.distance=distance(hit,P);
  return seen;
 }`,
   )
 
 /**
- * `reflectedRadiance`: the radiance a surface at `P`, of normal `N` and roughness `rough`, seen
- * from `V`, reflects through `lobe` — the one function of every program, the chain of the
+ * `reflectedRadianceAlong`: the radiance a surface at `P`, of normal `N`, seen from `V`, reflects
+ * along `R` through a lobe of width `alpha` — the one function of every program, the chain of the
  * answers above. `lobe` is the lobe's long axis: its direction (`xyz`, any on a round lobe) and its
- * α along it (`w`; the roughness's α on a round lobe, `lobeAlpha`): the material's anisotropic GGX
- * parameters (`reflectionLobeOf`). With `scene`, the proxy's bindings, the chain holds the proxy's
- * stage; without, it has none.
+ * α along it (`w`; `alpha` on a round lobe): the material's anisotropic GGX parameters
+ * (`reflectionLobeOf`). It leaves in `reflectionHit` the distance of what answered the larger share
+ * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
+ * did: what the temporal accumulation reprojects a mirror's reflection by (`temporalWgsl.ts`).
+ * `reflectedRadiance` is the lobe's centre, the mirror direction about `N` at the roughness's α.
+ * With `scene`, the proxy's bindings, the chain holds the proxy's stage; without, it has none.
  */
 export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
   wgslBlock(
@@ -117,13 +121,19 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       REFLECTION_PROBES_WGSL,
       LOBE_AXIS_WGSL,
     ],
-    `fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
- let ellipse=reflectionLobeOf(reflect(-V,N),lobeAlpha(rough),lobe);
+    `var<private> reflectionHit:f32;
+fn reflectedRadiance(P:vec3f,N:vec3f,V:vec3f,rough:f32,lobe:vec4f)->vec3f{
+ return reflectedRadianceAlong(P,N,V,reflect(-V,N),lobeAlpha(rough),lobe);
+}
+fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->vec3f{
+ let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
  var rest=1.0;
+ reflectionHit=REFLECTION_FAR;
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
   let seen=reflectionSeen(P,N,ellipse);
   radiance+=rest*seen.confidence*seen.color;
+  if(rest>0.5&&rest*(1.0-seen.confidence)<=0.5){reflectionHit=seen.distance;}
   rest*=1.0-seen.confidence;
  }
 ${
@@ -131,6 +141,7 @@ ${
     ? ` if(rest>REFLECTION_EPSILON){
   let proxied=reflectionProxied(P,N,ellipse);
   radiance+=rest*proxied.confidence*proxied.color;
+  if(rest>0.5&&rest*(1.0-proxied.confidence)<=0.5){reflectionHit=proxied.distance;}
   rest*=1.0-proxied.confidence;
  }
 `

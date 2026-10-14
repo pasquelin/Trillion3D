@@ -16,6 +16,8 @@ import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 import { encodeReflectionTrace, type TraceInputs } from './halfEncode.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { REFLECTION_COUNTS } from './constants.ts'
 import {
   environmentCurve,
   environmentExposure,
@@ -54,6 +56,22 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
+  // An image drawn from elsewhere than the last, or under other lights, is drawn for a change: the
+  // accumulation clamps on it, and the quiet images after it freeze the history (`temporalWgsl.ts`).
+  const { held } = reflection.radiance,
+    lights = rt.lights.store.epoch
+  if (
+    !held.valid ||
+    lights !== reflection.lightsSeen ||
+    !sameElements(held.viewProjection, viewProj)
+  )
+    reflection.settle.busy()
+  reflection.lightsSeen = lights
+  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_COUNTS.REFLECTION_HISTORY)
+  // The turn moves on while the history fills, and holds once it is frozen: a still view writes nothing.
+  if (frame.quiet < REFLECTION_COUNTS.REFLECTION_HISTORY)
+    reflection.turn = (reflection.turn + 1) % REFLECTION_COUNTS.REFLECTION_SEQUENCE
+  frame.turn = reflection.turn
   reflection.writeView(frame, reflection.radiance.held, reflection.radiance.levels)
 }
 

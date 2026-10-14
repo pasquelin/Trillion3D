@@ -22,6 +22,10 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    off its normal;
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
  *    `frontLayer.ts`);
+ *  - `temporal`, the reflections' turn (`x`: the image's rank in the picks of a 2×2 block and the
+ *    samples' sequence, held while the view is frozen) and the images drawn since the last change
+ *    (`y`, `RadianceSettle.quiet`, capped): what the accumulation clamps and freezes by
+ *    (`temporalWgsl.ts`);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
@@ -34,6 +38,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['traced', 'vec4u'],
   ['proxy', 'vec4f'],
   ['front', 'vec4u'],
+  ['temporal', 'vec4u'],
   ['surroundings', 'vec4f'],
 ] as const)
 

@@ -4,7 +4,7 @@ import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalL
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
-import { HALF_FORMAT, createHalfTexture, halfExtent } from './halfTexture.ts'
+import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
 
 /**
  * THE TRANSPARENTS' FRONT LAYER, the one producer of what the reflections know of the transparents.
@@ -21,9 +21,8 @@ import { HALF_FORMAT, createHalfTexture, halfExtent } from './halfTexture.ts'
  *   surface buffer holds the opaque one's: its flags, its normal and roughness, its lobes.
  *
  * The nearest of the fragments that do either is kept (its depth, `depth`). The trace answers the
- * front surface as the opaque one (`traceHalf.ts`): a fresh ray a texel of its own half grid (`half`)
- * every image, through the one chain, then the edge-aware upsample, which writes the front's radiance
- * here (`traced`): the base lobe's and the coat's, on a shared exponent. A forward fragment whose depth
+ * front surface as the opaque one (`traceHalf.ts`), on its own half grids (`half`) and history; the
+ * upsample writes its radiance here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
  * is the front depth, in an image whose trace answered the front (`reflectionView.front.x`), reads its
  * reflection there, one load; any other — a surface behind the front one — reads the chain without
  * the proxy: the screen, the probes and the environment, never a ray.
@@ -35,14 +34,13 @@ import { HALF_FORMAT, createHalfTexture, halfExtent } from './halfTexture.ts'
  * Cost, for N pixels of the view, F transparent fragments drawn and T front pixels that reflect: the
  * front pass's 4N-byte depth copy, its N-texel clear of the Hi-Z front layer and its F fragments — the
  * base map's read, the material's where they reflect, no lighting —; the trace over the whole half
- * grid, T/4 texels tracing as the opaque trace's do (`traceHalf.ts`: the march, the proxy's ray where
- * the screen misses, the probes, the environment) and the rest four flag loads; the upsample's T pixels,
- * four taps each; a forward fragment of the front layer, a depth texel and an 8-byte load. Worst case of
+ * grid, T/4 texels traced and accumulated as the opaque surface's (`traceHalf.ts`), the rest four flag
+ * loads; the upsample's T pixels; a forward fragment of the front layer, a depth texel and an 8-byte load. Worst case of
  * a fragment: a deeper one, the screen march (`REFLECTION_STEP_CAP` pixels) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
- * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 4 more (normals, radiance, the half grid's
- * 16 bytes a 2×2 block) once a transparent reflects, the lobes target's once one carries a lobe.
+ * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 12 more (normals, radiance, the three half
+ * grids' 16 bytes a 2×2 block) once a transparent reflects, the lobes target's once one carries a lobe.
  */
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
@@ -73,7 +71,7 @@ const createFrontTraced = (device: GPUDevice, size: GPUExtent3D) =>
 export const frontLayerBytes = (width: number, height: number, blends: boolean) =>
   (blends ? width * height : 1) * (texel(DEPTH_FORMAT) + texel(FRONT_TARGET_FORMATS.flags)) +
   texel(FRONT_TARGET_FORMATS.normals) +
-  texel(HALF_FORMAT) +
+  halfBytes(1, 1) +
   texel(FRONT_TRACED_FORMAT) +
   PHYSICAL_LOBES_TARGET.bytes(width, height, false)
 
@@ -102,7 +100,7 @@ export function createFrontLayer(
   let normals = make(FRONT_TARGET_FORMATS.normals, attached, one),
     lobes = make(FRONT_TARGET_FORMATS.lobes, attached, one),
     traced = createFrontTraced(device, one),
-    half = createHalfTexture(device, LABEL, one)
+    half = createHalfGrids(device, LABEL, one)
   const cleared = (): GPURenderPassColorAttachment => ({
     view: undefined as unknown as GPUTextureView,
     loadOp: 'clear',
@@ -115,7 +113,6 @@ export function createFrontLayer(
     normals: normals.createView(),
     lobes: lobes.createView(),
     traced: traced.createView(),
-    half: half.createView(),
   }
   const [hizFront, flagsOut, normalsOut, lobesOut] = [cleared(), cleared(), cleared(), cleared()]
   flagsOut.view = views.flags
@@ -126,15 +123,14 @@ export function createFrontLayer(
     // The opaque depth copied in first (`encodeFrontPass`): a surface behind it is never the front.
     depthStencilAttachment: { view: views.depth, depthLoadOp: 'load', depthStoreOp: 'store' },
   }
-  /** `texture` at `size` (the view's), the texel it replaces retired after the frame, and the bytes it
-   *  adds: `bytes`, or a texel of its format a texel of `size` past the one it had. */
+  /** `texture` at the view's size, the texel it replaces retired after the frame, and the bytes it adds:
+   *  `bytes`, or a texel of its format a pixel past the one it had. */
   const grow = (
     texture: GPUTexture,
     remake: () => GPUTexture,
-    size: readonly number[] = [width, height],
-    bytes = (size[0] * size[1] - 1) * texel(texture.format),
+    bytes = (width * height - 1) * texel(texture.format),
   ) => {
-    if (texture.width === size[0]) return { texture, bytes: 0 }
+    if (texture.width === width) return { texture, bytes: 0 }
     retire(device, texture)
     return { texture: remake(), bytes }
   }
@@ -147,6 +143,10 @@ export function createFrontLayer(
      *  reflecting surface (`frontStamp`): zero before any. */
     drawn: 0,
     reflected: 0,
+    /** The front surface's half grids (`halfTexture.ts`): a texel until it first reflects. */
+    get half() {
+      return half
+    },
     /** The front pass of the image of stamp `stamp`, into the Hi-Z front layer `front`, writing
      *  `outputs` (`FrontOutputs`): its normals, radiance and lobes made at the view's size the first
      *  time they are written, their bytes added to `bytes`. */
@@ -163,12 +163,15 @@ export function createFrontLayer(
       if (outputs > 0) {
         this.reflected = stamp
         const n = grow(normals, () => make(FRONT_TARGET_FORMATS.normals, attached, full)),
-          t = grow(traced, () => createFrontTraced(device, full)),
-          h = grow(half, () => createHalfTexture(device, LABEL, halfSize), halfSize)
+          t = grow(traced, () => createFrontTraced(device, full))
         if (n.texture !== normals) views.normals = (normals = n.texture).createView()
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
-        if (h.texture !== half) views.half = (half = h.texture).createView()
-        bytes.targetBytes += n.bytes + t.bytes + h.bytes
+        bytes.targetBytes += n.bytes + t.bytes
+        if (half.width !== halfSize[0]) {
+          for (const texture of half.textures) retire(device, texture)
+          half = createHalfGrids(device, LABEL, halfSize)
+          bytes.targetBytes += halfBytes(width, height) - halfBytes(1, 1)
+        }
         normalsOut.view = views.normals
         colours.push(normalsOut)
       }
@@ -176,7 +179,6 @@ export function createFrontLayer(
         const l = grow(
           lobes,
           () => make(FRONT_TARGET_FORMATS.lobes, attached, full),
-          [width, height],
           // The lobes target's own accounting (`PHYSICAL_LOBES_TARGET`), as the surface buffer's.
           PHYSICAL_LOBES_TARGET.bytes(width, height, true) -
             PHYSICAL_LOBES_TARGET.bytes(width, height, false),
@@ -189,7 +191,8 @@ export function createFrontLayer(
       return pass
     },
     dispose() {
-      for (const texture of [depth, flags, normals, lobes, traced, half]) texture.destroy()
+      for (const texture of [depth, flags, normals, lobes, traced]) texture.destroy()
+      half.destroy()
     },
   }
 }

@@ -7,7 +7,7 @@ import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
 import { createTraceGroups } from './halfEncode.ts'
-import { createHalfTexture, halfBytes, halfExtent } from './halfTexture.ts'
+import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -23,7 +23,7 @@ import { reflectionLayout } from './reflectionPipelines.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
- *  after it in the mips of both targets (`radianceBytes`) —, its half grid (`halfBytes`), its uniform,
+ *  after it in the mips of both targets (`radianceBytes`) —, its half grids (`halfBytes`), its uniform,
  *  its radiance hash and the transparents' front layer (`frontLayerBytes`, which `blends` sizes); the
  *  depth it marches is the Hi-Z's, the front layer's covering depth folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean) {
@@ -40,7 +40,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
 /**
  * A view's reflection at `width × height`: the target the upsample writes, the radiance pyramid of
  * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
- * hits with its view-projection), the half grid the trace writes (`halfTexture.ts`), the view uniform
+ * hits with its view-projection), the half grids the trace and its accumulation write
+ * (`halfTexture.ts`), the view uniform
  * and its writer. `blends`, whether the scene has any, sizes the transparents' front layer
  * (`createFrontLayer`).
  */
@@ -64,11 +65,7 @@ export function createScreenReflection(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const radiance = createRadiancePyramid(device, width, height)
-  const half = createHalfTexture(
-    device,
-    'Trillion3D reflection half grid',
-    halfExtent(width, height),
-  )
+  const half = createHalfGrids(device, 'Trillion3D reflection half grid', halfExtent(width, height))
   const settle = createRadianceSettle(device)
   const front = createFrontLayer(device, width, height, blends)
   return {
@@ -76,9 +73,14 @@ export function createScreenReflection(
     target,
     targetView: target.createView(),
     radiance,
-    halfView: half.createView(),
+    /** The opaque surface's half grids (`halfTexture.ts`). */
+    half,
     uniform,
     settle,
+    /** The reflections' turn (`ReflectionView.temporal`), and the lights' epoch the last image was drawn
+     *  under: an image under others is drawn for a change (`writeFrame`). */
+    turn: 0,
+    lightsSeen: NaN,
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),

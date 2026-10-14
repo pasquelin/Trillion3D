@@ -70,7 +70,10 @@ export const reflectionShareWgsl = (group: number, lobes: boolean, scene?: Scene
 fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32)->Reflected{
  var traced=Reflected(reflectedRadiance(P,N,V,rough,reflectionLobe(rough)),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
+  // The base lobe's hit is the reflection's (\`reflectionHit\`): the coat's ray leaves it as it found it.
+  let hit=reflectionHit;
   traced.coat=reflectedRadiance(P,lobes.coatN,V,lobes.coatRough,vec4f(0.0,0.0,0.0,lobeAlpha(lobes.coatRough)));
+  reflectionHit=hit;
  }
  return traced;
 }`

@@ -77,6 +77,7 @@ export function runOver(w: ReturnType<typeof world>) {
     rtExtra: 0,
     rtAnyHit: false,
     rtLost: false,
+    rtHitDistance: 0,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
     RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({

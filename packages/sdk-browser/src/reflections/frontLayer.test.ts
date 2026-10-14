@@ -70,10 +70,13 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
   for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectedRadianceWgsl(1, TRACE_SCENE_BINDINGS)), /\breflectionProxied\b/)
-  // The front surface has its own half grid, traced and upsampled as the opaque one's, and the upsample
-  // writes its radiance where the forward fragments read it.
-  assert.ok(
-    REFLECTION_TRACE_SHADER.includes('textureStore(frontHalfOut,id.xy,traceTexel(id.xy,1u));'),
-  )
+  // The front surface is traced, accumulated and upsampled as the opaque one, its own kernels reading
+  // its own depth (layer 1), and the upsample writes its radiance where the forward fragments read it.
+  for (const kernel of [
+    'textureStore(traceOut,id.xy,traceTexel(id.xy,1u));',
+    'textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),1u));',
+    'surfacePointAt(1u,coord)',
+  ])
+    assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
   assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))
 })

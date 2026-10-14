@@ -104,14 +104,17 @@ export const MARCH_ITERATIONS = 16,
  *  is a transparent one (`hizFrontOver`) and two for the depth weight of the footprint
  *  (`reflectionDepthWeight`: the opaque and the transparent depth), then the radiance pyramid's four
  *  bilinear taps of a coarse level (`reflectionLevelColor`, at least one tap of the footprint); its
- *  16 bytes written (`HALF_FORMAT`). The upsample of a reflecting pixel reads its flags, depth,
- *  normal, lobes and base colour, then four half texels with each one's depth and normal
+ *  16 bytes written (`HALF_FORMAT`). The temporal accumulation of a texel reads it, its traced
+ *  pixel's depth and normal, four history texels and, on a changed image, nine fresh ones, and writes
+ *  16 bytes (`temporalOpaque`). The upsample of a reflecting pixel reads its flags, depth, normal,
+ *  lobes and base colour, then four history texels, which carry their depth and normal
  *  (`upsampleOpaque`), and writes 8 bytes (`REFLECTION_FORMAT`). */
 export const TRACE_LOADS = 4 + 3,
   HIT_LOADS = 2 + 2,
   HIT_TAPS = 4,
   HALF_BYTES = 16,
-  UPSAMPLE_LOADS = 5 + 4 * 3,
+  TEMPORAL_LOADS = 3 + 4 + 9,
+  UPSAMPLE_LOADS = 5 + 4,
   TRACE_BYTES = 8
 /** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written
  *  as level 0, the coarser levels written beside; the odd levels filled by four bilinear taps a
