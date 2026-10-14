@@ -20,7 +20,7 @@ export const frontOutputsOf = (reflects: boolean, lobed: boolean): FrontOutputs 
   !reflects ? 0 : lobed ? 2 : 1
 
 /** What a front pass of `items` writes, as prepare sees them. */
-export const frontStageOf = (items: readonly { surface: PageSurface }[]) =>
+const frontStageOf = (items: readonly { surface: PageSurface }[]) =>
   frontOutputsOf(
     items.some((item) => blendReflects(item.surface)),
     items.some((item) => hasPhysicalLobes(item.surface)),
@@ -69,3 +69,15 @@ export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout)
   }
   return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
 }
+
+/** Prepare's compile of the front stage the scene's transparents `items` reach (`frontStageOf`), with
+ *  them; none without a transparent. Refused, no front pass draws (`frontPass.ts`). */
+export const prepareFrontStage = (
+  stages: ReturnType<typeof createFrontStages>,
+  items: readonly { surface: PageSurface }[],
+) =>
+  items.length
+    ? stages(frontStageOf(items))
+        .prepare()
+        .catch(() => undefined)
+    : undefined
