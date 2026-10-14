@@ -41,6 +41,7 @@ import { WATER_COPY_SHADER } from '../../webgpu/water/copyWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
 import { GATHER_WGSL, REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
 import { TILE_SORT_WGSL } from '../../webgpu/tile/evictSortWgsl.ts'
+import { ROW_SORT_WGSL } from '../../webgpu/row/rowEvictSortWgsl.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts'
 import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
 import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
@@ -165,6 +166,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REDUCE_WGSL,
   GATHER_WGSL,
   TILE_SORT_WGSL,
+  ROW_SORT_WGSL,
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER: waterCompositeShader(),
   WATER_ROUTED: waterRoutedShader(),
