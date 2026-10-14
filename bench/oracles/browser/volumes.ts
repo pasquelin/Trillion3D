@@ -3,6 +3,7 @@
 // called them.
 import * as THREE from 'three'
 import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Plane order of the host library's `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4]
@@ -59,7 +60,7 @@ export function referenceConeRejects(
     vz = cam[2] - center.z
   const vl = Math.hypot(vx, vy, vz)
   if (!(vl > 0)) return false
-  const dot = Math.min(1, Math.max(-1, (axis.x * vx + axis.y * vy + axis.z * vz) / vl))
+  const dot = clamp((axis.x * vx + axis.y * vy + axis.z * vz) / vl, -1, 1)
   try {
     return coneRejects(dot, cone.angle, spread)
   } catch {

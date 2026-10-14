@@ -6,6 +6,7 @@
 // implementation (version 1.7) on the fixtures of `references/imageDiff.test.ts` and on random
 // and structured images: same mean, each pixel within 3e-5.
 import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
+import { clamp, saturate } from '../../../packages/math/src/scalar/reals.ts'
 
 type Planes = [Float32Array, Float32Array, Float32Array]
 
@@ -49,7 +50,7 @@ const PCCMAX = 0.4 * CMAX
 
 /** Clamped source index of every tap position `-r .. n - 1 + r` of an axis of length `n`. */
 const clampedIndices = (n: number, r: number) =>
-  Int32Array.from({ length: n + 2 * r }, (_, i) => Math.min(n - 1, Math.max(0, i - r)))
+  Int32Array.from({ length: n + 2 * r }, (_, i) => clamp(i - r, 0, n - 1))
 
 /** Convolves each row of a plane by `k`, edges clamped. */
 function horizontal(src: Float32Array, w: number, h: number, k: number[]) {
@@ -163,11 +164,10 @@ function filteredLab([yy, cx, cz]: Planes, p: number, out: Float64Array) {
     x = (yn + cx[p] / 500) * WHITE[0],
     y = yn * WHITE[1],
     z = (yn - cz[p] / 200) * WHITE[2]
-  const unit = (v: number) => Math.min(1, Math.max(0, v))
   return huntLab(
-    unit(dot(TO_RGB[0], x, y, z)),
-    unit(dot(TO_RGB[1], x, y, z)),
-    unit(dot(TO_RGB[2], x, y, z)),
+    saturate(dot(TO_RGB[0], x, y, z)),
+    saturate(dot(TO_RGB[1], x, y, z)),
+    saturate(dot(TO_RGB[2], x, y, z)),
     out,
   )
 }

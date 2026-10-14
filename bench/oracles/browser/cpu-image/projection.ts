@@ -1,6 +1,7 @@
 // The CPU image oracle's projection: a page's triangle on screen, as every GPU raster places it —
 // a line quad's corners widened (`./line.ts`), a sprite's turned to the camera (`spriteAt`).
 import {
+  cross2,
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
@@ -108,7 +109,7 @@ type ScreenPoint = { x: number; y: number }
  * the page reference raster each take the same line from here.
  */
 export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
-  return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
+  return cross2(b.x - a.x, b.y - a.y, c.x - a.x, c.y - a.y)
 }
 
 /** A projected triangle of a page placed by `world`; a line page's corners widened on screen at `pixelRatio` image
