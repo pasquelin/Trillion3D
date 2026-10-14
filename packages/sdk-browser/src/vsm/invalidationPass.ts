@@ -147,8 +147,8 @@ export function dispatchPhase(
     itemCount: number
     threads: number
     instanceBytes: number
-    items: Uint32Array
-    image: Uint32Array
+    items: Uint32Array<ArrayBuffer>
+    image: Uint32Array<ArrayBuffer>
   },
 ) {
   const { itemCount, threads, instanceBytes, items, image } = phase
