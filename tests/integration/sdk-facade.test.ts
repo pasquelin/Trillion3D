@@ -172,10 +172,11 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // `multiplyMatrix4`, the kernels' bits. The light settings' samples a pixel, gone with the sampled
   // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core. The
   // batch union of moved boxes gone to the WebAssembly lot, its module scratch box with it, takes
-  // thirty-five more off each of the three.
-  assert.equal(baseline.outputFiles[0].contents.length, 3_012)
+  // thirty-five more off each of the three. Every module importing the maths from its own file,
+  // not through the core's barrel, takes six off the core and 143 off the browser condition.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_006)
   assert.equal(proposed.outputFiles[0].contents.length, 1_371)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_089)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 2_946)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
