@@ -35,7 +35,8 @@ test('the rows a chunk takes halve until their lists grow within the room', () =
   assert.equal(rows(256 * 1024 + 64 * 1024 - 1), 32)
   assert.equal(rows(4096 + 1024), 1)
   assert.equal(rows(4096 + 1024 - 1), 0, 'not one row')
-  // A list already as large asks nothing; the one it replaces is freed first.
+  // A list already as large asks nothing; one grown asks its whole new size, the one it replaces
+  // living until the frame's submit (`sizedBuffer`) — it was once counted as freed first.
   r.box.limit = 1e12
   const held = {
     pairs: r.fake.device.createBuffer({ size: 256 * 1024, usage: GPUBufferUsage.STORAGE }),
@@ -44,8 +45,8 @@ test('the rows a chunk takes halve until their lists grow within the room', () =
     pairs: r.fake.device.createBuffer({ size: 128 * 1024, usage: GPUBufferUsage.STORAGE }),
   }
   assert.equal(rows(64 * 1024, held), 64)
-  assert.equal(rows(128 * 1024 + 64 * 1024, small), 64)
-  assert.equal(rows(128 * 1024 + 64 * 1024 - 1, small), 32)
+  assert.equal(rows(256 * 1024 + 64 * 1024, small), 64)
+  assert.equal(rows(256 * 1024 + 64 * 1024 - 1, small), 32)
 })
 
 /** The raster of `rowCount` rows under one sun, encoded on a recording device. */
