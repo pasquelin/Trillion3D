@@ -86,6 +86,7 @@ export function reader(memory: Map<string, V>): Read {
       'vsmTBlock',
       'vsmTRead',
       'vsmTMemBlock',
+      'vsmTBlockAt',
       'vsmTScanPage',
       'vsmTScanSlice',
       'vsmTHitOf',

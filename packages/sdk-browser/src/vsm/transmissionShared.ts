@@ -1,5 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
-import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { VSM_PAGE_TEXELS } from './constants.ts'
@@ -102,6 +102,14 @@ export const FRAME_STRUCT_WGSL = wgslBlock(
 struct VsmTransmissionFrame{stamp:u32,rowFirst:u32,records:u32,patchWords:u32,blocks:u32,regionRecords:u32,regionPatches:u32,cmds:u32,pairs:u32,spare0:u32,spare1:u32,spare2:u32,}`,
 )
 
+/** Where block \`b\`'s texel \`t\` lies in the readable memory below its \`headerRows\` rows of page
+ *  headers, two blocks a row: the resolve writes there, every shadow consumer reads there. */
+export const VSM_T_BLOCK_AT_WGSL = wgslFn(
+  'vsmTBlockAt',
+  [],
+  `fn vsmTBlockAt(b:u32,t:u32,headerRows:u32)->vec2u{return vec2u((b&1u)*${VSM_TRANSMISSION_BLOCK_TEXELS}u+t,headerRows+(b>>1u));}`,
+)
+
 /** The frame uniform, the build buffer's regions and the common constants. */
 export const frameWgsl = (layout: VsmLayout) => {
   const P = layout.poolPages
@@ -124,9 +132,7 @@ export const frameWgsl = (layout: VsmLayout) => {
       VSM_T_RECORDS_TEXEL: RECORDS_TEXEL,
       VSM_T_RECORD_WORDS: VSM_TRANSMISSION_RECORD_WORDS,
       VSM_T_HEADER_ROWS: headerRows(P),
-    })}
-/** Where block \`b\`'s texel \`t\` lies in the readable memory. */
-fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}`,
+    })}`,
   )
 }
 

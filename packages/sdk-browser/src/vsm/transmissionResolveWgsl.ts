@@ -12,6 +12,7 @@ import {
   VSM_TRANSMISSION_CELLS,
   VSM_TRANSMISSION_CHAIN,
   VSM_TRANSMISSION_PAGE_GROUP,
+  VSM_T_BLOCK_AT_WGSL,
   frameWgsl,
   transmissionTablesWgsl,
 } from './transmissionShared.ts'
@@ -44,7 +45,7 @@ var<workgroup> counts:array<u32,${CELL_COUNT}>;
 var<workgroup> chain:array<u32,${VSM_TRANSMISSION_CHAIN}>;
 var<workgroup> held:array<u32,3>;
 /** Slice texel \`v\` in the memory, through the workgroup's chain. */
-fn vsmTAt(v:u32)->vec2u{return vsmTBlockTexel(chain[v/VSM_T_BLOCK_TEXELS],v%VSM_T_BLOCK_TEXELS);}
+fn vsmTAt(v:u32)->vec2u{return vsmTBlockAt(chain[v/VSM_T_BLOCK_TEXELS],v%VSM_T_BLOCK_TEXELS,VSM_T_HEADER_ROWS);}
 fn vsmTRecordWord(g:u32,w:u32)->u32{return vsmTBuild(frame.regionRecords+g*VSM_T_RECORD_WORDS+w);}
 /** Record \`batch + lane\` of the slice into the group's memory. */
 fn vsmTStage(first:u32,batch:u32,records:u32,lane:u32){
@@ -186,6 +187,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
     [
       frameWgsl(layout),
       transmissionTablesWgsl(0, 2),
+      VSM_T_BLOCK_AT_WGSL,
       VSM_TRANSMISSION_COVER_WGSL,
       ceilDivWgsl,
       lowHalf,
