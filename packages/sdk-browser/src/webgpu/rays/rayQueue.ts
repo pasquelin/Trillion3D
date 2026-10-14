@@ -7,11 +7,12 @@ import type { Intersection, RayFilter } from '../../world/query/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rayFilterRanks } from './rayFilter.ts'
 import { createRayQuery, type RayQuery } from './rayQuery.ts'
-import { RAY_QUERY_PASS, type RaySources } from './rayQueryPass.ts'
+import { RAY_QUERY_PASS } from './rayQueryPass.ts'
+import { raySourcesOf } from './raySources.ts'
 import { validationScope } from '../../gpu/core/errorScope.ts'
 import { log } from '../../diagnostic/log.ts'
 import { RAY_HIT, RAY_RECORD, RAY_REACH_MAX, readHit, writeRay } from './rayRecord.ts'
-import { createRayRecords, type RayRecords } from './rayRecords.ts'
+import { createRayRecords } from './rayRecords.ts'
 
 /** One ray cast and not answered yet: its doubles, its filter and its promise's settlement. */
 type Ask = {
@@ -27,30 +28,6 @@ type Ask = {
 const BATCH_RAYS = 1024
 /** Staging buffers the answers come back through: a batch a frame, three in flight. */
 const RING_BUFFERS = 3
-
-/** What the session's engine holds for a batch, the queue's records over it: none while it opens,
- *  after a loss or a dispose. */
-function sourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySources | undefined {
-  const { run, gpu, vis, layout, blendState } = rt
-  const selection = run.gpuSelection,
-    tables = selection?.cutTables(),
-    pageTable = vis.pageTable,
-    geometry = gpu.cache?.buffer,
-    // A scene without float geometry, or without blended entries, binds the zero words in their
-    // place.
-    zero = vis.zeroFlags,
-    positions = vis.concatPos ?? zero,
-    compaction = blendState.compaction,
-    entries = compaction?.entriesBuffer ?? zero,
-    spans = compaction?.spanBuffer ?? zero
-  if (run.lost || !selection || !tables || !pageTable || !geometry || !positions) return undefined
-  if (!entries || !spans) return undefined
-  const entryCount = compaction ? (blendState.table?.length ?? 0) : 0
-  return {
-    ...{ tables, records, pageTable },
-    ...{ rows: layout.rows.packedCount, entries, spans, entryCount, geometry, positions },
-  }
-}
 
 /** The batch's words: each ray's record (`rayRecord.ts`), then their filter lists. */
 function packBatch(asks: readonly Ask[]) {
@@ -131,7 +108,7 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
   function flush() {
     scheduled = false
     if (!asks.length) return
-    const sources = sourcesOf(rt, records)
+    const sources = raySourcesOf(rt, records)
     if (!sources) return settleAll(asks.splice(0))
     if (!query.compiled(schedule, refused)) return
     const batch = asks.splice(0, BATCH_RAYS)
@@ -170,7 +147,9 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
           origin: [o.x, o.y, o.z],
           direction: [d.x, d.y, d.z],
           reach: Math.min(reach, RAY_REACH_MAX),
-          ...{ ranks, include, settle },
+          ranks,
+          include,
+          settle,
         })
         schedule()
       })
