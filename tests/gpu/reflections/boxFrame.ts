@@ -5,6 +5,7 @@
 // diffuse and reflects nothing.
 import {
   camera,
+  faceNormal,
   rasterize,
   type Box,
   type Camera,
@@ -16,14 +17,6 @@ import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel
 
 /** A box of the frame: its geometry, its colour, and whether it is a mirror. */
 export type Block = { box: Box; color: V3; mirror?: boolean }
-
-/** The outward normal of the face `face` of a box (`6 · box + face` of `rasterize`): axis `face >> 1`,
- *  the high side when odd. */
-function faceNormal(face: number): V3 {
-  const normal: V3 = [0, 0, 0]
-  normal[face >> 1] = face & 1 ? 1 : -1
-  return normal
-}
 
 /** The vertical field of view a box frame is seen through by default. */
 export const BOX_FOV = 50 * DEG2RAD

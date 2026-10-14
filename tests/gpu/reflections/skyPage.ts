@@ -7,7 +7,7 @@ import {
   addUniformIrradiance,
   emptyIrradiance,
 } from '../../../packages/sdk-core/src/scene/core/environment.ts'
-import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { secondImage } from './rigImage.ts'
@@ -18,8 +18,8 @@ const WIDTH = 160,
   HEIGHT = 90
 const EYE: V3 = [0, 1, 0],
   TARGET: V3 = [0, 1, -6]
-/** The pane's front face (`faceOf`: 2 · axis + 1 for the high side of z). */
-const FRONT = 5
+/** The pane's front face: the high side of z. */
+const FRONT = faceIndex(2, true)
 
 /** A case: the sky shown, `0xrrggbb` as the display shows it (the engine's default when absent),
  *  the light declared around the scene (its uniform irradiance, none when absent) and the pane's

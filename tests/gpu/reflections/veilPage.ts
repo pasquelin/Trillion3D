@@ -6,7 +6,7 @@
 // rises past its top edge): the room's proxy answers alone, and shows the far wall's colour, a dark
 // one, never the background's.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
 import { secondImage } from './rigImage.ts'
@@ -14,8 +14,8 @@ import { rgbAt } from './rigFrame.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
-/** The face of a block that looks up (`faceOf`: 2 · axis + 1 for the high side of y). */
-const TOP = 3
+/** The face of a block that looks up: the high side of y. */
+const TOP = faceIndex(1, true)
 const EYE: V3 = [0, 1.7, -0.3]
 
 /** A view of the room: its yaw in degrees, how far (metres, over ten ahead) its target lies below

@@ -93,7 +93,18 @@ export function camera(
 }
 export type Camera = ReturnType<typeof camera>
 
-/** The face of `box` the point `p` on it lies on: 2 · axis, + 1 on its high side. */
+/** The face of a box on `axis` (x, y, z), on its high side when `high`: 2 · axis, + 1 on the
+ *  high side. */
+export const faceIndex = (axis: number, high: boolean) => 2 * axis + (high ? 1 : 0)
+
+/** The outward normal of the face `face` (`faceIndex`). */
+export function faceNormal(face: number): V3 {
+  const normal: V3 = [0, 0, 0]
+  normal[face >> 1] = face & 1 ? 1 : -1
+  return normal
+}
+
+/** The face of `box` the point `p` on it lies on (`faceIndex`). */
 function faceOf(box: Box, p: V3) {
   let face = 0,
     best = Infinity
@@ -102,7 +113,7 @@ function faceOf(box: Box, p: V3) {
       const off = Math.abs(p[k] - bound)
       if (off < best) {
         best = off
-        face = 2 * k + side
+        face = faceIndex(k, side === 1)
       }
     }
   return face
