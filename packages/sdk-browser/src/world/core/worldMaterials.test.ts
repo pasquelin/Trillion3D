@@ -6,6 +6,7 @@ import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
+import { variantPlain } from '../../page/surfaceVariant.ts'
 
 // A material written every frame on a value — a pulsing lamp, a colour picker — keeps its
 // entry, so its wearers keep their batch and the session is never opened again for it.
@@ -129,6 +130,7 @@ test('one material worn with and without colours gets one surface per case, both
   )
   assert.equal(a, c, 'the coloured surface is shared')
   assert.notEqual(a, b)
+  assert.equal(variantPlain(a), b, 'the coloured one is the plain one’s variant: one table record')
   assert.equal(table.surfaceOf(entry, triangle(true), true) === a, false, 'a cloth is its own')
   const versions = [a, b].map((surface) => surface.version)
   paint.color.set(0xff0000)
@@ -145,13 +147,13 @@ test('one material worn with and without colours gets one surface per case, both
 test('the surfaces of an entry the table drops are given back', () => {
   const table = createWorldMaterials()
   const kept = table.entryOf(material.meshStandard({ color: 0x111111 })),
-    dropped = table.entryOf(material.meshStandard({ color: 0x222222 }))
-  const surface = table.surfaceOf(dropped, triangle(false), false)
+    dropped = table.entryOf(material.meshStandard({ color: 0x222222, vertexColors: true }))
   let given = 0
-  surface.released.add(() => given++)
+  for (const colors of [false, true])
+    table.surfaceOf(dropped, triangle(colors), false).released.add(() => given++)
   table.surfaceOf(kept, triangle(false), false)
   table.keep(new Set([kept]))
-  assert.equal(given, 1)
+  assert.equal(given, 2, 'the plain surface and its variant')
   assert.equal(kept.surfaces.length > 0, true)
   assert.equal(dropped.surfaces.length, 0)
 })

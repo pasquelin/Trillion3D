@@ -82,7 +82,7 @@ test('public material reaches the engine, and a color edit repaints without an A
     subsurfaceColor: 0x00ff00,
     subsurfaceMap: map,
   })
-  const surface = hostSurface(paint, false)
+  const surface = hostSurface(paint)
   assert.deepEqual(surface.subsurfaceColor, [0, 1, 0])
   assert.ok(surface.subsurfaceMap)
   const version = paint.version

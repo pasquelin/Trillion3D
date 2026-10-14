@@ -145,30 +145,15 @@ function worldDeclaration(
   }) as SurfaceDeclaration
 }
 
-/** How each rank of a material entry's surfaces reads its triangles (`worldMaterials.ts`): faces,
- *  then faces tinted by vertex colours, lines, a sprite, a cloth's faces, then tinted too. */
-export const RANK_READINGS: readonly SurfaceReading[] = [
-  'faces',
-  'faces',
-  'lines',
-  'sprite',
-  'sheet',
-  'sheet',
-]
+/** How each rank of a material entry's plain surfaces reads its triangles (`worldMaterials.ts`):
+ *  faces, lines, a sprite, a cloth's faces. A cloth is a reading of its own, not a two-sided variant:
+ *  both faces make a lit surface read its subsurface colour and map (`page/surfaceRecord.ts`). */
+export const RANK_READINGS: readonly SurfaceReading[] = ['faces', 'lines', 'sprite', 'sheet']
 
-/** The rank of an entry's surface that reads its triangles as `reading`, tinted or not: a reading
- *  listed twice has its tinted rank after its plain one, the others one rank for both. */
-export function readingRank(reading: SurfaceReading, tinted: boolean) {
-  const first = RANK_READINGS.indexOf(reading)
-  return RANK_READINGS[first + 1] === reading ? first + +tinted : first
-}
-
-/** The surface of a world material, for what the mesh wearing it draws. */
-export const hostSurface = (
-  material: Material,
-  vertexColors: boolean,
-  reading: SurfaceReading = 'faces',
-) => declareSurface(worldDeclaration(material, vertexColors, reading))
+/** The plain surface of a world material, for what the mesh wearing it draws: no vertex colour,
+ *  which its tinted variant adds (`page/surfaceVariant.ts`). */
+export const hostSurface = (material: Material, reading: SurfaceReading = 'faces') =>
+  declareSurface(worldDeclaration(material, false, reading))
 
 /**
  * Declares the surface built for `material` again, in place, and journals it: its values —
@@ -177,7 +162,8 @@ export const hostSurface = (
  * turn — reach every reader (`page/surface.ts`) at its next read, nothing built again. A sprite's
  * size rule stays the one it was built with (`readingFields`). Its maps are the material's texture
  * records themselves: their pictures, sampling and placement need no write. It is read as its
- * rank in the entry says (`RANK_READINGS`), with the vertex colours it was declared with.
+ * rank in the entry says (`RANK_READINGS`), with the vertex colours it was worn with — a tinted
+ * variant keeps its own.
  */
 export function repaintHostSurface(
   surface: PageSurface,

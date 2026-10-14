@@ -120,7 +120,7 @@ test('a sprite without size attenuation keeps its screen size at every distance'
 function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   const sprite = object.sprite(material.sprite({ color: '#ff0', ...parameters }))
   const drawn = drawnTriangles(sprite.geometry, 'sprite')!
-  const surface = hostSurface(sprite.material as Material, false, 'sprite')
+  const surface = hostSurface(sprite.material as Material, 'sprite')
   const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute(drawn.positions, 3))
   const matrix = new Matrix4()

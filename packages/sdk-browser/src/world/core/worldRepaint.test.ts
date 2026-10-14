@@ -46,7 +46,7 @@ test('a picture alone declares no surface again, and the session reads it with n
   const map = new Texture({ width: 2, height: 2 })
   const paint = material.meshStandard({ map })
   const entry = table.entryOf(paint)
-  const surface = (entry.surfaces[0] = hostSurface(entry.material, false)),
+  const surface = (entry.surfaces[0] = hostSurface(entry.material)),
     version = surface.version
   map.needsUpdate = true
   assert.equal(table.entryOf(paint), entry)
