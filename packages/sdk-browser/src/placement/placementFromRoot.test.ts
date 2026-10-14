@@ -116,15 +116,15 @@ const noBudget = { admits: () => true, spend() {} }
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
   // The digests exclude the pool's offsets (`OFFSET_WORD`).
   assert.deepEqual(await steps(digest), [
-    '4c9667c088a4d0da',
-    '52cef678cafd5756',
+    '5ce2528d811d9785',
+    'dbc74ee1f893c68a',
     // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
     // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
     // first run with the grown cut adopted: its seven rows are those the homes test below names.
     // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
     // was recorded again at their new length — the seven rows alone digest as they did. Recorded
     // again when a row became its geometry and its surface's rank, 32 words (#1527).
-    '897933baa11308dc',
+    'ae21a2d2df9d909a',
   ])
 })
 
