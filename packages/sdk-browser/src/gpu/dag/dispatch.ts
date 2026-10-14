@@ -19,6 +19,7 @@ import {
 import type { DagRuntimeState } from './runtimeState.ts'
 import { readFor, readMain, takeCopy, type Copy } from './dispatchRead.ts'
 import { encodeSwap } from './swapEncode.ts'
+import { settleOnce } from './settleOnce.ts'
 
 type Chain = ReturnType<typeof createDifferenceChain>
 /** What the main view's dispatches share: the tables, the state, the chain the readbacks land in,
@@ -161,14 +162,13 @@ function settleMain(
     if (copy) readMain(cut, copy)
     return undefined
   }
-  let settled = false
-  return (submitted: boolean) => {
-    if (settled) return
-    settled = true
-    if (submitted) return void (copy && readMain(cut, copy))
-    undo()
-    if (copy) cut.resources.readbacks.dropped(copy.buffer)
-  }
+  return settleOnce(
+    () => {
+      undo()
+      if (copy) cut.resources.readbacks.dropped(copy.buffer)
+    },
+    () => copy && readMain(cut, copy),
+  )
 }
 
 /** What a dispatch claims of the state — the readback stamp by its pointer, the owed cut — given
