@@ -8,8 +8,9 @@ import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
  * frames by design.
  *
  * Closed on the device's own measures, never one machine's constant: the probes take `budgetMs` less
- * what the reflection trace's pass took, their fraction of the published ceiling (`load`) servoed on
- * their own pass's time, bounded between the progress floor and one.
+ * what the reflection trace's pass took, never past their own part of it (`probeShare`) — a scene
+ * without reflections leaves them no more than they had alone —, their fraction of the published
+ * ceiling (`load`) servoed on their own pass's time, bounded between the progress floor and one.
  *
  * A missing, zero or non-finite measure moves nothing: the loop never follows an artificial zero.
  */
@@ -36,7 +37,7 @@ const measured = (ms: number | null): ms is number => ms !== null && Number.isFi
 /** Keeps every proxy ray of a frame under one GPU duration, frame after frame. */
 export function createProxyBudget(budgetMs: number): ProxyBudget {
   const share = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs
-  const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS
+  const { budgetSmoothing, budgetFloor, probeShare } = BOUNCE_SETTINGS
   let load = 1,
     lastMs: number | null = null,
     samples = 0
@@ -56,7 +57,7 @@ export function createProxyBudget(budgetMs: number): ProxyBudget {
       lastMs = probeMs
       samples++
       const left = Math.max(
-        share - (measured(reflectionMs) ? reflectionMs : 0),
+        Math.min(share - (measured(reflectionMs) ? reflectionMs : 0), share * probeShare),
         share * budgetFloor,
       )
       const wanted = clamp((load * left) / probeMs, budgetFloor, 1)

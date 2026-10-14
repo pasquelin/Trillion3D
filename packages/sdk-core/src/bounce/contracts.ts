@@ -57,6 +57,9 @@ export const BOUNCE_SETTINGS = {
   /** Target GPU duration of every proxy ray of a frame, in milliseconds: the reflections' first,
    *  the bounce probes' the rest (`../proxy/budget.ts`). */
   budgetMs: 2,
+  /** The probes' part of `budgetMs` at most, reflections or none: alone, they aim at 0.8 ms of
+   *  2, the frame time they had before the reflections shared the budget. */
+  probeShare: 0.4,
   /** Error correction share retained per sample to prevent oscillations. */
   budgetSmoothing: 0.25,
   /** Workload fraction floor: minimum progress guarantee. */
