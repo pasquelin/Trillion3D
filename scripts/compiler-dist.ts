@@ -45,7 +45,7 @@ function build(folder: string, flags: string[]): string {
       ...['--manifest-path', join(CRATE, 'Cargo.toml')],
       ...['--config', `target.${TARGET}.rustflags=${JSON.stringify(flags)}`],
     ],
-    { stdio: 'inherit', shell: false },
+    { stdio: 'inherit' },
   )
   return join(directory, TARGET, 'dist', compilerFileName(process.platform))
 }
@@ -61,7 +61,6 @@ compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${posixPath(pr
 const merged = join(profiles, 'merged.profdata')
 runChecked(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], {
   stdio: 'inherit',
-  shell: false,
 })
 const compiler = build('dist', [`-Cprofile-use=${posixPath(merged)}`])
 const record: HashRecord = {

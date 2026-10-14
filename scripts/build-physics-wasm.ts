@@ -18,7 +18,7 @@ const OUTPUT = join(REPOSITORY_ROOT, 'packages', 'sdk-browser', 'src', 'physics'
 if (!existsSync(join(SOURCE, 'JoltPhysics', 'Jolt', 'Jolt.h')))
   throw new Error('Jolt submodule missing.\nRun: git submodule update --init')
 
-const llvm = runChecked('em-config', ['LLVM_ROOT'], { shell: false }).trim()
+const llvm = runChecked('em-config', ['LLVM_ROOT']).trim()
 for (const [name, threads] of [
   ['joltPhysics', 'OFF'],
   ['joltPhysicsThreads', 'ON'],
@@ -29,14 +29,12 @@ for (const [name, threads] of [
     ['cmake', '-G', 'Ninja', '-S', SOURCE, '-B', build, '-DCMAKE_BUILD_TYPE=Distribution'].concat(
       `-DTHREADS=${threads}`,
     ),
-    { stdio: 'inherit', shell: false },
+    { stdio: 'inherit' },
   )
-  runChecked('cmake', ['--build', build, '--target', name], { stdio: 'inherit', shell: false })
+  runChecked('cmake', ['--build', build, '--target', name], { stdio: 'inherit' })
   const built = join(build, `${name}.wasm`)
   // emscripten strips the `target_features` section: the instruction set is read from the code.
-  checkInstructionSet(built, (path) =>
-    runChecked(join(llvm, 'llvm-objdump'), ['-d', path], { shell: false }),
-  )
+  checkInstructionSet(built, (path) => runChecked(join(llvm, 'llvm-objdump'), ['-d', path]))
   mkdirSync(OUTPUT, { recursive: true })
   copyFileSync(built, join(OUTPUT, `${name}.wasm`))
   console.log(`${name}.wasm: ${statSync(built).size} bytes`)

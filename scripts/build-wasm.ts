@@ -18,7 +18,7 @@ const OUTPUTS = [join(REPOSITORY_ROOT, 'packages', KERNELS), join(REPOSITORY_ROO
 const MODULE_NAME = 'kernels.wasm'
 
 function rustc(...args: string[]): string {
-  return runChecked('rustc', args, { shell: false }).trim()
+  return runChecked('rustc', args).trim()
 }
 
 /**
@@ -109,7 +109,7 @@ function main(): void {
   runChecked(
     'cargo',
     ['build', '--release', '--locked', '--target', TARGET, '--manifest-path', MANIFEST],
-    { stdio: 'inherit', env: { ...process.env, ...FLAGS }, shell: false },
+    { stdio: 'inherit', env: { ...process.env, ...FLAGS } },
   )
 
   const built = join(dirname(MANIFEST), 'target', TARGET, 'release', 'trillion3d_page_codec.wasm')
