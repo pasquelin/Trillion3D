@@ -156,24 +156,19 @@ test('under a full pool, the tiles a card holds are never victims, and rank agai
   assert.equal(ranked, card.length + 1, 'let go, each a victim again, beside the arrival')
 })
 
-// A buffer made again with its pools holds zero words: a free place left at zero reads as the
-// oldest clock at tier 0, the first victim the queue ranks. Old code: only the occupied places
-// were written, the free ones ranked ahead of the real victims.
+// A free place left at zero reads as the oldest clock at tier 0, the first victim the queue ranks.
+// Old code: a new buffer wrote only the occupied places.
 test('a new place-use buffer writes every free place unranked', () => {
   const { atlas, device } = scene()
   atlas.flush(device)
   const use = words((atlas.slotUse.buffer as unknown as { data: Uint8Array }).data)
-  let free = 0
-  atlas.slotUse.pools.forEach((pool, lane) => {
-    if (!pool) return
-    for (let index = 0; index < pool.tiles; index++) {
-      if (!pool.freeAt(index)) continue
-      free++
-      const at = tilePlaceWordAt(atlas.slotUse.base(lane), index)
-      assert.deepEqual([use[at], use[at + 1]], [0, TILE_UNRANKED], `place ${index}`)
-    }
-  })
-  assert.ok(free > 0)
+  const free = atlas.slotUse.pools.flatMap((pool, lane) =>
+    Array.from({ length: pool?.tiles ?? 0 }, (_, index) => index)
+      .filter((index) => pool!.freeAt(index))
+      .map((index) => tilePlaceWordAt(atlas.slotUse.base(lane), index)),
+  )
+  assert.ok(free.length > 0)
+  for (const at of free) assert.deepEqual([use[at], use[at + 1]], [0, TILE_UNRANKED])
 })
 
 // The place words are GPU memory made with the pools: the probe that asks the device for a pool
