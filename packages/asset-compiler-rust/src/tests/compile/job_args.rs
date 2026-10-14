@@ -159,3 +159,25 @@ fn a_count_no_form_takes_is_refused_with_the_usage() {
     );
     assert!(usage.contains(&line), "{usage}");
 }
+// Behaviour: an empty `resourceBaseUrl` is refused once, by the check of a job's values, whichever
+// form named the job; the textures-format refusal and the usage name every block family.
+#[test]
+fn one_refusal_names_each_missing_value_and_every_choice() {
+    use crate::texture_preview::BlockFormat;
+    let flag = Arc::new(AtomicBool::new(false));
+    let job = json!({"source":"s","cache":"c"});
+    let defaults = JobDefaults {
+        scope: "full",
+        threads: DEFAULT_THREADS,
+        ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
+    };
+    let read = job_options(job.as_object().expect("object"), &defaults, flag).expect("read");
+    let refusal = validate_compile_options(&read).expect_err("no resource base");
+    assert!(refusal.message.contains(job_field::RESOURCE_BASE_URL));
+    let refused = parse(&["s", "c", "slice", "12", "/a/", "--textures-format=both"]);
+    let usage = parse(&["s"]).err().expect("usage");
+    for name in BlockFormat::ALL.map(BlockFormat::name) {
+        assert!(refused.as_ref().err().expect("both").contains(name));
+        assert!(usage.contains(&format!("|{name}|")), "{usage}");
+    }
+}

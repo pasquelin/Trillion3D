@@ -2,19 +2,24 @@ use super::*;
 use crate::texture_preview::BlockFormat;
 use serde_json::Map;
 
-/// `--textures-format=` values: every family by default — each device then
-/// streams the blocks it samples, and PNG is the last fallback —, one family
-/// when a cook targets one platform, or none, a measurement's "before".
+/// `--textures-format=` values: every family by default — each device then streams the blocks it
+/// samples, and PNG is the last fallback —, one family when a cook targets one platform, or none.
 const TEXTURE_FORMAT_OPTION: &str = "--textures-format=";
-const TEXTURE_FORMAT_DEFAULT: &str = "all";
+
+/// The values `--textures-format=` takes: `all`, each family's name (`BlockFormat::ALL`), `none`.
+fn texture_format_choices() -> Vec<&'static str> {
+    let families = BlockFormat::ALL.map(BlockFormat::name);
+    [&["all"][..], &families, &["none"]].concat()
+}
 
 fn texture_formats(value: &str) -> std::result::Result<Vec<BlockFormat>, String> {
+    let choices = texture_format_choices().join(" or ");
     match value {
         "all" => Ok(BlockFormat::ALL.to_vec()),
         "none" => Ok(Vec::new()),
         name => BlockFormat::named(name)
             .map(|format| vec![format])
-            .ok_or_else(|| "textures-format must be bc7, astc, etc2, all or none".to_string()),
+            .ok_or(format!("textures-format must be {choices}")),
     }
 }
 
@@ -43,8 +48,8 @@ pub fn positive(
     }
 }
 
-/// What a job takes for the fields it does not name: the command line's defaults, or a batch's
-/// scope, thread count and memory share.
+/// What a job takes for the fields it does not name: a batch's scope, thread count and memory
+/// share, or the command line's defaults (its every form names the scope: `SHORT_FORMS`).
 pub struct JobDefaults {
     pub scope: &'static str,
     pub threads: usize,
@@ -76,19 +81,15 @@ pub fn job_options(
     let number = |name: &str, default: usize| positive(job.get(name), default, name);
     let source = text(job_field::SOURCE).unwrap_or("");
     let cache = text(job_field::CACHE).unwrap_or("");
-    let resource_base = text(job_field::RESOURCE_BASE_URL).unwrap_or("");
-    if source.is_empty() || cache.is_empty() || resource_base.is_empty() {
-        return Err(format!(
-            "{}, {} and {} are required",
-            job_field::SOURCE,
-            job_field::CACHE,
-            job_field::RESOURCE_BASE_URL
-        ));
+    if source.is_empty() || cache.is_empty() {
+        let (source, cache) = (job_field::SOURCE, job_field::CACHE);
+        return Err(format!("{source} and {cache} are required"));
     }
     Ok(Options {
         source: PathBuf::from(source),
         cache: PathBuf::from(cache),
-        resource_base: resource_base.to_string(),
+        // An empty one is refused by the one check of a job's values (`compile`).
+        resource_base: text(job_field::RESOURCE_BASE_URL).unwrap_or("").to_string(),
         scope: text(job_field::SCOPE).unwrap_or(defaults.scope).to_string(),
         triangle_budget: number(job_field::TRIANGLE_BUDGET, DEFAULT_TRIANGLE_BUDGET)?,
         threads: number(job_field::THREADS, defaults.threads)?,
@@ -96,9 +97,7 @@ pub fn job_options(
         simplification: text(job_field::SIMPLIFICATION)
             .unwrap_or(SIMPLIFICATIONS[0])
             .to_string(),
-        texture_formats: texture_formats(
-            text(TEXTURES_FORMAT_FIELD).unwrap_or(TEXTURE_FORMAT_DEFAULT),
-        )?,
+        texture_formats: texture_formats(text(TEXTURES_FORMAT_FIELD).unwrap_or("all"))?,
         cancelled,
     })
 }
@@ -139,8 +138,9 @@ fn usage() -> String {
         })
         .collect();
     format!(
-        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}all|bc7|astc|etc2|none]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
+        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
         line.join(" "),
+        texture_format_choices().join("|"),
         job_field::SOURCE
     )
 }
