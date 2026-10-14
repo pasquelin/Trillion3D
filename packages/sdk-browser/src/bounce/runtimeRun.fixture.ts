@@ -52,14 +52,18 @@ const FUNCTIONS = [
 ]
 const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14, list: 8, store: 9 }
 
-/** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. */
+/** The store of the answers as the shader reads it: two layers of words a pixel, keyed by texel. It
+ *  answers its own loads and stores, as every texture the interpreter binds (`shaderRunBuiltins`). */
 export function makeStore() {
   const words = new Map<string, number>()
   const key = (at: number[], layer: number) => `${at[0]},${at[1]},${layer}`
+  const get = (at: number[], layer: number) => words.get(key(at, layer)) ?? 0
   return {
     words,
-    get: (at: number[], layer: number) => words.get(key(at, layer)) ?? 0,
-    set: (at: number[], layer: number, word: number) => void words.set(key(at, layer), word >>> 0),
+    get,
+    load: (at: number[], layer: number) => [get(at, layer), 0, 0, 0],
+    store: (at: number[], layer: number, value: number[]) =>
+      void words.set(key(at, layer), value[0] >>> 0),
   }
 }
 export type Store = ReturnType<typeof makeStore>
@@ -115,8 +119,6 @@ export function runOver(
     rtGroup: [0, 0, 0],
     traceList: list,
     rtStore: store,
-    textureLoad: (t: Store, at: number[], layer: number) => [t.get(at, layer), 0, 0, 0],
-    textureStore: (t: Store, at: number[], layer: number, v: number[]) => t.set(at, layer, v[0]),
     reflectionView: { runtime: [epoch, 0, 0, 0] },
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,

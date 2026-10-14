@@ -22,7 +22,7 @@ export async function floorProbes(tiled = false) {
   const worlds = texel('rgba32uint'),
     tree = texel('r32uint')
   const scene = {
-    proxy: () => ({ buffer: lights, worlds, tree }),
+    proxy: () => ({ buffer: lights, worlds, tree, writes: 0 }),
     boxes: () => ({
       boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]),
       moved: { count: 0, pairs: new Int32Array(0) },
