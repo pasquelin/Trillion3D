@@ -28,7 +28,6 @@ export const NODE_TABLE: RecordLayout = {
 export const nodeTableWgsl = (name: string, binding: Omit<RecordBinding, 'name' | 'access'>) =>
   wgslBlock(
     `nodeTable(${name}, ${binding.group}, ${binding.binding})`,
-    [recordTextureWgsl(NODE_TABLE, { name, ...binding, access: 'read' })],
-    `fn ${name}Word(i:u32,k:u32)->u32{return ${name}Node(i,k>>2u)[k&3u];}
-${nodeCornersWgsl(name)}`,
+    [recordTextureWgsl(NODE_TABLE, { name, ...binding, access: 'read' }), nodeCornersWgsl(name)],
+    `fn ${name}Word(i:u32,k:u32)->u32{return ${name}Node(i,k>>2u)[k&3u];}`,
   )

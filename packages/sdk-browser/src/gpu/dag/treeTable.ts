@@ -43,9 +43,8 @@ export function treeTableWgsl(name: string, binding: Omit<RecordBinding, 'name'>
   const written = binding.access === 'read_write'
   return wgslBlock(
     `treeTable(${name}, ${binding.group}, ${binding.binding}, ${binding.access})`,
-    [recordTextureWgsl(TREE_TABLE, { name, ...binding })],
+    [recordTextureWgsl(TREE_TABLE, { name, ...binding }), nodeCornersWgsl(name)],
     `fn ${name}Word(n:u32,k:u32)->u32{return ${name}Node(n,k).x;}
-${nodeCornersWgsl(name)}
 fn ${name}Member(k:u32)->u32{return ${name}Members(k/${TREE_SPAN}u,k%${TREE_SPAN}u).x;}
 fn ${name}AlwaysAt(j:u32)->u32{return ${name}Always(j/${TREE_SPAN}u,j%${TREE_SPAN}u).x;}
 ${written ? `fn ${name}SetWord(n:u32,k:u32,v:u32){${name}NodeStore(n,k,vec4u(v,0u,0u,0u));}` : ''}`,

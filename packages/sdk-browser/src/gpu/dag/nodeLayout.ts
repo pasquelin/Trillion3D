@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /** Packed-node ranks, in the order `struct CullNode` of the shader declares them. `packNodes.ts`
  *  writes them; the shader, the oracle (`oracle/math.fixture.ts`) and frontier counting reread
  *  them. They are declared only here: a moved field cannot leave a reader behind. */
@@ -25,9 +27,13 @@ export const NODE_PAD = 23
  *  `<name>Word(n,k)` of the table `name` names: the one corner reader of every walk, emitted by each
  *  table a node lies in (`nodeTable.ts`, `treeTable.ts`). */
 export const nodeCornersWgsl = (name: string) =>
-  [NODE_MIN, NODE_MAX]
-    .map(
-      (k, i) =>
-        `fn ${name}${i ? 'High' : 'Low'}(n:u32)->vec3f{return bitcast<vec3f>(vec3u(${name}Word(n,${k}u),${name}Word(n,${k + 1}u),${name}Word(n,${k + 2}u)));}`,
-    )
-    .join('\n')
+  wgslBlock(
+    `nodeCorners(${name})`,
+    [],
+    [NODE_MIN, NODE_MAX]
+      .map(
+        (k, i) =>
+          `fn ${name}${i ? 'High' : 'Low'}(n:u32)->vec3f{return bitcast<vec3f>(vec3u(${name}Word(n,${k}u),${name}Word(n,${k + 1}u),${name}Word(n,${k + 2}u)));}`,
+      )
+      .join('\n'),
+  )
