@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 
 /**
  * THE HALF-RESOLUTION GRIDS OF A SURFACE, a texel a 2×2 block of the view's pixels (`traceHalf.ts`), in
@@ -37,7 +38,7 @@ export const createKernelTexture = (
     label,
     size,
     format,
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    usage: loadOnlyUsage(),
   })
 
 /** A surface's half grids of `size` texels (`GRIDS`), each written by one kernel and read by the next. */
