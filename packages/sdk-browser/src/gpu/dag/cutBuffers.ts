@@ -96,11 +96,12 @@ export function cutTexture(
   bytes: number,
   old?: GPUTexture,
 ) {
-  const at = old ? cut.textures.findIndex((held) => held.texture === old) : -1
+  const textures: { texture: GPUTexture; bytes: number }[] = cut.textures
+  const at = old ? textures.findIndex((held) => held.texture === old) : -1
   const made = { label: descriptor.label, bytes },
-    freed = at >= 0 ? cut.textures[at].bytes : 0
+    freed = at >= 0 ? textures[at].bytes : 0
   const texture = admitInto(cut, made, () => cut.device.createTexture(descriptor), freed)
-  if (at >= 0) cut.textures.splice(at, 1, { texture, bytes })
-  else cut.textures.push({ texture, bytes })
+  if (at >= 0) textures.splice(at, 1, { texture, bytes })
+  else textures.push({ texture, bytes })
   return texture
 }
