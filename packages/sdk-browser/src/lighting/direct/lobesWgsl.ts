@@ -144,7 +144,7 @@ fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
 )
 
 /** The read of a pixel's lobes from the lobes target, a read-only storage texture: no sampled
- *  texture of the sixteen a stage is guaranteed (`../deferred/setup.ts`). `readLobes`, the opaque
+ *  texture of the sixteen a stage is guaranteed (`../deferred/layoutEntries.ts`). `readLobes`, the opaque
  *  resolve's, reads the pixel's texel as it is stored. */
 export const LOBES_TARGET_WGSL = wgslBlock(
   'LOBES_TARGET_WGSL',

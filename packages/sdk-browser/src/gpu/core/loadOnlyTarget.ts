@@ -3,7 +3,7 @@ import { textureBytesOf } from './textureBytes.ts'
 /**
  * A target a fragment stage reads by load alone — the subsurface, the lobes —, bound as a read-only storage texture: `textureLoad` returns the stored values
  * exactly, and none of the sixteen sampled textures a stage is guaranteed is spent on it
- * (`../../lighting/deferred/setup.ts`). Its WGSL declaration of `name` at `binding`, and its layout
+ * (`../../lighting/deferred/layoutEntries.ts`). Its WGSL declaration of `name` at `binding`, and its layout
  * entry — the bind groups name `binding` by the caller's own constant —; the texture that backs it
  * carries `STORAGE_BINDING`, which its allocator owns (`loadOnlyUsage`). Read-only storage textures
  * ask the WGSL language feature `readonly_and_readwrite_storage_textures`

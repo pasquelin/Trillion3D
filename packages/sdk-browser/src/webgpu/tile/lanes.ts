@@ -1,4 +1,5 @@
 import { arrayView } from '../../gpu/core/textureViews.ts'
+import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts'
 import type { WebgpuTilePageTable } from './pageTable.ts'
@@ -45,15 +46,16 @@ export function createTileLanes(
     })
   for (const lane of PREVIEW_LAYOUT_NAMES)
     if (options.layers[lane] > 0) open(lane, options.layers[lane])
-  const standInTexture = device.createTexture({
-    label: `Trillion3D texture pool ${kind} stand-in`,
-    size: { width: 4, height: 4, depthOrArrayLayers: 1 },
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-  })
-  const white = new Uint8Array(4 * 4 * 4).fill(255)
-  device.queue.writeTexture({ texture: standInTexture }, white, { bytesPerRow: 16 }, [4, 4])
-  const standIn = arrayView(standInTexture)
+  const standInWhite = standInTexture(
+    device,
+    `Trillion3D texture pool ${kind} stand-in`,
+    'rgba8unorm',
+    {
+      side: 4,
+      fill: 255,
+    },
+  )
+  const standIn = arrayView(standInWhite)
   const views = () => PREVIEW_LAYOUT_NAMES.map((lane) => lanes.get(lane)?.pool.view ?? standIn)
   const pools = () => [...lanes.values()].map((lane) => lane.pool)
   return {
@@ -101,7 +103,7 @@ export function createTileLanes(
     },
     destroy() {
       for (const lane of lanes.values()) lane.pool.destroy()
-      standInTexture.destroy()
+      standInWhite.destroy()
     },
   }
 }

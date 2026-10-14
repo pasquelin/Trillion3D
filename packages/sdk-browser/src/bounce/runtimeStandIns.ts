@@ -1,5 +1,6 @@
 import { RUNTIME_HEADER_WORDS } from './runtimeLayout.ts'
 import { arrayView } from '../gpu/core/textureViews.ts'
+import { standInTexture } from '../gpu/core/standInTexture.ts'
 import { WORLD_TABLE } from '../gpu/dag/worldTable.ts'
 import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
 
@@ -17,11 +18,13 @@ export function runtimeStandIns(device: GPUDevice) {
     size: (RUNTIME_HEADER_WORDS + 1) * 4,
     usage: GPUBufferUsage.STORAGE,
   })
-  const texel = (label: string, format: GPUTextureFormat) =>
-    device.createTexture({ label, size: [1, 1, 1], format, usage: GPUTextureUsage.TEXTURE_BINDING })
   // Each a texel of its table's own format.
-  const worlds = texel('Trillion3D empty run-time proxy worlds', WORLD_TABLE.format),
-    tree = texel('Trillion3D empty run-time proxy tree', TREE_TABLE.format)
+  const worlds = standInTexture(
+      device,
+      'Trillion3D empty run-time proxy worlds',
+      WORLD_TABLE.format,
+    ),
+    tree = standInTexture(device, 'Trillion3D empty run-time proxy tree', TREE_TABLE.format)
   return {
     runtime,
     runtimeWorlds: arrayView(worlds),
