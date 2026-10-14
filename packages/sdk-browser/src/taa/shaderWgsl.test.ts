@@ -37,7 +37,7 @@ test('the temporal shader assembles each fragment once, on the shared page recor
   assert.equal(words[PAGE_INFO.at.placement], 'placement')
   assert.match(
     TAA_REPROJECT_WGSL,
-    /fn placementOf\(id:u32\)->u32\{return pages\[\(id>>8u\)-1u\]\.placement;\}/,
+    /fn placementOf\(id:u32\)->u32\{return pages\[visPageIndex\(id\)\]\.placement;\}/,
   )
   assert.match(TAA_REPROJECT_WGSL, /motion\[placementOf\(id\)\]/)
 })

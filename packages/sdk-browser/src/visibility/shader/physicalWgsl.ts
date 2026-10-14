@@ -13,6 +13,7 @@ import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
 import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { unitToSigned2, unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { bitIsSet } from '../../../../math/src/wgsl/integer.ts'
+import { FLAG_LIT } from '../types.ts'
 
 /**
  * The anisotropic and clear-coat lobes of a surface, from the Khronos material extension equations:
@@ -185,6 +186,6 @@ export const PHYSICAL_UV_READ = `var lobes=0u;
  }`
 
 /** The lobes of a lit pixel, once its normal and its flag are final. */
-export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&physicalOn&&(page.flags&1u)!=0u){
+export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&physicalOn&&(page.flags&${FLAG_LIT}u)!=0u){
   flag|=physicalLobes(pos.xy,N,coatBase,(w1-w0).xyz,(w2-w0).xyz,screenFace,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL));
  }`

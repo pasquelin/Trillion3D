@@ -9,6 +9,7 @@ import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
+import { FLAG_BACK } from '../types.ts'
 /**
  * How the surface resolve places a pixel on its triangle, shared by the resolve (`shadeWgsl.ts`)
  * and the shadow receiver offset its readers recompute (`receiverOffsetWgsl.ts`): one text,
@@ -67,7 +68,7 @@ fn decodeCorners(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,shape:Pa
  // A line page's triangle is the quad the rasters widened (\`pageLine\`): its corners are read the same way.
  if(shape.lineWidth>0.0){let vp=uni.viewProj*page.world;let width=shape.lineWidth;c0=pageLine(page,h,i0,vp,c0,width);c1=pageLine(page,h,i1,vp,c1,width);c2=pageLine(page,h,i2,vp,c2,width);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
- let n=transformedNormals(page,h,corners,invT,select(1.0,-1.0,(page.flags&256u)!=0u));
+ let n=transformedNormals(page,h,corners,invT,select(1.0,-1.0,(page.flags&${FLAG_BACK}u)!=0u));
  return PixelTriangle(vec4f(s0.xy,c0.zw),vec4f(s1.xy,c1.zw),vec4f(s2.xy,c2.zw),w0,w1,w2,n[0],n[1],n[2],vec2f(0.0),vec2f(0.0),vec2f(0.0),vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w));
 }`,
 )

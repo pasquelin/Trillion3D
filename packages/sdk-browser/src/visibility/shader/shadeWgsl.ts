@@ -25,9 +25,10 @@ import {
 } from '../../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
-import { FLAG_FOG_FREE, FLAG_LINE, FLAG_SPRITE } from '../types.ts'
+import { FLAG_BACK, FLAG_FOG_FREE, FLAG_LINE, FLAG_LIT, FLAG_SPRITE } from '../types.ts'
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
+import { visPageIndex, visTriangle } from '../visWords.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -40,8 +41,8 @@ export const shadeShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
     `/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables of
  *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
- let pageIndex=(id>>8u)-1u;
- let tri=id&0xffu;
+ let pageIndex=visPageIndex(id);
+ let tri=visTriangle(id);
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let m=materialAt(page.material);
@@ -118,7 +119,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   // (\`composeRowFrame\`) yields exactly that at a zero determinant — face y is screenFace — like
   // matrixWindingCw on the CPU.
   let face=screenFace*select(-1.0,1.0,rowFrame(pageIndex,page.world).positive);
-  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
+  let side=select(1.0,-1.0,(page.flags&${FLAG_BACK}u)!=0u);
   // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
   // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): the arithmetic the
@@ -158,11 +159,11 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
  if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
- var flag=select(1u,${MODEL_FLAG.physical}u,(page.flags&1u)!=0u);
+ var flag=select(1u,${MODEL_FLAG.physical}u,(page.flags&${FLAG_LIT}u)!=0u);
  if(flag==${MODEL_FLAG.physical}u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==${MODEL_FLAG.physical}u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
- if(DOUBLE_SIDED&&(page.flags&1u)!=0u){
+ if(DOUBLE_SIDED&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
   if(HAS_UV&&m.subsurfaceMap!=0u){thin*=colorSample(m.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
@@ -188,6 +189,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       faceNormal,
       SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
       unitToSigned3,
+      visPageIndex,
+      visTriangle,
       ...(diagnostic ? [diagnostic] : []),
     ],
   )

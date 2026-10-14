@@ -1,5 +1,5 @@
 import { VIS_UNIFORM } from './uniformLayout.ts'
-import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
+import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
@@ -125,7 +125,7 @@ export const maskKeepWgsl = (maskAlpha: WgslDecl) =>
     `maskKeepWgsl(${maskAlpha.name})`,
     [maskAlpha, LINE_DASH_WGSL, materialTableWgsl(VIS_BINDINGS.material)],
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
- if((page.flags&128u)==0u){return true;}
+ if((page.flags&${FLAG_MASK}u)==0u){return true;}
  let m=materialAt(page.material);
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
@@ -135,7 +135,7 @@ export const maskKeepWgsl = (maskAlpha: WgslDecl) =>
  // A row that reads no colour is cut by its base map alone, never by an interpolated one, which
  // need not round back to one exactly. Without a map, its opacity still cuts it.
  let coloured=(page.flags&${FLAG_HAS_COLOR}u)!=0u;
- if((page.flags&8u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}
+ if((page.flags&${FLAG_HAS_MAP}u)==0u){return select(1.0,vertexAlpha,coloured)*coverage>=m.cut;}
  // Levels of the chain take the MEDIAN of alpha, never its mean: a coarse texel passes the
  // threshold when half of what it covers passed it, so threshold coverage crosses the levels and
  // the cutout stays right at every level. A mean, itself, made the silhouette grow level after

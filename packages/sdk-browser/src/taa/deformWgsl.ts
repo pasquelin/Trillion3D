@@ -4,6 +4,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { planeBarycentric } from '../../../math/src/wgsl/barycentric.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+import { visPageIndex, visTriangle } from '../visibility/visWords.ts'
 
 /**
  * Per-vertex motion of a deformed surface: where the last frame drew the surface point a
@@ -15,15 +16,22 @@ import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
  */
 export const TAA_DEFORM_WGSL = wgslBlock(
   'TAA_DEFORM_WGSL',
-  [PAGE_GEOMETRY_WGSL, worldMatrix3, planeBarycentric, perspectiveDivide],
+  [
+    PAGE_GEOMETRY_WGSL,
+    worldMatrix3,
+    planeBarycentric,
+    perspectiveDivide,
+    visPageIndex,
+    visTriangle,
+  ],
   `
 /** \`position\`, the homogeneous point of identifier \`id\` relative to the eye, where its surface
  *  stood in the last frame: untouched off a deformed row. */
 fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  if(${NO_PAGE_ID}){return position;}
- let page=pages[(id>>8u)-1u];
+ let page=pages[visPageIndex(id)];
  if(page.deformOutput==0u){return position;}
- let h=pageHeaderFor(page,false);let corners=pageTriangle(page,h,id&0xffu);
+ let h=pageHeaderFor(page,false);let corners=pageTriangle(page,h,visTriangle(id));
  let m=worldMatrix3(page.world);
  let t=page.world[3].xyz-view.eye.xyz;
  let c0=pagePosition(page,h,corners.x);let c1=pagePosition(page,h,corners.y);let c2=pagePosition(page,h,corners.z);

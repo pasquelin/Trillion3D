@@ -2,13 +2,12 @@ import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import * as layer from './layers.ts'
 import { BINDINGS_WGSL, shareBindingsWgsl } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
-import { NO_PAGE_ID } from './pageIdWgsl.ts'
+import { NO_PAGE_ID, PAGE_OF_WGSL } from './pageIdWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
   CURRENT_SHARE_WGSL,
   HISTORY_CAP_WGSL,
   HISTORY_TEXEL_WGSL,
-  PAGE_OF_WGSL,
   shareText,
   taaHistoryBlend,
 } from './historyWgsl.ts'
@@ -25,6 +24,7 @@ import { GEOMETRY_HISTORY_WGSL, CLOSEST_SURFACE_WGSL } from './geometryHistoryWg
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 import { RANGE_BOUND } from '../../../math/src/wgsl/constants.ts'
 import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
+import { visPageIndex } from '../visibility/visWords.ts'
 
 /** One neighbour's luma into the 3×3 blur (1, ½, ¼ for centre, sides and corners, over sixteen) and
  *  into the luma's slopes across it (a Sobel pair, over eight), in both resolves: the blurred luma
@@ -57,9 +57,9 @@ export const texelReads = (blended: boolean): TexelReads => ({
  */
 const TAA_REPROJECT_WGSL = wgslBlock(
   'TAA_REPROJECT_WGSL',
-  [TAA_DEFORM_WGSL, pixelToNdc, clipToUv, transformHomogeneousPoint],
+  [TAA_DEFORM_WGSL, pixelToNdc, clipToUv, transformHomogeneousPoint, visPageIndex],
   `
-fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
+fn placementOf(id:u32)->u32{return pages[visPageIndex(id)].placement;}
 fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
  let ndc=pixelToNdc(vec2f(coord)+0.5,view.viewport.xy);
  return transformHomogeneousPoint(view.invViewProj,vec3f(ndc,depthValue));
