@@ -169,7 +169,8 @@ test("the cut's programs fit WebGPU's default limits, whatever the world", () =>
 test('a device whose binding holds two thirds of the frame words binds the cut at the defaults', () => {
   // The frame-ranges proof's split case (`tests/gpu/dag/frame-ranges.gpu.ts`): its binding holds
   // two thirds of 600 placements' frame words, once past what its stage bound in parts, and
-  // `work` whole — the eviction sort's words and scratch, 24.6 KB whatever the pages.
+  // `work` whole: 8,704 bytes for a thousand pages — sixteen blocks of six words, thirty counters
+  // and rows, the eviction sort's 2,050 words (`POOL_SORT_WORDS`); its scratch lies in `flags`.
   const packed = {
     pageCount: 1000,
     nodeCount: 10,
@@ -178,7 +179,7 @@ test('a device whose binding holds two thirds of the frame words binds the cut a
       ['clusters', 'nodes', 'worlds', 'pageCones'].map((name) => [name, new Float32Array(16)]),
     ),
   } as unknown as PackedDag
-  const limits = { maxStorageBufferBindingSize: 800 * 32, ...WEBGPU_DEFAULTS }
+  const limits = { maxStorageBufferBindingSize: 400 * 32, ...WEBGPU_DEFAULTS }
   assert.equal(dagDeviceRefusal(limits, packed), undefined, 'the device holds the cut')
   withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
 })
