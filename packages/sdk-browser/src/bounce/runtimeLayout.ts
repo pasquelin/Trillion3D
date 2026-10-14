@@ -94,8 +94,9 @@ export const RAY_THROUGH_FLOOR = 0.02
 export const RAY_ERROR_FLOOR = 1e-3
 /**
  * THE FRAME'S COUNTERS OF THE REFLECTION TRACE, in its list (`TRACE_LIST`): the tiles the classification
- * listed and the work units the proxy's rays spent — every ray cast in its frame, the proxy budget's number
- * (`ProxyBudget`) —, then the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
+ * listed and the work units the proxy's rays spent — every ray cast in its frame, read by the GPU proofs
+ * alone (`tests/gpu/reflections/`): the proxy budget observes durations (`ProxyBudget`) —, then the list
+ * itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
  */
 export const TRACE_LIST = { count: 0, spent: 1 } as const
 export const TRACE_LIST_FIRST = 2

@@ -142,7 +142,8 @@ export type RuntimeBindings = SceneBindings & { list: number }
  * THE RUN-TIME PROXY'S RAYS OF A TRACE, COUNTED: the radiance above, every ray cast in its frame — no answer kept
  * from one image to the next, no frame budget cutting a ray —, and the work each spends summed over the
  * workgroup and sent once to the frame's counter (`rtShare`, called by every invocation of the trace at its end):
- * one global atomic a workgroup, never one a pixel. That counter is the proxy budget's number (`ProxyBudget`).
+ * one global atomic a workgroup, never one a pixel. That counter is read by the GPU proofs alone; the proxy
+ * budget observes durations (`ProxyBudget`).
  */
 export const runtimeTraceWgsl = ({ list, ...scene }: RuntimeBindings) =>
   wgslBlock(
