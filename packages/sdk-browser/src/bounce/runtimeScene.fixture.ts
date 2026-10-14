@@ -1,6 +1,6 @@
 // The scene the run-time proxy's tests run over: cubes turned and stretched, packed with the culling's
-// tree, the proxy's buffer and instances as the shader reads them, and the culling's record tables it
-// reads beside them: the worlds and the placement tree.
+// tree, the proxy's buffer as the shader reads it, and the culling's record tables it reads beside it:
+// the worlds, whose `Instance` field holds the instances, and the placement tree.
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { scenePages, sceneRoots } from '../gpu/dag/cutFrontierScene.fixture.ts'
@@ -32,8 +32,8 @@ export function cubeCut() {
 
 /** `count` cubes turned and stretched, packed with the culling's tree, the run-time proxy's buffer
  *  over them as the shader reads it — the copies' worlds, the surfaces, then the cut's columns —,
- *  its instances' table (`instances`), and the culling's record tables the trace reads beside it:
- *  `worlds` and `tree`. */
+ *  and the culling's record tables the trace reads beside it: `worlds`, the instances in its
+ *  `Instance` field, and `tree`. */
 export function world(
   count: number,
   seed: number,
