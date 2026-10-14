@@ -14,10 +14,11 @@ import { EVICTION_BURST } from './readoutWords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const LIMIT = 64 << 10
-/** A thousand pages over ten nodes and ten primitives, `big` past one 64 KiB binding. */
-const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones') =>
+/** `pageCount` pages, a thousand unless named, over ten nodes and ten primitives, `big` past one
+ *  64 KiB binding. */
+const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones', pageCount = 1000) =>
   ({
-    pageCount: 1000,
+    pageCount,
     nodeCount: 10,
     worldCount: 10,
     ...Object.fromEntries(
@@ -44,8 +45,8 @@ test('every table past one binding is a record table: two storage buffers, whate
   )
   // The flags too: a list starts within one binding's worth and grows no further
   // (`flagSectionCaps`); queue 0 keeps a root slot a placement past it, in its record table. The
-  // binding holds `work` — the eviction sort's counts and places, whatever the pages — and no more.
-  const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
+  // binding holds `work` — the eviction sort's words and scratch, whatever the pages — and no more.
+  const roots = { ...dag(), worldCount: 4000, nodeCount: 4000 }
   const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
   const { shape } = cameraCutBuffers(roots, section)
   assert.ok(
@@ -56,24 +57,26 @@ test('every table past one binding is a record table: two storage buffers, whate
 })
 
 test('`work` holds no word per page: a binding past one list section holds the cut', () => {
-  // 12,000 bytes the live list of `flags`; the kept lists' ranks follow the readout's list
-  // (`keptRanks.ts`), never the pages.
-  const limits = { maxStorageBufferBindingSize: 12000 }
-  assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'each list its own ranks')
-  const rows = cameraCutBuffers(dag(), limits).rows
+  // Three thousand pages: 36,000 bytes the live list of `flags`, past `work` and its eviction
+  // sort's scratch; the kept lists' ranks follow the readout's list (`keptRanks.ts`), never the
+  // pages.
+  const pages = dag(undefined, 3000)
+  const limits = { maxStorageBufferBindingSize: 36000 }
+  assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
+  const rows = cameraCutBuffers(pages, limits).rows
   // Past the eviction sort's words and scratch, a constant whatever the pages (`POOL_SORT_WORDS`).
   const sortWords = POOL_SORT_WORDS + poolScratchWords(SELECTION_LIST_CAP, EVICTION_BURST)
   const perPages = rows.work.size - 4 * sortWords
-  assert.ok(perPages < 1000, `\`work\` is ${perPages} bytes for a thousand pages`)
+  assert.ok(perPages < 3000, `\`work\` is ${perPages} bytes for three thousand pages`)
   assert.deepEqual(
     Object.keys(rows).filter((name) => name.startsWith('ranks')),
     [],
     'no ranks',
   )
   // One live word past the binding: the lists start one entry shorter, and grow no further.
-  const narrow = { ...limits, maxStorageBufferBindingSize: 11996 }
-  assert.equal(dagDeviceRefusal(narrow, dag()), undefined, 'the lists start within the binding')
-  assert.equal(cameraCutBuffers(dag(), narrow).shape.candCap, 999)
+  const narrow = { ...limits, maxStorageBufferBindingSize: 35996 }
+  assert.equal(dagDeviceRefusal(narrow, pages), undefined, 'the lists start within the binding')
+  assert.equal(cameraCutBuffers(pages, narrow).shape.candCap, 2999)
 })
 
 test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {
