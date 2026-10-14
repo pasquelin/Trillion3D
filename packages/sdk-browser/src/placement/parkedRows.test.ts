@@ -28,16 +28,25 @@ test('a parked caster written again within a float32 step stales no page, frame 
     rows.matrices.set(pose)
     updateWebgpuPlacements(rt, rows, 0, 0)
   }
-  const asked = () => rt.rowWords?.roots.length ?? 0
+  // The roots named to the rows pass since the last look, taken as its follow takes them: a root
+  // is listed once a follow (`deriveRootRows`).
+  const asked = () => {
+    const words = rt.rowWords
+    if (!words) return 0
+    const count = words.roots.length
+    for (const rank of words.roots) words.rootListed[rank] = 0
+    words.roots.length = 0
+    return count
+  }
   // Its first move: it turns moving, its rows' change asked.
   write(40.001)
   assert.equal(asked(), 1, 'its first move')
   assert.equal(rt.lights.mobility.moves(0), true)
   // Parked: a hundred frames of the same pose, rounded again by less than a float32 step.
   for (let frame = 0; frame < 100; frame++) write(40.001 + (frame % 2) * 1e-6, (frame % 3) * 1e-9)
-  assert.equal(asked(), 1, 'parked: no change asked')
+  assert.equal(asked(), 0, 'parked: no change asked')
   // Driven on a millimetre: its change asked again, a moving caster's.
   write(40.002)
-  assert.equal(asked(), 2, 'a millimetre asks its change')
+  assert.equal(asked(), 1, 'a millimetre asks its change')
   assert.deepEqual(motions, [], 'no box declared on the CPU')
 })
