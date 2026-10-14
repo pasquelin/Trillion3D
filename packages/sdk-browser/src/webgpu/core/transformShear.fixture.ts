@@ -78,7 +78,7 @@ export function runtime(
     setup: { source, worlds },
     layout,
     run,
-    blendState: { occlusionEpoch: 0 },
+    blendState: { occlusionEpoch: 0, blendIndex: { revision: 0 } },
     // No deformation: a host write has no staleness to forget.
     vis: {},
     lights: {

@@ -67,7 +67,7 @@ function banc() {
   const rows = { tableEpoch: 0 }
   const rt = {
     setup: { source, worlds },
-    layout: { selectionRoots: [], rows },
+    layout: { selectionRoots: [], rootIndex: { revision: 0 }, rows },
     run: { gate, noOccluderHistory: false },
     lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime

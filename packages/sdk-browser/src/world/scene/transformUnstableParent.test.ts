@@ -46,7 +46,7 @@ function banc() {
   run.noOccluderHistory = false
   const rt = {
     setup: { source, worlds },
-    layout: { selectionRoots: [], rows: { tableEpoch: 0 } },
+    layout: { selectionRoots: [], rootIndex: { revision: 0 }, rows: { tableEpoch: 0 } },
     run,
     lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime
