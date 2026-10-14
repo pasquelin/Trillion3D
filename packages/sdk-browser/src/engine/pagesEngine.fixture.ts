@@ -44,7 +44,7 @@ export function dagRoots<T extends Cluster>(pages: T[], starts?: number[]) {
 export const exactPrimitive = <R extends ReturnType<typeof dagRoots>>(roots: R, mesh = 0) => ({
   mesh,
   primitive: 0,
-  pass: 'exact-clusters' as const,
+  pass: 'exact-clusters',
   pages: roots.pages,
   structure: roots.structure,
   culling: roots.culling,
