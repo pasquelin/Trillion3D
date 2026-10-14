@@ -106,17 +106,9 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
 /** Bytes of the front depth of a view at `width × height` (`frontDescriptors`). */
 export function frontBytes(width: number, height: number, blends: boolean) {
   const { written, carried } = frontDescriptors(width, height, blends)
-  return (
-    textureBytesOf(written)! +
-    (carried
-      ? carried.buffer.size +
-        carried.rect.size +
-        carried.waterRect.size +
-        carried.waterArgs.size +
-        carried.box.size +
-        carried.args.size
-      : 0)
-  )
+  let bytes = textureBytesOf(written)!
+  if (carried) for (const { size } of Object.values(carried)) bytes += size
+  return bytes
 }
 
 /** The boxes as a view's front depth starts them: this image's and the last one's empty. */
@@ -139,14 +131,12 @@ export function createFrontDepth(
 ) {
   const descriptors = frontDescriptors(width, height, blends)
   const written = device.createTexture(descriptors.written)
-  const carried = descriptors.carried && {
-    buffer: device.createBuffer(descriptors.carried.buffer),
-    rect: device.createBuffer(descriptors.carried.rect),
-    waterRect: device.createBuffer(descriptors.carried.waterRect),
-    waterArgs: device.createBuffer(descriptors.carried.waterArgs),
-    box: device.createBuffer(descriptors.carried.box),
-    args: device.createBuffer(descriptors.carried.args),
-  }
+  // Every buffer its one descriptor record names, made, counted and destroyed from that record.
+  const carried =
+    descriptors.carried &&
+    (Object.fromEntries(
+      Object.entries(descriptors.carried).map(([name, made]) => [name, device.createBuffer(made)]),
+    ) as Record<keyof NonNullable<typeof descriptors.carried>, GPUBuffer>)
   // Both boxes start empty: no image reached a pixel yet.
   if (carried) device.queue.writeBuffer(carried.box, 0, EMPTY_BOXES)
   const view = written.createView()
@@ -185,12 +175,7 @@ export function createFrontDepth(
     },
     dispose() {
       written.destroy()
-      carried?.buffer.destroy()
-      carried?.rect.destroy()
-      carried?.waterRect.destroy()
-      carried?.waterArgs.destroy()
-      carried?.box.destroy()
-      carried?.args.destroy()
+      if (carried) for (const buffer of Object.values(carried)) buffer.destroy()
     },
   }
 }
