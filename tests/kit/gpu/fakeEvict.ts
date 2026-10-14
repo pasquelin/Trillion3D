@@ -1,6 +1,6 @@
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
@@ -30,7 +30,7 @@ import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
  *  block carries, the words live in `work`. */
 export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
   const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>
-    words(byBinding.get(DAG_BINDING[name])!.data),
+    words(byBinding.get(dagBindingOf()[name])!.data),
   )
   const layout = dagWorkLayout(ceilDiv(packed.pageCount, WORKGROUP_THREADS), packed.groupCount),
     lastUse = work.subarray(layout.lastUse, layout.lastUse + packed.groupCount),
@@ -64,7 +64,7 @@ export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
 /** `dagSortRequests`: the staged requests' pages into the sample, by rank, through the kernel's
  *  mirror; each waits as two words, its page then its priority. */
 export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>, listCap: number) {
-  const ints = words(byBinding.get(DAG_BINDING.out)!.data),
+  const ints = words(byBinding.get(dagBindingOf().out)!.data),
     at = L.residentReadbackBytes(listCap) / 4,
     count = Math.min(ints[0], listCap)
   const staged = Array.from({ length: count }, (_, s) =>

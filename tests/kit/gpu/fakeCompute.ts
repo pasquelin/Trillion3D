@@ -1,6 +1,6 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
 import {
@@ -108,9 +108,9 @@ export function simulateComputeDispatch(
   // A tile pool's queue, on its sort's own group (`fakeTileEvict.ts`).
   if (stage === 'poolScatter' && isTileSort(computeBind.entries))
     return fakeTileSort(computeBind.entries, offsets)
-  // The selection binds one table per `DAG_BINDING` slot: one missing is a validation error. The
+  // The selection binds one table per `dagBindingOf` name: one missing is a validation error. The
   // pool sort's last dispatch is the geometry queue's only on the selection's group.
-  const slots = Object.keys(DAG_BINDING).length
+  const slots = Object.keys(dagBindingOf()).length
   if (stage === 'poolScatter' && computeBind.entries.length !== slots) return
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
@@ -118,8 +118,8 @@ export function simulateComputeDispatch(
   const byBinding = new Map(computeBind.entries.map((e) => [e.binding, boundData(e.resource)]))
   const bound = (binding: number) =>
     computeBind.entries.find((e) => e.binding === binding)!.resource
-  const boundWorlds = bound(DAG_BINDING.worlds),
-    boundFrames = bound(DAG_BINDING.frames)
+  const boundWorlds = bound(dagBindingOf().worlds),
+    boundFrames = bound(dagBindingOf().frames)
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
   const dag = packed ?? packedFromBindings(byBinding, boundWorlds, boundFrames),
     listCap = boundListCap(byBinding)
@@ -131,16 +131,16 @@ export function simulateComputeDispatch(
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
-      byBinding.get(DAG_BINDING.work)!.data,
-      byBinding.get(DAG_BINDING.out)!.data,
+      byBinding.get(dagBindingOf().work)!.data,
+      byBinding.get(dagBindingOf().out)!.data,
       dag.pageCount,
     )
   if (stage === 'dagCommitMask') return commitMask(byBinding, dag.pageCount)
   if (stage !== 'dagMask') return
-  const { uniforms } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data)
+  const { uniforms } = readDagUniforms(byBinding.get(dagBindingOf().views)!.data)
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
-  const cold = words(byBinding.get(DAG_BINDING.cold)!.data)
+  const cold = words(byBinding.get(dagBindingOf().cold)!.data)
   const resident = {
     ready: residentFlags(cold, dag.pageCount),
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
@@ -151,7 +151,7 @@ export function simulateComputeDispatch(
   // translation — two frames in one formula, and not a single page kept.
   const worlds = worldsAtEye(
     viewTexture(boundWorlds),
-    byBinding.get(DAG_BINDING.views)!.data,
+    byBinding.get(dagBindingOf().views)!.data,
     dag.worlds.length,
   )
   // So is each primitive's root, behind its stretch in the frame words: a parked one is NONE
@@ -163,10 +163,10 @@ export function simulateComputeDispatch(
     result.aheadPageIds,
   )
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
-  const mask = writtenMask(byBinding.get(DAG_BINDING.work)!.data, dag.pageCount)
+  const mask = writtenMask(byBinding.get(dagBindingOf().work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
   for (const id of result.drawablePageIds ?? []) setBit(mask, id)
-  const ints = words(byBinding.get(DAG_BINDING.out)!.data)
+  const ints = words(byBinding.get(dagBindingOf().out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
   writeTriangleTotals(ints, result)
@@ -178,7 +178,7 @@ export function simulateComputeDispatch(
   // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
   ints[3] = list.length > listCap ? 1 : 0
   // Past a queue's entries or a list's, the kernel drops work: the cut is not drawn.
-  const views = words(byBinding.get(DAG_BINDING.views)!.data),
+  const views = words(byBinding.get(dagBindingOf().views)!.data),
     { levels, candidates, live } = result.work
   const entries = views[viewWord('queueCap')] / 2,
     cap = views[viewWord('candCap')]
@@ -192,8 +192,8 @@ export function simulateComputeDispatch(
 
 /** `dagCommitMask`: the mask the cut wrote made the frame's, unless it dropped work. */
 function commitMask(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
-  if (words(byBinding.get(DAG_BINDING.out)!.data)[3] & WORK_DROPPED) return
-  const work = byBinding.get(DAG_BINDING.work)!.data
+  if (words(byBinding.get(dagBindingOf().out)!.data)[3] & WORK_DROPPED) return
+  const work = byBinding.get(dagBindingOf().work)!.data
   const written = writtenMask(work, pageCount).subarray(0, bitWords(pageCount))
   drawMask(work, pageCount).set(written)
 }

@@ -14,8 +14,7 @@ import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/sha
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
+import { dagGroupEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
@@ -174,7 +173,12 @@ export function bindCase(
   }
   const group = device.createBindGroup({
     layout,
-    entries: namedEntries(DAG_BINDING, { ...buffers, ...views }),
+    entries: dagGroupEntries({
+      views: buffers.views.buffer,
+      out: buffers.out.buffer,
+      work: buffers.work.buffer,
+      ...views,
+    }),
   })
   return { at, buffers, group, destroy: () => made.forEach((created) => created.destroy()) }
 }

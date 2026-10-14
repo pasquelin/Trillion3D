@@ -1,5 +1,5 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
 import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
@@ -7,7 +7,7 @@ import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTabl
 import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
-/** A bound record table: the view at its binding (`DAG_BINDING.worlds`, `DAG_BINDING.frames`). */
+/** A bound record table: the view at its binding (`dagBindingOf().worlds`, `.frames`). */
 type View = Parameters<typeof viewTexture>[0]
 
 /** Word `k` of placement `w`'s frame words in the bound frame table `frames`, as the kernels read
@@ -38,7 +38,7 @@ export function readDagUniforms(data: Uint8Array) {
 
 /** The list cap the kernels read, from the camera's uniform block (`listCap.ts`). */
 export const boundListCap = (byBinding: Bound) =>
-  words(byBinding.get(DAG_BINDING.views)!.data)[viewWord('listCap')]
+  words(byBinding.get(dagBindingOf().views)!.data)[viewWord('listCap')]
 
 /**
  * The DAG a cut's bound buffers hold, for a device no test handed one (`fakeDevice({ packed })`):
@@ -52,7 +52,7 @@ export function packedFromBindings(
   worlds: View,
   frames: View,
 ): PackedDag & { frameStretch: Float32Array } {
-  const views = words(byBinding.get(DAG_BINDING.views)!.data)
+  const views = words(byBinding.get(dagBindingOf().views)!.data)
   const pageCount = views[viewWord('clusterCount')],
     nodeCount = views[viewWord('nodeCount')],
     worldCount = views[viewWord('worldCount')]
@@ -71,12 +71,12 @@ export function packedFromBindings(
   const pageIndex = indexOfRanks(ranks, worldCount)
   return {
     kind: 'dag',
-    clusters: floats(byBinding.get(DAG_BINDING.clusters)!.data),
-    nodes: floats(byBinding.get(DAG_BINDING.nodes)!.data),
-    pageCones: floats(byBinding.get(DAG_BINDING.cold)!.data),
+    clusters: floats(byBinding.get(dagBindingOf().clusters)!.data),
+    nodes: floats(byBinding.get(dagBindingOf().nodes)!.data),
+    pageCones: floats(byBinding.get(dagBindingOf().cold)!.data),
     worlds: worldsAtEye(
       viewTexture(worlds),
-      byBinding.get(DAG_BINDING.views)!.data,
+      byBinding.get(dagBindingOf().views)!.data,
       worldCount * 16,
     ),
     frameStretch: floatsAt(0),
