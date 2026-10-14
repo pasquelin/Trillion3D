@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { atlasBindings, atlasLayoutEntries } from '../core/bindLayout.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { atlasEntries } from '../core/bindEntries.ts'
+import { resourceEntry } from '../core/liveEntries.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { FEEDBACK_RULE_WGSL, tileRequestAtWgsl } from './requestWgsl.ts'
 import { SHADOW_TILE_POOL_WGSL, tileDeclarations } from './wgsl.ts'
@@ -45,34 +46,16 @@ export const cardTileLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
 ]
 
 /** The atlases the card pass's tile group is made over: their lane views and tables. */
-type CardAtlases = { color: WebgpuTileAtlas; data: WebgpuTileAtlas }
+export type CardAtlases = { color: WebgpuTileAtlas; data: WebgpuTileAtlas }
 
-/** The entries of the card pass's tile group over `held`, the resources `cardTileResources` wrote
- *  of `atlases` in binding order — its tables bound as buffers. */
-export function cardTileEntries(atlases: CardAtlases, held: readonly unknown[]) {
-  const tables = [atlases.color.pages.buffer, atlases.data.pages.buffer]
-  return sequentialEntries(
-    held.map((resource) =>
-      tables.includes(resource as GPUBuffer)
-        ? { buffer: resource as GPUBuffer }
-        : (resource as GPUBindingResource),
-    ),
-  )
-}
-
-/** What the card pass's tile group binds of `atlases` and `sampler`, written into `next` in binding
- *  order — the identity its group is made again on, and what `cardTileEntries` binds —: no array
- *  made for a group that stays. */
-export function cardTileResources(
-  next: unknown[],
-  { color, data }: CardAtlases,
-  sampler: GPUSampler,
-) {
-  let at = 0
-  for (const view of color.views) next[at++] = view
-  next[at++] = color.pages.buffer
-  for (const view of data.views) next[at++] = view
-  next[at++] = data.pages.buffer
-  next[at++] = sampler
-  next.length = at
-}
+/** The entries of the card pass's tile group, read live from `atlases()` and `sampler()` — the
+ *  colour atlas's lanes and table, the data atlas's (`atlasEntries`), then the sampler —: made once,
+ *  the group made again when what they name moves (`entriesMoved`). */
+export const cardTileEntries = (
+  atlases: () => CardAtlases,
+  sampler: () => GPUSampler,
+): GPUBindGroupEntry[] => [
+  ...atlasEntries(COLOR, () => atlases().color),
+  ...atlasEntries(DATA, () => atlases().data),
+  resourceEntry(SAMPLER, sampler),
+]

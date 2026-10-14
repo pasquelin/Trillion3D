@@ -8,10 +8,9 @@ import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import {
   cardTileEntries,
-  cardTileResources,
   cardTileWgsl,
+  type CardAtlases,
 } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
-import type { WebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlasTypes.ts'
 import { bufferHolding, groupZero } from '../kit/computeReadback.ts'
 import { CARD_MAPS, type Chain } from './cardTileRig.ts'
 import { referenceGroup } from './cardTilesReference.ts'
@@ -101,15 +100,17 @@ async function run(
  *  the two through `sampler`. */
 export async function cardTileReads(
   device: GPUDevice,
-  atlases: { color: WebgpuTileAtlas; data: WebgpuTileAtlas },
+  atlases: CardAtlases,
   sampler: GPUSampler,
   maps: { colour: Chain; normalDepth: Chain; orm: Chain },
   taps: Float32Array<ArrayBuffer>,
 ) {
-  const held: unknown[] = []
-  cardTileResources(held, atlases, sampler)
+  const entries = cardTileEntries(
+    () => atlases,
+    () => sampler,
+  )
   const pool = await run(device, poolKernel(), taps, (layout) =>
-    device.createBindGroup({ layout, entries: cardTileEntries(atlases, held) }),
+    device.createBindGroup({ layout, entries }),
   )
   const chains = await run(device, chainKernel(), taps, (layout) =>
     referenceGroup(device, layout, sampler, maps),
