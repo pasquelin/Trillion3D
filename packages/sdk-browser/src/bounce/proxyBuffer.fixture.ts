@@ -8,6 +8,7 @@ import {
   SURFACE_WORDS,
 } from './runtimeLayout.ts'
 import type { ArenaColumns } from './runtimeOracle.fixture.ts'
+import { f32Bits } from '../../../math/src/float/bits.ts'
 
 /** The header's fields, by name (`RUNTIME_HEADER`). */
 export type ProxyHeader = Record<keyof typeof RUNTIME_HEADER, number>
@@ -52,7 +53,7 @@ export function proxyBuffer(header: ProxyHeader, arena: Uint32Array) {
   const words = new Uint32Array(RUNTIME_HEADER_WORDS + arena.length + 1)
   for (const [name, at] of Object.entries(RUNTIME_HEADER)) {
     const value = header[name as keyof ProxyHeader]
-    words[at] = name === 'error' ? new Uint32Array(Float32Array.of(value).buffer)[0] : value
+    words[at] = name === 'error' ? f32Bits(value) : value
   }
   words.set(arena, RUNTIME_HEADER_WORDS)
   return words

@@ -12,7 +12,7 @@ import {
   NODE_MIN,
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
-import { RAY_WORK } from './runtimeLayout.ts'
+import { RAY_WORK, RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { dotVector3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
 import {
@@ -43,7 +43,10 @@ export type OracleScene = {
 /** Member `w`'s world: the culling's, or a copy's. */
 const worldOf = (scene: OracleScene, w: number) =>
   scene.copyBase !== undefined && w >= scene.copyBase
-    ? scene.copyWorlds!.subarray((w - scene.copyBase) * 16, (w - scene.copyBase) * 16 + 16)
+    ? scene.copyWorlds!.subarray(
+        (w - scene.copyBase) * RUNTIME_WORLD_WORDS,
+        (w - scene.copyBase + 1) * RUNTIME_WORLD_WORDS,
+      )
     : scene.packed.worlds.subarray(w * 16, w * 16 + 16)
 
 /** `rtEnter`: the ray against placement `w`, its world box first. */
@@ -149,7 +152,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
 /** The blended copies, members after the placements: each tried in turn, a unit apiece. */
 function copiesOf(scene: OracleScene, o: Vec, d: Vec, hit: Hit, s: Spent) {
   let best = hit
-  const count = scene.copyWorlds ? scene.copyWorlds.length / 16 : 0
+  const count = scene.copyWorlds ? scene.copyWorlds.length / RUNTIME_WORLD_WORDS : 0
   for (let k = 0; k < count; k++) {
     if (spent(s)) break
     s.work += 1
