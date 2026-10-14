@@ -9,14 +9,11 @@ import { treeNodeCount, TREE_SPAN } from '../gpu/dag/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../gpu/dag/types.ts'
 import { TREE_TABLE } from '../gpu/dag/treeTable.ts'
 import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
-import {
-  PROXY_NODE_FLOATS,
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/contracts/writtenFormats.ts'
+import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
-import { RUNTIME_WORLD_WORDS, SURFACE_WORDS } from './runtimeLayout.ts'
+import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
+import { proxyArena } from './proxyBuffer.fixture.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { recordTable } from '../gpu/core/recordTexture.fixture.ts'
@@ -76,17 +73,12 @@ export function world(
     })
   const packed = packDagSelection(sceneRoots(scenePages(16, 2), worlds))
   const cut = cubeCut()
-  const triangles = cut.triangles.length / PROXY_TRIANGLE_FLOATS,
-    nodes = cut.nodeBounds.length / PROXY_NODE_FLOATS
+  const triangles = cut.triangles.length / PROXY_TRIANGLE_FLOATS
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
   const copies = options.copies ?? []
-  const copyWorldsAt = 0,
-    surfacesAt = copyWorldsAt + copies.length * RUNTIME_WORLD_WORDS,
-    trianglesAt = surfacesAt + surfaces.length * SURFACE_WORDS,
-    boundsAt = trianglesAt + triangles * PROXY_TRIANGLE_FLOATS,
-    childrenAt = boundsAt + nodes * PROXY_NODE_FLOATS
+  const copyWorlds = new Float32Array(copies.length * RUNTIME_WORLD_WORDS)
+  copies.forEach((m, k) => copyWorlds.set(m.elements, k * RUNTIME_WORLD_WORDS))
   const tree = packed.placementTree
-  const words = new Uint32Array(childrenAt + nodes * PROXY_NODE_WORDS)
   // The placements' records as the culling holds them, a copy's after them: each instance wearing the
   // cube's cut, its first node and triangle, the surface asked; each placement's matrix, and its
   // exact translation beside it, three doubles.
@@ -103,17 +95,6 @@ export function world(
     packDoubles(origin, 0, worlds[w].elements, 12, 3)
     table.set('Origin', w, origin)
   }
-  copies.forEach((m, k) =>
-    new Float32Array(words.buffer, (copyWorldsAt + k * 16) * 4, 16).set(m.elements),
-  )
-  surfaces.forEach((surface, k) => {
-    const at = surfacesAt + k * SURFACE_WORDS
-    new Float32Array(words.buffer, at * 4, 7).set(surface.slice(0, 7))
-    words[at + 7] = surface[7]
-  })
-  words.set(new Uint32Array(cut.triangles.buffer), trianglesAt)
-  words.set(new Uint32Array(cut.nodeBounds.buffer), boundsAt)
-  words.set(cut.nodeChildren, childrenAt)
   // The placement tree in its table, as the culling holds it: its nodes, then its order.
   const treeTable = recordTable(TREE_TABLE, Math.max(1, treeNodeCount(tree)))
   if (tree) {
@@ -123,18 +104,15 @@ export function world(
     for (let r = 0; r * TREE_SPAN < tree.capacity; r++)
       treeTable.set('Members', r, tree.order.subarray(r * TREE_SPAN, (r + 1) * TREE_SPAN))
   }
+  const arena = proxyArena(cut, surfaces, copyWorlds)
   const header = {
     instances: count,
-    surfacesWord: surfacesAt,
-    trianglesWord: trianglesAt,
-    copyWorldsWord: copyWorldsAt,
-    boundsWord: boundsAt,
-    childrenWord: childrenAt,
+    ...arena.regions,
     treeRoot: tree ? 0 : NO_INDEX,
     members: tree ? tree.count : count,
     error: 0,
-    copies: copies.length,
-    words,
+    copies: arena.copies,
+    words: arena.words,
   }
   const columns: ArenaColumns = {
     triangles: cut.triangles,
@@ -147,8 +125,6 @@ export function world(
       { node: 0, triangle: 0, triangles },
     ]),
   )
-  const copyWorlds = new Float32Array(copies.length * 16)
-  copies.forEach((m, k) => copyWorlds.set(m.elements, k * 16))
   return {
     packed,
     header,

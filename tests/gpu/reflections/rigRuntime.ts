@@ -3,11 +3,16 @@
 // emits the face's radiance, and the culling's tables it is read beside: the worlds the faces are placed by
 // and a placement tree of none (the header names no tree) — or an empty header, no placement, no ray.
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
+import { RUNTIME_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import {
-  RUNTIME_HEADER,
-  RUNTIME_HEADER_WORDS,
-  SURFACE_WORDS,
-} from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+  proxyArena,
+  proxyBuffer,
+} from '../../../packages/sdk-browser/src/bounce/proxyBuffer.fixture.ts'
+import {
+  PROXY_NODE_FLOATS,
+  PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
+} from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
@@ -16,55 +21,44 @@ import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeT
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
 export type RigFace = { triangles: Float32Array; radiance: readonly [number, number, number] }
 
-/** Floats of a node's exact bounds, words of its four children, and a triangle's floats. */
-const NODE_FLOATS = 6,
-  NODE_WORDS = 12,
-  TRIANGLE_FLOATS = 9
-
 /** The instances of `faces`, four words each: the node and triangle a face starts at, the surface it
  *  wears, no mark. */
 const instanceWords = (faces: readonly RigFace[]) =>
   Uint32Array.from(faces.flatMap((_, k) => [k, 2 * k, k, 0]))
 
-/** The words of the proxy's buffer for `faces`, header included. */
+/** The words of the proxy's buffer for `faces`, header included: each face its node over its two
+ *  triangles, the node's bounds theirs, its first child holding both, its box the whole of the node's. */
 function proxyWords(faces: readonly RigFace[]) {
   const n = faces.length
-  const surfacesAt = 0,
-    trianglesAt = surfacesAt + n * SURFACE_WORDS,
-    boundsAt = trianglesAt + 2 * n * TRIANGLE_FLOATS,
-    childrenAt = boundsAt + n * NODE_FLOATS,
-    total = childrenAt + n * NODE_WORDS
-  const words = new Uint32Array(RUNTIME_HEADER_WORDS + total + 1)
-  const floats = new Float32Array(words.buffer)
-  const at = RUNTIME_HEADER
-  words[at.instances] = n
-  words[at.surfacesWord] = surfacesAt
-  words[at.trianglesWord] = trianglesAt
-  words[at.copyWorldsWord] = surfacesAt
-  words[at.boundsWord] = boundsAt
-  words[at.childrenWord] = childrenAt
-  words[at.treeRoot] = NO_INDEX
-  words[at.members] = n
-  const base = RUNTIME_HEADER_WORDS
-  faces.forEach(({ triangles, radiance }, k) => {
-    // Surface: no tint, opaque, the radiance it gives.
-    floats.set([0, 0, 0, 1, ...radiance], base + surfacesAt + k * SURFACE_WORDS)
-    floats.set(triangles, base + trianglesAt + 2 * k * TRIANGLE_FLOATS)
+  const triangles = new Float32Array(2 * n * PROXY_TRIANGLE_FLOATS),
+    nodeBounds = new Float32Array(n * PROXY_NODE_FLOATS),
+    nodeChildren = new Uint32Array(n * PROXY_NODE_WORDS)
+  faces.forEach((face, k) => {
+    triangles.set(face.triangles, 2 * k * PROXY_TRIANGLE_FLOATS)
     const low = [Infinity, Infinity, Infinity],
       high = [-Infinity, -Infinity, -Infinity]
     for (let v = 0; v < 6; v++)
       for (let axis = 0; axis < 3; axis++) {
-        low[axis] = Math.min(low[axis], triangles[v * 3 + axis])
-        high[axis] = Math.max(high[axis], triangles[v * 3 + axis])
+        low[axis] = Math.min(low[axis], face.triangles[v * 3 + axis])
+        high[axis] = Math.max(high[axis], face.triangles[v * 3 + axis])
       }
-    floats.set([...low, ...high], base + boundsAt + k * NODE_FLOATS)
-    // The first child holds both triangles, its box the whole of the node's; the others are absent.
-    const child = base + childrenAt + k * NODE_WORDS
-    words[child] = 0xff000000
-    words[child + 1] = (1 << 24) | (2 << 16) | (255 << 8) | 255
-    words[child + 2] = 0
+    nodeBounds.set([...low, ...high], k * PROXY_NODE_FLOATS)
+    // The first child: its box bytes the node's whole (lows 0, highs 255), two triangles, present; the
+    // others are absent.
+    nodeChildren.set([0xff000000, (1 << 24) | (2 << 16) | (255 << 8) | 255], k * PROXY_NODE_WORDS)
   })
-  return words
+  // Surface: no tint, opaque, the radiance the face gives.
+  const surfaces = faces.map(({ radiance }) => [0, 0, 0, 1, ...radiance, 0])
+  const arena = proxyArena({ triangles, nodeBounds, nodeChildren }, surfaces)
+  const header = {
+    instances: n,
+    ...arena.regions,
+    treeRoot: NO_INDEX,
+    members: n,
+    error: 0,
+    copies: 0,
+  }
+  return proxyBuffer(header, arena.words)
 }
 
 /** The proxy's buffer over `faces`, the records they stand in — the identity, its exact translation
