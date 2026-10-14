@@ -92,9 +92,11 @@ export function composeWebgpuPlacements(
   const slot = takeSlot(state, parent, p, world)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt))
-  if (whole) unlinkHeld(rt, state, slot, ranks)
-  if (whole && state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
-  if (whole) state.readers.delete(slot)
+  if (whole) {
+    unlinkHeld(rt, state, slot, ranks)
+    if (state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
+    state.readers.delete(slot)
+  }
   if (readers.length) holdReaders(state.readers, slot, parent, readers, whole)
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)

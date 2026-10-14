@@ -1,12 +1,12 @@
 /**
- * What the rows pass (`rowWordsWgsl.ts`) and the compose worlds pass (`gpuComposeWgsl.ts`) derive
+ * What the rows pass (`rowWordsWgsl.ts`) and the root boxes pass (`rootBoxesWgsl.ts`) derive
  * from a root's world besides the words of the row itself, each the CPU formula's to the word — the
  * doubles it derives them in, rounded where it rounds them: the root's world box, the eight corners
  * of a row the Hi-Z test projects, and the detail words the shadows' levels are judged by. They read
  * what a world does not change from a row's inputs (`rowInputPack.ts`), twenty-four doubles a row,
  * the declarations the program holds:
  *
- *   inputs    array<vec2u>   a row's inputs, `INPUT_DOUBLES` doubles each
+ *   inputs    array<vec2u>   a row's inputs, `ROW_INPUT_DOUBLES` doubles each
  *   corners   array<u32>     `CORNER_VALUES` words a row, the Hi-Z corners
  *   lods      array<u32>     `ROW_LOD_FLOATS` words a row, the shadow detail
  *   rootBoxes array<vec2u>   six doubles a root, its world box
