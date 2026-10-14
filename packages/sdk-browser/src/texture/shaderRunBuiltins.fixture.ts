@@ -117,6 +117,7 @@ export const builtins = {
   vec3f: vector(3, float),
   vec4f: vector(4, float),
   vec2i: vector(2, int),
+  vec3i: vector(3, int),
   vec4i: vector(4, int),
   vec2u: vector(2, (x) => int(x) >>> 0),
   vec3u: vector(3, (x) => int(x) >>> 0),

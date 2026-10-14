@@ -6,7 +6,6 @@ import assert from 'node:assert/strict'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
-import { integers } from '../../texture/integerVectors.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
@@ -81,8 +80,6 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
     textureDimensions: () => [8, 8],
     textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
     textureLoad: () => texel,
-    vec3i: integers(3, false),
-    vec4u: integers(4, true),
     ShadowReceiver: (offset: number[], plane: number[]) => ({ offset, plane }),
   }
   const { storeReceiver } = shaderRun<{
