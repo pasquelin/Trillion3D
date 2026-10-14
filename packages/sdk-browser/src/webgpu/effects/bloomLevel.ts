@@ -18,6 +18,26 @@ export const BLOOM_UNIFORM = fieldLayout('Bloom', [
  *  of their dynamic offsets. */
 export const BLOOM_UNIFORM_BYTES = BLOOM_UNIFORM.words * 4
 
+/** Writes one `Bloom` slot into `packed` at word `base`: inverse sizes written and read, radius,
+ *  blend. */
+export function writeBloomSlot(
+  packed: Float32Array,
+  base: number,
+  out: readonly [number, number],
+  read: readonly [number, number],
+  radius: number,
+  keep: number,
+  glow: number,
+) {
+  packed[base + BLOOM_UNIFORM.at.outTexel] = 1 / out[0]
+  packed[base + BLOOM_UNIFORM.at.outTexel + 1] = 1 / out[1]
+  packed[base + BLOOM_UNIFORM.at.inTexel] = 1 / read[0]
+  packed[base + BLOOM_UNIFORM.at.inTexel + 1] = 1 / read[1]
+  packed[base + BLOOM_UNIFORM.at.radius] = radius
+  packed[base + BLOOM_UNIFORM.at.keep] = keep
+  packed[base + BLOOM_UNIFORM.at.glow] = glow
+}
+
 /** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
 export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
 

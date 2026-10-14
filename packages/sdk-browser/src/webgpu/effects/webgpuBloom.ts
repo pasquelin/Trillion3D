@@ -1,16 +1,13 @@
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { bloomBlend, bloomLevelSizes, bloomLevelsTexture } from './bloomFilter.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { BLOOM_WGSL } from './bloomWgsl.ts'
-import { BLOOM_UNIFORM, BLOOM_UNIFORM_BYTES, bloomLevelLayout } from './bloomLevel.ts'
+import { createBloomPrograms } from './bloomPrograms.ts'
+import { BLOOM_UNIFORM_BYTES, writeBloomSlot } from './bloomLevel.ts'
 import { uniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
-import { HDR_FORMAT } from '../../scene/surfaceBuffer.ts'
-import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
@@ -29,28 +26,7 @@ type Size = readonly [number, number]
  * written only when the size or a setting of its bloom changed.
  */
 export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffectKind<Bloom>> {
-  const visibility = GPUShaderStage.FRAGMENT
-  const imageLayout = device.createBindGroupLayout({
-    label: `${BLOOM_PASS} scene`,
-    entries: [computeTextureEntry(0, 'unfilterable-float', '2d', visibility)],
-  })
-  const layouts = { level: bloomLevelLayout(device), scene: imageLayout }
-  const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS)
-  const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' }
-  const [down, up, composite] = await Promise.all([
-    makeFullscreenPipeline(device, module, layouts.level, 'down', [{ format: HDR_FORMAT }]),
-    makeFullscreenPipeline(device, module, layouts.level, 'up', [
-      { format: HDR_FORMAT, blend: { color: add, alpha: add } },
-    ]),
-    makeFullscreenPipeline(device, module, [layouts.level, layouts.scene], 'composite', [
-      { format: HDR_FORMAT },
-    ]),
-  ])
-  const sampler = device.createSampler({
-    label: `${BLOOM_PASS} sampler`,
-    magFilter: 'linear',
-    minFilter: 'linear',
-  }) // clamped to the edge, the default address mode
+  const { layouts, down, up, composite, sampler } = await createBloomPrograms(device)
   let texture: GPUTexture | undefined,
     uniform: GPUBuffer | undefined,
     full: Size = [0, 0],
@@ -108,18 +84,8 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     blends = []
     levelBytes = passes = 0
   }
-  /** Writes uniform slot `index`, at its place in the buffer's image: inverse sizes written and
-   *  read, radius, blend. */
-  const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
-    const base = index * slots.strideWords
-    packed[base + BLOOM_UNIFORM.at.outTexel] = 1 / out[0]
-    packed[base + BLOOM_UNIFORM.at.outTexel + 1] = 1 / out[1]
-    packed[base + BLOOM_UNIFORM.at.inTexel] = 1 / read[0]
-    packed[base + BLOOM_UNIFORM.at.inTexel + 1] = 1 / read[1]
-    packed[base + BLOOM_UNIFORM.at.radius] = radius
-    packed[base + BLOOM_UNIFORM.at.keep] = keep
-    packed[base + BLOOM_UNIFORM.at.glow] = glow
-  }
+  const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) =>
+    writeBloomSlot(packed, index * slots.strideWords, out, read, radius, keep, glow)
   /** Writes the `nth` bloom's range, its last slot at `last`, when its settings are not the ones
    *  it holds: a range depends only on them and on the size, whose change makes a new buffer. */
   const write = (nth: number, last: number, { intensity, radius }: Bloom) => {
