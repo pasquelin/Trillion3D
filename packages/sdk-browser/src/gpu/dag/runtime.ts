@@ -73,12 +73,13 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
   /** The main view, as the steps before a cut know it (`TableSync`). */
   const mainView = {}
   // The one step every cut on these tables takes before it encodes, the main view's and each view
-  // aside's: the rows of the root and mark words parked or marked since go up (`flushWords`), the
-  // roots' worlds, boxes and stretches are written, the tree fits what moved again over the leaves
-  // they decide, the links that moved go up.
+  // aside's: the root and mark words parked or marked since go up (`flushWords`), the pool sort is
+  // armed for its list's count, the roots' worlds, boxes and stretches are written, the tree fits
+  // what moved again over their leaves, the links that moved go up.
   const syncTables = (uniforms: SelectionUniforms, view: object) => {
     if (!live()) return
     frames.flushWords()
+    poolList.sync()
     roots.roots(frames.rows)
     run.tree?.sync()
     run.proxies.refresh()
@@ -165,8 +166,7 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
       if (live()) recutMain(resources.swap, state)
     },
     notePool(page, held) {
-      // The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand
-      // stays.
+      // The next dispatch cuts and reads back again, the eviction queue with it; this cut stays.
       if (live() && poolList.note(page, held)) recutMain(resources.swap, state)
     },
     dispatch(next, shared) {

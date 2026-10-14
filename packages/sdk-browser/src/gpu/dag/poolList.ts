@@ -11,9 +11,9 @@ import { DAG_ARGS } from './shader/armWgsl.ts'
 
 /**
  * What arms the pool sort's per-group stages for the `count` slots the list holds (`DAG_ARGS.pool`):
- * in rows of the device's width, written in the queue's order with the list's count — the GPU's
- * dispatch covers what its count holds, whatever the list does before the submit, and no workgroup
- * past it, where a dispatch over the list's cap ran thousands for nothing.
+ * in rows of the device's width, written once before each cut (`sync`), after the list's count in the
+ * queue's order — the GPU's dispatch covers what its count holds, and no workgroup past it, where a
+ * dispatch over the list's cap ran thousands for nothing.
  */
 export function poolSortArming(device: GPUDevice, args: GPUBuffer) {
   const width = groupWidth(device.limits),
@@ -31,7 +31,9 @@ export function poolSortArming(device: GPUDevice, args: GPUBuffer) {
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
  * one content key per held slot (`../evict.ts`), fed by the cache's arrivals and departures — named
  * by the key's canonical page — and kept dense — a departure takes the last entry's place —, so the
- * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved.
+ * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved; `sync`,
+ * the step before every cut (`runtime.ts`, `syncTables`), arms the pool sort once for the count the
+ * list then holds, however many pages landed or left since.
  */
 export function createDagPoolList(
   packed: PackedDag,
@@ -39,7 +41,7 @@ export function createDagPoolList(
   /** The pages a pool already holds, for a cut made beside it (a growth in place): listed at once,
    *  in one write. */
   held: ((page: number) => boolean) | undefined,
-  /** Arms the pool sort for the count the list holds, at each write of it (`poolSortArming`). */
+  /** Arms the pool sort for the count the list holds (`poolSortArming`). */
   arm: (count: number) => void,
 ) {
   const { buffer, byteOffset, length } = packed.pageCones,
@@ -52,7 +54,9 @@ export function createDagPoolList(
     pageOf = (k: number) => canonicalPage(words[keyWords + k])
   /** Each listed page's entry, 1 for the first. */
   const entry = createSparseInts()
-  let writes = true
+  let writes = true,
+    /** Whether the list's count moved since the sort was last armed. */
+    owed = false
   const write = (word: number, count = 1) =>
     writes && cold(word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4 * count)
   const note = (page: number, held: boolean) => {
@@ -65,8 +69,12 @@ export function createDagPoolList(
     words[base + at] = moved
     write(base + at)
     write(base)
-    if (writes) arm(words[base])
+    owed = true
     return true
+  }
+  const sync = () => {
+    if (owed) arm(words[base])
+    owed = false
   }
   if (held) {
     writes = false
@@ -78,7 +86,7 @@ export function createDagPoolList(
     for (const page of canonical) if (held(page)) note(page, true)
     writes = true
     write(base, words[base] + 1)
-    arm(words[base])
+    sync()
   }
-  return { note, entries: entry }
+  return { note, sync, entries: entry }
 }
