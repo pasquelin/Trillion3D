@@ -96,8 +96,10 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       return set
     },
     createSampler: () => ({}),
-    createShaderModule: ({ label }: GPUShaderModuleDescriptor) => ({
+    // The program kept: a double that replays a kernel tells programs apart by it.
+    createShaderModule: ({ label, code }: GPUShaderModuleDescriptor) => ({
       label,
+      code,
       getCompilationInfo: async () => ({
         messages: options.failCompile ? [{ type: 'error' as const, message: 'fail' }] : [],
       }),

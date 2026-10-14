@@ -1,8 +1,6 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
-import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
-import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
+import { compactDrawnPages, drawMask, writtenMask } from './globals.ts'
 import {
   LIST_DROPPED,
   QUEUE_DROPPED,
@@ -11,29 +9,31 @@ import {
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { ROW_STAGES } from './fakeComputeRows.ts'
-import { boundResource, boundWords, words, type BoundBuffer } from './fakeBuffers.ts'
+import { boundResource, words, type BoundBuffer } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
-import { fakeTileSort, isTileSort } from './fakeTileEvict.ts'
-import { boundListCap, frameWord, packedFromBindings, readDagUniforms } from './fakeDag.ts'
+import { POOL_SORT_REPLAYS } from './fakePoolSorts.ts'
+import {
+  DAG_SLOT,
+  boundListCap,
+  frameWord,
+  packedFromBindings,
+  readDagUniforms,
+} from './fakeDag.ts'
 import { boundData, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts'
-import {
-  evaluateDrawCompact,
-  indirectForDraw,
-  type DrawItem,
-} from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
+import { simulateScatterGroups } from './fakeDrawCompact.ts'
 import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import {
   stagedPage,
   stagedPriority,
 } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
 import { LIST_KERNELS, mirrorListStage } from './fakeLists.ts'
-import { hasBit, setBit } from '../../../packages/math/src/scalar/bits.ts'
+import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 import { ROOT_WORD } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
@@ -53,7 +53,7 @@ export type ComputeBind = {
 }
 
 export function simulateComputeDispatch(
-  computePipeline: { entryPoint: string } | undefined,
+  computePipeline: { entryPoint: string; module?: { code?: string } } | undefined,
   computeBind: ComputeBind | undefined,
   packed?: PackedDag,
   offsets?: readonly number[],
@@ -63,60 +63,25 @@ export function simulateComputeDispatch(
   if (transparent && computeBind) return transparent(computeBind, offsets, groups)
   const rows = ROW_STAGES[computePipeline?.entryPoint ?? '']
   if (rows && computeBind?.entries) return rows(computeBind)
-  if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
-    const { entries } = computeBind
-    const uni = boundWords(entries, 1)
-    const count = uni[0],
-      maxVertexCount = uni[1],
-      slotCap = uni[2]
-    const itemInts = boundWords(entries, 0)
-    const n = Math.min(count, slotCap)
-    const restInts = boundWords(entries, 7)
-    const restAt = (i: number) => (hasBit(restInts, i) ? 1 : 0)
-    const items: DrawItem[] = []
-    for (let i = 0; i < n; i++)
-      items.push({
-        pageIndex: itemInts[i * DRAW_ITEM_U32],
-        bin: itemInts[i * DRAW_ITEM_U32 + 1],
-        rest: restAt(i),
-      })
-    const source =
-      count > slotCap
-        ? items.concat(
-            Array.from({ length: count - n }, () => ({
-              pageIndex: 0,
-              bin: 0 as const,
-              rest: 0 as const,
-            })),
-          )
-        : items
-    const mask = entries.some((entry) => entry.binding === 6) ? boundWords(entries, 6) : undefined
-    const filtered =
-      uni[4] && mask
-        ? source.filter((_, i) => maskBit(mask, uni[5], itemInts[i * DRAW_ITEM_U32 + 2]))
-        : source
-    const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
-    boundWords(entries, 5).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
-    boundWords(entries, 2).set(result.instances)
-    boundWords(entries, 3).set(indirectForDraw(result))
-    return
-  }
+  if (computePipeline?.entryPoint === 'scatterGroups' && computeBind)
+    return simulateScatterGroups(computeBind.entries)
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
-  // A tile pool's queue, on its sort's own group (`fakeTileEvict.ts`).
-  if (stage === 'poolScatter' && isTileSort(computeBind.entries))
-    return fakeTileSort(computeBind.entries, offsets)
-  // The selection binds one table per `dagBindingOf` name: one missing is a validation error. The
+  // A pool's queue on its sort's own group, by the program its pipeline runs (`fakePoolSorts.ts`).
+  const poolSort = POOL_SORT_REPLAYS.get(computePipeline?.module?.code ?? '')
+  if (stage === 'poolScatter' && poolSort) return poolSort(computeBind.entries, offsets)
+  // The selection binds one table per `DAG_SLOT` name: one missing is a validation error. The
   // pool sort's last dispatch is the geometry queue's only on the selection's group.
-  const slots = Object.keys(dagBindingOf()).length
-  if (stage === 'poolScatter' && computeBind.entries.length !== slots) return
+  const slots = Object.keys(DAG_SLOT).length
+  if (stage === 'poolScatter' && computeBind.entries.length !== slots)
+    throw new Error('a pool sort the double does not replay')
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
   // A record table reads as its texture's words, laid as its buffer was (`gpu/dag/cutTables.ts`).
   const byBinding = new Map(computeBind.entries.map((e) => [e.binding, boundData(e.resource)]))
-  const boundWorlds = boundResource(computeBind.entries, dagBindingOf().worlds),
-    boundFrames = boundResource(computeBind.entries, dagBindingOf().frames)
+  const boundWorlds = boundResource(computeBind.entries, DAG_SLOT.worlds),
+    boundFrames = boundResource(computeBind.entries, DAG_SLOT.frames)
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
   const dag = packed ?? packedFromBindings(byBinding, boundWorlds, boundFrames),
     listCap = boundListCap(byBinding)
@@ -128,16 +93,16 @@ export function simulateComputeDispatch(
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
-      byBinding.get(dagBindingOf().work)!.data,
-      byBinding.get(dagBindingOf().out)!.data,
+      byBinding.get(DAG_SLOT.work)!.data,
+      byBinding.get(DAG_SLOT.out)!.data,
       dag.pageCount,
     )
   if (stage === 'dagCommitMask') return commitMask(byBinding, dag.pageCount)
   if (stage !== 'dagMask') return
-  const { uniforms } = readDagUniforms(byBinding.get(dagBindingOf().views)!.data)
+  const { uniforms } = readDagUniforms(byBinding.get(DAG_SLOT.views)!.data)
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
-  const cold = words(byBinding.get(dagBindingOf().cold)!.data)
+  const cold = words(byBinding.get(DAG_SLOT.cold)!.data)
   const resident = {
     ready: residentFlags(cold, dag.pageCount),
     childReady: residentFlags(cold, dag.pageCount, childBase(dag.pageCount)),
@@ -148,7 +113,7 @@ export function simulateComputeDispatch(
   // translation — two frames in one formula, and not a single page kept.
   const worlds = worldsAtEye(
     viewTexture(boundWorlds),
-    byBinding.get(dagBindingOf().views)!.data,
+    byBinding.get(DAG_SLOT.views)!.data,
     dag.worlds.length,
   )
   // So is each primitive's root, its frame row's root word: a parked one is NONE (`parkWorld`),
@@ -160,10 +125,10 @@ export function simulateComputeDispatch(
     result.aheadPageIds,
   )
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
-  const mask = writtenMask(byBinding.get(dagBindingOf().work)!.data, dag.pageCount)
+  const mask = writtenMask(byBinding.get(DAG_SLOT.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
   for (const id of result.drawablePageIds ?? []) setBit(mask, id)
-  const ints = words(byBinding.get(dagBindingOf().out)!.data)
+  const ints = words(byBinding.get(DAG_SLOT.out)!.data)
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
   writeTriangleTotals(ints, result)
@@ -175,7 +140,7 @@ export function simulateComputeDispatch(
   // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
   ints[3] = list.length > listCap ? 1 : 0
   // Past a queue's entries or a list's, the kernel drops work: the cut is not drawn.
-  const views = words(byBinding.get(dagBindingOf().views)!.data),
+  const views = words(byBinding.get(DAG_SLOT.views)!.data),
     { levels, candidates, live } = result.work
   const entries = views[viewWord('queueCap')] / 2,
     cap = views[viewWord('candCap')]
@@ -189,8 +154,8 @@ export function simulateComputeDispatch(
 
 /** `dagCommitMask`: the mask the cut wrote made the frame's, unless it dropped work. */
 function commitMask(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
-  if (words(byBinding.get(dagBindingOf().out)!.data)[3] & WORK_DROPPED) return
-  const work = byBinding.get(dagBindingOf().work)!.data
+  if (words(byBinding.get(DAG_SLOT.out)!.data)[3] & WORK_DROPPED) return
+  const work = byBinding.get(DAG_SLOT.work)!.data
   const written = writtenMask(work, pageCount).subarray(0, bitWords(pageCount))
   drawMask(work, pageCount).set(written)
 }
