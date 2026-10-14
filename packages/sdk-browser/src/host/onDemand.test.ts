@@ -37,7 +37,7 @@ test('an import that fails once is tried again, as the HTTP loader asks a file a
 })
 
 test('an import that always fails is FAMILY_LOAD_FAILED naming its family, asked again later', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   let imports = 0
   const told: EngineError[] = []
   const code = onDemand(
