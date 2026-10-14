@@ -1,7 +1,7 @@
 import { FULLSCREEN_X, FULLSCREEN_Y } from '../../gpu/shader/fullscreenTriangle.ts'
 import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
+import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
