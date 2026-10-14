@@ -1,8 +1,7 @@
-import { REQUEST_AHEAD } from './request.ts'
-import { sortStaged, stagedPage, stagedRequest } from './request.fixture.ts'
 import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import { EVICT_IN_USE, OLD_STEP, POOL_RANKS, POOL_TIERS } from '../pool/rank.ts'
 import { poolRank } from '../pool/rank.fixture.ts'
+import { sortPool } from '../pool/sort.fixture.ts'
 import { groupParentBase, keyGroupBase, keyWordBase, recordKeyBase } from './layout.ts'
 import type { PackedDag } from './types.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
@@ -44,9 +43,10 @@ export function raiseGroups(
 export const aheadClock = (now: number) => Math.max(now, EVICT_IN_USE) - EVICT_IN_USE
 
 /**
- * CPU mirror of the geometry queue's pool sort (`shader/evictWgsl.ts`): the pool's listed content keys (`poolList.ts`) no view uses, by
- * `poolRank` through `sortStaged`, the first `cap`, each as its canonical page — within a rank,
- * page order —, and how many of them form the OLD head (`OLD_STEP`).
+ * THE CONTRACT of the geometry queue (`shader/evictWgsl.ts`), not its steps: the pool's listed
+ * content keys (`poolList.ts`) no view uses, by `poolRank`, the highest first and a rank's keys in
+ * the pool's order, as the pool sort lists them (`sortPool`); the first `cap`, each as its
+ * canonical page; and how many of them form the OLD head — a rank of `OLD_STEP` or past.
  */
 export function listEvictions(options: {
   pool: Iterable<number>
@@ -56,17 +56,17 @@ export function listEvictions(options: {
   now: number
   cap: number
 }) {
-  const { pool, keyWords, useOf, now, cap } = options
-  const words: number[] = []
-  let old = 0
-  for (const key of pool) {
-    const rank = poolRank(now - useOf(key), keyWords[key] >>> KEY_PAGE_BITS, EVICT_IN_USE)
-    if (rank >= POOL_RANKS) continue
-    if (rank >= OLD_STEP * POOL_TIERS) old++
-    words.push(stagedRequest(canonicalPage(keyWords[key]), rank ^ REQUEST_AHEAD))
+  const { keyWords, useOf, now, cap } = options
+  const pool = Array.from(options.pool)
+  const ranks = pool.map((key) =>
+    poolRank(now - useOf(key), keyWords[key] >>> KEY_PAGE_BITS, EVICT_IN_USE),
+  )
+  const { queue } = sortPool(pool.length, (j) => ranks[j], cap)
+  const old = ranks.filter((rank) => rank >= OLD_STEP * POOL_TIERS && rank < POOL_RANKS).length
+  return {
+    queue: queue.map((j) => canonicalPage(keyWords[pool[j]])),
+    old: Math.min(old, queue.length),
   }
-  const queue = sortStaged(words).slice(0, Math.max(0, cap)).map(stagedPage)
-  return { queue, old: Math.min(old, queue.length) }
 }
 
 /** The content key of `packed`'s page `page`, through its record (`layout.ts`), the key words, and

@@ -26,25 +26,24 @@ import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/
 import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
 import { boxCenterFrom } from '../../../packages/math/src/geometry/box.ts'
 import type { ComputeBind } from './fakeCompute.ts'
-import { words } from './fakeBuffers.ts'
+import { boundWords } from './fakeBuffers.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
 function simulateTransparentCompaction(bind: ComputeBind) {
-  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))
-  const uni = words(byBinding.get(1)!.data)
-  const mask = words(byBinding.get(2)!.data)
+  const uni = boundWords(bind.entries, 1)
+  const mask = boundWords(bind.entries, 2)
   const result = evaluateTransparentCompaction({
-    entries: words(byBinding.get(0)!.data),
-    itemRanges: words(byBinding.get(7)!.data),
+    entries: boundWords(bind.entries, 0),
+    itemRanges: boundWords(bind.entries, 7),
     entryCount: uni[0],
     itemCount: uni[2],
     vertexCount: uni[4],
     selected: (cluster) => maskBit(mask, uni[3], cluster),
   })
-  words(byBinding.get(5)!.data).set(result.instances.subarray(0, uni[0]))
-  words(byBinding.get(6)!.data).set(result.indirect)
+  boundWords(bind.entries, 5).set(result.instances.subarray(0, uni[0]))
+  boundWords(bind.entries, 6).set(result.indirect)
 }
 
 /**
@@ -53,12 +52,10 @@ function simulateTransparentCompaction(bind: ComputeBind) {
  * every input the GPU would read is there.
  */
 function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
-  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))
-  const uniBytes = byBinding.get(EXPAND_BINDING.uni)!.data
-  const uni = words(uniBytes).subarray((offsets?.[0] ?? 0) / 4)
-  const plan = words(byBinding.get(EXPAND_BINDING.plan)!.data)
+  const uni = boundWords(bind.entries, EXPAND_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
+  const plan = boundWords(bind.entries, EXPAND_BINDING.plan)
   // Compaction writes one indirect argument per paged item; expansion reads only the count.
-  const indirect = words(byBinding.get(EXPAND_BINDING.counts)!.data)
+  const indirect = boundWords(bind.entries, EXPAND_BINDING.counts)
   const itemCounts = new Uint32Array(indirect.length / 4)
   for (let item = 0; item < itemCounts.length; item++) itemCounts[item] = indirect[item * 4 + 1]
   const entries = uni[EXPAND_UNI.entryCount],
@@ -67,16 +64,16 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
     order: plan.subarray(uni[EXPAND_UNI.orderBase], uni[EXPAND_UNI.orderBase] + entries),
     runs: plan.subarray(uni[EXPAND_UNI.runsBase], uni[EXPAND_UNI.runsBase] + runs * RUN_WORDS),
     runCount: runs,
-    draws: words(byBinding.get(EXPAND_BINDING.draws)!.data),
-    keep: words(byBinding.get(EXPAND_BINDING.keep)!.data),
+    draws: boundWords(bind.entries, EXPAND_BINDING.draws),
+    keep: boundWords(bind.entries, EXPAND_BINDING.keep),
     itemCounts,
-    instances: words(byBinding.get(EXPAND_BINDING.clusters)!.data),
+    instances: boundWords(bind.entries, EXPAND_BINDING.clusters),
     maxVertexWords: uni[EXPAND_UNI.maxVertexWords],
     vertexShift: uni[EXPAND_UNI.vertexShift],
     instanceBase: uni[EXPAND_UNI.instanceBase],
     argsBase: uni[EXPAND_UNI.argsBase],
-    expanded: words(byBinding.get(EXPAND_BINDING.expanded)!.data),
-    args: words(byBinding.get(EXPAND_BINDING.args)!.data),
+    expanded: boundWords(bind.entries, EXPAND_BINDING.expanded),
+    args: boundWords(bind.entries, EXPAND_BINDING.args),
   })
 }
 
@@ -99,12 +96,11 @@ const keyBox = new Float64Array(6),
  * `precedes`, its sorted entries, places and slot runs written where the kernel writes them.
  */
 function simulateBlendOrder(bind: ComputeBind, offsets?: readonly number[]) {
-  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))
-  const uni = words(byBinding.get(ORDER_BINDING.uni)!.data).subarray((offsets?.[0] ?? 0) / 4)
-  const plan = words(byBinding.get(ORDER_BINDING.plan)!.data),
-    keyed = words(byBinding.get(ORDER_BINDING.keyed)!.data),
-    frame = words(byBinding.get(ORDER_BINDING.frame)!.data),
-    placed = words(byBinding.get(ORDER_BINDING.placed)!.data)
+  const uni = boundWords(bind.entries, ORDER_BINDING.uni).subarray((offsets?.[0] ?? 0) / 4)
+  const plan = boundWords(bind.entries, ORDER_BINDING.plan),
+    keyed = boundWords(bind.entries, ORDER_BINDING.keyed),
+    frame = boundWords(bind.entries, ORDER_BINDING.frame),
+    placed = boundWords(bind.entries, ORDER_BINDING.placed)
   const entries = uni[ORDER_UNI.entryCount],
     seeds = plan.subarray(uni[ORDER_UNI.seedBase], uni[ORDER_UNI.seedBase] + entries)
   const eye = [0, 2, 4].map((at) => doubleAt(frame, at))
@@ -149,8 +145,7 @@ const planes = new Float64Array(24),
  * its counts and each water rank's word written where the kernel writes them.
  */
 function simulateBlendVerdict(bind: ComputeBind) {
-  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))
-  const at = (binding: number) => words(byBinding.get(binding)!.data)
+  const at = (binding: number) => boundWords(bind.entries, binding)
   const keyed = at(VERDICT_BINDING.keyed),
     draws = at(VERDICT_BINDING.draws),
     counts = at(VERDICT_BINDING.counts),

@@ -1,33 +1,45 @@
-// The GPU water rectangle run in JavaScript (`shaderRun`) on the collected water scene, beside the
-// CPU walk it replaces (`waterRect.fixture.ts`): what `rectWgsl.test.ts` compares.
+// The GPU water rectangle run in JavaScript (`shaderRun`) on the collected water-cost scene
+// (`waterCostScene.ts`), beside the CPU walk it replaces (`waterRect.fixture.ts`): what
+// `packages/sdk-browser/src/webgpu/water/rectWgsl.test.ts` compares.
 import assert from 'node:assert/strict'
-import { createEngineCamera, type EngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraWorld } from '../../camera/world.ts'
-import { collectClusterPages } from '../../page/selection/collect.ts'
-import { prepareWebgpuBlend } from '../blend/prepare.ts'
-import { createWebgpuBlendState, type WebgpuBlendState } from '../blend/state.ts'
-import { refreshBlendPlan } from '../blend/plan.ts'
-import { buildBlendStatics } from '../blend/statics.ts'
-import { uniformStride } from '../../residency/pools.ts'
-import { orderBlendPasses } from '../blend/order.ts'
-import { writeKeyRecords } from '../blend/keyRecords.ts'
-import { blendVerdictCpu } from '../blend/verdict.fixture.ts'
-import { VERDICT, verdictWords } from '../blend/verdictLayout.ts'
-import { BLEND_ITEM_WORDS, BLEND_ITEM_WORLD } from '../blend/items.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { WATER_RECT_SHADER } from './rectWgsl.ts'
-import { writeWaterItems } from './waterItems.ts'
-import { writeWaterFrame } from './frameWords.ts'
-import { waterRectCpu } from './waterRect.fixture.ts'
-import { VOLUME_ITEM, VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts'
-import { device, prepared } from './pass.fixture.ts'
 import {
-  waterCostScene,
-  waterCostCamera,
-  poseWaterCost,
-  SIZE,
-} from '../../../../../tests/gpu/water/waterCostScene.ts'
-import { graphDraws } from '../../page/selection/drawSource.ts'
+  createEngineCamera,
+  type EngineCamera,
+} from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
+import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
+import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
+import { prepareWebgpuBlend } from '../../../packages/sdk-browser/src/webgpu/blend/prepare.ts'
+import {
+  createWebgpuBlendState,
+  type WebgpuBlendState,
+} from '../../../packages/sdk-browser/src/webgpu/blend/state.ts'
+import { refreshBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
+import { buildBlendStatics } from '../../../packages/sdk-browser/src/webgpu/blend/statics.ts'
+import { uniformStride } from '../../../packages/sdk-browser/src/residency/pools.ts'
+import { orderBlendPasses } from '../../../packages/sdk-browser/src/webgpu/blend/order.ts'
+import { writeKeyRecords } from '../../../packages/sdk-browser/src/webgpu/blend/keyRecords.ts'
+import { blendVerdictCpu } from '../../../packages/sdk-browser/src/webgpu/blend/verdict.fixture.ts'
+import {
+  VERDICT,
+  verdictWords,
+} from '../../../packages/sdk-browser/src/webgpu/blend/verdictLayout.ts'
+import {
+  BLEND_ITEM_WORDS,
+  BLEND_ITEM_WORLD,
+} from '../../../packages/sdk-browser/src/webgpu/blend/items.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { WATER_RECT_SHADER } from '../../../packages/sdk-browser/src/webgpu/water/rectWgsl.ts'
+import { writeWaterItems } from '../../../packages/sdk-browser/src/webgpu/water/waterItems.ts'
+import { writeWaterFrame } from '../../../packages/sdk-browser/src/webgpu/water/frameWords.ts'
+import { waterRectCpu } from '../../../packages/sdk-browser/src/webgpu/water/waterRect.fixture.ts'
+import {
+  VOLUME_ITEM,
+  VOLUME_WORDS,
+  waterRankOf,
+} from '../../../packages/sdk-browser/src/webgpu/transparent/transmission.ts'
+import { device, prepared } from '../../../packages/sdk-browser/src/webgpu/water/pass.fixture.ts'
+import { waterCostScene, waterCostCamera, poseWaterCost, SIZE } from './waterCostScene.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 
 type Vec = number[]
 type Kernel = { boundWaterItems(id: Vec, n: Vec): void; writeWaterArgs(): void }

@@ -1,7 +1,8 @@
-// The rows' closure stamps exactly what a page's readiness needs in its own placement: on generated
-// structures shared by many placements, the rows it raises are the rows of the pages the CPU's
-// per-instance closure holds (`createGroupClosure`, `instances`), whatever the seeds' order — and a
-// row the host stamped "used now" still lets the walk through, the gate being the walk word alone.
+// The rows' closure contract (`rowClosure.fixture.ts`, which the shipped kernel meets word for word
+// on Dawn, `tests/gpu/row/row-closure.gpu.ts`) stamps exactly what a page's readiness needs in its
+// own placement: on generated structures shared by many placements, the rows it raises are the
+// rows of the pages the CPU's per-instance closure holds (`createGroupClosure`, `instances`),
+// whatever the seeds' order.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -11,7 +12,7 @@ import { postPackedBases, rootOfPacked } from '../../page/selection/placements.t
 import { createPackedPages } from '../../page/selection/catalogue.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 import { closeRows, type ClosureSeed } from './rowClosure.fixture.ts'
-import { ROW_USE, ROW_USE_WORDS, ROW_WALK } from './rowWords.ts'
+import { ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
 
 /** `count` placements over `kinds` generated structures, a page in three holding a row. */
 function scene(seed: number, count: number, kinds: number) {
@@ -64,7 +65,7 @@ function stampedRows(s: ReturnType<typeof scene>, seeds: readonly ClosureSeed[],
   const rows: number[] = []
   for (let row = 0; row < s.rows.size; row++)
     if (use[row * ROW_USE_WORDS + ROW_USE] === v) rows.push(row)
-  return { rows, use }
+  return rows
 }
 
 test('the rows raised are those the per-instance closure holds, 1 to 1000 placements', () => {
@@ -79,29 +80,8 @@ test('the rows raised are those the per-instance closure holds, 1 to 1000 placem
       const placement = rootOfPacked(s.placement, page)
       return { page, placement, value: 9 }
     })
-    assert.deepEqual(stampedRows(s, seeds, 9).rows, expectedRows(s, seeds), `seed ${seed}`)
+    assert.deepEqual(stampedRows(s, seeds, 9), expectedRows(s, seeds), `seed ${seed}`)
     const reversed = stampedRows(s, [...seeds].reverse(), 9)
-    assert.deepEqual(reversed.rows, expectedRows(s, seeds), 'whatever the seeds order')
+    assert.deepEqual(reversed, expectedRows(s, seeds), 'whatever the seeds order')
   }
-})
-
-test('a row the host stamped used now still opens its group: the gate is the walk word', () => {
-  const s = scene(4, 1, 1)
-  const st = s.placements[0].structure!
-  // A page in a group, holding a row: its walk opens at least its group.
-  let page = -1
-  for (let p = 0; p < st.owners.length && page < 0; p++)
-    if (st.owners[p] >= 0 && s.rows.has(p)) page = p
-  assert.ok(page >= 0)
-  const seeds = [{ page, placement: 0, value: 5 }]
-  const use = new Uint32Array(s.rows.size * ROW_USE_WORDS)
-  for (let row = 0; row < s.rows.size; row++) use[row * ROW_USE_WORDS + ROW_USE] = 5
-  closeRows(seeds, s.placements, (p) => s.rows.get(p) ?? -1, use)
-  const fresh = stampedRows(s, seeds, 5).use
-  for (let row = 0; row < s.rows.size; row++)
-    assert.equal(
-      use[row * ROW_USE_WORDS + ROW_WALK],
-      fresh[row * ROW_USE_WORDS + ROW_WALK],
-      `row ${row} walked`,
-    )
 })

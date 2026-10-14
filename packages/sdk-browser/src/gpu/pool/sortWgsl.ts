@@ -9,7 +9,7 @@ import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
  * THE VICTIM QUEUE of a GPU pool (#1527): a stable counting sort of the pool's slots by `poolRank`
  * (`rankWgsl.ts`), the highest ranks first and, within a rank, the lower slot first — whatever
  * order the threads run in, two runs over the same slots give the same queue —, at most a burst,
- * in six dispatches (`sort.ts`; `sort.fixture.ts` its mirror):
+ * in six dispatches (`sort.ts`; `sort.fixture.ts` its contract):
  *
  * - `poolCount`, a thread a slot: each workgroup counts its slots' ranks in workgroup memory, then
  *   adds each count it holds to the pool's global counter of that rank once;

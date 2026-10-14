@@ -1,34 +1,53 @@
 import { POOL_RANKS } from './rank.ts'
+import { POOL_SORT_WGSL } from './sortWgsl.ts'
+import { POOL_SORT_WORDS, poolScratchWords } from './sortWords.ts'
+import { runPoolSort } from './sortRun.fixture.ts'
+import { mulberry32 } from '../../../../math/src/sequence/random.ts'
 
 /**
- * CPU mirror of the pool sort (`sortWgsl.ts`): each group of `lanes` counts its slots' ranks, then
- * adds them to the global counters; the ranks are placed from the highest down; each slot then
- * takes its rank's next place, those under `burst` named. `rankOf(j)` is slot `j`'s rank,
- * `POOL_RANKS` in use. Within a rank, slot order, as the GPU's stable sort gives it. Returns the
- * queue of slots and the total ranked.
+ * THE CONTRACT of a pool's victim queue (`sortWgsl.ts`), not its steps: every slot of the `slots`
+ * whose rank `rankOf(j)` is under `POOL_RANKS`, the highest rank first, a rank's slots in slot
+ * order; the first `burst` of them are the queue. Returns the queue and the total ranked.
  */
-export function sortPool(slots: number, rankOf: (j: number) => number, burst: number, lanes = 256) {
-  const counts = new Uint32Array(POOL_RANKS),
-    places = new Uint32Array(POOL_RANKS),
-    local = new Uint32Array(POOL_RANKS)
-  for (let first = 0; first < slots; first += lanes) {
-    local.fill(0)
-    for (let j = first; j < Math.min(slots, first + lanes); j++) {
-      const rank = rankOf(j)
-      if (rank < POOL_RANKS) local[rank]++
-    }
-    for (let r = 0; r < POOL_RANKS; r++) counts[r] += local[r]
-  }
-  let total = 0
-  for (let r = POOL_RANKS - 1; r >= 0; r--) {
-    places[r] = total
-    total += counts[r]
-  }
-  const queue: number[] = []
+export function sortPool(slots: number, rankOf: (j: number) => number, burst: number) {
+  // One key a ranked slot: the higher rank the smaller key, then the slot.
+  const keys: number[] = []
   for (let j = 0; j < slots; j++) {
     const rank = rankOf(j)
-    if (rank >= POOL_RANKS || places[rank] >= burst) continue
-    queue[places[rank]++] = j
+    if (rank < POOL_RANKS) keys.push((POOL_RANKS - 1 - rank) * slots + j)
   }
-  return { queue: queue.slice(0, Math.min(total, burst)), total, places }
+  const queue = Float64Array.from(keys).sort().subarray(0, Math.max(0, burst))
+  return { queue: Array.from(queue, (key) => key % slots), total: keys.length }
+}
+
+/** One run of the shipped sort (`sortRun.fixture.ts`) over the slots of `ranks` with a burst of
+ *  `burst`, its threads in `seed`'s order: the queue, the total handed to the host, and the sort's
+ *  words as it left them. */
+export function shippedSort(ranks: readonly number[], burst: number, seed: number) {
+  const words = new Array<number>(POOL_SORT_WORDS).fill(0),
+    scratch = new Array<number>(poolScratchWords(ranks.length, burst)).fill(0)
+  const queue: number[] = []
+  let placed = -1
+  runPoolSort(
+    POOL_SORT_WGSL,
+    [],
+    {
+      poolSlotRank: (j: number) => (j < ranks.length ? ranks[j] : POOL_RANKS),
+      poolSlotCount: () => ranks.length,
+      poolBurst: () => burst,
+      poolCountAdd: (i: number, v: number) => ((words[i] += v), words[i] - v),
+      poolCountLoad: (i: number) => words[i],
+      poolCountStore: (i: number, v: number) => void (words[i] = v),
+      poolScratchLoad: (i: number) => scratch[i],
+      poolScratchStore: (i: number, v: number) => void (scratch[i] = v),
+      poolPlaced: (total: number) => void (placed = total),
+      poolEmit: (at: number, j: number) => {
+        if (queue[at] !== undefined) throw new Error(`place ${at} listed twice`)
+        queue[at] = j
+      },
+    },
+    ranks.length,
+    mulberry32(seed),
+  )
+  return { queue, placed, words }
 }

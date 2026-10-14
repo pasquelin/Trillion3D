@@ -1,7 +1,8 @@
 // The GPU water rectangle (`rectWgsl.ts`, `argsWgsl.ts`), its shipped text run in JavaScript
 // (`shaderRun`, the `double.ts` contract), against the CPU walk and freeze it replaces
-// (`waterRect.fixture.ts`), word for word (`rectKernel.fixture.ts`): the rectangle the pass covers,
-// the backdrop copy and the gate, on the real collected water scene and its conservative fallbacks.
+// (`waterRect.fixture.ts`), word for word (`tests/gpu/water/rectKernel.ts`): the rectangle the pass
+// covers, the backdrop copy and the gate, on the real collected water scene and its conservative
+// fallbacks.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FLAG_CLUSTER_PAGE, FLAG_PAGED } from '../../visibility/types.ts'
@@ -9,7 +10,7 @@ import { refreshBlendPlan } from '../blend/plan.ts'
 import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { WATER_RANK_SHIFT } from './rank.ts'
-import { blankVolumes, frame, scene } from './rectKernel.fixture.ts'
+import { blankVolumes, frame, scene } from '../../../../../tests/gpu/water/rectKernel.ts'
 import { SIZE } from '../../../../../tests/gpu/water/waterCostScene.ts'
 
 const full = [0, 0, ...SIZE]

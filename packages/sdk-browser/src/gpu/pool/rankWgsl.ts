@@ -5,8 +5,9 @@ import { bitLength } from '../../../../math/src/wgsl/integer.ts'
 /** The ranks a pool tells apart, and the rank of a slot in use: never listed (`rank.ts`). */
 export const POOL_RANKS_WGSL = wgslConst('POOL_RANKS', [], `const POOL_RANKS:u32=${POOL_RANKS}u;`)
 
-/** `poolRank` (`rank.ts`, `rank.fixture.ts` its mirror): `POOL_RANKS` while `age < inUse`, else the
- *  age step then the tier, the finer — higher rank — tier first. Integer only. */
+/** `poolRank` (`rank.ts`; the tests run this text, `rank.fixture.ts`): `POOL_RANKS` while
+ *  `age < inUse`, else the age step then the tier, the finer — higher rank — tier first. Integer
+ *  only. */
 export const POOL_RANK_WGSL = wgslFn(
   'poolRank',
   [bitLength, POOL_RANKS_WGSL],

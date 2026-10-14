@@ -7,7 +7,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * The geometry pool's victim queue behind the drawn list (`evictionWord`, `../layout.ts`): a count,
- * the count of its OLD head, then canonical pages (`../evict.ts`, `listEvictions` its mirror). The
+ * the count of its OLD head, then canonical pages (`../evict.ts`, `listEvictions` its oracle). The
  * pool's sort (`../../pool/sortWgsl.ts`) over the pool's list — its content keys, one per held
  * slot (`../poolList.ts`) —, each key ranked on its group's last use, its level the tier, and
  * written as its canonical page. Every key's group is raised to the frame's uses first, the groups

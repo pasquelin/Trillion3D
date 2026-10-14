@@ -26,7 +26,7 @@ import {
   ENTRY_CORNERS_WGSL,
 } from '../../../packages/sdk-browser/src/webgpu/transparent/entryCornersWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
-import { floats, words } from './fakeBuffers.ts'
+import { boundFloats, boundResource, boundWords } from './fakeBuffers.ts'
 
 /** A buffer's words as the doubles the shader reads, each a pair of words: reads and writes go to
  *  the words where they sit. */
@@ -44,10 +44,6 @@ const pairs = (held: Uint32Array) =>
       return true
     },
   })
-
-/** The bound buffer of `binding`, as words. */
-const boundWords = (bind: ComputeBind, binding: number) =>
-  words(bind.entries.find((entry) => entry.binding === binding)!.resource.buffer.data)
 
 const arrayLength = (ref: { get(): { length: number } }) => ref.get().length
 
@@ -74,25 +70,25 @@ const ROW_FUNCTIONS = [
  *  row of the table, each row's shadow change asked as the dispatch or its list entry asks it, a
  *  listed row marked staled appending the box of the sphere it holds first. */
 function simulateDeriveRows(bind: ComputeBind) {
-  const [rootCount, parts, listed, all, emitAll] = boundWords(bind, 0)
+  const [rootCount, parts, listed, all, emitAll] = boundWords(bind.entries, 0)
   const run = shaderRun<{ deriveRow(row: number, emit: boolean, stale: boolean): void }>(
     DERIVE_ROWS_WGSL,
     ROW_FUNCTIONS,
     {
       arrayLength,
       params: { rootCount, parts, listed, all, emitAll },
-      rootWorlds: pairs(boundWords(bind, 1)),
-      table: boundWords(bind, 2),
-      spheres: floats(bind.entries.find((entry) => entry.binding === 3)!.resource.buffer.data),
-      inputs: pairs(boundWords(bind, 4)),
-      rootBoxes: pairs(boundWords(bind, 5)),
-      corners: boundWords(bind, 6),
-      lods: boundWords(bind, 7),
-      mobility: boundWords(bind, 9),
-      castChanges: boundWords(bind, 10),
+      rootWorlds: pairs(boundWords(bind.entries, 1)),
+      table: boundWords(bind.entries, 2),
+      spheres: boundFloats(bind.entries, 3),
+      inputs: pairs(boundWords(bind.entries, 4)),
+      rootBoxes: pairs(boundWords(bind.entries, 5)),
+      corners: boundWords(bind.entries, 6),
+      lods: boundWords(bind.entries, 7),
+      mobility: boundWords(bind.entries, 9),
+      castChanges: boundWords(bind.entries, 10),
     },
   )
-  const list = boundWords(bind, 8)
+  const list = boundWords(bind.entries, 8)
   for (let j = 0; j < listed; j++) {
     const named = all ? j : list[j]
     const stale = !all && (named & ROW_STALES) !== 0
@@ -103,18 +99,18 @@ function simulateDeriveRows(bind: ComputeBind) {
 /** Replays a dispatch of the compose worlds pass (`COMPOSE_WORLDS_WGSL`): each listed root a parent
  *  composes, its world. */
 function simulateComposeWorlds(bind: ComputeBind) {
-  const [rootCount, listed] = boundWords(bind, 0)
-  const rootWorlds = pairs(boundWords(bind, 4))
+  const [rootCount, listed] = boundWords(bind.entries, 0)
+  const rootWorlds = pairs(boundWords(bind.entries, 4))
   const run = shaderRun<{ composed(parentAt: number, localAt: number, k: number): number[] }>(
     COMPOSE_WORLDS_WGSL,
     [...WORLD_HELPERS, 'composed'],
     {
-      locals: pairs(boundWords(bind, 1)),
-      parents: pairs(boundWords(bind, 3)),
+      locals: pairs(boundWords(bind.entries, 1)),
+      parents: pairs(boundWords(bind.entries, 3)),
     },
   )
-  const parentOf = boundWords(bind, 2),
-    ranks = boundWords(bind, 5)
+  const parentOf = boundWords(bind.entries, 2),
+    ranks = boundWords(bind.entries, 5)
   for (let j = 0; j < listed; j++) {
     const rank = ranks[j],
       p = rank < rootCount ? parentOf[rank] : NO_INDEX
@@ -126,8 +122,7 @@ function simulateComposeWorlds(bind: ComputeBind) {
 /** Replays a dispatch of the root boxes pass (`ROOT_BOXES_WGSL`): each listed root, or every one,
  *  its world box and its stretch. */
 function simulateRootBoxes(bind: ComputeBind) {
-  const [rootCount, listed, whole] = boundWords(bind, 0)
-  const frames = bind.entries.find(({ binding }) => binding === ROOT_BOXES_FRAMES_BINDING)!
+  const [rootCount, listed, whole] = boundWords(bind.entries, 0)
   const run = shaderRun<{ deriveRoot(rank: number): void }>(
     ROOT_BOXES_WGSL,
     [
@@ -137,13 +132,13 @@ function simulateRootBoxes(bind: ComputeBind) {
       ...['framesStretchStore', 'framesSetStretch', 'deriveRoot'],
     ],
     {
-      rootWorlds: pairs(boundWords(bind, 1)),
-      rootInputs: pairs(boundWords(bind, 2)),
-      rootBoxes: pairs(boundWords(bind, 3)),
-      frames: viewTexels(frames.resource),
+      rootWorlds: pairs(boundWords(bind.entries, 1)),
+      rootInputs: pairs(boundWords(bind.entries, 2)),
+      rootBoxes: pairs(boundWords(bind.entries, 3)),
+      frames: viewTexels(boundResource(bind.entries, ROOT_BOXES_FRAMES_BINDING)),
     },
   )
-  const ranks = boundWords(bind, 4)
+  const ranks = boundWords(bind.entries, 4)
   for (let j = 0; j < listed; j++) {
     const rank = whole ? j : ranks[j]
     if (rank < rootCount) run.deriveRoot(rank)
@@ -153,19 +148,19 @@ function simulateRootBoxes(bind: ComputeBind) {
 /** Replays a dispatch of the entries pass (`ENTRY_CORNERS_WGSL`): every entry its list names, or
  *  every entry of the table. */
 function simulateEntryCorners(bind: ComputeBind) {
-  const [rootCount, listed, all] = boundWords(bind, 0)
+  const [rootCount, listed, all] = boundWords(bind.entries, 0)
   const run = shaderRun<{ deriveEntry(entry: number): void }>(
     ENTRY_CORNERS_WGSL,
     [...WORLD_HELPERS, 'splitDouble', 'affineAxis', 'writeCorners', 'deriveEntry'],
     {
       arrayLength,
       params: { rootCount, listed, all },
-      rootWorlds: pairs(boundWords(bind, 1)),
-      entryInputs: pairs(boundWords(bind, 2)),
-      corners: boundWords(bind, 3),
+      rootWorlds: pairs(boundWords(bind.entries, 1)),
+      entryInputs: pairs(boundWords(bind.entries, 2)),
+      corners: boundWords(bind.entries, 3),
     },
   )
-  const list = boundWords(bind, 4)
+  const list = boundWords(bind.entries, 4)
   for (let j = 0; j < listed; j++) run.deriveEntry(all ? j : list[j])
 }
 

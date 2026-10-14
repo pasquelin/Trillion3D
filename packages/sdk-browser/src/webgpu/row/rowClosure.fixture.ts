@@ -7,11 +7,13 @@ export type ClosurePlacement = { pageBase: number; structure?: ClusterStructureI
 export type ClosureSeed = { page: number; placement: number; value: number }
 
 /**
- * The CPU twin of the rows' closure (`rowClosureWgsl.ts`), step for step: each seed stamps its own
- * row when its placement has no structure or its page no group; else its group is walked, the gate
- * the walk word of the first member holding a row, each member's row stamped, each output's owner
- * pushed — or the output stamped —, a walk stopping at a gate already as new. `use` holds
- * `ROW_USE_WORDS` words a row, raised in place; `rowOf` is the page→row map, -1 for none.
+ * THE CONTRACT of the rows' closure (`rowClosureWgsl.ts`), not its steps: each seed raises to its
+ * clock the use word of every row its readiness needs in its placement — its own row when its
+ * placement has no structure or its page no group, else the rows of every group reachable from its
+ * page's group, each output's owner reached in turn and an output no group replaces stamped alone
+ * — and the walk word of each reached group's GATE, its first member holding a row. `use` holds
+ * `ROW_USE_WORDS` words a row, raised in place, its walk words older than the seeds as every frame
+ * leaves them; `rowOf` is the page→row map, -1 for none.
  */
 export function closeRows(
   seeds: readonly ClosureSeed[],
@@ -20,10 +22,8 @@ export function closeRows(
   use: Uint32Array,
 ) {
   const raise = (row: number, word: number, v: number) => {
-    const at = row * ROW_USE_WORDS + word,
-      old = use[at]
-    use[at] = Math.max(old, v)
-    return old
+    const at = row * ROW_USE_WORDS + word
+    use[at] = Math.max(use[at], v)
   }
   const stamp = (page: number, v: number) => {
     const row = rowOf(page)
@@ -36,29 +36,26 @@ export function closeRows(
       stamp(page, v)
       continue
     }
-    const stack = [first]
-    while (stack.length) {
-      const g = stack.pop()!,
-        end = s.childOffsets[g + 1]
-      let m = s.childOffsets[g],
-        gate = -1
-      for (; m < end; m++) {
-        gate = rowOf(pageBase + s.children[m])
-        if (gate >= 0) {
-          m++
-          break
-        }
-      }
-      if (gate >= 0) {
-        if (raise(gate, ROW_WALK, v) >= v) continue
-        raise(gate, ROW_USE, v)
-      }
-      for (; m < end; m++) stamp(pageBase + s.children[m], v)
+    // Breadth first over the groups reachable from the page's own.
+    const reached = [first],
+      seen = new Set(reached)
+    for (let i = 0; i < reached.length; i++) {
+      const g = reached[i]
+      const members = Array.from(
+        s.children.slice(s.childOffsets[g], s.childOffsets[g + 1]),
+        (child) => pageBase + child,
+      )
+      const gate = members.find((member) => rowOf(member) >= 0)
+      if (gate !== undefined) raise(rowOf(gate), ROW_WALK, v)
+      for (const member of members) stamp(member, v)
       for (let o = s.outputOffsets[g]; o < s.outputOffsets[g + 1]; o++) {
         const output = s.outputs[o],
           owner = s.owners[output]
         if (owner < 0) stamp(pageBase + output, v)
-        else stack.push(owner)
+        else if (!seen.has(owner)) {
+          seen.add(owner)
+          reached.push(owner)
+        }
       }
     }
   }

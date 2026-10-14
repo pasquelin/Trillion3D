@@ -162,13 +162,14 @@ export function madeSet(
   )
 }
 
-/** The pool made at `pages`: a growth from `grownFrom` pages said as one, a pool short of the
- *  full one said as a shrink; the shadows' resolution bias, its halvings from the full pool. */
+/** The pool made at `pages`: a growth from `grownFrom` pages said as one, a first pool short of
+ *  the full one said as a shrink with `shrunk`'s context — a regrowth, which never shrinks, gives
+ *  none; the shadows' resolution bias, its halvings from the full pool. */
 export function sayPool(
   rt: WebgpuPagesRuntime,
   pages: number,
   grownFrom: number,
-  shrunk: () => Record<string, unknown>,
+  shrunk?: () => Record<string, unknown>,
 ) {
   const { memory } = rt.lights
   const halvings = Math.log2(VSM_POOL_PAGES / pages)
@@ -179,7 +180,7 @@ export function sayPool(
       'The GPU budget holds a larger shadow page pool again: finer shadows',
       { kind: 'info', fromPages: grownFrom, pages },
     )
-  else if (!grownFrom && halvings > 0) {
+  else if (!grownFrom && halvings > 0 && shrunk) {
     noteShadowPressure(memory, 'pool-shrunk', halvings)
     rt.diag.engineDiagnostic(
       'gpu-out-of-memory',

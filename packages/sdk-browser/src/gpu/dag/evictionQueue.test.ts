@@ -1,5 +1,5 @@
 // The EVICTION QUEUE a resident GPU cut publishes, on the Node device: the stamps, their raise up
-// the groups and the pool sort (`../pool/sortWgsl.ts`) replayed by their CPU mirrors
+// the groups and the pool sort (`../pool/sortWgsl.ts`) replayed on the CPU, the queue by contract
 // (`tests/kit/gpu/fakeEvict.ts`), checked against the cut rule's closure on generated frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -127,7 +127,7 @@ test('the queue lists what the pool holds, whatever the rule reads, and no more'
   assert.deepEqual(new Set((await cut()).queue), new Set(listed.slice(1, 3)))
 })
 
-test('the mirror ranks older first, then finer first, and skips the pages any view uses', () => {
+test('the contract ranks older first, then finer first, and skips the pages any view uses', () => {
   // Keys 0..4, canonical pages 0..4: level 1 used at 1, level 0 used at 6, level 0 used at 1,
   // level 0 used now, level 0 used the frame before.
   const keyWords = Uint32Array.from([1 << KEY_PAGE_BITS, 1, 2, 3, 4]),

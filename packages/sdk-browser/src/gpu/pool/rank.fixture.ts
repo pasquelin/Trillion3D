@@ -1,12 +1,13 @@
-import { bitLength } from '../../../../math/src/scalar/integers.ts'
-import { POOL_AGES, POOL_RANKS, POOL_TIERS } from './rank.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { POOL_TIERS } from './rank.ts'
+import { POOL_RANK_WGSL } from './rankWgsl.ts'
 
-/** The age step a rank is made of, as `bitLength` in the kernel: one step a doubling. */
-export const ageStep = (age: number) => Math.min(POOL_AGES - 1, bitLength(age))
+/** The shipped `poolRank` (`rankWgsl.ts`) run in JavaScript: an edit of the kernel is what the
+ *  tests rank by. */
+export const { poolRank } = shaderRun<{
+  poolRank: (age: number, tier: number, inUse: number) => number
+}>(POOL_RANK_WGSL, ['poolRank'], {})
 
-/** CPU mirror of `poolRank` (`rankWgsl.ts`): `POOL_RANKS` while `age < inUse`, else older age step
- *  first, then the finer tier. Integer only, as the kernel. */
-export const poolRank = (age: number, tier: number, inUse: number) =>
-  age < inUse
-    ? POOL_RANKS
-    : ageStep(age) * POOL_TIERS + (POOL_TIERS - 1 - Math.min(tier, POOL_TIERS - 1))
+/** The age step of a slot `age` frames old: the step its rank is made of, read off the shipped
+ *  rank — a step is `POOL_TIERS` ranks. */
+export const ageStep = (age: number) => Math.floor(poolRank(age, 0, 0) / POOL_TIERS)
