@@ -194,6 +194,6 @@ export function keepVsmFrame(res: VsmResources, { mapsGranted }: { mapsGranted: 
     return
   }
   res.swapFrames()
-  // The physical page lists and the page requests are only extracted with caching on.
+  // The page requests are only extracted with caching on.
   res.prevFrameKept = res.layout.staticSlice !== 0
 }
