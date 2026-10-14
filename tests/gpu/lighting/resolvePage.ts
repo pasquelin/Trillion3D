@@ -25,7 +25,6 @@ import {
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
-import { VIEW_LAYOUT } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
   CONTRACT_VSM_BINDINGS,
@@ -52,14 +51,11 @@ type ResolveRecord = {
   /** Through the program with the lobes (`resolveHarness`), at this entry. */
   lobes?: 'main' | 'zeroLobes' | 'isoAniso'
 }
-/** A scene; `rank` the word the view's fourth viewport slot holds — what a moving image's rank
- *  was, which the resolve must not read (0 by default) —, `slots` the shadow slot of some lights
- *  by their index. */
+/** A scene; `slots` the shadow slot of some lights by their index. */
 export type ResolveScene = {
   lights: SceneLight[]
   samples: number[]
   records: ResolveRecord[]
-  rank?: number
   slots?: [number, number][]
 }
 
@@ -125,15 +121,9 @@ export async function run(scenes: ResolveScene[]) {
     const lights = createWebgpuLightState(store)
     lights.buffer = createSceneLightContractBuffer(device, store)
     uploadSceneLights(device, lights)
-    // One tile: the view is one tile wide and high, every sample at its pixel, at its rank.
+    // One tile: the view is one tile wide and high, every sample at its pixel.
     const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)]
     view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, clearValueOf(0), false, direct)
-    if (scene.rank)
-      device.queue.writeBuffer(
-        view.buffer,
-        (VIEW_LAYOUT.at.viewport + 3) * 4,
-        new Float32Array([scene.rank]),
-      )
     const samples = storage(new Float32Array(scene.samples))
     const count = scene.samples.length / SAMPLE_FLOATS
     const sums: Record<string, number[]> = {}
