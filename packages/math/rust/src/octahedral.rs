@@ -60,8 +60,7 @@ pub fn oct_decode(q: u32) -> [f32; 3] {
 #[inline]
 fn fold<T: Real + PartialOrd>([a, b]: [T; 2]) -> [T; 2] {
     let side = |x: T| if x < T::ZERO { -T::ONE } else { T::ONE };
-    let abs = |x: T| if x < T::ZERO { -x } else { x };
-    [(T::ONE - abs(b)) * side(a), (T::ONE - abs(a)) * side(b)]
+    [(T::ONE - b.abs()) * side(a), (T::ONE - a.abs()) * side(b)]
 }
 
 /// Direction `d` to the plane `[-1, 1]²`, `(x, z)` on the octahedron: the full octahedron, its

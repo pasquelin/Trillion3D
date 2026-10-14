@@ -16,4 +16,5 @@ fn the_trigonometry_is_the_platform_s_in_each_precision() {
     assert_eq!([sin, cos, tan], [x.sin(), x.cos(), x.tan()]);
     assert_eq!(pair, x.sin_cos());
     assert_eq!(Real::sqrt(9.0f32), 3.0);
+    assert_eq!(Real::abs(-0.25f64), 0.25);
 }
