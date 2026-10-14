@@ -13,11 +13,10 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
-import { randomLampScope } from './shadedLightScope.fixture.ts'
+import { randomLampScope, type Sum } from './shadedLightScope.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-type Sum = (...args: unknown[]) => number[]
 const LOOP = [
   'sliceLighting',
   'declaredLight',

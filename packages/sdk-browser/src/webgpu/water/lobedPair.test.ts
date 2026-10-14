@@ -13,15 +13,13 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
+import { randomLampScope, same, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 
-type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
-type Sum = (...args: unknown[]) => number[]
 const LOBED = waterCompositeShader({})
 const PLAIN = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(
@@ -42,7 +40,6 @@ const SHARED = [
 ]
 const LOBE = ['lobeLight', 'anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
-const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 type V3 = [number, number, number]
 
 /** A pixel's lobes as `setLobes` leaves them: a strength along a direction across `N`, a coat. */
