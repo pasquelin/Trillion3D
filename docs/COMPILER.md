@@ -28,32 +28,34 @@ bytes. A Linux on musl, or an install without optional dependencies, has no pack
 ## Invocation
 
 ```
-trillion3d-compiler SOURCE CACHE slice|full TRIANGLES RESOURCE_BASE_URL
-trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BASE_URL
-trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BASE_URL SIMPLIFICATION
+trillion3d-compiler source cache slice|full triangleBudget resourceBaseUrl
+trillion3d-compiler source cache slice|full triangleBudget threads ramBudgetMb resourceBaseUrl
+trillion3d-compiler source cache slice|full triangleBudget threads ramBudgetMb resourceBaseUrl simplification
 trillion3d-compiler --jobs FILE|-
 trillion3d-compiler --version
 trillion3d-compiler --build-inputs
 ```
 
-Exactly 5, 7 or 8 positional arguments, plus `--textures-format=` anywhere (`compiler_args.rs`).
-Another count prints the usage, emits `INVALID_ARGS` and exits 2; a value out of range is refused
-with `INVALID_OPTIONS` (`compiler_validate.rs`). `--version` prints the compiler and format
-versions, the drivers and the platform as JSON. `--build-inputs` prints the files its build hashed
+Exactly 5, 7 or 8 positional arguments, plus `--textures-format=` anywhere (`compiler_args.rs`):
+the fields of one job, named as a batch job names them and in the order `JOB_FIELDS` declares
+(`packages/sdk-core/src/contracts/compilerAbi.ts`, printed into the compiler's `shared_math/abi.rs`).
+Both forms are read by one reader. Another count prints the usage, emits `INVALID_ARGS` and exits 2;
+a value out of range is refused with `INVALID_OPTIONS`, naming the field (`compiler_validate.rs`).
+`--version` prints the compiler and format versions, the drivers and the platform as JSON. `--build-inputs` prints the files its build hashed
 into the implementation hash, one path per line from the crate (`build_inputs.rs`): the production
 sources of the compiler and of the crates it links, their manifests, the lock file, the build
 scripts and the cargo configuration.
 
 | Argument             | Meaning                                                                                                                                                                        | Default  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| `SOURCE`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene                      | required |
-| `CACHE`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                                   | required |
-| scope                | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                          | required |
-| `TRIANGLES`          | Positive triangle budget of `slice`; ignored by `full`                                                                                                                         | required |
-| `THREADS`            | Worker threads of the job, 1–64                                                                                                                                                | `2`      |
-| `RAM_MB`             | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit                                             | `256`    |
-| `RESOURCE_BASE_URL`  | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it                                                                         | required |
-| `SIMPLIFICATION`     | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them                                                                                       | `none`   |
+| `source`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene                      | required |
+| `cache`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                                   | required |
+| `scope`              | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                          | required |
+| `triangleBudget`     | Positive triangle budget of `slice`; ignored by `full`                                                                                                                         | required |
+| `threads`            | Worker threads of the job, 1–64                                                                                                                                                | `2`      |
+| `ramBudgetMb`        | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit                                             | `256`    |
+| `resourceBaseUrl`    | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it                                                                         | required |
+| `simplification`     | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them                                                                                       | `none`   |
 | `--textures-format=` | `all`, `bc7`, `astc`, `etc2` or `none`: the GPU block families cooked beside the lossless levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `all`    |
 
 ```sh
@@ -91,15 +93,15 @@ process, each with its own cache:
 }
 ```
 
-| Field                                                                   | Meaning                                                                    | Default                                              |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `workers`                                                               | Concurrent jobs, at most 64, lowered until the budget holds them           | `1`                                                  |
-| `ramBudgetMb`                                                           | Budget of the whole batch, split between workers unless a job sets its own | `256 × workers`                                      |
-| `threads`                                                               | Default threads per job                                                    | `2`                                                  |
-| `jobs[].id`                                                             | Unique job id in events and the summary                                    | `job-<index>`                                        |
-| `jobs[].source`, `cache`, `resourceBaseUrl`                             | As on the command line                                                     | required                                             |
-| `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                          | `full`, `150000`, batch default, batch share, `none` |
-| `jobs[].texturesFormat`                                                 | As `--textures-format=`                                                    | `all`                                                |
+| Field                                                                        | Meaning                                                                    | Default                                              |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `workers`                                                                    | Concurrent jobs, at most 64, lowered until the budget holds them           | `1`                                                  |
+| `ramBudgetMb`                                                                | Budget of the whole batch, split between workers unless a job sets its own | `256 × workers`                                      |
+| `threads`                                                                    | Default threads per job                                                    | `2`                                                  |
+| `jobs[].id`                                                                  | Unique job id in events and the summary                                    | `job-<index>`                                        |
+| `jobs[].source`, `cache`, `resourceBaseUrl`                                  | As on the command line                                                     | required                                             |
+| `jobs[].scope`, `triangleBudget`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                          | `full`, `150000`, batch default, batch share, `none` |
+| `jobs[].texturesFormat`                                                      | As `--textures-format=`                                                    | `all`                                                |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
@@ -126,7 +128,7 @@ being `"job"` for a single invocation and `"*"` on batch lines. `accepted`, `pro
 | -------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `batch`                    | First line of `--jobs`                                             | `jobs`, `workers`                                                                                    |
 | `queued`                   | Each batch job, before any work                                    | `source`                                                                                             |
-| `accepted`                 | A worker starts the job                                            | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification`                  |
+| `accepted`                 | A worker starts the job                                            | `source`, `cache`, `scope`, `triangleBudget`, `threads`, `ramBudgetMb`, `simplification`             |
 | `progress` `import-source` | A converting driver writes its scene                               | `step` (`parse`, `meshes`, `write`, `complete`, `reused`), `completed`, `total`                      |
 | `progress` `archive`       | A container is extracted, then routed                              | `step` (`extract`, `routed`), `entries`, `bytes`, `chain`                                            |
 | `progress` `import`        | Scene loaded and validated                                         | `primitives`, `nodes`, `unsupported` (counts by code), `ms`                                          |
@@ -330,24 +332,24 @@ admitted and on what condition; a driver outside it is not merged.
 The code is the contract: each module's head states its rules and their reasons. Paths are under
 `packages/asset-compiler-rust/src/`.
 
-| Stage | What it does | Module |
-|---|---|---|
-| Import | Routes each source to its driver; converting drivers write the intermediate glTF under `native/imports/` | `plugins.rs`, `import.rs` |
-| Scene loading | Decodes transport compression, keeps the rendered scene's nodes, expands GPU instancing | `compiler_source.rs`, `compressed/mod.rs`, `compiler_nodes.rs`, `compiler_instancing.rs` |
-| Admission | Refuses a job above its budget, cuts primitives and images into waves that fit | `compiler_plan.rs`, `compiler_budget.rs` |
-| Simplification and DAG | Level 0 clusters, then groups simplified with borders locked and re-split, each measured and diagnosed | `dag.rs`, `dag/`, `qem.rs`, `qem_solve.rs`; corpus `tests/corpus/mod.rs` |
-| Pages | Quantized cluster pages, streaming bundles with closed dependency lists, the paged manifest | `page-codec-wasm/src/encode.rs`, `compiler_bundle_dependencies.rs`, `compiler_manifest_pages.rs` |
-| Deformation | Joints, weights, morph targets and soft-body ids carried into the pages with their bounds | `page-codec-wasm/src/encode/deformation.rs`, `geometry_page_deform.rs` |
-| Coplanar cuts | One order for surfaces sharing a plane | `coplanar.rs` |
-| Textures | Every mip level, lossless and the gated block family, keyed by the image's SHA-256 | `compiler_textures.rs`, `texture_preview.rs` |
-| Cutouts | Alpha measured during the texture decode; only answered entries applied | `cutout.rs` |
-| Scene tables | The node graph, lights and surfaces the runtime builds its scene from | `compiler_tables.rs` |
-| Proxy and impostors | The resident lighting proxy; octahedral impostor atlases | `proxy.rs`, `impostor.rs` |
-| Physics cook | Colliders, rigid and soft bodies cooked by native Jolt | `physics_cook.rs` |
-| Lights | The source's lamps in the engine's contract | `compiler_lights.rs` |
-| World roots | Objects' roots grouped per partition cell into world super-roots | `compiler_world_roots.rs` |
-| Identity and reuse | The cache key; the proof of an existing folder | `compiler_identity.rs`, `compiler_reuse.rs` |
-| Publication | Atomic writes, pointer, prune, cache lock | `compiler_storage.rs`, `compiler_publish.rs`, `compiler_prune.rs`, `compiler_lock.rs` |
+| Stage                  | What it does                                                                                             | Module                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Import                 | Routes each source to its driver; converting drivers write the intermediate glTF under `native/imports/` | `plugins.rs`, `import.rs`                                                                        |
+| Scene loading          | Decodes transport compression, keeps the rendered scene's nodes, expands GPU instancing                  | `compiler_source.rs`, `compressed/mod.rs`, `compiler_nodes.rs`, `compiler_instancing.rs`         |
+| Admission              | Refuses a job above its budget, cuts primitives and images into waves that fit                           | `compiler_plan.rs`, `compiler_budget.rs`                                                         |
+| Simplification and DAG | Level 0 clusters, then groups simplified with borders locked and re-split, each measured and diagnosed   | `dag.rs`, `dag/`, `qem.rs`, `qem_solve.rs`; corpus `tests/corpus/mod.rs`                         |
+| Pages                  | Quantized cluster pages, streaming bundles with closed dependency lists, the paged manifest              | `page-codec-wasm/src/encode.rs`, `compiler_bundle_dependencies.rs`, `compiler_manifest_pages.rs` |
+| Deformation            | Joints, weights, morph targets and soft-body ids carried into the pages with their bounds                | `page-codec-wasm/src/encode/deformation.rs`, `geometry_page_deform.rs`                           |
+| Coplanar cuts          | One order for surfaces sharing a plane                                                                   | `coplanar.rs`                                                                                    |
+| Textures               | Every mip level, lossless and the gated block family, keyed by the image's SHA-256                       | `compiler_textures.rs`, `texture_preview.rs`                                                     |
+| Cutouts                | Alpha measured during the texture decode; only answered entries applied                                  | `cutout.rs`                                                                                      |
+| Scene tables           | The node graph, lights and surfaces the runtime builds its scene from                                    | `compiler_tables.rs`                                                                             |
+| Proxy and impostors    | The resident lighting proxy; octahedral impostor atlases                                                 | `proxy.rs`, `impostor.rs`                                                                        |
+| Physics cook           | Colliders, rigid and soft bodies cooked by native Jolt                                                   | `physics_cook.rs`                                                                                |
+| Lights                 | The source's lamps in the engine's contract                                                              | `compiler_lights.rs`                                                                             |
+| World roots            | Objects' roots grouped per partition cell into world super-roots                                         | `compiler_world_roots.rs`                                                                        |
+| Identity and reuse     | The cache key; the proof of an existing folder                                                           | `compiler_identity.rs`, `compiler_reuse.rs`                                                      |
+| Publication            | Atomic writes, pointer, prune, cache lock                                                                | `compiler_storage.rs`, `compiler_publish.rs`, `compiler_prune.rs`, `compiler_lock.rs`            |
 
 Every platform cooks the same bytes; the root `.cargo/config.toml` and `build.rs` say how.
 
