@@ -10,12 +10,12 @@ import type { WebgpuTilePool } from './pool.ts'
  *  four, then the places of all lanes. */
 const TILE_USE_HEADER = alignUp(PREVIEW_LAYOUT_NAMES.length, 4)
 /** The tier of a free or pinned place: never ranked, never a victim. */
-/** The word a place's use starts at: the header, then `PLACE_USE_WORDS` a place, lane by lane. */
-export const tilePlaceWordAt = (base: number, index: number) =>
-  TILE_USE_HEADER + PLACE_USE_WORDS * (base + index)
 export const TILE_UNRANKED = 0xffffffff
 /** Words of one place: the clock a pixel last read it, and its tier. */
 const PLACE_USE_WORDS = 2
+/** The word a place's use starts at, as `tilePlaceWord` finds it. */
+const tilePlaceWordAt = (base: number, index: number) =>
+  TILE_USE_HEADER + PLACE_USE_WORDS * (base + index)
 
 /** \`tilePlaceWord(base, index)\`: the first word of place \`index\` of the lane whose places start
  *  at \`base\` — its clock, its tier the next —, as every kernel reading the words finds it. */

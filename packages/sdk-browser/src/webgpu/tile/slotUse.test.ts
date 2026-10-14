@@ -9,7 +9,8 @@ import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
-import { tilePlaceWordAt } from './slotUse.ts'
+import { TILE_PLACE_WORD_WGSL } from './slotUse.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { tileId } from './ids.ts'
 import { packEntry, placeOf, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
@@ -19,6 +20,11 @@ import { noTails } from '../../texture/noTails.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
+
+/** The shipped `tilePlaceWord`, run as the kernels find a place's first word. */
+const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
+  tilePlaceWord: (base: number, index: number) => number
+}>(TILE_PLACE_WORD_WGSL, ['tilePlaceWord'], {})
 
 /** One 4096² texture in one lossless layer — 900 places, its tail pinned —, at clock `now.clock`. */
 function scene() {
