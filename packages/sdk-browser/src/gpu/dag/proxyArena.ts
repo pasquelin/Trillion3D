@@ -53,6 +53,7 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     copies = 0,
     buffer: GPUBuffer | undefined,
     revision = 0,
+    writes = 0,
     layout = layoutOf()
 
   function layoutOf() {
@@ -72,9 +73,10 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     }
   }
   const byteAt = (word: number) => (RUNTIME_HEADER_WORDS + word) * 4
-  /** Every write to the buffer. No buffer, no write. */
+  /** Every write to the buffer, counted (`writes`). No buffer, no write. */
   const send = (target: GPUBuffer | undefined, ...args: WriteArgs) => {
     if (!target) return
+    writes++
     device.queue.writeBuffer(target, ...args)
   }
 
@@ -168,6 +170,12 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     get revision() {
       return revision
     },
+    /** Moves at every write to what a ray of the proxy meets — the buffer's, the instances' and the
+     *  poses' (`wrote`) —: the answers the rays gave before are of another epoch (`proxyStore.ts`). */
+    get writes() {
+      return writes
+    },
+    wrote: () => void writes++,
     /** The spans the meshes' columns take (`proxyColumns.ts`). */
     spans: { triangles, nodes, corners },
     byteAt,

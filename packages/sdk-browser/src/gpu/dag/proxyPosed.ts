@@ -105,6 +105,7 @@ export function createPosedCopies(
       if (!pose.run(encoder, buffer, host.pool, entries, layoutKey())) return
       posedRevision = host.revision
       fresh = false
+      arena.wrote()
     },
     dispose: () => pose.dispose(),
   }
