@@ -6,8 +6,9 @@ export { CANCEL_GRACE_MS } from './compiler/process.mts'
 export { resolveCompilerExecutable } from './compiler/executable.mts'
 export { COMPILER_LINE_LIMIT } from './compiler/lines.mts'
 export { getSdkProvenance } from './compiler/provenance.mts'
-import { DEFAULT_SCOPE, readPagedManifest } from '../../sdk-core/src/index.ts'
-import type { AssetScope } from '../../sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../sdk-core/src/contracts/base.ts'
+import { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'
+import type { AssetScope } from '../../sdk-core/src/contracts/base.ts'
 import type {
   BatchJob,
   BatchOptions,

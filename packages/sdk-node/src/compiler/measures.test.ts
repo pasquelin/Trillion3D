@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prepare } from '../index.mts'
-import { manifest as fixture } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
+import { manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { writePagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts'
 
 /** The `prepare()` metrics of a run that built the hierarchy, as the manifest/pointer merge
@@ -105,7 +105,7 @@ interface FauxPointer {
  * pointer. It pins both readings, which the real binary cannot.
  */
 async function faux(root: string, head: object, pointeur: FauxPointer): Promise<string> {
-  const paged = { ...fixture(), primitives: [], ...head }
+  const paged = { ...manifest(), primitives: [], ...head }
   await writePagedManifest(join(root, 'cache', 'native', pointeur.scope), paged, pointeur.url)
   const chemin = join(root, 'faux-compilateur.ts')
   await writeFile(

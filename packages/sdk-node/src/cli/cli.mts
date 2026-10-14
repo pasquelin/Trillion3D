@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { prepare, createTerminalProgress } from '../index.mts'
+import { prepare } from '../index.mts'
+import { createTerminalProgress } from './progress.mts'
 import { compilerError, describeMessage, messageOf } from '../messages/catalogue.mts'
 import { messageTally } from './messageTally.mts'
 import {

@@ -5,20 +5,20 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { reviewCutouts } from './review.mts'
-import { type Sheet } from './sheet.mts'
+import type { Sheet } from './sheet.mts'
 import { leaf } from './cutout.fixture.ts'
 import type { CutoutModel, CutoutReviewSummary } from '../compiler/contracts.ts'
-import { CUTOUT_SHEET_FILE as SHEET_FILE } from '../../../sdk-core/src/index.ts'
+import { CUTOUT_SHEET_FILE } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 
 /** A compiled model with a sheet and nothing else: the pass must work without a cache to read. */
 async function model(id: string, textures: Sheet['textures']): Promise<CutoutModel> {
   const cache = await mkdtemp(join(tmpdir(), `trillion3d-${id}-`))
-  await writeFile(join(cache, SHEET_FILE), JSON.stringify({ version: 1, textures }))
+  await writeFile(join(cache, CUTOUT_SHEET_FILE), JSON.stringify({ version: 1, textures }))
   return { id, source: join(cache, 'source.gltf'), cache }
 }
 
 const sheetOf = async (one: CutoutModel): Promise<Sheet> =>
-  JSON.parse(await readFile(join(one.cache, SHEET_FILE), 'utf8')) as Sheet
+  JSON.parse(await readFile(join(one.cache, CUTOUT_SHEET_FILE), 'utf8')) as Sheet
 
 /** The subset of a raw keyboard the review reads, delivering keys one at a time. */
 interface FakeKeyboard extends EventEmitter {

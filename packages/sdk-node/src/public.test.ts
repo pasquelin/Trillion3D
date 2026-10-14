@@ -1,13 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  prepare,
-  prepareMany,
-  createCompilationJob,
-  DEFAULT_SCOPE,
-  getSdkProvenance,
-  resolveCompilerExecutable,
-} from './index.mts'
+import { prepare, prepareMany, createCompilationJob } from './index.mts'
+import { DEFAULT_SCOPE } from '../../sdk-core/src/contracts/base.ts'
+import { getSdkProvenance } from './compiler/provenance.mts'
+import { resolveCompilerExecutable } from './compiler/executable.mts'
 import type { BatchJob } from './compiler/contracts.ts'
 
 /** One hashed file of `getSdkProvenance()`'s snapshot, as this test reads it: hashes only, no

@@ -1,6 +1,9 @@
 import { readFile, writeFile, rename } from 'node:fs/promises'
 import { join } from 'node:path'
-import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/index.ts'
+import {
+  CUTOUT_SHEET_FILE,
+  CUTOUT_SHEET_VERSION,
+} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { compilerError } from '../messages/catalogue.mts'
 
 /**

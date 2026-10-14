@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { DEFAULT_SCOPE } from '../../../sdk-core/src/index.ts'
-import { previewLevelSize, readPagedManifest } from '../../../sdk-core/src/index.ts'
+import { DEFAULT_SCOPE } from '../../../sdk-core/src/contracts/base.ts'
+import { previewLevelSize } from '../../../sdk-core/src/texture/previewLevels.ts'
+import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
 
 /**
  * The thumbnails a compile already ships, read back for whoever asks the cutout questions.

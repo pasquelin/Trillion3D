@@ -1,9 +1,6 @@
-import type {
-  AssetScope,
-  DagWarning,
-  JobSnapshot,
-  PreparationProgress,
-} from '../../../sdk-core/src/index.ts'
+import type { AssetScope, PreparationProgress } from '../../../sdk-core/src/contracts/base.ts'
+import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
+import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
 
 /** One JSON event from the native compiler's stderr. */
 export interface CompilerEvent {
