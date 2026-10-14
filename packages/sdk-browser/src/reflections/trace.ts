@@ -25,7 +25,8 @@ import type { TraceGroups } from './traceEncode.ts'
 
 /**
  * THE FRAME'S COUNTER OF THE REFLECTION TRACE, in its list: the tiles the classification listed
- * (`count`), then the list itself from `TRACE_LIST_FIRST`. The trace binds that one buffer, writable.
+ * (`count`), then the list itself from `TRACE_LIST_FIRST`. The classification writes it; the trace
+ * reads it through the same atomic declaration, so binds it writable.
  */
 const TRACE_LIST = { count: 0 } as const
 const TRACE_LIST_FIRST = 1
@@ -164,8 +165,8 @@ export async function createTraceStages(
 export const traceListBytes = (width: number, height: number) =>
   TRACE_LIST_FIRST * 4 + ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE) * 4
 
-/** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), and the list the trace reads and
- *  writes with the frame's counters (`TRACE_LIST`). */
+/** The tiles of a view: the indirect arguments (`TRACE_ARGS_BYTES`), and the list the classification
+ *  writes and the trace reads, with the frame's counter (`TRACE_LIST`). */
 export const createTraceTiles = (device: GPUDevice, width: number, height: number) => ({
   args: device.createBuffer({
     label: 'Trillion3D reflection tile count',
@@ -173,12 +174,12 @@ export const createTraceTiles = (device: GPUDevice, width: number, height: numbe
     // Its count is copied to the settle sample (`settle.ts`).
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_SRC,
   }),
-  // Not an indirect argument, so that the trace may write it, and a stage of it binds no more than
-  // eight storage buffers (`RUNTIME_BINDINGS`).
+  // Apart from the indirect arguments: the trace dispatches on those, and a dispatch cannot bind its
+  // own indirect buffer writable, as the trace binds the list (its words are atomic).
   list: device.createBuffer({
     label: 'Trillion3D reflection tile list',
     size: traceListBytes(width, height),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    usage: GPUBufferUsage.STORAGE,
   }),
 })
 export type TraceTiles = ReturnType<typeof createTraceTiles>
