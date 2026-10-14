@@ -19,6 +19,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dLess, dMul, dSqrt, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
 import { affineAxis, dBoxAffine } from '../../../math/src/wgsl/doubleAffine.ts'
 import { dIsFinite } from '../../../math/src/wgsl/doubleRound.ts'
+import { dIsNan } from '../../../math/src/wgsl/doubleWords.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
@@ -68,12 +69,16 @@ fn composeCorners(row:u32,world:array<vec2u,16>){
  *  projective path (`unitW`), where a corner's `w` is `0·∞`: every bound NaN. */
 export const CARRIED_BOX_WGSL = wgslBlock(
   'CARRIED_BOX_WGSL',
-  [dBoxAffine, dLess, dIsFinite],
+  [dBoxAffine, dLess, dIsFinite, dIsNan],
   `
 fn carriedBox(world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>)->array<vec2u,6>{
  var box:array<vec2u,6>;
  for(var a=0u;a<3u;a++){box[a]=lo[a];box[3u+a]=hi[a];}
- if(dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2])){return box;}
+ // Empty as the CPU finds it (\`boundsAreEmpty\`): an axis whose high lies under its low; a NaN
+ // bound compares false there, so it never makes a box empty.
+ for(var a=0u;a<3u;a++){
+  if(!dIsNan(lo[a])&&!dIsNan(hi[a])&&dLess(hi[a],lo[a])){return box;}
+ }
  for(var k=0u;k<6u;k++){
   if(!dIsFinite(box[k])){
    for(var j=0u;j<6u;j++){box[j]=${wgslDouble(NaN)};}

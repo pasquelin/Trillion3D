@@ -53,7 +53,17 @@ const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): v
   ROOT_BOXES_WGSL,
   [
     ...DOUBLE_HELPERS,
-    ...['affineAxis', 'dLess', 'dIsZero', 'dIsFinite', 'dMin', 'dMax', 'carriedBox', 'composeBox'],
+    ...[
+      'affineAxis',
+      'dLess',
+      'dIsZero',
+      'dIsFinite',
+      'dIsNan',
+      'dMin',
+      'dMax',
+      'carriedBox',
+      'composeBox',
+    ],
   ],
   roots,
 )
