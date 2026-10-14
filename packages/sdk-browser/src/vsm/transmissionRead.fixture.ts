@@ -5,11 +5,10 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { vsmTransmissionReadWgsl } from './transmissionReadWgsl.ts'
-import { type Tri, type V, BLOCK, geometry } from './transmissionSheets.fixture.ts'
+import { type Tri, type V, geometry } from './transmissionSheets.fixture.ts'
+import { VSM_TRANSMISSION_BLOCK_TEXELS, VSM_TRANSMISSION_WIDTH } from './transmissionLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
-
-const WIDTH = 1024
 
 export interface Caster {
   tri: Tri
@@ -54,13 +53,13 @@ export function memoryOf(casters: Caster[]) {
       slice[at++] = [0, 1, 2, 3].map((i) => (k + i < list.length ? recordsAt + 4 * list[k + i] : 0))
   }
   for (let t = 0; t < 64; t++) slice[t] = headers.slice(4 * t, 4 * t + 4)
-  const blocks = ceilDiv(at, BLOCK)
+  const blocks = ceilDiv(at, VSM_TRANSMISSION_BLOCK_TEXELS)
   const chain = Array.from({ length: 32 }, (_, j) => (j < blocks ? j : NO_INDEX))
   for (let t = 0; t < 8; t++) slice[64 + t] = chain.slice(4 * t, 4 * t + 4)
   records.forEach((r, l) => r.forEach((w, t) => (slice[recordsAt + 4 * l + t] = w)))
   slice.forEach((w, v) => {
-    const b = Math.floor(v / BLOCK)
-    const x = (b & 1) * BLOCK + (v % BLOCK)
+    const b = Math.floor(v / VSM_TRANSMISSION_BLOCK_TEXELS)
+    const x = (b & 1) * VSM_TRANSMISSION_BLOCK_TEXELS + (v % VSM_TRANSMISSION_BLOCK_TEXELS)
     memory.set(`${x},${rows + (b >> 1)}`, w)
   })
   memory.set('0,0', [0, NO_INDEX, NO_INDEX, NO_INDEX])
@@ -105,7 +104,7 @@ export function reader(memory: Map<string, V>): Read {
       vsmTransmissionMemory: 'memory',
       vec2u: vector(2),
       vec4u: vector(4),
-      textureDimensions: () => [WIDTH, 4],
+      textureDimensions: () => [VSM_TRANSMISSION_WIDTH, 4],
       textureLoad: (_m: string, t: V) => [...(memory.get(`${t[0]},${t[1]}`) ?? [0, 0, 0, 0])],
       bitcast_vec4f: (w: V) => [...new Float32Array(new Uint32Array(w).buffer)],
       unpack4x8unorm: (w: number) => [0, 8, 16, 24].map((s) => ((w >>> s) & 255) / 255),
