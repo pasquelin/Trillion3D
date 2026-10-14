@@ -85,11 +85,8 @@ export type Pyramid = HizPyramid & {
    *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. None until a
    *  scene's transparents ask it, then kept (`holdFrontLayer`). */
   frontView: GPUTextureView | undefined
-  /** Whether this image's fold writes it: the frame word its readers fold it by (`HIZ_FOLD_WGSL`);
-   *  and whether it holds a depth an image wrote before the word went down, cleared before the
-   *  word goes up again. */
+  /** Whether this image's fold writes it: the frame word its readers fold it by (`HIZ_FOLD_WGSL`). */
   frontWritten: boolean
-  frontStale: boolean
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group, and the identity of what it names (`bindHiz`). */
@@ -130,7 +127,6 @@ export function allocPyramid(
     pyramidView: arrayView(pyramid),
     drawn: pyramidLayout(width, height, slots),
     frontWritten: false,
-    frontStale: false,
     destroy() {
       made.level0.destroy()
       pyramid.destroy()

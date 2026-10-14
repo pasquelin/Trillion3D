@@ -41,8 +41,9 @@ export function level0Of(
  * made again at their next ask, which follow the views' identity —, then kept whatever the
  * transparents do: no texture is made, copied or bound again when they come and go. Whether the
  * readers fold it is the frame word `frontWritten` (`HIZ_FOLD_WGSL`): an image that does not write
- * it folds the opaque depth alone, bit for bit, so no reader folds the last glass; one that writes
- * it again finds it cleared first, as a layer made anew. Whether the word moved.
+ * it folds the opaque depth alone, bit for bit, so no reader folds the last glass. What the layer
+ * holds is the front depth's, which clears it before it folds into it again
+ * (`reflections/frontDepth.ts`). Whether the word moved.
  */
 export function holdFrontLayer(
   device: GPUDevice,
@@ -53,22 +54,12 @@ export function holdFrontLayer(
 ) {
   if (at.frontWritten === wanted) return false
   at.frontWritten = wanted
-  if (!wanted) return (at.frontStale = true)
-  if (!at.frontView) {
+  if (wanted && !at.frontView) {
     const old = at.level0
     Object.assign(at, level0Of(device, usage, at.width, at.height, HIZ_DEPTH_LAYERS))
     encoder.copyTextureToTexture({ texture: old }, { texture: at.level0 }, [at.width, at.height, 1])
     retire(device, old)
     at.group = at.bound = at.depth = undefined
-  } else if (at.frontStale)
-    encoder
-      .beginRenderPass({
-        label: HIZ_LEVEL0_LABEL,
-        colorAttachments: [
-          { view: at.frontView, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-        ],
-      })
-      .end()
-  at.frontStale = false
+  }
   return true
 }

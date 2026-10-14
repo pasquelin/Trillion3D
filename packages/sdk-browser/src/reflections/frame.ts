@@ -76,6 +76,9 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   const writes = !!reflection?.front.wanted && !!stages && !!reflectionLightView(rt),
     front = hiz.front(encoder, writes),
     depth = hiz.depth()
+  // The front depth is the layer's one owner: an image that writes none leaves the last glass in
+  // it, so the one that writes it again finds it unknown and clears it first (`encodeFrontDepth`).
+  if (reflection && !front) reflection.front.target = undefined
   if (reflection && stages && depth && front) {
     writeFrame(rt, reflection)
     encodeFrontDepth(encoder, reflection, stages, front)
