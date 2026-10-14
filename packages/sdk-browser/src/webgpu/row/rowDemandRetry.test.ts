@@ -86,7 +86,7 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
   const table = pageStateOf(2)
   const demand = createRowDemand(table, () => true, closure)
   assert.ok(demand.bytes >= 5000, `${demand.bytes} bytes: the requests' closure counted`)
-  // The three lists' differences count as theirs do: a longer readback, more bytes.
+  // The two request lists' differences count as theirs do: a longer readback, more bytes.
   const before = demand.bytes
   demand.follow({ pageIds: [0, 1] })
   assert.ok(demand.bytes >= before)
