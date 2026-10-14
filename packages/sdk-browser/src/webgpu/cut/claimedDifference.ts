@@ -1,9 +1,9 @@
-import { bitWords, floorLog2 } from '../../../../math/src/scalar/integers.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { mapRawRanks, type HeldList } from './heldList.ts'
 import { copyRanks } from './copyRanks.ts'
-import { hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
+import { hasBit, lowestBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The mark of a held id or an entry this list names at a rank no claim reached, until the held
@@ -88,7 +88,7 @@ export function applyClaimed(
     let bits = ~named[w]
     if (w === words - 1 && keptCount & 31) bits &= (1 << (keptCount & 31)) - 1
     for (; bits; bits &= bits - 1) {
-      const id = kept[(w << 5) + floorLog2(bits & -bits)]
+      const id = kept[(w << 5) + lowestBit(bits)]
       if (mark.set(id, epoch) !== PENDING) {
         exited[exitedCount++] = id
         mark.set(id, 0)

@@ -1,6 +1,7 @@
 import type { ResidencyChanges, PageResidency } from '../core/selection.ts'
 import { childBase, residentBase, residentWords } from './layout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { flipBit, hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import type { PackedDag } from './types.ts'
 import type { CameraFrames } from './cameraFrames.ts'
 import { OPEN_SLOT_WORDS, type HeldOpen } from './heldOpen.ts'
@@ -28,12 +29,9 @@ export function updateResidencyBits(
   let count = 0,
     last = -1
   const apply = (j: number) => {
-    const word = j >>> 5,
-      mask = 1 << (j & 31),
-      current = bits[base + word]
-    const value = next(j)
-    if (((current & mask) !== 0) === value) return
-    bits[base + word] = value ? current | mask : current & ~mask
+    if (hasBit(bits, j, base) === next(j)) return
+    flipBit(bits, j, base)
+    const word = j >>> 5
     if (word === last) return
     touched[count++] = word
     last = word
@@ -57,10 +55,7 @@ function writeBlankBits(
     const { pageBase } = packed.cutLinks[w],
       { ready, child } = readiness.blankPages(w)
     ;[ready, child].forEach((offsets, set) => {
-      for (const offset of offsets) {
-        const page = pageBase + offset
-        bits[sets[set] + (page >>> 5)] |= 1 << (page & 31)
-      }
+      for (const offset of offsets) setBit(bits, pageBase + offset, sets[set])
     })
   }
 }
