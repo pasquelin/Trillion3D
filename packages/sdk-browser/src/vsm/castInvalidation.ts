@@ -1,7 +1,7 @@
 /**
  * THE ROWS' SHADOW CHANGES STALE THE PREVIOUS FRAME'S PAGES (`castInvalidationWgsl.ts`): the GPU
  * half of a move's invalidation, beside the CPU's boxes of what no row says — residency, geometry
- * rewritten in place, lights (`invalidationPass.ts`). The CPU sends the maps that may hold cached
+ * rewritten in place, lights (`invalidationPhase.ts`). The CPU sends the maps that may hold cached
  * pages, read before the plan gives this frame its ids (`vsmCastMaps`), never a box: the rows pass
  * appended them (`../webgpu/shadow/castChanges.ts`), and a one-thread kernel sizes the stale's
  * dispatch from their count. Once read, the list is emptied in the same command buffer.
@@ -14,11 +14,11 @@ import {
   CAST_ARGS_ENTRY,
   CAST_ARGS_WGSL,
   CAST_INVALIDATION_ENTRY,
-  MAP_COVER,
   castInvalidationWgsl,
 } from './castInvalidationWgsl.ts'
 import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
+import { vsmMapWord } from './staleMapWgsl.ts'
 import { vsmComputePipe } from './passKit.ts'
 import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
 import {
@@ -37,17 +37,16 @@ const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
 /** The words `vsmCastMaps` writes, rewritten each plan and read by the frame that made them. */
 let mapWords = new Uint32Array(16)
 
-/** The maps that may hold cached pages, each a word (`MAP_ID`, `MAP_COVER`), ids the previous
- *  frame's: as the CPU's boxes filter them (`vsmInvalidationPhaseFromShadowBoxes`), less the range
- *  test, which the GPU makes per box. None when the cache holds nothing to stale. */
+/** The maps that may hold cached pages, each a word (`vsmMapWord`), ids the previous frame's: as
+ *  the CPU's boxes filter them (`vsmInvalidationPhaseFromShadowBoxes`), less the range test, which
+ *  the GPU makes per box. None when the cache holds nothing to stale. */
 export function vsmCastMaps(cache: VsmCacheManager): Uint32Array | null {
   if (!cache.acceptsInvalidations()) return null
   let count = 0
   for (const entry of cache.entries.values()) {
     if (!entry.mayHoldCachedPages()) continue
     mapWords = resized(mapWords, count + entry.mapCaches.length)
-    for (let i = 0; i < entry.mapCaches.length; i++)
-      mapWords[count++] = (entry.mapId + i) | (entry.useCover ? MAP_COVER : 0)
+    for (let i = 0; i < entry.mapCaches.length; i++) mapWords[count++] = vsmMapWord(entry, i)
   }
   return count ? mapWords.subarray(0, count) : null
 }

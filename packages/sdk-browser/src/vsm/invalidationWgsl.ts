@@ -28,6 +28,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
 import { VSM_STALE_BOXES_WGSL } from './staleBoxesWgsl.ts'
+import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 
 /** Bytes per `VsmInvalidationInstance`. */
 export const VSM_INVALIDATION_INSTANCE_BYTES = 96
@@ -196,4 +197,4 @@ export function vsmInvalidationProgram(
 
 /** The whole instance invalidation module (entry `vsmStaleBoxes`). */
 export const vsmInvalidationWgsl = (layout: VsmLayout) =>
-  vsmInvalidationProgram(layout, VSM_STALE_BOXES_WGSL)
+  vsmInvalidationProgram(layout, VSM_STALE_BOXES_WGSL, [VSM_STALE_MAP_WGSL])

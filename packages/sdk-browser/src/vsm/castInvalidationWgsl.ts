@@ -3,25 +3,20 @@
  * rows pass appended (`../webgpu/shadow/castChanges.ts`) read where it lies, never by the CPU. One
  * thread a (record, map) pair: each record a world box, its centre and its half extent — negative
  * for casters already moving, which a map drawing its moving casters over a receiver cover
- * (`MAP_COVER`) skips, as the CPU's boxes do (`vsmInvalidationPhaseFromShadowBoxes`). A list that
+ * (`vsmStaleMap`, `staleMapWgsl.ts`) skips, as the CPU's boxes do (`vsmInvalidationPhaseFromShadowBoxes`). A list that
  * overflowed reads as one box holding the world: every page goes stale, never fewer. The box is
  * staled as any instance is (`vsmStaleBoxPages`): identity rotation, its centre the translation.
  *
  * The dispatch's size is the GPU's: a one-thread kernel (`CAST_ARGS_WGSL`) writes its indirect
  * arguments from the list's count and the maps', before the CPU could know the count.
  */
-import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { UNBOUNDED_EXTENT, vsmInvalidationProgram } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
-
-/** A map's word in the list the CPU sends (`vsmCastMaps`): its id, and whether it draws its moving
- *  casters over a receiver cover. */
-const MAP_ID = 0x7fffffff
-export const MAP_COVER = 0x80000000
+import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 
 /** Whether a list of `records` records whose header is `header` overflowed, and the boxes it holds
  *  to stale: one, the world's, once it overflowed. The two kernels read it alike. */
@@ -48,7 +43,6 @@ struct VsmCastParams{mapCount:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(1) @binding(0) var<uniform> vsmCast:VsmCastParams;
 @group(1) @binding(1) var<storage,read> vsmCastMaps:array<u32>;
 @group(1) @binding(2) var<storage,read> vsmCasts:array<vec4f>;
-${wgslConsts({ MAP_ID, MAP_COVER })}
 const UNBOUNDED_EXTENT:f32=${wgslF32(UNBOUNDED_EXTENT)};
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
@@ -71,8 +65,7 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
   extent=abs(record.w);
   moving=record.w<0.0;
  }
- if(moving&&(word&MAP_COVER)!=0u){return;}
- let mapId=word&MAP_ID;
+ let mapId=vsmStaleMap(word,moving);
  if(mapId>=arrayLength(&vsmProjectionData)){return;}
  var inst:VsmInvalidationInstance;
  inst.localToWorld0=vec4f(1.0,0.0,0.0,centre.x);
@@ -83,7 +76,7 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
  vsmStaleBoxPages(vsmProjectionOf(vsmHandleFromId(mapId)),inst);
 }
 `,
-    [CAST_COUNT],
+    [CAST_COUNT, VSM_STALE_MAP_WGSL],
   )
 
 /** The arguments' kernel's entry. */
