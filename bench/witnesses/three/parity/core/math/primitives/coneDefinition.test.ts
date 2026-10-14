@@ -26,10 +26,9 @@ function definition({ axis, angle, min, max, world: e, normal: n, scale, eye }: 
   if (!(vl > 0)) return false
   const half = [0, 1, 2].map((k) => (max[k] - min[k]) * 0.5)
   const radius = length3(half[0], half[1], half[2]) * scale
-  const d = length3(ex - c[0] * ew, ey - c[1] * ew, ez - c[2] * ew)
   let spread = Math.PI
-  if (d > radius * ew) {
-    const t = (radius * ew) / d
+  if (vl > radius * ew) {
+    const t = (radius * ew) / vl
     spread = Math.asin(t < 0 ? 0 : t > 1 ? 1 : t)
   }
   const dot = Math.min(1, Math.max(-1, (a[0] * v[0] + a[1] * v[1] + a[2] * v[2]) / vl))

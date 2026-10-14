@@ -1,5 +1,5 @@
 // The hot-path math of packages/math frozen: the seeded inputs its tests feed it
-// (`bench/witnesses/three/parity/core/math/primitives/coneDevelop.test.ts`,
+// (`bench/witnesses/three/parity/core/math/primitives/coneDefinition.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), and the frustum's former indexed
 // bounds its optimised form must match bit for bit.
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
