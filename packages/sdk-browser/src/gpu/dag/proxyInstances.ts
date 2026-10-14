@@ -109,9 +109,11 @@ export function createProxyInstances(resources: ProxySource) {
       held.words[at] = kept
       writeInstances(w, 1)
     },
-    /** The surfaces a host edited and the copies that moved since the last cut, written again. */
+    /** The surfaces a host edited and the copies that moved since the last cut, written again,
+     *  the records grown first for the copies taken since (`holdRecords`). */
     refresh() {
       if (held.copies.length !== copies.held()) copies.set(held.copies)
+      if (state.holdRecords()) held.dirty = true
       if (!arena.buffer && !held.copies.length) return
       arena.refreshSurfaces()
       copies.sync()

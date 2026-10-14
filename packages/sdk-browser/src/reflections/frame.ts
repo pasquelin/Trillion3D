@@ -120,8 +120,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
-    // What a ray can meet of the scene, else the empty stand-in.
-    rt.run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
+    // What a ray can meet of the scene, its blended copies taken before the cut (`dispatchCut`),
+    // else the empty stand-in.
     const proxy = rt.run.gpuSelection?.proxy()
     inputs.proxy = proxy?.buffer ?? deferred.placeholders.runtime
     inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds

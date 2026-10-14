@@ -51,7 +51,8 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     dirty: true,
   }
   // The instances, the `Instance` field of the culling's records (`worldTable.ts`): written whole
-  // with the buffer, then the runs that moved; the table grown when the copies outgrow it.
+  // with the buffer, then the runs that moved; the table grown when the copies outgrow it, at the
+  // cut's prepare alone (`holdRecords`).
   const records = frames.worlds
   let instancesSent = false
   /** The instances `[first, first + count)` the records hold, to them. */
@@ -61,6 +62,19 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     if (end <= first) return
     const at = words.byteOffset + first * INSTANCE_WORDS * 4
     records.write('Instance', first, end - first, words.buffer as ArrayBuffer, at)
+  }
+  /**
+   * The records grown to hold every copy's instance, at the cut's prepare (`refresh`, before the
+   * cut encodes): never mid-frame, so the growth's copy, submitted at once (`grownByCopy`), lands
+   * before any GPU write of the frame's encoder to the table. The instances the table could not hold
+   * before go up then; whether it grew, the header's copy count with it.
+   */
+  function holdRecords() {
+    const before = records.capacity,
+      wanted = held.words.length / INSTANCE_WORDS
+    if (wanted <= before || !records.hold(wanted)) return false
+    if (instancesSent) writeInstances(before, wanted - before)
+    return true
   }
   /** The copies the records hold: every one, unless the cut refused their growth. */
   const copiesHeldOnGpu = () => Math.min(held.copies.length, records.capacity - slots)
@@ -85,11 +99,9 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     return head
   }
 
-  // The buffer, made at the first need with the instances on the GPU first: the table made larger
-  // when the copies outgrow it.
+  // The buffer, made at the first need with the instances the table holds on the GPU first.
   const arena = createProxyArena(device, {
     ready() {
-      records.hold(held.words.length / INSTANCE_WORDS)
       if (!instancesSent) writeInstances(0, held.words.length / INSTANCE_WORDS)
       instancesSent = true
     },
@@ -170,6 +182,7 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     live,
     write,
     writeInstances,
+    holdRecords,
     header,
     noteError,
     markOf,
