@@ -7,6 +7,16 @@ import type { SceneBindings } from '../bounce/sceneBindings.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
+/** The surface a half-grid kernel's pipeline works on — 0 the opaque, 1 the transparents' front
+ *  (`frontLayer.ts`) —, given by the pipeline (`createTraceStages`): one entry a kernel, two
+ *  pipelines, the same specialisation two entries made. */
+export const REFLECTION_LAYER_WGSL = wgslBlock(
+  'REFLECTION_LAYER_WGSL',
+  [],
+  'override REFLECTION_LAYER:u32;',
+)
 
 /**
  * THE ONE TABLE OF THE REFLECTIONS' GROUP 0, shared by the trace, the spatial reuse, the temporal

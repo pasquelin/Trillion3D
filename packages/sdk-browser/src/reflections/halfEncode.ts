@@ -40,13 +40,16 @@ export async function createTraceStages(
   groupLayout: GPUBindGroupLayout,
 ) {
   const layouts = halfLayouts(device)
-  const stage = (layout: GPUBindGroupLayout, entry: string) =>
-    buildComputeStages(device, [layout, groupLayout], module, [entry]).then((s) => s[entry])
+  const stage = (layout: GPUBindGroupLayout, entry: string, constants?: Record<string, number>) =>
+    buildComputeStages(device, [layout, groupLayout], module, [entry], constants).then(
+      (s) => s[entry],
+    )
+  // The surface's layer, the pipeline's (`REFLECTION_LAYER_WGSL`): 0 the opaque, 1 the front.
   const [opaque, front] = await Promise.all(
-    (['Opaque', 'Front'] as const).map(async (side) => ({
-      trace: await stage(layouts.trace, `trace${side}`),
-      spatial: await stage(layouts.spatial, `spatial${side}`),
-      temporal: await stage(layouts.temporal, `temporal${side}`),
+    (['Opaque', 'Front'] as const).map(async (side, layer) => ({
+      trace: await stage(layouts.trace, 'traceSurface', { REFLECTION_LAYER: layer }),
+      spatial: await stage(layouts.spatial, 'spatialSurface', { REFLECTION_LAYER: layer }),
+      temporal: await stage(layouts.temporal, 'temporalSurface', { REFLECTION_LAYER: layer }),
       upsample: await stage(
         side === 'Opaque' ? layouts.upsample : layouts.upsampleFront,
         `upsample${side}`,

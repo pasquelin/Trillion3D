@@ -6,7 +6,11 @@ import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from '../bounce/gridWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL, surfaceReflects } from '../scene/surfaceModel.ts'
 import { REFLECTION_SIDE } from './constants.ts'
-import { REFLECTION_TRACE_BINDINGS as B, TRACE_SCENE_BINDINGS } from './halfBindings.ts'
+import {
+  REFLECTION_LAYER_WGSL,
+  REFLECTION_TRACE_BINDINGS as B,
+  TRACE_SCENE_BINDINGS,
+} from './halfBindings.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 import { REFLECTION_TEMPORAL_WGSL } from './temporalWgsl.ts'
@@ -22,7 +26,7 @@ import { reflectionShareWgsl } from './weight.ts'
  * surfaces — the opaque one, and the transparents' front one (`frontLayer.ts`) — in the image's compute
  * pass, before its lighting. Four kernels a surface, over its half grids (`halfTexture.ts`):
  *
- * 1. TRACE (`traceOpaque`, `traceFront`): one thread a texel of a half-resolution grid over the whole
+ * 1. TRACE (`traceSurface`): one thread a texel of a half-resolution grid over the whole
  *    view, a texel a 2×2 block of pixels. It traces one pixel of its block whose surface reflects, the
  *    first in a turn of four images (`halfPick`: the diagonal, then the other), along each of its lobes
  *    (the base's and the clear coat's): a mirror along its centre, a glossy lobe in a direction drawn from
@@ -119,14 +123,9 @@ fn traceTexel(block:vec2u,layer:u32)->vec4u{
  return freshPack(traced,reflectionHit,pick,select(0u,reach,reflectionSampled(lobeAlpha(own.rough))));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn traceOpaque(@builtin(global_invocation_id) id:vec3u){
+fn traceSurface(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy>=textureDimensions(traceOut))){return;}
- textureStore(traceOut,id.xy,traceTexel(id.xy,0u));
-}
-@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn traceFront(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=textureDimensions(traceOut))){return;}
- textureStore(traceOut,id.xy,traceTexel(id.xy,1u));
+ textureStore(traceOut,id.xy,traceTexel(id.xy,REFLECTION_LAYER));
 }`,
   [
     directLightWgsl(),
@@ -135,6 +134,7 @@ fn traceFront(@builtin(global_invocation_id) id:vec3u){
     RECT_SHADING_WGSL,
     LOBES_LIGHTING_WGSL,
     LOBES_DECODE_WGSL,
+    REFLECTION_LAYER_WGSL,
     bounceBindingsWgsl(0, B.bounceGrid, B.probes),
     BOUNCE_GRID_WGSL,
     reflectionLightViewWgsl(REFLECTION_GROUP),

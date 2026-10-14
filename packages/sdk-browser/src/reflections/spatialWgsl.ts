@@ -2,12 +2,12 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_ANGLE } from '../../../math/src/wgsl/constants.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
-import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
+import { REFLECTION_LAYER_WGSL, REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 
 /**
- * THE SPATIAL REUSE of a surface's fresh half grid (`spatialOpaque`, `spatialFront`), between the trace
+ * THE SPATIAL REUSE of a surface's fresh half grid (`spatialSurface`), between the trace
  * and the temporal accumulation: a glossy texel — one whose lobe was sampled, its reuse radius above
  * zero (`freshRadius`, `traceHalf.ts`: ⌈`REFLECTION_REUSE_RADIUS` · roughness⌉ half texels) — averages
  * its ray with those of up to `REFLECTION_REUSE_TAPS` neighbours on a disc of that radius (a Vogel
@@ -20,7 +20,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  */
 export const REFLECTION_SPATIAL_WGSL = wgslBlock(
   'REFLECTION_SPATIAL_WGSL',
-  [REFLECTION_SURFACES_WGSL, REFLECTION_TEXEL_WGSL, GOLDEN_ANGLE],
+  [REFLECTION_LAYER_WGSL, REFLECTION_SURFACES_WGSL, REFLECTION_TEXEL_WGSL, GOLDEN_ANGLE],
   `@group(0) @binding(${B.spatialIn}) var spatialIn:texture_2d<u32>;
 @group(0) @binding(${B.spatialOut}) var spatialOut:texture_storage_2d<${HALF_FORMAT},write>;
 fn spatialTexel(at:vec2i,layer:u32)->vec4u{
@@ -53,13 +53,8 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  return vec4u(texelRadiance(Reflected(sum.base/total,sum.coat/total)),centre.w);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn spatialOpaque(@builtin(global_invocation_id) id:vec3u){
+fn spatialSurface(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy>=textureDimensions(spatialOut))){return;}
- textureStore(spatialOut,id.xy,spatialTexel(vec2i(id.xy),0u));
-}
-@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn spatialFront(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=textureDimensions(spatialOut))){return;}
- textureStore(spatialOut,id.xy,spatialTexel(vec2i(id.xy),1u));
+ textureStore(spatialOut,id.xy,spatialTexel(vec2i(id.xy),REFLECTION_LAYER));
 }`,
 )

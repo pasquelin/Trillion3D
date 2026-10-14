@@ -3,13 +3,13 @@ import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
-import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
+import { REFLECTION_LAYER_WGSL, REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 
 /**
- * THE TEMPORAL ACCUMULATION of a surface's half grid (`temporalOpaque`, `temporalFront`): each texel
+ * THE TEMPORAL ACCUMULATION of a surface's half grid (`temporalSurface`): each texel
  * blends this image's fresh radiance (`temporalIn`, the spatial reuse's) with its history (`historyIn`, the
  * last image's output), and writes the history the upsample reads and the next image blends with
  * (`historyOut`). Every texel takes a fresh ray every image: a history only ever weighs beside one.
@@ -37,6 +37,7 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   'REFLECTION_TEMPORAL_WGSL',
   [
+    REFLECTION_LAYER_WGSL,
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TEXEL_WGSL,
     REFLECTION_SAMPLE_WGSL,
@@ -113,13 +114,8 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  return historyPack(blended,depth,N,count);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn temporalOpaque(@builtin(global_invocation_id) id:vec3u){
+fn temporalSurface(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy>=textureDimensions(historyOut))){return;}
- textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),0u));
-}
-@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn temporalFront(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=textureDimensions(historyOut))){return;}
- textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),1u));
+ textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),REFLECTION_LAYER));
 }`,
 )
