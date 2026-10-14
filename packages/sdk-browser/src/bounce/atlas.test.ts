@@ -12,26 +12,10 @@ import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
 import { PROBE_TEXELS, atlasBytes, probeAtlasExtent } from './atlas.ts'
+import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 
-/** A simulated atlas: `textureDimensions`, `textureLoad` and `textureStore` over a texel map, every
- *  texel asked of it inside its extent. */
-function atlas([width, height, layers]: number[]) {
-  const texels = new Map<string, Vec>()
-  const key = ([x, y]: Vec, layer: number) => {
-    assert.ok(Number(x) < width && Number(y) < height && layer < layers, 'in the atlas')
-    return `${x},${y},${layer}`
-  }
-  const scope = {
-    probes: {},
-    probesOut: {},
-    textureLoad: (_: object, at: Vec, layer: number) => texels.get(key(at, layer)) ?? [0, 0, 0, 0],
-    textureStore: (_: object, at: Vec, layer: number, value: Vec) =>
-      void texels.set(key(at, layer), value),
-  }
-  return { texels, scope }
-}
 type Probe = {
   probeAddress: (level: number, wrapped: Vec) => Vec
   probeAt: (probe: Vec, k: number) => Vec
@@ -40,10 +24,13 @@ type Probe = {
 
 test('every probe vector has a texel of its own, read back bit for bit where it was written', () => {
   const [side, levels] = [3, 2]
-  const { texels, scope } = atlas(probeAtlasExtent(side, levels))
+  // Every texel unwritten (NaN) until a vector is stored there.
+  const probes = simulatedAtlas(probeAtlasExtent(side, levels), () => NaN)
   const bounce = { counts: [side, levels, side ** 3, 1] }
   const run = shaderRun<Probe>(BOUNCE_PROBE_SHADER, ['probeAddress', 'probeAt', 'probeStore'], {
-    ...scope,
+    ...ATLAS_CALLS,
+    probes,
+    probesOut: probes,
     bounce,
     PROBE_VECTORS: PROBE_TEXELS,
   })
@@ -56,7 +43,8 @@ test('every probe vector has a texel of its own, read back bit for bit where it 
             vectors.push([run.probeAddress(level, [x, y, z]), k])
   const value = (i: number) => [i, Math.fround(i / 3), -i, Math.fround(Math.PI * i)]
   vectors.forEach(([probe, k], i) => run.probeStore(probe, k, value(i)))
-  assert.equal(texels.size, levels * side ** 3 * PROBE_TEXELS, 'no two vectors share a texel')
+  const written = probes.texels.filter((texel) => !Number.isNaN(texel[0])).length
+  assert.equal(written, levels * side ** 3 * PROBE_TEXELS, 'no two vectors share a texel')
   vectors.forEach(([probe, k], i) => assert.deepEqual(run.probeAt(probe, k), value(i), `${i}`))
 })
 

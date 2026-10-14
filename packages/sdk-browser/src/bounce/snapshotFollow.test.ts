@@ -10,18 +10,10 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
+import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../stage/passLabels.ts'
-
-type Atlas = { width: number; height: number; texels: number[][] }
-
-const atlas = (width: number, height: number, layers: number, fill: () => number): Atlas => ({
-  width,
-  height,
-  texels: Array.from({ length: width * height * layers }, () => [fill(), fill(), fill(), fill()]),
-})
-const at = (a: Atlas, [x, y]: number[], layer: number) => (layer * a.height + y) * a.width + x
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
   const r = lcgRandom(7),
@@ -30,7 +22,7 @@ test('after the follow-up, the snapshot is the probes, word for word', () => {
     width = side * PROBE_TEXELS,
     height = side * side
   for (const queueLength of [1, 5, 54, 70]) {
-    const probes = atlas(width, height, levels, () => r())
+    const probes = simulatedAtlas([width, height, levels], r)
     const snapshot = { ...probes, texels: probes.texels.map((t) => [...t]) }
     // Where each entry's probe lies: `queuedProbe`, shared by the update and the follow-up (the
     // test below holds both to it), stands here for any address; one entry in seven is invalid.
@@ -55,15 +47,13 @@ test('after the follow-up, the snapshot is the probes, word for word', () => {
         probes,
         // The entry of a texel's thread is a `u32` quotient in the kernel: truncated here.
         queuedProbe: (entry: number) => queued[Math.floor(entry)],
-        textureLoad: (a: Atlas, xy: number[], layer: number) => [...a.texels[at(a, xy, layer)]],
-        textureStore: (a: Atlas, xy: number[], layer: number, v: number[]) =>
-          void (a.texels[at(a, xy, layer)] = [...v]),
+        ...ATLAS_CALLS,
       },
     )
     // The update: each valid probe the queue names takes new words in its texels (`probeStore`).
     for (const { valid, probe } of queued)
       for (let k = 0; valid && k < PROBE_TEXELS; k++)
-        probes.texels[at(probes, [probe[0] + k, probe[1]], probe[2])] = [r(), r(), r(), r()]
+        ATLAS_CALLS.textureStore(probes, [probe[0] + k, probe[1]], probe[2], [r(), r(), r(), r()])
     assert.notDeepEqual(snapshot.texels, probes.texels, 'the update wrote')
     // Every thread the host dispatches, a texel each, those past the queue included.
     for (let id = 0; id < snapshotGroups(queueLength) * WORKGROUP_THREADS; id++)
