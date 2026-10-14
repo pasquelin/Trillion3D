@@ -17,7 +17,7 @@ import { vsmLayout } from '../../../../vsm/layout.ts'
 import { vsmTableBytes } from '../../../../vsm/layoutBytes.ts'
 import { vsmPoolWithin } from '../../../../vsm/poolDraw.ts'
 import { bytesBeside, heldBeside } from './vsmBeside.ts'
-import { grantEngineVsm, madeSet, sayPool } from './vsmGrant.ts'
+import { grantEngineVsm, madeSet, sayPoolGrown } from './vsmGrant.ts'
 
 /**
  * The held set's tables grown for `list` — `fullMapCapacity` full maps at least, the receiver
@@ -80,7 +80,7 @@ export function regrowEngineVsm(
       const made = madeSet(rt, device, list, { ...options, poolPages: grown })
       made.regrowFrame = vsm.regrowFrame
       destroyEngineVsm(vsm)
-      sayPool(rt, grown, pages)
+      sayPoolGrown(rt, grown, pages)
       return (lights.vsm = made)
     } catch {
       return vsm
