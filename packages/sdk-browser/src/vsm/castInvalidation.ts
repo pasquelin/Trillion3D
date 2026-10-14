@@ -72,7 +72,7 @@ export function encodeCastInvalidation(
     const state = castState(device, res, held),
       label = 'vsm.castInvalidation'
     const storage = vsmRenderStorage()
-    const mapBuffer = vsmEnsureBuffer(state, label, 'maps', maps.byteLength, storage, 16),
+    const mapBuffer = vsmEnsureBuffer(state, label, 'maps', maps.byteLength, storage),
       boxBuffer = vsmEnsureBuffer(
         state,
         label,
