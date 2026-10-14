@@ -16,6 +16,7 @@
  * survives a growth; a table made, or one whose rows were all written again (`tableEpoch`), sends
  * every root.
  */
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -146,7 +147,7 @@ export function sendRootWorlds(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   if (roots > held.sent) sendNew(rt, device, held, held.sent)
   // Those taken in place before: still at their ranks, sent; a cut that dropped them, none held.
-  sendTaken(rt, device, Math.min(Math.max(held.held, roots), all), all)
+  sendTaken(rt, device, clamp(held.held, roots, all), all)
   held.sent = roots
   held.held = all
   if (!held.moved.count) return
