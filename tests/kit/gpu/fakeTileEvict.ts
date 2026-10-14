@@ -5,7 +5,7 @@ import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts
 import { TILE_BURST } from '../../../packages/sdk-browser/src/webgpu/tile/evictSortWgsl.ts'
 import {
   TILE_UNRANKED,
-  TILE_USE_HEADER,
+  tilePlaceWordAt,
 } from '../../../packages/sdk-browser/src/webgpu/tile/slotUse.ts'
 
 type Bound = { binding: number; resource: { buffer: { data: Uint8Array } } }
@@ -28,7 +28,7 @@ export function fakeTileSort(entries: readonly Bound[], offsets: readonly number
     uni = of(3).subarray(offsets[0] / 4)
   const [base, slots, clock, queueAt] = uni
   const rankOf = (j: number) => {
-    const at = TILE_USE_HEADER + 2 * (base + j)
+    const at = tilePlaceWordAt(base, j)
     if (use[at + 1] === TILE_UNRANKED) return poolRank(0, 0, EVICT_IN_USE)
     return poolRank(clock - Math.min(use[at], clock), use[at + 1], EVICT_IN_USE)
   }

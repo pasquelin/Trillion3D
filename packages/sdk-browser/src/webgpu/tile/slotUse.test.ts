@@ -9,7 +9,7 @@ import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { createTileEvictions } from './evictSort.ts'
 import { entryIndex, reduceRequests, stampedPlace } from './stamp.fixture.ts'
 import { REDUCE_WGSL } from './reduceWgsl.ts'
-import { TILE_USE_HEADER } from './slotUse.ts'
+import { tilePlaceWordAt } from './slotUse.ts'
 import { tileId } from './ids.ts'
 import { packEntry, placeOf, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
@@ -34,7 +34,7 @@ function scene() {
     for (const key of asked) {
       const read = stampedPlace(atlas.pages.words, atlas.pages.feedbackIndexOf(key))
       if (!read) continue
-      const at = TILE_USE_HEADER + 2 * (use[read.lane] + read.index)
+      const at = tilePlaceWordAt(use[read.lane], read.index)
       use[at] = Math.max(use[at], now.clock)
     }
     const cut = evictions.encode(device.createCommandEncoder(), [atlas], now.clock, true)
@@ -168,9 +168,10 @@ test('a texture probe asks for the place words of each atlas, as the atlas makes
   textureProbe(device, encoding)(pool)
   const probed = buffers.filter(({ label }) => label === 'Trillion3D pool probe')
   const { atlas } = scene()
-  const made = (layers: number) => (atlas.slotUse.buffer.size / 4 - TILE_USE_HEADER) * layers * 4
+  const made = (layers: number) =>
+    (atlas.slotUse.buffer.size / 4 - tilePlaceWordAt(0, 0)) * layers * 4
   assert.deepEqual(
     probed.map(({ size }) => size),
-    [0, 0].map(() => TILE_USE_HEADER * 4 + made(2)),
+    [0, 0].map(() => tilePlaceWordAt(0, 0) * 4 + made(2)),
   )
 })

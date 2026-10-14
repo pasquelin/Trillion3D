@@ -34,7 +34,7 @@ type Parts = {
 }
 
 /** The parts the sort runs, beside the host's `names`. */
-export const SORT_PARTS = [
+const SORT_PARTS = [
   'poolCount',
   'poolRankAt',
   'poolPlaceSum',

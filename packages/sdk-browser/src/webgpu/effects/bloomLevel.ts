@@ -6,7 +6,7 @@ import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../../math/src/w
 import { computeTextureEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 
 /** The bloom uniform: the shader's `Bloom` struct and the first word of each of its fields. */
-export const BLOOM_UNIFORM = fieldLayout('Bloom', [
+const BLOOM_UNIFORM = fieldLayout('Bloom', [
   ['outTexel', 'vec2f'],
   ['inTexel', 'vec2f'],
   ['radius', 'f32'],
