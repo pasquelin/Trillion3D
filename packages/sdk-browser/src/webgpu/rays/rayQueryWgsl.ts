@@ -78,10 +78,7 @@ fn rqAnswer(k:u32,best:RqHit){
  }else{
 ${placementTreeWalk({
   root: 'params.treeRoot',
-  word: 'treeWord',
-  low: 'rqTreeLow',
-  high: 'rqTreeHigh',
-  member: (slot) => `treeMember(${slot})`,
+  table: 'tree',
   enter: 'best=rqEnter(w,ray,best);',
   stop: '',
   visit: '',

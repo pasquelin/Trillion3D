@@ -3,7 +3,7 @@
 // each mip, the page words written with their bits, in their order, over seeded lights — suns
 // and local lights, turned at random, or every value drawn with its edges — and instances about
 // them, on stand-in page tables. The instances carry the flags the host sets (`packBox`,
-// `invalidationPass.ts`): casts shadows, and cached as dynamic or not, each in its own bits.
+// `invalidationPack.ts`): casts shadows, and cached as dynamic or not, each in its own bits.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'

@@ -1,6 +1,6 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { invTranspose3Prep } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { placementRay } from '../../gpu/dag/placementRayWgsl.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from '../../bounce/traceWgsl.ts'
@@ -64,9 +64,6 @@ fn rqWorld(w:u32,e0:vec4u,e1:vec4u)->mat4x4f{
 }
 fn rqNodeLow(n:u32)->vec3f{return bitcast<vec3f>(vec3u(nodesWord(n,RQ_NODE_MIN),nodesWord(n,RQ_NODE_MIN+1u),nodesWord(n,RQ_NODE_MIN+2u)));}
 fn rqNodeHigh(n:u32)->vec3f{return bitcast<vec3f>(vec3u(nodesWord(n,RQ_NODE_MAX),nodesWord(n,RQ_NODE_MAX+1u),nodesWord(n,RQ_NODE_MAX+2u)));}
-/** The world box of node \`n\` of the placement tree, in its record (\`treeWord\`). */
-fn rqTreeLow(n:u32)->vec3f{return bitcast<vec3f>(vec3u(treeWord(n,RQ_NODE_MIN),treeWord(n,RQ_NODE_MIN+1u),treeWord(n,RQ_NODE_MIN+2u)));}
-fn rqTreeHigh(n:u32)->vec3f{return bitcast<vec3f>(vec3u(treeWord(n,RQ_NODE_MAX),treeWord(n,RQ_NODE_MAX+1u),treeWord(n,RQ_NODE_MAX+2u)));}
 fn rqBox(n:u32,reach:f32)->Box{return Box(rqNodeLow(n)-vec3f(reach),rqNodeHigh(n)+vec3f(reach));}
 /** Child \`slot\` of node \`n\`: a node with children of its own is entered, one without them is a
  *  leaf whose pages — counted from the placement's first, \`pageBase\` — are tested, as the cut
@@ -82,15 +79,15 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
 /**
  * THE RAY AGAINST ONE PLACEMENT: its hierarchy walked by the engine's one wide traversal
  * (`wideTraversal`), nearest child first, in the placement's own space — the ray taken there by the
- * inverse of its world at the ray's origin, as the proxy's rays take theirs (`rtEnter`,
- * `../../bounce/runtimeSceneWgsl.ts`) — each leaf's pages tested as the rasters draw them
+ * inverse of its world at the ray's origin, as every ray walking the placement tree takes it
+ * (`placementRay`, `../../gpu/dag/placementRayWgsl.ts`) — each leaf's pages tested as the rasters draw them
  * (`rqPage`). A placement the ray's filter passes by, the world DAG's, one parked or hidden (its root
  * none) or a singular world holds nothing a ray meets. A stack or a walk past its bound marks the
  * ray cut short (`rqCut`).
  */
 export const RAY_PLACEMENT_WGSL = wgslBlock(
   'RAY_PLACEMENT_WGSL',
-  [RAY_TABLES_WGSL, RAY_NODES_WGSL, RAY_PAGE_WGSL, NO_INDEX, invTranspose3Prep, worldMatrix3],
+  [RAY_TABLES_WGSL, RAY_NODES_WGSL, RAY_PAGE_WGSL, NO_INDEX, placementRay, worldMatrix3],
   `${wgslConsts({
     RQ_ROOT_WORD: ROOT_WORD,
     RQ_SHIFT_WORD: RECORD_SHIFT_WORD,
@@ -141,19 +138,17 @@ fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
  let root=framesWord(w,RQ_ROOT_WORD);
  if(root==NO_INDEX){return best;}
  let m=rqWorld(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
- let back=invTranspose3Prep(worldMatrix3(m));
- if(!back.regular){return best;}
  // The origin is the eye: at zero, the placement at its translation from it.
- let o=(-m[3].xyz)*back.adj*back.scale;
- let d=ray.direction*back.adj*back.scale;
+ let placed=placementRay(worldMatrix3(m),-m[3].xyz,ray.direction);
+ if(!placed.regular){return best;}
  let reach=unpack2x16float(framesWord(w,RQ_MARK_WORD)).y;
  let pageBase=framesWord(w,RQ_PAGE_BASE_WORD);
  let shift=framesWord(w,RQ_SHIFT_WORD);
  var hit=RqHit(best.distance,0u,0u,0u,vec3f(0.0),false);
- if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(o,d,best.distance,root,pageBase,shift,reach,w);}
+ if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(placed.origin,placed.direction,best.distance,root,pageBase,shift,reach,w);}
  else{
   let first=pageBase+nodesWord(root,RQ_FIRST_PAGE);
-  for(var k=0u;k<nodesWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(o,d,first+k,first+k+shift,w,hit);}
+  for(var k=0u;k<nodesWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(placed.origin,placed.direction,first+k,first+k+shift,w,hit);}
  }
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;

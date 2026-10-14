@@ -14,7 +14,8 @@ import {
   planVirtualShadowFrame,
 } from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
-import { encodeVsmInvalidations, vsmInvalidationPhaseFromShadowBoxes } from './invalidationPass.ts'
+import { encodeVsmInvalidations } from './invalidationEncode.ts'
+import { vsmInvalidationPhaseFromShadowBoxes } from './invalidationPhase.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 

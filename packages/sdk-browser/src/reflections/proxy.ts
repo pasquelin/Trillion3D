@@ -8,7 +8,7 @@ import {
   runtimeTraceWgsl,
   type RuntimeBindings,
 } from '../bounce/runtimeTraceWgsl.ts'
-import { sceneKey, type SceneBindings } from '../bounce/runtimeSceneWgsl.ts'
+import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 
 /** The bindings a program reads the proxy through: with the list the opaque trace counts its rays' work in
  *  (`RuntimeBindings`), or the proxy alone (`SceneBindings`), as the forward programs read it. */

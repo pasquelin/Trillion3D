@@ -5,7 +5,8 @@ import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
-import { runtimeSceneWgsl, sceneKey, type SceneBindings } from './runtimeSceneWgsl.ts'
+import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
+import { sceneKey, type SceneBindings } from './sceneBindings.ts'
 import {
   RAY_ERROR_FLOOR,
   RAY_LAYERS,

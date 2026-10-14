@@ -8,7 +8,7 @@
 // a finite number is a zero and added to a non-zero term is that term: no clip coordinate, depth
 // or inverse entry the shader reads moves, and the sweep holds every uploaded word to it.
 //
-// The invalidation's box radius (`invalidationPass.ts`) and a sun level's f32 room
+// The invalidation's box radius (`invalidationPhase.ts`) and a sun level's f32 room
 // (`rowPageBound.ts` measureKey) take `length3` for `Math.hypot`: one last bit of a double apart.
 // The radius only decides whether a light's range meets a box's bounding sphere, where the light
 // is zero; the room widens a bound 2⁸ times past the f32 roundings it covers. The sweep holds the

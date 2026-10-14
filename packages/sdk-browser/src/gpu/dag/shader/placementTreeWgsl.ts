@@ -1,5 +1,5 @@
 import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
-import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND, NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
+import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
@@ -78,14 +78,10 @@ fn placementStep(src:u32,k:u32){
  if(w==NO_INDEX||!opensRoot(w)||drawnAlways(w)){return;}
  nodeStep(src,rootOf(w),w);
 }
-/** Node \`t\`'s box corner from word \`k\`. */
-fn treeCorner(t:u32,k:u32)->vec3f{
- return vec3f(bitcast<f32>(treeWord(t,k)),bitcast<f32>(treeWord(t,k+1u)),bitcast<f32>(treeWord(t,k+2u)));
-}
 /** Cell or group \`t\` of the tree: its world box under the camera, then under the view ahead. */
 fn treeStep(src:u32,t:u32){
  deformReach=0.0;
- let lo=treeCorner(t,${NODE_MIN}u)-views[0u].cameraWorld;let hi=treeCorner(t,${NODE_MAX}u)-views[0u].cameraWorld;
+ let lo=treeLow(t)-views[0u].cameraWorld;let hi=treeHigh(t)-views[0u].cameraWorld;
  if(aheadOn()&&vi==AHEAD_VIEW){if(!outsideView(AHEAD_VIEW,lo,hi)){descendTree(src,t);}return;}
  if(outsideView(0u,lo,hi)){
   atomicAdd(&out.frustumRejected,1u);

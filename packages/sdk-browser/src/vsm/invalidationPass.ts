@@ -1,6 +1,8 @@
 /**
  * Cache invalidation pass (step 7): the GPU half of the invalidation processing of the CPU's change
- * boxes. The CPU half — their per-light filtering — is `vsmInvalidationPhaseFromShadowBoxes`. The
+ * boxes. The CPU half — their per-light filtering — is `vsmInvalidationPhaseFromShadowBoxes`
+ * (`invalidationPhase.ts`), its packing `packPhase` (`invalidationPack.ts`), its recording
+ * `encodeVsmInvalidations` (`invalidationEncode.ts`). The
  * rows' moves never reach the CPU: their changes are staled on the GPU (`castInvalidation.ts`).
  *
  * Frame start, before `encodeVsmPageCarry` (and before `planVirtualShadowFrame`,
@@ -22,20 +24,11 @@ import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { vsmBufferGroup, vsmEnsureBuffer, vsmRenderStorage } from './renderPass.ts'
 import {
-  type VsmCacheManager,
-  type VsmInstanceInvalidation,
-  type VsmInvalidationBatch,
-  type VsmLightCache,
-} from './cacheManager.ts'
-import {
-  VSM_INVALIDATION_INSTANCE_BYTES,
   VSM_INVALIDATION_PARAMS_BYTES,
   VSM_INVALIDATION_SPECS,
-  VSM_BOX_MOVING,
-  VSM_BOX_CASTS,
-  UNBOUNDED_EXTENT,
   vsmInvalidationWgsl,
 } from './invalidationWgsl.ts'
+import type { VsmInvalidationBatch } from './cacheManager.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -44,18 +37,11 @@ import {
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
-import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
 import type { VsmLayout } from './layout.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 import { releaseCastInvalidation, type VsmCastState } from './castInvalidation.ts'
-
-/** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
- *  1 when it is cached as dynamic, else 0. */
-const BOX_WORDS = 7
 
 /** One invalidation call: the collector's batch and the boxes its instances name — box `b` at
  *  `BOX_WORDS · b`, each drawn as one instance of identity rotation (`packBox`). */
@@ -63,99 +49,6 @@ export interface VsmInvalidationPhase {
   batch: VsmInvalidationBatch
   boxes: Float64Array
 }
-
-/** The previous frame the invalidation reads (its uniforms and shadow map slot count). */
-interface VsmInvalidationFrame {
-  device: GPUDevice
-  mapSlotCount: number
-}
-
-/** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`, `createShadowChanges`). */
-interface VsmShadowBoxSource {
-  readonly count: number
-  read(box: number): {
-    min: ArrayLike<number>
-    max: ArrayLike<number>
-    moving: boolean
-  }
-}
-
-/** The last box `writeBox` wrote, centre then half extent, as the lights' range test reads it. */
-const lastBox = new Float64Array(6)
-
-/** Writes the box `[min, max]` at `at` of `boxes` (`BOX_WORDS`) and into `lastBox`: its centre and
- *  half extent, the unbounded box when they are not finite or the box is inverted; false then. */
-function writeBox(
-  boxes: Float64Array,
-  at: number,
-  min: ArrayLike<number>,
-  max: ArrayLike<number>,
-  moving: boolean,
-) {
-  boxCenter(lastBox, 0, min[0], min[1], min[2], max[0], max[1], max[2])
-  let finite = true
-  for (let a = 0; a < 3; a++) {
-    lastBox[3 + a] = (max[a] - min[a]) * 0.5
-    finite &&= Number.isFinite(lastBox[a]) && Number.isFinite(lastBox[3 + a]) && lastBox[3 + a] >= 0
-  }
-  if (!finite) {
-    lastBox.fill(0, 0, 3)
-    lastBox.fill(UNBOUNDED_EXTENT, 3, 6)
-  }
-  boxes.set(lastBox, at)
-  boxes[at + 6] = moving ? 1 : 0
-  return finite
-}
-
-/** The frame's phase, rebuilt in place: its boxes, its instances and the entries it walks. */
-let phaseBoxes = new Float64Array(0)
-const phaseInstances: VsmInstanceInvalidation[] = []
-const phaseEntries: VsmLightCache[] = []
-
-/**
- * The engine's change boxes (`worldChanged` — geometry rewritten in place, a light, a sphere buffer
- * made anew —, `residencyChanged`, released representation changes) as one invalidation phase — a
- * move's are the rows' own, on the GPU (`castInvalidation.ts`) —,
- * filtered per light like the collector's: no entry fully cached, uncached
- * or invalidated; dynamic casters skip receiver-cover maps; local lights cull by radius.
- * One instance per box (identity rotation, world AABB); `moving` (already moving, outside the
- * static layer) = cached as dynamic, else static. Read the boxes before the plan consumes them
- * (`changes.settled()`). Returns null when the invalidation processing would skip (no cache data).
- */
-export function vsmInvalidationPhaseFromShadowBoxes(
-  cache: VsmCacheManager,
-  source: VsmShadowBoxSource,
-): VsmInvalidationPhase | null {
-  if (!cache.acceptsInvalidations() || source.count === 0) return null
-  // The phase is encoded in the frame that read it: its buffers are the frame's scratch.
-  if (phaseBoxes.length < source.count * BOX_WORDS)
-    phaseBoxes = new Float64Array(2 * source.count * BOX_WORDS)
-  const boxes = phaseBoxes
-  const instances = phaseInstances
-  instances.length = 0
-  const entries = phaseEntries
-  entries.length = 0
-  for (const e of cache.entries.values()) if (e.mayHoldCachedPages()) entries.push(e)
-  for (let b = 0; b < source.count; b++) {
-    const { min, max, moving } = source.read(b)
-    const finite = writeBox(boxes, b * BOX_WORDS, min, max, moving),
-      radius = length3(lastBox[3], lastBox[4], lastBox[5])
-    for (const entry of entries) {
-      if (moving && entry.useCover) continue
-      if (finite && !entry.affectsBounds(lastBox, radius)) continue
-      for (let i = 0; i < entry.mapCaches.length; i++)
-        instances.push({
-          firstInstance: b,
-          instanceCount: 1,
-          payload: entry.mapId + i,
-        })
-    }
-  }
-  if (instances.length === 0) return null
-  return { batch: { instances }, boxes }
-}
-
-// ---- GPU ------------------------------------------------------------------------------------
 
 /** The invalidation's pass, and its pipe. */
 const INVALIDATION_LABEL = `${VSM_PASS_PREFIX}invalidateInstancePages`
@@ -225,7 +118,7 @@ export function releaseVsmInvalidation(res: VsmResources) {
   res.invalidation = undefined
 }
 
-function slotOf(device: GPUDevice, res: VsmResources, k: number) {
+export function slotOf(device: GPUDevice, res: VsmResources, k: number) {
   const { slots } = invalidationOf(res)
   while (slots.length <= k)
     slots.push({
@@ -240,102 +133,25 @@ function slotOf(device: GPUDevice, res: VsmResources, k: number) {
   return slots[k]
 }
 
-// The scratch of `encodeVsmInvalidations`, rewritten for each phase: its items, its boxes as the
-// shader reads them.
-let items = new Uint32Array(64)
-let image = new ArrayBuffer(VSM_INVALIDATION_INSTANCE_BYTES * 16)
-let imageF = new Float32Array(image),
-  imageU = new Uint32Array(image)
 /** The params' words: the item count, the threads; the last two pad the struct, 0. */
 const paramsImage = new Uint32Array(4)
-const INSTANCE_WORDS = VSM_INVALIDATION_INSTANCE_BYTES / 4
-// The ranges of one phase, by their first instance: the index in the range lists of the last range
-// taken at that offset (a range of the same offset and another count is a range of its own).
-const rangeIndex = new Map<number, number>()
-const rangeOffset: number[] = []
-const rangeCount: number[] = []
-const rangeAt: number[] = []
 
-/** Packs the items of `list` (their first box in the image, box count, map, prefix), each range of
- *  boxes they name placed in the image once (`range*`): the threads they take, and the boxes. */
-function packItems(list: readonly VsmInstanceInvalidation[]) {
-  rangeIndex.clear()
-  rangeOffset.length = rangeCount.length = rangeAt.length = 0
-  let boxCount = 0,
-    prefix = 0
-  // A range's maps come one after another (one item per map): the last range is reused unkeyed.
-  let lastOffset = -1,
-    lastCount = -1,
-    lastAt = 0
-  if (items.length < list.length * 4) items = new Uint32Array(list.length * 8)
-  for (let i = 0; i < list.length; i++) {
-    const inv = list[i]
-    let at = lastAt
-    if (inv.firstInstance !== lastOffset || inv.instanceCount !== lastCount) {
-      const found = rangeIndex.get(inv.firstInstance)
-      if (found !== undefined && rangeCount[found] === inv.instanceCount) {
-        at = rangeAt[found]
-      } else {
-        at = boxCount
-        rangeIndex.set(inv.firstInstance, rangeOffset.length)
-        rangeOffset.push(inv.firstInstance)
-        rangeCount.push(inv.instanceCount)
-        rangeAt.push(at)
-        boxCount += inv.instanceCount
-      }
-      lastOffset = inv.firstInstance
-      lastCount = inv.instanceCount
-      lastAt = at
-    }
-    items[i * 4 + 0] = at
-    items[i * 4 + 1] = inv.instanceCount
-    items[i * 4 + 2] = inv.payload
-    items[i * 4 + 3] = prefix
-    prefix += inv.instanceCount
-  }
-  return { threads: prefix, boxCount }
-}
-
-/** Packs box `b` of `boxes` as instance `slot` of the image (96 B, `VsmInvalidationInstance`): an
- *  identity rotation whose translation is the box's centre (high f32, then low), a centre of 0, its
- *  extent and its flags; every other word 0. */
-function packBox(boxes: Float64Array, b: number, slot: number) {
-  const o = slot * INSTANCE_WORDS,
-    at = b * BOX_WORDS
-  imageF.fill(0, o, o + INSTANCE_WORDS)
-  for (let c = 0; c < 3; c++) {
-    // Column c = basis vector c; w = the translation's high f32.
-    imageF[o + c * 5] = 1
-    writeSplitDouble(imageF, o + c * 4 + 3, o + 12 + c, boxes[at + c])
-    imageF[o + 20 + c] = boxes[at + 3 + c]
-  }
-  imageU[o + 19] = VSM_BOX_CASTS | (boxes[at + 6] ? VSM_BOX_MOVING : 0)
-}
-
-/** Packs the ranges `packItems` placed, `boxCount` boxes of `boxes`, into the image; the bytes they
- *  take. Every word of an instance is written: the image is not cleared. */
-function packBoxes(boxes: Float64Array, boxCount: number) {
-  const bytes = Math.max(1, boxCount) * VSM_INVALIDATION_INSTANCE_BYTES
-  if (image.byteLength < bytes) {
-    image = new ArrayBuffer(2 * bytes)
-    imageF = new Float32Array(image)
-    imageU = new Uint32Array(image)
-  }
-  for (let r = 0; r < rangeAt.length; r++)
-    for (let j = 0; j < rangeCount[r]; j++) packBox(boxes, rangeOffset[r] + j, rangeAt[r] + j)
-  return bytes
-}
-
-/** Uploads a phase's packed boxes and `itemCount` items into `slot` and records its dispatch of
- *  `threads` threads. */
-function dispatchPhase(
+/** Uploads a phase's packed boxes and `itemCount` items (`packPhase`) into `slot` and records its
+ *  dispatch of `threads` threads. */
+export function dispatchPhase(
   encoder: GPUCommandEncoder,
   res: VsmResources,
   device: GPUDevice,
   slot: Slot,
-  phase: { itemCount: number; threads: number; instanceBytes: number },
+  phase: {
+    itemCount: number
+    threads: number
+    instanceBytes: number
+    items: Uint32Array<ArrayBuffer>
+    image: Uint32Array<ArrayBuffer>
+  },
 ) {
-  const { itemCount, threads, instanceBytes } = phase
+  const { itemCount, threads, instanceBytes, items, image } = phase
   const held = slot.buffers,
     [was0, was1] = [held.instances, held.items]
   const instanceBuffer = vsmEnsureBuffer(
@@ -355,7 +171,7 @@ function dispatchPhase(
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined
-  device.queue.writeBuffer(instanceBuffer, 0, imageU, 0, instanceBytes / 4)
+  device.queue.writeBuffer(instanceBuffer, 0, image, 0, instanceBytes / 4)
   device.queue.writeBuffer(itemBuffer, 0, items, 0, itemCount * 4)
   paramsImage[0] = itemCount
   paramsImage[1] = threads
@@ -375,36 +191,4 @@ function dispatchPhase(
   )
   dispatchRows(pass, ceilDiv(threads, WORKGROUP_THREADS))
   pass.end()
-}
-
-/**
- * Records the invalidation dispatches of `phases` (in order: before the scene update, after it,
- * then the engine's box phase). Nothing when the previous frame had no shadow map slots
- * or a phase has no instance. Must run before `swapFrames()` of this frame and before
- * `encodeVsmPageCarry`. Returns the number of (instance, VSM) pairs dispatched.
- */
-export function encodeVsmInvalidations(
-  encoder: GPUCommandEncoder,
-  res: VsmResources,
-  prevFrame: VsmInvalidationFrame,
-  phases: readonly (VsmInvalidationPhase | null | undefined)[],
-) {
-  if (!(prevFrame.mapSlotCount > 0)) return 0
-  let total = 0,
-    k = 0
-  for (const phase of phases) {
-    if (!phase || phase.batch.instances.length === 0) continue
-    const slot = slotOf(prevFrame.device, res, k++)
-    const list = phase.batch.instances,
-      { threads, boxCount } = packItems(list)
-    if (threads === 0) continue
-    const instanceBytes = packBoxes(phase.boxes, boxCount)
-    dispatchPhase(encoder, res, prevFrame.device, slot, {
-      itemCount: list.length,
-      threads,
-      instanceBytes,
-    })
-    total += threads
-  }
-  return total
 }

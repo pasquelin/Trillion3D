@@ -25,7 +25,7 @@ fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:v
  let inst=vsmInvInstances[boxIndex];
  // A valid instance that casts shadows.
  if((inst.flags&VSM_BOX_CASTS)==0u){return;}
- let mapId=item.payload;
+ let mapId=vsmStaleMap(item.payload,(inst.flags&VSM_BOX_MOVING)!=0u);
  if(mapId>=arrayLength(&vsmProjectionData)){return;}
  let pd=vsmProjectionOf(vsmHandleFromId(mapId));
  vsmStaleBoxPages(pd,inst);
