@@ -8,7 +8,8 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { fromF32Bits } from '../../../math/src/float/bits.ts'
 import { DERIVE_ROWS_WGSL, PART_CASTS, PART_SPHERES } from './rowWordsWgsl.ts'
-import { INPUT_FLAGS, ROW_HAS_RECORD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
+import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
+import { LOD_BIT } from '../webgpu/shadow/rowLodWords.ts'
 import { DOUBLE_HELPERS, pair } from './composeDoubles.fixture.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -37,7 +38,7 @@ function rig(records = 16) {
     table[row * ROW_WORDS + PAGE_INFO.at.placement] = row
     for (let at = 0; at < ROW_INPUT_DOUBLES; at++)
       inputs[row * ROW_INPUT_DOUBLES + at] =
-        at === INPUT_FLAGS ? [ROW_HAS_RECORD, 0] : pair(at >= 3 && at < 6 ? HALF : 0)
+        at === INPUT_FLAGS ? [LOD_BIT.record, 0] : pair(at >= 3 && at < 6 ? HALF : 0)
   }
   const place = (rank: number, x: number) => {
     const world = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]
@@ -136,7 +137,7 @@ test('a caster hidden stales where it stood, shown again where it stands, releas
   const released = taken()
   assert.equal(released.length, 1)
   assert.ok(holds(released[0], 10), 'the pose it leaves')
-  inputs[1 * ROW_INPUT_DOUBLES + INPUT_FLAGS] = [ROW_HAS_RECORD, 0]
+  inputs[1 * ROW_INPUT_DOUBLES + INPUT_FLAGS] = [LOD_BIT.record, 0]
   run.deriveRow(1, true)
   assert.deepEqual(taken(), [], 'an arrival is a residency change: the CPU declares it')
 })

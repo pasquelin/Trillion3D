@@ -9,9 +9,9 @@ import {
 } from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
 import {
   INPUT_FLAGS,
-  ROW_HAS_RECORD,
   ROW_INPUT_DOUBLES,
 } from '../../../packages/sdk-browser/src/placement/rowInputPack.ts'
+import { LOD_BIT } from '../../../packages/sdk-browser/src/webgpu/shadow/rowLodWords.ts'
 import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -37,7 +37,7 @@ export async function runSphere() {
       half = [0, 1, 2].map(() => 0.001 + next() * 5)
     packDoubles(worlds, i * 32, w)
     packDoubles(inputs, i * ROW_INPUT_DOUBLES * 2, [...centre, ...half])
-    inputs[(i * ROW_INPUT_DOUBLES + INPUT_FLAGS) * 2] = ROW_HAS_RECORD
+    inputs[(i * ROW_INPUT_DOUBLES + INPUT_FLAGS) * 2] = LOD_BIT.record
     transformAffinePoint(c, w, centre[0], centre[1], centre[2], 0)
     const row = new Array(8).fill(0)
     for (let a = 0; a < 3; a++) {

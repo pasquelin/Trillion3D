@@ -11,7 +11,8 @@ import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../visibility/types.ts'
 import { COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
 import { DERIVE_ROWS_WGSL, PART_SPHERES } from './rowWordsWgsl.ts'
-import { INPUT_FLAGS, ROW_HAS_RECORD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
+import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
+import { LOD_BIT } from '../webgpu/shadow/rowLodWords.ts'
 import { DOUBLE_HELPERS, pair } from './composeDoubles.fixture.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
@@ -23,7 +24,7 @@ const inputsOf = (boxes?: ArrayLike<number>) =>
   Array.from({ length: N * ROW_INPUT_DOUBLES }, (_, k) => {
     const row = Math.floor(k / ROW_INPUT_DOUBLES),
       at = k % ROW_INPUT_DOUBLES
-    if (at === INPUT_FLAGS) return [ROW_HAS_RECORD, 0]
+    if (at === INPUT_FLAGS) return [LOD_BIT.record, 0]
     return pair(at < 6 && boxes ? boxes[row * 6 + at] : 0)
   })
 

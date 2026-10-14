@@ -8,10 +8,10 @@
  * row: every row of the table (`params.all`), or the rows a list names.
  */
 import { CORNERS_WGSL, LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
-import { INPUT_FLAGS, ROW_HAS_RECORD, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
+import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
-import { ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
+import { LOD_BIT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { dAdd, dMul, splitDouble } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
@@ -146,7 +146,7 @@ fn deriveRow(row:u32,emit:bool,stale:bool){
  let casting=emit&&casts;
  var was:array<f32,8>;
  if(casting){was=rowSphere(row);}
- if((inputs[at+${INPUT_FLAGS}u].x&${ROW_HAS_RECORD}u)==0u){
+ if((inputs[at+${INPUT_FLAGS}u].x&${LOD_BIT.record}u)==0u){
   if(casting){castRow(row,was,false,false);}
   clearRow(row);
   return;

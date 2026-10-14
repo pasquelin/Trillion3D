@@ -20,8 +20,17 @@ function movedSphere({ min, max }: MovedBox) {
  *  (`../../placement/rowWordsWgsl.ts`, `composeLod`) whenever the root moves. */
 export const ROW_LOD_INPUT_DOUBLES = 12
 /** The inputs' bits (`LOD_INPUT.flags`): the row has a detail, its finer group and itself are
- *  ready, it has a coarser form, its root has a world box. */
-export const LOD_BIT = { has: 1, childReady: 2, ready: 4, hasParent: 8, hasBox: 16 } as const
+ *  ready, it has a coarser form, its root has a world box; and the row holds a page (`record`, set
+ *  by `../../placement/rowInputPack.ts`): a row without one has every derived word zero — its
+ *  sphere, its corners — and its detail drawn by every page. */
+export const LOD_BIT = {
+  has: 1,
+  childReady: 2,
+  ready: 4,
+  hasParent: 8,
+  hasBox: 16,
+  record: 32,
+} as const
 /** Where each input lies: the sphere and its radius grown (centre, radius), the coarser form's,
  *  the own error and the coarser one's before the stretch, the bits. */
 export const LOD_INPUT = { sphere: 0, parentSphere: 4, own: 8, parent: 9, flags: 10 } as const
