@@ -45,7 +45,6 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 /** Who is allowed to RESOLVE a world pose, and for which subject. */
 const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
-  'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
   'physics/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',

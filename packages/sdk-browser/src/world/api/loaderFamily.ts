@@ -1,14 +1,6 @@
 import { checked } from '../../cluster/checked.ts'
+import { decodeRaw, imageElement } from '../../texture/decode.ts'
 import { texture } from '../texture/index.ts'
-
-/** An image element holding the picture at `url`, decoded. */
-async function picture(url: string) {
-  const image = new Image()
-  image.crossOrigin = 'anonymous'
-  image.src = url
-  await image.decode()
-  return image
-}
 
 /**
  * The `loader` family: files fetched and turned into what a scene uses. A file is read through
@@ -21,12 +13,12 @@ export const loader = {
    * Fetches a picture and makes a colour texture of it.
    * @param url - Where the picture is.
    */
-  texture: async (url: string) => texture.image(await picture(url)),
+  texture: async (url: string) => texture.image(await imageElement(url)),
   /**
    * Fetches six pictures and makes a cube texture: faces `+x, -x, +y, -y, +z, -z`.
    * @param urls - Where the six pictures are.
    */
-  cubeTexture: async (urls: string[]) => texture.cube(await Promise.all(urls.map(picture))),
+  cubeTexture: async (urls: string[]) => texture.cube(await Promise.all(urls.map(imageElement))),
   /**
    * Fetches a picture and decodes it into an `ImageBitmap`.
    * @param url - Where the picture is.
@@ -46,11 +38,13 @@ export const loader = {
         : response.text()
   },
   /**
-   * An image file read as linear RGBA pixels: a data texture.
+   * An image file read as linear RGBA pixels: a data texture. The pixels are those the file
+   * stores, decoded by the engine's one decoder (`texture/decode.ts`), neither colour-converted nor
+   * premultiplied by the decode: a normal or roughness map keeps its numbers.
    * @param url - Where the picture is.
    */
   async data(url: string) {
-    const bitmap = await loader.imageBitmap(url)
+    const bitmap = await decodeRaw(await (await checked(url)).blob())
     const page = new OffscreenCanvas(bitmap.width, bitmap.height)
     const context = page.getContext('2d')!
     context.drawImage(bitmap, 0, 0)

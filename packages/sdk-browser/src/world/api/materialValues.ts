@@ -5,6 +5,7 @@ import {
   type Material,
   alphaModeOf,
   type AlphaMode,
+  MASK_CUTOFF,
 } from '../../../../sdk-core/src/contracts/material.ts'
 
 import type { PageSurface } from '../../page/surface.ts'
@@ -12,9 +13,6 @@ import { surfaceWritten } from '../../page/surfaceWrites.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import { metalRoughFamily } from '../../scene/surfaceModel.ts'
 import { alphaModeFields } from '../../host/prepared/materials.ts'
-
-/** The cutoff a material turned masked takes when the page names none: glTF's default. */
-export const MASK_CUTOFF = 0.5
 
 /** A material of the scene as a page reads it: the engine's parameters, the id it is set by — its
  *  rank in the cache's material table — its name, and how many times its maps repeat across and

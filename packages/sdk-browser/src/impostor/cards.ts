@@ -14,7 +14,7 @@
  */
 import type { ImpostorSection } from '../../../sdk-core/src/contracts/impostor.ts'
 import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
-import { bakedLookup } from '../../../sdk-core/src/impostor/switchTable.ts'
+import { bakedLookup } from '../../../sdk-core/src/impostor/baked.ts'
 import { core } from './borrowed.ts'
 import { createCardSlots, type CardHolder, type CardSegment } from './cardSlots.ts'
 import { followMoves, giveCard, mark, takeCard } from './cardHolders.ts'
@@ -23,14 +23,6 @@ import { drawable } from './cardsView.ts'
 import type { CardAsk, CardHold, CardTiles } from '../webgpu/tile/cardTiles.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'
-
-/**
- * Coverage below which a card texel is no surface: the engine's default alpha cutoff, the one a
- * masked material without its own declares (`MASK_CUTOFF`, the world API's: not imported into the
- * shader layer). The bake stores coverage, never a cut, so the cut is the runtime's; a mesh whose
- * material declares another keeps it on its own clusters.
- */
-export const CARD_COVERAGE_CUT = 0.5
 
 /** One run of a mesh's cards: one instanced draw. */
 type CardRun = { first: number; count: number }

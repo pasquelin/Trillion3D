@@ -1,6 +1,7 @@
 import { BufferAttribute, indexList, ownAttribute } from '../buffer/attribute.ts'
 import type { VertexAttribute } from '../buffer/attribute.ts'
 import { createListeners } from '../../runtime/listeners.ts'
+import { Releasable } from '../../runtime/releasable.ts'
 import { Box3 } from '../math/box3.ts'
 import { Sphere } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
@@ -10,7 +11,7 @@ import { transformVertices } from './transform.ts'
 
 /** The shape alone: named per-vertex attributes, an optional triangle index, material groups,
  *  the morph targets that move it and the range of it drawn. */
-export class Geometry {
+export class Geometry extends Releasable {
   /** Always `true`: tells a geometry apart from anything else. */
   readonly isGeometry = true as const
   /** What the resource is, as a reader of the scene tells resources apart. */
@@ -34,8 +35,6 @@ export class Geometry {
   drawRange = { start: 0, count: Infinity }
   /** Free room for the data of whoever built the geometry. */
   userData: Record<string, unknown> = {}
-  /** Called when the geometry is given back: what a renderer's own copy of it listens to. */
-  readonly released = new Set<() => void>()
   /** The box around every vertex, once computed; `null` until then. */
   boundingBox: Box3 | null = null
   /** The ball around every vertex, once computed; `null` until then. */
@@ -191,9 +190,8 @@ export class Geometry {
   }
   /** Gives the geometry back: runs every release hook once and forgets the holders; a disposed
    *  geometry is drawn by nobody. */
-  dispose() {
-    for (const hook of this.released) hook()
-    this.released.clear()
+  override dispose() {
+    super.dispose()
     this._listeners.clear()
   }
 }

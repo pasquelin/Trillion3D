@@ -11,7 +11,7 @@
  * values are its material's: the material table holds one record for both (`variantPlain`), which
  * the rows read the variant's own facts beside — its faces, its colours — off their flags.
  */
-import { Releasable } from '../host/graph/resource.ts'
+import { Releasable } from '../../../sdk-core/src/runtime/releasable.ts'
 import type { PageSurface } from './surface.ts'
 
 /** What a mesh asks of the surface it wears. */

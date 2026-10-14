@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts'
+import { deferredLayoutEntries } from '../../lighting/deferred/layoutEntries.ts'
 import { readOnly } from '../core/bindLayout.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'

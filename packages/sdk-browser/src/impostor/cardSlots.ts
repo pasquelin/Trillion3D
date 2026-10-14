@@ -14,7 +14,7 @@
  * or scaling rewrites its translation alone.
  */
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import type { BakedEntry } from '../../../sdk-core/src/impostor/switchTable.ts'
+import type { BakedEntry } from '../../../sdk-core/src/impostor/baked.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import type { DenseKeySet } from '../webgpu/cut/denseKeys.ts'
 import type { CardHold, CardTiles } from '../webgpu/tile/cardTiles.ts'

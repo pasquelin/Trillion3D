@@ -1,25 +1,24 @@
-// The watch holds the plan's switch for every root in view, image after image, and reads a root
+// The watch holds the switch's verdict for every root in view, image after image, and reads a root
 // again only once the view may have moved its verdict: a still view reads nothing, a swaying or
 // turning one what nears its switch — as many at 10⁵ roots as at 10³, on generated fields of one
 // density.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planImpostors } from './plan.ts'
 import { createImpostorWatch } from './watch.ts'
-import { COS, FOCAL, field, inView, section, swayAt } from './watch.fixture.ts'
+import { COS, FOCAL, field, inView, readFromNothing, section, swayAt } from './watch.fixture.ts'
 
-test('the watch holds the plan’s verdict for every root in view, still, swaying and turning', () => {
+test('the watch holds the switch’s verdict for every root in view, still, swaying and turning', () => {
   const roots = field(3000),
     watch = createImpostorWatch()
   let checked = 0
   for (let k = 0; k < 90; k++) {
     const view = k < 10 ? swayAt(0) : swayAt(k, k >= 50 ? 0.02 : 0)
     watch.update(roots, section, view, FOCAL, COS)
-    const plan = planImpostors(roots, section, view, FOCAL)
+    const fresh = readFromNothing(roots, section, view, FOCAL)
     for (let rank = 0; rank < roots.length; rank++) {
       if (!inView(view, roots[rank])) continue
       checked++
-      assert.equal(watch.switched[rank], plan.switched[rank], `frame ${k}, root ${rank}`)
+      assert.equal(watch.switched[rank], fresh.switched[rank], `frame ${k}, root ${rank}`)
     }
   }
   assert.ok(checked > 3000, `${checked} roots checked in view`)

@@ -3,15 +3,13 @@
 import { surfaceOf, type PageSurface } from '../../page/surface.ts'
 import { materialSurface } from '../../host/pageObjects.ts'
 import { surfaceVariant, variantKey, variantOf } from '../../page/surfaceVariant.ts'
-import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
-import type { DrawSource } from '../../page/selection/drawSource.ts'
 import {
-  invalid,
+  alphaModeOf,
+  type AlphaMode,
   MASK_CUTOFF,
-  PATCH_FIELDS,
-  validate,
-  type SceneMaterialPatch,
-} from './materialValues.ts'
+} from '../../../../sdk-core/src/contracts/material.ts'
+import type { DrawSource } from '../../page/selection/drawSource.ts'
+import { invalid, PATCH_FIELDS, validate, type SceneMaterialPatch } from './materialValues.ts'
 
 /** Values of a runtime material; a map admission returns a promise. */
 export type CreatedMaterial = Omit<SceneMaterialPatch, 'tiling'> & {

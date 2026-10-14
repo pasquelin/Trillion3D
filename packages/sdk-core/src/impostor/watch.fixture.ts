@@ -1,6 +1,6 @@
 // Generated fields of trees and a camera that sways over them, as the watch's tests read them.
-import type { ImpostorRoot } from './plan.ts'
-import { impostorViewCosine } from './watch.ts'
+import type { ImpostorRoot } from './switchTable.ts'
+import { createImpostorWatch, impostorViewCosine } from './watch.ts'
 import { TREE, bakedMesh } from './bakedMesh.fixture.ts'
 import { createHeap } from '../../../math/src/sequence/heap.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -17,6 +17,22 @@ export const PROJECTION = (() => {
   return Float64Array.of(f / (16 / 9), 0, 0, 0, 0, f, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0)
 })()
 export const COS = impostorViewCosine(PROJECTION)
+
+/**
+ * A watch that read `roots` from nothing at `view` and `focal`: its frustum cosine 0 makes no root
+ * `ON` by its class, so each verdict is the switch's own (`switchesAt`), in view or not — the
+ * reference a kept watch is held to.
+ */
+export function readFromNothing(
+  roots: readonly ImpostorRoot[],
+  baked: ImpostorSection | undefined,
+  view: ArrayLike<number>,
+  focal: number,
+) {
+  const watch = createImpostorWatch()
+  watch.update(roots, baked, view, focal, 0)
+  return watch
+}
 
 /** `count` trees at one per 400 m² on a disk about the origin, a few scaled or another mesh-less. */
 export function field(count: number): ImpostorRoot[] {

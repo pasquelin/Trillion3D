@@ -1,55 +1,35 @@
 /**
- * WHAT THE SWITCH READS OF EACH ROOT, kept from one view to the next (`plan.ts`, `watch.ts`): the
- * section's baked meshes by mesh number, and per root its entry, radius and the two switch depths,
- * taken again only when the root, its world's linear part or the focal length changes. One table
- * per holder — a plan, a watch —, so both read the same numbers through the same functions.
+ * WHAT THE SWITCH READS OF EACH ROOT, kept from one view to the next (`watch.ts`): per root its
+ * baked entry (`baked.ts`), radius and the two switch depths, taken again only when the root, its
+ * world's linear part or the focal length changes. One table per holder: the watch's. The switch
+ * is the engine's one oracle (`switch.ts`), never a per-scene constant: `f` is the engine's focal
+ * length in pixels (`focalPixels`), `z` the pivot's view depth, each bound taken where the
+ * projection magnifies most off the view axis (`switchesAt`), `R`, `T`, `c` and `r_f` only from
+ * the baked manifest.
  */
 import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { LINEAR_PART, sameLinearPart } from '../../../math/src/matrix/matrixElements.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
-import {
-  impostorMeshBaked,
-  type ImpostorMaps,
-  type ImpostorMesh,
-  type ImpostorSection,
-} from '../contracts/impostor.ts'
+import type { ImpostorSection } from '../contracts/impostor.ts'
+import type { BakedEntry, BakedLookup } from './baked.ts'
 import {
   impostorRadius,
   impostorSwitchOf,
   impostorTexelDepth,
   impostorTriangleDepth,
 } from './switch.ts'
-import type { ImpostorRoot } from './plan.ts'
 
-/** The section's baked meshes, keyed by their compiled mesh number; refused entries are left out. */
-export function impostorBakedByMesh(
-  section: ImpostorSection | undefined,
-): Map<number, ImpostorMesh & { maps: ImpostorMaps; frames: number; frameSide: number }> {
-  const byMesh: BakedByMesh = new Map()
-  if (section)
-    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh)
-  return byMesh
+/** What the switch needs of one root: its compiled mesh number and the world matrix that places
+ *  it. */
+export interface ImpostorRoot {
+  /** Compiled mesh number (`Primitive.mesh`); absent on a root no impostor may replace. */
+  mesh?: number
+  /** World matrix of the placement, column-major (`MatrixElements`). */
+  world: { elements: ArrayLike<number> }
 }
 
-/** Baked meshes by mesh number: each entry holds the maps, frames and frame side the card reads. */
-type BakedByMesh = ReturnType<typeof impostorBakedByMesh>
-/** The same, read by a root's mesh number, which a root no impostor may replace lacks. */
-export type BakedLookup = ReadonlyMap<
-  number | undefined,
-  NonNullable<ReturnType<BakedByMesh['get']>>
->
-const EMPTY_MESHES: BakedLookup = new Map()
-/** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
-const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>()
-export function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
-  if (!section) return EMPTY_MESHES
-  let byMesh = bakedBySection.get(section)
-  if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)))
-  return byMesh
-}
-
-/** The pivot's view-space point, reused: the plan runs every image. */
+/** The pivot's view-space point, reused: the watch reads roots every image. */
 export const point = /* @__PURE__ */ new Float64Array(3)
 
 /**
@@ -66,8 +46,6 @@ export function switchesAt(texelDepth: number, triangleDepth: number, v: Float64
     cosine = depth / length3(v[0], v[1], v[2])
   return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth
 }
-
-export type BakedEntry = NonNullable<ReturnType<BakedLookup['get']>>
 
 /**
  * WHAT THE SWITCH READS OF A ROOT THAT THE VIEW DOES NOT MOVE: its baked entry, its radius `R` —

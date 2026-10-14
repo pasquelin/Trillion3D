@@ -135,7 +135,7 @@ export type { PlacementLink } from '../../sdk-browser/src/placement/gpuCompose.t
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'
-export { Releasable } from '../../sdk-browser/src/host/graph/resource.ts'
+export { Releasable } from '../../sdk-core/src/runtime/releasable.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts'
 export {

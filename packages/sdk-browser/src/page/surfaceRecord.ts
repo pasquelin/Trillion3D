@@ -16,7 +16,7 @@
  */
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { DEFAULT_IOR, DEFAULT_SHININESS } from '../../../sdk-core/src/world/material/defaults.ts'
-import { Releasable } from '../host/graph/resource.ts'
+import { Releasable } from '../../../sdk-core/src/runtime/releasable.ts'
 import {
   SURFACE_MODEL,
   familyModel,

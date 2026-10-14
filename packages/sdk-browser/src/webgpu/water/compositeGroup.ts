@@ -1,7 +1,7 @@
 import { DEFERRED_BINDINGS } from '../../lighting/deferred/bindings.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
-import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts'
+import { deferredLayoutEntries } from '../../lighting/deferred/layoutEntries.ts'
 import { readOnly } from '../core/bindLayout.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'

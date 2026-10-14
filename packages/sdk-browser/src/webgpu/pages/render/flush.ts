@@ -9,10 +9,11 @@ import { renderWebgpuPages } from './render.ts'
 import { settlePose } from '../../tile/converge.ts'
 import { deviceAnswer } from '../../frame/deviceAnswer.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { transparentCounts } from '../state/transparentCounts.ts'
 import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts'
 
 function reportProgress(rt: WebgpuPagesRuntime) {
-  const { run, gpu, blendState, diag, services, context } = rt
+  const { run, gpu, diag, services, context } = rt
   if (msSince(run.lastProgressMs) < 2000) return
   run.lastProgressMs = cpuNow()
   diag.engineDiagnostic('render-progress', 'GPU render progress', {
@@ -31,11 +32,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     submittedTriangles: run.submittedTriangles,
     transparent: {
       version: 1,
-      candidates: blendState.blendGpu.length,
-      visibleMeshes: blendState.visibleBlend.length,
-      frustumRejected: run.blendFrustumRejected,
-      drawCalls: run.blendDrawCalls,
-      submittedTriangles: run.blendSubmittedTriangles,
+      ...transparentCounts(rt),
       gpuMs: null,
     },
     pendingPages: collectPendingUrls(

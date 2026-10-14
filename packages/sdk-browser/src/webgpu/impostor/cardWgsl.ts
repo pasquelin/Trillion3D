@@ -1,6 +1,7 @@
 import { impostorCardWgsl } from '../../visibility/shader/impostorWgsl.ts'
 import { core } from '../../impostor/borrowed.ts'
-import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
+import { MASK_CUTOFF } from '../../../../sdk-core/src/contracts/material.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
@@ -120,7 +121,7 @@ fn cardDepth(c:Card,point:vec3f)->f32{
  *  pixel is discarded, in every stage alike. */
 fn cardVisDepth(in:CardVary)->f32{
  let c=cards[in.card];let t=cardTaps(in,c);let w=in.weightsLod.xyz;
- if(impColours(t.maps,t.a,t.b,t.c,w,in.weightsLod.w).a<${CARD_COVERAGE_CUT}){discard;}
+ if(impColours(t.maps,t.a,t.b,t.c,w,in.weightsLod.w).a<${wgslF32(MASK_CUTOFF)}){discard;}
  return cardDepth(c,impPoint(t.a,t.b,t.c,w));
 }
 /** The card's surface at this pixel, and its depth; with the maps it read and the three taps,
@@ -129,7 +130,7 @@ struct CardPixel{blend:ImpBlend,depth:f32,maps:CardMaps,a:vec2f,b:vec2f,c:vec2f}
 fn cardPixel(in:CardVary)->CardPixel{
  let c=cards[in.card];let t=cardTaps(in,c);
  let b=impBlend(t.maps,t.a,t.b,t.c,in.weightsLod.xyz,in.weightsLod.w);
- if(b.colour.a<${CARD_COVERAGE_CUT}){discard;}
+ if(b.colour.a<${wgslF32(MASK_CUTOFF)}){discard;}
  return CardPixel(b,cardDepth(c,b.point),t.maps,t.a.uv,t.b.uv,t.c.uv);
 }
 /** The tile rank pick \`p\` of a card pixel names, plus one, or zero: map \`p.sel\` at the tap of frame

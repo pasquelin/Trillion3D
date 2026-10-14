@@ -4,6 +4,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { bindingLayout, bindingResource, type ComputeBinding } from './computePass.ts'
 import { createFloatAtlas } from '../core/floatAtlas.ts'
+import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** What the receiver offset reads (`receiverOffsetWgsl.ts`), in `RECEIVER_BINDINGS` order: the
@@ -75,12 +76,7 @@ export function receiverResources({ vis, gpu }: WebgpuPagesRuntime) {
  * flag is then zero.
  */
 export function receiverPlaceholders(device: GPUDevice) {
-  const vis = device.createTexture({
-    label: 'Trillion3D empty visibility',
-    size: [1, 1],
-    format: 'r32uint',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
+  const vis = standInTexture(device, 'Trillion3D empty visibility', 'r32uint')
   const uniform = device.createBuffer({
     label: 'Trillion3D empty resolve uniform',
     size: SHADE_UNIFORM_BYTES,

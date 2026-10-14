@@ -11,25 +11,16 @@
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
-import { RAW_BITMAP } from '../../texture/levelReader.ts'
+import { decodeRaw, imageElement } from '../../texture/decode.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import { checked } from '../../cluster/checked.ts'
 import { log } from '../../diagnostic/log.ts'
 
-/** An image element holding `url`, decoded: the path of a platform without `createImageBitmap`. */
-async function element(url: string) {
-  const image = new Image()
-  if (!url.startsWith('data:')) image.crossOrigin = 'anonymous'
-  image.src = url
-  await image.decode()
-  return image
-}
-
 async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
-  if (typeof createImageBitmap !== 'function') return element(url)
+  if (typeof createImageBitmap !== 'function') return imageElement(url)
   const response = await checked(url, signal)
   // Metered once accepted: a refused body is never read, so its length never joins the total.
-  return createImageBitmap(await meter.read(response, url).blob(), RAW_BITMAP)
+  return decodeRaw(await meter.read(response, url).blob())
 }
 
 /** A failed read of the document's binary, told apart from an image that cannot be decoded. */
@@ -41,10 +32,10 @@ class UnreadBinary extends Error {
 
 async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {
   const blob = new Blob([bytes], { type })
-  if (typeof createImageBitmap === 'function') return createImageBitmap(blob, RAW_BITMAP)
+  if (typeof createImageBitmap === 'function') return decodeRaw(blob)
   const url = URL.createObjectURL(blob)
   try {
-    return await element(url)
+    return await imageElement(url)
   } finally {
     URL.revokeObjectURL(url)
   }

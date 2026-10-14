@@ -19,6 +19,11 @@ export type AlphaMode = 'opaque' | 'mask' | 'blend'
 export const alphaModeOf = (surface: { transparent: boolean; alphaTest: number }): AlphaMode =>
   surface.transparent ? 'blend' : surface.alphaTest > 0 ? 'mask' : 'opaque'
 
+/** The engine's default alpha cutoff, glTF's: the cut of a masked material that names none, and
+ *  the coverage below which an impostor card texel is no surface, so a card cuts where the masked
+ *  clusters it stands for cut. */
+export const MASK_CUTOFF = 0.5
+
 /** One linear RGB colour, `[0, 1]` per channel. */
 export type LinearRgb = readonly [number, number, number]
 

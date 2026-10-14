@@ -18,10 +18,8 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
 import { createWebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import {
-  createDeferredPlaceholders,
-  deferredLayoutEntries,
-} from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
+import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
+import { deferredLayoutEntries } from '../../../packages/sdk-browser/src/lighting/deferred/layoutEntries.ts'
 import {
   ZERO_DIRECT,
   createDeferredView,

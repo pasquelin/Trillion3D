@@ -5,10 +5,7 @@
  * The engine itself lights a display graph of its own objects and names no library; a mesh or a
  * light of the engine's graph is copied into the library by `fromGraphNodes.ts`.
  */
-import {
-  installSceneLighting,
-  type HostLight,
-} from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts'
+import { installSceneLighting, type HostLight } from './sceneLighting.ts'
 import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
