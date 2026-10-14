@@ -2,7 +2,7 @@ import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { bufferEntry } from '../core/liveEntries.ts'
-import { composeGroup, heldGroup } from '../../placement/composeGroups.ts'
+import { composeGroup, heldGroup } from '../core/bindIdentity.ts'
 import { WATER_RECT_BINDING, WATER_RECT_SHADER, waterRectBindEntries } from './rectWgsl.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 

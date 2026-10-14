@@ -15,8 +15,8 @@ import type { TreeLeaves } from '../gpu/dag/treeFollow.ts'
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { TREE_LEAVES_PASS } from '../stage/passLabels.ts'
-import { composeGroup, heldGroup, type HeldGroup } from './composeGroups.ts'
-import { PASS_PARAM_BYTES, passParams, writePassParams } from './gpuComposeGpu.ts'
+import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
+import { PASS_PARAM_BYTES, passParams, writePassParams } from '../gpu/core/passParams.ts'
 import {
   TREE_LEAVES_FRAMES_BINDING,
   TREE_LEAVES_NODES_BINDING,

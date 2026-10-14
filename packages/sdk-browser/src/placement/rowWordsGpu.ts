@@ -7,7 +7,7 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { heldGroup } from './composeGroups.ts'
+import { heldGroup } from '../webgpu/core/bindIdentity.ts'
 
 /** Bytes of the pass's parameters (`DERIVE_ROWS_WGSL`'s `Params`). */
 const PARAMS_BYTES = 32

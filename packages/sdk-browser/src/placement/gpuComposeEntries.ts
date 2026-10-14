@@ -5,7 +5,8 @@
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { PASS_PARAM_BYTES, type ComposeGpu } from './gpuComposeGpu.ts'
+import { PASS_PARAM_BYTES } from '../gpu/core/passParams.ts'
+import type { ComposeGpu } from './gpuComposeGpu.ts'
 import { COMPOSE_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
 /** The roots pass's entries (`COMPOSE_ROOTS_WGSL`), read live: its parameters, the roots' double

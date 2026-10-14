@@ -6,6 +6,7 @@ import {
 } from '../../core/computeBindings.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { recordTextureWgsl } from '../../core/recordTextureWgsl.ts'
+import { resourceEntry } from '../../../webgpu/core/liveEntries.ts'
 import { worldTableWgsl } from '../worldTable.ts'
 import { treeTableWgsl } from '../treeTable.ts'
 import { frameTableWgsl } from '../frameTable.ts'
@@ -52,7 +53,8 @@ export function dagGroupEntries(
 
 /** The cut's tables a pass beside it reads where they lie (`../../../webgpu/rays/rayQueryWgsl.ts`):
  *  the nodes, the placements' frame words and records, and the placement tree. */
-export type DagReadTables = Record<'nodes' | 'frames' | 'worlds' | 'tree', GPUTextureView>
+const READ_TABLES = ['nodes', 'frames', 'worlds', 'tree'] as const
+export type DagReadTables = Record<(typeof READ_TABLES)[number], GPUTextureView>
 
 /** Their declarations, in group 0 at the culling's bindings and under its names: one text the
  *  culling and a pass beside it both list. */
@@ -67,8 +69,10 @@ export const DAG_READ_TABLES_WGSL = wgslBlock(
   '',
 )
 
-/** Their entries, each at the binding the culling reads it at (`DAG_READ_TABLES_WGSL`). */
-export const dagReadEntries = (tables: DagReadTables) => namedEntries(DAG_BINDING, tables)
+/** Their entries, each at the binding the culling reads it at (`DAG_READ_TABLES_WGSL`), read live
+ *  from `tables` (`../../../webgpu/core/liveEntries.ts`): made once, the tables named each time. */
+export const dagReadEntries = (tables: () => DagReadTables) =>
+  READ_TABLES.map((name) => resourceEntry(DAG_BINDING[name], () => tables()[name]))
 
 /** Group-0 declarations of the selection kernel; its table accessors are `DAG_ACCESS_WGSL`. */
 export const DAG_BINDINGS_WGSL = wgslBlock(

@@ -1,8 +1,8 @@
-import { dagReadEntries } from '../../gpu/dag/shader/bindings.ts'
+import { dagReadEntries, type DagReadTables } from '../../gpu/dag/shader/bindings.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import { composeGroup, heldGroup } from '../core/bindIdentity.ts'
+import { bufferEntry } from '../core/liveEntries.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { RAY_QUERY_WGSL } from './rayQueryWgsl.ts'
 import type { RaySources } from './raySources.ts'
@@ -31,30 +31,46 @@ export function rayKernelsCompiled(
   return false
 }
 
-/** A group of the pass and what it names. */
-const heldRayGroup = () => ({
-  identity: createWebgpuBindIdentity(),
-  group: undefined as unknown as GPUBindGroup,
-})
-type HeldRayGroup = ReturnType<typeof heldRayGroup>
+/** What the pass's groups name, written at each batch and read live by their entries. */
+type RayBound = {
+  params: GPUBuffer
+  query: GPUBuffer
+  pageTable: GPUBuffer
+  entries: GPUBuffer
+  spans: GPUBuffer
+  geometry: GPUBuffer
+  positions: GPUBuffer
+  views: DagReadTables
+}
 
 /** The pass's three groups — the index's, the trace's over the cut's tables, the trace's own —,
- *  each held over what it names: made again only when the pipeline or a resource moved. */
-export const createRayGroups = () => ({
-  index: heldRayGroup(),
-  tables: heldRayGroup(),
-  trace: heldRayGroup(),
-})
-type RayGroups = ReturnType<typeof createRayGroups>
-
-/** `held`'s group, made by `make` when `named` — its pipeline, then its resources — moved. */
-function heldOver(held: HeldRayGroup, make: () => GPUBindGroup, ...named: unknown[]) {
-  const { next } = held.identity
-  next.length = named.length
-  for (let i = 0; i < named.length; i++) next[i] = named[i]
-  if (held.identity.moved()) held.group = make()
-  return held.group
+ *  each held over what it names, read live (`liveEntries.ts`): made again only when the pipeline
+ *  or a resource moved. Their entries are made once: a batch allocates none. */
+export function createRayGroups() {
+  const bound = {} as RayBound
+  const at = (binding: number, name: Exclude<keyof RayBound, 'views'>) =>
+    bufferEntry(binding, () => bound[name])
+  const params = bufferEntry(
+    0,
+    () => bound.params,
+    undefined,
+    () => RAY_PARAMS.words * 4,
+  )
+  const index = heldGroup(),
+    tables = heldGroup(),
+    trace = heldGroup()
+  index.identity.entries[0] = [
+    params,
+    at(1, 'query'),
+    at(2, 'pageTable'),
+    at(3, 'entries'),
+    at(4, 'spans'),
+  ]
+  tables.identity.entries[0] = dagReadEntries(() => bound.views)
+  trace.identity.entries[0] = [params, at(1, 'query'), at(2, 'geometry'), at(3, 'positions')]
+  return { bound, index, tables, trace }
 }
+type RayGroups = ReturnType<typeof createRayGroups>
 
 /** The index, then the trace, in one compute pass. */
 export function encodeRayPass(
@@ -66,54 +82,31 @@ export function encodeRayPass(
   const trace = traceKernel(device).get(),
     index = indexKernel(device).get(),
     width = groupWidth(device.limits),
-    { pageTable, entries, spans, geometry, positions } = sources,
-    { views } = sources.tables
-  const params = { buffer: q.params, size: RAY_PARAMS.words * 4 }
+    { groups } = q,
+    { bound } = groups
+  bound.params = q.params
+  bound.query = q.buffer
+  bound.pageTable = sources.pageTable
+  bound.entries = sources.entries
+  bound.spans = sources.spans
+  bound.geometry = sources.geometry
+  bound.positions = sources.positions
+  bound.views = sources.tables.views
   const pass = encoder.beginComputePass({ label: RAY_QUERY_PASS })
   const indexed = sources.rows + sources.entryCount
   // Nothing to index: a dispatch of no workgroup is refused, and every lookup finds none.
   if (indexed > 0) {
     pass.setPipeline(index)
-    const make = () =>
-      groupOf(device, index, 0, [
-        params,
-        ...[q.buffer, pageTable, entries, spans].map((buffer) => ({ buffer })),
-      ])
-    pass.setBindGroup(
-      0,
-      heldOver(q.groups.index, make, index, q.params, q.buffer, pageTable, entries, spans),
-    )
+    composeGroup(device, groups.index, index)
+    pass.setBindGroup(0, groups.index.group!)
     dispatchRows(pass, ceilDiv(indexed, WORKGROUP_THREADS), 1, width)
   }
   pass.setPipeline(trace)
   // Group 0: the cut's record tables, at the culling's bindings (`dagReadEntries`).
-  const tables = () =>
-    device.createBindGroup({ layout: trace.getBindGroupLayout(0), entries: dagReadEntries(views) })
-  pass.setBindGroup(
-    0,
-    heldOver(q.groups.tables, tables, trace, views.nodes, views.frames, views.worlds, views.tree),
-  )
-  const own = () =>
-    groupOf(device, trace, 1, [
-      params,
-      ...[q.buffer, geometry, positions].map((buffer) => ({ buffer })),
-    ])
-  pass.setBindGroup(
-    1,
-    heldOver(q.groups.trace, own, trace, q.params, q.buffer, geometry, positions),
-  )
+  composeGroup(device, groups.tables, trace)
+  pass.setBindGroup(0, groups.tables.group!)
+  composeGroup(device, groups.trace, trace, 1)
+  pass.setBindGroup(1, groups.trace.group!)
   dispatchRows(pass, ceilDiv(q.rays, WORKGROUP_THREADS), 1, width)
   pass.end()
 }
-
-/** Group `group` of `pipeline`, its resources at bindings 0 on. */
-const groupOf = (
-  device: GPUDevice,
-  pipeline: GPUComputePipeline,
-  group: number,
-  resources: GPUBufferBinding[],
-) =>
-  device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(group),
-    entries: sequentialEntries(resources),
-  })

@@ -22,7 +22,7 @@ import {
   PART_LODS,
   PART_SPHERES,
 } from './rowWordsWgsl.ts'
-import { composeGroup } from './composeGroups.ts'
+import { composeGroup } from '../webgpu/core/bindIdentity.ts'
 import {
   castsBound,
   createRowWordsGpu,

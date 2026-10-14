@@ -79,3 +79,29 @@ export function entriesReady(entries: readonly GPUBindGroupEntry[]) {
   }
   return true
 }
+
+/** A pass's bind group and what it names: made again only when one of them moves. The engine's
+ *  one held group, a pass's every group (`composeGroup`). */
+export const heldGroup = () => ({
+  identity: createWebgpuBindIdentity(),
+  group: undefined as GPUBindGroup | undefined,
+})
+export type HeldGroup = ReturnType<typeof heldGroup>
+
+/** `held`'s group over its entries (`identity.entries[0]`, read live: `liveEntries.ts`) on
+ *  `pipeline`'s group `index`, made again when the pipeline or a resource they name moved
+ *  (`entriesMoved`); whether it was. */
+export function composeGroup(
+  device: GPUDevice,
+  held: HeldGroup,
+  pipeline: GPUComputePipeline,
+  index = 0,
+) {
+  const moved = held.identity.entriesMoved(pipeline)
+  if (moved)
+    held.group = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(index),
+      entries: held.identity.entries[0],
+    })
+  return moved
+}
