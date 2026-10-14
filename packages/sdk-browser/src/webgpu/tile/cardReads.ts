@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { atlasBindings, atlasLayoutEntries } from '../core/bindLayout.ts'
 import { atlasEntries } from '../core/bindEntries.ts'
 import { resourceEntry } from '../core/liveEntries.ts'
+import { computeSamplerEntry } from '../../gpu/core/computeBindings.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { FEEDBACK_RULE_WGSL, tileRequestAtWgsl } from './requestWgsl.ts'
 import { SHADOW_TILE_POOL_WGSL, tileDeclarations } from './wgsl.ts'
@@ -42,7 +43,7 @@ ${tileDeclarations(DATA, 'data', CARD_TILE_GROUP)}
 export const cardTileLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
   ...atlasLayoutEntries(COLOR, GPUShaderStage.FRAGMENT),
   ...atlasLayoutEntries(DATA, GPUShaderStage.FRAGMENT),
-  { binding: SAMPLER, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+  computeSamplerEntry(SAMPLER, 'filtering', GPUShaderStage.FRAGMENT),
 ]
 
 /** The atlases the card pass's tile group is made over: their lane views and tables. */

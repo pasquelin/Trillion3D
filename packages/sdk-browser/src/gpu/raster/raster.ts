@@ -22,7 +22,11 @@ import {
   RASTER_OCCLUDER_DEPTH_PASS,
   RASTER_TESTED_DEPTH_PASS,
 } from '../../stage/passLabels.ts'
-import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeSamplerEntry,
+  computeTextureEntry,
+} from '../core/computeBindings.ts'
 
 /**
  * Compute raster of the opaque and masked cut.
@@ -116,7 +120,7 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number
       computeBufferEntry(b.uniform, 'uniform', compute),
       computeBufferEntry(b.uvs, 'read-only-storage', compute),
       ...atlasLayoutEntries(b.color, compute),
-      { binding: b.sampler, visibility: compute, sampler: {} },
+      computeSamplerEntry(b.sampler, 'filtering', compute),
       computeBufferEntry(b.work, 'storage', compute),
       computeBufferEntry(b.selectionMask, 'read-only-storage', compute),
       computeTextureEntry(b.material, 'uint', '2d-array', compute),

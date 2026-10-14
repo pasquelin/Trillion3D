@@ -2,7 +2,11 @@ import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import * as layer from './layers.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeSamplerEntry,
+  computeTextureEntry,
+} from '../gpu/core/computeBindings.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -35,11 +39,7 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
   const entries: GPUBindGroupLayoutEntry[] = [
     computeTextureEntry(TAA_BINDINGS.current, 'unfilterable-float', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.history, 'float', '2d', stage),
-    {
-      binding: TAA_BINDINGS.historySampler,
-      visibility: stage,
-      sampler: { type: 'filtering' },
-    },
+    computeSamplerEntry(TAA_BINDINGS.historySampler, 'filtering', stage),
     computeTextureEntry(TAA_BINDINGS.depth, 'depth', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.ids, 'uint', '2d', stage),
     computeBufferEntry(TAA_BINDINGS.pages, 'read-only-storage', stage),
@@ -47,11 +47,7 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
     computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
     computeTextureEntry(TAA_BINDINGS.flags, blended ? 'float' : 'uint', '2d', stage),
     // Gathers only (`geometryHistoryWgsl.ts`): never filters, so depth and integers may use it.
-    {
-      binding: TAA_BINDINGS.texelSampler,
-      visibility: stage,
-      sampler: { type: 'non-filtering' },
-    },
+    computeSamplerEntry(TAA_BINDINGS.texelSampler, 'non-filtering', stage),
     computeTextureEntry(TAA_BINDINGS.reactive, 'float', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.shareHistory, 'float', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.geometryHistory, 'uint', '2d', stage),

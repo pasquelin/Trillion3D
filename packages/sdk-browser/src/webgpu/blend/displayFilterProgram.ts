@@ -1,7 +1,7 @@
 import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { computeSamplerEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts'
 
@@ -11,7 +11,7 @@ function createProgram(device: GPUDevice) {
   const module = device.createShaderModule({ label: 'DISPLAY', code: DISPLAY_FILTER_SHADER })
   const texture = (binding: number) =>
     computeTextureEntry(binding, 'float', '2d', GPUShaderStage.FRAGMENT)
-  const sampler = { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} }
+  const sampler = computeSamplerEntry(2, 'filtering', GPUShaderStage.FRAGMENT)
   const drawn = { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: {} }
   const layout = device.createBindGroupLayout({
     entries: [texture(0), texture(1), sampler, drawn],

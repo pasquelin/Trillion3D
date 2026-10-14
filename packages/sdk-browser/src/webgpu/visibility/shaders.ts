@@ -18,6 +18,7 @@ import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import {
   computeBufferEntry,
+  computeSamplerEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
@@ -47,7 +48,7 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
     ),
     computeBufferEntry(b.uv, 'read-only-storage', GPUShaderStage.VERTEX),
     ...atlasLayoutEntries(b.color),
-    { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+    computeSamplerEntry(b.sampler, 'filtering', GPUShaderStage.FRAGMENT),
     computeBufferEntry(b.instances, 'read-only-storage', GPUShaderStage.VERTEX),
     computeBufferEntry(b.slotOffsets, 'read-only-storage', GPUShaderStage.VERTEX),
     // The surfaces' records: a row's shape in its vertices, its cutout in its fragments.

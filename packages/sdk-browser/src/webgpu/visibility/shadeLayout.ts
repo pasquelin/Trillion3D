@@ -5,6 +5,7 @@ import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
 import { SUBSURFACE_FORMAT } from '../../scene/subsurface.ts'
 import {
   computeBufferEntry,
+  computeSamplerEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
@@ -42,7 +43,7 @@ export function shadeLayout(device: GPUDevice) {
         storageTexture: { access: 'write-only', format: PHYSICAL_LOBES_FORMAT },
       },
       ...atlasLayoutEntries(b.color),
-      { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
+      computeSamplerEntry(b.sampler, 'filtering', fragment),
       // The class draws place their tiles in the viewport it holds (`materialTilesWgsl.ts`).
       computeUniformEntry(
         b.uniform,

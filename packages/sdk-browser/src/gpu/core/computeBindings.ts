@@ -37,6 +37,14 @@ export const computeTextureEntry = (
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, texture: { sampleType, viewDimension } })
 
+/** A sampler binding of `type` (filtering by default) at `binding` in a layout, seen by
+ *  `visibility` (the compute stage by default). */
+export const computeSamplerEntry = (
+  binding: number,
+  type: GPUSamplerBindingType = 'filtering',
+  visibility = COMPUTE,
+): GPUBindGroupLayoutEntry => ({ binding, visibility, sampler: { type } })
+
 /** A storage texture binding of `format` at `binding` in a layout, `access` (written only by
  *  default) through a `viewDimension` view, seen by `visibility` (the compute stage by default). */
 export const computeStorageTextureEntry = (

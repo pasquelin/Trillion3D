@@ -4,6 +4,7 @@ import { shaderFailed } from '../gpu/core/shaderModule.ts'
 import {
   COMPUTE,
   computeBufferEntry,
+  computeSamplerEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
@@ -39,7 +40,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
         { minBindingSize: REFLECTION_VIEW_BYTES },
         visibility,
       ),
-      { binding: REFLECTION_SAMPLER_BINDING, visibility, sampler: { type: 'filtering' } },
+      computeSamplerEntry(REFLECTION_SAMPLER_BINDING, 'filtering', visibility),
       ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
       computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
       computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),

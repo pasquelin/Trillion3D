@@ -1,6 +1,6 @@
 import {
-  COMPUTE,
   computeBufferEntry,
+  computeSamplerEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
@@ -32,7 +32,7 @@ export function radianceLayouts(device: GPUDevice) {
     computeTextureEntry(B.finer, 'float'),
     computeStorageTextureEntry(B.coarser, HDR_FORMAT),
     computeStorageTextureEntry(B.coarsest, HDR_FORMAT),
-    { binding: B.halves, visibility: COMPUTE, sampler: { type: 'filtering' } } as const,
+    computeSamplerEntry(B.halves),
   ]
   const view = computeBufferEntry(B.view, 'uniform')
   const hash = computeBufferEntry(B.hash, 'storage')
