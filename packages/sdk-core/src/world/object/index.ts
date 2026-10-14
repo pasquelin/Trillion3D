@@ -1,4 +1,4 @@
-import { Group, Object3D } from './object3d.ts'
+import { Group } from './object3d.ts'
 import { Mesh, type Primitive } from './mesh.ts'
 import { Geometry } from '../geometry/geometry.ts'
 import { Material } from '../material/material.ts'
@@ -61,7 +61,3 @@ export const object = {
    */
   sprite: (material?: Material) => new Sprite(material),
 }
-
-export { Object3D, Group, Mesh, Sprite, type Primitive }
-export type { SceneLink } from './sceneLink.ts'
-export { TransformNode } from './transformNode.ts'
