@@ -4,16 +4,10 @@
  * bytes those lists take beside the first transmission.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import type { UniformSlots } from '../residency/pools.ts'
-import { createWorstChunk, vsmWorstChunk, type VsmChunk, type VsmWorst } from './rowPageBound.ts'
+import { createWorstChunk, vsmWorstChunk, type VsmWorst } from './rowPageBound.ts'
 import { vsmChunkRows } from './chunkKernels.ts'
-import {
-  vsmChunkRowsWithin,
-  vsmDrawFloorBytes,
-  vsmListSizing,
-  type VsmListSizes,
-  type VsmWithin,
-} from './chunkLists.ts'
+import { vsmChunkRowsWithin, vsmDrawFloorBytes } from './chunkLists.ts'
+import { vsmListSizing, vsmSizingFor, type VsmListSizes, type VsmWithin } from './chunkSizing.ts'
 import { vsmChunkParamSlots, vsmRenderViews, type VsmRenderChunking } from './chunkParams.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import { VSM_TRANSMISSION_HEADER_BYTES, VSM_TRANSMISSION_PAGE_BYTES } from './transmissionShared.ts'
@@ -30,25 +24,9 @@ const viewList: number[] = []
 const range = { first: 0, end: 0, candidates: 0 }
 const worst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
 const floorChunk = createWorstChunk()
+/** The transmission's list sizing: its page list holds a header a command and the pages after
+ *  them (`vsmListSizing`); its chunks cut the `used` rows, every blended row a candidate. */
 const sizing = vsmListSizing(VSM_TRANSMISSION_PAGE_BYTES, VSM_TRANSMISSION_HEADER_BYTES)
-
-/** The transmission's list sizing for a chunk of its `used` of `rowCount` blended rows: the
- *  render lists, their parameter slots `slots`, its page list holding a header a command and the
- *  pages after them (`vsmListSizing`); rewritten in place. */
-function transmissionSizes(
-  used: number,
-  rowCount: number,
-  viewWords: number,
-  holds: Omit<VsmChunk, 'rows'>,
-  slots: UniformSlots,
-) {
-  sizing.chunked = used
-  sizing.candidates = rowCount
-  sizing.viewWords = viewWords
-  sizing.holds = holds
-  sizing.slots = slots
-  return sizing
-}
 
 /**
  * The fewest bytes a transmission's chunk lists take to bin `used` of `rowCount` blended rows
@@ -67,7 +45,10 @@ export function vsmTransmissionFloorBytes(
   const rows = Math.min(CHUNK_ROWS, used),
     holds = vsmWorstChunk(floorChunk, rows, Math.min(viewMips, pages), pages)
   const slots = vsmChunkParamSlots(limits)
-  return vsmDrawFloorBytes(rows, transmissionSizes(used, rowCount, viewWords, holds, slots).sizes)
+  return vsmDrawFloorBytes(
+    rows,
+    vsmSizingFor(sizing, used, rowCount, viewWords, holds, slots).sizes,
+  )
 }
 
 /** What a frame's bin takes: its views, its chunks within the GPU budget's room
@@ -112,7 +93,7 @@ export function binPlan(
   worst.pages = pages
   worst.cap = CHUNK_ROWS * pages
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, worst)
-  const sized = transmissionSizes(used, rowCount, views.length, chosen, ctx.slots)
+  const sized = vsmSizingFor(sizing, used, rowCount, views.length, chosen, ctx.slots)
   const within = vsmChunkRowsWithin(
     frame.device,
     ctx.buffers,

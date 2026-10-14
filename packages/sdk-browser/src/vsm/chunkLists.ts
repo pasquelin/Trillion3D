@@ -1,23 +1,19 @@
 /**
- * THE LISTS OF A CHUNKED RASTER OVER CASTER ROWS (`renderPass.ts`, the transmission's bin): their
- * sizes for a chunk, the rows a chunk takes within the room the device ledger admits, and their
- * growth — the engine's one rule (`sizedBuffer`), which the room's estimate follows.
+ * THE LISTS OF A CHUNKED RASTER OVER CASTER ROWS (`renderPass.ts`, the transmission's bin): the
+ * rows a chunk takes within the room the device ledger admits, at the sizes `chunkSizing.ts` gives,
+ * and their growth — the engine's one rule (`sizedBuffer`), which the room's estimate follows.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { madeTextureBytes } from '../gpu/core/textureBytes.ts'
-import type { UniformSlots } from '../residency/pools.ts'
-import { VSM_RENDER_CANDIDATE_BYTES, VSM_RENDER_CMD_BYTES } from './constants.ts'
-import { VSM_RENDER_ARGS_STRIDE_WORDS, VSM_RENDER_COUNTS_HEAD } from './renderParamsWgsl.ts'
-import type { VsmChunk } from './rowPageBound.ts'
-
-/** The lists a chunked raster holds, by name. */
-export type VsmListName = 'params' | 'views' | 'candidates' | 'counts' | 'cmds' | 'pairs' | 'args'
+import type { VsmListName, VsmListSizes, VsmWithin } from './chunkSizing.ts'
 
 /** Bytes a list holds at least: a binding is never empty, whatever a chunk asks. */
 const LIST_FLOOR = 256
+/** The lists the kernels fill that are storage alone, in the order they are made. */
+const STORAGE_LISTS: readonly VsmListName[] = ['views', 'candidates', 'counts', 'cmds', 'pairs']
 
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -52,66 +48,6 @@ function growthBytes(buffers: Partial<Record<string, GPUBuffer>>, sizes: Record<
     if (held < size) total += grownLength(held, size)
   }
   return total
-}
-
-/** Bytes of each list a chunk takes, by buffer (`vsmChunkListSizes`). */
-export type VsmListSizes = Record<VsmListName, number>
-
-/** The rows a chunk takes within the room, and its lists' sizes; none when not even one row's
- *  lists fit (`vsmChunkRowsWithin`). */
-export interface VsmWithin<S> {
-  rows: number
-  size?: S
-  limited: boolean
-}
-
-/**
- * How a chunked raster's lists are sized, rewritten by each frame: `chunked` rows drawn in chunks
- * over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
- * parameter slots `slots`, `pairBytes` a pair and `headerBytes` a command in the pairs' list (the
- * transmission's page list heads each command). Its sizes, `sizes` and `within` are made once and
- * rewritten in place: a frame allocates nothing.
- */
-export interface VsmListSizing {
-  chunked: number
-  candidates: number
-  viewWords: number
-  holds?: Omit<VsmChunk, 'rows'>
-  slots?: UniformSlots
-  readonly pairBytes: number
-  readonly headerBytes: number
-  readonly size: VsmListSizes
-  readonly sizes: (rows: number) => VsmListSizes
-  readonly within: VsmWithin<VsmListSizes>
-}
-
-/** A sizing of `pairBytes` a pair and `headerBytes` a command (`VsmListSizing`). */
-export function vsmListSizing(pairBytes: number, headerBytes: number) {
-  const sizing: VsmListSizing = {
-    chunked: 0,
-    candidates: 0,
-    viewWords: 0,
-    pairBytes,
-    headerBytes,
-    size: { params: 0, views: 0, candidates: 0, counts: 0, cmds: 0, pairs: 0, args: 0 },
-    sizes: (rows) => vsmChunkListSizes(sizing, rows),
-    within: { rows: 0, limited: false },
-  }
-  return sizing
-}
-
-/** The lists a chunk of `rows` rows takes under `sizing`, by buffer, written into its `size`. */
-function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
-  const { size, holds } = sizing,
-    chunks = ceilDiv(sizing.chunked, rows)
-  size.params = chunks * sizing.slots!.stride
-  size.views = sizing.viewWords * 4
-  size.candidates = sizing.candidates * VSM_RENDER_CANDIDATE_BYTES
-  size.counts = (VSM_RENDER_COUNTS_HEAD + chunks * 4) * 4
-  size.cmds = holds!.cmds(rows) * VSM_RENDER_CMD_BYTES
-  size.pairs = holds!.cmds(rows) * sizing.headerBytes + holds!.pairs(rows) * sizing.pairBytes
-  size.args = chunks * VSM_RENDER_ARGS_STRIDE_WORDS * 4
-  return size
 }
 
 /**
@@ -160,30 +96,30 @@ export function vsmDrawFloorBytes(rows: number, sizes: (rows: number) => Record<
   }
 }
 
-/** The seven lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`) by the
- *  engine's one rule (`sizedBuffer`): the buffers its parameters, its views, its counters and its
- *  arguments are written or cleared in. */
+/** List `name` of `ctx` under `label`, grown to `size` by the engine's one rule (`sizedBuffer`). */
+function ensureList(
+  ctx: { device: GPUDevice; buffers: Partial<Record<VsmListName, GPUBuffer>> },
+  label: string,
+  size: VsmListSizes,
+  name: VsmListName,
+  usage: GPUBufferUsageFlags,
+) {
+  const held = ctx.buffers[name],
+    bytes = Math.max(size[name], LIST_FLOOR)
+  ctx.buffers[name] = sizedBuffer(ctx.device, held, bytes, usage, `${label}.${name}`)
+}
+
+/** The seven lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
+ *  context's own buffers, every one made, returned — its parameters, its views, its counters and
+ *  its arguments are written or cleared in them. A frame allocates nothing. */
 export function vsmEnsureLists(
   ctx: { device: GPUDevice; buffers: Partial<Record<VsmListName, GPUBuffer>> },
   label: string,
   size: VsmListSizes,
 ) {
-  const { device, buffers } = ctx
-  const ensure = (name: VsmListName, usage: GPUBufferUsageFlags) =>
-    (buffers[name] = sizedBuffer(
-      device,
-      buffers[name],
-      Math.max(size[name], LIST_FLOOR),
-      usage,
-      `${label}.${name}`,
-    ))
   const storage = vsmRenderStorage()
-  const params = ensure('params', GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
-  const views = ensure('views', storage)
-  ensure('candidates', storage)
-  const counts = ensure('counts', storage)
-  ensure('cmds', storage)
-  ensure('pairs', storage)
-  const args = ensure('args', storage | GPUBufferUsage.INDIRECT)
-  return { params, views, counts, args }
+  ensureList(ctx, label, size, 'params', GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+  for (const name of STORAGE_LISTS) ensureList(ctx, label, size, name, storage)
+  ensureList(ctx, label, size, 'args', storage | GPUBufferUsage.INDIRECT)
+  return ctx.buffers as Record<VsmListName, GPUBuffer>
 }

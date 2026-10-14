@@ -11,7 +11,8 @@ import {
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
 import { createWorstChunk, vsmWorstChunk, type VsmChunk, type VsmWorst } from './rowPageBound.ts'
-import { vsmDrawFloorBytes, vsmListSizing } from './chunkLists.ts'
+import { vsmDrawFloorBytes } from './chunkLists.ts'
+import { vsmListSizing, vsmSizingFor } from './chunkSizing.ts'
 import { vsmChunkParamSlots } from './chunkParams.ts'
 import { renderTarget } from './renderPipes.ts'
 
@@ -45,20 +46,13 @@ export function renderChunking(
   return worst
 }
 
-/** The raster's list sizing for `rowCount` rows under `viewWords` words of views, a chunk holding
- *  `holds`, its parameter slots `slots` (`vsmListSizing`); rewritten in place. */
-export function renderSizes(
+/** The raster's list sizing for `rowCount` rows, every one a candidate (`vsmSizingFor`). */
+export const renderSizes = (
   rowCount: number,
   viewWords: number,
   holds: Omit<VsmChunk, 'rows'>,
   slots: UniformSlots,
-) {
-  sizing.chunked = sizing.candidates = rowCount
-  sizing.viewWords = viewWords
-  sizing.holds = holds
-  sizing.slots = slots
-  return sizing
-}
+) => vsmSizingFor(sizing, rowCount, rowCount, viewWords, holds, slots)
 
 /**
  * The fewest bytes the raster's context of a set at `pages` pages takes to draw `rowCount` rows

@@ -9,7 +9,7 @@ import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { vsmBufferGroup } from './passKit.ts'
 import { VSM_RENDER_ARGS_CULL, VSM_RENDER_ARGS_STRIDE_WORDS } from './renderParamsWgsl.ts'
 import type { VsmChunkKernels } from './chunkKernels.ts'
-import type { VsmListName } from './chunkLists.ts'
+import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_PARAMS_BYTES } from './chunkParams.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 
