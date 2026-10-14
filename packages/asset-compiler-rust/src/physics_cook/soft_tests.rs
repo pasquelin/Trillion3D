@@ -43,11 +43,11 @@ fn a_cloth_cooks_to_the_golden_settings() {
     let (pos, triangles) = cloth();
     let pinned = declared("cloth", &[6.0, 8.0]);
     let record = soft_record(&pos, Some(&triangles), [1.0; 3], &pinned).unwrap();
-    let masses: Vec<f32> = masses(&record.vertices).collect();
-    let total: f32 = masses.iter().sum();
+    let weights: Vec<f32> = masses(&record.vertices).collect();
+    let total: f32 = weights.iter().sum();
     assert!(
-        (masses[6], masses[8]) == (0.0, 0.0) && masses[4] > masses[0],
-        "{masses:?}"
+        (weights[6], weights[8]) == (0.0, 0.0) && weights[4] > weights[0],
+        "{weights:?}"
     );
     // The pins held a third of one triangle and of two, 0.125 m² of the whole square.
     assert!((total - 0.2 * (1.0 - 0.125)).abs() < 1e-6, "{total}");
@@ -63,10 +63,10 @@ fn a_cloth_cooks_to_the_golden_settings() {
 fn a_primitive_is_welded_weighed_and_pinned_as_the_page_does() {
     let seam = [0.0f32, 0., 0., 1., 0., 0., 1., 0., 0., 2., 0., 0.];
     let rope = soft_record(&seam, None, [2.0, 1.0, 1.0], &declared("rope", &[0.0])).unwrap();
-    let masses: Vec<f32> = masses(&rope.vertices).collect();
+    let weights: Vec<f32> = masses(&rope.vertices).collect();
     // Three vertices: the seam's two are one.
     assert_eq!(
-        masses,
+        weights,
         [0.0, 0.065 * 2.0, 0.065],
         "4 m of rope, its hook held"
     );
