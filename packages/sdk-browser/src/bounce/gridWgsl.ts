@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { PROBE_AT_WGSL } from './atlas.ts'
+import { BOUNCE_GRID, BOUNCE_LEVEL } from './uniform.ts'
 import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
@@ -23,16 +24,8 @@ export const BOUNCE_GRID_HEAD_WGSL = wgslBlock(
   'BOUNCE_GRID_HEAD_WGSL',
   [PROBE_AT_WGSL],
   `
-struct BounceLevel{originSpacing:vec4f,base:vec4f,}
-struct BounceGrid{
- reach:vec4f,
- counts:vec4u,
- frame:vec4u,
- /** The world light grid's records' first word in the light grid's buffer (\`bounceLightSlice\`),
-  *  \`TILE_NO_SLICE\` for none. */
- lists:vec4u,
- levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
-}
+${BOUNCE_LEVEL.wgsl}
+${BOUNCE_GRID.wgsl}
 ${wgslConsts({
   PROBE_VECTORS: PROBE_FLOATS / 4,
   CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels,
