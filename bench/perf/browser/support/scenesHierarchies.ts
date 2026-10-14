@@ -9,8 +9,6 @@ import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts
 import { dansDe } from './scenesCore.ts'
 import { hostileChains } from './hostileHierarchy.ts'
 import { boxes } from './scenesVolumes.ts'
-import { length3 } from '../../../../packages/math/src/vector/vector.ts'
-import { HALF_PI } from '../../../../packages/math/src/constants.ts'
 
 const alea = xorshiftRandom(60617)
 const dans = dansDe(alea)
@@ -106,20 +104,4 @@ export const hierarchicalViewBoxes = hierarchicalViews.flatMap(({ vp, eye }, v) 
       return [...world.min.toArray(), ...world.max.toArray()]
     }),
   ].map((box) => ({ vp, box }))
-})
-
-/** Cones under the hierarchy world matrices: Three's normal matrix, a camera's eye. */
-export const hierarchicalCones = hierarchicalBoxes.map(([b, m], i) => {
-  const world = new THREE.Matrix4().fromArray(m)
-  const e = world.elements
-  return {
-    axe: [dans(1), dans(1), dans(1)],
-    angle: alea() * HALF_PI,
-    min: b.slice(0, 3),
-    max: b.slice(3, 6),
-    world,
-    normal: new THREE.Matrix3().getNormalMatrix(world),
-    scale: length3(e[0], e[1], e[2]),
-    eye: hierarchicalViews[i % hierarchicalViews.length].eye,
-  }
 })

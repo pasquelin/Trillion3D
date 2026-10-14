@@ -4,7 +4,7 @@
 // exit. The early exit claims the same verdict, bit for bit, on every input.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { boxConeRejects } from '../../../../../../../packages/math/src/geometry/cone.ts'
+import { boxConeRejects } from '../../../../../../../packages/math/src/geometry/cone.fixture.ts'
 import { coneRejects } from '../../../../../../../packages/math/src/projection/projectionOracles.ts'
 import { length3 } from '../../../../../../../packages/math/src/vector/vector.ts'
 import { coneCases } from '../../../../../../oracles/core/hot-path-math.ts'

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { SPHERE_VALUES } from './strides.ts'
 import { boxUnionBatch } from './batch.ts'
 import { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts'
-import { linearToSrgbBatch, srgbToLinearBatch } from './color.ts'
 import {
   transformDirectionsBatch,
   transformPointsBatch,
@@ -74,15 +73,4 @@ test('sphereFromBoundsBatch: derives sphere centre and radius', () => {
   assert.equal(out[1], 0)
   assert.equal(out[2], 0)
   assert.ok(Math.abs(out[3] - Math.sqrt(3)) < 1e-10)
-})
-
-test('srgbToLinearBatch and linearToSrgbBatch: color roundtrip', () => {
-  const srgb = new Float64Array([0.0, 0.5, 1.0])
-  const linear = new Float64Array(3)
-  const back = new Float64Array(3)
-  srgbToLinearBatch(linear, srgb, 3)
-  linearToSrgbBatch(back, linear, 3)
-  for (let i = 0; i < 3; i++) {
-    assert.ok(Math.abs(srgb[i] - back[i]) < 1e-10)
-  }
 })

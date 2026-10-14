@@ -40,7 +40,6 @@ export {
   boxTransform,
   boxUnion,
 } from '../../math/src/geometry/box.ts'
-export { boxConeRejects, CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../math/src/geometry/cone.ts'
 export { boxUnionBatch } from '../../math/src/batch/batch.ts'
 export {
   createCameraFrame,
@@ -57,6 +56,7 @@ export {
   frustumPlanesFromMatrix,
 } from '../../math/src/geometry/frustum/frustum.ts'
 export { composeMatrix4, composeMatrix4Batch } from '../../math/src/matrix/matrix4Compose.ts'
+export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../math/src/geometry/cone.ts'
 export { coneRejects, maxStretch } from '../../math/src/projection/projectionOracles.ts'
 export {
   copyMatrix4,
@@ -66,11 +66,6 @@ export {
   multiplyMatrix4,
 } from '../../math/src/matrix/matrix4.ts'
 export type { NumberSink } from '../../math/src/matrix/matrix4.ts'
-export {
-  decomposeMatrix4Batch,
-  invertMatrix4Batch,
-  normalMatrix3Batch,
-} from '../../math/src/batch/transforms.ts'
 export { frustumClipBox, frustumExcludesBox } from '../../math/src/geometry/frustum/box.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
 export { HALF_PI, PI } from '../../math/src/constants.ts'
@@ -82,7 +77,6 @@ export {
   adjugateFactor,
   normalizedLinearDeterminant,
 } from '../../math/src/matrix/singular.ts'
-export { linearToSrgbBatch, srgbToLinearBatch } from '../../math/src/batch/color.ts'
 export { lookAtNode } from '../../sdk-core/src/world/transform-tree/lookAt.ts'
 export {
   markNodeWorldNeedsUpdate,
@@ -91,7 +85,6 @@ export {
 } from '../../sdk-core/src/world/transform-tree/update.ts'
 export {
   MATRIX_VALUES,
-  NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,

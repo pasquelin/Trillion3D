@@ -10,5 +10,3 @@ export const POSITION_VALUES = 3
 export const QUATERNION_VALUES = 4
 /** A bounding sphere: centre then radius. */
 export const SPHERE_VALUES = 4
-/** A 3×3 normal matrix. */
-export const NORMAL_MATRIX_VALUES = 9

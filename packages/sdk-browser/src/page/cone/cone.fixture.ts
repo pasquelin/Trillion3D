@@ -1,8 +1,5 @@
-import {
-  CONE_LENGTH_RATIO,
-  CONE_ORTHO_EPS,
-  boxConeRejects,
-} from '../../../../math/src/geometry/cone.ts'
+import { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../../../math/src/geometry/cone.ts'
+import { boxConeRejects } from '../../../../math/src/geometry/cone.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { linearPartScale } from '../../../../math/src/matrix/singular.ts'
 import { normalMatrix3 } from '../../../../math/src/matrix/matrix3.ts'

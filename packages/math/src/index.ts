@@ -40,19 +40,12 @@ export {
 export { sphereFromBounds } from './geometry/sphere.ts'
 export {
   MATRIX_VALUES,
-  NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
 } from './batch/strides.ts'
 export { boxUnionBatch } from './batch/batch.ts'
-export {
-  decomposeMatrix4Batch,
-  invertMatrix4Batch,
-  normalMatrix3Batch,
-} from './batch/transforms.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './batch/culling.ts'
-export { linearToSrgbBatch, srgbToLinearBatch } from './batch/color.ts'
 export {
   transformDirectionsBatch,
   transformPointsBatch,
@@ -66,7 +59,7 @@ export {
   frustumPlanesFromMatrix,
 } from './geometry/frustum/frustum.ts'
 export { frustumClipBox, frustumExcludesBox } from './geometry/frustum/box.ts'
-export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS, boxConeRejects } from './geometry/cone.ts'
+export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from './geometry/cone.ts'
 export {
   createCameraFrame,
   orthographicProjection,

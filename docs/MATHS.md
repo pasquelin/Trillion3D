@@ -188,7 +188,7 @@ or batch, follows these conventions:
   matrix, a plain array or a `Float32Array` enters as-is; a batch writes flags into a `Uint8Array`.
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:
   `MATRIX_VALUES` 16, `POSITION_VALUES` 3, `QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4
-  (centre then radius) and `NORMAL_MATRIX_VALUES` 9 in
+  (centre then radius) in
   `packages/math/src/batch/strides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z) in
   `packages/math/src/geometry/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes
   `a, b, c, d`, facing inward, in the order of `frustumPlanesFromMatrix`) in
@@ -197,7 +197,7 @@ or batch, follows these conventions:
   never per frame: `multiplyMatrix4` reads its operands at constant indices.
 
 **Allocate once, reuse every frame.** Culling ten thousand boxes and bringing the survivors' centres
-into view space is two calls (the batches' tests are `batch.test.ts` and `transforms.test.ts` in
+into view space is two calls (the batches' test is `batch.test.ts` in
 `packages/math/src/batch/`):
 
 ```javascript
@@ -304,28 +304,24 @@ far plane, the adaptive threshold and the shadow range.
 
 #### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
 
-| Function                                    | Computes                                                                                                                                                               | Witness call                          | Proof                  |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ---------------------- |
-| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it                                                           | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
-| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front                                                                      | the host's double-side test           | `materialSide.test.ts` |
+| Function                                    | Computes                                                                                                     | Witness call                          | Proof                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ---------------------- |
+| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
+| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front            | the host's double-side test           | `materialSide.test.ts` |
 
 ### Batch functions
 
-`packages/math/src/batch/`: `batch.ts`, with `culling.ts`, `points.ts`, `transforms.ts`
-and `color.ts` beside it. The proof is `pnpm run perf:core` (`three-vs-core-batch-*.perf.ts`).
+`packages/math/src/batch/`: `batch.ts`, with `culling.ts` and `points.ts` beside it,
+and `composeMatrix4Batch` in `packages/math/src/matrix/matrix4Compose.ts`. The proof is `pnpm run perf:core` (`three-vs-core-batch-*.perf.ts`).
 Ratios are the batch's speed-up over the witness's loop, rounded from the range of the per-run
-medians over three runs; the three exceptions are declared on their line.
+medians over three runs.
 
-| Function                                                                 | Computes                                                                            | Witness loop                        | Proof                                                                                                                                                              |
-| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                           | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept                     | `for … frustum.intersectsBox(box)`  | bench `Frustum.intersectsBox batch` (×1.1)                                                                                                                         |
-| `sphereFromBoundsBatch(out, boxes, n)`                                   | four values per box, `sphereFromBounds`                                             | `for … box.getBoundingSphere(s)`    | bench `Box3.getBoundingSphere batch` (×2.2)                                                                                                                        |
-| `boxUnionBatch(into, boxes, n)`                                          | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                                    | `for … box.union(b)`                | bench `Box3.union batch` (×1.9)                                                                                                                                    |
-| `invertMatrix4Batch(out[], mats[], n, singular?)`                        | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()`                  | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2              |
-| `normalMatrix3Batch(out, mats[], n)`                                     | nine values per matrix, `normalMatrix3`                                             | `for … n.getNormalMatrix(m)`        | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/math/src/matrix/singular.ts`) is kept; ceiling 2.2         |
-| `composeMatrix4Batch(out, positions, quaternions, scales, n)`            | `T · R · S` per element, all flat or all sub-views                                  | `for … m.compose(p, q, s)`          | bench `Matrix4.compose batch` (×1.5)                                                                                                                               |
-| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)` | the reverse, `decomposeMatrix4`                                                     | `for … m.decompose(p, q, s)`        | bench `Matrix4.decompose batch` (×1.1)                                                                                                                             |
-| `transformPointsBatch(out, m, points, n)`                                | `n` points by one affine matrix, `transformAffinePoint`                             | `for … v.applyMatrix4(m)`           | bench `Vector3.applyMatrix4 batch` (×1.4)                                                                                                                          |
-| `transformPointsByMatricesBatch(out, mats[], points, n)`                 | `n` points, one matrix each                                                         | `for … v[i].applyMatrix4(mats[i])`  | bench `Vector3.applyMatrix4 per-instance batch` (×1.9)                                                                                                             |
-| `transformDirectionsBatch(out, m, dirs, n)`                              | upper 3×3 then normalize, `transformDirectionVector3`                               | `for … v.transformDirection(m)`     | bench `Vector3.transformDirection batch` (×1.3)                                                                                                                    |
-| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/math/src/color/color.ts`     | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
+| Function                                                      | Computes                                                        | Witness loop                       | Proof                                                  |
+| ------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1)             |
+| `sphereFromBoundsBatch(out, boxes, n)`                        | four values per box, `sphereFromBounds`                         | `for … box.getBoundingSphere(s)`   | bench `Box3.getBoundingSphere batch` (×2.2)            |
+| `boxUnionBatch(into, boxes, n)`                               | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                | `for … box.union(b)`               | bench `Box3.union batch` (×1.9)                        |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views              | `for … m.compose(p, q, s)`         | bench `Matrix4.compose batch` (×1.5)                   |
+| `transformPointsBatch(out, m, points, n)`                     | `n` points by one affine matrix, `transformAffinePoint`         | `for … v.applyMatrix4(m)`          | bench `Vector3.applyMatrix4 batch` (×1.4)              |
+| `transformPointsByMatricesBatch(out, mats[], points, n)`      | `n` points, one matrix each                                     | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
+| `transformDirectionsBatch(out, m, dirs, n)`                   | upper 3×3 then normalize, `transformDirectionVector3`           | `for … v.transformDirection(m)`    | bench `Vector3.transformDirection batch` (×1.3)        |

@@ -1,11 +1,10 @@
 import * as THREE from 'three'
 import { BOX_VALUES } from '../../../packages/math/src/geometry/box.ts'
-import { N, alea, flatOf, points, trsMatrices, views } from './three-duel.ts'
+import { N, alea, flatOf, points, trsMatrices } from './three-duel.ts'
 
 export function prepareBatchData() {
   const mats = trsMatrices(N)
   const outMats = new Float64Array(N * 16)
-  const outMatViews = views(outMats, 16)
   const outThreeMats = Array.from({ length: N }, () => new THREE.Matrix4())
   const outFlatThree = new Float64Array(N * 16)
   const oracleMats = () => flatOf(outThreeMats, 16, outFlatThree)
@@ -59,7 +58,6 @@ export function prepareBatchData() {
   return {
     mats,
     outMats,
-    outMatViews,
     outThreeMats,
     oracleMats,
     pts,

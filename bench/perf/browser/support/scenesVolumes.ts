@@ -6,8 +6,6 @@
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { dansDe } from './scenesCore.ts'
-import { boxCenter } from '../../../../packages/math/src/geometry/box.ts'
-import { HALF_PI } from '../../../../packages/math/src/constants.ts'
 
 const alea = xorshiftRandom(52021)
 /** Values a float can take that a volume must traverse without smoothing them. */
@@ -109,42 +107,3 @@ export const viewBoxes: ViewBoxCase[] = projectionViews.flatMap(({ vp, eye }, v)
   const autour = [x - 1, y - 1, z - 1, x + 1, y + 1, z + 1]
   return [autour, ...boxes.filter((_, i) => i % 7 === v % 7)].map((box) => ({ vp, box }))
 })
-
-/** One cone-rejection case: conformal placement, cone, box, eye. */
-export interface ConeCase {
-  axe: number[]
-  angle: number
-  min: number[]
-  max: number[]
-  world: THREE.Matrix4
-  normal: THREE.Matrix3
-  scale: number
-  eye: number[]
-}
-
-/** Cone rejections: conformal placement, cone, box, eye — sometimes in the sphere, sometimes hostile. */
-export const casCones: ConeCase[] = []
-const mid = new Float64Array(3)
-for (let i = 0; i < 1500; i++) {
-  const u = i % 13 === 0 ? count() : alea() * 3 + 0.01
-  const world = new THREE.Matrix4().fromArray(placement(u, u, i % 3 === 0 ? -u : u))
-  const axe = [dans(1), dans(1), dans(1)]
-  if (i % 17 === 0) axe[i % 3] = count()
-  const box = boxes[i % boxes.length]
-  boxCenter(mid, 0, box[0], box[1], box[2], box[3], box[4], box[5])
-  const centre = new THREE.Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world)
-  const eye =
-    i % 11 === 0
-      ? [centre.x, centre.y, centre.z]
-      : [centre.x + dans(80), centre.y + dans(80), centre.z + dans(80)]
-  casCones.push({
-    axe,
-    angle: i % 19 === 0 ? count() : alea() * HALF_PI,
-    min: box.slice(0, 3),
-    max: box.slice(3, 6),
-    world,
-    normal: new THREE.Matrix3().getNormalMatrix(world),
-    scale: u,
-    eye,
-  })
-}

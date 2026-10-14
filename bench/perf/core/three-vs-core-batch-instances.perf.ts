@@ -2,7 +2,6 @@
 import * as THREE from 'three'
 import { boxEmpty } from '../../../packages/math/src/geometry/box.ts'
 import { boxUnionBatch } from '../../../packages/math/src/batch/batch.ts'
-import { decomposeMatrix4Batch } from '../../../packages/math/src/batch/transforms.ts'
 import { transformPointsByMatricesBatch } from '../../../packages/math/src/batch/points.ts'
 import {
   createBoxTransformLot,
@@ -26,38 +25,6 @@ lines.push(
     core: () => {
       transformPointsByMatricesBatch(outPts, mats.views, pts.flat, N)
       return outPts
-    },
-  }),
-)
-
-// Position, quaternion, scale: ten numbers per element, every component compared.
-const outTrs = new Float64Array(N * 10),
-  oracleTrs = new Float64Array(N * 10)
-const positions = Array.from({ length: N }, (_, i) => outTrs.subarray(i * 10, i * 10 + 3))
-const rotations = Array.from({ length: N }, (_, i) => outTrs.subarray(i * 10 + 3, i * 10 + 7))
-const scales = Array.from({ length: N }, (_, i) => outTrs.subarray(i * 10 + 7, i * 10 + 10))
-const threePositions = Array.from({ length: N }, () => new THREE.Vector3())
-const threeRotations = Array.from({ length: N }, () => new THREE.Quaternion())
-const threeScales = Array.from({ length: N }, () => new THREE.Vector3())
-lines.push(
-  await duel({
-    name: 'Matrix4.decompose batch',
-    fichier: 'packages/math/src/batch/transforms.ts',
-    three: () => {
-      for (let i = 0; i < N; i++)
-        mats.three[i].decompose(threePositions[i], threeRotations[i], threeScales[i])
-    },
-    oracle: () => {
-      for (let i = 0; i < N; i++) {
-        threePositions[i].toArray(oracleTrs, i * 10)
-        threeRotations[i].toArray(oracleTrs, i * 10 + 3)
-        threeScales[i].toArray(oracleTrs, i * 10 + 7)
-      }
-      return oracleTrs
-    },
-    core: () => {
-      decomposeMatrix4Batch(positions, rotations, scales, mats.views, N)
-      return outTrs
     },
   }),
 )

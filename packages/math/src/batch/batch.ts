@@ -14,7 +14,7 @@ import { BOX_VALUES, boxUnion } from '../geometry/box.ts'
  * constructed once per batch, as the hierarchy already holds `worldViews` on `world`.
  *
  * The other batch kernels live by subject beside this file (`strides.ts`, `culling.ts`,
- * `transforms.ts`, `points.ts`, `color.ts`, `../matrix/matrix4Compose.ts`); a host imports each from
+ * `points.ts`, `../matrix/matrix4Compose.ts`); a host imports each from
  * its own module, and the package entry (`../index.ts`) names them all.
  */
 

@@ -1,44 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { NORMAL_MATRIX_VALUES } from './strides.ts'
-import { composeMatrix4Batch, composeMatrix4 } from '../matrix/matrix4Compose.ts'
-import { decomposeMatrix4Batch, invertMatrix4Batch, normalMatrix3Batch } from './transforms.ts'
+import { composeMatrix4Batch, composeMatrix4 } from './matrix4Compose.ts'
+import { decomposeMatrix4 } from './matrix4Trs.ts'
 
-import { multiplyMatrix4 } from '../matrix/matrix4.ts'
-
-test('invertMatrix4Batch: inverts regular matrices and sets identity on singular', () => {
-  const m1 = new Float64Array(16)
-  composeMatrix4(m1, [1, 2, 3], [0, 0, 0, 1], [2, 2, 2])
-  const mSingular = new Float64Array(16) // all zeros is singular
-
-  const mats = [m1, mSingular]
-  const out = [new Float64Array(16), new Float64Array(16)]
-  const singular = new Uint8Array(2)
-
-  invertMatrix4Batch(out, mats, 2, singular)
-  assert.equal(singular[0], 0)
-  assert.equal(singular[1], 1)
-  const prod = new Float64Array(16)
-  multiplyMatrix4(prod, m1, out[0])
-  assert.ok(Math.abs(prod[0] - 1) < 1e-10)
-  assert.ok(Math.abs(prod[12]) < 1e-10)
-  assert.equal(out[1][0], 1)
-  assert.equal(out[1][5], 1)
-  assert.equal(out[1][10], 1)
-  assert.equal(out[1][15], 1)
-})
-
-test('normalMatrix3Batch: computes 3×3 normal matrices', () => {
-  const m = new Float64Array(16)
-  composeMatrix4(m, [0, 0, 0], [0, 0, 0, 1], [2, 4, 8])
-  const out = new Float64Array(NORMAL_MATRIX_VALUES)
-  normalMatrix3Batch(out, [m], 1)
-  assert.ok(Math.abs(out[0] - 0.5) < 1e-10)
-  assert.ok(Math.abs(out[4] - 0.25) < 1e-10)
-  assert.ok(Math.abs(out[8] - 0.125) < 1e-10)
-})
-
-test('composeMatrix4Batch and decomposeMatrix4Batch: roundtrip', () => {
+test('composeMatrix4Batch and decomposeMatrix4: roundtrip', () => {
   const posIn = [new Float64Array([1, 2, 3])]
   const rotIn = [new Float64Array([0, 0, 0, 1])]
   const scaleIn = [new Float64Array([2, 3, 4])]
@@ -49,7 +14,7 @@ test('composeMatrix4Batch and decomposeMatrix4Batch: roundtrip', () => {
   const posOut = [new Float64Array(3)]
   const rotOut = [new Float64Array(4)]
   const scaleOut = [new Float64Array(3)]
-  decomposeMatrix4Batch(posOut, rotOut, scaleOut, mats, 1)
+  decomposeMatrix4(mats[0], posOut[0], rotOut[0], scaleOut[0])
 
   assert.ok(Math.abs(posOut[0][0] - 1) < 1e-10)
   assert.ok(Math.abs(posOut[0][1] - 2) < 1e-10)

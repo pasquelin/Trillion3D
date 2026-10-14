@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { boxConeRejects } from '../../../../../../../packages/math/src/geometry/cone.ts'
+import { boxConeRejects } from '../../../../../../../packages/math/src/geometry/cone.fixture.ts'
 import { referenceConeRejects } from '../../../../../../oracles/browser/volumes.ts'
 
 function engineRejects(c: {
