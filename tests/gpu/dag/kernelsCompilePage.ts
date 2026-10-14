@@ -2,6 +2,8 @@
 // machine's device, for each text: the stages `kernels-compile.gpu.ts` validates are the ones the
 // engine builds, never a hand copy.
 import { createDagStages } from '../../../packages/sdk-browser/src/gpu/dag/stages.ts'
+import { dagArmLayout } from '../../../packages/sdk-browser/src/gpu/dag/arm.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts'
@@ -26,7 +28,10 @@ export async function compileKernels(texts: KernelText[]) {
     const compiled = (await shaderErrors(module)).map((message) => `module: ${message.message}`)
     // A stage compiled off the thread is refused by its promise, not in the scope.
     const { error } = await validationScope(device, () =>
-      createDagStages(device, layout, module),
+      createDagStages(device, layout, module, {
+        layout: dagArmLayout(device),
+        words: dagWorkLayout(1),
+      }),
     ).catch((refused: Error) => ({ error: refused }))
     const errors = error ? [...compiled, `stages: ${error.message}`] : compiled
     verdicts.push({ name, errors })

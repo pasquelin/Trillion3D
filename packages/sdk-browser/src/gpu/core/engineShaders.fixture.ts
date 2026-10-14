@@ -3,7 +3,6 @@ import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
-import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts'
 import { drawShader } from '../draw/shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
 import { RADIANCE_SHADER } from '../../reflections/radianceWgsl.ts'
@@ -82,7 +81,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
-  DAG_ARM_SHADER,
   DRAW_SHADER: drawShader(2),
   HIZ_SHADER,
   BEGIN_SHADER,

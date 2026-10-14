@@ -27,6 +27,7 @@ import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts'
 import { DAG_SEED_WGSL } from './seedWgsl.ts'
+import { DAG_ARM_WGSL } from './armWgsl.ts'
 import { ROW_CLOSURE_WGSL } from '../../../webgpu/row/rowClosureWgsl.ts'
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
@@ -150,6 +151,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
     DAG_RECORD_WGSL,
     DAG_AHEAD_WGSL,
     DAG_SEED_WGSL,
+    DAG_ARM_WGSL,
     ROW_CLOSURE_WGSL,
     boxBehindPlane,
     isNanWord,

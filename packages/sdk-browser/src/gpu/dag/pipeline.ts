@@ -5,14 +5,17 @@ import { validatedOrWhy } from '../core/errorScope.ts'
 import { checkShaderModule } from '../core/shaderModule.ts'
 import type { CameraFrames } from './cameraFrames.ts'
 import { createDagStages } from './stages.ts'
+import { dagArmGroup, dagArmLayout, type DagArmWords } from './arm.ts'
 
-/** The selection stages, and the cut's bind group over `frames`, under one validation scope, or
- *  why the device refused them. One layout and one text whatever the world: every table is a
- *  record table (`cutTables.ts`). A text that does not compile throws its compiler's messages. */
+/** The selection stages and the arming kernel, the cut's bind group over `frames` and the arming
+ *  group over `arm.work` and `arm.args`, under one validation scope, or why the device refused
+ *  them. One layout and one text whatever the world: every table is a record table
+ *  (`cutTables.ts`). A text that does not compile throws its compiler's messages. */
 export function createDagPipeline(
   device: GPUDevice,
   buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
   frames: CameraFrames,
+  arm: { work: GPUBuffer; args: GPUBuffer; words: DagArmWords },
   steps?: CutSteps,
 ) {
   return validatedOrWhy(device, async () => {
@@ -23,7 +26,14 @@ export function createDagPipeline(
       'camera cut selection',
     )
     steps?.begin('pipelines')
-    const stages = await createDagStages(device, layout, module, steps)
+    const armLayout = dagArmLayout(device)
+    const stages = await createDagStages(
+      device,
+      layout,
+      module,
+      { layout: armLayout, words: arm.words },
+      steps,
+    )
     const bindGroup = frames.bindGroup(layout, buffers)
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
@@ -34,6 +44,7 @@ export function createDagPipeline(
       module,
       ...stages,
       bindGroup,
+      armGroup: dagArmGroup(device, armLayout, arm.work, arm.args),
     }
   })
 }

@@ -4,14 +4,18 @@ import type { CutSteps } from './cutSteps.ts'
 import { POOL_SORT_STAGES, type PoolSortStage } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
 import { buildComputeStages } from '../core/computeStages.ts'
+import { buildDagArm, type DagArmWords } from './arm.ts'
 
-/** Every selection stage of `module` on `layout`; a device whose dispatch width is not WebGPU's
- *  default sets its own (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds
- *  exactly these (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
+/** Every selection stage of `module` on `layout`, and its arming kernel on `arm.layout` at the list
+ *  words `arm.words` (`arm.ts`); a device whose dispatch width is not WebGPU's default sets its own
+ *  (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these
+ *  (`tests/gpu/dag/kernels-compile.gpu.ts`). All are asked together and compile off the thread:
+ *  none waits behind a compile asked after them. */
 export async function createDagStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   module: GPUShaderModule,
+  arm: { layout: GPUBindGroupLayout; words: DagArmWords },
   steps?: CutSteps,
 ) {
   const width = groupWidth(device.limits)
@@ -37,19 +41,15 @@ export async function createDagStages(
   // What each pipeline handed back tells, and those still asked: a compile that never answers is
   // named by the opening that waits on it.
   const waiting = new Set<string>(entries)
-  const stage = await buildComputeStages(
-    device,
-    [layout],
-    module,
-    entries,
-    constants,
-    (entry, ms) => {
+  const [stage, armPipeline] = await Promise.all([
+    buildComputeStages(device, [layout], module, entries, constants, (entry, ms) => {
       waiting.delete(entry)
       const rest = waiting.size ? `; waiting on ${[...waiting].join(' ')}` : ''
       const done = entries.length - waiting.size
       steps?.note(`${done}/${entries.length}, ${entry} after ${Math.round(ms)} ms${rest}`)
-    },
-  )
+    }),
+    buildDagArm(device, module, arm.layout, arm.words),
+  ])
   const levelPipelines = levels.map((level) => stage[level])
   return {
     preparePipeline: stage.dagPrepare,
@@ -73,5 +73,7 @@ export async function createDagStages(
     rekeepPipelines: REKEEP_STAGES.map((name) => stage[name]),
     /** A view's saved journal written back with its draw flags (`shader/swapWgsl.ts`). */
     restorePipeline: stage.dagRestoreJournal,
+    /** Every list's indirect arguments armed in the pass (`shader/armWgsl.ts`). */
+    armPipeline,
   }
 }

@@ -1,3 +1,8 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
+/** The arming group's bindings in group 0: past every binding of the selection's (`bindings.ts`). */
+export const DAG_ARM_BINDING = { work: 10, args: 11 } as const
+
 /**
  * The cut's indirect dispatch arguments, armed inside its pass. Nine lists have no bound the layout
  * knows — the previous frame's drawn journal, the candidates, the live clusters, the two lists the
@@ -15,9 +20,17 @@
  * thread writes what an empty list leaves too (a saved journal's length, a kept list's); so does a
  * queue, whose first thread clears the queue the level after next fills. One lane per list, one
  * workgroup: a dispatch of the pass in place of a copy that cut it.
+ *
+ * An entry point of the cut's module (`shader.ts`), compiled in the batch of its stages
+ * (`../stages.ts`): it never waits behind a compile asked after them. Its group is its own, at
+ * bindings the selection's group leaves free (`DAG_ARM_BINDING`), and its list words are the
+ * pipeline's overrides, which no other stage reads.
  */
-export const DAG_ARM_SHADER = `@group(0) @binding(0) var<storage, read> work:array<u32>;
-@group(0) @binding(1) var<storage, read_write> args:array<u32>;
+export const DAG_ARM_WGSL = wgslBlock(
+  'DAG_ARM_WGSL',
+  [],
+  `@group(0) @binding(${DAG_ARM_BINDING.work}) var<storage, read> armWork:array<u32>;
+@group(0) @binding(${DAG_ARM_BINDING.args}) var<storage, read_write> armArgs:array<u32>;
 override DRAWN_GROUPS:u32;
 override CAND_GROUPS:u32;
 override LIVE_GROUPS:u32;
@@ -28,9 +41,10 @@ override LIST_GROUPS:u32;
  if(list==2u){at=LIVE_GROUPS;}
  if(list>=3u){at=LIST_GROUPS+2u*(list-3u);}
  let least=select(0u,1u,list==0u||list>=6u);
- args[list*3u]=max(work[at],least);
- args[list*3u+1u]=max(work[at+1u],least);
-}`
+ armArgs[list*3u]=max(armWork[at],least);
+ armArgs[list*3u+1u]=max(armWork[at+1u],least);
+}`,
+)
 
 /** Byte offset of each list's record in `args`: the order `dagArm` writes them in. */
 export const DAG_ARGS = {

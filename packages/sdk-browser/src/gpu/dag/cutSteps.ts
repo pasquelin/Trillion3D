@@ -4,9 +4,10 @@ export type CutProgress = (note: string) => void
 
 /**
  * THE SUB-STEPS OF A CUT'S MAKING, TIMED: each named to `progress` as it begins — its tables, its
- * shader module, each pipeline as the device hands it back, its arm, its uploads —, with the time
- * since the making began, so an opening that waits names the sub-step it waits in, on any device
- * (`../../world/session/openWatch.ts`). `took` lists what each took once the making is over.
+ * shader module, its pipelines as the device hands each back (its arming kernel compiled with
+ * them), its uploads —, with the time since the making began, so an opening that waits names the
+ * sub-step it waits in, on any device (`../../world/session/openWatch.ts`). `took` lists what each
+ * took once the making is over.
  */
 export function cutSteps(progress: CutProgress = () => {}) {
   const start = cpuNow()

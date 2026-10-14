@@ -36,7 +36,7 @@ test('a cut is made on a queue that never moves, each sub-step named as it begin
   const cut = await Promise.race([made, stalled])
   if (cut === 'stalled') assert.fail('the making waits on queue progress')
   assert.ok(cut, 'and makes the cut')
-  const steps = ['tables', 'shader module', 'pipelines', 'arm', 'uploads']
+  const steps = ['tables', 'shader module', 'pipelines', 'uploads']
   assert.deepEqual(
     timed?.took.map(({ step }) => step),
     steps,

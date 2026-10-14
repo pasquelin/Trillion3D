@@ -8,9 +8,10 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
-import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_SHADER } from './shader/armWgsl.ts'
-import { DAG_BINDINGS_WGSL } from './shader/bindings.ts'
-import { createDagArm } from './arm.ts'
+import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_BINDING, DAG_ARM_WGSL } from './shader/armWgsl.ts'
+import { DAG_BINDINGS_WGSL, dagBindEntries } from './shader/bindings.ts'
+import { DAG_SELECTION_SHADER } from './shader/shader.ts'
+import { buildDagArm, dagArmGroup, dagArmLayout } from './arm.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
@@ -20,9 +21,9 @@ test('each record holds the words the arming copy carried, z one', () => {
     const r = lcgRandom(blockCount),
       work = Array.from({ length: layout.words }, () => Math.floor(r() * 2 ** 32))
     const args = [...DAG_ARGS_INITIAL]
-    const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_SHADER, ['dagArm'], {
-      work,
-      args,
+    const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_WGSL, ['dagArm'], {
+      armWork: work,
+      armArgs: args,
       DRAWN_GROUPS: layout.drawnGroups,
       CAND_GROUPS: layout.candGroups,
       LIVE_GROUPS: layout.liveGroups,
@@ -42,9 +43,9 @@ test('each record holds the words the arming copy carried, z one', () => {
   // An empty journal still arms one workgroup: its first thread saves the length it leaves.
   const layout = dagWorkLayout(1),
     args = [...DAG_ARGS_INITIAL]
-  const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_SHADER, ['dagArm'], {
-    work: new Array(layout.words).fill(0),
-    args,
+  const { dagArm } = shaderRun<{ dagArm: (list: number) => void }>(DAG_ARM_WGSL, ['dagArm'], {
+    armWork: new Array(layout.words).fill(0),
+    armArgs: args,
     ...{ DRAWN_GROUPS: layout.drawnGroups, CAND_GROUPS: layout.candGroups },
     ...{ LIVE_GROUPS: layout.liveGroups, LIST_GROUPS: layout.listGroups },
   })
@@ -57,17 +58,20 @@ test('the arming group binds the counts read-only and the arguments, nothing of 
   const { device, bindGroupLayouts, bindGroups } = fakeDevice()
   const work = { label: 'work' } as GPUBuffer,
     args = { label: 'args' } as GPUBuffer
-  const arm = await createDagArm(device, work, args, dagWorkLayout(4))
-  assert.ok(arm)
+  // An entry point of the cut's own module, on a layout of its own.
+  const module = device.createShaderModule({ code: DAG_SELECTION_SHADER })
+  const layout = dagArmLayout(device)
+  const armPipeline = await buildDagArm(device, module, layout, dagWorkLayout(4))
+  dagArmGroup(device, layout, work, args)
   assert.deepEqual(
     Array.from(bindGroupLayouts.at(-1)!.entries, (e) => [e.binding, e.buffer?.type]),
     [
-      [0, 'read-only-storage'],
-      [1, 'storage'],
+      [DAG_ARM_BINDING.work, 'read-only-storage'],
+      [DAG_ARM_BINDING.args, 'storage'],
     ],
   )
   // The fake device's pipeline is its stage: the list words are fixed with the layout.
-  const stage = arm.armPipeline as unknown as GPUProgrammableStage
+  const stage = armPipeline as unknown as GPUProgrammableStage
   assert.deepEqual(
     [stage.entryPoint, stage.constants],
     [
@@ -84,6 +88,9 @@ test('the arming group binds the counts read-only and the arguments, nothing of 
     [...bindGroups.at(-1)!.entries].map((e) => (e.resource as GPUBufferBinding).buffer),
     [work, args],
   )
-  // The selection's group never names the argument buffer: it binds no `args`.
+  // The selection's group never names the argument buffer, nor takes a binding of the arming's.
   assert.doesNotMatch(wgslSource(DAG_BINDINGS_WGSL), /\bargs\b/)
+  const taken = dagBindEntries().map(({ binding }) => binding)
+  for (const binding of Object.values(DAG_ARM_BINDING))
+    assert.ok(!taken.includes(binding), `binding ${binding} is the arming group's alone`)
 })

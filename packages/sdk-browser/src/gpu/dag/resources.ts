@@ -2,8 +2,6 @@ import type { PackedDag } from './types.ts'
 import { createDagPipeline } from './pipeline.ts'
 import { dagTables } from './dagTables.ts'
 import { cutHeldSlots, initialListCap, rankGroups } from './listCap.ts'
-import { createDagArm } from './arm.ts'
-import { validatedOrWhy } from '../core/errorScope.ts'
 import { createMaskSwap } from './swap.ts'
 import { VIEW_ROWS } from '../../webgpu/row/tableRows.ts'
 import { CUT_TABLE_BYTES } from '../../residency/cutTableBytes.ts'
@@ -77,20 +75,13 @@ export async function createDagResources(
     steps?.begin('tables')
     const made = dagTables(device, packed, { own, ownTexture }, listCap, heldSlots)
     const { group, frames, work, dispatchArgs } = made
-    // One validation scope after the other: the device's scopes are one stack, and two built
-    // together would each pop the other's.
-    const compiled = await createDagPipeline(device, group, frames, steps)
-    steps?.begin('arm')
-    const armed =
-      compiled.value &&
-      (await validatedOrWhy(device, () =>
-        createDagArm(device, work, dispatchArgs, made.workLayout),
-      ))
-    const pipeline = compiled.value,
-      arm = armed?.value
-    if (!pipeline || !arm) {
+    // The stages and the arming kernel, asked in one batch under one validation scope.
+    const arm = { work, args: dispatchArgs, words: made.workLayout }
+    const compiled = await createDagPipeline(device, group, frames, arm, steps)
+    const pipeline = compiled.value
+    if (!pipeline) {
       destroyAll()
-      refused((pipeline ? armed?.refused : compiled.refused) ?? 'the device made no pipeline')
+      refused(compiled.refused ?? 'the device made no pipeline')
       return undefined
     }
     steps?.begin('uploads')
@@ -103,7 +94,6 @@ export async function createDagResources(
       textures,
       own,
       ...pipeline,
-      ...arm,
       /** Whose cut the mask, the journal and `out` hold (`swap.ts`). */
       swap: createMaskSwap(),
       /** The most its tables may hold, growths included (`queueGrowth.ts`, `listGrowth.ts`), and the

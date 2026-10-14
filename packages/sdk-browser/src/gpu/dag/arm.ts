@@ -1,26 +1,36 @@
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
-import { checkShaderModule } from '../core/shaderModule.ts'
-import { DAG_ARM_SHADER } from './shader/armWgsl.ts'
+import { computeBufferEntry } from '../core/computeBindings.ts'
+import { DAG_ARM_BINDING } from './shader/armWgsl.ts'
+
+/** Where each list's group count lies in `work`, fixed with the layout (`dagWorkLayout`). */
+export type DagArmWords = {
+  drawnGroups: number
+  candGroups: number
+  liveGroups: number
+  listGroups: number
+}
+
+/** The arming kernel's group layout: the counts read, the arguments written, at their bindings. */
+export const dagArmLayout = (device: GPUDevice) =>
+  device.createBindGroupLayout({
+    entries: [
+      computeBufferEntry(DAG_ARM_BINDING.work, 'read-only-storage'),
+      computeBufferEntry(DAG_ARM_BINDING.args, 'storage'),
+    ],
+  })
 
 /**
- * The arming kernel of a cut (`shader/armWgsl.ts`) on its `work` and `args`, whose group words —
- * where each list's group count lies in `work` — are fixed with the layout: its pipeline, compiled
- * off the thread, and its one group. A shader that does not compile throws its compiler's
- * messages; the caller's validation scope catches the rest.
+ * The arming kernel of the cut's `module` (`shader/armWgsl.ts`) on `layout`, its list words `words`
+ * its overrides: compiled off the thread, asked with the cut's stages (`stages.ts`). The caller's
+ * validation scope catches what the device refuses.
  */
-export async function createDagArm(
+export const buildDagArm = (
   device: GPUDevice,
-  work: GPUBuffer,
-  args: GPUBuffer,
-  words: { drawnGroups: number; candGroups: number; liveGroups: number; listGroups: number },
-) {
-  const module = await checkShaderModule(
-    device.createShaderModule({ code: DAG_ARM_SHADER }),
-    'camera cut arming',
-  )
-  const layout = bounceLayout(device, ['read-only-storage', 'storage'])
-  const pipeline = await buildComputePipeline(device, {
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  words: DagArmWords,
+) =>
+  buildComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: {
       module,
@@ -33,5 +43,18 @@ export async function createDagArm(
       },
     },
   })
-  return { armPipeline: pipeline, armGroup: bounceGroup(device, layout, [work, args]) }
-}
+
+/** The arming kernel's one group, over the cut's `work` and its arguments `args`. */
+export const dagArmGroup = (
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  work: GPUBuffer,
+  args: GPUBuffer,
+) =>
+  device.createBindGroup({
+    layout,
+    entries: [
+      { binding: DAG_ARM_BINDING.work, resource: { buffer: work } },
+      { binding: DAG_ARM_BINDING.args, resource: { buffer: args } },
+    ],
+  })
