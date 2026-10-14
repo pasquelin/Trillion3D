@@ -26,6 +26,7 @@ import { followComposedRows, sendList } from './composedRows.ts'
 import { partsMadeAnew, targetsTaken } from './rowTargets.ts'
 import { writeMovedRoots } from './rootPasses.ts'
 import { reserveCasts } from '../webgpu/shadow/castChanges.ts'
+import { writePassParams } from '../gpu/core/passParams.ts'
 
 /** The rows kernel, once a device, compiled off the thread (`askRowWords`). */
 const rowsKernel = autoKernel(COMPOSE_ROWS_PASS, DERIVE_ROWS_WGSL, DERIVE_ROWS_ENTRY)
@@ -61,18 +62,14 @@ function dispatch(
   all: boolean,
   emitAll: boolean,
 ) {
-  const gpu = rt.rowWords!.gpu!,
-    words = gpu.words[g]
-  words[0] = rt.layout.selectionRoots.length
-  words[1] =
+  const gpu = rt.rowWords!.gpu!
+  const parts =
     (gpu.frame[0] ? PART_SPHERES : 0) |
     (gpu.frame[1] ? PART_CORNERS : 0) |
     (gpu.frame[2] ? PART_LODS : 0) |
     (castsBound(rt) ? PART_CASTS : 0)
-  words[2] = listed
-  words[3] = all ? 1 : 0
-  words[4] = emitAll ? 1 : 0
-  device.queue.writeBuffer(gpu.params[g], 0, words)
+  const roots = rt.layout.selectionRoots.length
+  writePassParams(device, gpu.params[g], roots, parts, listed, all ? 1 : 0, emitAll ? 1 : 0)
   const held = gpu.groups[g]
   held.identity.entries[0] ??= rowEntries(rt, gpu, g)
   composeGroup(device, held, pipeline)

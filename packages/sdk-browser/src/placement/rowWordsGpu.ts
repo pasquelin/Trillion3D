@@ -9,23 +9,14 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { heldGroup } from '../webgpu/core/bindIdentity.ts'
-
-/** Bytes of the pass's parameters (`DERIVE_ROWS_WGSL`'s `Params`). */
-const PARAMS_BYTES = 32
+import { PASS_PARAM_BYTES, passParams } from '../gpu/core/passParams.ts'
 
 export function createRowWordsGpu(device: GPUDevice) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   return {
     /** The parameters of the named rows' dispatch, then of the composed rows' — or of every row's,
      *  after the staled rows' list (`encodeRowWords`). */
-    params: [0, 1].map(() =>
-      device.createBuffer({
-        label: 'Trillion3D rows pass params',
-        size: PARAMS_BYTES,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      }),
-    ),
-    words: [new Uint32Array(PARAMS_BYTES / 4), new Uint32Array(PARAMS_BYTES / 4)],
+    params: [passParams('Trillion3D rows pass params'), passParams('Trillion3D rows pass params')],
     /** The rows the CPU named, sent each frame it named any. */
     list: undefined as GPUBuffer | undefined,
     /** A stand-in for each part whose buffer is not made, for a list none holds, for the mobility
@@ -52,9 +43,9 @@ export const castsBound = (rt: WebgpuPagesRuntime) =>
 export const rowEntries = (rt: WebgpuPagesRuntime, gpu: RowWordsGpu, g: number) =>
   sequentialEntries([
     liveBuffer(
-      () => gpu.params[g],
+      () => gpu.params[g].buffer,
       undefined,
-      () => PARAMS_BYTES,
+      () => PASS_PARAM_BYTES,
     ),
     liveBuffer(() => rt.rootWorlds!.worlds),
     liveBuffer(() => rt.vis.pageTable),
@@ -91,7 +82,7 @@ export function disposeRowWords(rt: WebgpuPagesRuntime) {
   if (!state) return
   state.inputs.buffer?.destroy()
   const gpu = state.gpu
-  for (const buffer of [...(gpu?.params ?? []), ...(gpu?.absent ?? []), gpu?.list])
-    buffer?.destroy()
+  for (const params of gpu?.params ?? []) params.buffer?.destroy()
+  for (const buffer of [...(gpu?.absent ?? []), gpu?.list]) buffer?.destroy()
   rt.rowWords = undefined
 }
