@@ -16,7 +16,7 @@ import { type ContractKey, variantLabel } from '../../lighting/deferred/contract
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
-import { REFLECTION_FRONT_WGSL } from '../../reflections/frontDepth.ts'
+import { REFLECTION_FRONT_WGSL } from '../../reflections/frontTarget.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../../reflections/viewLayout.ts'
 import { f0Of } from '../../../../math/src/wgsl/lighting.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'

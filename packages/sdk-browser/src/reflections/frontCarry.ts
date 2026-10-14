@@ -7,8 +7,9 @@ import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { FRONT_DEPTH_PASS } from '../stage/passLabels.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { REFLECTION_SIDE } from './constants.ts'
-import { FRONT_LABEL } from './frontDepth.ts'
-import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
+import { FRONT_LABEL } from './frontTarget.ts'
+import type { ScreenReflection } from './gpu.ts'
+import type { ReflectionPipelines } from './reflectionPipelines.ts'
 
 const { min } = Math
 

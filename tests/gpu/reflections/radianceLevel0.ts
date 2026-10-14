@@ -10,8 +10,8 @@ import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import {
   createScreenReflection,
   reflectionGroup,
-  reflectionLayout,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
+import { reflectionLayout } from '../../../packages/sdk-browser/src/reflections/reflectionPipelines.ts'
 import { reflectionFootprintWgsl } from '../../../packages/sdk-browser/src/reflections/footprint.ts'
 import {
   REFLECTION_GROUP,

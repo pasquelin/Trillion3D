@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/gpu.ts'
+import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { waterSurfaceEntry, waterSurfaceTargets } from './surfaceTargets.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'

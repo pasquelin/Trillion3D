@@ -1,4 +1,4 @@
-import { createReflectionPipelines } from '../../../reflections/gpu.ts'
+import { createReflectionPipelines } from '../../../reflections/reflectionPipelines.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
 import { MAX_DEPTH_LAYER } from '../../../../../sdk-core/src/lod/depthLayer.ts'

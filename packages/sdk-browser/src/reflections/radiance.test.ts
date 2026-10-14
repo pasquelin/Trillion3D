@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { image, radianceKernels, type Image } from './radianceKernels.fixture.ts'
-import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
+import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 
 /** The frame's HDR target, its three levels the pyramid's (`hdrTargetDescriptor`). */

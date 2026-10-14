@@ -3,7 +3,7 @@
 // and the reflection group binds the pyramid as one texture, no level texture beside it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
+import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'

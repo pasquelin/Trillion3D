@@ -1,0 +1,102 @@
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { validated } from '../gpu/core/errorScope.ts'
+import { shaderFailed } from '../gpu/core/shaderModule.ts'
+import {
+  COMPUTE,
+  computeBufferEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
+import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { buildComputeStages } from '../gpu/core/computeStages.ts'
+import { FRONT_BOX_SHADER, FRONT_SHADER, frontBoxLayout, frontLayout } from './frontDepthWgsl.ts'
+import { radianceLayouts } from './radiance.ts'
+import { RADIANCE_SHADER } from './radianceWgsl.ts'
+import { BEGIN_SHADER, TRACE_SHADER, createTraceStages } from './trace.ts'
+import {
+  REFLECTION_DEPTH_BINDING,
+  REFLECTION_IMAGE_BINDING,
+  REFLECTION_LIGHT_VIEW_BINDING,
+  REFLECTION_SAMPLER_BINDING,
+  REFLECTION_VIEW_BYTES,
+} from './viewLayout.ts'
+
+/** THE REFLECTIONS' KERNELS AND THEIR GROUP'S LAYOUT, once a device: what every view's reflection
+ *  (`gpu.ts`) and the forward programs that read it bind. */
+
+/** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
+ *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and
+ *  the radiance pyramid, every level of it in one texture — the lit image itself at its level 0
+ *  (`hdrTargetDescriptor`) —, read by compute and fragment stages. */
+export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
+  const visibility = COMPUTE | GPUShaderStage.FRAGMENT
+  return device.createBindGroupLayout({
+    entries: [
+      computeUniformEntry(0, { minBindingSize: REFLECTION_VIEW_BYTES }, visibility),
+      { binding: REFLECTION_SAMPLER_BINDING, visibility, sampler: { type: 'filtering' } },
+      ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
+      computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
+      computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
+    ],
+  })
+})
+
+/** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
+ *  radiance pyramid's two, the front depth's scatter, boxes and fold — compiled once a device under one validation scope. */
+export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
+  validated(device, async () => {
+    const modules = {
+      trace: device.createShaderModule({
+        label: 'Trillion3D reflection trace',
+        code: TRACE_SHADER,
+      }),
+      begin: device.createShaderModule({
+        label: 'Trillion3D reflection begin',
+        code: BEGIN_SHADER,
+      }),
+      radiance: device.createShaderModule({
+        label: 'Trillion3D reflection radiance',
+        code: RADIANCE_SHADER,
+      }),
+      front: device.createShaderModule({
+        label: 'Trillion3D reflection front depth',
+        code: FRONT_SHADER,
+      }),
+      frontBox: device.createShaderModule({
+        label: 'Trillion3D reflection front depth boxes',
+        code: FRONT_BOX_SHADER,
+      }),
+    }
+    for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
+    const layouts = radianceLayouts(device)
+    const frontLayouts = frontLayout(device),
+      frontBoxLayouts = frontBoxLayout(device)
+    const [trace, first, down, roll, front, box] = await Promise.all([
+      createTraceStages(device, modules, reflectionLayout(device)),
+      buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
+        'radianceFirst',
+        'radianceFirstHashed',
+        'radianceFirstBoth',
+      ]),
+      buildComputeStages(device, [layouts.downLayout], modules.radiance, ['radianceDown']),
+      buildComputeStages(device, [layouts.rollLayout], modules.radiance, ['radianceRoll']),
+      buildComputeStages(device, [frontLayouts], modules.front, ['frontScatter', 'frontFold']),
+      buildComputeStages(device, [frontBoxLayouts], modules.frontBox, ['frontBox']),
+    ])
+    return {
+      ...trace,
+      ...layouts,
+      firstPipeline: first.radianceFirst,
+      firstHashedPipeline: first.radianceFirstHashed,
+      firstBothPipeline: first.radianceFirstBoth,
+      downPipeline: down.radianceDown,
+      rollPipeline: roll.radianceRoll,
+      frontLayout: frontLayouts,
+      frontPipeline: front.frontScatter,
+      frontFoldPipeline: front.frontFold,
+      frontBoxLayout: frontBoxLayouts,
+      frontBoxPipeline: box.frontBox,
+    }
+  }),
+)
+export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>

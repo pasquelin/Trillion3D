@@ -1,8 +1,13 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { holds } from '../../../scene/surfaceBuffer.ts'
-import { DEPTH_FORMAT, DISPLAY_FORMAT, FEEDBACK_FORMAT } from '../../../scene/targetFormats.ts'
-import { hdrAttachmentView, hdrTargetDescriptor } from '../../../reflections/radiance.ts'
+import {
+  DEPTH_FORMAT,
+  DISPLAY_FORMAT,
+  FEEDBACK_FORMAT,
+  hdrAttachmentView,
+  hdrTargetDescriptor,
+} from '../../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
 import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'

@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/gpu.ts'
+import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import {
   TRANSPARENT_DEPTH_LAYER,

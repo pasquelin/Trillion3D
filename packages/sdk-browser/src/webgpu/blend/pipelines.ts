@@ -23,7 +23,7 @@ import {
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
-import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
+import { TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
 import {
   FULL_CONTRACT,

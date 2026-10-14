@@ -167,7 +167,7 @@ export const PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('reflections/frame.ts', 'encodeReflectionRadiance'),
-      K.engine('reflections/radiance.ts', 'RADIANCE_SHADER'),
+      K.engine('reflections/radianceWgsl.ts', 'RADIANCE_SHADER'),
     ],
   },
   {

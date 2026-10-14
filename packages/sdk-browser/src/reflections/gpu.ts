@@ -1,41 +1,12 @@
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { validated } from '../gpu/core/errorScope.ts'
-import { shaderFailed } from '../gpu/core/shaderModule.ts'
-import {
-  COMPUTE,
-  computeBufferEntry,
-  computeTextureEntry,
-  computeUniformEntry,
-} from '../gpu/core/computeBindings.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
-import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
+import { hizDepthBindEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { REFLECTION_FORMAT } from './constants.ts'
-import {
-  FRONT_BOX_SHADER,
-  FRONT_SHADER,
-  createFrontDepth,
-  frontBoxLayout,
-  frontBytes,
-  frontLayout,
-} from './frontDepth.ts'
-import {
-  RADIANCE_SHADER,
-  createRadiancePyramid,
-  radianceBytes,
-  radianceLayouts,
-} from './radiance.ts'
+import { createFrontDepth, frontBytes } from './frontDepth.ts'
+import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
-import {
-  BEGIN_SHADER,
-  TRACE_SHADER,
-  createTraceStages,
-  createTraceTiles,
-  TRACE_ARGS_BYTES,
-  traceListBytes,
-  createTraceGroups,
-} from './trace.ts'
+import { createTraceTiles, TRACE_ARGS_BYTES, traceListBytes, createTraceGroups } from './trace.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -46,84 +17,7 @@ import {
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
-import { buildComputeStages } from '../gpu/core/computeStages.ts'
-
-/** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
- *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and
- *  the radiance pyramid, every level of it in one texture — the lit image itself at its level 0
- *  (`hdrTargetDescriptor`) —, read by compute and fragment stages. */
-export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
-  const visibility = COMPUTE | GPUShaderStage.FRAGMENT
-  return device.createBindGroupLayout({
-    entries: [
-      computeUniformEntry(0, { minBindingSize: REFLECTION_VIEW_BYTES }, visibility),
-      { binding: REFLECTION_SAMPLER_BINDING, visibility, sampler: { type: 'filtering' } },
-      ...hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility),
-      computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),
-      computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
-    ],
-  })
-})
-
-/** The reflection's kernels — the frame state, the opaque trace and its tile classification, the
- *  radiance pyramid's two, the front depth's scatter, boxes and fold — compiled once a device under one validation scope. */
-export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
-  validated(device, async () => {
-    const modules = {
-      trace: device.createShaderModule({
-        label: 'Trillion3D reflection trace',
-        code: TRACE_SHADER,
-      }),
-      begin: device.createShaderModule({
-        label: 'Trillion3D reflection begin',
-        code: BEGIN_SHADER,
-      }),
-      radiance: device.createShaderModule({
-        label: 'Trillion3D reflection radiance',
-        code: RADIANCE_SHADER,
-      }),
-      front: device.createShaderModule({
-        label: 'Trillion3D reflection front depth',
-        code: FRONT_SHADER,
-      }),
-      frontBox: device.createShaderModule({
-        label: 'Trillion3D reflection front depth boxes',
-        code: FRONT_BOX_SHADER,
-      }),
-    }
-    for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
-    const layouts = radianceLayouts(device)
-    const frontLayouts = frontLayout(device),
-      frontBoxLayouts = frontBoxLayout(device)
-    const [trace, first, down, roll, front, box] = await Promise.all([
-      createTraceStages(device, modules, reflectionLayout(device)),
-      buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
-        'radianceFirst',
-        'radianceFirstHashed',
-        'radianceFirstBoth',
-      ]),
-      buildComputeStages(device, [layouts.downLayout], modules.radiance, ['radianceDown']),
-      buildComputeStages(device, [layouts.rollLayout], modules.radiance, ['radianceRoll']),
-      buildComputeStages(device, [frontLayouts], modules.front, ['frontScatter', 'frontFold']),
-      buildComputeStages(device, [frontBoxLayouts], modules.frontBox, ['frontBox']),
-    ])
-    return {
-      ...trace,
-      ...layouts,
-      firstPipeline: first.radianceFirst,
-      firstHashedPipeline: first.radianceFirstHashed,
-      firstBothPipeline: first.radianceFirstBoth,
-      downPipeline: down.radianceDown,
-      rollPipeline: roll.radianceRoll,
-      frontLayout: frontLayouts,
-      frontPipeline: front.frontScatter,
-      frontFoldPipeline: front.frontFold,
-      frontBoxLayout: frontBoxLayouts,
-      frontBoxPipeline: box.frontBox,
-    }
-  }),
-)
-export type ReflectionPipelines = NonNullable<Awaited<ReturnType<typeof createReflectionPipelines>>>
+import { reflectionLayout } from './reflectionPipelines.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels

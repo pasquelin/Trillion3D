@@ -1,7 +1,7 @@
 // The radiance pyramid's shipped kernels (`RADIANCE_SHADER`) run as JavaScript for its tests, over
 // images of texels read as the sampler reads them, bilinear, their edge clamped.
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { RADIANCE_SHADER } from './radiance.ts'
+import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
 export type Image = { width: number; height: number; texels: number[][] }

@@ -5,7 +5,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
-import { REFLECTION_FRONT_WGSL, TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
+import { REFLECTION_FRONT_WGSL, TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
  *  `lobed`, the lobes target, then the front depth the reflections march. The virtual-texture

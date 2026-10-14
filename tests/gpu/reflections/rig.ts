@@ -11,17 +11,17 @@ import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
 import {
-  createReflectionPipelines,
   createScreenReflection,
   reflectionGroup,
   reflectionsSettled,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
+import { createReflectionPipelines } from '../../../packages/sdk-browser/src/reflections/reflectionPipelines.ts'
+import { adoptRadianceImage } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
+import { encodeRadiancePyramid } from '../../../packages/sdk-browser/src/reflections/radianceBuild.ts'
 import {
-  adoptRadianceImage,
-  encodeRadiancePyramid,
   hdrAttachmentView,
   hdrTargetDescriptor,
-} from '../../../packages/sdk-browser/src/reflections/radiance.ts'
+} from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { PROBE_TEXELS, emptyAtlas } from '../../../packages/sdk-browser/src/bounce/atlas.ts'

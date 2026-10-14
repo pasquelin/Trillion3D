@@ -1,7 +1,7 @@
 import { SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts'
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT } from '../../scene/targetFormats.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../scene/physicalLobes.ts'
-import { TRANSPARENT_FRONT } from '../../reflections/frontDepth.ts'
+import { TRANSPARENT_FRONT } from '../../reflections/frontTarget.ts'
 
 /** The targets of the surface stage: the three material surfaces, the water word in the display
  *  colour it borrows, with `lobes` the lobes target (`surfaceWgsl.ts`), the front depth every
