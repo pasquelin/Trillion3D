@@ -19,6 +19,7 @@ use rayon::prelude::*;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use trillion3d_math::aabb::extend_aabb_f32;
+use trillion3d_math::scalar::median_in_place;
 use trillion3d_page_codec::culling::CullingNode;
 
 /// Most triangles one tile holds: the grain the worker streams by (its bytes stay near 100 kB).
@@ -34,8 +35,7 @@ pub(crate) fn tolerance(dag: &[DagCluster]) -> f64 {
     if errors.is_empty() {
         return 0.0;
     }
-    let middle = errors.len() / 2;
-    *errors.select_nth_unstable_by(middle, f64::total_cmp).1
+    median_in_place(&mut errors)
 }
 
 /// The rank range (culling order) a node's subtree owns.

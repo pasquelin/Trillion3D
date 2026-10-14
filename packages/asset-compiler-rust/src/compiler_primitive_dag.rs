@@ -1,5 +1,6 @@
 use super::*;
 use crate::compiler_world_roots::RootCover;
+use trillion3d_math::scalar::median_in_place;
 use trillion3d_page_codec::culling::{build_culling_bvh, CULLING_STRIDE};
 #[derive(Default)]
 pub(super) struct DagResult {
@@ -33,15 +34,15 @@ pub(super) struct DagResult {
 /// two halves it leaves bound the minimum and the maximum. The three published
 /// numbers are bit-identical to those of a full sort.
 pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
-    let (lower, median, upper) = errors.select_nth_unstable_by(errors.len() / 2, f64::total_cmp);
-    let median = *median;
+    let median = median_in_place(errors);
+    let (lower, upper) = errors.split_at(errors.len() / 2);
     let min = lower
         .iter()
         .copied()
         .chain([median])
         .min_by(f64::total_cmp)
         .unwrap_or(median);
-    let max = upper
+    let max = upper[1..]
         .iter()
         .copied()
         .chain([median])
