@@ -49,9 +49,7 @@ async function asideOver(roots: DagRoot[]) {
     await view.flush()
   }
   const side = () => image(aside)
-  /** The bytes the GPU holds of `buffer`. */
-  const held = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data
-  return { packed, resources, selection, side, image, held, gpu, named }
+  return { packed, resources, selection, side, image, gpu, named }
 }
 
 const bytes = (view: ArrayBufferView, from = 0, to = view.byteLength) =>
