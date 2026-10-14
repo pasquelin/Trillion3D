@@ -96,8 +96,8 @@ export function gatedDag() {
   return { release, fixture, dag, uniforms, device, destroyedMaps }
 }
 
-/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
-export async function cutOnce() {
+/** A selection on the fixture under a wide camera, not cut yet. */
+export async function fixtureSelection() {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
@@ -106,6 +106,12 @@ export async function cutOnce() {
     roots: hostStretches(dag),
   })
   assert.ok(selection)
+  return { fixture, dag, uniforms, selection }
+}
+
+/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
+export async function cutOnce() {
+  const { fixture, dag, uniforms, selection } = await fixtureSelection()
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4)
   return { fixture, dag, uniforms, selection }
