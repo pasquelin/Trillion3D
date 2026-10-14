@@ -25,6 +25,9 @@ function faceNormal(face: number): V3 {
   return normal
 }
 
+/** The vertical field of view a box frame is seen through by default. */
+export const BOX_FOV = 50 * DEG2RAD
+
 /** The frame of `blocks` seen from `eye` toward `target`, and the view that sees it. */
 export function boxFrame(
   blocks: Block[],
@@ -32,7 +35,7 @@ export function boxFrame(
   target: V3,
   width: number,
   height: number,
-  fov = 50 * DEG2RAD,
+  fov = BOX_FOV,
 ) {
   const view = camera(eye, target, width, height, fov)
   const { depth, shown } = rasterize(

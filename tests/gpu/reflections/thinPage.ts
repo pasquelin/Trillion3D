@@ -3,11 +3,14 @@
 // exact mirror ray meets the wall, and whose path on the screen crosses the pole's or the fence's
 // pixels from behind them, must show the wall: the ray passes behind a surface thinner than its
 // slab. One whose exact ray meets the box must show the box: the box, deeper than the slab, stops it.
-import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
-import { castBoxes, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import {
+  camera,
+  castBoxes,
+  type V3,
+} from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import type { Block } from './boxFrame.ts'
+import { BOX_FOV, type Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
 
 const WIDTH = 320,
@@ -17,8 +20,9 @@ const THICKNESS = REFLECTION_CONSTANTS.REFLECTION_THICKNESS
 const EYE: V3 = [0, 6, 4]
 /** Where the eye looks: down onto the floor at 31°, so that the mirror rays drift across the screen. */
 const TARGET: V3 = [0, 0, -6]
-/** One pixel of the view, in metres, at the pole's distance (10.5 m): 2 · tan(25°) / 180 · 10.5. */
-const PIXEL = ((2 * perspectiveSlope(50)) / HEIGHT) * 10.5
+/** One pixel of the view, in metres, at the pole's distance (10.5 m): the view's pixel at a unit
+ *  depth (`scale`), 2 · tan(25°) / 180, times 10.5. */
+const PIXEL = camera(EYE, TARGET, WIDTH, HEIGHT, BOX_FOV).scale * 10.5
 
 const FLOOR: Block = {
   box: { low: [-14, -0.3, -16], high: [14, 0, 4] },
