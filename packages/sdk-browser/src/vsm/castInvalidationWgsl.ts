@@ -7,7 +7,8 @@
  * `staleMapWgsl.ts`): a map drawing its moving casters over a receiver cover skips a box of casters
  * already moving.
  *
- * A record is a world box, its centre and its half extent, negative for casters already moving. A
+ * A list's record is a world box, its centre and its half extent, negative for casters already
+ * moving; a CPU box's two vectors, its centre and moving sign, then its half extent per axis. A
  * list that overflowed reads as one box holding the world: every page goes stale, never fewer.
  *
  * The dispatch's size is the GPU's: a one-thread kernel (`CAST_ARGS_WGSL`) writes its indirect
@@ -69,13 +70,19 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
  let records=arrayLength(&vsmCasts)-1u;
  let box=thread/maps;
  if(box>=castTotal(header,records,vsmCast.boxCount)){return;}
- var inst=VsmInvalidationInstance(vec3f(0.0),VSM_BOX_CASTS,vec3f(UNBOUNDED_EXTENT));
+ var inst=VsmInvalidationInstance(vec3f(0.0),0u,vec3f(UNBOUNDED_EXTENT));
  if(!castsWhole(header,records)){
   var record:vec4f;
-  if(box<header.x){record=vsmCasts[1u+box];}else{record=vsmCastBoxes[box-header.x];}
+  if(box<header.x){
+   record=vsmCasts[1u+box];
+   inst.extent=vec3f(abs(record.w));
+  }else{
+   let at=2u*(box-header.x);
+   record=vsmCastBoxes[at];
+   inst.extent=vsmCastBoxes[at+1u].xyz;
+  }
   inst.centre=record.xyz;
-  inst.extent=vec3f(abs(record.w));
-  inst.flags=VSM_BOX_CASTS|select(0u,VSM_BOX_MOVING,record.w<0.0);
+  inst.flags=select(0u,VSM_BOX_MOVING,record.w<0.0);
  }
  let mapId=vsmStaleMap(vsmCastMaps[thread%maps],(inst.flags&VSM_BOX_MOVING)!=0u);
  if(mapId>=arrayLength(&vsmProjectionData)){return;}

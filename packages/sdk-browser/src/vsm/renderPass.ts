@@ -30,22 +30,24 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
-import type { WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import type { UniformSlots } from '../residency/pools.ts'
 import type { VsmLayout } from './layout.ts'
 import type { VsmComputePipe } from './passKit.ts'
-import type { VsmPerFrameSet, VsmResources } from './resources.ts'
-import type { VsmBoundLight, VsmRowBound, VsmRowSpheres } from './rowPageBound.ts'
-import { vsmChunkRows, type VsmChunkKernels, type vsmChunkPasses } from './chunkKernels.ts'
+import type { VsmResources } from './resources.ts'
+import type { VsmBoundLight, VsmRowSpheres } from './rowPageBound.ts'
+import { vsmChunkRows, type VsmChunkContext, type VsmChunkKernels } from './chunkKernels.ts'
 import type { vsmChunkListGroups } from './chunkGroups.ts'
 import {
   vsmChunkRowsWithin,
   vsmContextBytes,
   vsmEnsureLists,
   vsmReleaseContext,
-  type VsmListName,
 } from './chunkLists.ts'
-import { vsmRenderViews, vsmWriteChunkParams, type VsmRenderCamera } from './chunkParams.ts'
+import {
+  vsmRenderViews,
+  vsmWriteChunkParams,
+  type VsmRenderCamera,
+  type VsmRenderChunking,
+} from './chunkParams.ts'
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
 import { renderGroups, vsmEncodeChunks, type RasterTables } from './renderChunks.ts'
@@ -88,7 +90,7 @@ export interface VsmRenderStats {
   roomLimited: boolean
 }
 
-export interface VsmRenderContext extends VsmChunkKernels {
+export interface VsmRenderContext extends VsmChunkKernels, VsmChunkContext<RasterTables> {
   device: GPUDevice
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
@@ -100,20 +102,8 @@ export interface VsmRenderContext extends VsmChunkKernels {
   }
   target: GPUTextureView
   targetTexture: GPUTexture
-  buffers: Partial<Record<VsmListName, GPUBuffer>>
-  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
-  slots: UniformSlots
-  /** The chunks' pass labels and parameter offsets (`vsmChunkPasses`), made once a context. */
-  passes: ReturnType<typeof vsmChunkPasses>
-  /** The scene's rows and the lists the groups bound when made (`renderGroups`). */
-  bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
   groups?: ReturnType<typeof vsmChunkListGroups>
-  /** The groups over the tables of a frame set (`res.current`, the two in turn) and `groups`,
-   *  and again when the lists moved. */
-  tables: VsmPerFrameSet<RasterTables>
-  /** Where the rows are, binned for the chunks' bound. */
-  rowBound: VsmRowBound
 }
 
 /** Frees the raster's context of `res`, with the set it was made for (`destroyEngineVsm`). */
@@ -127,8 +117,17 @@ export function vsmRenderContextBytes(res: VsmResources) {
   return res.render ? vsmContextBytes(res.render) : 0
 }
 
-/** The frame's map views, rewritten each frame. */
+/** The frame's map views, its rows and its chunking, rewritten each frame. */
 const viewList: number[] = []
+const range = { first: 0, end: 0, candidates: 0 }
+const chunking: VsmRenderChunking = {
+  rowCount: 0,
+  viewCount: 0,
+  chunks: 0,
+  chunkRows: 0,
+  cmds: 0,
+  pairs: 0,
+}
 
 /**
  * Renders the casters of this frame into the pages marked and allocated this frame
@@ -146,22 +145,11 @@ export function encodeVsmRender(
   if (viewCount === 0 || scene.rowCount <= 0) return
 
   const ctx = vsmRenderContext(res, device, scene.pageLayout)
-  const { layout } = res
-  const pages = layout.poolPages
-  const asked = renderChunking(device.limits, pages, viewMips, scene.rowCount)
-  const chosen = vsmChunkRows(
-    ctx.rowBound,
-    scene.rowSpheres,
-    { first: 0, end: scene.rowCount, candidates: scene.rowCount },
-    frame.lights,
-    { ...asked, pages },
-  )
-  const within = vsmChunkRowsWithin(
-    device,
-    ctx.buffers,
-    chosen.rows,
-    renderSizes(scene.rowCount, views.length, chosen, ctx.slots),
-  )
+  const asked = renderChunking(device.limits, res.layout.poolPages, viewMips, scene.rowCount)
+  range.end = range.candidates = scene.rowCount
+  const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, asked)
+  const sizing = renderSizes(scene.rowCount, views.length, chosen, ctx.slots)
+  const within = vsmChunkRowsWithin(device, ctx.buffers, chosen.rows, sizing.sizes, sizing.within)
   const roomLimited = within.limited,
     size = within.size
   const chunkRows = within.rows
@@ -169,14 +157,12 @@ export function encodeVsmRender(
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
   const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
-  const chunking = {
-    rowCount: scene.rowCount,
-    viewCount,
-    chunks,
-    chunkRows,
-    cmds: chosen.cmds(chunkRows),
-    pairs: chosen.pairs(chunkRows),
-  }
+  chunking.rowCount = scene.rowCount
+  chunking.viewCount = viewCount
+  chunking.chunks = chunks
+  chunking.chunkRows = chunkRows
+  chunking.cmds = chosen.cmds(chunkRows)
+  chunking.pairs = chosen.pairs(chunkRows)
   vsmWriteChunkParams(device, scene.camera, chunking, params, viewsBuffer, views, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 

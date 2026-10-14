@@ -10,15 +10,15 @@
  * `res.prev.pageRequests`, which the page address update folds into the page metadata. Light moves
  * and cache key changes are not here: the cache entry is invalidated on the CPU
  * (`VsmLightCache.updateCommon`), so the map is set up uncached (VSM_MAP_UNCACHED) and its next map
- * drops VSM_NEXT_KEEPS_PAGES; the collector skips such entries.
+ * drops VSM_NEXT_KEEPS_PAGES; the maps sent skip such entries (`vsmCastMaps`, through
+ * `mayHoldCachedPages`).
  */
 import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry } from '../webgpu/core/liveEntries.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
-import { CAST_RECORD_WORDS } from '../webgpu/shadow/castChanges.ts'
-import type { VsmCastBoxes } from './castBoxes.ts'
+import { CAST_BOX_WORDS, type VsmCastBoxes } from './castBoxes.ts'
 import {
   CAST_ARGS_ENTRY,
   CAST_ARGS_WGSL,
@@ -139,11 +139,11 @@ export function encodeCastStale(
   // `vsmCastMaps`'s words, a view of its own buffer.
   device.queue.writeBuffer(state.maps, 0, maps as Uint32Array<ArrayBuffer>)
   // A record at least: the stale's group binds the boxes on a frame that has none.
-  const words = boxCount * CAST_RECORD_WORDS
+  const words = boxCount * CAST_BOX_WORDS
   state.boxes = sizedBuffer(
     device,
     state.boxes,
-    Math.max(words, CAST_RECORD_WORDS) * 4,
+    Math.max(words, CAST_BOX_WORDS) * 4,
     storage,
     `${CAST_LABEL}.boxes`,
   )

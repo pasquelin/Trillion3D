@@ -151,4 +151,9 @@ test('lamps whose rows cannot beat the worst case are binned no more until they 
   const asked = bound.bins.seq
   for (let f = 0; f < 3; f++) frame()
   assert.equal(bound.bins.seq, asked)
+  // A verdict was kept whatever the worst case became: a grown pool never binned them again.
+  worst.cap *= 4
+  frame()
+  assert.equal(bound.bins.hopeless, undefined, 'judged anew under another worst case')
+  assert.ok(bound.bins.seq > asked, 'their histogram asked again')
 })

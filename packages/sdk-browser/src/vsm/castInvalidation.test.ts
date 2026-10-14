@@ -2,12 +2,12 @@
 // cached pages, every map of it —, each map's word saying whether it draws its moving casters over
 // a receiver cover, which a moving box skips: read by the one filter of the one stale
 // (`vsmStaleMap`, `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing
-// changed. And the CPU's boxes as records of the one format that stale reads (`castBoxes.ts`).
+// changed. And the CPU's boxes as the records that stale reads after the list (`castBoxes.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmLightCache, type VsmCacheManager } from './cacheManager.ts'
 import { encodeCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
-import { vsmCastBoxes } from './castBoxes.ts'
+import { CAST_BOX_WORDS, vsmCastBoxes } from './castBoxes.ts'
 import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { createCastChanges, type CastChanges } from '../webgpu/shadow/castChanges.ts'
 import { createVsmResources } from './resources.ts'
@@ -72,20 +72,23 @@ test('no maps when nothing changed: no CPU box, and no pass appended to the list
   assert.equal(vsmCastMaps(cache(true), boxes(still), undefined)?.length, 7, 'a CPU box alone')
 })
 
-test('a CPU box as a record of the list: its centre an f32, its largest half extent, never less', () => {
+// A CPU box was the cube of its largest half extent: a flat tile staled a cube's pages.
+test('a CPU box as a record: its centre an f32 and moving sign, its half extent per axis, never less', () => {
   const far = 1e6 + 1 / 3
   const words = boxes({ min: [far - 1, -2, 0], max: [far + 1, 2, 8], moving: true })!.words
-  assert.deepEqual([...words.subarray(0, 3)], [Math.fround(far), 0, 4])
-  // 4 is a float32: the least float32 at or above it is 4 itself.
-  assert.equal(words[3], -4, 'the largest half extent, moving')
+  assert.deepEqual([...words.subarray(0, 4)], [Math.fround(far), 0, 4, -1], 'its centre, moving')
+  assert.ok(words[4] >= 1 + Math.abs(far - words[0]) && words[4] < 1.1, 'x: 1, its rounding added')
+  // 2 and 4 are float32s: the least float32 at or above each is itself.
+  assert.deepEqual([...words.subarray(5, 8)], [2, 4, 0], 'y and z kept apart, then the pad')
+  const flat = boxes({ min: [-100, 0, -100], max: [100, 2, 100], moving: false })!.words
+  assert.deepEqual([...flat.subarray(0, 8)], [0, 1, 0, 1, 100, 1, 100, 0], 'a flat tile stays flat')
   // A point far out: its extent the centre's rounding, so that the record still holds it.
   const point = boxes({ min: [far, 0, 0], max: [far, 0, 0], moving: false })!.words
-  assert.ok(point[3] >= Math.abs(far - point[0]) && point[3] > 0)
-  // A point at the origin keeps the sign that says its casters move.
-  assert.equal(boxes({ min: [0, 0, 0], max: [0, 0, 0], moving: true })!.words[3], -(2 ** -40))
+  assert.ok(point[4] >= Math.abs(far - point[0]) && point[4] > 0)
+  assert.equal(boxes({ min: [0, 0, 0], max: [0, 0, 0], moving: true })!.words[3], -1)
   const inverted = boxes({ min: [1, 0, 0], max: [0, 1, 1], moving: false })!.words
-  assert.deepEqual([...inverted.subarray(0, 3)], [0, 0, 0], 'the unbounded box, at the origin')
-  assert.ok(inverted[3] >= UNBOUNDED_EXTENT)
+  assert.deepEqual([...inverted.subarray(0, 4)], [0, 0, 0, 1], 'the unbounded box, at the origin')
+  for (let a = 4; a < 7; a++) assert.ok(inverted[a] >= UNBOUNDED_EXTENT)
   assert.equal(
     vsmCastBoxes(cache(false), {
       count: 1,
@@ -95,9 +98,6 @@ test('a CPU box as a record of the list: its centre an f32, its largest half ext
   )
 })
 
-// The CPU's boxes were once appended to the list by a kernel of their own, the list grown for them
-// in the frame's encoder: a frame dropped took the old list, its unread records with it. Now the
-// stale reads them after the list, from their own buffer: the list never grows for them.
 test('the stale reads the CPU boxes after the list, from their own buffer: the list never grows', () => {
   const fake = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
@@ -121,7 +121,11 @@ test('the stale reads the CPU boxes after the list, from their own buffer: the l
   assert.deepEqual(dispatchedEntries(fake.dispatches), ['vsmCastArgs', 'vsmStaleCasts'])
   const state = res.invalidation!
   const written = fake.writes.find((write) => write.buffer === state.boxes)!
-  assert.deepEqual([...written.data], [...changed.words.subarray(0, 8 * 4)], 'the eight records')
+  assert.deepEqual(
+    [...written.data],
+    [...changed.words.subarray(0, 8 * CAST_BOX_WORDS)],
+    'the eight records',
+  )
   const stale = state.groups.stale.group as unknown as GPUBindGroupDescriptor
   assert.deepEqual(
     [...stale.entries].map((entry) => (entry.resource as GPUBufferBinding).buffer),

@@ -4,11 +4,12 @@
  * holds of its chunks, and the chunk a frame's rows take.
  */
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { UniformSlots } from '../residency/pools.ts'
 import type { VsmLayout } from './layout.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmBindGroupLayoutEntries, vsmFrameSetHeld } from './resources.ts'
+import { vsmBindGroupLayoutEntries, vsmFrameSetHeld, type VsmPerFrameSet } from './resources.ts'
+import type { VsmListName } from './chunkLists.ts'
 import {
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_CULL_SPECS,
@@ -90,16 +91,39 @@ export function vsmChunkKernels(
   }
 }
 
-/** What a pass named `label` holds of its chunk lists on a device of `limits`: the chunks'
- *  parameter slots at the device's dynamic-offset alignment, their passes, the bind identity, the
- *  tables, and the row bound `existing` kept. */
+/** What a chunked raster holds of its chunks (`vsmChunkContext`): the raster's and the
+ *  transmission's draw contexts alike. */
+export interface VsmChunkContext<Tables> {
+  /** Its lists, by name (`vsmEnsureLists`). */
+  buffers: Partial<Record<VsmListName, GPUBuffer>>
+  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
+  slots: UniformSlots
+  /** The chunks' pass labels and parameter offsets, made once a context (`vsmChunkPasses`). */
+  passes: ReturnType<typeof vsmChunkPasses>
+  /** The scene's rows and the lists the chunk groups bound when made. */
+  bound: WebgpuBindIdentity
+  /** The groups over the tables of a frame set (`res.current`, the two in turn) and the lists'
+   *  groups, made again when one of them moved. */
+  tables: VsmPerFrameSet<Tables>
+  /** Where the rows are, binned for the chunks' bound. */
+  rowBound: VsmRowBound
+}
+
+/** What a pass named `label` holds of its chunks on `device`: the lists `existing` held on the
+ *  same device, the chunks' parameter slots at the device's dynamic-offset alignment, their
+ *  passes, the bind identity, the tables, and the row bound `existing` kept. */
 export function vsmChunkContext<Tables>(
   label: string,
-  limits: GPUSupportedLimits,
-  existing?: { rowBound: VsmRowBound },
-) {
-  const slots = vsmChunkParamSlots(limits)
+  device: GPUDevice,
+  existing?: {
+    device: GPUDevice
+    buffers: VsmChunkContext<Tables>['buffers']
+    rowBound: VsmRowBound
+  },
+): VsmChunkContext<Tables> {
+  const slots = vsmChunkParamSlots(device.limits)
   return {
+    buffers: existing?.device === device ? existing.buffers : {},
     slots,
     passes: vsmChunkPasses(label, slots),
     bound: createWebgpuBindIdentity(),
@@ -135,6 +159,6 @@ export function vsmChunkRows(
 ): VsmChunk {
   return (
     vsmBoundChunk(bound, spheres, range, lights, worst) ||
-    vsmWorstChunk(worst.rows, worst.cmdsPerRow, worst.pages)
+    vsmWorstChunk(bound.worst, worst.rows, worst.cmdsPerRow, worst.pages)
   )
 }

@@ -73,6 +73,9 @@ export function createRowBins() {
     maps: [] as unknown[],
     keys: undefined as Float64Array | undefined,
     hopeless: undefined as Float64Array | undefined,
+    /** The worst case `hopeless` was judged against (`VsmWorst`: rows, commands a row, pages,
+     *  cap): another one judges the lamps anew. */
+    hopelessUnder: new Float64Array(4),
   }
 }
 export type RowBins = ReturnType<typeof createRowBins>

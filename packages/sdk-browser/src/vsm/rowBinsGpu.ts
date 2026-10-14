@@ -15,13 +15,15 @@ import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { composeGroup, heldGroup } from '../webgpu/core/bindIdentity.ts'
+import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 import { rowBinTables } from './rowBins.ts'
 import { rowBinsRequest } from './rowBinsParams.ts'
 import { landRowBins, type RowBinsScene, type RowBinsTag } from './rowBinsRecord.ts'
 import { ROW_BINS_WGSL } from './rowBinsWgsl.ts'
 import type { VsmBoundLight, VsmRowBound } from './rowPageBound.ts'
 
-const LABEL = 'Trillion3D shadow row bins'
+/** The pass, one of the shadow stage's family (`VSM_PASSES`), so the profile counts it. */
+const LABEL = `${VSM_PASS_PREFIX}rowBins`
 /** Histograms in flight at most: one a frame, each read a few frames late. */
 const IN_FLIGHT = 3
 

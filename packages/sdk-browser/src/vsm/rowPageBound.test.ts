@@ -74,8 +74,17 @@ test('no histogram landed: the bound cannot speak, the raster keeps the worst ca
     bound = createVsmRowBound()
   assert.equal(frame(rows, sun, bound), undefined)
   const range = { first: 0, end: 500, candidates: 500 }
-  const blind = vsmChunkRows(createVsmRowBound(), emptyRowSpheres(), range, [sun.light], worstOf())
+  const blindBound = createVsmRowBound(),
+    blindSpheres = emptyRowSpheres()
+  const blind = vsmChunkRows(blindBound, blindSpheres, range, [sun.light], worstOf())
   assert.deepEqual([blind.rows, blind.pairs(blind.rows)], [worstOf().rows, worstOf().rows * PAGES])
+  // The worst case was a new object and two closures every frame: now the bound's own, rewritten.
+  const smaller = vsmChunkRows(blindBound, blindSpheres, range, [sun.light], worstOf(1 << 20))
+  assert.equal(smaller, blind, 'the same chunk, rewritten')
+  assert.deepEqual(
+    [smaller.rows, smaller.cmds(2)],
+    [worstOf(1 << 20).rows, 2 * worstOf().cmdsPerRow],
+  )
   // Another sphere buffer than the one binned: none either.
   const other = { ...rows, spheres: emptyRowSpheres() }
   assert.equal(frame(other, sun, bound, 1 << 21, false), undefined)

@@ -9,11 +9,7 @@ import { ledgerRoom } from '../gpu/core/deviceLedger.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import { madeTextureBytes } from '../gpu/core/textureBytes.ts'
 import type { UniformSlots } from '../residency/pools.ts'
-import {
-  VSM_RENDER_CANDIDATE_BYTES,
-  VSM_RENDER_CMD_BYTES,
-  VSM_RENDER_PAIR_BYTES,
-} from './constants.ts'
+import { VSM_RENDER_CANDIDATE_BYTES, VSM_RENDER_CMD_BYTES } from './constants.ts'
 import { VSM_RENDER_ARGS_STRIDE_WORDS, VSM_RENDER_COUNTS_HEAD } from './renderCullWgsl.ts'
 import type { VsmChunk } from './rowPageBound.ts'
 
@@ -58,49 +54,99 @@ function growthBytes(buffers: Partial<Record<string, GPUBuffer>>, sizes: Record<
   return total
 }
 
-/** The lists a chunk of `rows` rows takes, by buffer, when `chunked` rows are drawn in chunks
- *  over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
- *  parameter slots `slots`. */
-export function vsmChunkListSizes(
-  rows: number,
-  chunked: number,
-  candidates: number,
-  viewWords: number,
-  holds: Omit<VsmChunk, 'rows'>,
-  slots: UniformSlots,
-) {
-  const chunks = ceilDiv(chunked, rows)
-  return {
-    params: chunks * slots.stride,
-    views: viewWords * 4,
-    candidates: candidates * VSM_RENDER_CANDIDATE_BYTES,
-    counts: (VSM_RENDER_COUNTS_HEAD + chunks * 4) * 4,
-    cmds: holds.cmds(rows) * VSM_RENDER_CMD_BYTES,
-    pairs: holds.pairs(rows) * VSM_RENDER_PAIR_BYTES,
-    args: chunks * VSM_RENDER_ARGS_STRIDE_WORDS * 4,
+/** Bytes of each list a chunk takes, by buffer (`vsmChunkListSizes`). */
+export type VsmListSizes = Record<VsmListName, number>
+
+/** The rows a chunk takes within the room, and its lists' sizes; none when not even one row's
+ *  lists fit (`vsmChunkRowsWithin`). */
+export interface VsmWithin<S> {
+  rows: number
+  size?: S
+  limited: boolean
+}
+
+/**
+ * How a chunked raster's lists are sized, rewritten by each frame: `chunked` rows drawn in chunks
+ * over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
+ * parameter slots `slots`, `pairBytes` a pair and `headerBytes` a command in the pairs' list (the
+ * transmission's page list heads each command). Its sizes, `sizes` and `within` are made once and
+ * rewritten in place: a frame allocates nothing.
+ */
+export interface VsmListSizing {
+  chunked: number
+  candidates: number
+  viewWords: number
+  holds?: Omit<VsmChunk, 'rows'>
+  slots?: UniformSlots
+  readonly pairBytes: number
+  readonly headerBytes: number
+  readonly size: VsmListSizes
+  readonly sizes: (rows: number) => VsmListSizes
+  readonly within: VsmWithin<VsmListSizes>
+}
+
+/** A sizing of `pairBytes` a pair and `headerBytes` a command (`VsmListSizing`). */
+export function vsmListSizing(pairBytes: number, headerBytes: number) {
+  const sizing: VsmListSizing = {
+    chunked: 0,
+    candidates: 0,
+    viewWords: 0,
+    pairBytes,
+    headerBytes,
+    size: { params: 0, views: 0, candidates: 0, counts: 0, cmds: 0, pairs: 0, args: 0 },
+    sizes: (rows) => vsmChunkListSizes(sizing, rows),
+    within: { rows: 0, limited: false },
   }
+  return sizing
+}
+
+/** The lists a chunk of `rows` rows takes under `sizing`, by buffer, written into its `size`. */
+function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
+  const { size, holds } = sizing,
+    chunks = ceilDiv(sizing.chunked, rows)
+  size.params = chunks * sizing.slots!.stride
+  size.views = sizing.viewWords * 4
+  size.candidates = sizing.candidates * VSM_RENDER_CANDIDATE_BYTES
+  size.counts = (VSM_RENDER_COUNTS_HEAD + chunks * 4) * 4
+  size.cmds = holds!.cmds(rows) * VSM_RENDER_CMD_BYTES
+  size.pairs = holds!.cmds(rows) * sizing.headerBytes + holds!.pairs(rows) * sizing.pairBytes
+  size.args = chunks * VSM_RENDER_ARGS_STRIDE_WORDS * 4
+  return size
 }
 
 /**
  * The most rows a chunk takes, `rows` then its halves down to one, whose lists (`sizes` of a
  * chunk of that many rows) grow within the room the device ledger still admits, and those lists;
- * 0 rows when not even one row's do. A chunk of fewer rows draws the same pages — the raster's
- * depth is an atomic max, whatever the order — in more passes, and asks no allocation the
- * budget refuses. Lists that need not grow ask nothing of the ledger.
+ * 0 rows when not even one row's do; written into `within`. A chunk of fewer rows draws the same
+ * pages — the raster's depth is an atomic max, whatever the order — in more passes, and asks no
+ * allocation the budget refuses. Lists that need not grow ask nothing of the ledger.
  */
 export function vsmChunkRowsWithin<S extends Record<string, number>>(
   device: GPUDevice,
   buffers: Partial<Record<string, GPUBuffer>>,
   rows: number,
   sizes: (rows: number) => S,
-): { rows: number; size?: S; limited: boolean } {
+  within: VsmWithin<S>,
+) {
   const whole = sizes(rows)
-  if (growthBytes(buffers, whole) === 0) return { rows, size: whole, limited: false }
+  within.rows = rows
+  within.size = whole
+  within.limited = false
+  if (growthBytes(buffers, whole) === 0) return within
   const room = ledgerRoom(device)
   for (let r = rows; ; r = ceilDiv(r, 2)) {
+    // `sizes` may rewrite one record: the first try reads the whole chunk's, still held.
     const size = r === rows ? whole : sizes(r)
-    if (growthBytes(buffers, size) <= room) return { rows: r, size, limited: r < rows }
-    if (r === 1) return { rows: 0, limited: true }
+    within.rows = r
+    within.size = size
+    within.limited = r < rows
+    if (growthBytes(buffers, size) <= room) return within
+    if (r === 1) {
+      within.rows = 0
+      within.size = undefined
+      within.limited = true
+      return within
+    }
   }
 }
 
@@ -120,7 +166,7 @@ export function vsmDrawFloorBytes(rows: number, sizes: (rows: number) => Record<
 export function vsmEnsureLists(
   ctx: { device: GPUDevice; buffers: Partial<Record<VsmListName, GPUBuffer>> },
   label: string,
-  size: ReturnType<typeof vsmChunkListSizes>,
+  size: VsmListSizes,
 ) {
   const { device, buffers } = ctx
   const ensure = (name: VsmListName, usage: GPUBufferUsageFlags) =>

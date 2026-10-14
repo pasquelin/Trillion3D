@@ -25,7 +25,8 @@
  *
  * The worst case is kept when no histogram landed yet, when it binned other rows or other spheres,
  * when a sun's axes moved since it (a sun turning keeps it until it held still and its histogram
- * landed), and for full-map lights whose keys moved (`rowBinsKeys.ts`).
+ * landed), and for full-map lights whose keys moved (`rowBinsKeys.ts`). Lamps found unable to beat
+ * the worst case are binned no more until their keys or that worst case change.
  */
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { RowMotion } from '../gpu/shadow/rowMotion.ts'
@@ -58,12 +59,35 @@ export interface VsmChunk {
   pairs: (k: number) => number
 }
 
-/** The worst case: `rows` a chunk, every row `cmdsPerRow` commands and every one of `pages`. */
-export const vsmWorstChunk = (rows: number, cmdsPerRow: number, pages: number): VsmChunk => ({
-  rows,
-  cmds: (k) => k * cmdsPerRow,
-  pairs: (k) => k * pages,
-})
+/** The worst case as a chunk: `rows` a chunk, every row `cmdsPerRow` commands and every one of
+ *  `pages`; its two bounds made once, reading the numbers each frame rewrites (`vsmWorstChunk`). */
+export interface VsmWorstChunk extends VsmChunk {
+  cmdsPerRow: number
+  pages: number
+}
+export function createWorstChunk(): VsmWorstChunk {
+  const chunk: VsmWorstChunk = {
+    rows: 0,
+    cmdsPerRow: 0,
+    pages: 0,
+    cmds: (k) => k * chunk.cmdsPerRow,
+    pairs: (k) => k * chunk.pages,
+  }
+  return chunk
+}
+
+/** `chunk` rewritten as the worst case of `rows` a chunk, `cmdsPerRow` commands and `pages`. */
+export function vsmWorstChunk(
+  chunk: VsmWorstChunk,
+  rows: number,
+  cmdsPerRow: number,
+  pages: number,
+) {
+  chunk.rows = rows
+  chunk.cmdsPerRow = cmdsPerRow
+  chunk.pages = pages
+  return chunk
+}
 
 /** The worst case of a pass: rows a chunk, commands a row, pages, and the most pairs and commands
  *  a chunk's lists hold (`cap` ≥ rows · pages ≥ rows · commands). */
@@ -75,16 +99,29 @@ export interface VsmWorst {
 }
 
 /** A pass's bound: its histograms (`rowBinsRecord.ts`), its last answer and what it was measured
- *  from, and what `answer` reuses so a frame allocates nothing. */
+ *  from, what `answer` reuses so a frame allocates nothing, and the worst case it answers when the
+ *  histograms cannot speak (`vsmChunkRows`), rewritten in place. */
 export interface VsmRowBound {
   bins: RowBins
   held?: { chunk: VsmChunk; key: Float64Array }
   scratch: Scratch
+  worst: VsmWorstChunk
 }
 export const createVsmRowBound = (): VsmRowBound => ({
   bins: createRowBins(),
   scratch: createScratch(),
+  worst: createWorstChunk(),
 })
+
+/** `worst`'s numbers, in `RowBins.hopelessUnder`'s order, rewritten by each read. */
+const worstNumbers = new Float64Array(4)
+function worstWords(worst: VsmWorst) {
+  worstNumbers[0] = worst.rows
+  worstNumbers[1] = worst.cmdsPerRow
+  worstNumbers[2] = worst.pages
+  worstNumbers[3] = worst.cap
+  return worstNumbers
+}
 
 /** What the frame adds to the histogram (`BoundFrame`), rewritten by each bound. */
 const frame: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carried: false }
@@ -105,6 +142,9 @@ export function vsmBoundChunk(
   const lit = boundLights(lights)
   if (!lit || !(lit.suns.length || lit.maps.length)) return undefined
   const bins = bound.bins
+  // A verdict holds under the worst case it was judged against: under another, the lamps are binned
+  // again (a pool grown, another candidate count).
+  if (bins.hopeless && !sameValues(bins.hopelessUnder, worstWords(worst))) bins.hopeless = undefined
   // More rows than the worst case's chunk: the lamps' bins may pay, and are made.
   bins.pays = range.candidates > worst.rows
   const landed = bins.landed
@@ -134,6 +174,9 @@ export function vsmBoundChunk(
   if (!frame.carried) frame.unplaced += landed.movingRows
   const { chunk, hopeless } = answer(bound, worst, range.candidates, frame, landed)
   // Lamps whose rows alone fill the worst case's chunk: binned no more until they change.
-  if (hopeless && bins.pays) bins.hopeless = keys
+  if (hopeless && bins.pays) {
+    bins.hopeless = keys
+    bins.hopelessUnder.set(worstWords(worst))
+  }
   return chunk
 }

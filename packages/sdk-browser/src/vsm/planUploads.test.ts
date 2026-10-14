@@ -37,25 +37,16 @@
 // past its old place closed up, their pads gone; every other buffer kept.
 // Retaken when the trace tunables left the uniform block for constants of the shader (144 bytes for
 // 192): the mip offsets moved up twelve words; every other buffer kept.
-// Retaken when the CPU's boxes joined the rows' shadow changes in one stale
-// (`castInvalidation.ts`): only each seed's third frame moved, the first that invalidates (the
-// cache accepts from it). The box pass's buffers (`vsm.invalidation.params0`, `.instances`,
-// `.items`) are no longer written; the stale's are, in their place — `vsm.castInvalidation.params`
-// (the maps' count, the boxes' count), `.maps` (each map's word, `vsmCastMaps`) and `.boxes` (each
-// box's centre split high and low, its flags, its half extent: the instance the box pass uploaded,
-// without its identity rotation, which the kernel now writes). The first two frames' digests, and
-// so every other buffer, are kept.
-// Retaken when the CPU's boxes became records of the rows' list, appended by the stale itself
-// (`castBoxes.ts`): only each seed's third frame moves. `.boxes` holds a record a box — its centre
-// rounded to an f32, its largest half extent, that rounding added, rounded up, negative when it
-// moves —, the parameters are `vsm.invalidateCastPages.params` (the maps' count, the boxes'), the
-// maps `vsm.invalidateCastPages.maps`, the same words; every other buffer kept.
-// Retaken when the raster's lists grew by the engine's one rule (`sizedBuffer`: the size asked,
-// then twice the held one), where they took a power of two of 256 bytes at least: the parameters'
-// and the views' buffers hashed at their own size, every word written the same.
-// Retaken when the stale read the CPU's boxes from their own buffer after the list, no kernel
-// appending them to it, and when the chunks' parameters left their unread pad word at 0 (it was
-// written 1): every word a shader reads kept.
+// Retaken when the CPU's boxes joined the rows' shadow changes in one stale (`castInvalidation.ts`):
+// only each seed's third frame moves, the first that invalidates (the cache accepts from it). The
+// box pass's buffers (`vsm.invalidation.params0`, `.instances`, `.items`) are no longer written;
+// the stale's are, in their place: `vsm.invalidateCastPages.params` (the maps' count, the boxes'),
+// `.maps` (each map's word, `vsmCastMaps`) and `.boxes` (a box's centre rounded to an f32 and its
+// moving sign, then its half extent per axis, each axis's rounding added, rounded up, and a pad
+// word, 0). The raster's lists grow by the engine's one rule (`sizedBuffer`: the size asked, then
+// twice the held one), where they took a power of two of 256 bytes at least: the parameters' and
+// the views' buffers hashed at their own size, every word written the same; the chunks'
+// parameters leave their unread pad word at 0 (it was written 1). Every other buffer kept.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

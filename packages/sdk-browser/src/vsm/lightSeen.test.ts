@@ -64,10 +64,16 @@ test('a lamp not visible takes no map and marks no page: its entry waits unrefer
     finishVirtualShadowFrame(state, frame)
     return frame
   }
+  const first = plan(true).lights
   assert.deepEqual(
-    plan(true).lights.map((l) => l.id),
+    first.map((l) => l.id),
     ['lamp', 'behind'],
   )
+  // The plan made a record a light every frame: now held, each rewritten whole.
+  const held = first[1],
+    again = plan(true).lights
+  assert.equal(again[1], held, 'the same record')
+  assert.deepEqual([held.id, !!held.local, held.clipmap], ['behind', true, undefined])
   const culled = plan(vsmLightSeen(behind, planes))
   assert.deepEqual(
     culled.lights.map((l) => l.id),
