@@ -97,14 +97,19 @@ var<workgroup> tally:array<atomic<u32>,2>;
 fn boundedDouble(v:vec2u)->bool{return dExponent(v)<${BOUNDED_EXPONENT}u;}
 /** \`frustumExcludesBox\` on the record's box at word \`at\`, proven in single precision
  *  relative to the eye: a plane leaves its most forward corner behind by more than the rounding
- *  can move it. */
+ *  can move it. Each of the eye's doubles is loaded once, for its two bounds. The eye is not
+ *  tested here: one past the bound, an infinity or a NaN clears \`PLANE_USABLE\` on all six planes
+ *  (\`writeFramePlanes\`, from the very eye the frame's doubles hold, \`order.ts\`), so no plane
+ *  rejects and the bounds brought to it are never read. */
 fn boxExcluded(at:u32)->bool{
  var box:array<f32,6>;
- for(var k=0u;k<6u;k++){
-  let v=keyedDouble(at+2u*k);
-  let e=frameDouble(FRAME_EYE+2u*(k%3u));
-  if(!boundedDouble(v)||!boundedDouble(e)){return false;}
-  box[k]=bitcast<f32>(toF32(dSub(v,e)));
+ for(var k=0u;k<3u;k++){
+  let e=frameDouble(FRAME_EYE+2u*k);
+  let lo=keyedDouble(at+2u*k);
+  let hi=keyedDouble(at+2u*(k+3u));
+  if(!boundedDouble(lo)||!boundedDouble(hi)){return false;}
+  box[k]=bitcast<f32>(toF32(dSub(lo,e)));
+  box[k+3u]=bitcast<f32>(toF32(dSub(hi,e)));
  }
  for(var p=0u;p<6u;p++){
   let sides=frame[FRAME_SIDES+p];

@@ -129,3 +129,30 @@ test('beside an eye a million metres out, a box a millimetre outside a plane is 
   assert.ok(!hasBit(gpu.keep, 1), 'a millimetre out: rejected')
   assert.equal(gpu.rejected, 1)
 })
+
+test('an eye past the bound, infinite or NaN: no plane rejects, every drawn box is kept', () => {
+  for (const x of [2 ** 61, Infinity, NaN]) {
+    const scene = verdictScene(2, lcgRandom(11), false)
+    for (let p = 0; p < 6; p++) {
+      const n = [0, 0, 0]
+      n[p >> 1] = p & 1 ? 1 : -1
+      scene.blendState.blendPlanes.set([n[0], n[1], n[2], 10], p * 4)
+    }
+    scene.blendState.drawsPacked.fill(NO_INDEX)
+    scene.blendState.blendGpu.forEach((item) =>
+      Object.assign(item, {
+        hidden: false,
+        transmissive: false,
+        flags: 0,
+        placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
+        bounds: new Float64Array([11, 0, 0, 12, 1, 1]),
+      }),
+    )
+    // The boxes lie a unit outside `x ≤ 10`: an eye at the origin rejects both.
+    const eye = [x, 0, 0]
+    orderBlendPasses(scene.blendState, eye)
+    const gpu = gpuVerdict(scene.blendState, [])
+    assert.ok(hasBit(gpu.keep, 0) && hasBit(gpu.keep, 1), `eye x = ${x}: both kept`)
+    assert.equal(gpu.rejected, 0)
+  }
+})
