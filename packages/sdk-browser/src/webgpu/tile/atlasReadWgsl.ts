@@ -5,7 +5,8 @@ import { tileKindWgsl } from './kindWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** The footprint read of atlas `k` through the texture's filter rule, and through its UV
- *  transform when it has one, whose words the transform flag alone fetches: `${k}Footprint`, the
+ *  transform when it has one, whose words the transform flag alone fetches (`${k}UvTransform`, the
+ *  one read of them, which the physical lobes' frame also calls): `${k}Footprint`, the
  *  filter rule through the affine 2 × 3 matrix (`Texture.transform`), on the coordinate and on its
  *  derivatives — a zero filter word reads as the default read does —, then the taps, on the
  *  textures of `pool` (`tilePoolWgsl`), which provides the footprint rule `tileRead` at its level
@@ -14,12 +15,16 @@ export const samplingReadWgsl = (k: string, pool: WgslDecl) =>
   wgslBlock(
     `samplingReadWgsl(${k})`,
     [pool, TILE_READ_WGSL, tileKindWgsl(k, pool)],
-    `fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
- if((s.sampling&${SAMPLE_TRANSFORMED}u)==0u){return tileRead(s,uv,ddx,ddy,aniso);}
+    `/** Slot \`slot\`'s UV transform (\`Texture.transform\`): its linear part in the first two
+ *  columns, its translation in the third; read only under the transform flag. */
+fn ${k}UvTransform(slot:u32)->mat3x2f{
  let h=PAGE_HEADER+slot*PAGE_SLOT+PAGE_TRANSFORM;
- let m=mat2x2f(bitcast<f32>(${k}Pages[h]),bitcast<f32>(${k}Pages[h+1u]),bitcast<f32>(${k}Pages[h+2u]),bitcast<f32>(${k}Pages[h+3u]));
- let t=vec2f(bitcast<f32>(${k}Pages[h+4u]),bitcast<f32>(${k}Pages[h+5u]));
- return tileRead(s,m*uv+t,m*ddx,m*ddy,aniso);
+ return mat3x2f(bitcast<f32>(${k}Pages[h]),bitcast<f32>(${k}Pages[h+1u]),bitcast<f32>(${k}Pages[h+2u]),bitcast<f32>(${k}Pages[h+3u]),bitcast<f32>(${k}Pages[h+4u]),bitcast<f32>(${k}Pages[h+5u]));
+}
+fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
+ if((s.sampling&${SAMPLE_TRANSFORMED}u)==0u){return tileRead(s,uv,ddx,ddy,aniso);}
+ let x=${k}UvTransform(slot);let m=mat2x2f(x[0],x[1]);
+ return tileRead(s,m*uv+x[2],m*ddx,m*ddy,aniso);
 }
 /** The taps of one level along a line already folded, the table entry read once when the line
  *  stays in one tile of that level — a segment whose ends share a tile lies in it. */

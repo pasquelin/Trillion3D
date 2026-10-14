@@ -65,8 +65,8 @@ fn physicalSample(i:u32,slot:u32)->vec4f{
 /** The linear part of a data slot's UV transform, identity without one. */
 fn physicalUvMatrix(slot:u32)->mat2x2f{
  if((dataSlot(slot).sampling&${SAMPLE_TRANSFORMED}u)==0u){return mat2x2f(1.0,0.0,0.0,1.0);}
- let h=PAGE_HEADER+slot*PAGE_SLOT+PAGE_TRANSFORM;
- return mat2x2f(bitcast<f32>(dataPages[h]),bitcast<f32>(dataPages[h+1u]),bitcast<f32>(dataPages[h+2u]),bitcast<f32>(dataPages[h+3u]));
+ let x=dataUvTransform(slot);
+ return mat2x2f(x[0],x[1]);
 }
 /** A tile this pixel asks of map \`i\`'s texture (\`request.ts\`), or zero without that map. */
 fn physicalRequest(p:RequestPick,missing:bool,i:u32)->u32{
