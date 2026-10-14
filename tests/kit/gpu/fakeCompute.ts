@@ -12,7 +12,7 @@ import { ROW_STAGES } from './fakeComputeRows.ts'
 import { boundResource, words, type BoundBuffer } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
-import { POOL_SORT_REPLAYS } from './fakePoolSorts.ts'
+import { poolSortReplayOf } from './fakePoolSorts.ts'
 import {
   DAG_SLOT,
   boundListCap,
@@ -70,7 +70,7 @@ export function simulateComputeDispatch(
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
   // A pool's queue on its sort's own group, by the program its pipeline runs (`fakePoolSorts.ts`).
-  const poolSort = POOL_SORT_REPLAYS.get(computePipeline?.module?.code ?? '')
+  const poolSort = poolSortReplayOf(computePipeline?.module?.code ?? '')
   if (stage === 'poolScatter' && poolSort) return poolSort(computeBind.entries, offsets)
   // The selection binds one table per `DAG_SLOT` name: one missing is a validation error. The
   // pool sort's last dispatch is the geometry queue's only on the selection's group.

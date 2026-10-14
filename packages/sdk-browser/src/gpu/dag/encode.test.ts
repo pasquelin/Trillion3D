@@ -39,6 +39,10 @@ test('each list is armed in the pass after the kernel that fills it, before the 
       ['dagWanted', CAND],
       ['dagMask', LIVE],
       ['dagDrawScatter', LIVE],
+      // The pool sort's group stages, on the record the host arms with the pool's list.
+      ['poolCount', POOL],
+      ['poolGroups', POOL],
+      ['poolSpread', POOL],
     ],
   )
   // The arming group in place, then the selection's back before any kernel of the cut.

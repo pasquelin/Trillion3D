@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, ETAGES, LIVE, CAND, QUEUE, POOL } from './encode.fixture.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
@@ -44,13 +44,13 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     'dagCommitMask',
     'dagSortRequests',
     'dagRaiseParents',
-    'poolCount',
     'poolPlace',
-    'poolGroups',
     'poolOffsets',
-    'poolSpread',
     'poolScatter',
   ])
+  // The pool sort's group stages walk the pool list's own count, armed by the host with it.
+  for (const kernel of ['poolCount', 'poolGroups', 'poolSpread'])
+    assert.equal(byKernel.get(kernel)?.list, POOL, `${kernel} follows the pool list`)
 })
 
 test('wait between launches depends only on depth, not on cluster count', () => {

@@ -10,7 +10,9 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('the pool sort is armed for the slots the list holds, in rows of the device width', () => {
   const gpu = fakeDevice({ limits: { maxComputeWorkgroupsPerDimension: 4 } })
-  const args = gpu.device.createBuffer({ size: 120, usage: GPUBufferUsage.STORAGE })
+  // The cut's argument buffer as it is made (`dagTables.ts`): an indirect record the host writes.
+  const usage = GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  const args = gpu.device.createBuffer({ size: 120, usage })
   const arm = poolSortArming(gpu.device, args)
   const record = () => {
     const last = gpu.writes.at(-1)!
