@@ -40,15 +40,19 @@ function factors(mat: MaterialSurface) {
   scratchInts[F.model] = (mat.model ?? 0) | (mat.fog === false ? FOG_FREE_MODEL_BIT : 0)
 }
 
-/** The volume of `mat` into `scratch`: its share let through, refraction and attenuation. */
-function volume(mat: MaterialSurface) {
+/**
+ * The volume of `mat` into `out` from word `at`, seven words: its share let through, its refraction
+ * ratio `1 / ior`, its thickness, Fresnel's `f0 = ((ior − 1) / (ior + 1))²` and the law's constant
+ * `k` (`volumeAttenuation`), each computed here once in f64 — the record's (`transmission` to
+ * `attenuation`) and the water composite's volume (`../transparent/transmission.ts`), one writer.
+ */
+export function writeVolumeTerms(out: Float32Array, at: number, mat: MaterialSurface) {
   const reflectance = (mat.ior - 1) / (mat.ior + 1)
-  scratch[F.transmission] = mat.transmission
-  scratch[F.invIor] = 1 / Math.max(mat.ior, 1e-3)
-  scratch[F.thickness] = mat.thickness
-  scratch[F.f0] = reflectance * reflectance
-  scratch.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), F.attenuation)
-  scratchInts[F.pad] = 0
+  out[at] = mat.transmission
+  out[at + 1] = 1 / Math.max(mat.ior, 1e-3)
+  out[at + 2] = mat.thickness
+  out[at + 3] = reflectance * reflectance
+  out.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), at + 4)
 }
 
 /**
@@ -72,7 +76,8 @@ export function writeMaterialRecord(
   scratchInts[F.aoIndex] = layerSlot(dataLayer, mat.aoMap)
   scratchInts[F.subsurfaceMap] = layerSlot(mapLayer, mat.subsurfaceMap)
   scratchInts[F.lobes] = lobes
-  volume(mat)
+  writeVolumeTerms(scratch, F.transmission, mat)
+  scratchInts[F.pad] = 0
   return copyChanged(ints, at, scratchInts)
 }
 
