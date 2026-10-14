@@ -20,7 +20,8 @@ import { REFLECTED_WGSL } from './weight.ts'
  *   the next image, whose surface buffer no longer holds it.
  *
  * `reflectionLinearDepth`: a clip point's depth that grows linearly along the view — its `w` under a
- * perspective, its `z` under an orthographic projection —, and `reflectionDepthPixel` the depth a pixel's
+ * perspective, its `z` under an orthographic projection —, `surfaceLinearDepth` the one of a world
+ * point in this view, and `reflectionDepthPixel` the depth a pixel's
  * footprint spans at it (`ReflectionView.slab`). `reflectionSameSurface`: how surely a texel of depth
  * `other` and normal `otherN` lies on the surface of depth `depth`, normal `N`, seen from `V`, `pixels`
  * pixels apart on the screen: one within the depth that surface spans across them — steeper as it turns
@@ -74,6 +75,7 @@ fn halfPixel(at:vec2i,pick:u32)->vec2i{
  return at*2+vec2i(i32((pick-1u)&1u),i32((pick-1u)>>1u));
 }
 fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,reflectionView.slab.w!=0.0);}
+fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}
 fn reflectionDepthPixel(depth:f32)->f32{
  return select(reflectionView.slab.z,depth*reflectionView.slab.x,reflectionView.slab.w!=0.0);
 }

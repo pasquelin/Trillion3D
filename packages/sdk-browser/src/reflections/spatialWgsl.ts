@@ -30,7 +30,7 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let coord=halfPixel(at,freshPick(centre));
  let own=reflectingPixelAt(layer,coord,0u);
  let P=own.P;let N=own.N;let V=own.V;
- let depth=reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));
+ let depth=surfaceLinearDepth(P);
  let last=vec2i(textureDimensions(spatialIn))-vec2i(1);
  let turn=f32(reflectionView.temporal.x%REFLECTION_SEQUENCE)*GOLDEN_ANGLE;
  var sum=texelReflected(centre);
@@ -43,7 +43,7 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
   let t=textureLoad(spatialIn,tap,0);
   if(!freshValid(t)||freshRadius(t)==0u){continue;}
   let s=halfPixel(tap,freshPick(t));
-  let other=reflectionLinearDepth(reflectionView.viewProj*vec4f(surfacePointAt(layer,s),1.0));
+  let other=surfaceLinearDepth(surfacePointAt(layer,s));
   let w=reflectionSameSurface(depth,N,V,other,normalize(surfaceNormalAt(s).xyz),distance(vec2f(s),vec2f(coord)));
   if(w<=0.0){continue;}
   let r=texelReflected(t);

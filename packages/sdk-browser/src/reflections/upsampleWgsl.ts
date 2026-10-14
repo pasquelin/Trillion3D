@@ -40,7 +40,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 /** The radiance the surface \`layer\` reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
 fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
- let depth=reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));
+ let depth=surfaceLinearDepth(P);
  // A neighbour's centre lies within two pixels of the pixel's on each axis.
  let g=historyGather(upsampleIn,(vec2f(coord)+vec2f(0.5))*0.5-vec2f(0.5),depth,N,V,2.0);
  if(g.sharpWeight>REFLECTION_EPSILON){

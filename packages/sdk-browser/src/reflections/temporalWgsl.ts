@@ -104,7 +104,7 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  }
  let held=temporalHistory(P,N,V,aim,vec2f(at*2+vec2i(1))-vec2f(coord)-vec2f(0.5));
  let full=u32(round(held.count));
- let depth=reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));
+ let depth=surfaceLinearDepth(P);
  var history=held.radiance;
  if(quiet==0u&&full>0u){history=temporalClamp(history,at);}
  let count=min(full+1u,REFLECTION_HISTORY);
