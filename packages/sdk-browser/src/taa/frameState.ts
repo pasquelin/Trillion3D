@@ -44,18 +44,34 @@ export interface TaaFrameState {
   stillPhase: number | null
 }
 
-/** What a convergence image replays of the last ordinary image: see `checkpoint`. */
-export function createTaaCheckpoint() {
+/** The fields a convergence image replays of the last ordinary image (`createTaaCheckpoint`): its
+ *  values, then its arrays, copied in place. */
+const REPLAYED = ['sample', 'stochasticSample', 'stillFrames', 'hasHistory', 'sceneSeen'] as const
+const REPLAYED_ARRAYS = ['previousViewProjection', 'previousEye'] as const
+
+const take = <K extends keyof TaaFrameState>(to: TaaFrameState, from: TaaFrameState, key: K) => {
+  to[key] = from[key]
+}
+const copyReplayed = (to: TaaFrameState, from: TaaFrameState) => {
+  for (const key of REPLAYED) take(to, from, key)
+  for (const key of REPLAYED_ARRAYS) to[key].set(from[key])
+}
+
+/** Where the last ordinary image of `frame` started, which a convergence image (re-rendering the
+ *  pose for arrived tiles) comes back to: `save` keeps it with that image's stillness, `restore`
+ *  puts it back and returns that stillness. */
+export function createTaaCheckpoint(frame: TaaFrameState) {
+  const saved = createTaaFrameState()
+  let quiet = false
   return {
-    read: 0,
-    sample: 0,
-    stochasticSample: 0,
-    stillFrames: 0,
-    hasHistory: false,
-    sceneSeen: -1,
-    quiet: false,
-    previousViewProjection: new Float64Array(16),
-    previousEye: new Float64Array(3),
+    save(stillness: boolean) {
+      copyReplayed(saved, frame)
+      quiet = stillness
+    },
+    restore() {
+      copyReplayed(frame, saved)
+      return quiet
+    },
   }
 }
 

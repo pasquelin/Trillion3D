@@ -11,7 +11,7 @@ import { surfaceOf } from '../../../page/surface.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
-import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts'
+import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/historyTargets.ts'
 import {
   MEASURE_HEIGHT,
   MEASURE_WIDTH,

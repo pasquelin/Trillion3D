@@ -1,5 +1,5 @@
 import { runtime } from './frame.fixture.ts'
-import { stochasticPhase } from './frameState.ts'
+import { createTaaCheckpoint, stochasticPhase } from './frameState.ts'
 import { convergeStillPhase, taaArrivals } from './frame.ts'
 import { restartTaaAverage, restartTaaOnLanding } from './landing.ts'
 import { taaStillFrames } from './jitter.ts'
@@ -23,27 +23,8 @@ export type Step =
 export function runOracle(steps: Step[]) {
   const { rt, temporal, frame } = runtime()
   const state = temporal.frame
-  const saved = { ...state, quiet: false }
-  Object.assign(temporal, {
-    checkpoint(quiet: boolean) {
-      Object.assign(saved, {
-        sample: state.sample,
-        stochasticSample: state.stochasticSample,
-        stillFrames: state.stillFrames,
-        hasHistory: state.hasHistory,
-        quiet,
-      })
-    },
-    replay() {
-      Object.assign(state, {
-        sample: saved.sample,
-        stochasticSample: saved.stochasticSample,
-        stillFrames: saved.stillFrames,
-        hasHistory: saved.hasHistory,
-      })
-      return saved.quiet
-    },
-  })
+  const saved = createTaaCheckpoint(state)
+  Object.assign(temporal, { checkpoint: saved.save, replay: saved.restore })
   Object.assign(rt.run.gate, { temporalRevision: 0 })
   const out: string[] = []
   const image = (quiet: boolean, converging = false, record = true) => {
