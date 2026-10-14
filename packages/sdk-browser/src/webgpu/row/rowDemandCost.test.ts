@@ -66,16 +66,37 @@ test('per readback, the row table is read per change, never per id named', () =>
     table.setRowOf(page, page >> 3)
     table.setResidentFlag(page, 1)
   }
+  // The reads the demand makes of the table: whether the cut reads a page resident, whether it
+  // holds a row.
   let rowReads = 0
-  const counted = { ...table, rowOf: (page: number) => (rowReads++, table.rowOf(page)) }
+  const counted = {
+    ...table,
+    readsResident: (page: number) => (rowReads++, table.readsResident(page)),
+    hasRow: (page: number) => (rowReads++, table.hasRow(page)),
+  }
   const demand = createRowDemand(counted, () => true, closeAlone)
-  let named = 0
+  let named = 0,
+    entered = 0
+  const held = { asked: new Set<number>(), ahead: new Set<number>() }
+  const enters = (ids: number[], was: Set<number>) => {
+    for (const id of ids) if (!was.has(id)) entered++
+    return new Set(ids)
+  }
   for (const cut of readbacks(count, 24)) {
     demand.follow(cut)
+    // Every request served at once: nothing is left pending to the next readback.
+    demand.serve(
+      () => true,
+      () => true,
+    )
     named += cut.pageIds.length + cut.aheadPageIds.length
+    held.asked = enters(cut.pageIds, held.asked)
+    held.ahead = enters(cut.aheadPageIds, held.ahead)
   }
-  // The row table is read for what entered or left the requests' closure alone, never per id named.
-  assert.ok(rowReads < named / 4, `${rowReads} row reads for ${named} ids named`)
+  // The row table is read for what entered the requests alone, never per id named.
+  assert.ok(rowReads > 0, 'the demand reads the table')
+  assert.ok(rowReads <= entered, `${rowReads} row reads for ${entered} ids entered`)
+  assert.ok(entered < named / 2, `${entered} ids entered of ${named} named`)
 })
 
 test('the demand holds bytes by the pages it holds, never by the largest: one asked at 10⁹', () => {

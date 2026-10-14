@@ -8,10 +8,10 @@ import type { CutDelta } from '../cut/delta.ts'
  *  and the bytes its tables hold. */
 export type InstanceClosure = Pick<GroupClosure, 'apply' | 'delta' | 'hostBytes'>
 
-/** What the demand reads of the row table: each page's row, -1 none, and whether the cut reads it
- *  resident — read per id at each readback, off the sparse maps (`pageState.ts`). */
+/** What the demand reads of the row table: whether a page holds a row, and whether the cut reads it
+ *  resident — read per page entering the requests and per pending entry, off the sparse maps
+ *  (`pageState.ts`). */
 type DemandTable = {
-  rowOf(page: number): number
   hasRow(page: number): boolean
   /** Whether the cut reads `page` resident: a row of its own, and its bytes there. */
   readsResident(page: number): boolean
