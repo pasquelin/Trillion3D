@@ -1,8 +1,9 @@
 /**
  * WHAT THE ROWS PASS HOLDS ON THE GPU (`rowWordsPass.ts`): its parameters, the list of the rows the
  * CPU named, a stand-in for each part not made, its two bind groups — the named rows', the composed
- * rows' or every row's — and the buffers it last bound, one of which made anew has every row derived. The shadow
- * changes it appends to and the mobility words it reads them by are the lights' (`castsBound`).
+ * rows' or every row's — and the buffers it last bound, one of which made anew has every row
+ * derived. The shadow changes it appends to and the mobility words it reads them by are the lights'
+ * (`castsBound`).
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'

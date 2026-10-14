@@ -12,12 +12,12 @@ import {
 } from './recordLayout.ts'
 
 /**
- * A record table made on `device` for `records` records — none still a row's worth —: its texture and the view every pass binds
- * (`2d-array`, whatever its layers), and the writes of the host — a run of records' field from the
- * bytes that hold it, or through a byte target (`target`), what the cut's run writer sends
- * (`../dag/runWrites.ts`, `writeRanges`). `usage` is the texture's, the caller's: a GPU writer adds
- * `STORAGE_BINDING`, a table that grows (`hold`) `COPY_SRC`. `make` creates it, `bytes` large: an
- * owner's admission and ledger (`../dag/resources.ts`).
+ * A record table made on `device` for `records` records — none still a row's worth —: its texture
+ * and the view every pass binds (`2d-array`, whatever its layers), and the writes of the host — a
+ * run of records' field from the bytes that hold it, or through a byte target (`target`), what the
+ * cut's run writer sends (`../dag/runWrites.ts`, `writeRanges`). `usage` is the texture's, the
+ * caller's: a GPU writer adds `STORAGE_BINDING`, a table that grows (`hold`) `COPY_SRC`. `make`
+ * creates it, `bytes` large: an owner's admission and ledger (`../dag/resources.ts`).
  *
  * A table grows in place of a second one beside it (`hold`): made larger, the records it held
  * copied on the GPU once, in the queue's order behind every write sent to it, the one replaced

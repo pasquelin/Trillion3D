@@ -12,9 +12,6 @@ import type { ProxyCopy } from './proxyInstances.ts'
 import { INSTANCE, INSTANCE_WORDS, RUNTIME_WORLD_WORDS } from '../../bounce/runtimeLayout.ts'
 import { tintOf, type ProxyState } from './proxyState.ts'
 
-/** A blended copy's world matrix, sixteen words. */
-const WORLD_WORDS = RUNTIME_WORLD_WORDS
-
 /** The copies of the proxy `state` holds: `set` takes the host's list, `sync` writes what moved. */
 export function createProxyCopies(state: ProxyState) {
   const { slots, held, arena, columns, posed, writeInstances, noteError } = state
@@ -51,8 +48,8 @@ export function createProxyCopies(state: ProxyState) {
       moved = setWord(at + INSTANCE.mark, 0) || moved
       if (!shown) return
       const world = copy.matrix.elements
-      if (!sameMatrixFloat32(held.copyWorlds, world, k * WORLD_WORDS)) {
-        copyMatrix4(held.copyWorlds, world, k * WORLD_WORDS)
+      if (!sameMatrixFloat32(held.copyWorlds, world, k * RUNTIME_WORLD_WORDS)) {
+        copyMatrix4(held.copyWorlds, world, k * RUNTIME_WORLD_WORDS)
         moved = true
       }
       noteError(cut.cellMetres, world, 0)
@@ -64,7 +61,7 @@ export function createProxyCopies(state: ProxyState) {
   }
 
   /** The copies the instance words and worlds are laid out for. */
-  const copiesHeld = () => held.copyWorlds.length / WORLD_WORDS
+  const copiesHeld = () => held.copyWorlds.length / RUNTIME_WORLD_WORDS
 
   /** The blended copies the forward family draws, members of this proxy after the placements:
    *  their poses are the host's (`BlendCopy.matrix`), read again at each cut. The host's list grows
@@ -78,7 +75,7 @@ export function createProxyCopies(state: ProxyState) {
       posed.dropPast(slots + next.length)
       held.words = new Uint32Array((slots + next.length) * INSTANCE_WORDS).fill(NO_INDEX)
       held.words.set(kept)
-      held.copyWorlds = new Float32Array(next.length * WORLD_WORDS)
+      held.copyWorlds = new Float32Array(next.length * RUNTIME_WORLD_WORDS)
       arena.relayout({ copies: next.length })
     } else held.copies = next
     syncCopies()

@@ -6,8 +6,8 @@ import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differen
 import { buildComputeStages } from '../core/computeStages.ts'
 
 /** Every selection stage of `module` on `layout`; a device whose dispatch width is not WebGPU's
- *  default sets its own (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds exactly these
- *  (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
+ *  default sets its own (`GROUP_WIDTH`, `../dispatch/grid.ts`). The real-GPU compile probe builds
+ *  exactly these (`tests/gpu/dag/kernels-compile.gpu.ts`). All compile together, off the thread. */
 export async function createDagStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,

@@ -8,12 +8,12 @@
  * nor a word a row of it holds. The world boxes are the root boxes pass's alone.
  *
  * Every send names the roots it moved twice, for the two passes that derive from them: the rows
- * pass and the root boxes pass, each taking its list when it runs (`takeMoved`). A root the running cut took in place before it joins the session (`webgpuGrowth.ts`) is
- * sent at its rank and named to the root boxes pass alone, which writes its stretch before the cut
- * reads it: the stretch is never the host's. The tables are sized by the roots, grown by the one
- * rule (`grownLength`) and copied on the GPU, so what the GPU wrote — a composed world, a world box —
- * survives a growth; a table made, or one whose rows were all written again (`tableEpoch`), sends
- * every root.
+ * pass and the root boxes pass, each taking its list when it runs (`takeMoved`). A root the running
+ * cut took in place before it joins the session (`webgpuGrowth.ts`) is sent at its rank and named
+ * to the root boxes pass alone, which writes its stretch before the cut reads it: the stretch is
+ * never the host's. The tables are sized by the roots, grown by the one rule (`grownLength`) and
+ * copied on the GPU, so what the GPU wrote — a composed world, a world box — survives a growth; a
+ * table made, or one whose rows were all written again (`tableEpoch`), sends every root.
  */
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'

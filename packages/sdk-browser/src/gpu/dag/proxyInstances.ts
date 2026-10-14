@@ -1,23 +1,23 @@
 /**
- * THE PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the scene beyond the visible cut
- * (`bounce/runtimeSceneWgsl.ts`) — the meshes the compiler built a proxy for (`proxy.bin`) and the cuts the
- * world made at run time, one structure. Its instances — four words a placement, written next to the
- * culling's own rows, the same `w`, then one for each blended copy the forward family draws (the members
- * after the placements: they are no member of the culling's tree) — are the `Instance` field of the
- * culling's records (`worldTable.ts`), beside each placement's world, whatever the world's size: the table
- * grows for the copies (`RecordTexture.hold`). One buffer (`bounce/runtimeLayout.ts`) holds the rest,
- * bounded by the meshes, not by the placements: the copies' worlds, a surface a drawn material, and the
- * arena of the meshes' proxies, each uploaded once, when a placement or a copy first wears it. The
- * placements' worlds and the placement tree are the culling's, read where they lie (`worldTable.ts`,
- * `treeTable.ts`): nothing of them is copied.
+ * THE PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the scene beyond the visible
+ * cut (`bounce/runtimeSceneWgsl.ts`) — the meshes the compiler built a proxy for (`proxy.bin`) and
+ * the cuts the world made at run time, one structure. Its instances — four words a placement,
+ * written next to the culling's own rows, the same `w`, then one for each blended copy the forward
+ * family draws (the members after the placements: they are no member of the culling's tree) — are
+ * the `Instance` field of the culling's records (`worldTable.ts`), beside each placement's world:
+ * the table grows for the copies (`RecordTexture.hold`). The rest lies in one buffer its arena lays
+ * out and grows (`proxyArena.ts`): the copies' worlds (`proxyCopies.ts`), the surfaces and the
+ * meshes' proxies, which take their spans there (`proxyColumns.ts`). The placements' worlds and the
+ * placement tree are the culling's, read where they lie: nothing of them is copied.
  *
- * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its making, a
- * compiled mesh's when the cache object arrives (`arrived`), which writes every instance again.
+ * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its
+ * making, a compiled mesh's when the cache object arrives (`arrived`), which writes every instance
+ * again.
  *
  * A member of the run (`runtime.ts`): its operations tell it what moved — roots appended, a
- * placement parked or marked — and each cut refreshes the surfaces a host edited and the copies that
- * moved since. Without a placement or a copy that wears a proxy, no buffer is made and `buffers`
- * answers none: the trace reads its empty stand-ins.
+ * placement parked or marked — and each cut refreshes the surfaces a host edited and the copies
+ * that moved since. Without a placement or a copy that wears a proxy, no buffer is made and
+ * `buffer()` answers none: the trace reads its empty stand-ins.
  */
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { INSTANCE, INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'

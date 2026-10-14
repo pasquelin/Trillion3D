@@ -23,7 +23,8 @@ export const affineAxis = wgslFn(
 /** The text of `boxTransform` of a box (six doubles, its minima then its maxima) by `m`: the union
  *  of its eight carried corners, each divided by its `w` unless the last row is `0, 0, 0, 1` — that
  *  divide written only when `projective` —. A corner reaching a NaN leaves a NaN bound. One body,
- *  two entry points (`dBoxTransform`, `dBoxAffine`): an affine world takes the same words in both. */
+ *  two entry points (`dBoxTransform`, `dBoxAffine`): an affine world takes the same words in
+ *  both. */
 function boxTransformText(name: string, projective: boolean) {
   // Whether `m` is affine, and each corner divided by its `w` when it is not.
   const affine = `
