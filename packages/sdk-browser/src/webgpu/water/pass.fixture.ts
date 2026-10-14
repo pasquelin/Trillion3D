@@ -112,7 +112,7 @@ export function prepared() {
     size: 4096,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  blendState.viewBuffer = buffer()
+  Object.assign(blendState, { viewBuffer: buffer(), itemBuffer: buffer() })
   return { blendState, gpu }
 }
 

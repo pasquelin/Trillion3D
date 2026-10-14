@@ -100,6 +100,19 @@ fn waterBoxTransform(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{
  }
  return out;
 }
+/** How far the pose \`m\` stretches a length, bounded: the larger of its linear part's column and
+ *  row sums of magnitudes, \`max(‖M‖₁, ‖M‖∞)\`, above its largest singular value — the most a
+ *  volume's declared thickness grows to the world (\`volumeWorldPath\`); 1 for a rigid pose along
+ *  the axes. \`waterStretch\` of the CPU (\`waterRect.fixture.ts\`), sum for sum. */
+fn waterStretch(m:array<vec2u,16>)->vec2u{
+ var stretch=D_ZERO;
+ for(var k=0u;k<3u;k++){
+  let column=dAdd(dAdd(dAbs(m[k*4u]),dAbs(m[k*4u+1u])),dAbs(m[k*4u+2u]));
+  let row=dAdd(dAdd(dAbs(m[k]),dAbs(m[4u+k])),dAbs(m[8u+k]));
+  stretch=dMathMax(dMathMax(stretch,column),row);
+ }
+ return stretch;
+}
 /** \`encloseTransform(box, m)\`: the transformed box widened by the absolute error of its
  *  binary32 product-sums; refused (a NaN first bound) for a non-finite or inverted box, a
  *  denominator interval reaching zero, an overflow or a non-finite result. */

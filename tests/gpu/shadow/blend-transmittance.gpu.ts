@@ -1,5 +1,5 @@
 // A transparent caster's coloured transmission on the GPU (`transmittanceWgsl.ts`): the shipped
-// `blendTransmittance`, `volumeBoundary` and `volumeWorldThickness` run on one known page, its
+// `blendTransmittance`, `volumeBoundary` and `volumeWorldPath` run on one known page, its
 // surface's record written by the engine's material table (`materialTable.ts`) and bound at the
 // number the shadow's page group binds it at, their arithmetic read back. The two material reads it
 // calls are the proof's: a half alpha, a fixed colour.
@@ -45,7 +45,7 @@ const SHADER = wgslProgram(
  p.material=0u;
  if(id.x==1u){p.flags=12u;}
  if(id.x<2u){result[id.x]=blendTransmittance(p,vec2f(0),vec2f(1,0),vec2f(0,1),vec3f(0,0,1));}
- else{result[id.x]=vec4f(select(0.0,1.0,volumeBoundary(p,true)),select(0.0,1.0,volumeBoundary(p,false)),volumeWorldThickness(p,vec3f(0,0,1)),1.0);}
+ else{result[id.x]=vec4f(select(0.0,1.0,volumeBoundary(p,true)),select(0.0,1.0,volumeBoundary(p,false)),volumeWorldPath(p.world,materialAt(p.material).thickness,vec3f(0,0,1)),1.0);}
 }`,
   [PAGE_INFO_STRUCT_WGSL, blendTransmittanceWgsl(MASK_ALPHA, COLOR_SAMPLE)],
 )

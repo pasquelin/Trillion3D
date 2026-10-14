@@ -8,11 +8,12 @@ import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 
 /** What the composite's group is made of (`createWaterCompositeLayout`): the frame's targets,
- *  the blend view, the lighting and the verdict whose rectangle the quad covers. */
+ *  the blend view, the lighting, the item records and the verdict whose rectangle the quad covers. */
 export type WaterSources = {
   gpu: WebgpuGpuState
   uniform: GPUBuffer
   lighting: BlendLighting
+  items: GPUBuffer
   verdict: GPUBuffer
 }
 /** A binding's layout past its number, and its stage when the vertex's (the fragment's
@@ -31,8 +32,8 @@ const b = WATER_BINDINGS
  *  contract's numbers (`CONTRACT_VSM_BINDINGS`), the translucent depth made and dropped with the
  *  transmittance —, what its pixels trace their shadow with (the projection's view and noise), the
  *  probes, the proxy and the culling's records — its worlds and instances — and its tree, the frozen
- *  backdrop and its depth, the blend view, the volumes and, for the vertex stage, the verdict its
- *  quad reads the rectangle from. */
+ *  backdrop and its depth, the blend view, the volumes, the item records whose poses they name
+ *  and, for the vertex stage, the verdict its quad reads the rectangle from. */
 const HELD: readonly Held[] = [
   [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
   [b.depth, ({ gpu }) => gpu.backdrop!.waterDepthView],
@@ -67,6 +68,7 @@ const HELD: readonly Held[] = [
   [b.backdropDepth, ({ gpu }) => gpu.depthView, { texture: { sampleType: 'depth' } }],
   [b.uniform, ({ uniform }) => uniform, { buffer: { type: 'uniform' } }],
   [b.volumes, ({ gpu }) => gpu.volumeBuffer, { buffer: readOnly }],
+  [b.items, ({ items }) => items, { buffer: readOnly }],
   [b.rect, ({ verdict }) => verdict, { buffer: readOnly, vertex: true }],
 ]
 
@@ -119,7 +121,7 @@ export function nameWaterResources(next: unknown[], sources: WaterSources) {
 }
 
 /** The composite's bind group entries (`createWaterCompositeLayout`), on the targets `bind` found
- *  (`frame.ts`): the three material surfaces, the bindings of `HELD`, and the lobes target the
+ *  (`frameBind.ts`): the three material surfaces, the bindings of `HELD`, and the lobes target the
  *  lobed stage left, or the opaque resolve (`waterLobesWgsl.ts`). */
 export function waterCompositeEntries(sources: WaterSources): GPUBindGroupEntry[] {
   const surfaces = sources.gpu.surfaces!,

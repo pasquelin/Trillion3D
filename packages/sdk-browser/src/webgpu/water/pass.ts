@@ -74,7 +74,7 @@ export function encodeWaterPass(
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
   // fragment carries that colouring, and the composite has none. A capture from a second camera
   // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
-  const { viewBuffer, lighting, expand } = blendState
+  const { viewBuffer, lighting, expand, itemBuffer } = blendState
   // No transmissive item can draw this image (`waterQuiet`): the slice is handled, drawn by none.
   if (blendState.waterQuiet && composesWater(rt, composes)) return true
   if (
@@ -83,7 +83,8 @@ export function encodeWaterPass(
     !viewBuffer ||
     !lighting ||
     !expand ||
-    !water.frame.bind(gpu, viewBuffer, lighting, expand.buffers.verdict)
+    !itemBuffer ||
+    !water.frame.bind(gpu, viewBuffer, lighting, itemBuffer, expand.buffers.verdict)
   )
     return false
   const lit = key ?? directLightResources(rt)

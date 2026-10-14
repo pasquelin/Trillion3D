@@ -8,13 +8,13 @@ import type { WebgpuBlendState } from '../blend/state.ts'
 /**
  * WHAT THE WATER RECTANGLE KNOWS OF A TRANSMISSIVE ITEM, by water rank (`rectWgsl.ts`): the six
  * doubles of its geometry's local box — grown by its deformation's reach when deformed
- * (`deformLocal`), what its deformed vertices stay in —, then its item rank and whether its rectangle may crop the
+ * (`deformLocal`), what its deformed vertices stay in —, then whether its rectangle may crop the
  * pass at all — a local box known, its own triangles (a paged surface keeps full coverage), no
- * line or sprite surface. Its world box and pose are the key record's and the item record's, read
- * where they are.
+ * line or sprite surface. Its item rank is its volume's (`VOLUME_ITEM`), its world box and pose
+ * the key record's and the item record's, read where they are.
  */
-export const WATER_ITEM_WORDS = 16
-const WATER_ITEM = { item: 12, crops: 13 } as const
+export const WATER_ITEM_WORDS = 14
+const WATER_ITEM = { crops: 12 } as const
 
 /** The record's layout as the rectangle kernel names it. */
 export const WATER_ITEM_WGSL = wgslBlock(
@@ -22,7 +22,6 @@ export const WATER_ITEM_WGSL = wgslBlock(
   [],
   wgslConsts({
     WATER_ITEM_WORDS,
-    WATER_ITEM_RANK: WATER_ITEM.item,
     WATER_ITEM_CROPS: WATER_ITEM.crops,
   }),
 )
@@ -39,17 +38,16 @@ export function writeWaterItems(blendState: WebgpuBlendState) {
   blendState.waterItemsMoved = false
   const packed = blendState.waterItemPacked,
     words = blendState.waterItemWords
-  blendState.blendGpu.forEach((item, i) => {
+  for (const item of blendState.blendGpu) {
     const rank = waterRankOf(item.flags)
-    if (!rank || rank > count) return
+    if (!rank || rank > count) continue
     const at = (rank - 1) * WATER_ITEM_WORDS,
       local = item.sourceGeometry?.boundingBox
     if (item.deformLocal) packed.set(item.deformLocal, at / 2)
     else if (local) readHostBox(local, packed, at / 2)
     else packed.fill(0, at / 2, at / 2 + 6)
-    words[at + WATER_ITEM.item] = i
     const own = !(item.flags & FLAG_CLUSTER_PAGE) && !item.surface.lineWidth && !item.surface.sprite
     words[at + WATER_ITEM.crops] = local && own ? 1 : 0
-  })
+  }
   return words.subarray(0, count * WATER_ITEM_WORDS)
 }

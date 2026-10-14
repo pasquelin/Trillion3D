@@ -3,14 +3,14 @@ import { frontAttachment, frontFromWater } from '../../reflections/frontAttachme
 import { createWaterCopy } from './copy.ts'
 import { createWaterDepthRestore } from './depthRestore.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import { bindWaterFrame, type WaterFrameState } from './frameBind.ts'
 import { drawBlendRuns } from '../blend/draw.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { BlendPipelines } from '../blend/stagePipelines.ts'
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { nameWaterResources, waterCompositeEntries, type WaterSources } from './compositeGroup.ts'
+import type { WaterSources } from './compositeGroup.ts'
 import { createWaterCompositeLayout, createWaterComposites } from './pipelines.ts'
 import { routedFilter } from '../blend/displayFilter.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
@@ -62,10 +62,16 @@ export async function createWaterFrame(
     /** The compile a frame of lobed transmissive items waits for while no composite with the lobe
      *  code is ready: the one with every code path, which lights any (`askLobedPrograms`). */
     lobedAwaited: () => composites.awaited(FULL_CONTRACT),
-    /** Names the frame's targets and resources, and the verdict whose rectangle and gate the pass
-     *  draws by; false while one of them does not exist. */
-    bind: (gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting, verdict: GPUBuffer) =>
-      bindWaterFrame(frame, gpu, uniform, lighting, verdict),
+    /** Names the frame's targets and resources, the item records whose poses the volumes name, and
+     *  the verdict whose rectangle and gate the pass draws by; false while one of them does not
+     *  exist. */
+    bind: (
+      gpu: WebgpuGpuState,
+      uniform: GPUBuffer,
+      lighting: BlendLighting,
+      items: GPUBuffer,
+      verdict: GPUBuffer,
+    ) => bindWaterFrame(frame, gpu, uniform, lighting, items, verdict),
     /** Encodes the water pass on the image the blends left (`encodeWaterFrame`). */
     encode: (
       rt: WebgpuPagesRuntime,
@@ -82,76 +88,6 @@ export async function createWaterFrame(
       frame.surfaces = undefined
     },
   }
-}
-
-type WaterComposites = Awaited<ReturnType<typeof createWaterComposites>>
-/** What a water frame holds from image to image: its programs, its passes and its bind groups.
- *  What the composite's group names is held twice, with a group each (`groups`, by identity slot):
- *  the shadow maps' tables the lighting binds are double-buffered, and their frames take turns.
- *  What the passes' targets name is held apart (`targets`): they are rebound when one of them
- *  moves, never with the lighting. */
-type WaterFrameState = {
-  device: GPUDevice
-  layout: GPUBindGroupLayout
-  composites: Awaited<ReturnType<typeof createForwardVariants<WaterComposites>>>
-  restore: Awaited<ReturnType<typeof createWaterDepthRestore>>
-  copy: Awaited<ReturnType<typeof createWaterCopy>>
-  /** What the composite's group names, rewritten in place each frame. */
-  sources: WaterSources
-  identity: ReturnType<typeof createWebgpuBindIdentity>
-  targets: ReturnType<typeof createWebgpuBindIdentity>
-  groups: (GPUBindGroup | undefined)[]
-  passes: ReturnType<typeof createWaterPasses>
-  group?: GPUBindGroup
-  surfaces?: SurfaceBuffer
-}
-
-/** The frame's targets and resources named; rebuilt only where one of them moved, the composite's
- *  group kept for each identity slot. */
-function bindWaterFrame(
-  frame: WaterFrameState,
-  gpu: WebgpuGpuState,
-  uniform: GPUBuffer,
-  lighting: BlendLighting,
-  verdict: GPUBuffer,
-) {
-  const { surfaces, backdrop, deferred, volumeBuffer, hdrTexture, hdrView, depthView } = gpu
-  if (!surfaces || !hdrTexture || !hdrView || !gpu.depthTexture || !depthView) return false
-  if (!gpu.colorView || !backdrop?.active || !deferred || !volumeBuffer) return false
-  const named = frame.targets.next
-  named[0] = surfaces
-  named[1] = depthView
-  named[2] = backdrop
-  named[3] = gpu.colorView
-  named[4] = verdict
-  named.length = 5
-  if (frame.targets.moved()) {
-    frame.surfaces = surfaces
-    frame.restore.bind(depthView, verdict)
-    frame.passes.bind(surfaces, backdrop.waterDepthView, gpu.colorView)
-  }
-  // The HDR target is one of two that take turns (`reflections/radiance.ts`): the copy holds a
-  // group for each, the composite pass names it in its descriptor alone.
-  frame.copy.bind(hdrView, backdrop.colorView, verdict)
-  frame.passes.light(hdrView)
-  const { identity, groups, sources } = frame
-  sources.gpu = gpu
-  sources.uniform = uniform
-  sources.lighting = lighting
-  sources.verdict = verdict
-  nameWaterResources(identity.next, sources)
-  const kept = identity.moved() ? undefined : groups[identity.slot]
-  if (kept) {
-    frame.group = kept
-    return true
-  }
-  // Until it is made, the slot holds no group: a refused one is asked again.
-  groups[identity.slot] = undefined
-  frame.group = groups[identity.slot] = frame.device.createBindGroup({
-    layout: frame.layout,
-    entries: waterCompositeEntries(sources),
-  })
-  return true
 }
 
 /**

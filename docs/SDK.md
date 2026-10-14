@@ -415,7 +415,8 @@ stretches its specular lobe along the anisotropy.
 Lit materials can declare `subsurfaceColor` (black, off, by default) and an optional `subsurfaceMap`
 for thin **double-sided** surfaces such as foliage: light arriving through the back, tinted.
 Diffuse thin-surface transmission, not a volume: a glass volume uses physical `transmission`,
-`thickness`, `attenuationColor` and `attenuationDistance`.
+`thickness`, `attenuationColor` and `attenuationDistance`. The thickness is in the mesh's own units,
+as glTF's: a placement scaled twice crosses, refracts and shadows through twice the path.
 
 With `transparentShadow: true`, blended glass tints the shadow transmission atlas by its base color
 and texture; a nonzero volume thickness applies Beer attenuation once at the entrance of a closed

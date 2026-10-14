@@ -109,6 +109,14 @@ function affineSurface(
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1
 }
 
+/** `waterStretch` of the GPU (`encloseWgsl.ts`), sum for sum: `max(‖M‖₁, ‖M‖∞)` of `m`. */
+function waterStretch(m: ArrayLike<number>, stretch = 0) {
+  const sum = (a: number, b: number, c: number) => Math.abs(m[a]) + Math.abs(m[b]) + Math.abs(m[c])
+  for (let k = 0; k < 3; k++)
+    stretch = Math.max(Math.max(stretch, sum(4 * k, 4 * k + 1, 4 * k + 2)), sum(k, 4 + k, 8 + k))
+  return stretch
+}
+
 /** Called only for the kept transmissive items that draw. Unknown geometry keeps full coverage,
  * including unsupported quantized-page water; a deformed whole copy crops by its grown box. */
 function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
@@ -146,9 +154,9 @@ function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Ar
     full(b, b.backdrop)
     return
   }
-  // Normalization, P + dir * path and the pixel conversion also round in binary32. The
-  // normalized component's error is bounded by the same operation-count guard as the matrices.
-  widenBox(b.reconstructed, Math.max(0, thickness) * (1 + 16 * ROUND))
+  // The declared thickness is the mesh's, at most its pose's stretch in the world. Normalization,
+  // P + dir * path and the pixel conversion also round in binary32: the matrices' guard bounds them.
+  widenBox(b.reconstructed, Math.max(0, thickness) * waterStretch(b.matrix) * (1 + 16 * ROUND))
   if (!project(b, b.reconstructed)) full(b, b.backdrop)
   else {
     union(b.backdrop, b.rect)

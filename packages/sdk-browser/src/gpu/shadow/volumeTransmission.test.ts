@@ -37,9 +37,9 @@ const page = () => ({
   },
 })
 type Page = ReturnType<typeof page>
-const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
+const { volumeBoundary, volumeWorldPath, blendTransmittance } = shaderRun<{
   volumeBoundary: (page: Page, front: boolean) => boolean
-  volumeWorldThickness: (page: Page, ray: number[]) => number
+  volumeWorldPath: (world: number[][], thickness: number, ray: number[]) => number
   blendTransmittance: (
     page: Page,
     uv: number[],
@@ -51,7 +51,7 @@ const { volumeBoundary, volumeWorldThickness, blendTransmittance } = shaderRun<{
   wgslModule(blendTransmittanceWgsl(MASK_ALPHA, COLOR_SAMPLE)),
   [
     'volumeBoundary',
-    'volumeWorldThickness',
+    'volumeWorldPath',
     'blendTransmittance',
     'volumeTransmittance',
     'matrixWindingCwTriple',
@@ -89,16 +89,19 @@ test('a closed volume absorbs once; two volumes multiply, while thin sheets reta
 
 test('declared local path scales along the light ray, including shear and singular transforms', () => {
   const p = page()
+  /** The page's world path along `ray`, its thickness the record's. */
+  const path = (ray: number[]) => volumeWorldPath(p.world, p.material.thickness, ray)
+  assert.equal(path([1, 0, 0]), 2, 'a rigid pose keeps the declared thickness')
   p.world = world(2, 3, 4)
-  assert.equal(volumeWorldThickness(p, [1, 0, 0]), 4)
-  assert.equal(volumeWorldThickness(p, [0, 10, 0]), 6)
-  assert.equal(volumeWorldThickness(p, [0, 0, 1]), 8)
+  assert.equal(path([1, 0, 0]), 4)
+  assert.equal(path([0, 10, 0]), 6)
+  assert.equal(path([0, 0, 1]), 8)
   p.world = world()
   p.world[1][0] = 1
-  assert.ok(Math.abs(volumeWorldThickness(p, [1, 1, 0]) - 2 * Math.sqrt(2)) < 1e-12)
+  assert.ok(Math.abs(path([1, 1, 0]) - 2 * Math.sqrt(2)) < 1e-12)
   p.world = world(1, 0, 1)
-  assert.equal(volumeWorldThickness(p, [0, 1, 0]), 0)
-  assert.equal(volumeWorldThickness(p, [0, 0, 0]), 0)
+  assert.equal(path([0, 1, 0]), 0)
+  assert.equal(path([0, 0, 0]), 0)
 })
 
 test('the color atlas tints transmission independently of coverage, retaining alpha shadow behavior', () => {
