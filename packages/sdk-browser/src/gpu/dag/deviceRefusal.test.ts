@@ -89,9 +89,9 @@ test('the host is told why, and no buffer is made', async () => {
   const [root] = packed(dagFixture()).roots
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 64, maxBufferSize: 1 << 20 } })
   const refusals: unknown[] = []
-  const dag = packDagSelection([root])
-  const selection = await createGpuDagSelection(fake.device, dag, {
-    roots: hostStretches(dag),
+  const one = packDagSelection([root])
+  const selection = await createGpuDagSelection(fake.device, one, {
+    roots: hostStretches(one),
     onRefused: (reason, details) => refusals.push({ reason, ...details }),
   })
   assert.equal(selection, undefined)
