@@ -5,6 +5,7 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
+import { REFLECTION_FORMAT } from './constants.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { REFLECTION_CENTRE_WGSL, REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
@@ -139,7 +140,7 @@ fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)-
 /** The reflection target, read by load alone by the opaque resolve. */
 export const REFLECTION_TARGET = loadOnlyTarget(
   DEFERRED_BINDINGS.reflection,
-  'rgba16float',
+  REFLECTION_FORMAT,
   'reflectionTarget',
 )
 

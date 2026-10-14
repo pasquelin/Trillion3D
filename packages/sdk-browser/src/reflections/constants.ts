@@ -61,7 +61,7 @@ export const REFLECTION_COUNTS = {
   REFLECTION_SEQUENCE: 4096,
 } as const
 
-/** The format of the reflection target and of the radiance pyramid: the lit image's. */
+/** The format of the reflection target: the lit image's precision. */
 export const REFLECTION_FORMAT: GPUTextureFormat = 'rgba16float'
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 export const REFLECTION_SIDE = 8
