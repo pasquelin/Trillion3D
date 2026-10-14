@@ -45,9 +45,10 @@ export type TransformEvent = 'change' | 'dragStart' | 'dragEnd'
  * world's or the object's own axes, rounded to `snap`. The handles are scene meshes (`helper`
  * marks, `transformHandles.ts`) kept at one screen size; a press is picked on them by the world's
  * ray query, hovered as the pointer moves (`transformDrag.ts`), before the camera controller hears
- * it, so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the object's local pose from the world pose it
- * asks for, through its parents. Nothing runs between frames: the handles follow the view after
- * a frame the world drew, and a still scene draws none.
+ * it, so an orbit rests while a handle is dragged and resumes after, with no page code. A drag
+ * writes the object's local pose from the world pose it asks for, through its parents. Nothing runs
+ * between frames: the handles, and the hover under a still pointer, follow the view after a frame
+ * the world drew, and a still scene draws none.
  */
 export function createTransformControls(
   host: TransformHost,
@@ -83,7 +84,6 @@ export function createTransformControls(
       if (group.visible !== (name === mode)) group.visible = name === mode
     }
   }
-  const unhook = host.onFrame(fit)
   const drag = trackTransformDrag(host, parts, {
     object: () => object,
     // `press` fits the handles first: `at` and `turn` are the object's world pose now.
@@ -96,6 +96,10 @@ export function createTransformControls(
     snap: () => controls.snap,
     fit,
     emit,
+  })
+  const unhook = host.onFrame(() => {
+    fit()
+    drag.follow()
   })
   const controls = {
     /** Steps drags are rounded to: `{ translate, rotate, scale }`, each optional. */

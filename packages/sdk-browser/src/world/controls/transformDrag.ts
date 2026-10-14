@@ -4,6 +4,7 @@ import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { createControlBase } from '../../camera/controls/base.ts'
 import { canvasRay, type CanvasPoint } from '../core/worldRaycast.ts'
 import type { buildTransformHandles } from './transformHandles.ts'
+import { hoverQuery } from './transformHover.ts'
 import type { TransformEvent, TransformHost } from './transform.ts'
 import {
   dragTransform,
@@ -63,11 +64,7 @@ export function trackTransformDrag(
   }
   const rayAt = (event: PointerEvent) =>
     canvasRay(host.camera, host.canvas, pointOf(event), moveRay)
-  const hovering = hoverQuery(
-    host,
-    (handle, at) => (hovered = handle && { handle, at }),
-    parts.handles,
-  )
+  const hovering = hoverQuery(host, (handle, at) => (hovered = handle && { handle, at }), parts)
   /** The handle the latest answer holds at `point`, or none. */
   const handleAt = (point: CanvasPoint) =>
     hovered &&
@@ -107,6 +104,7 @@ export function trackTransformDrag(
   base.listen<PointerEvent>(host.canvas, 'pointerdown', press, { capture: true })
   base.listen<PointerEvent>(host.canvas, 'pointerleave', () => {
     hovered = null
+    hovering.leave()
   })
   base.listen<PointerEvent>(host.canvas, 'pointermove', (event) => {
     const object = control.object()
@@ -137,47 +135,15 @@ export function trackTransformDrag(
   return {
     dragging: () => drag !== null,
     end,
+    /** After a frame: the answer under a pointer the view or the handles moved beneath is dropped,
+     *  and asked again (`hoverQuery`); a press before it lands asks its own. */
+    follow() {
+      if (!drag && control.object() && hovering.follow()) hovered = null
+    },
     /** Removes every listener from the canvas; an answer still on its way is dropped. */
     dispose() {
       hovering.dispose()
       base.api.dispose()
-    },
-  }
-}
-
-/**
- * The hover query of a transform control: one ray of the world's query (`host.raycast`, the helper
- * marks included) in flight at a time, the latest point asked again once it lands, and each answer
- * handed to `found` — the handle the nearest hit is, or none.
- */
-function hoverQuery(
-  host: TransformHost,
-  found: (handle: TransformHandle | null, at: CanvasPoint) => void,
-  handles: ReadonlyMap<Object3D, TransformHandle>,
-) {
-  let flying = false,
-    next: CanvasPoint | null = null,
-    live = true
-  const ask = (point: CanvasPoint) => {
-    if (flying) return void (next = point)
-    flying = true
-    host
-      .raycast(point, { helpers: true })
-      .then(
-        (hit) => live && found((hit && handles.get(hit.object)) ?? null, point),
-        () => live && found(null, point),
-      )
-      .finally(() => {
-        flying = false
-        const latest = next
-        next = null
-        if (latest && live) ask(latest)
-      })
-  }
-  return {
-    ask,
-    dispose() {
-      live = false
     },
   }
 }
