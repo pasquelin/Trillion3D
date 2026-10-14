@@ -1,8 +1,9 @@
 // Oracle of `packages/sdk-core/src/proxy/budget.ts`'s probe half, rewritten according to the contract: the batch is the ceiling
-// times the fraction, rounded, never zero; with no reflection measured, the fraction follows the whole
-// share via exponential smoothing, bounded between its
-// floor and one, and does not move on a missing, zero, or non-finite sample. Constants come
-// from the contract so that the oracle does not silently drift.
+// times the fraction, rounded, never zero; the fraction follows, via exponential smoothing, what the
+// share leaves the probes — the share less the reflection trace's measured time, never past the
+// probes' own part of it (`probeShare`) nor under the floor's —, bounded between its floor and one,
+// and does not move on a missing, zero, or non-finite sample. Constants come from the contract so
+// that the oracle does not silently drift.
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
 
 export function referenceBounceBatch(ceiling: number, load: number) {
@@ -19,7 +20,8 @@ export interface ReferenceBudget {
 
 /** Same shape as `createProxyBudget`'s probe half: a budget that observes and publishes its three fields. */
 export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
-  const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS
+  const { budgetSmoothing, budgetFloor, probeShare } = BOUNCE_SETTINGS
+  const measured = (ms: number | null): ms is number => ms !== null && Number.isFinite(ms) && ms > 0
   const bornee = (f: number) => Math.min(1, Math.max(budgetFloor, f))
   const state: { load: number; lastMs: number | null; samples: number } = {
     load: 1,
@@ -36,11 +38,16 @@ export function referenceBudgetSequence(budgetMs: number): ReferenceBudget {
     get samples() {
       return state.samples
     },
-    observe(_reflectionMs, ms) {
-      if (ms === null || !Number.isFinite(ms) || ms <= 0) return
+    observe(reflectionMs, ms) {
+      if (!measured(ms)) return
       state.lastMs = ms
       state.samples++
-      const voulue = bornee((state.load * budgetMs) / ms)
+      const spent = measured(reflectionMs) ? reflectionMs : 0
+      const left = Math.max(
+        Math.min(budgetMs - spent, budgetMs * probeShare),
+        budgetMs * budgetFloor,
+      )
+      const voulue = bornee((state.load * left) / ms)
       state.load = bornee(state.load + (voulue - state.load) * budgetSmoothing)
     },
   }
