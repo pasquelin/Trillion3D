@@ -93,9 +93,9 @@ export async function runRowTurn(options: typeof TURN = TURN) {
         record(cut as GpuCut)
       }
       sync.followCut(cut)
-      const held = new Set(pages.map((_, page) => page).filter((page) => rows.rowOf(page) >= 0))
+      const holding = new Set(pages.map((_, page) => page).filter((page) => rows.rowOf(page) >= 0))
       sync.syncRows(false)
-      for (const page of held) {
+      for (const page of holding) {
         if (rows.rowOf(page) >= 0) continue
         taken.push({ frame, page })
         const used = lastUse.get(page)

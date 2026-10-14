@@ -1,6 +1,10 @@
 // The creations of `fakeDevice()` beside its buffers (`fakeBuffers.ts`): a texture as the device
 // makes it, a pipeline's group layouts, and the refusal a test asks of an allocation.
 import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureExtent.ts'
+import {
+  texelBytes,
+  type RecordLayout,
+} from '../../../packages/sdk-browser/src/gpu/core/recordLayout.ts'
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
 import { untag } from './fakeWebgpuDevice.ts'
 
@@ -16,8 +20,20 @@ export function refusing(refuse: FakeDeviceOptions['refuse'], scopes: Array<obje
   }
 }
 
-/** Words a texel of a 32-bit integer format holds; none for another format. */
-const WORD_TEXELS: Partial<Record<GPUTextureFormat, number>> = { rgba32uint: 4, r32uint: 1 }
+/** The 32-bit integer formats a texture keeps words of: the record tables'. */
+const RECORD_FORMATS = new Set<GPUTextureFormat>(['rgba32uint', 'r32uint'])
+
+/** Words a texel of `texture`'s record format holds (`texelBytes`). */
+const channelsOf = (texture: FakeTexture) =>
+  texelBytes(texture.format as RecordLayout['format']) / 4
+
+/** The words of a record-format texture, made at the first use: zeros before a write. */
+export function textureWords(texture: FakeTexture) {
+  texture.words ??= new Uint32Array(
+    texture.width * texture.height * texture.depthOrArrayLayers * channelsOf(texture),
+  )
+  return texture.words
+}
 
 /** The words of `size` texels from `origin`, as `queue.writeTexture` lays them, written into a
  *  32-bit integer texture's own (`FakeTexture.words`): the record tables the kernels' doubles read
@@ -28,24 +44,15 @@ export function writeTexels(
   layout: GPUTexelCopyBufferLayout,
   size: GPUExtent3D,
 ) {
-  const texture = destination.texture as unknown as FakeTexture,
-    channels = WORD_TEXELS[texture.format]
-  if (!channels) return
-  texture.words ??= new Uint32Array(
-    texture.width * texture.height * texture.depthOrArrayLayers * channels,
-  )
+  const texture = destination.texture as unknown as FakeTexture
+  if (!RECORD_FORMATS.has(texture.format)) return
+  const channels = channelsOf(texture),
+    held = textureWords(texture)
   const bytes =
     data instanceof ArrayBuffer
       ? new Uint8Array(data)
       : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-  const o = destination.origin ?? [],
-    [x, y, z] = Array.isArray(o)
-      ? [o[0] ?? 0, o[1] ?? 0, o[2] ?? 0]
-      : [
-          (o as GPUOrigin3DDict).x ?? 0,
-          (o as GPUOrigin3DDict).y ?? 0,
-          (o as GPUOrigin3DDict).z ?? 0,
-        ]
+  const [x, y, z] = originOf(destination.origin)
   const [width, rows, layers] = textureExtent(size)
   const rowBytes = layout.bytesPerRow ?? width * channels * 4,
     imageRows = layout.rowsPerImage ?? rows
@@ -54,7 +61,7 @@ export function writeTexels(
       const from = (layout.offset ?? 0) + (layer * imageRows + row) * rowBytes,
         to = (((z + layer) * texture.height + y + row) * texture.width + x) * channels
       const words = new Uint32Array(bytes.slice(from, from + width * channels * 4).buffer)
-      texture.words.set(words, to)
+      held.set(words, to)
     }
 }
 
@@ -74,12 +81,10 @@ export function copyTexels(
   size: GPUExtent3D,
 ) {
   const source = from.texture as unknown as FakeTexture,
-    target = to.texture as unknown as FakeTexture,
-    channels = WORD_TEXELS[target.format]
-  if (!channels || !source.words) return
-  target.words ??= new Uint32Array(
-    target.width * target.height * target.depthOrArrayLayers * channels,
-  )
+    target = to.texture as unknown as FakeTexture
+  if (!RECORD_FORMATS.has(target.format) || !source.words) return
+  const channels = channelsOf(target),
+    held = textureWords(target)
   const [sx, sy, sz] = originOf(from.origin),
     [tx, ty, tz] = originOf(to.origin),
     [width, rows, layers] = textureExtent(size)
@@ -87,7 +92,7 @@ export function copyTexels(
     for (let row = 0; row < rows; row++) {
       const at = (((sz + layer) * source.height + sy + row) * source.width + sx) * channels,
         into = (((tz + layer) * target.height + ty + row) * target.width + tx) * channels
-      target.words.set(source.words.subarray(at, at + width * channels), into)
+      held.set(source.words.subarray(at, at + width * channels), into)
     }
 }
 

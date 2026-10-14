@@ -4,6 +4,9 @@ import { sphereArrays, turnPoint } from './sphere.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
+/** What `near` allows: equal to ten places. */
+const EPS = 1e-10
+
 test('whole turns place cardinal axes exactly even before and after the first turn', () => {
   for (const offset of [-2, -1, 0, 1, 2]) {
     assert.deepEqual(turnPoint(offset), [1, 0])
@@ -11,12 +14,12 @@ test('whole turns place cardinal axes exactly even before and after the first tu
     assert.deepEqual(turnPoint(offset + 0.5), [-1, 0])
     assert.deepEqual(turnPoint(offset + 0.75), [0, -1])
   }
-  near(turnPoint(1 / 8)[0], Math.SQRT1_2, 'turned point', 1e-10)
-  near(turnPoint(1 / 8)[1], Math.SQRT1_2, 'turned point', 1e-10)
-  near(turnPoint(0.25, HALF_PI, Math.PI)[0], -Math.SQRT1_2, 'turned point', 1e-10)
-  near(turnPoint(0.25, HALF_PI, Math.PI)[1], Math.SQRT1_2, 'turned point', 1e-10)
-  near(turnPoint(0.5, 0, Math.PI)[0], 0, 'turned point', 1e-10)
-  near(turnPoint(0.5, 0, Math.PI)[1], 1, 'turned point', 1e-10)
+  near(turnPoint(1 / 8)[0], Math.SQRT1_2, 'turned point', EPS)
+  near(turnPoint(1 / 8)[1], Math.SQRT1_2, 'turned point', EPS)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[0], -Math.SQRT1_2, 'turned point', EPS)
+  near(turnPoint(0.25, HALF_PI, Math.PI)[1], Math.SQRT1_2, 'turned point', EPS)
+  near(turnPoint(0.5, 0, Math.PI)[0], 0, 'turned point', EPS)
+  near(turnPoint(0.5, 0, Math.PI)[1], 1, 'turned point', EPS)
 })
 
 test('offset sphere has exact poles and equator, unique nondegenerate outward faces and seam UVs', () => {
@@ -59,9 +62,9 @@ test('offset sphere has exact poles and equator, unique nondegenerate outward fa
       ),
       2,
       'radius',
-      1e-10,
+      EPS,
     )
-    near(Math.hypot(...defaultSphere.normals.slice(i, i + 3)), 1, 'unit normal', 1e-10)
+    near(Math.hypot(...defaultSphere.normals.slice(i, i + 3)), 1, 'unit normal', EPS)
   }
 })
 

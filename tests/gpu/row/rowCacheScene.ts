@@ -3,21 +3,9 @@
 // the shipped kernel, follows its readback in the row cache and syncs it until the drawn cut is the
 // one the view wants (`row-cache.gpu.ts`, `row-owner.gpu.ts`).
 import { slotTable } from '../../../packages/sdk-browser/src/webgpu/row/pageState.fixture.ts'
-import { ruleDag } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
-import {
-  placements,
-  stripCamera,
-} from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import {
-  postPackedBases,
-  rootOfPacked,
-} from '../../../packages/sdk-browser/src/page/selection/placements.ts'
+import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
 import { rowGpu } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
 import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts'
 import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
@@ -26,8 +14,8 @@ import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/att
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
+import { placedRuleDag } from '../kit/placedRuleDag.ts'
 
-/** Words of one page-table row: the record writer below names its page in the first. */
 /** Placements apart along -x: one view sees one of them. */
 const SPACING = 1e4
 
@@ -40,16 +28,16 @@ export function rowCacheScene(
   /** What a request no free row serves asks the cut for: a queue of the rows' victims. */
   askOrder?: () => void,
 ) {
-  const dag = ruleDag(64)
-  const roots = placements(dag, copies, SPACING).reverse()
-  for (const root of roots)
-    root.pages = root.pages.map((page) => ({
-      ...page,
-      array: Uint32Array.of(0, 1, 2),
-      // The three corners the indices name.
-      attributes: { position: new BufferAttribute(new Float32Array(9), 3) },
-    }))
-  const placement = postPackedBases(roots)
+  const { dag, roots, placement, packed, view } = placedRuleDag(copies, SPACING, 64, (placed) => {
+    for (const root of placed.reverse())
+      root.pages = root.pages.map((page) => ({
+        ...page,
+        array: Uint32Array.of(0, 1, 2),
+        // The three corners the indices name.
+        attributes: { position: new BufferAttribute(new Float32Array(9), 3) },
+      }))
+    return placed
+  })
   const pages = roots.flatMap((root) => root.pages) as PageRec[]
   const slots = slotTable()
   const rows = createWebgpuRowState(pages, table, 0, undefined, slots.read)
@@ -87,20 +75,13 @@ export function rowCacheScene(
     roots.map((root, w) => ({ pageBase: placement.baseOfRoot[w], structure: root.structure })),
     (page) => rootOfPacked(placement, page),
   )
-  const packed = packDagSelection(roots)
   /** The view of the placement `back` places behind the one packed last: the strip camera slid
-   *  along -x, the packing's worlds brought to its render frame. */
-  const view = (back = 0) => {
-    const cam = stripCamera(dag)
-    cam.world[12] -= back * SPACING
-    writeEngineCamera(cam, { fov: 70, aspect: 16 / 9, near: 0.1, far: 4000, zoom: 1 })
-    packedWorldsToRenderOrigin(packed, roots, cam.eye)
-    return cameraSelectionUniforms(cam, 1, [1280, 720])
-  }
+   *  along -x. */
+  const viewBack = (back = 0) => view(-back * SPACING)
   /** The first packed instance of the placement `back` behind the one packed last. */
   const base = (back = 0) => placement.baseOfRoot[roots.length - 1 - back]
   return {
-    ...{ rows, sync, packed, view, base, clock, gpu, roots, placement, pages },
+    ...{ rows, sync, packed, view: viewBack, base, clock, gpu, roots, placement, pages },
     ...{ pagesPer: dag.pages.length, instances: pages.length },
     /** Each page of the DAG's leaf units: what a cut covers. */
     units: dag.pages.map((page) => page.units),

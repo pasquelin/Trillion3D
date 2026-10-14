@@ -1,5 +1,5 @@
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
-import { boundResource, boundWords, type BoundBuffer } from './fakeBuffers.ts'
+import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
 import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
 import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
@@ -13,16 +13,6 @@ import {
 const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
   tilePlaceWord: (base: number, index: number) => number
 }>(TILE_PLACE_WORD_WGSL, ['tilePlaceWord'], {})
-
-/** Whether a dispatch's group is a tile pool sort's (`webgpu/tile/evictSort.ts`): its four
- *  bindings — the places' words, the counts, the queues, the lane's uniform —, its counts the
- *  texture eviction's; the rows' sort binds four too (`webgpu/row/rowEvictSort.ts`). */
-export const isTileSort = (entries: readonly BoundBuffer[]) =>
-  entries.length === 4 &&
-  entries.some((entry) => entry.binding === 1) &&
-  /texture eviction/.test(
-    (boundResource(entries, 1).buffer as { label?: string } | undefined)?.label ?? '',
-  )
 
 /**
  * A tile pool's queue, replayed on its last dispatch (`poolScatter`) over the words the kernels

@@ -8,8 +8,9 @@ import {
   RUNTIME_HEADER_WORDS,
   SURFACE_WORDS,
 } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
-import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
-import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
+import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
+import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
+import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
 import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */
@@ -75,17 +76,15 @@ export function rigProxy(device: GPUDevice, faces: readonly RigFace[] = []) {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(proxy, 0, words)
+  // Each placement at the identity, written as the host writes a worlds' table.
   const n = Math.max(1, faces.length),
-    worlds = createRecordTexture(
-      device,
-      WORLD_TABLE,
-      n,
-      GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-    )
-  const identity = new Float32Array(n * 16)
-  for (let k = 0; k < n; k++) for (const diagonal of [0, 5, 10, 15]) identity[k * 16 + diagonal] = 1
-  worlds.write('Matrix', 0, n, identity.buffer, 0)
-  worlds.write('Origin', 0, n, new Uint32Array(n * 8).buffer, 0)
+    identity = new Float32Array(n * 16)
+  for (let k = 0; k < n; k++) identity.set(IDENTITY_MATRIX4, k * 16)
+  const worlds = worldTableOn(
+    device,
+    identity,
+    Array.from({ length: n }, () => ({ world: IDENTITY_WORLD })),
+  )
   // The faces' instances in their records.
   const held = instanceWords(faces)
   if (held.length) worlds.write('Instance', 0, faces.length, held.buffer, 0)

@@ -7,6 +7,9 @@ import { listen } from '../observed.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
+/** What `near` allows: equal to seven places. */
+const EPS = 1e-7
+
 test('quaternion storage, inverse, normalization and shortest arcs preserve physical rotations', () => {
   const value = new Quaternion()
   let changes = 0
@@ -25,7 +28,7 @@ test('quaternion storage, inverse, normalization and shortest arcs preserve phys
   assert.notEqual(copy.elements, value.elements)
   assert.equal(value.dot(new Quaternion(2, 3, 4, 5)), 40)
   assert.equal(new Quaternion(1, 2, 2, 4).length(), 5)
-  near(new Quaternion(1, 2, 2, 4).normalize().toArray(), [0.2, 0.4, 0.4, 0.8], 'rotation', 1e-7)
+  near(new Quaternion(1, 2, 2, 4).normalize().toArray(), [0.2, 0.4, 0.4, 0.8], 'rotation', EPS)
   assert.deepEqual(value.clone().invert().toArray(), [-1, -2, -3, 4])
   assert.deepEqual(value.clone().conjugate().toArray(), [-1, -2, -3, 4])
   assert.ok(value.clone().equals(value))
@@ -38,7 +41,7 @@ test('quaternion storage, inverse, normalization and shortest arcs preserve phys
     assert.equal(new Quaternion(...change).equals(value), false)
   const halfTurn = new Quaternion().setFromAxisAngle({ x: 0, y: 0, z: 3 }, Math.PI)
   const halfway = new Quaternion().slerp(halfTurn, 0.5)
-  near(new Vector3(1, 0, 0).applyQuaternion(halfway).toArray(), [0, 1, 0], 'rotation', 1e-7)
+  near(new Vector3(1, 0, 0).applyQuaternion(halfway).toArray(), [0, 1, 0], 'rotation', EPS)
   assert.ok(Math.abs(new Quaternion().angleTo(halfway) - HALF_PI) < 1e-10)
   near(
     halfway
@@ -47,7 +50,7 @@ test('quaternion storage, inverse, normalization and shortest arcs preserve phys
       .toArray(),
     halfway.toArray(),
     'rotation',
-    1e-7,
+    EPS,
   )
   assert.deepEqual(value.identity().toArray(), [0, 0, 0, 1])
 })
@@ -81,7 +84,7 @@ test('unit-vector rotations handle opposite axes and composition matches matrix 
       a.clone().applyQuaternion(new Quaternion().setFromUnitVectors(a, b)).toArray(),
       to,
       'rotation',
-      1e-7,
+      EPS,
     )
   }
   const a = new Quaternion().setFromAxisAngle(new Vector3(1, 2, 3), 0.7)
@@ -94,19 +97,14 @@ test('unit-vector rotations handle opposite axes and composition matches matrix 
     b.clone().premultiply(a),
     new Quaternion().multiplyQuaternions(a, b),
   ])
-    near(
-      new Matrix4().makeRotationFromQuaternion(q).toArray(),
-      expected.toArray(),
-      'rotation',
-      1e-7,
-    )
+    near(new Matrix4().makeRotationFromQuaternion(q).toArray(), expected.toArray(), 'rotation', EPS)
   near(
     new Matrix4()
       .makeRotationFromQuaternion(new Quaternion().setFromRotationMatrix(expected))
       .toArray(),
     expected.toArray(),
     'rotation',
-    1e-7,
+    EPS,
   )
 })
 
@@ -135,7 +133,7 @@ test('a rotation read from a matrix is that matrix, whatever was computed before
     new Quaternion().setFromRotationMatrix(m).toArray(),
     new Quaternion().setFromAxisAngle({ x: 0, y: 0, z: 1 }, 1).toArray(),
     'rotation',
-    1e-7,
+    EPS,
   )
 })
 
@@ -149,7 +147,7 @@ test('the shortest turn between oblique unit vectors, and a half-turn onto their
     p.clone().applyQuaternion(new Quaternion().setFromUnitVectors(p, q)).toArray(),
     q.toArray(),
     'rotation',
-    1e-7,
+    EPS,
   )
   for (const from of [a, b, new Vector3(0, 0.8, 0.6)]) {
     const to = from.clone().negate()
@@ -157,7 +155,7 @@ test('the shortest turn between oblique unit vectors, and a half-turn onto their
       from.clone().applyQuaternion(new Quaternion().setFromUnitVectors(from, to)).toArray(),
       to.toArray(),
       'rotation',
-      1e-7,
+      EPS,
     )
   }
 })
