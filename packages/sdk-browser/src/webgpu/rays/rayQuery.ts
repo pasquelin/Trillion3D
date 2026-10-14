@@ -62,9 +62,8 @@ export function createRayQuery(device: GPUDevice) {
      *  once it lands — `failed`, with the device's reason, if it refuses it. */
     compiled: (then: () => void, failed: (reason: unknown) => void) =>
       rayKernelsCompiled(device, then, failed),
-    /** Encodes `batch` into `encoder` over `sources`; returns where its hits lie in `buffer`.
-     *  Given `counts`, the audit's counting kernels run (`rayAudit.ts`). */
-    encode(encoder: GPUCommandEncoder, sources: RaySources, batch: RayBatch, counts?: GPUBuffer) {
+    /** Encodes `batch` into `encoder` over `sources`; returns where its hits lie in `buffer`. */
+    encode(encoder: GPUCommandEncoder, sources: RaySources, batch: RayBatch) {
       const rebuilt = sources.records.sync(sources.tables)
       const at = queryLayout(sources, batch),
         buffer = queryOf(at.words * 4)
@@ -74,8 +73,7 @@ export function createRayQuery(device: GPUDevice) {
       writeParams(paramWords, sources, batch, at)
       device.queue.writeBuffer(paramsOf(), 0, paramWords)
       encoder.clearBuffer(buffer, at.hashWord * 4, at.slots * DEFORM_SLOT_WORDS * 4)
-      const rays = batch.rays
-      encodeRayPass(device, encoder, sources, { buffer, params: paramsOf(), rays, counts })
+      encodeRayPass(device, encoder, sources, { buffer, params: paramsOf(), rays: batch.rays })
       return { buffer, offset: at.hitWord * 4, bytes: batch.rays * RAY_HIT.words * 4 }
     },
     dispose() {

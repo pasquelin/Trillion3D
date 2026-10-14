@@ -86,7 +86,7 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
  * `../../bounce/runtimeSceneWgsl.ts`) — each leaf's pages tested as the rasters draw them
  * (`rqPage`). A placement the ray's filter passes by, the world DAG's, one parked or hidden (its root
  * none) or a singular world holds nothing a ray meets. A stack or a walk past its bound marks the
- * ray cut short (`rqCut`). The counters (`rqCount`, `rayCountWgsl.ts`) are the audit's alone.
+ * ray cut short (`rqCut`).
  */
 export const RAY_PLACEMENT_WGSL = wgslBlock(
   'RAY_PLACEMENT_WGSL',
@@ -116,7 +116,7 @@ ${wideTraversal({
   children: 'nodesWord(node,RQ_CHILD_COUNT)',
   leaf: 'child.count',
   stack: DAG_STACK,
-  visit: 'rqCount(3u);',
+  visit: '',
   stop: '',
   test: 'best=rqPage(origin,direction,index,index+shift,w,best);',
   overflow: 'rqCut=true;',
@@ -137,20 +137,18 @@ fn rqAdmits(w:u32,first:u32,word:u32)->bool{
 }
 /** The nearer of \`best\` and what the ray meets of placement \`w\`. */
 fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
- if(w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){rqCount(1u);return best;}
+ if(w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
  let root=framesWord(w,RQ_ROOT_WORD);
- if(root==NO_INDEX){rqCount(1u);return best;}
+ if(root==NO_INDEX){return best;}
  let m=rqWorld(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
  let back=invTranspose3Prep(worldMatrix3(m));
- if(!back.regular){rqCount(1u);return best;}
- rqCount(0u);
+ if(!back.regular){return best;}
  // The origin is the eye: at zero, the placement at its translation from it.
  let o=(-m[3].xyz)*back.adj*back.scale;
  let d=ray.direction*back.adj*back.scale;
  let reach=unpack2x16float(framesWord(w,RQ_MARK_WORD)).y;
  let pageBase=framesWord(w,RQ_PAGE_BASE_WORD);
  let shift=framesWord(w,RQ_SHIFT_WORD);
- rqCountRoot(rqBox(root,reach),o,d,best.distance);
  var hit=RqHit(best.distance,0u,0u,0u,vec3f(0.0),false);
  if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(o,d,best.distance,root,pageBase,shift,reach,w);}
  else{

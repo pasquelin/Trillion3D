@@ -29,7 +29,7 @@ function movingQuad() {
 }
 
 /** The scene: each mesh named, at its place; the helper and the hidden quad the rays pass by. */
-export function build(world: World) {
+function build(world: World) {
   const at = (mesh: Mesh, name: string, x: number, y: number, z: number) => {
     mesh.name = name
     mesh.position.set(x, y, z)
@@ -54,7 +54,7 @@ export function build(world: World) {
 type Meshes = ReturnType<typeof build>
 
 /** The rays: an origin, a direction, the options, and the meshes the oracle reads for it. */
-export const RAYS: Array<{
+const RAYS: Array<{
   name: string
   origin: number[]
   direction: number[]

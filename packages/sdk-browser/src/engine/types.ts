@@ -71,9 +71,6 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   transparentOcclusionAudit(): Promise<
     import('../webgpu/transparent/occlusionAudit.ts').TransparentOcclusionAudit | null
   >
-  /** `rays` traced by the ray query's counting kernel: each hit and the work it took, and what the
-   *  trace read of each placement and record (`../webgpu/rays/rayAudit.ts`). */
-  rayAudit?(rays: readonly Ray[]): Promise<import('../webgpu/rays/rayAudit.ts').RayAudit | null>
   /** The pages the last cut asked for and the session holds no bytes of. */
   pendingUrls(): string[]
   /** Page pins as a difference of request ranks: what entered and left since the last image. */

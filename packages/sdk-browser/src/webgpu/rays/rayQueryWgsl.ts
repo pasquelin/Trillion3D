@@ -11,7 +11,6 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid
 import { PLACEMENT_TREE_WALK_WGSL, placementTreeWalk } from '../../gpu/dag/treeWalkWgsl.ts'
 import { HIT_CUT, HIT_FOUND, RAY_HIT, RAY_RECORD } from './rayRecord.ts'
 import { RAY_PLACEMENT_WGSL } from './rayPlacementWgsl.ts'
-import { rayCountWgsl } from './rayCountWgsl.ts'
 
 /** Steps the walk of the placement tree may take: a child a step, the members of every group a ray
  *  meets — a dense field along the ray included. */
@@ -27,18 +26,16 @@ const TREE_STEPS = 1 << 16
  * from the ray's exact origin (`rayPlacementWgsl.ts`). One dispatch reads every placement, each
  * table a record table whatever the world's size. The hit is written at the ray's rank: the placement, the page and the triangle met, the distance, and the
  * face normal brought to the world by the inverse transpose of the placement's world, as its
- * winding turns it — what the host turns into an intersection (`rayQueue.ts`). `counted`, the
- * audit's kernel alone (`rayAudit.ts`), counts each ray's work and dumps the tables it read.
+ * winding turns it — what the host turns into an intersection (`rayQueue.ts`).
  */
-export const rayQueryWgsl = (counted: boolean) =>
-  wgslProgram(
-    `${wgslConsts({
-      RQ_TREE_STEPS: TREE_STEPS,
-      RQ_RAY_WORDS: RAY_RECORD.words,
-      RQ_HIT_WORDS: RAY_HIT.words,
-      RQ_FOUND: HIT_FOUND,
-      RQ_CUT: HIT_CUT,
-    })}
+export const RAY_QUERY_WGSL = wgslProgram(
+  `${wgslConsts({
+    RQ_TREE_STEPS: TREE_STEPS,
+    RQ_RAY_WORDS: RAY_RECORD.words,
+    RQ_HIT_WORDS: RAY_HIT.words,
+    RQ_FOUND: HIT_FOUND,
+    RQ_CUT: HIT_CUT,
+  })}
 /** Ray \`k\` of the batch, as its record lies in the query's buffer (\`rayRecord.ts\`). */
 fn rqRay(k:u32)->RqRay{
  let at=params.rayWord+k*RQ_RAY_WORDS;
@@ -92,22 +89,17 @@ ${placementTreeWalk({
   cut: 'rqCut=true;',
 })}
  }
- rqFlushCounts(k,best);
  rqAnswer(k,best);
 }`,
-    [
-      FLAT_INDEX_WGSL,
-      WORKGROUP_THREADS_WGSL,
-      PLACEMENT_TREE_WALK_WGSL,
-      RAY_PLACEMENT_WGSL,
-      ...rayCountWgsl(counted),
-      toF32,
-      rayInverseDirection,
-      invTranspose3Prep,
-      invTranspose3Apply,
-      unitOrZero,
-    ],
-  )
-
-/** The shipped trace: its counters empty (`rayCountWgsl.ts`). */
-export const RAY_QUERY_WGSL = rayQueryWgsl(false)
+  [
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    PLACEMENT_TREE_WALK_WGSL,
+    RAY_PLACEMENT_WGSL,
+    toF32,
+    rayInverseDirection,
+    invTranspose3Prep,
+    invTranspose3Apply,
+    unitOrZero,
+  ],
+)

@@ -30,8 +30,7 @@ export const RAY_PAGE_WGSL = wgslBlock(
 fn rqPage(origin:vec3f,direction:vec3f,page:u32,record:u32,w:u32,best:RqHit)->RqHit{
  let at=params.recordWord+record*${RECORD_WORDS}u;
  let flags=query[at+1u];
- rqCount(4u);
- if((flags&${RECORD_DRAWABLE}u)==0u||(flags&${RECORD_NO_AREA}u)!=0u){rqCount(5u);return best;}
+ if((flags&${RECORD_DRAWABLE}u)==0u||(flags&${RECORD_NO_AREA}u)!=0u){return best;}
  var info:PageInfo;
  info.flags=flags&${FLAG_CLUSTER_PAGE}u;
  info.pageOffset=query[at]-1u;
@@ -43,7 +42,6 @@ fn rqPage(origin:vec3f,direction:vec3f,page:u32,record:u32,w:u32,best:RqHit)->Rq
  var out=best;
  let triangles=query[at+3u]/3u;
  for(var tri=0u;tri<triangles;tri++){
-  rqCount(6u);
   let c=pageTriangle(info,h,tri);
   let a=pagePosition(info,h,c.x);
   let b=pagePosition(info,h,c.y);
