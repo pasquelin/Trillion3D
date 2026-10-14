@@ -17,6 +17,7 @@ import {
   benchSide,
   glisse,
   pose,
+  regimes,
   spans,
   type BenchItem,
   type BenchSide,
@@ -97,14 +98,23 @@ function tours(before: BenchSide, after: BenchSide) {
     }
     return output
   }
-  /** The batch path: the own entries on the CPU, the frustum verdict the GPU's (its CPU model,
-   *  `verdict.fixture.ts`, for what the image draws), then one call per slot. */
+  /** The frustum verdict is the GPU's: its CPU model (`verdict.fixture.ts`) runs once per frame
+   *  here, outside the timed laps, since no shipped path runs it on the CPU. */
+  const verdicts = new Map<Frame, ReturnType<typeof blendVerdictCpu>>()
+  for (const [, images] of regimes)
+    for (const image of images) {
+      if (verdicts.has(image)) continue
+      pose(after, image)
+      verdicts.set(image, blendVerdictCpu(blendState, after.scene.itemCounts))
+    }
+  /** The batch path: the own entries on the CPU, the frame's GPU verdict for what the image
+   *  draws, then one call per slot. */
   const optimised = (images: Frame[], sequence: boolean) => {
     const output = []
     for (const image of images) {
       pose(after, image)
       orderBlendPasses(blendState, image.eye)
-      const verdict = blendVerdictCpu(blendState, after.scene.itemCounts)
+      const verdict = verdicts.get(image)!
       if (sequence) {
         output.push(after.output.subarray(0, etale(after, verdict.keep, mirror, after.output)))
         continue
