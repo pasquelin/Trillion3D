@@ -9,6 +9,7 @@ import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
 import { BLEND_ITEM_SHIPPED } from '../blend/itemLayout.fixture.ts'
+import { materialRecordsSent } from '../material/materialRecordsSent.fixture.ts'
 
 /** The words of the buffer `label` names, after the frames of a line surface 2.5 CSS pixels wide
  *  at a pixel ratio of 2, and the record of rank `rank` (`MATERIAL_RECORD`) as the material table
@@ -34,10 +35,7 @@ async function frameWords(transparent = false, dashed = false) {
     await backend.flush()
     backend.render(camera())
     await backend.flush()
-    const sent = textureWrites.findLast(
-      ({ destination }) =>
-        (destination.texture as { label?: string }).label === 'Trillion3D material records',
-    )
+    const sent = materialRecordsSent(textureWrites).at(-1)
     assert.ok(sent, 'the material records')
     const records = new Float32Array(sent.data.buffer as ArrayBuffer)
     const words = (label: string) => {
