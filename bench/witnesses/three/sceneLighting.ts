@@ -1,12 +1,14 @@
-import type { HostColour } from '../host/resources.ts'
-import { aimOf, isLightNode } from '../host/graph/kinds.ts'
-import type { Light } from '../../../sdk-core/src/world/light/light.ts'
-import { lampCastsShadow } from '../../../sdk-core/src/world/light/lightRecord.ts'
-import { rootedUnder } from '../host/world/rooted.ts'
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { HostColour } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { aimOf, isLightNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts'
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
+import { lampCastsShadow } from '../../../packages/sdk-core/src/world/light/lightRecord.ts'
+import { rootedUnder } from '../../../packages/sdk-browser/src/host/world/rooted.ts'
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /**
- * Browser boundary: the lights a source graph declares, placed in the graph an engine publishes.
+ * The witness's lights: those a source graph declares, placed in the display graph the witness
+ * library draws. Witness code alone — the engine reads its lights once, from its scene store, and
+ * keeps no copy of them.
  *
  * The source is the engine's own graph, its lights told apart by their `kind`. The copy a
  * display graph holds is made by the host that draws it, and is read through the shape below:
