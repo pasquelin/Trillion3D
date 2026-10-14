@@ -4,14 +4,14 @@ import { rasterSource } from './shader.ts'
 import {
   hoisted,
   perVertex,
-  upperLeftDeterminant,
   IDENTITY,
   MIRROR_X,
   NEAR_SINGULAR,
   LARGE_SCALE,
   type Mat4,
-  type Vec4,
+  type Point,
 } from '../../../../../bench/oracles/browser/mat4HoistOracle.ts'
+import { linearPartDeterminant } from '../../../../math/src/matrix/matrix4.ts'
 
 // shader.ts computes viewProj*world and the linear determinant once per page
 // (per workgroup) instead of recomputing them for every triangle. Structure: the sharing really
@@ -37,16 +37,16 @@ test('sorting pass computes vp/det once per workgroup and rereads them per trian
   assert.doesNotMatch(shader, /pageClip\(pageTransform/)
 })
 
-function assertSameVertices(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {
+function assertSameVertices(viewProj: Mat4, world: Mat4, vertices: readonly Point[]) {
   const a = hoisted(viewProj, world, vertices)
   const b = perVertex(viewProj, world, vertices)
   for (let i = 0; i < vertices.length; i++) assert.deepEqual(a[i], b[i], `vertex ${i}`)
 }
 
-const TRIANGLE: readonly Vec4[] = [
-  [0.2, 0.4, 0.6, 1],
-  [-1, 0, 0.9, 1],
-  [3, -2, 0.1, 1],
+const TRIANGLE: readonly Point[] = [
+  [0.2, 0.4, 0.6],
+  [-1, 0, 0.9],
+  [3, -2, 0.1],
 ]
 
 test('product hoisted once == product recomputed per vertex, identity matrix', () => {
@@ -69,10 +69,10 @@ test('product hoisted once == product recomputed per vertex, large scale', () =>
 
 test('determinant hoisted once per page equals recomputed determinant, including mirror', () => {
   for (const world of [IDENTITY, MIRROR_X, NEAR_SINGULAR, LARGE_SCALE]) {
-    const once = upperLeftDeterminant(world)
-    const again = upperLeftDeterminant(world)
+    const once = linearPartDeterminant(world)
+    const again = linearPartDeterminant(world)
     assert.equal(once, again)
   }
-  assert.ok(upperLeftDeterminant(MIRROR_X) < 0, 'mirror has a negative determinant')
-  assert.ok(upperLeftDeterminant(IDENTITY) > 0)
+  assert.ok(linearPartDeterminant(MIRROR_X) < 0, 'mirror has a negative determinant')
+  assert.ok(linearPartDeterminant(IDENTITY) > 0)
 })
