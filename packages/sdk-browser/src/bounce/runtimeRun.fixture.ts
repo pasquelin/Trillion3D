@@ -30,7 +30,6 @@ const FUNCTIONS = [
   'rtWorldsColumn',
   'rtWorldsMatrix',
   'rtWorldsOrigin',
-  'rtInstanceWord',
   'rtWorldsInstance',
   'rtTreeNode',
   'rtTreeMembers',

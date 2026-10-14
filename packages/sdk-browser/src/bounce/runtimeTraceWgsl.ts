@@ -96,9 +96,10 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RtRadiance{
   let hit=rtScene(start,direction,left);
   if(rtSpent()){return RtRadiance(vec3f(0.0),0.0);}
   if(!hit.found){break;}
-  let surface=rtSurfaceOf(rtInstanceWord(hit.placement,RT_INSTANCE_SURFACE));
+  let instance=rtWorldsInstance(hit.placement,0u);
+  let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
   let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
-  let marked=unpack2x16float(rtInstanceWord(hit.placement,RT_INSTANCE_MARK)>>16u).x;
+  let marked=unpack2x16float(instance[RT_INSTANCE_MARK]>>16u).x;
   let known=spread/(spread+marked*length(rtWorldOf(hit.placement)[0].xyz));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
   color+=through*opacity*rtShade(hit,start,direction,surface,reach);
@@ -125,7 +126,7 @@ fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=rtScene(origin,direction,reach);
  if(rtSpent()){return vec4f(0.0,0.0,0.0,-1.0);}
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- let surface=rtSurfaceOf(rtInstanceWord(hit.placement,RT_INSTANCE_SURFACE));
+ let surface=rtSurfaceOf(rtWorldsInstance(hit.placement,0u)[RT_INSTANCE_SURFACE]);
  let lit=rtLit(hit,origin,direction,surface,reach);
  if(rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
  return vec4f(lit,hit.distance);

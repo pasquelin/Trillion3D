@@ -70,9 +70,13 @@ const OLD_TREE = (
 fn rtTreeWord(n:u32,k:u32)->u32{return oldTree[n*${DAG_NODE_FLOATS}u+k];}
 fn rtTreeMember(k:u32)->u32{return oldTree[${members}u+k];}`
 
-/** The instances a ray read before: four words each, in a buffer of their own. */
+/** The instances a ray read before: four words each, in a buffer of their own, read whole as the
+ *  record's \`Instance\` texel is. */
 const OLD_INSTANCE = `@group(0) @binding(${B.oldInstances}) var<storage,read> oldInstances:array<u32>;
-fn rtInstanceWord(w:u32,k:u32)->u32{return oldInstances[w*4u+k];}`
+fn rtWorldsInstance(w:u32,k:u32)->vec4u{
+ let at=w*4u;
+ return vec4u(oldInstances[at],oldInstances[at+1u],oldInstances[at+2u],oldInstances[at+3u]);
+}`
 
 /** `code` with the function `name` taken out, whole. */
 function without(code: string, name: string) {
@@ -90,7 +94,7 @@ function without(code: string, name: string) {
  *  the tree's order from word `members` of the mirror. */
 export function oldWalk(members: number) {
   let code = NEW_WALK
-  for (const name of ['rtInstanceWord', 'rtWorldOf', 'rtTreeWord', 'rtTreeMember'])
+  for (const name of ['rtWorldsInstance', 'rtWorldOf', 'rtTreeWord', 'rtTreeMember'])
     code = without(code, name)
   return code + OLD_INSTANCE + OLD_WORLD_OF + OLD_TREE(members)
 }

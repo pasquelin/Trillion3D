@@ -113,12 +113,12 @@ fn rtWorldOf(w:u32)->mat4x4f{
  let l=rtWorldsLinear(w);
  return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(rtWorldsTranslation(w),1.0));
 }
-/** Word \`k\` of instance \`w\`, read in its record (\`rtWorldsInstance\`). */
-fn rtInstanceWord(w:u32,k:u32)->u32{return rtWorldsInstance(w,0u)[k];}
 /** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
  *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
- let node0=rtInstanceWord(w,RT_INSTANCE_NODE);
+ // Its instance, read once in its record: the root of its cut's tree, then its first triangle.
+ let instance=rtWorldsInstance(w,0u);
+ let node0=instance[RT_INSTANCE_NODE];
  if(node0==NO_INDEX){return best;}
  let m=rtWorldOf(w);
  let linear=worldMatrix3(m);
@@ -128,7 +128,7 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  if(rayBoxEntry(c-extent,c+extent,origin,inverse,best.distance)>best.distance){return best;}
  let placed=placementRay(linear,origin-m[3].xyz,direction);
  if(!placed.regular){return best;}
- let hit=rtTraceCut(placed.origin,placed.direction,best.distance,node0,rtInstanceWord(w,RT_INSTANCE_TRIANGLE),w);
+ let hit=rtTraceCut(placed.origin,placed.direction,best.distance,node0,instance[RT_INSTANCE_TRIANGLE],w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
