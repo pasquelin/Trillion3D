@@ -36,7 +36,7 @@ type Held = { slot: number; version: number; at: number }
 
 /** What the arena asks of the proxy that owns it: its instances on the GPU before the buffer is
  *  made (`ready`), and the header and the copies' worlds a buffer made is written with. */
-type ArenaOwner = { ready(): void; header(): Uint32Array; copyWorlds(): Float32Array }
+type ArenaOwner = { ready(): void; header(): Uint32Array<ArrayBuffer>; copyWorlds(): Float32Array<ArrayBuffer> }
 
 export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
   const surfaces = new Map<PageSurface, Map<number, Held>>()
