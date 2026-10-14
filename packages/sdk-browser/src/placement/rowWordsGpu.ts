@@ -9,14 +9,17 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { heldGroup } from '../webgpu/core/bindIdentity.ts'
-import { PASS_PARAM_BYTES, passParams } from '../gpu/core/passParams.ts'
+import { passParams } from '../gpu/core/passParams.ts'
+
+/** Words of the rows pass's parameters (`DERIVE_ROWS_WGSL`'s `Params`): five and their padding. */
+const ROW_PARAM_WORDS = 8
 
 export function createRowWordsGpu(device: GPUDevice) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   return {
     /** The parameters of the named rows' dispatch, then of the composed rows' — or of every row's,
      *  after the staled rows' list (`encodeRowWords`). */
-    params: [passParams('Trillion3D rows pass params'), passParams('Trillion3D rows pass params')],
+    params: [0, 1].map(() => passParams('Trillion3D rows pass params', ROW_PARAM_WORDS)),
     /** The rows the CPU named, sent each frame it named any. */
     list: undefined as GPUBuffer | undefined,
     /** A stand-in for each part whose buffer is not made, for a list none holds, for the mobility
@@ -45,7 +48,7 @@ export const rowEntries = (rt: WebgpuPagesRuntime, gpu: RowWordsGpu, g: number) 
     liveBuffer(
       () => gpu.params[g].buffer,
       undefined,
-      () => PASS_PARAM_BYTES,
+      () => gpu.params[g].words.byteLength,
     ),
     liveBuffer(() => rt.rootWorlds!.worlds),
     liveBuffer(() => rt.vis.pageTable),

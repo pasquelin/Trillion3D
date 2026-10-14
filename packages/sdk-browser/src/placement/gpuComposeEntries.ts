@@ -5,7 +5,6 @@
 import { liveBuffer, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { PASS_PARAM_BYTES } from '../gpu/core/passParams.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
 import { COMPOSE_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
@@ -16,7 +15,7 @@ export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
     liveBuffer(
       () => gpu.rootParams.buffer,
       undefined,
-      () => PASS_PARAM_BYTES,
+      () => gpu.rootParams.words.byteLength,
     ),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),
@@ -33,7 +32,7 @@ export const motionEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
     liveBuffer(
       () => gpu.rootParams.buffer,
       undefined,
-      () => PASS_PARAM_BYTES,
+      () => gpu.rootParams.words.byteLength,
     ),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),
@@ -50,7 +49,7 @@ export const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
     liveBuffer(
       () => gpu.worldParams.buffer,
       undefined,
-      () => PASS_PARAM_BYTES,
+      () => gpu.worldParams.words.byteLength,
     ),
     liveBuffer(() => gpu.locals),
     liveBuffer(() => gpu.parentOf),

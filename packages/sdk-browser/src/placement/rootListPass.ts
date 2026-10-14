@@ -13,7 +13,7 @@ import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { liveBuffer } from '../webgpu/core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { composeGroup, heldGroup, type HeldGroup } from '../webgpu/core/bindIdentity.ts'
-import { PASS_PARAM_BYTES, passParams, writePassParams } from '../gpu/core/passParams.ts'
+import { passParams, writePassParams } from '../gpu/core/passParams.ts'
 
 /** The first `count` words of `words` into `held`, made again when they outgrow it
  *  (`sizedBuffer`): the buffer that holds them. */
@@ -117,7 +117,7 @@ export const rootListEntries = (
     liveBuffer(
       () => list.params[g].buffer,
       undefined,
-      () => PASS_PARAM_BYTES,
+      () => list.params[g].words.byteLength,
     ),
     ...reads,
     liveBuffer(() => (g ? rt.compose?.gpu?.rankList : list.list) ?? list.absent),
