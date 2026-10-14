@@ -12,7 +12,7 @@ export function resolvePixelError(
   motion: CameraMotion,
 ) {
   const base = context.pixelError ?? 0
-  const speed = readCameraMotion(cam, motion, typeof performance !== 'undefined' ? cpuNow() : 0)
+  const speed = readCameraMotion(cam, motion, cpuNow())
   if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base
   return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1))
 }

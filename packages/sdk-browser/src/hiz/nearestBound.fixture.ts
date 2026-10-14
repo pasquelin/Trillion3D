@@ -1,6 +1,6 @@
-import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
-import { depthLayerUnits } from '../../../sdk-core/src/lod/depthLayer.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
+import { BOX_PROJECT_WGSL } from '../gpu/core/boxProjectWgsl.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
 
 /**
  * How much the bound is raised before it is rounded to single precision.
@@ -15,12 +15,12 @@ import { FLOAT32_STEP } from '../../../math/src/constants.ts'
  */
 const GROW = 1 + FLOAT32_STEP / 2
 
-/** The bits of an f32 depth moved `depthLayerUnits(layer)` hardware units nearer, held at 1.0f:
- *  the coplanar bias `gpu/core/boxProjectWgsl.ts` applies on the GPU. */
-function biasedDepthBits(bits: number, layer: number) {
-  const units = depthLayerUnits(layer)
-  return units === 0 ? bits >>> 0 : Math.min(0x3f800000, (bits >>> 0) + units) >>> 0
-}
+/** The shipped coplanar bias (`biasedDepth`, `../gpu/core/boxProjectWgsl.ts`) run in JavaScript:
+ *  an f32 depth moved its layer's hardware units nearer, held at 1.0f. An edit of the kernel is
+ *  what the tests bound by. */
+const { biasedDepth } = shaderRun<{
+  biasedDepth: (value: number, layer: number) => number
+}>(BOX_PROJECT_WGSL, ['biasedDepth'], {})
 
 /**
  * Depth bound a box carries to the occlusion kernel: an OVERESTIMATE of what the cluster will
@@ -29,10 +29,9 @@ function biasedDepthBits(bits: number, layer: number) {
  * Two gaps separate the box's nearest corner, computed in double, from the depth the GPU will
  * write. The first is transport rounding, corrected by `GROW`. The second is the **coplanar
  * layer bias**: a non-zero-layer cluster is drawn sixteen hardware units per layer closer to the
- * eye, hence nearer than its own corner; `biasedDepthBits` — the bias `gpu/core/boxProjectWgsl.ts` applies
- * on the GPU — adds exactly those units to the bound's bits. With these two
- * corrections, `nearest < far` implies the cluster is behind everything the pyramid saw,
- * whatever its layer.
+ * eye, hence nearer than its own corner; `biasedDepth` — the bias the GPU applies — adds exactly
+ * those units to the bound's bits. With these two corrections, `nearest < far` implies the
+ * cluster is behind everything the pyramid saw, whatever its layer.
  *
  * A null or negative bound is returned as-is: it describes the far, where nothing is drawn, and
  * nothing needs correcting.
@@ -40,6 +39,5 @@ function biasedDepthBits(bits: number, layer: number) {
 export function hizNearestBound(nearest: number, depthLayer: number) {
   if (!(nearest > 0)) return nearest
   const above = Math.fround(nearest * GROW)
-  if (!depthLayer) return above
-  return fromF32Bits(biasedDepthBits(f32Bits(above), depthLayer))
+  return biasedDepth(above, depthLayer)
 }

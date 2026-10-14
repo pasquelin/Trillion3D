@@ -40,12 +40,13 @@ function series(seed: number, count: number, full: number, none: number): Run[] 
   })
 }
 
-/** Columns `columns` in one pool, shipped and serial: the same records, lists and pool. */
-function same(columns: Run[][], pool: Pool) {
+/** Columns `columns` in one pool, shipped in batches of `lanes` and serial: the same records,
+ *  lists and pool. */
+function same(columns: Run[][], pool: Pool, lanes = WORKGROUP_THREADS) {
   const shipped = { ...pool },
     serial = { ...pool }
   columns.forEach((runs, i) => {
-    const got = shippedColumn(runs, shipped),
+    const got = shippedColumn(runs, shipped, lanes),
       want = serialColumn(runs, serial)
     assert.deepEqual(got.counts, want.counts, `column ${i}: counts`)
     assert.deepEqual(got.cursor, want.cursor, `column ${i}: cursors`)
@@ -83,6 +84,14 @@ test('full depth: every light a sun, past the lanes and the cache', () => {
     ...suns(5),
   ]
   same([mixed, [], mixed], roomy(3))
+})
+
+test('a batch of any width: its lane masks hold every lane, no slice reads its neighbour', () => {
+  // A width occupancy may tune `WORKGROUP_THREADS` to: one mask word, or four.
+  for (const lanes of [32, 128]) {
+    const roomy: Pool = { start: 11, capacity: 1 << 22, head: 0, overflow: 0 }
+    same([series(3, 300, 0.1, 0.2), suns(lanes + 5), series(9, lanes * 3, 0, 0.1)], roomy, lanes)
+  }
 })
 
 test('overflow: a column past the pool walks every light, a head past half the word takes none', () => {

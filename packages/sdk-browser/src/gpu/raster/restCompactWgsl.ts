@@ -98,7 +98,7 @@ fn restScan(@builtin(local_invocation_index) lane:u32){
  for(var n=0u;n<uni.restSlots;n++){
   let count=sharedCount(lane,commandCount(restSlotAt(n)));
   if(lane==0u){work[countWord(n)]=count;}
-  let tiles=(count+(WORKGROUP_THREADS-1u))/WORKGROUP_THREADS;
+  let tiles=ceilDiv(count,WORKGROUP_THREADS);
   let span=laneRun(lane,tiles);
   ${laneRunOffsets('t', 'span', 'lane', '', 'work[tileWord(n,t)]', 'work[tileWord(n,t)]=cursor')}
   if(lane==0u){indirect[restSlotAt(n)*4u+1u]=laneSums[WORKGROUP_THREADS-1u];}
