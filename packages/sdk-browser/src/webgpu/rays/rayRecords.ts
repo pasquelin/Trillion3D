@@ -120,8 +120,9 @@ export function createRayRecords(rt: WebgpuPagesCore) {
       build(next)
       return true
     },
-    /** Packed page `page`'s address took a slot, moved or left the pool, as the residency log
-     *  names it (`../residency/mirror.ts`): its record reads the slot again on the cache. */
+    /** Packed page `page` — its primitive page's least rank — took a slot, moved or left the pool,
+     *  as the residency log names it once per primitive (`../residency/mirror.ts`): its record,
+     *  shared by every placement, reads the slot again on the cache. */
     moved(page: number) {
       if (!tables) return
       const w = rootOfPacked(rt.layout.placement, page),

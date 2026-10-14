@@ -175,8 +175,8 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
         schedule()
       })
     },
-    /** Packed page `page`'s address took a slot, moved or left the pool: its record reads it
-     *  again on the cache (`rayRecords.ts`). */
+    /** Packed page `page`, its primitive page's least rank, took a slot, moved or left the pool:
+     *  its record reads it again on the cache (`rayRecords.ts`). */
     moved: records.moved,
     /** Every ray cast answers none, and the queue's buffers are given back. */
     dispose() {

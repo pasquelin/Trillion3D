@@ -29,9 +29,10 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
       rowSync.blendCasters.follow(page),
-      notePool(rt, page, words >= 0),
-      rt.rays?.moved(page)
+      notePool(rt, page, words >= 0)
     ),
+    // A ray's record is one per primitive, shared by its placements: followed once.
+    onPrimitiveChange: (page) => rt.rays?.moved(page),
   })
   /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
    *  shared input changes epoch — never once per frame: every field below belongs to the page, its
