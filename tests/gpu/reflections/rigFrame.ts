@@ -2,6 +2,8 @@
 // arrays of the image's pixels.
 import { toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
+import type { Camera, V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 
 /** A synthetic still frame of `size` pixels: what the engine's targets hold, as arrays of the
  *  image's pixels, `normals`, `base` and `radiance` four floats each (the normal and the roughness,
@@ -32,3 +34,16 @@ export const halves = (values: ArrayLike<number>) => Uint16Array.from(values, to
 
 /** The half-float word of a not-a-number: what a pixel the trace leaves unwritten keeps. */
 export const HALF_NAN = 0x7e00
+
+/** Whether the world point `point`, reflected at pixel `p`, lies on the image, off its border
+ *  (`REFLECTION_EDGE` of its height), within half of the distance the march covers
+ *  (`REFLECTION_STEP_CAP`): the screen can answer it. Returns its pixel, or undefined. */
+export function pointOnScreen(view: Camera, point: V3, p: number): [number, number] | undefined {
+  const [hx, hy] = view.project(point)
+  const border = REFLECTION_CONSTANTS.REFLECTION_EDGE * view.height
+  if (hx <= border || hy <= border || hx >= view.width - border || hy >= view.height - border)
+    return undefined
+  const away =
+    Math.abs(hx - (p % view.width) - 0.5) + Math.abs(hy - Math.floor(p / view.width) - 0.5)
+  return away >= REFLECTION_CONSTANTS.REFLECTION_STEP_CAP / 2 ? undefined : [hx, hy]
+}

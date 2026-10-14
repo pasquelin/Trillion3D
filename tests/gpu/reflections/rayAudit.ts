@@ -9,13 +9,10 @@ import {
   type Camera,
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { openRig } from './rig.ts'
-
-const EDGE = REFLECTION_CONSTANTS.REFLECTION_EDGE,
-  STEP_CAP = REFLECTION_CONSTANTS.REFLECTION_STEP_CAP
+import { pointOnScreen } from './rigFrame.ts'
 
 /** The share of `color` a pixel's colour `v` holds: 1 for the same hue, 0 under a faint pixel. */
 export function hueOf(v: number[], color: V3) {
@@ -64,25 +61,10 @@ export function exactRays(
   return { exact, origins, mirrors, boxes: others.map((block) => block.box) as Box[] }
 }
 
-/** Whether the exact hit of pixel `p` lies on the image, off its border (`REFLECTION_EDGE` of its
- *  height), within half of the distance the march covers (`REFLECTION_STEP_CAP`): the screen can
- *  answer it. Returns the hit's pixel, or undefined. */
-export function hitOnScreen(
-  view: Camera,
-  boxes: Box[],
-  origin: V3,
-  mirror: V3,
-  p: number,
-): [number, number] | undefined {
+/** `pointOnScreen` of the exact hit of pixel `p`'s mirror ray among `boxes`. */
+export function hitOnScreen(view: Camera, boxes: Box[], origin: V3, mirror: V3, p: number) {
   const hit = castBoxes(origin, mirror, boxes)
-  const point = [0, 1, 2].map((c) => origin[c] + mirror[c] * hit.t) as V3
-  const [hx, hy] = view.project(point)
-  const border = EDGE * view.height
-  if (hx <= border || hy <= border || hx >= view.width - border || hy >= view.height - border)
-    return undefined
-  const away =
-    Math.abs(hx - (p % view.width) - 0.5) + Math.abs(hy - Math.floor(p / view.width) - 0.5)
-  return away >= STEP_CAP / 2 ? undefined : [hx, hy]
+  return pointOnScreen(view, [0, 1, 2].map((c) => origin[c] + mirror[c] * hit.t) as V3, p)
 }
 
 /** Whether every pixel within two of `p` has the exact block of `p`: off every silhouette, which

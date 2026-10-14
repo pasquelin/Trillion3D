@@ -12,11 +12,8 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
-import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { exactReflection, SPHERES, sphereFrame } from './sphereFrame.ts'
-
-const EDGE = REFLECTION_CONSTANTS.REFLECTION_EDGE,
-  STEP_CAP = REFLECTION_CONSTANTS.REFLECTION_STEP_CAP
+import { pointOnScreen } from './rigFrame.ts'
 
 /** The step ε two neighbours may take beyond the analytic one, a share of the sky's radiance over
  *  the floor's: the shipped march gives 0.03 (a pixel's reflected footprint a tap or two wide); a
@@ -43,13 +40,11 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
   // Whether the floor shows at the pixel of the world point `at` and all around it: the screen sees
   // it (a point behind a sphere, or at a silhouette, is not in the depth the march reads).
   const floorSeen = (at: number[], from: number) => {
-    const [hx, hy] = view.project(at as [number, number, number])
     // Inside the image's border, and within half of the march's reach of the pixel: the screen's
     // answer there is whole, its fades (`reflectionSeen`) are one.
-    const border = EDGE * height
-    if (hx <= border || hy <= border || hx >= width - border || hy >= height - border) return false
-    const away = Math.abs(hx - (from % width) - 0.5) + Math.abs(hy - Math.floor(from / width) - 0.5)
-    if (away >= STEP_CAP / 2) return false
+    const onScreen = pointOnScreen(view, at as [number, number, number], from)
+    if (!onScreen) return false
+    const [hx, hy] = onScreen
     for (let v = -2; v <= 2; v++)
       for (let u = -2; u <= 2; u++) {
         const px = Math.floor(hx) + u,
