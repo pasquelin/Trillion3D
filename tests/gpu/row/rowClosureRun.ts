@@ -2,18 +2,8 @@
 // `copies` placements of the cut-rule DAG, the strip camera seeing the first, three pages in four
 // holding a row; the cut's own lists the seeds, the engine's hosts dispatching the shipped kernels
 // (`webgpu/row/rowClosure.ts`, `webgpu/row/rowEvictSort.ts`), the use words and two queues read back.
-import { ruleDag } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
-import {
-  placements,
-  stripCamera,
-} from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import {
-  postPackedBases,
-  rootOfPacked,
-} from '../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
+import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
+import { placedRuleDag } from '../kit/placedRuleDag.ts'
 import { createSparseInts } from '../../../packages/sdk-browser/src/page/cut/sparseInts.ts'
 import { mixWord, workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
@@ -44,13 +34,8 @@ export const CUT_FRAME = 9
 /** `copies` placements of the DAG, apart along -x, the strip camera on the first; each packed page
  *  whose hash says so holds the next row. */
 export function closureScene(copies: number) {
-  const dag = ruleDag(64)
-  const roots = placements(dag, copies, 1e4)
-  const index = postPackedBases(roots)
-  const packed = packDagSelection(roots),
-    cam = stripCamera(dag)
-  packedWorldsToRenderOrigin(packed, roots, cam.eye)
-  const uniforms = { ...cameraSelectionUniforms(cam, 1, [1280, 720]), frame: CUT_FRAME }
+  const { roots, placement: index, packed, view } = placedRuleDag(copies, 1e4)
+  const uniforms = { ...view(), frame: CUT_FRAME }
   const journal = createRowMapJournal(),
     rows = createSparseInts(journal)
   let count = 0
