@@ -20,15 +20,23 @@ export const affineAxis = wgslFn(
 }`,
 )
 
-/** `boxTransform` of a box (six doubles, its minima then its maxima) by `m`: the union of its
- *  eight carried corners, each divided by its `w` unless the last row is `0, 0, 0, 1`. A corner
- *  reaching a NaN leaves a NaN bound. */
-export const dBoxTransform = wgslFn(
-  'dBoxTransform',
-  [affineAxis, dDiv, dMul, dIsZero, dMathMax, dMathMin],
-  `fn dBoxTransform(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{
+/** The text of `boxTransform` of a box (six doubles, its minima then its maxima) by `m`: the union
+ *  of its eight carried corners, each divided by its `w` unless the last row is `0, 0, 0, 1` — that
+ *  divide written only when `projective` —. A corner reaching a NaN leaves a NaN bound. One body,
+ *  two entry points (`dBoxTransform`, `dBoxAffine`): an affine world takes the same words in both. */
+function boxTransformText(name: string, projective: boolean) {
+  // Whether `m` is affine, and each corner divided by its `w` when it is not.
+  const affine = `
  let one=${wgslDouble(1)};
- let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==one.x&&m[15].y==one.y;
+ let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==one.x&&m[15].y==one.y;`
+  const divide = `
+  if(!affine){
+   let mw=dDiv(one,affineAxis(m,3u,lx,ly,lz));
+   x=dMul(x,mw);
+   y=dMul(y,mw);
+   z=dMul(z,mw);
+  }`
+  return `fn ${name}(box:array<vec2u,6>,m:array<vec2u,16>)->array<vec2u,6>{${projective ? affine : ''}
  var out:array<vec2u,6>;
  for(var k=0u;k<3u;k++){
   out[k]=${wgslDouble(Infinity)};
@@ -40,13 +48,7 @@ export const dBoxTransform = wgslFn(
   let lz=select(box[2],box[5],(i&4u)!=0u);
   var x=affineAxis(m,0u,lx,ly,lz);
   var y=affineAxis(m,1u,lx,ly,lz);
-  var z=affineAxis(m,2u,lx,ly,lz);
-  if(!affine){
-   let mw=dDiv(one,affineAxis(m,3u,lx,ly,lz));
-   x=dMul(x,mw);
-   y=dMul(y,mw);
-   z=dMul(z,mw);
-  }
+  var z=affineAxis(m,2u,lx,ly,lz);${projective ? divide : ''}
   out[0]=dMathMin(out[0],x);
   out[1]=dMathMin(out[1],y);
   out[2]=dMathMin(out[2],z);
@@ -55,5 +57,20 @@ export const dBoxTransform = wgslFn(
   out[5]=dMathMax(out[5],z);
  }
  return out;
-}`,
+}`
+}
+
+/** `boxTransform` of a box by `m`, any matrix (`boxTransformText`): the water's enclosure. */
+export const dBoxTransform = wgslFn(
+  'dBoxTransform',
+  [affineAxis, dDiv, dMul, dIsZero, dMathMax, dMathMin],
+  boxTransformText('dBoxTransform', true),
+)
+
+/** `boxTransform` of a box by an affine `m` (`boxTransformText`), no divide pulled in: the worlds
+ *  a node tree composes, every one affine (`../../../sdk-browser/src/placement/`). */
+export const dBoxAffine = wgslFn(
+  'dBoxAffine',
+  [affineAxis, dMathMax, dMathMin],
+  boxTransformText('dBoxAffine', false),
 )
