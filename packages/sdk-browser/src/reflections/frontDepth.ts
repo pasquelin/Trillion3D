@@ -3,21 +3,14 @@ import {
   computeBufferEntry,
   computeTextureEntry,
   computeUniformEntry,
-  sequentialEntries,
 } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { writeChanged } from '../gpu/core/writeChanged.ts'
-import { FRONT_DEPTH_PASS } from '../stage/passLabels.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { clipToFramebuffer, pixelToNdc, unprojectPoint } from '../../../math/src/wgsl/projection.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-
-const { min } = Math
-import type { ReflectionPipelines, ScreenReflection } from './gpu.ts'
 import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 
 /**
@@ -44,8 +37,9 @@ import { REFLECTION_VIEW_BYTES, REFLECTION_VIEW_WGSL } from './viewLayout.ts'
  * the readers bind changes by: over them alone, each word is moved into the layer and the buffer
  * left at zero for the next image (`frontFold`, dispatched from the box on the GPU). Outside, the
  * layer already holds the zero the last image left there. For a still view that is the identity.
- * One module owns all of it but the layer, the Hi-Z's, which the readers bind with the opaque depth
- * in one texture: the target, the buffer, the boxes, and whether the scene has blends at all.
+ * This module and its carrying (`frontCarry.ts`) own all of it but the layer, the Hi-Z's, which
+ * the readers bind with the opaque depth in one texture: the target, the buffer, the boxes, and
+ * whether the scene has blends at all.
  *
  * Why a buffer AND a texture: the scatter's nearest is an atomic `max`, which WebGPU offers on a
  * buffer only; the readers include the blend and water fragment stages, which bind WebGPU's
@@ -74,7 +68,8 @@ const RECT_BYTES = 16
 const BOX = { now: 0, last: 4, union: 8, words: 12 } as const
 /** Bytes of the fold's indirect arguments: its workgroups along x and y, then 1. */
 const ARGS_BYTES = 12
-const LABEL = 'Trillion3D reflection front depth'
+/** The label of every resource of the front depth. */
+export const FRONT_LABEL = 'Trillion3D reflection front depth'
 
 /** The front depth of a fragment that covers `coverage` of its pixel, for the blend's target: its
  *  depth a half-float's step behind, else zero (which the `max` blend ignores). */
@@ -220,7 +215,7 @@ export const frontPitch = (width: number) => width
 function frontDescriptors(width: number, height: number, blends: boolean) {
   const size: GPUExtent3D = blends ? [width, height] : [1, 1]
   const written: GPUTextureDescriptor = {
-    label: LABEL,
+    label: FRONT_LABEL,
     size,
     format: FRONT_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
@@ -228,34 +223,34 @@ function frontDescriptors(width: number, height: number, blends: boolean) {
   if (!blends) return { written }
   const carried = {
     buffer: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: frontPitch(width) * height * 4,
       usage: GPUBufferUsage.STORAGE,
     },
     box: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: BOX.words * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     },
     args: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: ARGS_BYTES,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
     },
     rect: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: RECT_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     },
     // The rectangle and the scatter's workgroups of an image whose only transparent pass was the
     // water's: copied from the GPU's water rectangle (`frontFromWater`).
     waterRect: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: RECT_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     },
     waterArgs: {
-      label: LABEL,
+      label: FRONT_LABEL,
       size: ARGS_BYTES,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     },
@@ -355,103 +350,3 @@ export function createFrontDepth(
   }
 }
 export type FrontDepth = ReturnType<typeof createFrontDepth>
-
-/**
- * The front depth the transparents of the last image wrote, carried to this image's pixels when
- * there is one, before the image's reflections, in one compute pass: the scatter over the rectangle
- * they wrote, then the boxes (`frontBox`) and the fold over this image's and the last one's
- * destination boxes (`frontFold`), which moves the carried words into the front layer `folded` and
- * leaves the buffer at zero. A texture that held a depth is cleared by the image after, once: its
- * box is the last one there.
- */
-export function encodeFrontDepth(
-  encoder: GPUCommandEncoder,
-  reflection: Pick<ScreenReflection, 'device' | 'uniform' | 'front' | 'radiance'>,
-  stages: Pick<
-    ReflectionPipelines,
-    'frontLayout' | 'frontPipeline' | 'frontFoldPipeline' | 'frontBoxLayout' | 'frontBoxPipeline'
-  >,
-  folded: GPUTextureView,
-) {
-  const { front, device } = reflection,
-    { carried } = front
-  // A front layer this front depth never folded into may hold another's — a reflection remade over
-  // the same pyramid —: cleared once, before any fold reads or writes it.
-  if (front.target !== folded) {
-    encoder
-      .beginRenderPass({
-        label: LABEL,
-        colorAttachments: [
-          { view: folded, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-        ],
-      })
-      .end()
-    front.target = folded
-  }
-  const carries = front.fresh
-  if (!carried || (!carries && !front.held)) return
-  const { groups } = front,
-    { next } = groups.identity
-  next[0] = stages.frontLayout
-  next[1] = stages.frontBoxLayout
-  next[2] = reflection.uniform
-  next[3] = front.view
-  next[4] = folded
-  next.length = 5
-  if (groups.identity.moved() || !groups.group || !groups.boxGroup) {
-    const scatterGroup = (rect: GPUBuffer) =>
-      device.createBindGroup({
-        label: LABEL,
-        layout: stages.frontLayout,
-        entries: sequentialEntries([
-          { buffer: reflection.uniform },
-          front.view,
-          { buffer: carried.buffer },
-          { buffer: rect },
-          { buffer: carried.box },
-          folded,
-        ]),
-      })
-    groups.group = scatterGroup(carried.rect)
-    groups.waterGroup = scatterGroup(carried.waterRect)
-    groups.boxGroup = device.createBindGroup({
-      label: LABEL,
-      layout: stages.frontBoxLayout,
-      entries: sequentialEntries([{ buffer: carried.box }, { buffer: carried.args }]),
-    })
-  }
-  const { group, boxGroup } = groups
-  const pass = encoder.beginComputePass({ label: FRONT_DEPTH_PASS })
-  if (carries && front.water) {
-    // The water's rectangle and workgroups, as the GPU wrote them: none when no water drew.
-    pass.setPipeline(stages.frontPipeline)
-    pass.setBindGroup(0, groups.waterGroup!)
-    pass.dispatchWorkgroupsIndirect(carried.waterArgs, 0)
-  } else if (carries) {
-    const [width, height] = reflection.radiance.held.size,
-      { rect, scattered } = front
-    const x0 = min(rect[0], width),
-      y0 = min(rect[1], height),
-      x1 = min(rect[2], width),
-      y1 = min(rect[3], height)
-    scattered[0] = x0
-    scattered[1] = y0
-    scattered[2] = x1
-    scattered[3] = y1
-    writeChanged(device, carried.rect, scattered, 0, 4)
-    if (x1 > x0 && y1 > y0) {
-      pass.setPipeline(stages.frontPipeline)
-      pass.setBindGroup(0, group)
-      pass.dispatchWorkgroups(ceilDiv(x1 - x0, REFLECTION_SIDE), ceilDiv(y1 - y0, REFLECTION_SIDE))
-    }
-  }
-  pass.setPipeline(stages.frontBoxPipeline)
-  pass.setBindGroup(0, boxGroup)
-  pass.dispatchWorkgroups(1)
-  pass.setPipeline(stages.frontFoldPipeline)
-  pass.setBindGroup(0, group)
-  pass.dispatchWorkgroupsIndirect(carried.args, 0)
-  pass.end()
-  front.held = carries
-  front.fresh = false
-}

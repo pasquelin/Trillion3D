@@ -10,7 +10,7 @@ import {
 } from '../webgpu/pages/prepare/contractLight.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { encodeFrontDepth } from './frontDepth.ts'
+import { encodeFrontDepth } from './frontCarry.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radiance.ts'
 import { encodeReflectionTrace, type TraceInputs } from './traceEncode.ts'
