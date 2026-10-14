@@ -4,16 +4,14 @@
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import {
-  frustumExcludesBox,
-  frustumPlanesFromMatrix,
-} from '../../../packages/sdk-core/src/index.ts'
+import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
+import { frustumPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
-import { type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
 import { coneCullsPageWith } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { coneContextFor } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { createConeContext } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'

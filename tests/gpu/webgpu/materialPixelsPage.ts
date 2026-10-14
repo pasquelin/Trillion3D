@@ -17,12 +17,12 @@ import {
   engineImage,
   CLEAR_COLOR,
 } from './materialPixelsRender.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import {
   createSceneLightStore,
   type SceneLightStore,
-} from '../../../packages/sdk-core/src/index.ts'
+} from '../../../packages/sdk-core/src/scene/light/store.ts'
 
 interface Sides {
   device: GPUDevice

@@ -3,11 +3,9 @@
 // for the child camera of a host parent that is moved then rotated, then for the parentless
 // camera of the same world pose. Nothing is replayed off the GPU.
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import {
-  createGpuDagSelection,
-  packDagSelection,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts'

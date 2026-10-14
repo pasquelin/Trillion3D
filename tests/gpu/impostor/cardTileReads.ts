@@ -10,7 +10,7 @@ import {
   cardTileEntries,
   cardTileWgsl,
 } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
-import type { WebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlas.ts'
+import type { WebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlasTypes.ts'
 import { bufferHolding, groupZero } from '../kit/computeReadback.ts'
 import { CARD_MAPS, type Chain } from './cardTileRig.ts'
 import { referenceGroup } from './cardTilesReference.ts'

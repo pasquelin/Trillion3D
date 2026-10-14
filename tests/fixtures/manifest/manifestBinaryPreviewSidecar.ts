@@ -4,17 +4,13 @@ import assert from 'node:assert/strict'
 import { TEMPLATES, sha } from './manifestBinary.ts'
 import { decodeManifestBinary } from '../../../packages/sdk-core/src/manifest/binaryDecode.ts'
 import { encodeManifestBinary } from './manifestBinaryEncode.ts'
-import {
-  CLUSTERED_BLEND_FORMAT_VERSION,
-  EngineError,
-  type ClusterManifest,
-  type TexturePreview,
-} from '../../../packages/sdk-core/src/contracts/index.ts'
-import {
-  COLUMN_NAMES,
-  MANIFEST_BINARY_HEADER_WORDS,
-  PREVIEW_WORDS,
-} from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts'
+import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
+import type { TexturePreview } from '../../../packages/sdk-core/src/texture/previewContracts.ts'
+import { COLUMN_NAMES } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import { MANIFEST_BINARY_HEADER_WORDS } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
+import { PREVIEW_WORDS } from '../../../packages/sdk-core/src/texture/previewFormat.ts'
 
 function manifestWith(previews: TexturePreview[]): ClusterManifest {
   return {

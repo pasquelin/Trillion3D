@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { BASE_SLOTS, HALF_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import { BASE_SLOTS, HALF_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import {
   evaluateDrawCompact,
   indirectForDraw,

@@ -12,9 +12,9 @@ import {
   packPlace,
   POOL_LAYER_SIDE,
   POOL_MAX_LAYERS,
-  TILE_BORDER,
   type TilePlace,
 } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { TILE_BORDER } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import { POOL_PLACE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/poolPlaceWgsl.ts'
 import { cellOrigin } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
 import { computeOnDawn } from '../kit/computeRun.ts'

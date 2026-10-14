@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   FORMAT_VERSION,
-} from '../../packages/sdk-core/src/index.ts'
+} from '../../packages/sdk-core/src/contracts/base.ts'
 
 const source = (file: string) =>
   fileURLToPath(new URL(`../../packages/asset-compiler-rust/src/${file}`, import.meta.url))

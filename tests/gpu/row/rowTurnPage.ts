@@ -4,10 +4,8 @@
 // and the row cache over a table far smaller than the instances, every page's bytes resident. Beside
 // it, the same cut over a table that holds everything. Each frame read back: what it drew, what the
 // whole table draws at that pose, the requests it denied, the rows it took back.
-import {
-  createGpuDagSelection,
-  packDagSelection,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { createRowEviction } from '../../../packages/sdk-browser/src/webgpu/row/rowEviction.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'

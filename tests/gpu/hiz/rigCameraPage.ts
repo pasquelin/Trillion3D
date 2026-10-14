@@ -5,7 +5,8 @@
 // per pose — the one after the move and the one that does not move —, each compared byte for
 // byte to a fresh engine placed at once at the same world pose.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
 import { countsStep, image } from '../kit/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'

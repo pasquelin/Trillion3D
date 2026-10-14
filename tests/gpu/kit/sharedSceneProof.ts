@@ -2,12 +2,9 @@
 // that describes it, and the face-on camera. Nothing names a bench scene — the engine
 // only sees passes and materials, as for any imported scene.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type {
-  EngineContext,
-  EngineDiagnostic,
-  EngineFactory,
-  Engine,
-} from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineContext, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
 import { DAG } from '../../../packages/sdk-browser/src/engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import type {
@@ -15,7 +12,7 @@ import type {
   ClusterStructure,
   Page,
   Primitive,
-} from '../../../packages/sdk-core/src/index.ts'
+} from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'

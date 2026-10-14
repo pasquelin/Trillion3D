@@ -1,15 +1,13 @@
 // Page of the water-cost measure (`bench/dawn/waterCost.ts`), run only when
 // invoked: no engine optimisation, no pass timing reconstruction.
-import type {
-  EngineDiagnostic,
-  EngineFactory,
-} from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { engine, releaseScene } from '../kit/sharedSceneProof.ts'
+import { BACKGROUND, WATER_ATTACHMENT_BYTES } from './waterPassCases.ts'
 import {
-  BACKGROUND,
   SIZE,
   waterCostScene,
   waterCostCamera,
@@ -17,7 +15,6 @@ import {
   projectedFraction,
   tileHalfWidthPixels,
 } from './waterCostScene.ts'
-import { WATER_ATTACHMENT_BYTES } from './waterPassCases.ts'
 
 export interface WaterCostOptions {
   fraction: number

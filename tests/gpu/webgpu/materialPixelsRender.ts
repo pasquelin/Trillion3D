@@ -12,7 +12,7 @@ import {
 import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
 import { untilHeld } from '../kit/sceneImageProof.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts'
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */

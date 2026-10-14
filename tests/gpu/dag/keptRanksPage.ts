@@ -14,7 +14,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import {
   SELECTION_HEADER_WORDS,
   differenceWord,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

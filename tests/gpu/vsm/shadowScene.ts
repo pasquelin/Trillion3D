@@ -2,7 +2,7 @@
 // otherwise than another away from every edge (its canvas read back with `kit/patternImage.ts`).
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
-import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
+import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
@@ -37,7 +37,7 @@ export async function openBenchWorld(
 
 /** The luminance of pixel `i` of an RGBA image. */
 export const luminance = (p: Uint8Array, i: number) =>
-  luminanceOf(p[4 * i], p[4 * i + 1], p[4 * i + 2])
+  luminance(p[4 * i], p[4 * i + 1], p[4 * i + 2])
 
 /**
  * How `stopped` shades otherwise than `settled`, the same pose at rest, `open` being that pose

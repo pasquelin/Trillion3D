@@ -4,7 +4,7 @@ import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 // (`gpu/dag/shader/swapWgsl.ts`). The double's `dagMask` writes the whole mask and keeps no journal,
 // so a view's region holds the whole mask its cut left: what the journal restores, flag for flag.
 // The regions saved to and restored from are the camera block's words, as the kernels read them.
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { REGION_NONE } from '../../../packages/sdk-browser/src/gpu/dag/shader/swapWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'

@@ -18,10 +18,8 @@ import {
   scenePages,
   sceneRoots,
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import {
-  createGpuDagSelection,
-  packDagSelection,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { surface } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstances.fixture.ts'
 
 /** `count` cubes on a field `side` wide, three metres apart, each wearing the cube's cut. */

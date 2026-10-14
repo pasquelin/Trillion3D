@@ -1,4 +1,5 @@
-import { EngineError, type TexturePreview } from '../../../packages/sdk-core/src/contracts/index.ts'
+import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
+import type { TexturePreview } from '../../../packages/sdk-core/src/texture/previewContracts.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import { writeSha } from './manifestBinaryEncodeChecks.ts'
 import {

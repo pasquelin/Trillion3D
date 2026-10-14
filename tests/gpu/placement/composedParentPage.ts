@@ -7,7 +7,7 @@
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
-import { light } from '../../../packages/sdk-core/src/world/light/index.ts'
+import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { changed, open, type World } from '../world/appendProof.ts'
 
 const crate = geometry.box(0.8, 0.8, 0.8)

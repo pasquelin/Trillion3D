@@ -7,7 +7,7 @@ import {
   placements,
   stripCamera,
 } from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'

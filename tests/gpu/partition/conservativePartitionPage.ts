@@ -4,7 +4,7 @@
 // precision and the matrices it drew them from; the reference is recomputed on those same inputs
 // (`partitionReference.ts`). The transparent clusters the occlusion test removed are refuted the
 // same way (`transparentOcclusionReference.ts`).
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { readBounds } from '../../../bench/runner/harness/page.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import { SDK_URL } from '../world/proofWorld.ts'

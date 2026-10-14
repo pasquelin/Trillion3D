@@ -2,18 +2,16 @@
 // floor, the shapes as their meshes, the camera. The background is black and the one light is a hemisphere
 // of no intensity, so a floor shows only what it reflects and a dark body brings back nothing.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
-import {
-  BufferAttribute,
-  animation,
-  createWorld,
-  geometry,
-  light,
-  material,
-  math,
-  object,
-  type Geometry,
-  type Object3D,
-} from '../../../packages/sdk-browser/src/index.ts'
+import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
+import { animation } from '../../../packages/sdk-core/src/world/animation/family.ts'
+import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
+import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
+import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
+import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
+import { math } from '../../../packages/sdk-core/src/world/math/index.ts'
+import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import { TRACE_LIST } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { latestMade } from '../kit/worldErrors.ts'

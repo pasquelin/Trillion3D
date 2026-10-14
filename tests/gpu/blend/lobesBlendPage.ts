@@ -3,7 +3,7 @@
 // lights in place, its lobes set by its own fragment (`physicalWgsl.ts`) —, rendered by the real
 // WebGPU engine until held.
 import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { runOnDevice as withDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../kit/deviceProof.ts'
 import {
   ANISOTROPY_CASES,
   CLEARCOAT_CASES,
@@ -13,7 +13,7 @@ import {
 
 /** Each case's blended plane, read as the opaque proofs read theirs. */
 const blended = (cases: Record<string, G.SurfaceParameters>) =>
-  withDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
+  runOnDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
     readCases(device, events, result, cases, { blend: true }),
   )
 

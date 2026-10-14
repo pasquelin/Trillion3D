@@ -1,6 +1,7 @@
 // The generated world of the bounce light lists proof (`light-lists.gpu.ts`): a lattice, lights
 // over it and points to light.
-import { BOUNCE_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
+import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/bounce/contracts.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 
 /** The lattice: the cascades' side, 2 m cells, centred on the origin. */

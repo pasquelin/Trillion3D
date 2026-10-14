@@ -13,7 +13,7 @@ import {
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
-import { light } from '../../../packages/sdk-core/src/world/light/index.ts'
+import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'

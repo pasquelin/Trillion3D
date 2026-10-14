@@ -4,7 +4,8 @@
 // texture that inherits the texture's usage, storage binding included.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, BACKEND } from './fakeDevice.ts'
+import { fakeDevice } from './fakeDevice.ts'
+import { BACKEND } from './fakeRecords.ts'
 
 const T = () => GPUTextureUsage,
   B = () => GPUBufferUsage

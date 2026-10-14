@@ -1,6 +1,6 @@
 // The unit tests' manifest encoder, for shapes of their own with no native compile; the magic, the
 // version and the header words are the compiler's (`contracts/writtenFormats.ts`).
-import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import {
   checkedDepthLayer,

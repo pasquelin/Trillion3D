@@ -7,7 +7,7 @@ import {
   COVERAGE_SCALE_WGSL,
 } from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
 import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
-import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'

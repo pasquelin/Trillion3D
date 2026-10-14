@@ -6,7 +6,7 @@ import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { draws } from '../kit/randomDraw.ts'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import type { ResolveScene } from './resolvePage.ts'
-import { unit as unitTuple } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { unit } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** A seeded draw: a number in a range, a vector in a cube, a unit vector. */
 export function resolveRandom(seed: number) {
@@ -17,8 +17,7 @@ export function resolveRandom(seed: number) {
     between(-size, size),
     between(-size, size),
   ]
-  const unit = (v: number[]) => unitTuple([v[0], v[1], v[2]])
-  return { r, between, vector, unit }
+  return { r, between, vector, unit: (v: number[]) => unit([v[0], v[1], v[2]]) }
 }
 
 /** `count` points in a two-metre box and their samples: a surface of each lit model (standard,

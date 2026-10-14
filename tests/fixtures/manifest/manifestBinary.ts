@@ -1,6 +1,6 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/page/format.ts'
-import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import {
   levelBlockBytes,
   previewFirstLevel,

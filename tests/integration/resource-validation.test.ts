@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { openMeasuredWorld } from '../../bench/witnesses/measurement.ts'
-import { EngineError } from '../../packages/sdk-core/src/index.ts'
+import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts'
+import { EngineError } from '../../packages/sdk-core/src/contracts/cache.ts'
 
 const CAS: Array<[label: string, body: string, status: number, type: string, code: string]> = [
   ['SPA HTML', '<!DOCTYPE html>', 200, 'text/html', 'INVALID_JSON_RESPONSE'],

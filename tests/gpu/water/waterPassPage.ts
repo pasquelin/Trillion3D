@@ -21,7 +21,7 @@ import {
   waterSurface,
   type WaterCase,
 } from './waterPassCases.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import {
   WATER_COMPOSITE_PASS,
   WATER_SURFACE_PASS,

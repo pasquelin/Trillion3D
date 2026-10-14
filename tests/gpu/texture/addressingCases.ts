@@ -5,7 +5,7 @@
 // i = ⌊u·size⌋, then clamp, modulo, or modulo over two periods whose second is read backwards.
 // `texture-addressing.gpu.ts` checks that rule against the real samplers, case by case, and the
 // engine's wrap WGSL against both.
-import type { WrapMode } from '../../../packages/sdk-core/src/index.ts'
+import type { WrapMode } from '../../../packages/sdk-core/src/texture/contract.ts'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 import { clamp, mix, wrap } from '../../../packages/math/src/scalar/reals.ts'
 

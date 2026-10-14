@@ -5,10 +5,8 @@ import { pathToFileURL } from 'node:url'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { compileFullCache } from '../../../scripts/native-compiler.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
-import type {
-  MeasuredWorldOptions,
-  MeasuredWorldTarget,
-} from '../../../packages/sdk-browser/src/measurement/measurement.ts'
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
+import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'
 import { manifestUrlOf } from '../../kit/scenes/caches.ts'
 import { installProofGpu } from './onDawn.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'

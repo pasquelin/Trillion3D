@@ -5,7 +5,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { Vec3 } from '../kit/vecTypes.ts'
 import { DROPOUT_DEG, normalVerdict } from './inverseTransposeF32.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { luminance as luminanceOf } from '../../../packages/math/src/color/luminance.fixture.ts'
+import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
 
 /** The `scale ∘ rotation` pose `worldPose` and `lightingCase` take. */
 export interface PoseParams {
@@ -40,7 +40,7 @@ export interface GpuRow {
 }
 
 /** Rec. 709 luminance: a lit colour compared by a single number. */
-const luminance = ([r, g, b]: number[]): number => luminanceOf(r, g, b)
+const luminanceOf = ([r, g, b]: number[]): number => luminance(r, g, b)
 
 /** The light and material every case is lit with. */
 export const LIT_MATERIAL = { light: [0.3, 0.8, 0.5, 3], metal: 0.1, roughness: 0.4 }
@@ -86,8 +86,8 @@ export function lightingCase(input: LightingInput): CampaignCase {
 /** The GPU's rendered normal judged against the true one (`normalVerdict`), and the relative
  *  luminance gap between the two colours the same BRDF lights on the same GPU. */
 export function normalGap(lit: CampaignCase, row: GpuRow) {
-  const truthLuminance = luminance(row.litTrue),
-    renderedLuminance = luminance(row.litRendered)
+  const truthLuminance = luminanceOf(row.litTrue),
+    renderedLuminance = luminanceOf(row.litRendered)
   return {
     verdict: normalVerdict(row.rendered, lit.truth, DROPOUT_DEG),
     truthLuminance,

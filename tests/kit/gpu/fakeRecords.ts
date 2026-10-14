@@ -1,5 +1,5 @@
 /** What `fakeDevice()` records and the options it takes, apart so the device stays readable. */
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 
 export type Numbers =
   Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array

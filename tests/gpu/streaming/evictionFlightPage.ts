@@ -3,10 +3,8 @@
 // loads landing at random delays, two frames read back behind. Each frame copies the pool in its own
 // command buffer after its cut; for every frame read back (`evictionFlightFrame.ts`): its drawn
 // pages, their slots, the pool as it read it, and the cut an unbounded pool draws at that pose.
-import {
-  createGpuDagSelection,
-  packDagSelection,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { createGpuPageCache } from '../../../packages/sdk-browser/src/gpu/page/pages.ts'
 import { createEvictionFeed } from '../../../packages/sdk-browser/src/webgpu/residency/evictionFeed.ts'
 import { createWebgpuPageTracking } from '../../../packages/sdk-browser/src/webgpu/row/pageTracking.ts'

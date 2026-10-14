@@ -7,7 +7,10 @@
 //   node bench/dawn/proofs.ts tests/gpu/lighting/moving-exact.gpu.ts
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
-import { LIGHT_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
+import {
+  LIGHT_SETTINGS,
+  type SceneLight,
+} from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { ResolveScene } from './resolvePage.ts'
 import { distanceVector3 } from '../../../packages/math/src/vector/vector.ts'
 import {

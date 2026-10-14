@@ -15,7 +15,7 @@ import {
 } from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { signedArea } from '../../../bench/oracles/browser/cpu-image/projection.ts'
@@ -24,7 +24,7 @@ import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gp
 import { triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../kit/cameraRig.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
-import { type SelectionCase } from './selectionCase.ts'
+import type { SelectionCase } from './selectionCase.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]

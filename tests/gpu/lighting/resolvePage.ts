@@ -10,7 +10,8 @@
  * page does not know fails by its number, never as a drifted copy.
  */
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
-import { createSceneLightStore, type SceneLight } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,

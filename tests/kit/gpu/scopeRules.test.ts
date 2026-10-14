@@ -3,7 +3,8 @@
 // writable — the encoder the shadow chunks once finished, which lost the device on every page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BACKEND, fakeDevice } from './fakeDevice.ts'
+import { BACKEND } from './fakeRecords.ts'
+import { fakeDevice } from './fakeDevice.ts'
 import { createUsageScope, writableBuffers } from './scopeRules.ts'
 
 const args = { label: 'args' },

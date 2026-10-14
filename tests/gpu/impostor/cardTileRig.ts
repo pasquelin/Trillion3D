@@ -4,7 +4,7 @@
 // RGBA8 levels, level 0 first: its streamed tiles written as the streamer writes a decoded level's
 // tile, gutter included, its tail pinned from its bytes.
 import { length2 } from '../../../packages/math/src/vector/vector.ts'
-import { previewLevelSize } from '../../../packages/sdk-core/src/index.ts'
+import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { createWebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlas.ts'
 import { cardTileEntries } from '../../../packages/sdk-browser/src/webgpu/tile/cardReads.ts'
 import type { TileTexture } from '../../../packages/sdk-browser/src/webgpu/tile/tileTexture.ts'

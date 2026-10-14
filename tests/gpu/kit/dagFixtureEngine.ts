@@ -1,9 +1,7 @@
 // The real WebGPU engine on the repository's cluster DAG fixture (`dag.fixture.ts`), as the proofs
 // of a cut held under a small residency budget and of a lost device mount it.
-import type {
-  EngineContext,
-  EngineDiagnostic,
-} from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 

@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import type { Texture, TextureFilter } from '../../../packages/sdk-core/src/index.ts'
+import type { Texture, TextureFilter } from '../../../packages/sdk-core/src/texture/contract.ts'
 import {
   SAMPLE_FILTER_MASK,
   samplingWords,

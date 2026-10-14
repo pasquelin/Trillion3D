@@ -1,7 +1,7 @@
 // Page of the blended receiver's shadow proof (`blend-shadow.gpu.ts`): the real WebGPU engine on
 // the generated penumbra scene (`penumbraScene.ts`), lit by its wide sun, read back held — the
 // receiver opaque, the same receiver blended, and the opaque one with the slats taken away.
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { engine, release } from '../kit/sharedSceneProof.ts'
 import { untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'

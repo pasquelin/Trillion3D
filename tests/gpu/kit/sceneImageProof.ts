@@ -5,7 +5,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
 import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
 import { VIEWPORT, cameraFace, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'

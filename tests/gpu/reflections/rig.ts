@@ -31,7 +31,7 @@ import {
   createSceneLightContractBuffer,
   uploadSceneLights,
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { TONE_MAPPING_RANK } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
 import type { WebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'

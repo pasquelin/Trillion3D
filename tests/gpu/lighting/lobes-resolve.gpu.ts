@@ -9,7 +9,7 @@
 import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
-import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { ResolveScene } from './resolvePage.ts'
 import { SAMPLE_FLOATS } from './resolveHarness.ts'
 import {

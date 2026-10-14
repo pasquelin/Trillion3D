@@ -5,7 +5,8 @@
 // geometry, its maps and its material go through the engine's page rows, atlases, resolve or blend
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { HALF_PI, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'

@@ -4,7 +4,7 @@
 // lists — the very loop, every light (`bounceLightSlice`) —, both read back; each walk and the
 // lists' rebuild timed on the GPU, interleaved.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts'

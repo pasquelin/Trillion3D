@@ -1,4 +1,4 @@
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'

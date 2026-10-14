@@ -4,7 +4,8 @@
  * (`cellSlice`): its lights, or `null` where the pool had no room (every light of the scene), and
  * its count's shadow bit.
  */
-import { createSceneLightStore, LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts'
 import {
   createSceneLightContractBuffer,

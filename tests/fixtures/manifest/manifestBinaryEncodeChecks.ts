@@ -1,11 +1,8 @@
 /** The checks and writes the test encoder applies before it stores a row, as the compiler refuses
  *  them (`asset-compiler-rust/src/manifest_binary/page.rs`). */
-import {
-  EngineError,
-  type ClusterManifest,
-  type Page,
-} from '../../../packages/sdk-core/src/contracts/index.ts'
-import { PREVIEW_BLOCK_FORMATS } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
+import type { ClusterManifest, Page } from '../../../packages/sdk-core/src/contracts/geometry.ts'
+import { PREVIEW_BLOCK_FORMATS } from '../../../packages/sdk-core/src/texture/previewFormat.ts'
 import type { Counts } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts'
 import type { SlimPrimitiveBinary } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 import { MAX_DEPTH_LAYER } from '../../../packages/sdk-core/src/lod/depthLayer.ts'

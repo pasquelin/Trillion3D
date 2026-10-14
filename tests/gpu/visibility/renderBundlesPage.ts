@@ -4,7 +4,8 @@
 // tested half compacted or not. Each pose is rendered until held with the bundles, and on a second
 // engine, walking the same poses, whose bundles are encoded as their commands in the pass
 // (`withDirectBundles`): the witness. The bundles each image records are counted.
-import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
 import { untilHeld } from '../kit/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'

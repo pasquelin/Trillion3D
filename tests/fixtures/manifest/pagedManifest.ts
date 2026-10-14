@@ -3,8 +3,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
-import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
-import { MANIFEST_BINARY_VERSION } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
+import { MANIFEST_BINARY_VERSION } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import { TEMPLATES } from './manifestBinary.ts'
 import { encodeManifestBinary } from './manifestBinaryEncode.ts'
 

@@ -3,7 +3,7 @@
 // nibbles (`visibility/wrapModes.test.ts`) both read this material: one thing to read again when
 // the modes change.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { WrapMode } from '../../../packages/sdk-core/src/index.ts'
+import type { WrapMode } from '../../../packages/sdk-core/src/texture/contract.ts'
 import { textureBytes } from './addressingCases.ts'
 import {
   SAMPLE_WRAP_SHIFT,

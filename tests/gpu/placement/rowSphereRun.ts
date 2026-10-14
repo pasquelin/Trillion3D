@@ -18,7 +18,7 @@ import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
-import { transformAffinePoint } from '../../../packages/sdk-core/src/index.ts'
+import { transformAffinePoint } from '../../../packages/math/src/vector/vector.ts'
 import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 
 const CASES = 600

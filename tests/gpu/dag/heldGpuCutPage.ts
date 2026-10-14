@@ -2,7 +2,7 @@
 // the kernel wants missing pages, and the cut climbs to the resident ancestor — the very path where
 // GPU selection used to be thrown away. Nothing is read from the inside: the drawn cut the engine
 // publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 import { dagFixtureEngine } from '../kit/dagFixtureEngine.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

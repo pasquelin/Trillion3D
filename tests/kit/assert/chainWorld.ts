@@ -1,9 +1,7 @@
-import { composeMatrix4 } from '../../../packages/math/src/matrix/matrix4Trs.ts'
+import { composeMatrix4 } from '../../../packages/math/src/matrix/matrix4Compose.ts'
 import { multiplyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
-import {
-  NODE_AUTO_UPDATE,
-  type TransformTree,
-} from '../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
+import { NODE_AUTO_UPDATE } from '../../../packages/sdk-core/src/world/transform-tree/nodeFlags.ts'
+import type { TransformTree } from '../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
 import { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /**

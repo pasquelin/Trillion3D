@@ -1,7 +1,7 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
-import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import { compactDrawnPages, drawMask, maskBit, writtenMask } from './globals.ts'
 import {
   LIST_DROPPED,

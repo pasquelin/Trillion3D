@@ -5,11 +5,11 @@
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import {
-  OUT_COUNT,
-  SELECTION_HEADER_WORDS as HEAD,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+  stagedRequestsWord,
+  SELECTION_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { OUT_COUNT } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { requestScene } from '../../../packages/sdk-browser/src/gpu/dag/requestScene.fixture.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openSelectionKernel } from './selectionKernel.ts'
@@ -36,9 +36,13 @@ async function sortOnDawn(staged: [number, number][]) {
     })
   })
   kernel.sort(group)
-  const read = (await readGpuBuffer(kernel.device, buffers.out.buffer, (HEAD + staged.length) * 4))!
+  const read = (await readGpuBuffer(
+    kernel.device,
+    buffers.out.buffer,
+    (SELECTION_HEADER_WORDS + staged.length) * 4,
+  ))!
   destroy()
-  return { adapter: await kernel.close(), pages: Array.from(read.subarray(HEAD)) }
+  return { adapter: await kernel.close(), pages: Array.from(read.subarray(SELECTION_HEADER_WORDS)) }
 }
 
 test('the snapshot names every page whole, past twenty-two bits, ranked by priority', async () => {

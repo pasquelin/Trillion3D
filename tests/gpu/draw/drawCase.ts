@@ -4,7 +4,7 @@
 // both left read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
-import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
 import { DIRECT_PAGE, pageOfId, type setupVisibility } from './drawVisibility.ts'

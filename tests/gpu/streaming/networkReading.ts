@@ -6,7 +6,7 @@ import { createServer } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { ASSETS } from '../../../bench/runner/assets/scene.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { listen, staticServer } from '../../../scripts/static-server.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 

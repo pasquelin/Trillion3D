@@ -1,8 +1,8 @@
 // A world opened with the engine's own defaults, wherever the proof's page runs: one opening, so
 // every proof that reads a default image reads the same.
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
-import type { openMeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts'
-import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
+import type { openMeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 
 /**
  * `manifestUrl` opened on `canvas` by `open` (the page's own import of `openMeasuredWorld`: on Dawn

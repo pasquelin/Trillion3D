@@ -3,7 +3,7 @@
 // without temporal accumulation: still, under a camera pan, then after a move of the tile. Nothing
 // internal is read: `setTransform` on one side, read-back pixels and `frameHeld` on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import {
   VIEWPORT,
   batisseur,

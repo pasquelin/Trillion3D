@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import {
   camera,

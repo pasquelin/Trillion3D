@@ -3,10 +3,8 @@
 // overridden sizes, an abort that disposes it, a cancelled job. A target that is no canvas, or a
 // named raster with no device, fails before any GPU work (`world/session/target.test.ts`).
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type {
-  MeasuredWorldOptions,
-  MeasuredWorldTarget,
-} from '../../../bench/witnesses/measurement.ts'
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
+import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { settle } from './proofWorld.ts'
 import { measurementSdk, openEngineWorld } from '../kit/renderHarness.ts'

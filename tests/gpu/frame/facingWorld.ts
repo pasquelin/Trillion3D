@@ -3,7 +3,7 @@
 // whose image can be read back, from an eye facing the plane its surfaces lie in.
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { coplanarCache, openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 

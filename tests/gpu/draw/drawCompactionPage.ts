@@ -2,7 +2,7 @@
 // on a device opened without `indirect-first-instance` — the engine's own device, that one feature
 // switched off as an adapter lacking it would leave it: each slot's start must come from storage,
 // never from the indirect command.
-import { createGpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import { createGpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/factory.ts'
 import { VIS_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { runCase, type DrawCase } from './drawCase.ts'

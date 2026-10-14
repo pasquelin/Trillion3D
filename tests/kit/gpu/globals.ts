@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { FakeDraw } from './fakeRenderPass.ts'
 import { words } from './fakeBuffers.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'

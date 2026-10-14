@@ -5,7 +5,7 @@
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import {
   treeNodeCount,
   TREE_SPAN,

@@ -6,7 +6,7 @@
 // the next render must raise `WEBGPU_LOST`, and the loss must have been announced under that name.
 import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 import { dagFixtureEngine } from '../kit/dagFixtureEngine.ts'
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Colour channels that are not black, alpha aside. */

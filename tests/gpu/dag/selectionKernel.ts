@@ -8,7 +8,10 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import {
+  stagedRequestsWord,
+  SELECTION_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 import {
   OUT_COUNT,
@@ -16,7 +19,6 @@ import {
   OUT_FRUSTUM_REJECTED,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
-  SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'

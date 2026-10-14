@@ -7,7 +7,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import type { Side } from '../../../packages/sdk-core/src/index.ts'
+import type { Side } from '../../../packages/sdk-core/src/contracts/material.ts'
 
 /** Where each tile stands, its centre in the plane `z = 0`. */
 export const AT = {
