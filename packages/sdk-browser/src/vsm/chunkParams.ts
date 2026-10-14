@@ -12,7 +12,8 @@ import { VSM_MIPS } from './constants.ts'
 import { VSM_RENDER_PARAMS, VSM_RENDER_VIEW_DIRECTIONAL } from './renderCullWgsl.ts'
 import type { VsmBoundLight, VsmChunk } from './rowPageBound.ts'
 
-/** The main view whose level of detail the casters take (the level of detail the main view draws). */
+/** The main view whose level of detail the casters take (the level of detail the main view
+ *  draws). */
 export interface VsmRenderCamera {
   /** World eye position (double precision; split high/low on upload). */
   eye: ArrayLike<number>
@@ -27,8 +28,8 @@ export interface VsmRenderCamera {
 }
 
 /** Declared: a caster whose radius is under a hundredth of its distance from the eye (0.57°, about
- *  5 pixels of radius in a 1 080-pixel, 90° view) is not drawn into an uncached map; squared, as the
- *  cull compares squares. Larger drops more small casters from fresh maps; 0 keeps them all. */
+ *  5 pixels of radius in a 1 080-pixel, 90° view) is not drawn into an uncached map; squared, as
+ *  the cull compares squares. Larger drops more small casters from fresh maps; 0 keeps them all. */
 const VSM_SMALL_CASTER_SQ = 0.01 * 0.01
 
 /** Bytes of the parameters a kernel binds from its chunk's slot (`VsmRenderParams`). */

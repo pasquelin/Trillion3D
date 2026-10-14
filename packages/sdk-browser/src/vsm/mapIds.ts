@@ -11,7 +11,8 @@ export const VSM_NEXT_MAP_BYTES = 16
 
 /** The id half of the shadow map array. */
 export class VsmMapIds implements VsmIdAllocator {
-  /** Single-page slots are always reserved (see `VSM_SINGLE_PAGE_MAP_SLOTS`): full ids start at 8192. */
+  /** Single-page slots are always reserved (see `VSM_SINGLE_PAGE_MAP_SLOTS`): full ids start at
+   *  8192. */
   mapSlotCount = VSM_SINGLE_PAGE_MAP_SLOTS
   singlePageMapCount = 0
   localMaps = 0

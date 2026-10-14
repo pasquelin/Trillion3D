@@ -101,7 +101,7 @@ const LIGHT_SLOTS = 256,
 /** Copies of the page counters read back at once (`vsmFrameEnd.ts`). */
 const STATS_READBACKS = 3
 /** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists on a device of
- *  `limits`: the marking, the light and sun ids, the status feedback and the counters' readbacks. */
+ *  `limits`: the marking, the light and sun ids, the feedback and the counters' readbacks. */
 export const engineVsmSideBytes = (limits: GPUSupportedLimits) =>
   vsmMarkingBytes(limits) +
   4 * LIGHT_SLOTS +
@@ -126,8 +126,7 @@ export const lightIdsBuffer = (device: GPUDevice, size: number) =>
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
 
-/** Whether `device` takes the page management's counters: their kernels bind one more storage
- *  buffer (the stats permutation, `VsmPageManagementFrame.options`). */
+/** Whether `device` takes the page management's counters, a ninth storage buffer a stage. */
 export const vsmCountersOn = (device: GPUDevice) =>
   device.limits.maxStorageBuffersPerShaderStage >= 9
 

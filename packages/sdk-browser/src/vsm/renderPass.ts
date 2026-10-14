@@ -62,7 +62,8 @@ import { renderGroups, vsmEncodeChunks, type RasterTables } from './renderChunks
  * `shadowPageGroup(rt, device)`), group 0 of the raster.
  */
 export interface VsmRenderScene {
-  /** Rows of the page table to consider (`layout.rows.packedCount`; the blended rows after it are skipped). */
+  /** Rows of the page table to consider (`layout.rows.packedCount`; the blended rows after it are
+   *  skipped). */
   rowCount: number
   pageTable: GPUBuffer
   spheres: GPUBuffer
@@ -72,8 +73,8 @@ export interface VsmRenderScene {
   pageGroup: GPUBindGroup
   camera: VsmRenderCamera
   /** What changed in `spheres` (`lights.spheres`) since a frame: chunks are sized by where the rows
-   *  are, from the GPU's histograms of them (`rowPageBound.ts`), or, where that cannot speak, by the
-   *  worst case: every row reaching every page. */
+   *  are, from the GPU's histograms of them (`rowPageBound.ts`), or, where that cannot speak, by
+   *  the worst case: every row reaching every page. */
   rowSpheres: VsmRowSpheres
 }
 

@@ -55,10 +55,10 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
   return Math.max(0, vsmSetBytes(rt, device, list) - shadowHeldBytes(rt)) + rows
 }
 
-/** The mask a frame of the targets in place projects into, made once they are (`grantTargets`):
- *  at their size, a layer per four casting lights, in the room their funding kept for it
- *  (`vsmAskedBytes`) — never left to a later allocation of the frame that could take it. Funded
- *  and made by the same lights. Tentative: refused, the plan asks it again (`reserveProjection`). */
+/** The mask a frame of the targets in place projects into, made once they are (`grantTargets`): at
+ *  their size, a layer per four casting lights, in the room their funding kept for it
+ *  (`vsmAskedBytes`) — never left to a later allocation of the frame that could take it. Funded and
+ *  made by the same lights. Tentative: refused, the plan asks it again (`reserveProjection`). */
 export function makeVsmMask(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vsm } = rt.lights,
     casting = shadowedLights(rt)

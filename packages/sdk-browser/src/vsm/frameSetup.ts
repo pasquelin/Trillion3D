@@ -58,7 +58,8 @@ export interface VsmFramePlan {
   uniforms: VsmFrameUniforms
   /** The next-map data count: entries uploaded to `resources.nextMaps`. */
   nextMapCount: number
-  /** Map ids exceed the resources' capacity: nothing was uploaded; recreate the resources larger. */
+  /** Map ids exceed the resources' capacity: nothing was uploaded; recreate the resources
+   *  larger. */
   overflow: boolean
 }
 

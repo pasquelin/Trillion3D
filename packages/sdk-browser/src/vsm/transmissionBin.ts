@@ -25,7 +25,8 @@ import { TRANSMISSION_LABEL, type VsmTransmission } from './transmissionMade.ts'
 import type { VsmTransmissionContext } from './transmissionContext.ts'
 import type { BinPlan } from './transmissionBinPlan.ts'
 
-/** The chunk groups over the scene's rows, the lists and the transmission alone (`VsmTransmissionContext.lists`). */
+/** The chunk groups over the scene's rows, the lists and the transmission alone
+ *  (`VsmTransmissionContext.lists`). */
 export interface ChunkLists {
   trans: VsmTransmission
   cand: GPUBindGroup

@@ -50,6 +50,6 @@ export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
 }
 
 /** Whether the frame shadows `l`: it casts, and a lit point of the frame is in reach of it
- *  (`vsmLightSeen`). What the maps, their tables and the mask are sized by: the view's lights, never
- *  the world's. */
+ *  (`vsmLightSeen`). What the maps, their tables and the mask are sized by: the view's lights,
+ *  never the world's. */
 export const vsmShadowed = (l: VsmFrameLight) => l.light.castsShadow && (l.visible ?? true)

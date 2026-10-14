@@ -1,6 +1,7 @@
 /**
- * WHAT A FRAME SET'S PLAN HOLDS FROM FRAME TO FRAME (`frameSetup.ts`): its cache, its upload images,
- * the id allocator, and each light's shape as last seen, which tells the cache which lights moved.
+ * WHAT A FRAME SET'S PLAN HOLDS FROM FRAME TO FRAME (`frameSetup.ts`): its cache, its upload
+ * images, the id allocator, and each light's shape as last seen, which tells the cache which lights
+ * moved.
  */
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from './constants.ts'

@@ -105,7 +105,8 @@ export function encodeVsmTransmission(
   // ⌈poolPages / 256⌉ groups: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(ceilDiv(layout.poolPages, VSM_TRANSMISSION_PAGE_GROUP))
   if (bin) encodeBin(pass, ctx, scene, plan!, bin)
-  // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty slice.
+  // Resolve: the slices numbered, a thread a record placed, a group a slice, a thread a dirty
+  // slice.
   {
     pass.setPipeline(ctx.number.pipeline)
     pass.setBindGroup(0, groups.number)
