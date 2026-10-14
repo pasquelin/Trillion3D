@@ -78,7 +78,11 @@ export function commitRowMotion(rt: WebgpuPagesRuntime, derived: number) {
     state = rt.compose
   let rows = derived
   const whole = (rank: number) => void (rows += roots[rank]?.pages.length ?? 0)
-  for (const rank of travel.jumped) whole(rank)
+  // A placement counted whole holds its rows: its travel bounds none of them.
+  for (const rank of travel.jumped) {
+    whole(rank)
+    if (rank < travel.ranks.a.length) travel.ranks.a[rank] = travel.ranks.b[rank] = 0
+  }
   travel.jumped.length = 0
   const farthest = Math.max(
     takeFarthest(travel.ranks, (rank) => rootReach(roots[rank]), whole),
