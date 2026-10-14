@@ -15,6 +15,9 @@ const GRAZING = 0.05
 const DEPTH_SHARE = 2e-3
 /** The widest lobe a history is taken at its virtual point for, as the tangent of its cone (`rtAnswer`). */
 const SMOOTH = 0.25
+/** The share of a ray's length a virtual cell's ray may differ by: the depth step of what it meets across
+ *  a pixel, which no slope of the mirror's own bounds. */
+const VIRTUAL_SHARE = 0.05
 
 /**
  * THE HISTORY OF A PIXEL'S SURFACE in the run-time proxy's store (`runtimeLayout.ts`): what answers a
@@ -43,6 +46,7 @@ const RT_NORMAL_MATCH:f32=${wgslF32(NORMAL_MATCH)};
 const RT_GRAZING:f32=${wgslF32(GRAZING)};
 const RT_DEPTH_SHARE:f32=${wgslF32(DEPTH_SHARE)};
 const RT_SMOOTH:f32=${wgslF32(SMOOTH)};
+const RT_VIRTUAL_SHARE:f32=${wgslF32(VIRTUAL_SHARE)};
 /** A clip point's linear depth: its \`w\` under a perspective, its depth in metres under an orthographic
  *  projection (\`ReflectionView.slab\`). */
 fn rtDepthOf(clip:vec4f)->f32{
@@ -79,19 +83,22 @@ fn rtSurfaceHistory(P:vec3f,N:vec3f,V:vec3f)->RtCell{
  return cell;
 }
 /** The cell that saw, the image before, what \`P\`'s ray meets \`held.distance\` away: the one at the
- *  virtual point \`Pv\`, its surface \`X\` on the ray from that image's eye through \`Pv\`, on \`P\`'s plane,
- *  its ray as long as \`Pv\` lies behind it. */
+ *  virtual point \`Pv\`, its surface \`X\` on the ray from that image's eye through \`Pv\`, on \`P\`'s plane
+ *  (within the depth's reach at its slope), its ray a hit as long as \`Pv\` lies behind it (within
+ *  \`RT_VIRTUAL_SHARE\` of the length and two pixels at \`Pv\`'s depth: never the slope's reach, under
+ *  which a miss would pass for a short hit). */
 fn rtVirtualHistory(P:vec3f,N:vec3f,V:vec3f,held:RtCell)->RtCell{
  let Pv=P-V*held.distance;
  let clip=reflectionView.radianceViewProj*vec4f(Pv,1.0);
  let cell=rtPreviousCell(clip);
- if(cell.stamp==0u||dot(cell.normal,N)<RT_NORMAL_MATCH){return rtNone();}
+ if(cell.share==0u||!(cell.distance>0.0)||dot(cell.normal,N)<RT_NORMAL_MATCH){return rtNone();}
  let e=reflectionView.radianceInverse[2];
  let eye=e.xyz/e.w;
  let X=eye+(Pv-eye)*(cell.depth/clip.w);
  let along=distance(Pv,eye);
- let reach=rtDepthReach(cell.depth,N,normalize(eye-X))+RT_DEPTH_SHARE*along;
- if(abs(dot(X-P,N))>reach||abs(distance(X,eye)+cell.distance-along)>reach){return rtNone();}
+ let plane=rtDepthReach(cell.depth,N,normalize(eye-X));
+ let span=RT_VIRTUAL_SHARE*held.distance+2.0*reflectionView.slab.x*clip.w+RT_DEPTH_SHARE*along;
+ if(!(abs(dot(X-P,N))<=plane&&abs(distance(X,eye)+cell.distance-along)<=span)){return rtNone();}
  return cell;
 }
 /** The history of the surface at \`P\`, of normal \`N\`, a lobe of cone \`tangent\`: \`own\`, the pixel's own
