@@ -45,9 +45,9 @@ export async function runRowTurn(options: typeof TURN = TURN) {
   const gpu = await openGpuDevice()
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device } = gpu
-  let selection: GpuSelection | undefined
+  const held: { selection?: GpuSelection } = {}
   // A request no free row serves asks the cut for a queue (`rowOrder.ts`).
-  const scene = rowCacheScene(options.copies, options.table, () => selection?.askEvictions())
+  const scene = rowCacheScene(options.copies, options.table, () => held.selection?.askEvictions())
   const { rows, sync, packed, roots, placement, pages } = scene
   const host = {
     ...{ map: rows.rowMap, words: sync.rowWords, table: rows },
@@ -55,7 +55,10 @@ export async function runRowTurn(options: typeof TURN = TURN) {
     order: sync.followRowOrder,
   }
   const reference = packDagSelection(roots)
-  selection = await createGpuDagSelection(device, packed, { rowPass: createRowEviction(host) })
+  const selection = await createGpuDagSelection(device, packed, {
+    rowPass: createRowEviction(host),
+  })
+  held.selection = selection
   const whole = await createGpuDagSelection(device, reference)
   if (!selection || !whole) return { error: 'GPU_SELECTION_UNAVAILABLE', errors: gpu.errors }
   whole.updateResidency(pageResidency(new Uint8Array(reference.pageCount).fill(1)))

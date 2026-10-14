@@ -2,6 +2,7 @@ import { createRecordTexture, type RecordTexture } from '../../gpu/core/recordTe
 import { STRUCTURE_TABLE, type StructureTable } from '../../gpu/dag/structureTable.ts'
 import { DAG_ARGS } from '../../gpu/dag/shader/armWgsl.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import {
   preparedComputePipeline,
@@ -20,7 +21,7 @@ const STACK_WORDS = 4096
  *  many lanes as the workgroup's memory holds stacks, `WORKGROUP_THREADS` at most; `undefined` past
  *  what one lane's stack may hold. */
 function closureShape(bound: number) {
-  const stack = 2 ** Math.ceil(Math.log2(Math.max(1, bound)))
+  const stack = nextPow2(bound)
   if (stack > STACK_WORDS) return undefined
   const lanes = Math.min(WORKGROUP_THREADS, STACK_WORDS / stack)
   return { stack, lanes, words: lanes * stack }

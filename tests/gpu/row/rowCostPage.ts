@@ -4,6 +4,7 @@
 // so every cut ranks a queue —; the same cut with and without the row pass
 // (`webgpu/row/rowEviction.ts`), each frame cut again and copied back, timed from its encode to the
 // queue's end. Published, never asserted: a timing is the machine's.
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
@@ -23,7 +24,7 @@ interface Sweep {
 /** A scene whose instances hold `rows` rows at least — three in four hold one
  *  (`closureScene`) —, a full table of them, each row's words its page's. */
 function rowScene(rows: number) {
-  const scene = closureScene(Math.ceil(rows / 90) + 1)
+  const scene = closureScene(ceilDiv(rows, 90) + 1)
   const words = createRowWords()
   words.fit(scene.count)
   scene.rows.forEach((page, value) => words.assign(value - 1, page, 0))
