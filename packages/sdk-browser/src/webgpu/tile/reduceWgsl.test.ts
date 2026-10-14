@@ -8,8 +8,6 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { GATHER_WGSL } from './reduceWgsl.ts'
 
-type Ref = { get(): number; set(value: number): void }
-
 test('a thread of the gather’s second row gathers the entry its flat rank names', () => {
   const cap = 4 * WORKGROUP_THREADS,
     // Two workgroups a row, two rows: thread 5 of the second row is entry 2 · 64 + 5.
@@ -24,16 +22,7 @@ test('a thread of the gather’s second row gathers the entry its flat rank name
   const { gather } = shaderRun<{ gather: (id: number[], n: number[]) => void }>(
     GATHER_WGSL,
     ['gather', 'flatIndex'],
-    {
-      hits,
-      tileFeedback,
-      uni: { cap },
-      atomicExchange: (p: Ref, value: number) => {
-        const held = p.get()
-        p.set(value)
-        return held
-      },
-    },
+    { hits, tileFeedback, uni: { cap } },
   )
   gather([5, 1, 0], n)
   assert.equal(hits[1 + cap + entry], 42, 'its count into the weights')

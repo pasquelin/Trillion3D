@@ -100,6 +100,7 @@ export const builtins = {
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
+  atomicExchange: swap,
   atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
   atomicAnd: (p: Ref, value: number) => swap(p, (p.get() & value) >>> 0),
   countOneBits: each((x) => {

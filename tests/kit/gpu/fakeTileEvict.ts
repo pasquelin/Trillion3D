@@ -1,5 +1,5 @@
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
-import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
+import { boundResource, boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
 import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
 import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
@@ -19,9 +19,9 @@ const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{
  *  texture eviction's; the rows' sort binds four too (`webgpu/row/rowEvictSort.ts`). */
 export const isTileSort = (entries: readonly BoundBuffer[]) =>
   entries.length === 4 &&
+  entries.some((entry) => entry.binding === 1) &&
   /texture eviction/.test(
-    (entries.find((e) => e.binding === 1)?.resource.buffer as { label?: string } | undefined)
-      ?.label ?? '',
+    (boundResource(entries, 1).buffer as { label?: string } | undefined)?.label ?? '',
   )
 
 /**
