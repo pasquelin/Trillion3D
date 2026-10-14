@@ -7,6 +7,7 @@ import { viewProj } from '../helpers.ts'
 import { enginePose } from '../../../camera/world.ts'
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
+import { namedCastsDropped } from '../../shadow/namedCasts.ts'
 
 /** A command buffer of the image, timed with its other parts when the image is sampled
  *  (`../../../gpu/timing/encoder.ts`), never a capture's. */
@@ -28,13 +29,15 @@ export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = createImagePart(rt, device))
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it.
- *  The passes it held never ran: the rows pass runs again, whole. */
+ *  The passes it held never ran: the rows pass runs again, whole, and the rows it named for their
+ *  shadow stale every page (`namedCastsDropped`). */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt
   const dropped = timing.frameEncoder
   if (!dropped) return
   timing.frameEncoder = undefined
   if (rt.rowWords?.encodedInto === dropped) rt.rowWords.all = true
+  namedCastsDropped(rt.lights, dropped)
   const settle = timing.frameSelection
   timing.frameSelection = undefined
   settle?.(false)

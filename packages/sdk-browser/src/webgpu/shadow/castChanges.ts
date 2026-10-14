@@ -2,8 +2,10 @@
  * THE SHADOW CHANGES OF THE ROWS, ON THE GPU: the list the rows pass appends to (`castChangesWgsl.ts`)
  * and the shadow maps' invalidation reads (`../../vsm/castInvalidation.ts`). Each record is a world
  * box, its centre and its half extent, four floats: a row derived again writes the box of its sphere
- * at the pose it leaves and at the one it enters (`../../placement/rowCastWgsl.ts`). The CPU names no
- * box of a move: it only keeps the list large enough for what the passes it encodes may append.
+ * at the pose it leaves and at the one it enters (`../../placement/rowCastWgsl.ts`); a row whose
+ * shadow changed where it stands — a cutout's colour tile, a surface's alpha —, the box of its sphere
+ * as it stands, the CPU naming the row alone (`nameCastRow`, `namedCasts.ts`). The CPU names no box:
+ * it only keeps the list large enough for what the passes it encodes may append.
  *
  * Layout: a header of four words — the records asked so far, then a flag set for good once one was
  * asked past the list —, then `records` records, each a box's centre and its half extent, negative
@@ -13,9 +15,10 @@
  * invalidation reads it (`consumedCasts`): a frame that plans no shadow keeps what its rows appended
  * for the next one.
  */
-import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import type { HeldGroup } from '../../placement/composeGroups.ts'
 
 /** Words of the header, and of a record (centre, half extent). */
 export const CAST_HEADER_WORDS = 4,
@@ -45,6 +48,16 @@ export function createCastChanges(device: GPUDevice, records = CAST_FLOOR) {
      *  encoded at all: a list no pass appended to since its last read is not read. */
     pending: 0,
     appended: false,
+    /** The rows named since the last pass (`nameCastRow`): word 0 their count, as the kernel reads
+     *  it, then the rows; their list on the GPU, the command buffer it was last encoded into and
+     *  the kernel's group over it. */
+    named: {
+      rows: new Uint32Array(64),
+      count: 0,
+      buffer: undefined as GPUBuffer | undefined,
+      encodedInto: undefined as GPUCommandEncoder | undefined,
+      group: undefined as HeldGroup | undefined,
+    },
   }
 }
 export type CastChanges = ReturnType<typeof createCastChanges>
@@ -69,6 +82,15 @@ export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number
   device.queue.submit([encoder.finish()])
   casts.records = records
   retire(device, old)
+}
+
+/** Row `row`'s shadow changed where it stands: the box of its sphere appended on the GPU, after the
+ *  frame's rows pass derived it (`namedCasts.ts`). */
+export function nameCastRow(casts: CastChanges, row: number) {
+  const named = casts.named
+  named.rows = resized(named.rows, named.count + 2)
+  named.rows[++named.count] = row
+  named.rows[0] = named.count
 }
 
 /** The list was read by the invalidation encoded into `encoder` before this: emptied after it. */

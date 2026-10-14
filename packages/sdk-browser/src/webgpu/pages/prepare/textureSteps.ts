@@ -94,14 +94,7 @@ export function tileStreamerFor(
         // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
         // once per pump.
         rt.run.gate.resourcesChanged()
-        shadowsFollowTextures(
-          rt.lights,
-          rt.layout.rows,
-          rt.layout.selectionRoots,
-          rt.layout.placement,
-          slots,
-          rt.vis.mapLayer,
-        )
+        shadowsFollowTextures(rt.lights, rt.layout.rows, slots, rt.vis.mapLayer)
       },
     })
 }

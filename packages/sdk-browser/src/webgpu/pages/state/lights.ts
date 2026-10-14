@@ -89,12 +89,13 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
 
 /**
  * True while the shadows can still change what the image shows: a representation change held for
- * the camera to rest, or the virtual shadow maps still drawing, by their own state
+ * the camera to rest, rows named for a shadow change the GPU has not staled yet
+ * (`../../shadow/namedCasts.ts`), or the virtual shadow maps still drawing, by their own state
  * (`vsmSettle.ts`). A scene without a shadow light, or an unlit view, waits for no map.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
   const { changes, store, vsm } = lights
-  if (changes.deferred()) return true
+  if (changes.deferred() || !!lights.casts?.named.count) return true
   // The virtual shadow maps: pages drawn, invalidated or uncached since the last count read back,
   // the budget feedback moving the resolution, the transmission pool short (`vsmSettle.ts`).
   return (

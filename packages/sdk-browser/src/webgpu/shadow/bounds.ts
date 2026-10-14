@@ -125,14 +125,14 @@ export function uploadDirtyRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice
 
 /** Two flat world boxes and their halves, allocated once, that a change is declared with: the
  *  rows the static layer holds, then the rows already moving. */
-export const changeBoxes = [0, 1].map(() => {
+const changeBoxes = [0, 1].map(() => {
   const box = new Float64Array(6)
   return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) }
 })
 
 /** True when the placement of rank `rank` already moves: the static layer does not hold its
  *  casters, and a change of its own redraws the moving casters alone. */
-export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
+const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
   rank >= 0 && mobility.moves(rank)
 
 /**
