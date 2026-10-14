@@ -1,6 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
-import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { QUAD_MANIFEST, quadMesh } from '../../engine/pagesEngineScenes.fixture.ts'
@@ -8,7 +8,6 @@ import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
-import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
@@ -26,7 +25,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
   const { geometry, material, mesh, source } = quadMesh(G.basicSurface({ color: 0xff0000 }))
   const bytes = new Map<string, Uint8Array>(),
     encoded: ReturnType<typeof encodePage>[] = []
-  const pages = dagRoots(
+  const roots = dagRoots(
     specs.map((spec, id) => {
       const page = {
         id,
@@ -58,17 +57,12 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         },
       }
     }),
-  ).pages
+  )
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
     primitives: [
       {
-        mesh: 0,
-        primitive: 0,
-        pass: 'exact-clusters',
-        pages,
-        structure: { version: 1, roots: specs.map((_, id) => id), groups: [] },
-        culling: manifestCulling(pages),
+        ...exactPrimitive(roots),
         quantization: { positionExponent: -6, uvExponent: -14, maxPositionError: 0.02 },
       },
     ],

@@ -1,6 +1,6 @@
 // Root clusters by hand: one over a box, and two primitives each carrying its own.
 import type { HostMesh } from '../../host/resources.ts'
-import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { DAG, dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { drawSourceOf } from '../../page/selection/drawSource.ts'
 
 /** One exact root cluster of three indices over the given box. */
@@ -15,14 +15,10 @@ export function twoPrimitives(
   pageA: ReturnType<typeof rootPage>,
   pageB: ReturnType<typeof rootPage>,
 ) {
-  const structure = { version: 1, roots: [0], groups: [] }
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
-    clusterStrategy: 'dag-groups',
-    primitives: [
-      { mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([pageA]), structure },
-      { mesh: 1, primitive: 0, pass: 'exact-clusters', ...dagRoots([pageB]), structure },
-    ],
+    errorModel: DAG.errorModel,
+    clusterStrategy: DAG.clusterStrategy,
+    primitives: [exactPrimitive(dagRoots([pageA])), exactPrimitive(dagRoots([pageB]), 1)],
   }
   const indices = new Map([
     [pageA.url, new Uint32Array([0, 1, 2])],

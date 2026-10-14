@@ -2,7 +2,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import assert from 'node:assert/strict'
-import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/collect.ts'
 import { packDagSelection } from '../../gpu/dag/pack.ts'
@@ -19,7 +19,6 @@ import {
 } from '../../engine/pagesEngineScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { graphDraws, type DrawAssociations } from '../../page/selection/drawSource.ts'
-import { manifestCulling } from '../../gpu/dag/culling.fixture.ts'
 import type { PageSurface } from '../../page/surface.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
@@ -30,7 +29,7 @@ export const withDraws = <S extends { source: Object3D; associations: DrawAssoci
 
 export function quadScene() {
   const { geometry, material, mesh, source } = quadMesh(G.basicSurface({ color: 0xff0000 }))
-  const pages = dagRoots(
+  const roots = dagRoots(
     [0, 1].map((id) => ({
       id,
       url: String(id),
@@ -40,20 +39,9 @@ export function quadScene() {
       bytes: 12,
       sha256: 'x',
     })),
-  ).pages
-  const metadata: ClusterManifest = {
-    ...QUAD_MANIFEST,
-    primitives: [
-      {
-        mesh: 0,
-        primitive: 0,
-        pass: 'exact-clusters',
-        pages,
-        structure: { version: 1, roots: [0, 1], groups: [] },
-        culling: manifestCulling(pages),
-      },
-    ],
-  }
+  )
+  const pages = roots.pages
+  const metadata: ClusterManifest = { ...QUAD_MANIFEST, primitives: [exactPrimitive(roots)] }
   const indices = quadIndices()
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return {

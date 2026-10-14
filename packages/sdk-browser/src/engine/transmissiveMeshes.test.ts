@@ -5,7 +5,7 @@ import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
-import { dagRoots, DAG } from './pagesEngine.fixture.ts'
+import { dagRoots, DAG, exactPrimitive } from './pagesEngine.fixture.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
 test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
@@ -33,7 +33,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
     selectedTriangles: 0,
     selectedNodes: 0,
     totalNodes: 0,
-    primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
+    primitives: [exactPrimitive(dagRoots(pages))],
   }
   const indices = new Map([['0', new Uint32Array([0, 1, 2])]]),
     associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
