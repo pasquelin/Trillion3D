@@ -2,7 +2,7 @@
 // a wait that doubles in a row, never every frame, never never.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { budgetRefusal, deviceRefusal, retryDue, retryFrame } from './refusal.ts'
+import { budgetRefusal, deviceRefusal, deviceWaiting, retryDue, retryFrame } from './refusal.ts'
 
 test('a budget refusal comes back once the room holds what it measured, whatever the frame', () => {
   const refusal = budgetRefusal(1000, 5)
@@ -22,4 +22,10 @@ test('a device refusal comes back after a wait twice the last, up to its cap', (
   for (let i = 0; i < 20; i++) last = deviceRefusal(0, last)
   assert.equal(last.wait, 300 * 64, 'the wait stops doubling')
   assert.equal(deviceRefusal(0, budgetRefusal(10, 0)).wait, 300, 'a budget refusal before it')
+})
+
+test('only a device refusal waits on frames, until its wait ends', () => {
+  assert.equal(deviceWaiting(budgetRefusal(10, 0), 1), false, 'a budget refusal waits for room')
+  assert.equal(deviceWaiting(deviceRefusal(0), 299), true)
+  assert.equal(deviceWaiting(deviceRefusal(0), 300), false)
 })
