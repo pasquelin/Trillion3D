@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 import { focalScale } from '../../../math/src/projection/camera.ts'
 
@@ -317,12 +318,6 @@ export function vsmMovingBias(stillBias: number, movingBias: number, movingShare
   return lerp(stillBias, b, movingShare)
 }
 
-/** A float as the f32 literal a shader reads: the f32's own decimal, which parses back to it. */
-const f32Literal = (x: number) => {
-  const text = String(Math.fround(x))
-  return /[.e]/.test(text) ? text : `${text}.0`
-}
-
 /** WGSL mirror of the constants every VSM shader needs. */
 export const VSM_CONSTANTS_WGSL = wgslBlock(
   'VSM_CONSTANTS_WGSL',
@@ -373,10 +368,10 @@ ${wgslConsts({
   LIGHT_KIND_RECT: VSM_LIGHT_KIND_RECT,
   VSM_GROUP_WIDTH,
 })}
-const VSM_CM_PER_UNIT:f32=${VSM_CM_PER_UNIT}.0;
-const VSM_NORMAL_OFFSET_FLOOR:f32=${VSM_NORMAL_OFFSET_FLOOR};
+const VSM_CM_PER_UNIT:f32=${wgslF32(VSM_CM_PER_UNIT)};
+const VSM_NORMAL_OFFSET_FLOOR:f32=${wgslF32(VSM_NORMAL_OFFSET_FLOOR)};
 const VSM_TRACE_VOTE_AFTER:i32=${VSM_TRACE_VOTE_AFTER};
-const VSM_TRACE_CONE_COT:f32=${f32Literal(focalScale(VSM_TRACE_CONE_LIMIT))};
+const VSM_TRACE_CONE_COT:f32=${wgslF32(focalScale(VSM_TRACE_CONE_LIMIT))};
 ${wgslConsts(
   {
     VSM_TRACE_RAYS_SUN,
@@ -384,9 +379,9 @@ ${wgslConsts(
   },
   'i32',
 )}
-const VSM_TRACE_SLOPE_CAP_SUN:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_SUN)};
-const VSM_TRACE_DITHER_SUN:f32=${f32Literal(VSM_TRACE_DITHER_SUN)};
-const VSM_TRACE_REACH_SUN:f32=${f32Literal(VSM_TRACE_REACH_SUN)};
+const VSM_TRACE_SLOPE_CAP_SUN:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_SUN)};
+const VSM_TRACE_DITHER_SUN:f32=${wgslF32(VSM_TRACE_DITHER_SUN)};
+const VSM_TRACE_REACH_SUN:f32=${wgslF32(VSM_TRACE_REACH_SUN)};
 ${wgslConsts(
   {
     VSM_TRACE_RAYS_LOCAL,
@@ -394,11 +389,11 @@ ${wgslConsts(
   },
   'i32',
 )}
-const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_SLOPE_CAP_LOCAL)};
-const VSM_TRACE_DITHER_LOCAL:f32=${f32Literal(VSM_TRACE_DITHER_LOCAL)};
-const VSM_TRACE_PLANE_BIAS_CAP_LOCAL:f32=${f32Literal(VSM_TRACE_PLANE_BIAS_CAP_LOCAL)};
-const VSM_MARK_SUN_MARGIN:f32=${f32Literal(VSM_SUN_PAGE_MARGIN)};
-const VSM_MARK_LOCAL_MARGIN:f32=${f32Literal(VSM_LOCAL_PAGE_MARGIN)};
+const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_LOCAL)};
+const VSM_TRACE_DITHER_LOCAL:f32=${wgslF32(VSM_TRACE_DITHER_LOCAL)};
+const VSM_TRACE_PLANE_BIAS_CAP_LOCAL:f32=${wgslF32(VSM_TRACE_PLANE_BIAS_CAP_LOCAL)};
+const VSM_MARK_SUN_MARGIN:f32=${wgslF32(VSM_SUN_PAGE_MARGIN)};
+const VSM_MARK_LOCAL_MARGIN:f32=${wgslF32(VSM_LOCAL_PAGE_MARGIN)};
 const VSM_MARK_STRIDE:vec2u=vec2u(${clamp(VSM_MARK_STRIDE_X, 1, 128)}u,${clamp(VSM_MARK_STRIDE_Y, 1, 128)}u);
 /** The normal bias length of a receiver \`distance\` from the eye (along the view axis under an
  *  orthographic camera): \`normalBias\` times the distance over the inverse tangent of the half
