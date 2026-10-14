@@ -27,7 +27,6 @@ test('a move no one reads takes no box; a read after it is the formula’s, to t
   const next = lcgRandom(5),
     elements = generated(next, 1e4),
     root = rootAt(elements)
-  worldMoved(root)
   assert.deepEqual(Array.from(root.worldBox!), new Array(6).fill(0), 'a root made takes none')
   assert.deepEqual(Array.from(rootWorldBox(root)!), expectedBox(root), 'its first read takes it')
   const left = Array.from(root.worldBox!)
@@ -43,7 +42,6 @@ test('a box read before the move is taken is the one the root leaves', () => {
   const next = lcgRandom(9),
     elements = generated(next, 10),
     root = rootAt(elements)
-  worldMoved(root)
   const before = Array.from(rootWorldBox(root)!)
   // The owner writes the world in place; the engine takes the move after it reads what it leaves.
   elements.set(generated(next, 10))

@@ -8,12 +8,12 @@
  * and the shadow box of a deformation (`noteDeformed`) —, the same doubles, never sent.
  *
  * Each is a memo keyed by the world's stamp: `worldAt`, which `worldMoved` moves at each place the
- * engine takes a world that moved — a root made (`collect.ts`, `../../scene/worldRecords.ts`), a
- * move (`../../webgpu/pages/render/movedRoot.ts`), a row its owner wrote (`../../placement/update.ts`)
+ * engine takes a world that moved — a move (`../../webgpu/pages/render/movedRoot.ts`), a row its owner wrote (`../../placement/update.ts`)
  * —, and the `stamp` of a world a parent composes (`../../placement/gpuComposeWorld.ts`). A move
  * costs the CPU one increment: the box and the stretch are taken at the first read after it, by the
  * one reader that asks, never for a root no reader asks. A box read before a move is taken is the
- * one the root leaves.
+ * one the root leaves. A memo never taken holds nothing: a root made is taken at its first read,
+ * its maker calls nothing.
  */
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
 import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
@@ -33,17 +33,20 @@ export type WorldMemo = {
 }
 
 /** The world of `root` moved: what is derived from it is taken again at its next read. */
-export function worldMoved(root: Pick<WorldMemo, 'world' | 'worldAt'>) {
+export function worldMoved(root: Pick<WorldMemo, 'worldAt'>) {
   root.worldAt = (root.worldAt ?? 0) + 1
 }
 
 /** The stamp of a world a parent composes; none for another. */
 const stampOf = (world: MatrixElements) => (world as { stamp?: number }).stamp
 
-/** Whether a memo taken at `at` and `stamp` still holds for `root`'s world. A root no move was
- *  ever taken of holds the box it was made with. */
+/** The stamp `worldMoved` left on `root`: none moved yet is stamp 0. */
+const movedAt = (root: WorldMemo) => root.worldAt ?? 0
+
+/** Whether a memo taken at `at` and `stamp` still holds for `root`'s world. One never taken holds
+ *  nothing: a root made is taken at its first read, no call of its maker's. */
 const holds = (root: WorldMemo, at: number | undefined, stamp: number | undefined) =>
-  at === root.worldAt && stamp === stampOf(root.world)
+  at === movedAt(root) && stamp === stampOf(root.world)
 
 /** `root`'s world box, its local box at its world, taken now when its world moved since; none
  *  without one. The array is the root's own: read, never kept past the next move. */
@@ -51,7 +54,7 @@ export function rootWorldBox(root: WorldMemo) {
   const box = root.worldBox
   if (!box || !root.localBox || holds(root, root.boxAt, root.boxStamp)) return box
   boxTransform(box, 0, root.localBox, 0, root.world.elements)
-  root.boxAt = root.worldAt
+  root.boxAt = movedAt(root)
   root.boxStamp = stampOf(root.world)
   return box
 }
@@ -60,7 +63,7 @@ export function rootWorldBox(root: WorldMemo) {
 export function worldStretch(root: WorldMemo) {
   if (root.stretch !== undefined && holds(root, root.stretchAt, root.stretchStamp))
     return root.stretch
-  root.stretchAt = root.worldAt
+  root.stretchAt = movedAt(root)
   root.stretchStamp = stampOf(root.world)
   return (root.stretch = maxStretch(root.world.elements))
 }
