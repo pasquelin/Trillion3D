@@ -1,7 +1,7 @@
 import type { DagResources, RowCutPass } from '../../gpu/dag/resources.ts'
 import { structuresOf } from '../../gpu/dag/structureTable.ts'
 import { SELECTION_HEADER_WORDS, rowBurst, rowQueueWord } from '../../gpu/dag/readoutWords.ts'
-import { cutBuffer, cutTexture } from '../../gpu/dag/cutBuffers.ts'
+import { cutBuffer, cutRefused, cutTexture } from '../../gpu/dag/cutBuffers.ts'
 import { createRowMapGpu, type RowMapJournal } from './rowMapGpu.ts'
 import { createRowWordsGpu, type RowWords } from './rowWords.ts'
 import { createRowClosure } from './rowClosure.ts'
@@ -77,8 +77,10 @@ export function createRowEviction(host: RowsHost) {
         const frame = host.frame()
         try {
           if (!stampAndRank(pass, read, frame)) unstamped[frame % FRAMES] = frame
-        } catch {
-          // A buffer the session's budget refused: no stamp this cut, so no queue to trust.
+        } catch (error) {
+          // A buffer the cut's share or the session's budget refused: no stamp this cut, so no
+          // queue to trust. Any other error is the engine's: it surfaces.
+          if (!cutRefused(error)) throw error
           unstamped[frame % FRAMES] = frame
         }
       },

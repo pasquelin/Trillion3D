@@ -1,4 +1,4 @@
-import { ledgerTentative } from '../core/deviceLedger.ts'
+import { budgetRefused, ledgerTentative } from '../core/deviceLedger.ts'
 
 /** The session's budget asked for a buffer of `bytes` more of the cut's tables: it throws, by its
  *  own name, when it cannot fund them. */
@@ -8,9 +8,16 @@ export type CutAdmission = (bytes: number) => void
  *  (`cutLedgerBytes`). */
 const CUT_LABEL = 'Trillion3D DAG'
 
+/** The name a cut's tables past their share are refused by. */
+const PAST_SHARE = 'GPU_CUT_TABLES_PAST_SHARE'
+
 /** The refusal of a cut whose tables would hold `bytes`, past its `share`: said by name. */
-const pastShare = (bytes: number, share: number) =>
-  new Error(`GPU_CUT_TABLES_PAST_SHARE: ${bytes} > ${share}`)
+const pastShare = (bytes: number, share: number) => new Error(`${PAST_SHARE}: ${bytes} > ${share}`)
+
+/** Whether `error` is a refusal `admitted` says by name: past the cut's share, or past the
+ *  session's budget (`budgetRefused`). Any other error is no refusal. */
+export const cutRefused = (error: unknown) =>
+  String(error).includes(PAST_SHARE) || budgetRefused(error)
 
 /**
  * The one way a resource of a cut's tables is made — `bytes` large, named `label` —, beside the
