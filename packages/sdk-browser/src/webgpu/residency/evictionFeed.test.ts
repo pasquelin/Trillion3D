@@ -75,11 +75,11 @@ test('the order closes while the cut the frames draw is held, and opens again af
   feed(selection, 3)
   feed(selection, 4)
   const order = orders.at(-1)!
-  assert.ok(order.open())
+  assert.ok(order.open?.())
   state.held = true
-  assert.ok(!order.open(), 'held: no page leaves')
+  assert.ok(!order.open?.(), 'held: no page leaves')
   state.held = false
-  assert.ok(order.open())
+  assert.ok(order.open?.())
   // Another selection: its predecessor's order names its pages no more.
   const next = { peek: () => null, cutHeld: false } as unknown as GpuSelection
   feed(next, 5)

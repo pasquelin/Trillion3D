@@ -7,14 +7,15 @@ export type EvictionOrder<K = string> = {
   readonly count: number
   /** The key at rank `at`, the first victim at 0. */
   keyAt(at: number): K
-  /** How many of its first keys are OLD: older than any page the view ahead asks for. */
-  readonly old: number
+  /** How many of its first keys are OLD: older than any page the view ahead asks for; all of
+   *  them unless said — a pool no view ahead asks of (tiles). */
+  readonly old?: number
   /** The cache's arrivals when its cut ran (`arrivals`): a page that arrived since is not in it,
    *  whatever its key. */
   readonly arrivals: number
   /** False while the cut the frames draw is older than the order (`../core/selection.ts`,
-   *  `cutHeld`): a page it lists may be drawn still, so none leaves. */
-  open(): boolean
+   *  `cutHeld`): a page it lists may be drawn still, so none leaves. Always open unless said. */
+  open?(): boolean
 }
 
 /** What a pool holds of each resident key: the arrival count when it arrived. */
@@ -40,6 +41,13 @@ export type NoVictim = 'eviction-queue-spent'
  * (`../dag/poolList.ts`). No clock, no recency: the GPU's. The one victim taker of every GPU pool,
  * keyed `K`, each resident key's entry `V`.
  */
+/** Whether `order` is there and lets its pages leave. */
+const opened = <K>(order: EvictionOrder<K> | undefined): order is EvictionOrder<K> =>
+  !!order && (order.open?.() ?? true)
+/** Where `order`'s victims end: its OLD head for `lower`, else every key it lists. */
+const endOf = <K>(order: EvictionOrder<K>, lower: boolean) =>
+  lower ? (order.old ?? order.count) : order.count
+
 export function createEviction<K = string, V extends Held = ResidentPage>(
   resident: Pick<ReadonlyMap<K, V>, 'get'>,
 ) {
@@ -72,8 +80,8 @@ export function createEviction<K = string, V extends Held = ResidentPage>(
   return {
     /** The page whose place the next arrival takes among those `accept` takes, or why none is. */
     victim(accept: Accept<V> = () => true, lower = false): V | NoVictim {
-      if (!order?.open()) return 'eviction-queue-spent'
-      const end = lower ? order.old : order.count
+      if (!opened(order)) return 'eviction-queue-spent'
+      const end = endOf(order, lower)
       for (let i = 0; i < held.length; i++) {
         if (held[i].rank >= end) continue
         const page = listed(held[i].key, accept)
@@ -93,16 +101,16 @@ export function createEviction<K = string, V extends Held = ResidentPage>(
     /** How many victims the order may still give an arrival, `lower` or not: an upper bound, read
      *  before a page is read for nothing. */
     victims(lower = false) {
-      if (!order?.open()) return 0
-      return Math.max(0, (lower ? order.old : order.count) - at) + held.length
+      if (!opened(order)) return 0
+      return Math.max(0, endOf(order, lower) - at) + held.length
     },
     /** Whether `key`'s page may leave with a victim — the order lists it, in its old head for
      *  `lower` —: what a slot split in quarters asks of every page it holds (`placement.ts`). */
     evictable(key: K, lower = false) {
       const rank = rankOf(key)
-      if (rank === undefined || !order?.open() || pins.has(key)) return false
+      if (rank === undefined || !opened(order) || pins.has(key)) return false
       const page = resident.get(key)
-      return !!page && page.generation <= order.arrivals && rank < (lower ? order.old : order.count)
+      return !!page && page.generation <= order.arrivals && rank < endOf(order, lower)
     },
     /** `key`'s rank in the order, the first victim at 0; `undefined` for a key it does not list. */
     rankOf,
