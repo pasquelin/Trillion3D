@@ -7,10 +7,9 @@ import {
   MORPH_WORDS,
 } from '../../../../sdk-core/src/page/format.ts'
 import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../../../sdk-core/src/page/format.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { bitLength, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type Header = Record<string, number | number[]>
-const bitsFor = (range: number) => 32 - Math.clz32(range)
 const words32 = (count: number, bits: number) => Math.ceil((count * bits) / 32)
 
 /** The header of the page at `base` of `words`, field by field, as the format lays it out. */
@@ -21,10 +20,10 @@ export function reference(words: Uint32Array, base: number): Header {
     Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63)
   const step = (word: number) => 2 ** (word >> 24)
   const [vertexCount, indexCount, flags, positionCount] = [w(2), w(3), w(4), w(22)]
-  const indexBits = bitsFor(vertexCount - 1),
-    prefixBits = bitsFor(Math.floor(w(21) / BLOCK_CORNERS))
+  const indexBits = bitLength(vertexCount - 1),
+    prefixBits = bitLength(Math.floor(w(21) / BLOCK_CORNERS))
   const recordBits = indexBits + WIDTH_BITS + prefixBits,
-    linkBits = bitsFor(positionCount - 1)
+    linkBits = bitLength(positionCount - 1)
   const [posBits, uvBits, uv1Bits, colorBits] = [5, 9, 12, 15].map((i, k) =>
     widths(w(i), [3, 2, 2, 4][k]),
   )

@@ -1,7 +1,8 @@
+import { bitLength } from '../../../../math/src/scalar/integers.ts'
 import { POOL_AGES, POOL_RANKS, POOL_TIERS } from './rank.ts'
 
 /** The age step a rank is made of, as `bitLength` in the kernel: one step a doubling. */
-export const ageStep = (age: number) => Math.min(POOL_AGES - 1, 32 - Math.clz32(age >>> 0))
+export const ageStep = (age: number) => Math.min(POOL_AGES - 1, bitLength(age))
 
 /** CPU mirror of `poolRank` (`rankWgsl.ts`): `POOL_RANKS` while `age < inUse`, else older age step
  *  first, then the finer tier. Integer only, as the kernel. */

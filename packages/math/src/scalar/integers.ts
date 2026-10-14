@@ -12,9 +12,13 @@ export const alignUp = (x: number, n: number) => Math.ceil(x / n) * n
 /** The greatest multiple of `n > 0` not over `x`: `Math.floor(x / n) * n`. */
 export const alignDown = (x: number, n: number) => Math.floor(x / n) * n
 
+/** The bits an unsigned 32-bit integer `v` spans, 0 for 0: `32 − clz32(v)`, as the WGSL
+ *  `bitLength` (`../wgsl/integer.ts`). */
+export const bitLength = (v: number) => 32 - Math.clz32(v)
+
 /** The exponent of the least power of two not under the integer `v`, 1 ≤ v ≤ 2^32:
- *  `32 − clz32(v − 1)`, exact on that whole domain (`v − 1` fits 32 bits). */
-const ceilLog2 = (v: number) => 32 - Math.clz32(v - 1)
+ *  `bitLength(v − 1)`, exact on that whole domain (`v − 1` fits 32 bits). */
+const ceilLog2 = (v: number) => bitLength(v - 1)
 
 /** The least power of two not under `v`: 1 for every `v <= 1`, `2 ** ceilLog2(⌈v⌉)` exactly for any
  *  real `v` up to 2^32 — every caller sizes a buffer, a table or a count far below —, NaN for NaN;
@@ -48,7 +52,7 @@ export function slotsWithin(bytes: number, slotBytes: number) {
 export const mipSize = (size: number, level: number) => Math.max(1, size >>> Math.min(level, 31))
 
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
-export const floorLog2 = (v: number) => 31 - Math.clz32(v)
+export const floorLog2 = (v: number) => bitLength(v) - 1
 
 /** Whether `width` × `height` is an image size: two safe integers of one or more. */
 export const isImageSize = (width: number, height: number) =>
