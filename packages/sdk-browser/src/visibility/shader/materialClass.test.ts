@@ -67,8 +67,10 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
   assert.ok(fragment.includes('rgb=rgb*colorSample(m.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'))
   assert.doesNotMatch(fragment, /baseColor\.w/)
   assert.ok(SHADE_SHADER.includes('if(!classAdmits(id)){discard;}'))
+  // The entry (`shadeEntryWgsl.ts`) is a declaration of the program: the one reject is the whole
+  // shader's.
   assert.equal(
-    fragment.match(/discard;/g)?.length,
+    SHADE_SHADER.match(/discard;/g)?.length,
     1,
     'visibility bounds and class ownership, one reject, guard storage writes',
   )
