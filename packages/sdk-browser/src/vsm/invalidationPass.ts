@@ -28,7 +28,6 @@ import {
   VSM_INVALIDATION_SPECS,
   vsmInvalidationWgsl,
 } from './invalidationWgsl.ts'
-import type { VsmInvalidationBatch } from './cacheManager.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -42,13 +41,6 @@ import type { VsmLayout } from './layout.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 import { releaseCastInvalidation, type VsmCastState } from './castInvalidation.ts'
-
-/** One invalidation call: the collector's batch and the boxes its instances name — box `b` at
- *  `BOX_WORDS · b`, each drawn as one instance of identity rotation (`packBox`). */
-export interface VsmInvalidationPhase {
-  batch: VsmInvalidationBatch
-  boxes: Float64Array
-}
 
 /** The invalidation's pass, and its pipe. */
 const INVALIDATION_LABEL = `${VSM_PASS_PREFIX}invalidateInstancePages`

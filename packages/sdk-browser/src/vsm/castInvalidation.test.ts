@@ -7,6 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmLightCache, type VsmCacheManager } from './cacheManager.ts'
 import { vsmCastMaps } from './castInvalidation.ts'
+import { vsmInvalidationPhaseFromShadowBoxes } from './invalidationPhase.ts'
 import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 
@@ -50,4 +51,17 @@ test('the maps that may hold cached pages, each with its cover bit; none without
     'a moving box skips the point light, whose maps draw their moving casters over a cover',
   )
   assert.equal(vsmCastMaps(cache(false)), null)
+})
+
+// The CPU's boxes say whether they move: a moving one names no cover map at all — the old code
+// packed, sent and dispatched a thread for each of them, which the GPU then skipped.
+test('a moving CPU box names no receiver-cover map; a still one names them all', () => {
+  const box = (moving: boolean) => ({ min: [0, 0, 0], max: [1, 1, 1], moving })
+  const maps = (moving: boolean) =>
+    vsmInvalidationPhaseFromShadowBoxes(cache(true), {
+      count: 1,
+      read: () => box(moving),
+    })!.batch.instances.map(({ payload }) => vsmStaleMap(payload, false))
+  assert.deepEqual(maps(false), [0, 1, 2, 3, 4, 5, 6])
+  assert.deepEqual(maps(true), [0], 'the sun alone')
 })
