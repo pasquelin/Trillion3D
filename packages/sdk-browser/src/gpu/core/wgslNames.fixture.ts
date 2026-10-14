@@ -4,7 +4,8 @@
  * every declaration of the module (functions, structures, aliases, constants, variables and
  * parameters) as in scope everywhere, and WGSL's own words as always in scope, so it misses a
  * name used outside its function but never flags a name the text does declare. It checks names
- * only: a member a structure lacks, a wrong type or a name declared twice passes it.
+ * only: a member a structure lacks, a wrong type or a name declared twice passes it. Beside it,
+ * `unbalanced` finds a brace or a parenthesis that pairs with none.
  */
 
 import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
@@ -109,4 +110,22 @@ export function reservedNames(source: string) {
   const code = codeOf(source)
   const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
   return [...names].filter((name) => WGSL_RESERVED.has(name)).sort()
+}
+
+/** Where `source`'s braces or parentheses fail to pair, comments aside: the first closing one
+ *  with nothing open (`'}' at 1203`), or what is left open at the end (`'(' open`); '' when
+ *  they pair. A device refuses a module whose depth goes below 0 or ends above it. */
+export function unbalanced(source: string) {
+  const code = withoutComments(source)
+  const depth: Record<string, number> = { '{': 0, '(': 0 }
+  const opens: Record<string, string> = { '}': '{', ')': '(' }
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i]
+    if (c in depth) depth[c]++
+    else if (c in opens && --depth[opens[c]] < 0) return `'${c}' at ${i}`
+  }
+  return Object.keys(depth)
+    .filter((open) => depth[open])
+    .map((open) => `'${open}' open`)
+    .join(', ')
 }

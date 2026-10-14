@@ -86,6 +86,5 @@ fn staleRow(row:u32){
  if(s[7]!=0.0){was=castState(s[7]);}
  if((was&now&2u)!=0u){return;}
  emitSphere(s,(was&now&1u)!=0u);
-}
 }`,
 )

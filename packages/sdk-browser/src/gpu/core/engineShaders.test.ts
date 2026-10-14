@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
-import { reservedNames, topLevelNames, unresolvedNames } from './wgslNames.fixture.ts'
+import { reservedNames, topLevelNames, unbalanced, unresolvedNames } from './wgslNames.fixture.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
@@ -26,6 +26,18 @@ test('every WGSL text the engine and its proofs compile declares every name it u
     .map(([name, code]) => [name, reservedNames(code)] as const)
     .filter(([, names]) => names.length)
   assert.deepEqual(Object.fromEntries(reserved), {})
+})
+
+test('every WGSL text the engine and its proofs compile pairs its braces and parentheses', () => {
+  // A brace left from an edit closes nothing: the device refuses the whole module.
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
+  const broken = Object.entries(shaders)
+    .map(([name, code]) => [name, unbalanced(code)] as const)
+    .filter(([, where]) => where)
+  assert.deepEqual(Object.fromEntries(broken), {})
+  assert.equal(unbalanced('fn f(){} // }\n/* ( */'), '')
+  assert.equal(unbalanced('fn f(){}\n}'), "'}' at 9")
+  assert.equal(unbalanced('fn f({}'), "'(' open")
 })
 
 test('no WGSL text the engine and its proofs compile declares a name twice', () => {
