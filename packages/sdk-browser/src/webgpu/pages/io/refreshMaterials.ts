@@ -39,18 +39,21 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
   recordsOfMeshes(pages, assignment.meshes).some((rec) => rec.transparent)
 
 /**
- * Surface records rewritten in place. When their values moved, every row is written again at
- * the next frame, and the writer rereads each surface whose version moved
- * (`row/pageRowConstants.ts`); a resolve class one of them moved into is compiled before the image
- * that draws it (`shadeCensus`). When only their textures moved (`values` false) — a video's
- * frame, a canvas redrawn, a sampling —, no row reads them: the render follows the headers and
- * copies a moved picture into the pool itself (`../render/render.ts`, `../../tile/live.ts`),
- * which releases a held image, and the row table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
- * at the old one, and false tells the owner, which says it by name. Surfaces whose alpha moved (`alpha`)
- * — between opaque and masked, or to another cutoff — cut their shadow otherwise: the shadow pages
- * over their rows are drawn again. Those pages land in other pool slots than a session opened on the
- * new cutoff would give them, and a shadow read is texel-exact wherever its page lies: the
- * image is that session's, under a casting light too.
+ * Surface records rewritten in place. When their values moved, the next frame writes their records
+ * in the material table again (`follow`, `../../material/materialTable.ts`, from the render's
+ * scene inputs, `../render/render.ts`) — one record a surface, no row and no item —, and their rows
+ * and items only where what they read beside the record moved: a flag, a resolve class, which is
+ * then compiled before the image that draws it (`shadeCensus`). When only their textures moved
+ * (`values` false) — a video's frame, a canvas redrawn, a sampling —, no record reads them: the
+ * render follows the headers and copies a moved picture into the pool itself
+ * (`../render/render.ts`, `../../tile/live.ts`), which releases a held image. A picture whose size
+ * changed cannot be copied: its tiles were laid out at the old one, and false tells the owner, which
+ * says it by name. Surfaces whose alpha moved (`alpha`) — between opaque and masked, or to another
+ * cutoff — cut their shadow otherwise: the shadow pages over their rows are drawn again. Those pages
+ * land in other pool slots than a session opened on the new cutoff would give them, and a shadow
+ * read is texel-exact wherever its page lies: the image is that session's, under a casting light
+ * too. Their rows, or the rows of the meshes given another surface (an assignment), are written
+ * again at the next frame: a row names its surface.
  */
 export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, alpha?: AlphaChange) {
   if (alpha) {
@@ -61,16 +64,11 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
       rt.layout.placement,
       new Set(alpha.surfaces as readonly PageSurface[]),
     )
-  }
-  if (values) {
     rt.layout.rows.tableEpoch++
-    rt.layout.rows.materialEpoch++
-    // The next frame entry takes the census again (`../../frame/framePipelines.ts`).
     rt.vis.shadeCensus?.moved()
-    // The scene revision moved: the next image writes the transparent records again, once
-    // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
-    rt.run.gate.movedInPlace()
   }
+  // The scene revision moved: the next image follows the rewritten surfaces' records.
+  if (values) rt.run.gate.movedInPlace()
   const textures = rt.vis.textures
   if (!textures) return true
   return [textures.color, textures.data].every((atlas) =>

@@ -1,5 +1,5 @@
 import { nextPow2, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import type { Span } from '../../../../math/src/sequence/span.ts'
+import type { MaterialRecords } from './materialState.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 import {
   MATERIAL_RECORD_TEXELS,
@@ -10,35 +10,6 @@ import {
 /** Bytes of a row of the table texture. */
 const ROW_BYTES = MATERIAL_ROW_TEXELS * 16
 
-/** A surface's place in the table: its record's rank, its lobe extension's index (−1: none), and
- *  the version and atlas epoch it was last written at. */
-export type MaterialEntry = {
-  rank: number
-  lobes: number
-  version: number | undefined
-  epoch: number
-}
-
-/** What the table holds (`materialTable.ts`). */
-export type MaterialRecords = {
-  /** Each surface's place, by its record. */
-  entries: WeakMap<object, MaterialEntry>
-  /** Ranks and lobe extensions whose surface the collector took or which lost its lobes, handed
-   *  out again before a new one. */
-  freed: number[]
-  lobesFreed: number[]
-  /** The record places that hold the lobe extensions, three each, and the extensions handed out. */
-  lobeSlots: number[]
-  lobesHeld: number
-  reclaim: FinalizationRegistry<MaterialEntry>
-  ints: Uint32Array<ArrayBuffer>
-  /** Ranks handed out so far (the table's height), the atlas slots' epoch, and the range of
-   *  records written since the last upload (`from > to`: none). */
-  held: number
-  epoch: number
-  written: Span
-  texture: GPUTexture | undefined
-}
 type Table = { view: GPUTextureView | undefined }
 
 /** The table's texture made or grown to hold every record, and the records written since the last

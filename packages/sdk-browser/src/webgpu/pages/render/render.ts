@@ -81,15 +81,19 @@ function enterImage(rt: WebgpuPagesRuntime, camera: HostCamera, aspect: number |
   return gpuDevice
 }
 
-/** The scene inputs followed before the hold: the atlases' records, the live textures, the
- *  feedback output and the pipelines asked. */
+/** The scene inputs followed before the hold: the atlases' records, the surfaces' records, the
+ *  live textures, the feedback output and the pipelines asked. */
 function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis } = rt
   // The atlases' records brought up to their host textures once for the image (#360, #361): a
   // sampling or a placement moved rewrites the texture's header, a resource change that releases a
   // held image. A filter rule switched on or off moves the resolve class of the pages that wear
-  // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again.
-  if (vis.textures?.followSampling()) {
+  // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again. So
+  // does a surface rewritten since in what its rows read beside its record — a flag, its class —
+  // (`follow`, `../../material/materialTable.ts`): a colour, a factor, a map's slot writes its one
+  // record and no row.
+  const sampling = !!vis.textures?.followSampling()
+  if (vis.materialTable.follow(vis) || sampling) {
     rt.layout.rows.tableEpoch++
     vis.shadeCensus?.moved()
     refreshBlendScene(rt, gpuDevice)
