@@ -9,7 +9,8 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { modelNode } from './modelNodes.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldRanks } from './worldRanks.ts'
-import { createWorldPoses, type PoseComposer } from './worldPoses.ts'
+import { createWorldPoses } from './worldPoses.ts'
+import type { PoseComposer } from './worldPoseState.ts'
 import { loadedModel } from './worldModels.fixture.ts'
 
 function rig() {

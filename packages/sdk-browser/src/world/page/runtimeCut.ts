@@ -9,7 +9,7 @@
  */
 import { encodeGeometryPage } from '../../page/codec/encodeGeometryPage.ts'
 import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
-import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxExpandByPoint, boxFromPoints } from '../../../../math/src/geometry/box.ts'
 import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import type { CutWay } from './runtimePack.ts'
@@ -69,9 +69,7 @@ export async function cutDrawnTriangles(
   const module = await requireSdkWasm()
   const { positions, normals, uvs, colors } = drawn
   const bounds = new Float64Array(6)
-  boxEmpty(bounds, 0)
-  for (let i = 0; i + 2 < positions.length; i += 3)
-    boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2])
+  boxFromPoints(bounds, 0, positions, 0, Math.floor(positions.length / 3))
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
   const positionExponent = positionGridExponent(module, extent, blended, recut)
   const attributes: PageAttributes = {

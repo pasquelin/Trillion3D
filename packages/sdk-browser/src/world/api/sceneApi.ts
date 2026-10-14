@@ -8,6 +8,7 @@ import { RASTER_BACKGROUND } from '../../page/raster.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
+import type { PlacementLink } from '../../placement/gpuCompose.ts'
 import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
@@ -59,7 +60,7 @@ function placementUpdates(check: () => void, engine: Engine) {
     composePlacements(
       parent: object,
       world: ArrayLike<number>,
-      links: readonly { rows: PlacementRows; index: number; local: ArrayLike<number> }[],
+      links: readonly PlacementLink[],
       whole: boolean,
     ) {
       check()
