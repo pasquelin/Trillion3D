@@ -4,6 +4,7 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { functionText } from './wgslBody.fixture.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
@@ -15,7 +16,6 @@ import {
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
-import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
@@ -60,11 +60,6 @@ const channel = (body: string, coefficient: RegExp, vector: string) =>
       (/\breturn\b/.test(body) ? '' : 'return E;'),
   ) as (c: number[], v: Vector) => number
 
-const between = (text: string, from: string, to: string) => {
-  const start = text.indexOf(from) + from.length
-  return text.slice(start, text.indexOf(to, start))
-}
-
 test('a bounce probe is read in the band order the environment uses', () => {
   // Run on the shader text itself, not on the shared basis: the coefficients the probe pass
   // writes for one ray, then the bounce lookup and the environment reading them must agree on
@@ -76,13 +71,17 @@ test('a bounce probe is read in the band order the environment uses', () => {
     for (const [, k, term] of terms) sh[Number(k)] = new Function('d', `return ${term};`)(d)
     return sh
   }
+  const irradiance = functionText(BOUNCE_GRID_WGSL, 'shIrradiance')
   const bounce = channel(
-    between(wgslSource(BOUNCE_GRID_WGSL), 'fn shIrradiance(probe:vec3u,n:vec3f)->vec3f{', '\n}'),
+    irradiance.slice(irradiance.indexOf('{') + 1),
     /probeAt\(probe,(\d)u\)\.xyz/g,
     'n',
   )
+  // The environment's reading: from its coefficients to the return.
+  const coefficients = 'let e=directLights.environment;',
+    read = DIRECT_LIGHTING_WGSL.indexOf(coefficients) + coefficients.length
   const environment = channel(
-    between(DIRECT_LIGHTING_WGSL, 'let e=directLights.environment;', 'return'),
+    DIRECT_LIGHTING_WGSL.slice(read, DIRECT_LIGHTING_WGSL.indexOf('return', read)),
     /e\[(\d)\]\.rgb/g,
     'N',
   )
