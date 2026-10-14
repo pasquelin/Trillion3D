@@ -10,7 +10,7 @@ import { entry } from '../../world/api/materialApi.fixture.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import * as G from '../graph/graph.fixture.ts'
 
-const plain = { vertexColors: false, flatShading: false }
+const plain = { vertexColors: false, flatShading: false, twoSided: false }
 
 test('both variants of a table surface shade a page with one factor, vertex tangents with their own', async () => {
   const materialOf = preparedMaterials(

@@ -6,7 +6,7 @@
  * - a blended surface is transparent and writes no depth, a masked one cuts at `alphaTest`;
  * - the table entry already carries the tangent variant (`normalScaleY`); the variants a primitive
  *   adds — vertex colours, flat shading where it has no normal, both faces where a cloth draws
- *   it — are built per primitive kind;
+ *   it — are the variants of its one record (`../../page/surfaceVariant.ts`);
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
 import type { TableMaterial, TableTextureSlot, Texture } from '../../../../sdk-core/src/index.ts'
@@ -17,6 +17,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { declareSurface } from '../../page/surfaceRecord.ts'
 import type { SurfaceDeclaration } from '../../page/surfaceDeclaration.ts'
+import { surfaceVariant, type SurfaceVariant } from '../../page/surfaceVariant.ts'
 
 type Slot = (slot: TableTextureSlot, colour: boolean) => Promise<Texture | null>
 type Params = Record<string, unknown>
@@ -32,40 +33,6 @@ export const alphaModeFields = (mode: AlphaMode, cutoff: number) => ({
 
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value
-
-/** The variant of a surface a primitive asks for: what its geometry carries, and whether a cloth
- *  draws it (`drawnTwoSided`; unsaid, it does not). */
-export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean; twoSided?: boolean }
-
-/** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
-export const variantKey = ({ vertexColors, flatShading, twoSided = false }: SurfaceVariant) =>
-  `${vertexColors}:${flatShading}:${twoSided}`
-
-/** The geometries of the primitives a cloth draws, as the open read them off the manifest
- *  (`graph.ts`): a material assigned to one later is drawn on both faces too. */
-const twoSidedGeometries = new WeakSet<object>()
-/** `geometry` is a cloth's: every surface it wears is drawn on both faces. */
-export const drawnByCloth = (geometry: object) => void twoSidedGeometries.add(geometry)
-
-/** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
- *  no normal, both faces where a cloth draws it — at open (`graph.ts`) and for a created material
- *  assigned later. */
-export const surfaceVariantOf = (geometry: { attributes: Record<string, unknown> }) => ({
-  vertexColors: geometry.attributes.color !== undefined,
-  flatShading: geometry.attributes.normal === undefined,
-  twoSided: twoSidedGeometries.has(geometry),
-})
-
-/** Writes over a plain surface what its variant sets: a plain variant sets nothing. */
-export function wearVariant(
-  surface: PageSurface,
-  { vertexColors, flatShading, twoSided }: SurfaceVariant,
-) {
-  if (vertexColors) surface.vertexColors = true
-  if (flatShading) surface.flatShading = true
-  if (twoSided) surface.side = 'double'
-  return surface
-}
 
 function extensionParams(
   entry: TableMaterial,
@@ -92,12 +59,7 @@ function extensionParams(
 const tableRanks = new WeakMap<PageSurface, number>()
 export const tableRankOf = (surface: PageSurface) => tableRanks.get(surface)
 
-async function build(
-  materials: readonly TableMaterial[],
-  rank: number,
-  variant: SurfaceVariant,
-  slot: Slot,
-) {
+async function build(materials: readonly TableMaterial[], rank: number, slot: Slot) {
   const entry = materials[rank]
   const params: Params = { color: new Color(entry.baseColor), opacity: entry.opacity }
   const pending: Promise<void>[] = []
@@ -143,24 +105,24 @@ async function build(
   params.family =
     entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard'
   if (entry.name) params.name = entry.name
-  const material = wearVariant(declareSurface(params as SurfaceDeclaration), variant)
-  tableRanks.set(material, rank)
-  return material
+  return declareSurface(params as SurfaceDeclaration)
 }
 
 /**
  * The surface of each table rank in each variant, built once and shared by every primitive that
- * wears it: a record the engine holds per surface is then held once per surface.
+ * wears it: a record the engine holds per surface is then held once per surface. A rank's record
+ * is built once, its variants written from it (`surfaceVariant`).
  */
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
-  const built = new Map<string, Promise<PageSurface>>()
-  return (rank: number, variant: SurfaceVariant) => {
-    const key = `${rank}:${variantKey(variant)}`
-    let material = built.get(key)
-    if (!material) {
-      material = build(materials, rank, variant, slot)
-      built.set(key, material)
-    }
+  const built = new Map<number, Promise<PageSurface>>()
+  const variants = new Map<number, Map<string, PageSurface>>()
+  return async (rank: number, variant: SurfaceVariant) => {
+    let plain = built.get(rank)
+    if (!plain) built.set(rank, (plain = build(materials, rank, slot)))
+    let held = variants.get(rank)
+    if (!held) variants.set(rank, (held = new Map()))
+    const material = surfaceVariant(await plain, held, variant)
+    tableRanks.set(material, rank)
     return material
   }
 }

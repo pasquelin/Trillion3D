@@ -9,7 +9,8 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import type { HostMesh, HostMaterials } from '../../host/resources.ts'
-import { clothPrimitives, preparedGraph } from '../../host/prepared/graph.ts'
+import { preparedGraph } from '../../host/prepared/graph.ts'
+import { clothPrimitives } from '../../host/prepared/meshes.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { emptyGeometryBlock, rowMaterial } from '../../webgpu/row/pageRowMaterial.ts'
@@ -151,7 +152,7 @@ async function cookedScene() {
     geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
     return geometry
   }
-  const { scene } = await preparedGraph({
+  const { scene, ranks } = await preparedGraph({
     tables,
     meshes,
     geometryOf,
@@ -160,20 +161,31 @@ async function cookedScene() {
   })
   const parts: HostMesh[] = []
   scene.traverse((part) => part instanceof Mesh && parts.push(part as HostMesh))
-  return parts
+  // Each part's source, with the association the open gives it.
+  return parts.map((part) => drawSourceOf(part, ranks.get(part)))
 }
 
 test('a cooked cloth is drawn and casts on both faces; the pole wearing its material is not', async () => {
   const [flag, pole] = await cookedScene()
-  assert.deepEqual(faces(flag.material), BOTH)
-  assert.deepEqual(faces(pole.material), FRONT)
-  assert.notEqual(flag.material, pole.material, 'one surface per variant, the table entry shared')
+  assert.deepEqual(faces(flag.declaration), BOTH)
+  assert.deepEqual(faces(pole.declaration), FRONT)
+  assert.notEqual(
+    flag.declaration,
+    pole.declaration,
+    'one surface per variant, the table entry shared',
+  )
+})
+
+test('a cooked cloth says so in its association: no registry beside the mesh holds it', async () => {
+  const [flag, pole] = await cookedScene()
+  assert.equal(flag.twoSided, true)
+  assert.equal(pole.twoSided, false)
 })
 
 test('a material the page creates and gives a cooked cloth is drawn on both faces too', async () => {
   const [flag, pole] = await cookedScene()
   const variants = new Map([[PLAIN, createdSurface({ baseColor: [1, 1, 1] })]])
-  const { meshes } = assignment(variants, new Set([drawSourceOf(flag), drawSourceOf(pole)]))
-  assert.deepEqual(faces(meshes.get(drawSourceOf(flag))!), BOTH)
-  assert.deepEqual(faces(meshes.get(drawSourceOf(pole))!), FRONT)
+  const { meshes } = assignment(variants, new Set([flag, pole]))
+  assert.deepEqual(faces(meshes.get(flag)!), BOTH)
+  assert.deepEqual(faces(meshes.get(pole)!), FRONT)
 })

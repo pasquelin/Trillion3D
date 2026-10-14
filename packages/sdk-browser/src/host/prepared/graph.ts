@@ -15,11 +15,8 @@
  */
 import { readPreparedSourceRank } from './sourceRanks.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
-import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
-import { drawnByCloth, surfaceVariantOf, type SurfaceVariant } from './materials.ts'
-import type { PageSurface } from '../../page/surface.ts'
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { buildMeshes, type MeshInputs } from './meshes.ts'
 import { isDrawnNode } from '../graph/kinds.ts'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -27,22 +24,12 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { placedMeshes } from './placed.ts'
 import { bindSkins, clipsOf, movedNodes } from './motion.ts'
 import type { RowLink } from '../../partition/rows.ts'
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
 type MeshRanks = RowLink
 
-type Inputs = {
-  tables: PreparedSceneTables
-  meshes: TableDocument['meshes']
-  geometryOf: (mesh: number, primitive: number) => Geometry
-  materialOf: (rank: number, variant: SurfaceVariant) => Promise<PageSurface>
-  /** Whether a cloth draws the primitive (`drawnTwoSided`), once its manifest lists it. */
-  clothOf?: (mesh: number, primitive: number) => Promise<boolean>
-}
+type Inputs = MeshInputs & { tables: PreparedSceneTables }
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
 export async function preparedGraph(inputs: Inputs) {
@@ -133,58 +120,6 @@ function reserveNames(tables: PreparedSceneTables, unique: Unique) {
   return { cameras, lights, nodeNames, order }
 }
 
-/** The host meshes of `order`, each mesh's primitives, and the node each rank builds: a mesh, or
- *  a group of one mesh per primitive. */
-async function buildMeshes(
-  inputs: Inputs,
-  order: readonly number[],
-  unique: Unique,
-  ranks: Map<Object3D, MeshRanks>,
-) {
-  const { meshes, geometryOf, materialOf, clothOf } = inputs
-  // Meshes, in the order they were first named. Every surface is asked for before any is waited
-  // on: their images load together, as the loader loaded them.
-  const drawn = order.map((rank) =>
-    meshes[rank].primitives.map((primitive, p) => {
-      const geometry = geometryOf(rank, p)
-      // The variant waits for the manifest to list the primitive: a cloth's is drawn on both faces.
-      const material = (clothOf?.(rank, p) ?? Promise.resolve(false)).then((cloth) => {
-        if (cloth) drawnByCloth(geometry)
-        return materialOf(primitive.material, surfaceVariantOf(geometry))
-      })
-      return { geometry, material }
-    }),
-  )
-  // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
-  // surfaces land together keep the order they were first named in. The ranks are recorded
-  // afterwards in that first order, whatever order the images landed in.
-  const made = await Promise.all(
-    order.map((rank, at) =>
-      Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
-        drawn[at].map(({ geometry }, p) => {
-          const mesh = new Mesh(geometry, surfaces[p])
-          if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights)
-          mesh.name = unique(meshes[rank].name || `mesh_${rank}`)
-          return mesh
-        }),
-      ),
-    ),
-  )
-  const built = new Map<number, Object3D>()
-  for (const [at, rank] of order.entries()) {
-    const parts = made[at]
-    parts.forEach((mesh, p) => ranks.set(mesh, { meshes: rank, primitives: p }))
-    if (parts.length === 1) built.set(rank, parts[0])
-    else {
-      const group = new Group()
-      ranks.set(group, { meshes: rank })
-      for (const part of parts) group.add(part)
-      built.set(rank, group)
-    }
-  }
-  return { made, built }
-}
-
 /** Builds a node and its subtree as the host loader did; `nodes` holds the host node of each
  *  rank, which a cell's node may hang under. */
 function assembler(
@@ -226,15 +161,4 @@ function assembler(
     return node
   }
   return { nodes, assemble }
-}
-
-/** Whether a cloth draws primitive `primitive` of mesh `mesh`: the soft body kind the compiler
- *  wrote into the primitive's deformation (`drawnTwoSided`), in the manifest read whole. */
-export function clothPrimitives(metadata: ClusterManifest) {
-  const cloths = new Set(
-    metadata.primitives
-      .filter((p) => drawnTwoSided(p.deformation?.softKind))
-      .map((p) => `${p.mesh}:${p.primitive}`),
-  )
-  return async (mesh: number, primitive: number) => cloths.has(`${mesh}:${primitive}`)
 }

@@ -188,10 +188,3 @@ export function redeclareSurface(record: PageSurface, d: SurfaceDeclaration) {
   fill(record, d)
   surfaceWritten(record)
 }
-
-/** A record of its own with the fields of `record` — a variant a geometry asks for, its fields
- *  written after — at version 0. */
-export function copySurface(record: PageSurface): PageSurface {
-  const { released: _released, version: _version, ...fields } = record
-  return Object.assign(new Releasable(), fields, { version: 0 }) as PageSurface
-}

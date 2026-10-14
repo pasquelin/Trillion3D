@@ -1,12 +1,10 @@
 /** The materials a page creates: what it may name, the surface built from it, and that
  *  surface in each geometry variant a drawable asks of it (`materialApi.ts`). */
 import { surfaceOf, type PageSurface } from '../../page/surface.ts'
-import { copySurface } from '../../page/surfaceRecord.ts'
 import { materialSurface } from '../../host/pageObjects.ts'
-import { surfaceVariantOf, variantKey, wearVariant } from '../../host/prepared/materials.ts'
+import { surfaceVariant, variantKey, variantOf } from '../../page/surfaceVariant.ts'
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import {
   invalid,
   MASK_CUTOFF,
@@ -45,30 +43,19 @@ export function validateCreated(id: string, props: CreatedMaterial) {
 }
 
 /** A created material's surfaces by variant (`variantKey`), the plain one under this key. */
-export const PLAIN = variantKey({ vertexColors: false, flatShading: false })
-
-/** A created material's surface in the variant `geometry` asks for, copied from its plain one
- *  the first time. */
-function variantOf(variants: Map<string, PageSurface>, geometry: Geometry) {
-  const variant = surfaceVariantOf(geometry),
-    key = variantKey(variant)
-  let surface = variants.get(key)
-  if (!surface) {
-    surface = wearVariant(copySurface(variants.get(PLAIN)!), variant)
-    variants.set(key, surface)
-  }
-  return surface
-}
+export const PLAIN = variantKey({ vertexColors: false, flatShading: false, twoSided: false })
 
 /** Created material `variants` given to the meshes `drawn`: each wears the variant its geometry
  *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
  *  `from` is one that moves across blended if any does. */
 export function assignment(variants: Map<string, PageSurface>, drawn: ReadonlySet<DrawSource>) {
   const meshes = new Map<DrawSource, PageSurface>(),
-    to = alphaModeOf(variants.get(PLAIN)!)
+    plain = variants.get(PLAIN)!,
+    to = alphaModeOf(plain)
   let from: AlphaMode | undefined
   for (const mesh of drawn) {
-    meshes.set(mesh, variantOf(variants, mesh.geometry))
+    const variant = variantOf(mesh.geometry, mesh.twoSided === true)
+    meshes.set(mesh, surfaceVariant(plain, variants, variant))
     const mode = alphaModeOf(surfaceOf(mesh.declaration))
     if (from === undefined || (mode === 'blend') !== (to === 'blend')) from = mode
   }

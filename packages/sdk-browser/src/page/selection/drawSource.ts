@@ -22,6 +22,8 @@ export type DrawRanks = {
   primitives?: number
   /** The rows that place it, one root each. */
   placements?: PlacementRows
+  /** A cloth draws it (`drawnTwoSided`): every surface it wears is drawn on both faces. */
+  twoSided?: boolean
 }
 
 /** What a graph's loader tells of its drawn nodes: each node's association. */
@@ -53,6 +55,8 @@ export type DrawSource = {
   readonly mesh?: number
   /** Its primitive rank inside that mesh. */
   readonly primitives?: number
+  /** A cloth draws it, as its manifest says: the surfaces it is given are drawn on both faces. */
+  readonly twoSided?: boolean
 }
 
 class MeshSource implements DrawSource {
@@ -90,6 +94,9 @@ class MeshSource implements DrawSource {
   }
   get primitives() {
     return this.ranks?.primitives
+  }
+  get twoSided() {
+    return this.ranks?.twoSided === true
   }
 }
 

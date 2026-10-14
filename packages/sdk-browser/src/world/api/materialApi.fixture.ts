@@ -66,7 +66,7 @@ export async function scene(
     ],
     async (from) => textures[from.texture],
   )
-  const plain = { vertexColors: false, flatShading: false }
+  const plain = { vertexColors: false, flatShading: false, twoSided: false }
   const source = new G.Group()
   const floor = [await materialOf(0, plain), await materialOf(0, { ...plain, vertexColors: true })]
   // Each mesh draws manifest primitive `i/0`: the drawable a created material is assigned to.

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceFrontOnly, surfaceOf } from './surface.ts'
-import { copySurface, declareSurface, redeclareSurface } from './surfaceRecord.ts'
+import { declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts'
 import { BIN_BACK, BIN_NONE } from '../gpu/draw/draw.ts'
@@ -52,16 +52,6 @@ test('one write among ten thousand surfaces is the one record a journal holds', 
   surfaceWritten(surfaces[4321])
   assert.deepEqual([...journal], [surfaces[4321]], 'a consumer visits one record, not 10⁴')
   surfaceJournals.close(journal)
-})
-
-test('a copy is a record of its own: a write on it never reaches the original', () => {
-  const plain = G.standardSurface({ roughness: 0.5 })
-  const copy = copySurface(plain)
-  assert.notEqual(copy, plain)
-  assert.notEqual(copy.released, plain.released, 'its own release')
-  copy.vertexColors = true
-  assert.equal(plain.vertexColors, false)
-  assert.equal(copy.roughness, 0.5)
 })
 
 test('a list wears its first surface, and an empty one a shared front, opaque record', () => {

@@ -13,8 +13,14 @@ import { EngineError } from '../../../sdk-core/src/index.ts'
 import { createChangedRuns, type ChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
-/** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
-export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows }
+/** The association of a host mesh placed by rows: its mesh and primitive ranks, the rows, and
+ *  whether a cloth draws it (`DrawRanks.twoSided`). */
+export type RowLink = {
+  meshes?: number
+  primitives?: number
+  placements?: PlacementRows
+  twoSided?: boolean
+}
 
 /** One mesh the cells place: its primitives' links, sharing one row numbering, and the host mesh
  *  of each. */
