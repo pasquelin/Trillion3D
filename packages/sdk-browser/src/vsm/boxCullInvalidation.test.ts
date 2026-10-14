@@ -5,8 +5,8 @@
 // them, on stand-in page tables, in the one stale's module (`castInvalidationWgsl.ts`). The instances
 // are the boxes a change stales, their axes the world's, and carry its flags: casts shadows, and
 // cached as dynamic or not, each in its own bits. Retaken on the kernel of before over the same
-// boxes as identity-rotation instances (the one kind it was handed), before the instance became
-// the box alone: the writes it made then are the golden.
+// boxes as identity-rotation instances (the one kind it was handed): the box alone, its instance
+// now, makes the same writes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
@@ -83,15 +83,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     const centre = near(3),
       dynamic = d.bool(),
       extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
-    const inst = {
-      localToWorld0: [1, 0, 0, centre[0]],
-      localToWorld1: [0, 1, 0, centre[1]],
-      localToWorld2: [0, 0, 1, centre[2]],
-      translationLow: [0, 0, 0],
-      boxCentre: [0, 0, 0],
-      boxExtent: extent,
-      flags: VSM_BOX_CASTS | (dynamic ? VSM_BOX_MOVING : 0),
-    }
+    const inst = { centre, flags: VSM_BOX_CASTS | (dynamic ? VSM_BOX_MOVING : 0), extent }
     const now = use(tables(k, inputs(k)))
     is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)

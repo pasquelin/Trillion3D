@@ -10,7 +10,7 @@ import {
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
-import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
+import { VSM_CAST_PARAMS_BYTES } from '../../../../vsm/castInvalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
 import {
   castingCount,
@@ -77,9 +77,7 @@ export function bytesBeside(
   // The passes' own state a new set makes: its page management, its projection's views and blue
   // noise, the invalidation's first parameters.
   const passes =
-    vsmPmContextBytes(device.limits) +
-    vsmProjectionBytesToMake(undefined) +
-    VSM_INVALIDATION_PARAMS_BYTES
+    vsmPmContextBytes(device.limits) + vsmProjectionBytesToMake(undefined) + VSM_CAST_PARAMS_BYTES
   return (
     engineVsmSideBytes(device.limits) +
     passes +

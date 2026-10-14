@@ -4,7 +4,7 @@ import { arrayView } from '../../../../gpu/core/textureViews.ts'
  * encoded in the direct-lighting step after the visibility and
  * material passes, before the lighting pass that reads the mask:
  *
- *   invalidation processing (box phase, previous ids) → planVirtualShadowFrame (CPU: clipmaps,
+ *   invalidation processing (change boxes, previous ids) → planVirtualShadowFrame (CPU: clipmaps,
  *   local lights, ids, projection data) → instance page invalidation → physical page address
  *   update → page marking → page allocation build → non-cluster shadow map render → post render →
  *   projection (traced rays, ≤ 4 lights a pass, one layer of the mask array each) → lighting →
@@ -18,8 +18,8 @@ import { workgroupCount, alignUp } from '../../../../../../math/src/scalar/integ
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { createVsmResources, growVsmTables, type VsmResources } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
-import { releaseVsmInvalidation } from '../../../../vsm/invalidationPass.ts'
-import type { VsmInvalidationPhase } from '../../../../vsm/invalidationPhase.ts'
+import { releaseVsmInvalidation } from '../../../../vsm/castStale.ts'
+import type { VsmCastBoxes } from '../../../../vsm/castBoxes.ts'
 import {
   rebindVsmPageManagement,
   releaseVsmPageManagement,
@@ -124,7 +124,7 @@ export interface EngineVsm {
   regrowFrame: number
   /** The box invalidation read before the plan, the maps the rows' shadow changes stale
    *  (`vsmCastMaps`), and the previous frame's slot count. */
-  pendingBoxes: VsmInvalidationPhase | null
+  pendingBoxes: VsmCastBoxes | null
   pendingCastMaps: Uint32Array | null
   prevSlots: number
   /** Page counters of the stats permutation, read back a few frames late. */

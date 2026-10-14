@@ -2,14 +2,17 @@
 // cached pages, every map of it —, each map's word saying whether it draws its moving casters over a
 // receiver cover, which a moving box skips: read by the one filter of the one stale (`vsmStaleMap`,
 // `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing changed. And the CPU's
-// boxes as that stale reads them (`invalidationPhase.ts`, `VsmCastBox`).
+// boxes as records of the one list that stale reads (`castBoxes.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmLightCache, type VsmCacheManager } from './cacheManager.ts'
-import { vsmCastMaps } from './castInvalidation.ts'
-import { vsmInvalidationPhaseFromShadowBoxes } from './invalidationPhase.ts'
-import { UNBOUNDED_EXTENT, VSM_BOX_CASTS, VSM_BOX_MOVING } from './invalidationWgsl.ts'
-import type { CastChanges } from '../webgpu/shadow/castChanges.ts'
+import { encodeCastInvalidation, vsmCastMaps } from './castInvalidation.ts'
+import { vsmCastBoxes } from './castBoxes.ts'
+import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
+import { createCastChanges, type CastChanges } from '../webgpu/shadow/castChanges.ts'
+import { createVsmResources } from './resources.ts'
+import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 
@@ -44,7 +47,7 @@ function cache(accepts: boolean) {
 const list = (appended: boolean) => ({ appended }) as CastChanges
 /** One still box of the CPU's, from `box`'s bounds. */
 const boxes = (box: { min: number[]; max: number[]; moving: boolean }) =>
-  vsmInvalidationPhaseFromShadowBoxes(cache(true), { count: 1, read: () => box })
+  vsmCastBoxes(cache(true), { count: 1, read: () => box })
 
 test('the maps that may hold cached pages, each with its cover bit; none without cache data', () => {
   const words = vsmCastMaps(cache(true), null, list(true))!
@@ -69,28 +72,70 @@ test('no maps when nothing changed: no CPU box, and no pass appended to the list
   assert.equal(vsmCastMaps(cache(true), boxes(still), undefined)?.length, 7, 'a CPU box alone')
 })
 
-test('a CPU box as the stale reads it: its centre split high and low, its flags, its extent', () => {
+test('a CPU box as a record of the list: its centre an f32, its largest half extent, never less', () => {
   const far = 1e6 + 1 / 3
-  const phase = boxes({ min: [far - 1, -2, 0], max: [far + 1, 2, 8], moving: true })!
-  const words = phase.words,
-    flags = new Uint32Array(words.buffer)
-  assert.equal(phase.count, 1)
-  assert.ok(
-    Math.abs(words[0] + words[4] - far) < Math.abs(words[0] - far) / 1000,
-    'the low word holds what the high one left',
-  )
-  assert.deepEqual([words[1], words[2], words[5], words[6]], [0, 4, 0, 0])
-  assert.equal(flags[3], VSM_BOX_CASTS | VSM_BOX_MOVING)
-  assert.deepEqual([...words.subarray(8, 11)], [1, 2, 4])
+  const words = boxes({ min: [far - 1, -2, 0], max: [far + 1, 2, 8], moving: true })!.words
+  assert.deepEqual([...words.subarray(0, 3)], [Math.fround(far), 0, 4])
+  assert.ok(words[3] < -4 && words[3] > -4 * (1 + 2 ** -20), 'the largest half extent, moving')
+  // A point far out: its extent the centre's rounding, so that the record still holds it.
+  const point = boxes({ min: [far, 0, 0], max: [far, 0, 0], moving: false })!.words
+  assert.ok(point[3] >= Math.abs(far - point[0]) && point[3] > 0)
+  // A point at the origin keeps the sign that says its casters move.
+  assert.equal(boxes({ min: [0, 0, 0], max: [0, 0, 0], moving: true })!.words[3], -(2 ** -40))
   const inverted = boxes({ min: [1, 0, 0], max: [0, 1, 1], moving: false })!.words
   assert.deepEqual([...inverted.subarray(0, 3)], [0, 0, 0], 'the unbounded box, at the origin')
-  assert.deepEqual([...inverted.subarray(8, 11)], Array(3).fill(Math.fround(UNBOUNDED_EXTENT)))
-  assert.equal(new Uint32Array(inverted.buffer)[3], VSM_BOX_CASTS)
+  assert.ok(inverted[3] >= UNBOUNDED_EXTENT)
   assert.equal(
-    vsmInvalidationPhaseFromShadowBoxes(cache(false), {
+    vsmCastBoxes(cache(false), {
       count: 1,
       read: () => ({ min: [0, 0, 0], max: [1, 1, 1], moving: false }),
     }),
     null,
   )
+})
+
+// The CPU's boxes once took a list of their own, its format apart, and a placeholder list when no
+// light had cast: now they are appended to the one list, which grows in the frame's own encoder —
+// the rows pass encoded there before names the list it held.
+test('the CPU boxes join the list before the stale reads it, the list grown in the same encoder', () => {
+  const fake = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
+  })
+  const { device } = fake
+  const res = createVsmResources(device, {
+    fullMapCapacity: 127,
+    sunMapCapacity: 35,
+    poolPages: 256,
+  })
+  const casts = createCastChanges(device, 4),
+    held = casts.buffer
+  const still = { min: [0, 0, 0], max: [1, 1, 1], moving: false }
+  const changed = vsmCastBoxes(cache(true), { count: 8, read: () => still })
+  const encoder = device.createCommandEncoder()
+  const submits = fake.submits.length
+  const threads = encodeCastInvalidation(encoder, res, {
+    device,
+    mapSlotCount: 1,
+    maps: new Uint32Array([0]),
+    boxes: changed,
+    casts,
+    rows: 0,
+  })
+  assert.equal(threads, 8)
+  assert.notEqual(casts.buffer, held, 'grown for the eight boxes')
+  assert.deepEqual(
+    fake.copies.map((copy) => [copy.from, copy.to]),
+    [[held, casts.buffer]],
+  )
+  assert.equal(fake.submits.length, submits, 'no command buffer of its own')
+  assert.deepEqual(dispatchedEntries(fake.dispatches), [
+    'vsmCastAppend',
+    'vsmCastArgs',
+    'vsmStaleCasts',
+  ])
+  assert.ok(
+    fake.clears.some((clear) => clear.buffer === casts.buffer),
+    'emptied once read',
+  )
+  assert.equal(casts.appended, false)
 })

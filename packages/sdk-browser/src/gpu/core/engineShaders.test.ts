@@ -77,7 +77,6 @@ const HANDED_IN = new Set([
   'texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
-  'vsm/invalidationPass.ts',
   'vsm/markingPass.ts',
   'vsm/passKit.ts',
   'vsm/pageManagementPass.ts',
