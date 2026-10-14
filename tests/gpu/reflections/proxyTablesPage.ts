@@ -6,6 +6,7 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { reporting } from '../kit/reportingDevice.ts'
 import { NEW_WALK, oldWalk, walk } from './proxyWalks.ts'
 import { engineWalk } from './proxyEngineWalk.ts'
+import { recordEcho } from './recordEcho.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { world } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -69,7 +70,8 @@ export async function compareWalks({
   device.queue.writeBuffer(proxy, 0, words)
   // The culling's records, as the host writes them — each placement's world, then every instance, a
   // copy's behind the placements —, and the worlds as the proxy mirrored them.
-  const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+  const usage =
+    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
   const held = count + copies.length
   const table = createRecordTexture(device, WORLD_TABLE, held, usage)
   const matrices = scene.packed.worlds.slice(0, count * 16),
@@ -107,6 +109,9 @@ export async function compareWalks({
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   device.queue.writeBuffer(oldInstances, 0, instanceWords)
+  // What the table holds on the GPU, against the records the host built (`scene.worlds`).
+  const { width, height } = table.texture
+  const echo = await recordEcho(device, table.texture, [width, height], scene.worlds.words)
   const side = Math.ceil(Math.sqrt(count)),
     cast = rays(rayCount, side, seed)
   const now = await walk(device, NEW_WALK, cast, {
@@ -127,7 +132,7 @@ export async function compareWalks({
   oldWorlds.destroy()
   oldTree.destroy()
   const info = await gpu.fermer()
-  return { adapter: info.court, errors, now, before, tree: !!scene.packed.placementTree }
+  return { adapter: info.court, errors, now, before, echo, tree: !!scene.packed.placementTree }
 }
 
 /** The engine's proxy over a world past one storage binding — the device reporting a binding four
