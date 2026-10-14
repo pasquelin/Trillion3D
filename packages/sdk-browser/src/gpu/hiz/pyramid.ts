@@ -76,7 +76,7 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
 }
 
 export type Pyramid = HizPyramid & {
-  /** Level 0: the opaque depth the image draws and, in a second layer once asked (`addFrontLayer`),
+  /** Level 0: the opaque depth the image draws and, in a second layer while asked (`holdFrontLayer`),
    *  the nearest transparent surface's, each a view of its own, and all in one (`depthView`). */
   level0: GPUTexture
   level0View: GPUTextureView
@@ -87,7 +87,7 @@ export type Pyramid = HizPyramid & {
   pyramidView: GPUTextureView
   /** Level 0's front layer, which the transparents' fold writes (`reflections/frontDepth.ts`): zero
    *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. None until a
-   *  scene's transparents ask it (`addFrontLayer`). */
+   *  scene's transparents ask it (`holdFrontLayer`). */
   frontView: GPUTextureView | undefined
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
@@ -156,20 +156,23 @@ export function allocPyramid(
 }
 
 /**
- * `at`'s front layer, made at the first ask: its level 0 made again with two layers, in `encoder`
- * the opaque depth this image drew copied into the first — 4 bytes a pixel, once —, the one replaced
- * retired after the frame (`retire`); its group and its readers' resources made again at their next
- * ask, which follow the views' identity. The packed mips stay.
+ * `at`'s front layer held exactly while `wanted`: a change of `wanted` makes level 0 again with two
+ * layers or one, in `encoder` the opaque depth this image drew copied into the first — 4 bytes a
+ * pixel, once a change —, the one replaced retired after the frame (`retire`); its group and its
+ * readers' resources made again at their next ask, which follow the views' identity. A layer no
+ * fold writes this image is dropped, never folded stale: one layer folds the opaque depth alone,
+ * bit for bit. The packed mips stay.
  */
-export function addFrontLayer(
+export function holdFrontLayer(
   device: GPUDevice,
   usage: number,
   at: Pyramid,
   encoder: GPUCommandEncoder,
+  wanted: boolean,
 ) {
-  if (at.frontView) return at.frontView
+  if (!!at.frontView === wanted) return at.frontView
   const old = at.level0
-  Object.assign(at, level0Of(device, usage, at.width, at.height, HIZ_DEPTH_LAYERS))
+  Object.assign(at, level0Of(device, usage, at.width, at.height, wanted ? HIZ_DEPTH_LAYERS : 1))
   encoder.copyTextureToTexture({ texture: old }, { texture: at.level0 }, [at.width, at.height, 1])
   retire(device, old)
   at.group = at.bound = at.depth = undefined

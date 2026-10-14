@@ -69,11 +69,14 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     stages = vis.reflectionPipelines,
     hiz = vis.gpuHiz
   if (!hiz) return
-  // Level 0's front layer exists only for a scene whose transparents write a front depth
-  // (`FrontDepth.wanted`): an opaque scene's level 0 is one layer, and pays nothing for them.
-  const front = reflection?.front.wanted ? hiz.front(encoder) : undefined,
+  // Level 0's front layer is held only while this image's transparents' fold writes it
+  // (`FrontDepth.wanted`, with the reflection's stages and the lighting's view): an opaque scene's
+  // level 0 is one layer, and pays nothing for them; a scene that lost its last transparent drops
+  // the layer, so no fold reads the last glass's depth.
+  const writes = !!reflection?.front.wanted && !!stages && !!reflectionLightView(rt),
+    front = hiz.front(encoder, writes),
     depth = hiz.depth()
-  if (reflection && stages && depth && front && reflectionLightView(rt)) {
+  if (reflection && stages && depth && front) {
     writeFrame(rt, reflection)
     encodeFrontDepth(encoder, reflection, stages, front)
   }

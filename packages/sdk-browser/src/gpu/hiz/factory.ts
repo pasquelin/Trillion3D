@@ -21,7 +21,7 @@ import {
 
 /** The frame's depth pyramid (`shader.ts`): reverse-Z, its farthest layer for the occlusion, its
  *  nearest for the readers of the whole depth. Without compute, returns `undefined`. Its level 0
- *  holds the opaque depth and, once a scene's transparents ask it (`front`), the nearest transparent
+ *  holds the opaque depth and, while its transparents write it (`front`), the nearest transparent
  *  surface's beside it, which the transparents' fold writes (`reflections/frontDepth.ts`); zero
  *  where none lies, whose fold is the opaque depth, bit for bit. */
 export async function createGpuHiz(
@@ -83,7 +83,7 @@ function hizState(
     ...pipelines,
     device,
     // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own, and the
-    // front layer's making, which copies the opaque depth once (`addFrontLayer`). The front layer
+    // front layer's making or dropping, which copies the opaque depth once (`holdFrontLayer`). The front layer
     // is written by the transparents' fold, a storage texture.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
@@ -143,7 +143,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     levels: () => h.at?.drawn.levels ?? [],
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
-    front: (encoder) => hizFront(h, gpu, encoder),
+    front: (encoder, wanted) => hizFront(h, gpu, encoder, wanted),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

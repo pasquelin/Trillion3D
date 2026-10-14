@@ -26,7 +26,7 @@ test('an opaque scene’s level 0 is one layer: the front layer is made at the f
   assert.equal(layers(opaque), 1, 'no byte for transparents an opaque scene does not hold')
   const depth = hiz.depth()
   const encoder = device.createCommandEncoder()
-  const front = hiz.front(encoder)
+  const front = hiz.front(encoder, true)
   assert.ok(front)
   assert.equal(level0s().length, 2)
   assert.equal(layers(hiz.level0), 2, 'the opaque depth and the front depth')
@@ -39,10 +39,33 @@ test('an opaque scene’s level 0 is one layer: the front layer is made at the f
   assert.equal(destroyed.includes(opaque), false, 'commands of this image may still name it')
   destroyRetired(device)
   assert.ok(destroyed.includes(opaque), 'retired after the frame')
-  assert.equal(hiz.front(encoder), front, 'asked again, nothing is made')
+  assert.equal(hiz.front(encoder, true), front, 'asked again, nothing is made')
   assert.equal(textureCopies.length, 1)
   assert.equal(hiz.resize(device, 32, 32), true)
   assert.equal(layers(hiz.level0), 2, 'a pyramid made after holds it')
+  hiz.dispose()
+})
+
+test('a scene that lost its transparents drops the front layer: no fold reads the last glass', async () => {
+  const { device, textureCopies } = fakeDevice()
+  const hiz = await createGpuHiz(device, 16, 8, 4)
+  assert.ok(hiz)
+  const encoder = device.createCommandEncoder()
+  assert.ok(hiz.front(encoder, true))
+  const glass = hiz.level0,
+    depth = hiz.depth()
+  assert.equal(hiz.front(encoder, false), undefined, 'no front layer this image writes')
+  assert.equal(hiz.level0.depthOrArrayLayers, 1, 'the fold reads the opaque depth alone')
+  assert.deepEqual(
+    textureCopies.slice(1).map(({ from, to, size }) => [from.texture, to.texture, size]),
+    [[glass, hiz.level0, [16, 8, 1]]],
+    'the opaque depth this image drew carried, once',
+  )
+  assert.notEqual(hiz.depth(), depth, 'its readers bind the new level 0')
+  assert.equal(hiz.front(encoder, false), undefined)
+  assert.equal(textureCopies.length, 2, 'asked again, nothing is made')
+  assert.equal(hiz.resize(device, 32, 32), true)
+  assert.equal(hiz.level0.depthOrArrayLayers, 1, 'a pyramid made after holds one layer')
   hiz.dispose()
 })
 
