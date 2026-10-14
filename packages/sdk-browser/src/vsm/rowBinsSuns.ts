@@ -32,19 +32,19 @@ interface SunNow {
 /** Each of this frame's suns' (`frameSuns`), rewritten by each call. */
 const now: SunNow[] = []
 
-/** The axes and reference of each of `suns` this frame, computed once an ask: read before the next
- *  call, which rewrites them. */
-export function frameSuns(suns: readonly VsmClipmap[]): readonly SunNow[] {
+/** The axes of each of `suns` this frame and, when `refs`, its reference, computed once an ask:
+ *  read before the next call, which rewrites them (a reference not asked for is left as it was). */
+export function frameSuns(suns: readonly VsmClipmap[], refs: boolean): readonly SunNow[] {
   for (let s = 0; s < suns.length; s++) {
     const sun = (now[s] ??= { axes: new Float64Array(6), ref: new Float32Array(6) })
     sunAxes(suns[s].lightViewRotation, sun.axes)
-    splitRef(suns[s].eyeWorld, sun.ref)
+    if (refs) splitRef(suns[s].eyeWorld, sun.ref)
   }
   return now
 }
 
 /** Whether `binned` holds `suns`, in order, each along the axes it holds now (`frameSuns`'s
- *  `values`) and, when `refs`, about the same reference. */
+ *  `values`) and, when `refs`, about the same reference (`values` then made with theirs). */
 export function sameSuns(
   binned: readonly BinnedSun[],
   suns: readonly VsmClipmap[],

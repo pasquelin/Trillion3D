@@ -109,7 +109,7 @@ export function vsmBoundChunk(
   bins.pays = range.candidates > worst.rows
   const landed = bins.landed
   if (!landed || landed.spheres !== spheres || landed.first !== range.first) return undefined
-  if (!sameSuns(landed.suns, lit.suns, frameSuns(lit.suns), false)) return undefined
+  if (!sameSuns(landed.suns, lit.suns, frameSuns(lit.suns, false), false)) return undefined
   const keys = lit.maps.length ? lampKeysOf(bins, lit.maps) : undefined
   const lamps = !!keys && !!landed.lampKeys && sameValues(keys, landed.lampKeys)
   if (!lit.suns.length && !lamps) return undefined
