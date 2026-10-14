@@ -21,7 +21,7 @@ type RowReader = {
   readonly index: number
   /** The row's local matrix as linked: a copy, never the owner's view. */
   readonly local: Float64Array
-  /** The composition's version the row was last composed at; -1 before any. */
+  /** Its slot's version the row was last composed at; -1 before any. */
   at: number
 }
 
@@ -31,8 +31,8 @@ export type Readers = Map<number, RowReader[]>
 /** The views a reader's row is read through, by its rows and its rank there. */
 export type ReaderViews = (rows: PlacementRows, index: number) => readonly MatrixElements[]
 
-/** What a view composes from: the composition's version and its parents' worlds, read at the read. */
-type Composition = { readonly version: number; readonly worlds: Float64Array }
+/** What a view composes from: each slot's version and the parents' worlds, read at the read. */
+type Composition = { readonly slotVersions: readonly number[]; readonly worlds: Float64Array }
 
 /** The views this module made read through their row's composition. */
 const composing = new WeakSet<MatrixElements>()
@@ -72,7 +72,7 @@ export function rebindReaders(readers: Readers, from: PlacementRows, to: Placeme
 }
 
 /** `view` reads `reader`'s row composed under slot `slot` of `composition`, the first time it is
- *  read since the composition moved. A view another getter serves already — a root's composed
+ *  read since the slot's composition moved. A view another getter serves already — a root's composed
  *  world, the same product — is left to it. */
 function readThrough(view: MatrixElements, reader: RowReader, slot: number, at: Composition) {
   if (Object.getOwnPropertyDescriptor(view, 'elements')?.get) return
@@ -82,8 +82,8 @@ function readThrough(view: MatrixElements, reader: RowReader, slot: number, at: 
     configurable: true,
     enumerable: true,
     get: () => {
-      if (reader.at !== at.version) {
-        reader.at = at.version
+      if (reader.at !== at.slotVersions[slot]) {
+        reader.at = at.slotVersions[slot]
         multiplyMatrix4(elements, at.worlds.subarray(slot * 16, slot * 16 + 16), reader.local)
       }
       return elements

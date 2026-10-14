@@ -12,17 +12,16 @@ import type { ComposeState } from './gpuComposeState.ts'
 /**
  * The composed world of root `rank`, as a CPU reader reads it: its parent's world times its local
  * matrix, by `multiplyMatrix4` — the doubles the GPU composes (`gpuComposeWgsl.ts`) —, written into
- * the root's row view the first time it is read since a parent or a link moved, never otherwise: a
+ * the root's row view the first time it is read since its parent or a link of its slot moved, never otherwise: a
  * reader costs one product, and a move of the parent none. The roots a parent composes carry this
  * as the `elements` of their world (`installComposedWorld`), so every CPU reader of a world — the
  * impostor cards, the winding of a row's draw bin, a row written again — reads the world the GPU
  * draws, and nothing writes it between two reads.
  */
 function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
-  if (state.refreshed[rank] === state.version) return
-  state.refreshed[rank] = state.version
   const slot = state.parentOf[rank]
-  if (slot === NO_INDEX) return
+  if (slot === NO_INDEX || state.refreshed[rank] === state.slotVersions[slot]) return
+  state.refreshed[rank] = state.slotVersions[slot]
   multiplyMatrix4(
     view,
     state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
@@ -31,7 +30,7 @@ function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
 }
 
 /** The `elements` of root `rank`'s world refresh on read (`composedWorld`); its `stamp` moves with
- *  the composition, which a memo of what is derived from the world is keyed by. */
+ *  its slot's composition, which a memo of what is derived from the world is keyed by. */
 export function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
   const world = rt.layout.selectionRoots[rank]?.world as
     (MatrixElements & { stamp?: number }) | undefined
@@ -46,7 +45,7 @@ export function installComposedWorld(rt: WebgpuPagesRuntime, rank: number) {
   })
   Object.defineProperty(world, 'stamp', {
     configurable: true,
-    get: () => (state.parentOf[rank] === NO_INDEX ? 0 : state.version),
+    get: () => (state.parentOf[rank] === NO_INDEX ? 0 : state.slotVersions[state.parentOf[rank]]),
   })
 }
 

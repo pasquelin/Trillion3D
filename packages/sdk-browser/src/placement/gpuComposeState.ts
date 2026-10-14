@@ -21,10 +21,12 @@ export function createComposeState(roots: number) {
     /** Each linked root's local matrix, as the doubles it was linked by: what a CPU reader of its
      *  world composes with its parent's (`composedWorld`). */
     localMats: new Float64Array(Math.max(1, roots) * MATRIX_VALUES),
-    /** The world versions each root's CPU world was composed at (`composedWorld`), and the
-     *  current one: it moves whenever a parent's world, or a link, does. */
+    /** The version each root's CPU world was composed at (`composedWorld`); the clock the
+     *  versions are drawn from; and each slot's: drawn anew whenever its parent's world, or one of
+     *  its links, moves — a moving parent leaves every other slot's roots composed. */
     refreshed: new Uint32Array(Math.max(1, roots)),
     version: 1,
+    slotVersions: [] as number[],
     /** The tree groups each slot's roots stand in, for the selection that named them. */
     groups: undefined as { cut: WeakRef<object>; bySlot: Map<number, Int32Array> } | undefined,
     /** The rows no root reads that a parent composes for their readers (`composeReaders.ts`). */

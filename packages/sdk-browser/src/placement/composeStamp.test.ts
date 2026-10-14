@@ -23,3 +23,21 @@ test("a still parent sent again keeps its roots' world stamp; a move, a link mov
   composeWebgpuPlacements(rt, parent, turn(0.5), [{ rows, index: 1, local: turn(0.75) }], false)
   assert.notEqual(stamp(), moved, 'a link at a new local moves it')
 })
+
+test("a moving parent leaves another parent's roots composed: their stamp and their world", () => {
+  const { rt, rows } = session()
+  const still = {},
+    moving = {}
+  composeWebgpuPlacements(rt, still, turn(0), [{ rows, index: 1, local: turn(0.25) }], true)
+  composeWebgpuPlacements(rt, moving, turn(0), [{ rows, index: 0, local: turn(0.25) }], true)
+  const world = (rank: number) =>
+    (rt.layout.selectionRoots[rank] as never as { world: { stamp: number; elements: number[] } })
+      .world
+  const held = world(1).stamp,
+    elements = Array.from(world(1).elements)
+  const moved = world(0).stamp
+  composeWebgpuPlacements(rt, moving, turn(0.5), [], false)
+  assert.notEqual(world(0).stamp, moved, 'the moving parent moves its own roots')
+  assert.equal(world(1).stamp, held, "the still parent's root keeps its stamp")
+  assert.deepEqual(Array.from(world(1).elements), elements)
+})
