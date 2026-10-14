@@ -28,7 +28,7 @@ export function createWebgpuRowState(
    *  primitive page (`./instances.ts`); made here over a flat list built without one. */
   instances: PackedInstances = flatInstances(packedPages),
   /** The pool slot, in words, an address holds in the page cache, -1 none (`pageState.ts`). */
-  slotWords?: (address: string) => number,
+  slotWords: (address: string) => number,
 ) {
   const casterSlots = drawSlots + blendSlots
   const dirtyRows = createDirtyRows(),

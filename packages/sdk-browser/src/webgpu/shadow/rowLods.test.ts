@@ -59,7 +59,7 @@ function scene() {
     worldBox: Float64Array.of(-9, 0, -9, 9, 1, 9),
     pages,
   }
-  const rows = createWebgpuRowState(pages, ROWS)
+  const rows = createWebgpuRowState(pages, ROWS, 0, undefined, () => -1)
   rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer)
   const placement = { baseOfRoot: Int32Array.of(0, MODEL_ROWS.length), packedCount: ROWS }

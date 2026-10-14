@@ -75,9 +75,9 @@ export function askedTableRows(
  *  requests ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(
   setup: WebgpuPagesSetup,
-  limits?: GPUSupportedLimits,
+  limits: GPUSupportedLimits | undefined,
   /** The pool slot, in words, an address holds in the page cache, -1 none: the cache's own. */
-  slotWords?: (address: string) => number,
+  slotWords: (address: string) => number,
 ) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
   // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/residencyMirror.ts`).

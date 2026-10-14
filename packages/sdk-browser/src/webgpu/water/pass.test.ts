@@ -163,13 +163,17 @@ test('disposing the visibility path disposes the water pass with the blend pipel
   const vis = createWebgpuVisState()
   const rt = {
     vis,
-    layout: createWebgpuPagesLayout({
-      roots: [],
-      bootstrap: [],
-      slots: 1,
-      cap: 1,
-      pageBytes: 12,
-    } as never),
+    layout: createWebgpuPagesLayout(
+      {
+        roots: [],
+        bootstrap: [],
+        slots: 1,
+        cap: 1,
+        pageBytes: 12,
+      } as never,
+      undefined,
+      () => -1,
+    ),
     run: createWebgpuRunState(),
     blendState,
   } as unknown as WebgpuPagesRuntime

@@ -3,9 +3,6 @@ import type { PageRec } from '../../page/selection/selection.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageResidency, ResidencyChanges } from '../../gpu/core/selection.ts'
 
-/** No page cache: no address holds a slot. */
-const NO_SLOT = () => -1
-
 /**
  * WHAT THE ROW CACHE KNOWS OF EACH PACKED PAGE, held for the pages that carry something alone: the
  * visibility row a page draws from, the casters' row a blended one casts from, the residency flag
@@ -18,7 +15,7 @@ export function createRowPageState(
   recordOf: (page: number) => PageRec | undefined,
   pageCount: () => number,
   /** The pool slot, in words, `address` holds in the page cache, -1 none: the cache's truth. */
-  slotWords: (address: string) => number = NO_SLOT,
+  slotWords: (address: string) => number,
 ) {
   // A row is stored plus one: an absent page reads -1.
   const rows = createSparseInts(),

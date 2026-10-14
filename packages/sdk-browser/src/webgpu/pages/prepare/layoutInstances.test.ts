@@ -21,12 +21,16 @@ function shared(count: number) {
 }
 
 const layoutOf = (count: number) =>
-  createWebgpuPagesLayout({
-    roots: shared(count),
-    bootstrap: [],
-    cap: 64,
-    pageBytes: 64,
-  } as unknown as WebgpuPagesSetup)
+  createWebgpuPagesLayout(
+    {
+      roots: shared(count),
+      bootstrap: [],
+      cap: 64,
+      pageBytes: 64,
+    } as unknown as WebgpuPagesSetup,
+    undefined,
+    () => -1,
+  )
 
 test('the packed tables hold one entry per primitive page, whatever the placement count', () => {
   const one = layoutOf(1),

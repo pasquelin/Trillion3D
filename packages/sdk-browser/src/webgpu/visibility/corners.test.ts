@@ -42,7 +42,7 @@ function scatteredScene() {
     windingCw: false,
     packedBase: 0,
   }
-  const rows = createWebgpuRowState(pages, ROWS)
+  const rows = createWebgpuRowState(pages, ROWS, 0, undefined, () => -1)
   rows.pageTableFloats = new Float32Array(ROWS * ROW_WORDS)
   for (let row = 0; row < ROWS; row++) {
     rows.setRowOf(row, row)

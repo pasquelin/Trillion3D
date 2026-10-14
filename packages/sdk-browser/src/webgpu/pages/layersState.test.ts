@@ -36,7 +36,7 @@ test('createWebgpuVisState starts with drawLayerSlots at one and no coplanar lay
 
 // prepare/layout.ts
 test('createWebgpuPagesLayout holds the draw words per drawable row, and no CPU corner', () => {
-  const layout = createWebgpuPagesLayout(fakeSetup())
+  const layout = createWebgpuPagesLayout(fakeSetup(), undefined, () => -1)
   // Per-slot counts no longer live here: the GPU partition writes them into the compaction buffer,
   // and the rows pass writes the corners it reads (`../../placement/rowWordsPass.ts`).
   assert.equal('cornerPacked' in layout, false)
