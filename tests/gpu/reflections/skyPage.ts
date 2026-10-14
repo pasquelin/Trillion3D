@@ -3,7 +3,6 @@
 // proxy holds — it leaves the scene, to the sky. What it reflects is what the screen draws there,
 // times its weight: the background — the declared one, or the engine's default where none is
 // declared (`RASTER_BACKGROUND`) — whatever light is declared around the scene.
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import {
   addUniformIrradiance,
   emptyIrradiance,
@@ -11,7 +10,8 @@ import {
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
-import { openRig } from './rig.ts'
+import { secondImage } from './rigImage.ts'
+import { rgbAt } from './rigFrame.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
 
 const WIDTH = 160,
@@ -49,15 +49,11 @@ export function run(cases: SkyCase[]) {
         declared === undefined
           ? undefined
           : addUniformIrradiance(emptyIrradiance(), [declared, declared, declared])
-      const rig = await openRig(device, {
+      const words = await secondImage(device, {
         ...frame,
         background: sky ?? RASTER_BACKGROUND,
         environment,
       })
-      rig.image()
-      rig.image()
-      const words = await rig.read()
-      rig.dispose()
       let minimum = Infinity,
         maximum = 0,
         pixels = 0
@@ -65,8 +61,7 @@ export function run(cases: SkyCase[]) {
         // The pane's face above the eye, whose mirror ray rises: the floor lies the other way.
         if (shown[p] !== 6 + FRONT || Math.floor(p / WIDTH) >= HEIGHT / 2 - 3) continue
         pixels++
-        for (const c of [0, 1, 2]) {
-          const v = fromHalf(words[p * 4 + c])
+        for (const v of rgbAt(words, p)) {
           minimum = Math.min(minimum, v)
           maximum = Math.max(maximum, v)
         }

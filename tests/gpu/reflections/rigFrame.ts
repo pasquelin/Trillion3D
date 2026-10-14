@@ -1,6 +1,6 @@
 // A synthetic still frame for the reflection proofs (`rig.ts`): what the engine's targets hold, as
 // arrays of the image's pixels.
-import { toHalf } from '../../../packages/math/src/float/half.ts'
+import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
 import type { Camera, V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
@@ -51,6 +51,10 @@ export function rigFrameOf(
 }
 
 export const halves = (values: ArrayLike<number>) => Uint16Array.from(values, toHalf)
+
+/** The reflected colour of pixel `p` in a reflection target's raw half-float words `words`. */
+export const rgbAt = (words: ArrayLike<number>, p: number) =>
+  [0, 1, 2].map((c) => fromHalf(words[p * 4 + c]))
 
 /** The half-float word of a not-a-number: what a pixel the trace leaves unwritten keeps. */
 export const HALF_NAN = 0x7e00

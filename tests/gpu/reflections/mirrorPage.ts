@@ -6,6 +6,7 @@ import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/scene/p
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { openRig } from './rig.ts'
+import { secondImage } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: per reflective family, three consecutive still images' reflection
@@ -74,11 +75,7 @@ export function runCoat() {
   return runOnDevice<CoatReading>(async (device, _events, result) => {
     const { size } = MIRROR
     for (const coat of [false, true]) {
-      const rig = await openRig(device, roughFloor(coat))
-      rig.image()
-      rig.image()
-      result[coat ? 'coated' : 'bare'] = Array.from(await rig.read())
-      rig.dispose()
+      result[coat ? 'coated' : 'bare'] = Array.from(await secondImage(device, roughFloor(coat)))
     }
     result.size = size
   })

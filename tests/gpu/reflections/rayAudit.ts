@@ -9,10 +9,9 @@ import {
   type Camera,
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
-import { openRig } from './rig.ts'
-import { pointOnScreen } from './rigFrame.ts'
+import { secondImage } from './rigImage.ts'
+import { pointOnScreen, rgbAt } from './rigFrame.ts'
 
 /** The share of `color` a pixel's colour `v` holds: 1 for the same hue, 0 under a faint pixel. */
 export function hueOf(v: number[], color: V3) {
@@ -93,11 +92,7 @@ export async function renderBlocks(
   height: number,
 ) {
   const { frame, view, shown } = boxFrame(blocks, eye, target, width, height)
-  const rig = await openRig(device, frame)
-  rig.image()
-  rig.image()
-  const words = await rig.read()
-  rig.dispose()
-  const rgb = (p: number) => [0, 1, 2].map((c) => fromHalf(words[p * 4 + c]))
+  const words = await secondImage(device, frame)
+  const rgb = (p: number) => rgbAt(words, p)
   return { frame, view, shown, rgb }
 }

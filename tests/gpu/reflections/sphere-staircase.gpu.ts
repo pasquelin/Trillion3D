@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
+import { rgbAt } from './rigFrame.ts'
 import { exactReflection, SPHERES, sphereFrame } from './sphereFrame.ts'
 import { pointOnScreen } from './rigFrame.ts'
 
@@ -55,7 +55,7 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
     return true
   }
   const range = sky - floor
-  const seen = (p: number) => fromHalf(result.words![p * 4])
+  const seen = (p: number) => rgbAt(result.words!, p)[0]
   // The analytic radiance of a sphere pixel: the floor's where its ray meets a floor the screen
   // sees, the sky's where it meets nothing; NaN elsewhere (a sphere's, which the screen answers
   // with the sphere's, or a floor the screen cannot see).

@@ -10,7 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
+import { rgbAt } from './rigFrame.ts'
 import { MIRROR, reflectedPixel } from './mirrorScene.ts'
 
 test('a still floor reflects the same bits every image, the quad where the mirror puts it', async () => {
@@ -27,8 +27,7 @@ test('a still floor reflects the same bits every image, the quad where the mirro
   }
   const [first] = result.families!.mirror
   const { size, quad } = MIRROR
-  const rgb = (x: number, y: number) =>
-    [0, 1, 2].map((c) => fromHalf(first[(y * size + x) * 4 + c]))
+  const rgb = (x: number, y: number) => rgbAt(first, y * size + x)
   // The quad's centre and a point a third of the way up, mirrored by the floor.
   for (const [x, y] of [
     [0, 0],
@@ -56,8 +55,7 @@ test('a mirror coat over a rough base is sharp at its analytic pixel', async () 
   assert.equal(result.error, undefined, result.error)
   assert.deepEqual(result.errors, [])
   const { size, quad } = MIRROR
-  const at = (words: number[], x: number, y: number) =>
-    [0, 1, 2].map((c) => fromHalf(words[(y * size + x) * 4 + c]))
+  const at = (words: number[], x: number, y: number) => rgbAt(words, y * size + x)
   // What the coat adds at a pixel: the coated target less the bare one.
   const added = (x: number, y: number) =>
     at(result.coated!, x, y).map((v, c) => v - at(result.bare!, x, y)[c])

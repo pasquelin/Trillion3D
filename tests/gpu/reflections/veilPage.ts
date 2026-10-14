@@ -5,12 +5,12 @@
 // would show. A near mirror under a steep view reflects nothing of the screen (every reflected ray
 // rises past its top edge): the room's proxy answers alone, and shows the far wall's colour, a dark
 // one, never the background's.
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
-import { openRig } from './rig.ts'
+import { secondImage } from './rigImage.ts'
+import { rgbAt } from './rigFrame.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
@@ -35,15 +35,11 @@ export function run(cases: VeilCase[]) {
       const a = yaw * DEG2RAD
       const target: V3 = [EYE[0] + Math.sin(a) * 10, EYE[1] - drop, EYE[2] - Math.cos(a) * 10]
       const { frame, shown, floor } = roomFrame(EYE, target, WIDTH, HEIGHT, rough, far)
-      const rig = await openRig(device, frame)
-      rig.image()
-      rig.image()
-      const words = await rig.read()
-      rig.dispose()
+      const words = await secondImage(device, frame)
       // The patch's top, its mirror: the film's two-millimetre edge shows a pixel of side now and then.
       const onFloor = (p: number) =>
         shown[p] >= 0 && Math.floor(shown[p] / 6) === floor && shown[p] % 6 === TOP
-      const value = (p: number) => [0, 1, 2].map((c) => fromHalf(words[p * 4 + c]))
+      const value = (p: number) => rgbAt(words, p)
       let minimum = Infinity,
         maximum = 0,
         step = 0,
