@@ -77,11 +77,8 @@ export function createProxyInstances(resources: ProxySource) {
     },
     /** Row `w` of it was written. */
     worldWritten,
-    /** Rows `[from, to)` of it were written, appended roots' worlds among them. */
-    worldsRange(from: number, to: number) {
-      for (let w = from; w < to; w++) worldWritten(w)
-    },
-    /** Roots `[from, to)` were appended behind the others: their instances. */
+    /** Roots `[from, to)` were appended behind the others: their instances, and their worlds'
+     *  boxes made again. */
     appended(from: number, to: number) {
       write(from, to)
     },
