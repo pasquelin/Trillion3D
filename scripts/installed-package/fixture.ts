@@ -1,10 +1,10 @@
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Metafile } from 'esbuild'
 import type { Bundle, Run, Write } from './contracts.ts'
 import { readJson } from '../repository-files.ts'
+import { runChecked } from '../run.ts'
 
 /** One child-process invocation the installed-package proof made, kept for the failure report. */
 interface LogEntry {
@@ -77,19 +77,13 @@ export function createInstalledFixture(root: string): InstalledFixture {
 
   const run: Run = (command, args, cwd = root, environment = process.env) => {
     const program = windowsShim(command)
-    const result = spawnSync(program, args, {
+    return runChecked(program, args, {
       cwd,
-      encoding: 'utf8',
       env: environment,
-      shell: program.endsWith('.cmd'),
+      cmd: program.endsWith('.cmd'),
+      onResult: ({ stdout, stderr }) =>
+        logs.push({ command: [command, ...args], cwd, stdout, stderr }),
     })
-    logs.push({ command: [command, ...args], cwd, stdout: result.stdout, stderr: result.stderr })
-    if (result.error) throw result.error
-    if (result.status !== 0)
-      throw new Error(
-        `${command} ${args.join(' ')} failed (${result.status})\n${result.stdout}${result.stderr}`,
-      )
-    return result.stdout
   }
 
   const write: Write = (name, value) => {
