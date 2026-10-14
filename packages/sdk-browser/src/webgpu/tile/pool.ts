@@ -10,7 +10,7 @@ import {
 } from '../../texture/tiles.ts'
 import type { PoolLane } from '../../texture/blockFormats.ts'
 import type { ChangedRuns } from '../residency/ranges.ts'
-import { acquire, adopt, occupied, pin, placesOf, release, taken } from './poolPlaces.ts'
+import { acquire, adopt, freeAt, occupied, pin, placesOf, release, taken } from './poolPlaces.ts'
 import { createPlaceOrder } from './placeOrder.ts'
 
 /**
@@ -120,7 +120,7 @@ export function createWebgpuTilePool(
   const texture = device.createTexture(descriptor)
   const places = placesOf(tiles)
   const order = createPlaceOrder((index) =>
-    places.owner[index] === -1 ? undefined : { index, generation: places.arrived[index] },
+    freeAt(places, index) ? undefined : { index, generation: places.arrived[index] },
   )
   return {
     label,
@@ -146,7 +146,7 @@ export function createWebgpuTilePool(
     pin: (index, pinned) => pin(places, index, pinned),
     keyOf: (index) => places.owner[taken(places, index)],
     pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
-    freeAt: (index) => places.owner[index] === -1,
+    freeAt: (index) => freeAt(places, index),
     victim: order.victim,
     victims: order.victims,
     rankOf: order.rankOf,
