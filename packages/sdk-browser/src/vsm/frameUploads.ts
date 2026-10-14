@@ -3,20 +3,12 @@
  * next-map data the page address update reads, by previous id — each where it changed alone.
  */
 import { VSM_SINGLE_PAGE_MAP_SLOTS, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
-import { vsmProjectionWords, writeVsmProjectionData } from './projectionData.ts'
+import { writeVsmProjectionData } from './projectionData.ts'
 import { writeChanged, writeChangedRecords } from '../gpu/core/writeChanged.ts'
+import { wordViews } from '../gpu/core/wordViews.ts'
 import { uniqueSortedInPlace } from '../../../math/src/scalar/integers.ts'
 import { VSM_NEXT_MAP_BYTES, type VsmMapIds } from './mapIds.ts'
 import type { VsmFrameState } from './frameState.ts'
-
-/** The words of a next-data image, made once an image (`planVirtualShadowFrame`). */
-const NEXT_WORDS = new WeakMap<ArrayBuffer, { u: Uint32Array<ArrayBuffer>; i: Int32Array }>()
-function nextMapWords(image: ArrayBuffer) {
-  let words = NEXT_WORDS.get(image)
-  if (!words)
-    NEXT_WORDS.set(image, (words = { u: new Uint32Array(image), i: new Int32Array(image) }))
-  return words
-}
 
 /** The marking pass's input: every cache entry's projection data at its id, the single-page
  *  maps' records then the full maps', where they changed alone (`writeChanged`): a still view
@@ -29,7 +21,7 @@ export function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
     for (let index = 0; index < maps.length; index++)
       writeVsmProjectionData(image, entry.mapId + index, maps[index].projectionData)
   }
-  const words = vsmProjectionWords(image),
+  const words = wordViews(image).u,
     record = VSM_PROJECTION_RECORD_BYTES / 4,
     full = VSM_SINGLE_PAGE_MAP_SLOTS * record
   writeChanged(device, resources.current.projectionData, words, 0, ids.singlePageMapCount * record)
@@ -51,7 +43,7 @@ let touchedIds = new Int32Array(64)
  *  start past the single-page slots, so the table is wide and those few —: they alone are compared
  *  (`writeChangedRecords`). */
 export function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
-  const { u, i } = nextMapWords(state.nextMapsImage),
+  const { u, i } = wordViews(state.nextMapsImage),
     held = state.nextMapsHeld,
     dropped = state.nextMapsHeldCount,
     taken = ids.nextMapIdCount

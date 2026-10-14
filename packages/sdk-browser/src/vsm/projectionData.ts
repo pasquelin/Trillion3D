@@ -15,6 +15,7 @@
  * as WGSL's mat4x4f reads them. All distances in metres.
  */
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { wordViews } from '../gpu/core/wordViews.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
@@ -89,30 +90,13 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
   }
 }
 
-/** The views of an image of records, made once an image (`writeVsmProjectionData`). */
-const VIEWS = new WeakMap<
-  ArrayBuffer,
-  { f: Float32Array; u: Uint32Array<ArrayBuffer>; i: Int32Array }
->()
-const viewsOf = (out: ArrayBuffer) => {
-  let views = VIEWS.get(out)
-  if (!views)
-    VIEWS.set(
-      out,
-      (views = { f: new Float32Array(out), u: new Uint32Array(out), i: new Int32Array(out) }),
-    )
-  return views
-}
-/** The words of an image of records, as an upload sends them (`writeChanged`). */
-export const vsmProjectionWords = (image: ArrayBuffer) => viewsOf(image).u
-
 /** Writes record `index` (the VSM id) of the projection data buffer image `out`. */
 export function writeVsmProjectionData(
   out: ArrayBuffer,
   index: number,
   d: VsmProjectionDataValues,
 ) {
-  const { f, u, i } = viewsOf(out),
+  const { f, u, i } = wordViews(out),
     base = (index * VSM_PROJECTION_RECORD_BYTES) / 4,
     O = RECORD_OFFSET
   for (let k = 0; k < 16; k++) {
