@@ -2,6 +2,7 @@ import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
 import { SURFACE_FORMATS } from '../scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalLobes.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
 import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
@@ -48,7 +49,7 @@ export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
 /** The formats of the front pass's targets: the Hi-Z front layer it writes the covering depth to, the
  *  surface buffer's flags and normals, and the lobes target's (`../scene/physicalLobes.ts`). */
 export const FRONT_TARGET_FORMATS = {
-  front: 'r32float',
+  front: HIZ_LEVEL0_FORMAT,
   flags: SURFACE_FORMATS[3],
   normals: SURFACE_FORMATS[1],
   lobes: PHYSICAL_LOBES_FORMAT,

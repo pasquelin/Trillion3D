@@ -6,6 +6,9 @@ import type { Pyramid } from './pyramid.ts'
 // A pyramid's level 0 (`pyramid.ts`): the opaque depth, and the transparents' front layer beside it
 // once a scene asks it.
 
+/** The format of a pyramid's level 0, every layer: the depth the visibility and the front pass write. */
+export const HIZ_LEVEL0_FORMAT: GPUTextureFormat = 'r32float'
+
 /** The label of a pyramid's level 0. */
 const HIZ_LEVEL0_LABEL = 'Trillion3D Hi-Z level 0'
 
@@ -21,7 +24,7 @@ export function level0Of(
   const level0 = device.createTexture({
     label: HIZ_LEVEL0_LABEL,
     size: { width, height, depthOrArrayLayers: layers },
-    format: 'r32float',
+    format: HIZ_LEVEL0_FORMAT,
     usage,
   })
   const layer = (baseArrayLayer: number) =>
