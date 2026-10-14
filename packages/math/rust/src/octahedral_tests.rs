@@ -65,7 +65,7 @@ fn octahedral_decode_inverts_octahedral_encode_on_the_sphere() {
     for d in directions() {
         let uv = octahedral_encode(d, false);
         let back = octahedral_decode(uv.map(|x| x * 0.5 + 0.5), false);
-        let error = crate::vec3::length(crate::vec3::sub(back, d));
+        let error = crate::vecn::length(crate::vecn::sub(back, d));
         assert!(error < 1e-12, "{d:?} came back {back:?}");
     }
 }
@@ -75,7 +75,7 @@ fn octahedral_hemi_maps_the_upper_half_and_flattens_the_lower() {
     for d in directions().into_iter().filter(|d| d[1] >= 0.0) {
         let uv = octahedral_encode(d, true);
         let back = octahedral_decode(uv.map(|x| x * 0.5 + 0.5), true);
-        assert!(crate::vec3::length(crate::vec3::sub(back, d)) < 1e-12);
+        assert!(crate::vecn::length(crate::vecn::sub(back, d)) < 1e-12);
     }
     assert_eq!(octahedral_encode([0.0, -1.0, 0.0], true), [0.0, 0.0]);
     let below = octahedral_encode([1.0, -5.0, 0.0], true);

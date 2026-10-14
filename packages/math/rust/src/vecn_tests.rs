@@ -18,8 +18,37 @@ fn dot_sums_in_index_order_as_an_iterator_sum_does() {
     assert_eq!(dot(a, b).to_bits(), written.to_bits());
     // A sum of negative zeros stays negative, as `−0.0 + −0.0` is.
     assert!(dot([-0.0f64; 3], [1.0; 3]).is_sign_negative());
-    let v = [0.3f64, -1.1, 7.0];
-    assert_eq!(dot(v, v).to_bits(), crate::vec3::dot(v, v).to_bits());
+}
+
+/// The written-out sums the `[f64; 3]`, `[f64; 2]` and quaternion forms were: `vecn` gives their
+/// bits on hostile floats (negative zeros, subnormals, overflow, cancellation), either precision.
+#[test]
+fn dot_and_length_give_the_written_out_sums_bits_at_every_width() {
+    let mut state = crate::GOLDEN;
+    let hostile = [-0.0, 0.0, 5e-324, -1e308, 1e308, 1e17, -1e17, 0.1, -0.3];
+    for _ in 0..10_000 {
+        crate::random::xorshift64(&mut state);
+        let pick = |shift: u32| {
+            let bits = state.rotate_left(shift);
+            if bits & 3 == 0 {
+                hostile[(bits >> 2) as usize % hostile.len()]
+            } else {
+                f64::from_bits(bits & 0xBFFF_FFFF_FFFF_FFFF)
+            }
+        };
+        let (a, b) = ([0, 9, 18, 27].map(pick), [36, 45, 54, 63].map(pick));
+        let d3 = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let (a3, b3) = ([a[0], a[1], a[2]], [b[0], b[1], b[2]]);
+        assert_eq!(dot(a3, b3).to_bits(), d3.to_bits());
+        let s2 = (a[0] * a[0] + a[1] * a[1]).sqrt();
+        assert_eq!(length([a[0], a[1]]).to_bits(), s2.to_bits());
+        let s4 = a[0] * a[0] + a[1] * a[1] + a[2] * a[2] + a[3] * a[3];
+        assert_eq!(squared_length(a).to_bits(), s4.to_bits());
+        assert_eq!(dot(a, b).to_bits(), (d3 + a[3] * b[3]).to_bits());
+        let f = a3.map(|v| v as f32);
+        let f3 = (f[0] * f[0] + f[1] * f[1] + f[2] * f[2]).sqrt();
+        assert_eq!(length(f).to_bits(), f3.to_bits());
+    }
 }
 
 #[test]
@@ -27,8 +56,6 @@ fn length_and_distance2_are_the_root_and_the_square_of_the_differences() {
     assert_eq!(squared_length([3.0f64, 4.0]), 25.0);
     assert_eq!(length([3.0f64, 4.0]), 5.0);
     assert_eq!(length([1.0f32, 2.0, 2.0, 4.0]), 5.0);
-    let v = [0.3f64, -1.1, 7.0];
-    assert_eq!(length(v).to_bits(), crate::vec3::length(v).to_bits());
     let (a, b) = ([1.5f32, 2.0, 0.0, 9.0], [0.5f32, 4.0, 2.0, 9.0]);
     let by_hand: f32 = a.iter().zip(b).map(|(d, v)| (d - v) * (d - v)).sum();
     assert_eq!(distance2(a, b).to_bits(), by_hand.to_bits());
@@ -84,7 +111,7 @@ fn mean_sums_from_positive_zero_then_scales_by_the_reciprocal() {
     // Negative zeros summed from `+0.0` come out positive.
     assert!(mean([[-0.0f64; 3]])[0].is_sign_positive());
     let points = [[0.1, 0.2, 0.3], [0.7, 0.11, 0.13], [0.5, 0.9, 0.01]];
-    let sum = points.iter().fold([0.0; 3], |s, p| crate::vec3::add(s, *p));
-    assert_eq!(mean(points), crate::vec3::scale(sum, 1.0 / 3.0));
+    let sum = points.iter().fold([0.0; 3], |s, p| add(s, *p));
+    assert_eq!(mean(points), scale(sum, 1.0 / 3.0));
     assert!(mean(core::iter::empty::<[f64; 2]>())[0].is_nan());
 }

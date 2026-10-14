@@ -1,7 +1,8 @@
 use super::*;
 use trillion3d_math::aabb::{aabb_of, corners};
 use trillion3d_math::vec2::{barycentric, double_area};
-use trillion3d_math::vec3::{dot, point_checked};
+use trillion3d_math::vec3::point_checked;
+use trillion3d_math::vecn::dot;
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
 /// surface and reused by every pair it is tested against.

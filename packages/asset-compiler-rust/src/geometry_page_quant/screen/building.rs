@@ -4,7 +4,7 @@
 use super::meshes::{Mesh, V};
 use std::f64::consts::FRAC_PI_2;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, dot};
+use trillion3d_math::vecn::{add, dot};
 
 const WIDTH: f64 = 24.0;
 const DEPTH: f64 = 16.0;

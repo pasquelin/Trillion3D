@@ -1,13 +1,9 @@
 use super::*;
 
 #[test]
-fn the_plain_length_sums_the_squares_in_order_and_divides_each_part() {
+fn divide_divides_each_part() {
     let q = [1.0f64, 2.0, 2.0, 4.0];
-    assert_eq!(length_squared(q), 25.0);
-    assert_eq!(length(q), 5.0);
     assert_eq!(divide(q, 5.0), [0.2, 0.4, 0.4, 0.8]);
-    let f = [3.0f32, 0.0, 4.0, 0.0];
-    assert_eq!(length(f), 5.0f32);
     // A product by the reciprocal rounds once more: `divide` does not take it.
     let third = [1.0f64, 0.0, 0.0, 0.0].map(|v| v * 0.1);
     assert_eq!(divide(third, 3.0)[0].to_bits(), (0.1f64 / 3.0).to_bits());

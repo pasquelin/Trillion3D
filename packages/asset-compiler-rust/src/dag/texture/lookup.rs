@@ -2,8 +2,8 @@
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
 use trillion3d_math::triangle::barycentric_weights;
 use trillion3d_math::vec2::{barycentric, double_area};
-use trillion3d_math::vec3::{length, point, sub};
-use trillion3d_math::vecn::weighted_sum;
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{length, sub, weighted_sum};
 use trillion3d_page_codec::hash::WordMap;
 
 /// Barycentric weights of the samples: corners, edge midpoints, centroid.
@@ -165,7 +165,7 @@ impl<'a> Lookup<'a> {
             0.0
         } else {
             let on = weighted_sum([a, b, c], weights);
-            trillion3d_math::vec2::length([at[0] - on[0], at[1] - on[1]])
+            trillion3d_math::vecn::length([at[0] - on[0], at[1] - on[1]])
         };
         if miss > best.0 {
             return;

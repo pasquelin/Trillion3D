@@ -1,5 +1,5 @@
 use super::*;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::CULLING_STRIDE;
 
 #[test]

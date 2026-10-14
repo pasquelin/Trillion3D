@@ -7,7 +7,7 @@ use super::world::world_dag;
 use super::*;
 use crate::dag::{build_dag_tallied, DagAttributes, DAG_CLUSTER_TRIANGLES, DAG_GROUP_MAX};
 use trillion3d_math::matrix::translation;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 
 const TILE: f64 = 1000.0;
 const SIDE: usize = 4;

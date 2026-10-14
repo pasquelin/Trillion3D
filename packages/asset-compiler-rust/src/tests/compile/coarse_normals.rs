@@ -6,7 +6,7 @@ use super::silhouette::{page_indices, Mesh};
 use super::*;
 use crate::dag::quality::face_normal;
 use std::collections::HashMap;
-use trillion3d_math::vec3::dot;
+use trillion3d_math::vecn::dot;
 
 /// A vertex as a page draws it: its position and its normal, bit for bit.
 type Drawn = ([u64; 3], [u64; 3]);

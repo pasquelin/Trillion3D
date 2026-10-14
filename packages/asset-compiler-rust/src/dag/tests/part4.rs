@@ -1,6 +1,6 @@
 use super::*;
 use trillion3d_math::sphere::enclosing_sphere;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::{
     build_culling_bvh, CullingNode, CULLING_BRANCHING, CULLING_LEAF,
 };

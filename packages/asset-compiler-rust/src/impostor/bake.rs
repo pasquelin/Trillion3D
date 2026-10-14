@@ -4,7 +4,8 @@ use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
 use rayon::prelude::*;
 use trillion3d_math::scalar::{byte_to_unit, unit_to_byte};
-use trillion3d_math::vec3::{add, normalized_or, scale};
+use trillion3d_math::vec3::normalized_or;
+use trillion3d_math::vecn::{add, scale};
 use trillion3d_math::{scalar, vecn};
 
 /// Rotated-grid subsamples of a texel, in texel units.

@@ -1,5 +1,6 @@
 use trillion3d_math::aabb::{aabb_of, centre};
-use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::CullingCluster;
 
 /// AABB centre plus the farthest vertex. Conservative and deterministic.

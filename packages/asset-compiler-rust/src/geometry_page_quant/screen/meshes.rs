@@ -5,7 +5,8 @@ use core::f64::consts::GOLDEN_RATIO;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use trillion3d_math::scalar::lerp;
-use trillion3d_math::vec3::{add, length, normalized_or};
+use trillion3d_math::vec3::normalized_or;
+use trillion3d_math::vecn::{add, length};
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
 

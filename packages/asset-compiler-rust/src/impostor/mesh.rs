@@ -6,8 +6,8 @@ use super::surface::Surface;
 use crate::dag::bounds::bounding_sphere;
 use crate::proxy::tracer::{normal_of, trace_where, World};
 use trillion3d_math::triangle::barycentric_weights;
-use trillion3d_math::vec3::{dot, normalized_or, scale};
-use trillion3d_math::vecn::weighted_sum;
+use trillion3d_math::vec3::normalized_or;
+use trillion3d_math::vecn::{dot, scale, weighted_sum};
 use trillion3d_page_codec::proxy::bvh;
 
 /// Texture coordinate sets a triangle carries: a texture naming a higher set reads the last.

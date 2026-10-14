@@ -2,7 +2,8 @@
 //! closest point to a query, a ray's hit, and Newell's polygon normal.
 
 use crate::real::Real;
-use crate::vec3::{cross, dot, length, point, sub};
+use crate::vec3::{cross, point};
+use crate::vecn::{dot, length, sub};
 
 /// `(b − a) × (c − a)`: the normal of the triangle by its winding, twice its area long.
 #[inline]

@@ -1,6 +1,6 @@
 use super::*;
 use std::collections::HashMap;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 
 #[test]
 fn level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once() {

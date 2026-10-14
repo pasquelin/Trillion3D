@@ -7,7 +7,8 @@ use crate::join::Join;
 use crate::qem::Attribute;
 use trillion3d_math::aabb::longest_side;
 use trillion3d_math::triangle::{edge_key, longest_edge, triangle_cross};
-use trillion3d_math::vec3::{length, point};
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::length;
 
 /// Per texture set of `uv_sets`, the surface length one unit of it spans over the triangles `live`:
 /// the square root of their surface area over their texture area; zero where the set spans no area.

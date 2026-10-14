@@ -12,7 +12,7 @@
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
 use trillion3d_math::matrix::transform_point;
-use trillion3d_math::vec2::length;
+use trillion3d_math::vecn::length;
 
 /// `clusterErrorAtDepth` refused its parameters: the JavaScript cut throws there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

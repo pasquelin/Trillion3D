@@ -7,7 +7,7 @@ use super::SOFT_VERTEX_WORDS;
 use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
 use trillion3d_math::triangle::triangle_area;
-use trillion3d_math::vec3::{length, sub};
+use trillion3d_math::vecn::{length, sub};
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
 /// `SOFT_LINEAR_DENSITY`).

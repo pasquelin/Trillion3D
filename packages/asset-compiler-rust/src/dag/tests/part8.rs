@@ -2,7 +2,8 @@
 //! faces, a thin part keeps its silhouette or leaves under its error, and the cook refuses a DAG
 //! whose error drops or whose normals turn their back on their faces.
 use super::*;
-use trillion3d_math::vec3::{cross_f32, divide_f32, length_f32};
+use trillion3d_math::vec3::{cross, divide_f32};
+use trillion3d_math::vecn::length;
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::FLAG_NORMAL;
 
@@ -17,8 +18,8 @@ impl Shaded {
     /// One grid of `nu` by `nv` quads from `origin` along `u` then `v`, wound so that its face
     /// normal is `u × v`, every vertex carrying `normal`.
     fn face(&mut self, origin: [f32; 3], u: [f32; 3], v: [f32; 3], (nu, nv): (usize, usize)) {
-        let n = cross_f32(u, v);
-        let normal = divide_f32(n, length_f32(n));
+        let n = cross(u, v);
+        let normal = divide_f32(n, length(n));
         let first = (self.positions.len() / 3) as u32;
         for j in 0..=nv {
             for i in 0..=nu {
@@ -116,7 +117,7 @@ fn a_slab_keeps_its_face_normals_at_every_level() {
                     "a corner carries one of the slab's normals"
                 );
                 assert!(
-                    trillion3d_math::vec3::dot(face, normal) > 0.0,
+                    trillion3d_math::vecn::dot(face, normal) > 0.0,
                     "level {}: a face {face:?} shaded from behind by {normal:?}",
                     cluster.level
                 );

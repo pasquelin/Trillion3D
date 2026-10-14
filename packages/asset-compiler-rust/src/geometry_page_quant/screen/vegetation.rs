@@ -3,7 +3,8 @@ use super::meshes::{gaussian, normalize, uniform, Mesh, V};
 use crate::tests::random::Xorshift;
 use std::f64::consts::TAU;
 use trillion3d_math::scalar::lerp;
-use trillion3d_math::vec3::{add, cross, length, scale, sub};
+use trillion3d_math::vec3::cross;
+use trillion3d_math::vecn::{add, length, scale, sub};
 
 /// A tree: a tapered trunk, 40 branches (smooth cylinders) and 15,000 leaf cards, each a quad
 /// of two triangles on its own, at random orientations.

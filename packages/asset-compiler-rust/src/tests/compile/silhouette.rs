@@ -10,7 +10,7 @@
 use super::*;
 use crate::proxy::cut::in_cut;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::dot;
+use trillion3d_math::vecn::dot;
 
 type Point = [f64; 3];
 

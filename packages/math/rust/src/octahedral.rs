@@ -6,7 +6,8 @@
 //! - `octahedral_encode`, `octahedral_decode`: a direction on `[-1, 1]²` (the grid `[0, 1]²` back),
 //!   in `f64`, `+Y` the upper pole, the full sphere or its upper half — the impostor atlas.
 
-use crate::vec3::{length_f32, scale, unit_or_itself};
+use crate::vec3::unit_or_itself;
+use crate::vecn::{length, scale};
 
 /// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`.
 pub const OCT_SCALE: f32 = 2.0 / 255.0;
@@ -31,7 +32,7 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
     };
     let cell = |v: f32| ((v + 1.0) * 127.5).floor().clamp(0.0, 254.0) as u32;
     let (bx, by) = (cell(px), cell(py));
-    let length = length_f32(normal);
+    let length = length(normal);
     let unit = [x / length, y / length, z / length];
     let mut best = (f32::INFINITY, 0u32);
     for candidate in [bx, bx + 1]
@@ -62,7 +63,7 @@ pub fn oct_decode(q: u32) -> [f32; 3] {
     } else {
         (x, y)
     };
-    let length = length_f32([x, y, z]);
+    let length = length([x, y, z]);
     [x / length, y / length, z / length]
 }
 

@@ -14,7 +14,7 @@ type Point = [f64; 3];
 
 /// Euclidean distance, on the crate's own vector helpers.
 fn distance(a: Point, b: Point) -> f64 {
-    trillion3d_math::vec3::length(trillion3d_math::vec3::sub(a, b))
+    trillion3d_math::vecn::length(trillion3d_math::vecn::sub(a, b))
 }
 
 /// One decoded page: its source indices and, per corner, the decoded position.

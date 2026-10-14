@@ -4,7 +4,7 @@
 use super::clusters::{normalized_bits, position_key, weld_by};
 use super::quality::{face_normal, unit_normal};
 use crate::qem;
-use trillion3d_math::vec3::dot;
+use trillion3d_math::vecn::dot;
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::hash::WordMap;
 use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV, FLAG_UV1};

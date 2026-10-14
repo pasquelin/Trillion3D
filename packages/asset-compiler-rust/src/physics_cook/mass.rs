@@ -8,7 +8,8 @@ use super::refused;
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use trillion3d_math::vec3::{divide, sub, triple};
+use trillion3d_math::vec3::{divide, triple};
+use trillion3d_math::vecn::sub;
 
 /// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
 pub(super) const DENSITY: f64 = 1000.0;

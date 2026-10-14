@@ -15,7 +15,8 @@ use crate::{CompilerError, Result};
 use rayon::prelude::*;
 use trillion3d_math::acos::acos;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{add, dot, length, sub, unit};
+use trillion3d_math::vec3::unit;
+use trillion3d_math::vecn::{add, dot, length, sub};
 
 /// Largest angle, in degrees, a coarse cluster may put between a face and the normal its centre is
 /// shaded with, unless the source triangles it descends from already go further. Past 90° the face

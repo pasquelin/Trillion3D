@@ -53,7 +53,7 @@ fn diagonal_is_the_root_of_the_squared_sides() {
         .sum::<f64>()
         .sqrt();
     assert_eq!(diagonal(low, high).to_bits(), by_powi.to_bits());
-    let by_vec3 = crate::vec3::length(crate::vec3::sub(high, low));
+    let by_vec3 = crate::vecn::length(crate::vecn::sub(high, low));
     assert_eq!(diagonal(low, high).to_bits(), by_vec3.to_bits());
 }
 
