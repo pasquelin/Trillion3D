@@ -142,3 +142,23 @@ test('a mover’s reach walks none of its pages: their boxes are read as one uni
   commitRowMotion(rt, 0)
   assert.ok(motion.travel > before, 'its travel is committed')
 })
+
+test('a placement counted whole commits no travel: neither its first move nor one after a parent let it go', () => {
+  const rand = mulberry32(11)
+  const root = rootOf(rand, [1, 2, 3], 2, 0)
+  const { rt, mobility, motion } = runtime([root])
+  const far = world(rand, 2, 1, [5e3, 0, -4e3])
+  mobility.move(0, far, true)
+  commitRowMotion(rt, 0)
+  assert.equal(motion.derived, root.pages.length)
+  assert.equal(motion.travel, 0, 'its rows are counted whole: its first move bounds none')
+  mobility.follow(0, 0)
+  mobility.follow(0, -1)
+  commitRowMotion(rt, 0)
+  assert.equal(motion.derived, 3 * root.pages.length)
+  // The parent carried it anywhere: a move near its last CPU pose still lands its rows anywhere.
+  mobility.move(0, world(rand, 2, 1, [5e3, 1, -4e3]), true)
+  commitRowMotion(rt, 0)
+  assert.equal(motion.derived, 4 * root.pages.length, 'its first move after a parent is a jump')
+  assert.equal(motion.travel, 0)
+})

@@ -19,7 +19,9 @@ export function moveRank(
 ) {
   if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
   if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
-  noteTravel(s.travel.ranks, rank, s.poses, rank * 16, world)
+  // A pose a parent slot held is unknown (`followLead`): no travel measures it, its rows jump.
+  if (Number.isNaN(s.poses[rank * 16])) s.travel.jumped.push(rank)
+  else noteTravel(s.travel.ranks, rank, s.poses, rank * 16, world)
   s.poses.set(world, rank * 16)
   s.lastMoved[rank] = s.frame
   if (s.moving[rank]) return MOVE_MOVING
@@ -35,8 +37,10 @@ export function followLead(s: MobilityState, rank: number, lead: number) {
     s.leads = resized(s.leads, rank + 1, -1)
   }
   s.leads[rank] = lead
-  // Linked or let go, its world is another's: its rows may be anywhere.
+  // Linked or let go, its world is another's: its rows may be anywhere, and the pose it was last
+  // seen at no longer the one they were derived at — its next move weighs none (`moveRank`).
   s.travel.jumped.push(rank)
+  if (rank < s.moving.length) s.poses[rank * 16] = NaN
   if (lead < 0) return
   if (lead >= s.leadMoved.length) growSlots(s, lead + 1)
   if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0

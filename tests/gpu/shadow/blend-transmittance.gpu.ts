@@ -15,6 +15,7 @@ import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bind
 import { declareSurface } from '../../../packages/sdk-browser/src/page/surfaceRecord.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../packages/math/src/wgsl/decl.ts'
+import { near } from '../../../packages/math/src/float/near.fixture.ts'
 
 /** The proof's material reads, the providers the transmittance takes: a half alpha, a fixed
  *  colour. */
@@ -29,7 +30,8 @@ const COLOR_SAMPLE = wgslFn(
   'fn colorSample(a:u32,b:vec2f,c:vec2f,d:vec2f,e:bool)->vec4f{return vec4f(0.25,0.5,1.0,0.5);}',
 )
 
-/** A white, fully opaque glass two units thick, its volume's colour (0.5, 0.25, 1) over 2. */
+/** A glass of white base colour at full alpha, fully transmissive, two units thick, its volume's
+ *  colour (0.5, 0.25, 1) over 2. */
 const GLASS = declareSurface({
   family: 'physical',
   transmission: 1,
@@ -57,17 +59,14 @@ function records(device: GPUDevice): GPUBindGroupEntry[] {
   return [{ binding: VIS_BINDINGS.material, resource: table.viewFor(device) }]
 }
 
-/** `values` against `expected`, each within the law's f32 rounding (`volume-law.gpu.ts`). */
-const near = (values: number[], expected: number[]) =>
-  values.every((value, i) => Math.abs(value - expected[i]) < 1e-6)
-
 test('a volume tints by its attenuation over its world path, its map by colour and alpha, once', async () => {
   const { values, errors } = await computeOnDawn(SHADER, 48, 3, { setupNumbered: records })
   assert.deepEqual(errors, [])
   // The plain page: the attenuation colour over a path equal to its distance, fully covered.
-  assert.ok(near(values.slice(0, 4), [0.5, 0.25, 1, 0]), `${values.slice(0, 4)}`)
+  // Each within the law's f32 rounding (`volume-law.gpu.ts`).
+  near(values.slice(0, 4), [0.5, 0.25, 1, 0], 'plain page', 1e-6)
   // The mapped page: half its alpha covers, its colour tints what the attenuation leaves.
-  assert.ok(near(values.slice(4, 8), [0.5625, 0.5625, 1, 0.5]), `${values.slice(4, 8)}`)
+  near(values.slice(4, 8), [0.5625, 0.5625, 1, 0.5], 'mapped page', 1e-6)
   // The front face bounds the volume, the back one does not; the world path is the thickness.
   assert.deepEqual(values.slice(8, 12), [1, 0, 2, 1])
 })

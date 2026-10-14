@@ -3,18 +3,13 @@ import { prepare } from '../index.mts'
 import { createTerminalProgress } from './progress.mts'
 import { compilerError, describeMessage, messageOf } from '../messages/catalogue.mts'
 import { messageTally } from './messageTally.mts'
-import {
-  ASSET_SCOPES,
-  DEFAULT_SCOPE,
-  type AssetScope,
-} from '../../../sdk-core/src/contracts/base.ts'
+import { ASSET_SCOPES, DEFAULT_SCOPE } from '../../../sdk-core/src/contracts/base.ts'
 import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
   DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
   SIMPLIFICATIONS,
-  type Simplification,
 } from '../../../sdk-core/src/contracts/compilerAbi.ts'
 
 /** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
@@ -39,15 +34,14 @@ if (!input || !output || !resourceBaseUrl || unknown.length)
     'INVALID_ARGS',
     `usage: trillion3d-compile [--strict] [--verbose] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
   )
-const isScope = (word: string): word is AssetScope =>
-  (ASSET_SCOPES as readonly string[]).includes(word)
-const isSimplification = (word: string): word is Simplification =>
-  (SIMPLIFICATIONS as readonly string[]).includes(word)
-if (!isScope(scope))
+/** Whether `word` is one of `list`'s words. */
+const oneOf = <T extends string>(list: readonly T[], word: string): word is T =>
+  (list as readonly string[]).includes(word)
+if (!oneOf(ASSET_SCOPES, scope))
   throw compilerError('INVALID_OPTIONS', `scope must be ${ASSET_SCOPES.join(' or ')}`)
 if (!Number.isSafeInteger(triangleBudget) || triangleBudget < 1)
   throw compilerError('INVALID_OPTIONS', 'triangleBudget must be a positive integer')
-if (!isSimplification(simplification))
+if (!oneOf(SIMPLIFICATIONS, simplification))
   throw compilerError('INVALID_OPTIONS', `simplification must be ${SIMPLIFICATIONS.join(' or ')}`)
 const [strict, verbose] = [flags.has('--strict'), flags.has('--verbose')]
 const controller = new AbortController()
