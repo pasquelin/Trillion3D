@@ -66,3 +66,13 @@ export const clampToExtent = wgslFn(
   [],
   'fn clampToExtent(p:vec2i,size:vec2i)->vec2i{return clamp(p,vec2i(0),size-vec2i(1));}',
 )
+
+/** The depth step of a surface across one texel at depth `z`, from its two neighbours on one axis
+ *  (`before`, `after`): the smaller of the two one-sided differences, so a silhouette on one side
+ *  does not count. A bound of the depth's error where a sample moved by up to a texel: the temporal
+ *  history widens its depth test by it, the guides by it times the jitter. */
+export const depthStep = wgslFn(
+  'depthStep',
+  [],
+  'fn depthStep(z:f32,before:f32,after:f32)->f32{return min(abs(before-z),abs(after-z));}',
+)

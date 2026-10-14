@@ -19,7 +19,7 @@ const STRIDE = GUIDE_INSTANCE_FLOATS * 4
  * unjittered view-projection: the guides never enter the history the next image reprojects, so a
  * moving camera cannot smear them, and a still one does not make them shimmer. It reads the opaque
  * depth as a texture and tests against it in the shader, allowing the depth the image's jitter
- * moved (`jitterDepthSlack`): the scene was drawn jittered, the guides are not.
+ * moved (`jitterSlack`, `guideShaders.ts`): the scene was drawn jittered, the guides are not.
  */
 export function createWebgpuGuidePass(device: GPUDevice) {
   const module = device.createShaderModule({ label: GUIDE_PASS, code: GUIDE_WGSL })
