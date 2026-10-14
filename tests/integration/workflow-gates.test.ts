@@ -37,6 +37,9 @@ function makeRepo() {
     verbatimSymlinks: true,
   })
   cpSync(join(REPOSITORY_ROOT, 'scripts/hooks/'), join(work, 'scripts/hooks'), { recursive: true })
+  // The hooks run git and the gates through the scripts' own helpers.
+  for (const helper of ['git-paths.ts', 'run.ts'])
+    cpSync(join(REPOSITORY_ROOT, 'scripts', helper), join(work, 'scripts', helper))
   ok(work, 'config', 'core.hooksPath', '.githooks')
   ok(work, 'remote', 'add', 'origin', remote)
   localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"')

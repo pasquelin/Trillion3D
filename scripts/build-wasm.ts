@@ -4,12 +4,12 @@
 // are a local setup (`rustup target add wasm32-unknown-unknown`, `rustup component add
 // llvm-tools`), and a machine without them must still be able to validate the repo. The page decoder's
 // golden test runs natively in `pnpm run test:native`.
-import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { WASM_CRATE } from './native-crates.ts'
 import { REPOSITORY_ROOT } from './repository-files.ts'
+import { runChecked } from './run.ts'
 
 const MANIFEST = join(REPOSITORY_ROOT, WASM_CRATE.path, 'Cargo.toml')
 const TARGET = 'wasm32-unknown-unknown'
@@ -18,7 +18,7 @@ const OUTPUTS = [join(REPOSITORY_ROOT, 'packages', KERNELS), join(REPOSITORY_ROO
 const MODULE_NAME = 'kernels.wasm'
 
 function rustc(...args: string[]): string {
-  return execFileSync('rustc', args, { encoding: 'utf8' }).trim()
+  return runChecked('rustc', args, { shell: false }).trim()
 }
 
 /**
@@ -106,10 +106,10 @@ function main(): void {
     ].join('\x1f'),
   }
 
-  execFileSync(
+  runChecked(
     'cargo',
     ['build', '--release', '--locked', '--target', TARGET, '--manifest-path', MANIFEST],
-    { stdio: 'inherit', env: { ...process.env, ...FLAGS } },
+    { stdio: 'inherit', env: { ...process.env, ...FLAGS }, shell: false },
   )
 
   const built = join(dirname(MANIFEST), 'target', TARGET, 'release', 'trillion3d_page_codec.wasm')

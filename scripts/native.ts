@@ -3,8 +3,8 @@
 // (`pnpm run test:native`, `lint:native`, `format`, `format:check`, `golden:write`), and
 // `golden-check`, which `check-changed.ts` runs; crate folders named after the command run those
 // crates alone.
-import { spawnSync } from 'node:child_process'
 import { NATIVE_CRATES, type NativeCrate } from './native-crates.ts'
+import { run } from './run.ts'
 
 const features = (crate: NativeCrate) => (crate.allFeatures ? ['--all-features'] : [])
 const manifest = (crate: NativeCrate) => ['--manifest-path', `${crate.path}/Cargo.toml`]
@@ -57,6 +57,5 @@ if (unknown !== undefined) {
 }
 const named = NATIVE_CRATES.filter((crate) => arguments_.includes(crate.path))
 for (const crate of named.length ? named : NATIVE_CRATES) {
-  const done = spawnSync('cargo', command(crate), { stdio: 'inherit', env })
-  if (done.status !== 0) process.exit(done.status ?? 1)
+  run('cargo', command(crate), env)
 }

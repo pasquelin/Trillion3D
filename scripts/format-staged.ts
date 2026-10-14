@@ -9,7 +9,7 @@ const paths = (...args: string[]) =>
   git(process.cwd(), ...args)
     .split('\n')
     .filter(Boolean)
-const run = (command: string, args: string[]) => runChecked(command, args, { inherit: true })
+const run = (command: string, args: string[]) => runChecked(command, args, { stdio: 'inherit' })
 
 const staged = paths('diff', '--cached', '--name-only', '--diff-filter=ACMR')
 const prettier = staged.filter((file) => formatPattern.test(file))

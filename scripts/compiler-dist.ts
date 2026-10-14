@@ -9,13 +9,13 @@
  *
  *   node scripts/compiler-dist.ts <record.json>
  */
-import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, parse } from 'node:path'
 import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts'
 import { rustHost, rustTool } from './build-wasm.ts'
 import { compileReferenceScenes, referenceRecord, type HashRecord } from './compiler-hashes.ts'
 import { REPOSITORY_ROOT, posixPath } from './repository-files.ts'
+import { runChecked } from './run.ts'
 
 const CRATE = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust')
 /** The Rust target of this machine, which the build names so that the flags reach no build script. */
@@ -37,7 +37,7 @@ const TARGETS =
  */
 function build(folder: string, flags: string[]): string {
   const directory = join(TARGETS, folder)
-  execFileSync(
+  runChecked(
     'cargo',
     [
       ...['build', '--profile', 'dist', '--locked', '--bin', 'trillion3d-compiler'],
@@ -45,7 +45,7 @@ function build(folder: string, flags: string[]): string {
       ...['--manifest-path', join(CRATE, 'Cargo.toml')],
       ...['--config', `target.${TARGET}.rustflags=${JSON.stringify(flags)}`],
     ],
-    { stdio: 'inherit' },
+    { stdio: 'inherit', shell: false },
   )
   return join(directory, TARGET, 'dist', compilerFileName(process.platform))
 }
@@ -59,7 +59,10 @@ rmSync(profiles, { recursive: true, force: true })
 mkdirSync(profiles, { recursive: true })
 compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${posixPath(profiles)}`]))
 const merged = join(profiles, 'merged.profdata')
-execFileSync(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], { stdio: 'inherit' })
+runChecked(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], {
+  stdio: 'inherit',
+  shell: false,
+})
 const compiler = build('dist', [`-Cprofile-use=${posixPath(merged)}`])
 const record: HashRecord = {
   compiler: platform,
