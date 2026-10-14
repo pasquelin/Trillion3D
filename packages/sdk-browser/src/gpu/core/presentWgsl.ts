@@ -1,16 +1,11 @@
 import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
 
-/** The image copied to the whole canvas (`presentation.ts`). */
-export const PRESENT_SHADER = wgslProgram(
-  `@group(0) @binding(0) var image:texture_2d<f32>;
-@fragment fn present(@builtin(position) pixel:vec4f)->@location(0) vec4f{return textureLoad(image,vec2i(pixel.xy),0);}`,
-  [FULLSCREEN_VERTEX],
-)
-/** The image copied at a rectangle of the canvas (`presentAt.ts`): its origin rides in the draw's
- *  first instance, `x + y · 65536`, so no uniform is written and no buffer is held per view. */
+/** The image copied texel for pixel to the canvas at an origin (`presentAt.ts`): the whole canvas
+ *  at 0, or a view's rectangle. The origin rides in the draw's first instance, `x + y · 65536`, so
+ *  no uniform is written and no buffer is held per view; one flat varying is all the whole canvas
+ *  pays for sharing the program. */
 export const PRESENT_AT_SHADER = wgslProgram(
   `@group(0) @binding(0) var image:texture_2d<f32>;
 struct Placed{@builtin(position) position:vec4f,@location(0) @interpolate(flat) origin:vec2i};

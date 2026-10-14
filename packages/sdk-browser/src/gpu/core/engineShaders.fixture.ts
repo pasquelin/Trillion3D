@@ -1,6 +1,6 @@
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
-import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
+import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts'
@@ -78,7 +78,6 @@ const compositions = (label: string, sources: Record<string, string>) =>
 const NARROW = { narrow: true, lobeless: true }
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
-  PRESENT_SHADER,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
