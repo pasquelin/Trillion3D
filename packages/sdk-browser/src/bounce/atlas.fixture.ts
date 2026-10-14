@@ -17,7 +17,9 @@ export const simulatedAtlas = (
 })
 
 /** The rank of texel `(x, y)` of `layer` in `a`, every texel asked of it inside its extent. */
-function texelOf(a: SimulatedAtlas, [x, y]: ArrayLike<number>, layer: number) {
+function texelOf(a: SimulatedAtlas, at: ArrayLike<number>, layer: number) {
+  const x = at[0],
+    y = at[1]
   assert.ok(x < a.width && y < a.height && layer < a.layers, 'in the atlas')
   return (layer * a.height + y) * a.width + x
 }
