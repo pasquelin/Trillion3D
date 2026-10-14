@@ -3,6 +3,7 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import { EVICTION_BURST } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import {
   sortStaged,
@@ -52,7 +53,7 @@ export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
         keyWords: keys.keyWords,
         useOf: (key) => lastUse[keys.groups.keyGroups[key]],
         now,
-        cap: L.EVICTION_BURST,
+        cap: EVICTION_BURST,
       })
       out[L.evictionWord(listCap)] = queue.length
       out[L.evictionWord(listCap) + 1] = old

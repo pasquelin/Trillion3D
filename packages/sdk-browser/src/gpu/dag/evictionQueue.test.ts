@@ -11,6 +11,7 @@ import { requestScene } from './requestScene.fixture.ts'
 import { KEY_PAGE_BITS, canonicalPage } from './evict.ts'
 import { EVICT_IN_USE, OLD_STEP } from '../pool/rank.ts'
 import { ageStep } from '../pool/rank.fixture.ts'
+import { EVICTION_BURST } from './readoutWords.ts'
 import * as L from './layout.ts'
 import { aheadClock, listEvictions, pageKeys, raiseGroups } from './evict.fixture.ts'
 import { pageResidency } from './readiness.fixture.ts'
@@ -142,7 +143,7 @@ test('the readback is the same size whatever the pool holds: one burst per readb
   const { gpu, packed, holdAll, cut } = await residentCut(2048)
   const empty = (await cut()).queue
   holdAll()
-  assert.deepEqual([empty.length, (await cut()).queue.length], [0, L.EVICTION_BURST])
+  assert.deepEqual([empty.length, (await cut()).queue.length], [0, EVICTION_BURST])
   // The copy is the readback's whole size, fixed at creation: two lists and one burst.
   const bytes = L.residentReadbackBytes(L.selectionListCap(packed.pageCount))
   for (const b of gpu.buffers) if (b.usage & GPUBufferUsage.MAP_READ) assert.equal(b.size, bytes)
@@ -180,7 +181,7 @@ test('generated frames: the raised groups say what the cut rule holds, frame aft
       keyWords: keys.keyWords,
       useOf: (key) => lastUse[keys.groups.keyGroups[key]],
       now,
-      cap: L.EVICTION_BURST,
+      cap: EVICTION_BURST,
     })
     // What the pages say on their own: every page out of use, older first, finer first.
     const pageOf = (key: number) => canonicalPage(keys.keyWords[key])
