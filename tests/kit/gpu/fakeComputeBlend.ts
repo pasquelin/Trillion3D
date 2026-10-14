@@ -10,7 +10,6 @@ import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLa
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import {
-  BLEND_ORDER_ENTRIES,
   ORDER_BINDING,
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
@@ -93,7 +92,7 @@ function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) 
 }
 
 /** Runs a dispatch of the paint order (`BLEND_ORDER_SHADER`), entry point `entry` of
- *  `BLEND_ORDER_ENTRIES`: its shipped WGSL (`runOrderDispatch`) over the words the dispatch binds,
+ *  `BLEND_ORDER_ENTRIES` (its rank): its shipped WGSL (`runOrderDispatch`) over the words the dispatch binds,
  *  under the uniform at its dynamic offset, at the workgroups the host encodes for it. */
 function simulateBlendOrder(
   bind: ComputeBind,
@@ -136,18 +135,13 @@ export const TRANSPARENT_STAGES: Record<
   string,
   ((bind: ComputeBind, offsets?: readonly number[]) => void) | undefined
 > = {
-  ...Object.fromEntries(
-    Object.keys(COMPACT_THREADS).map((entry) => [
-      entry,
-      (bind: ComputeBind) => simulateTransparentCompaction(bind, entry),
-    ]),
-  ),
+  countTransparentGroups: (bind) => simulateTransparentCompaction(bind, 'countTransparentGroups'),
+  prefixTransparentItems: (bind) => simulateTransparentCompaction(bind, 'prefixTransparentItems'),
+  scatterTransparentGroups: (bind) =>
+    simulateTransparentCompaction(bind, 'scatterTransparentGroups'),
   judgeBlendItems: simulateBlendVerdict,
-  ...Object.fromEntries(
-    BLEND_ORDER_ENTRIES.map((name, entry) => [
-      name,
-      (bind: ComputeBind, offsets?: readonly number[]) => simulateBlendOrder(bind, offsets, entry),
-    ]),
-  ),
+  sortBlendBlocks: (bind, offsets) => simulateBlendOrder(bind, offsets, 0),
+  sortBlendStep: (bind, offsets) => simulateBlendOrder(bind, offsets, 1),
+  placeBlendSlots: (bind, offsets) => simulateBlendOrder(bind, offsets, 2),
   writeBlendRuns: simulateBlendExpansion,
 }
