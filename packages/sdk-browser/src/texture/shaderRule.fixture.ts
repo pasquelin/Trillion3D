@@ -1,10 +1,15 @@
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { WGSL_LIBRARY } from '../../../math/src/wgsl/library.fixture.ts'
+import { visPageIndex, visTriangle } from '../visibility/visWords.ts'
 
-/** The function names of the WGSL library: small shared helpers a run takes on its own. */
-const LIBRARY_FUNCTIONS = new Set(
-  WGSL_LIBRARY.filter((decl) => decl.kind === 'fn').map((decl) => decl.name),
-)
+/** The function names of the WGSL library, and the visibility identifier's one decoder every pass
+ *  reads an identifier with (`../visibility/visWords.ts`): small shared helpers a run takes on its
+ *  own. */
+const LIBRARY_FUNCTIONS = new Set([
+  ...WGSL_LIBRARY.filter((decl) => decl.kind === 'fn').map((decl) => decl.name),
+  visPageIndex.name,
+  visTriangle.name,
+])
 /** An unsigned vector as the shaders build one (`vec2u`, `vec4u`…), flattened: each word converted
  *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
 export const vec = (...parts: Array<number | Record<string, number>>) => {
@@ -30,9 +35,9 @@ export function functionsOf(input: WgslSource, names: string[]) {
     .join('\n')
 }
 
-/** The text of the functions `names` and of every WGSL library function of `input` they call,
- *  through each other, but those `bound` already defines: a test names the shader's own functions
- *  it runs, never the library's helpers. */
+/** The text of the functions `names` and of every shared helper (`LIBRARY_FUNCTIONS`) of `input`
+ *  they call, through each other, but those `bound` already defines: a test names the shader's own
+ *  functions it runs, never the shared helpers. */
 export function reachedFunctions(input: WgslSource, names: string[], bound: object) {
   const source = wgslSource(input)
   const declared = new Set(

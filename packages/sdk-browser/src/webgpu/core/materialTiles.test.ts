@@ -27,7 +27,7 @@ test('a pixel is marked for the one class its page holds', () => {
   classSlots[8] = 1
   const { pixelSlot, materialClassOf } = shaderFunctions<Record<string, Fn>>(
     MATERIAL_TILES_SHADER,
-    ['materialClassOf', 'pixelSlot'],
+    ['materialClassOf', 'pixelSlot', 'visPageIndex'],
     {
       ...wgslConstants(MATERIAL_TILES_SHADER),
       uni: { pageCount: 3 },
