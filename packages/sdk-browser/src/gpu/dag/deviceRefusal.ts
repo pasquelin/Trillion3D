@@ -17,7 +17,8 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * the placement tree — are record tables (`cutTables.ts`), no storage binding: whatever the world,
  * the stage binds the readout and `work` alone. No dispatch is refused: each runs in rows
  * (`../dispatch/grid.ts`). The readout starts within one binding and grows no further
- * (`listCap.ts`): refused only if not one rank fits; `work`, a quarter of a byte a page, past it.
+ * (`listCap.ts`): refused only if not one rank fits; `work` — its blocks and counters, under half
+ * a byte a page, and the pool sort's `POOL_SORT_WORDS`, a constant —, past it.
  */
 export function dagDeviceRefusal(limits: DagDeviceLimits, packed: PackedDag) {
   const table = cameraCutBuffers(packed)
