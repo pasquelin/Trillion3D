@@ -9,6 +9,10 @@
  * Light requires declared sources: without active lights, indirect irradiance is strictly zero.
  */
 
+/** Rays a probe traces an update, and the most probe rays a frame casts (`BOUNCE_SETTINGS`). */
+const RAYS_PER_PROBE = 64
+const RAYS_PER_FRAME = 49152
+
 /** Bounce lighting settings. Published operational limits consumed by the runtime engine. */
 export const BOUNCE_SETTINGS = {
   /**
@@ -51,9 +55,9 @@ export const BOUNCE_SETTINGS = {
    */
   cascadeShares: [8, 4, 2, 1],
   /** Rays traced per probe per update. Fixed configurable budget. */
-  raysPerProbe: 64,
+  raysPerProbe: RAYS_PER_PROBE,
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
-  raysPerFrame: 49152,
+  raysPerFrame: RAYS_PER_FRAME,
   /** Target GPU duration of every proxy ray of a frame, in milliseconds: the reflections' first,
    *  the bounce probes' the rest (`../proxy/budget.ts`). */
   budgetMs: 2,
@@ -85,12 +89,12 @@ export const BOUNCE_SETTINGS = {
 } as const
 
 /**
- * Maximum probes updated per frame: ray budget ceiling divided by rays per probe.
+ * Maximum probes updated per frame: ray budget ceiling divided by rays per probe, whole probes.
+ * Plain arithmetic on the two constants, no call nor read of the settings: a bundle that uses no
+ * bounce keeps neither this nor `BOUNCE_SETTINGS`.
  */
-export const BOUNCE_PROBES_PER_FRAME = Math.max(
-  1,
-  Math.floor(BOUNCE_SETTINGS.raysPerFrame / BOUNCE_SETTINGS.raysPerProbe),
-)
+export const BOUNCE_PROBES_PER_FRAME =
+  (RAYS_PER_FRAME - (RAYS_PER_FRAME % RAYS_PER_PROBE)) / RAYS_PER_PROBE
 
 /**
  * Probe floats layout in GPU storage buffer: 11 × `vec4f`.
