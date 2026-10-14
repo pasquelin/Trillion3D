@@ -1,3 +1,5 @@
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+
 /**
  * The size of a texture's picture in pixels, as the GPU copies it: a video's frame size
  * (`videoWidth`), not the box its element is laid out in (`width`, zero unless set), and a
@@ -18,6 +20,7 @@ export function pictureSize(image: unknown): [number, number] {
   return [Math.max(1, width), Math.max(1, height)]
 }
 
-/** Bytes of `width` × `height` RGBA8 texels, rows packed: a decoded bitmap's, a tail level's, a
- *  texel image's, a working texture's source. */
-export const rgbaBytes = (width: number, height: number) => width * height * 4
+/** Bytes of `width` × `height` RGBA8 texels, rows packed, the one texel table's (`texelBytesOf`):
+ *  a decoded bitmap's, a tail level's, a texel image's, a working texture's source. */
+export const rgbaBytes = (width: number, height: number) =>
+  width * height * texelBytesOf('rgba8unorm')
