@@ -53,7 +53,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     ],
     logged(INVALIDATION),
   )
-  const { LIGHT_KIND_DIRECTIONAL, VSM_BOX_CASTS, VSM_BOX_MOVING } = wgslConstants(INVALIDATION)
+  const { LIGHT_KIND_DIRECTIONAL, VSM_BOX_MOVING } = wgslConstants(INVALIDATION)
   let writing = 0
   const digest = bitsDigest()
   for (let k = 0; k < CASES; k++) {
@@ -83,7 +83,7 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
     const centre = near(3),
       dynamic = d.bool(),
       extent = near(3).map((x) => (Number.isFinite(x) ? Math.abs(x) : UNBOUNDED_EXTENT))
-    const inst = { centre, flags: VSM_BOX_CASTS | (dynamic ? VSM_BOX_MOVING : 0), extent }
+    const inst = { centre, flags: dynamic ? VSM_BOX_MOVING : 0, extent }
     const now = use(tables(k, inputs(k)))
     is.vsmStaleBoxPages(pd, inst)
     digest.add(now.writes)

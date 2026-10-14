@@ -63,8 +63,9 @@ export const BOX_PROJECT_WGSL = wgslBlock(
 /** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
  *  that forbids any rejection. */
 struct BoxProj{rect:vec4i,nearest:f32,clips:u32,}
-/** Coplanar layer bias on the bits of a depth: mirror of \`biasedDepthBits\`.
- *  Reversed depth: moving closer to the eye is ADDING units, capped at the bits of 1. */
+/** Coplanar layer bias on the bits of a depth: layer \`l\` raises them by \`min(l, MAX_DEPTH_LAYER)\`
+ *  times \`DEPTH_LAYER_BIAS_UNITS\` integer ulps — reversed depth: moving closer to the eye is
+ *  ADDING units —, capped at the bits of 1; layer 0 keeps the depth. */
 fn biasedDepth(value:f32,layer:u32)->f32{
  if(layer==0u){return value;}
  let units=min(layer,${MAX_DEPTH_LAYER}u)*${DEPTH_LAYER_BIAS_UNITS}u;

@@ -24,7 +24,7 @@ test('a question over still rows is asked of their surfaces once, again once the
   assert.equal(asked, 2, 'each distinct surface once')
   for (let frame = 0; frame < 5; frame++) coatedRows(rows)
   assert.equal(asked, 2, 'still rows: the held answer')
-  // A material's new values age the table (`refreshWebgpuMaterials`): the answer is taken again.
+  // A material's new values age the table (`materialTable.follow`): the answer is taken again.
   coated.clearcoat = 1
   rows.tableEpoch++
   assert.equal(coatedRows(rows), true)

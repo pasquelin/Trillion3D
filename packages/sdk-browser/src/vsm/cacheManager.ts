@@ -178,8 +178,8 @@ export class VsmLightCache {
   isInvalidated() {
     return this.renderedFrame < 0
   }
-  /** The collector's filter: an entry that may hold cached
-   *  pages to invalidate — not fully cached, uncached or invalidated, and given an id. */
+  /** The filter the cast invalidation lists maps through (`vsmCastMaps`): an entry that may hold
+   *  cached pages to invalidate — not fully cached, uncached or invalidated, and given an id. */
   mayHoldCachedPages() {
     return !(this.isFullyCached() || this.isUncached || this.isInvalidated()) && this.mapId >= 0
   }

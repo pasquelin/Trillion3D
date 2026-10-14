@@ -1,4 +1,5 @@
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import { COMPOSE_MOTION_WGSL } from '../../placement/composedMotionWgsl.ts'
 import { TREE_LEAVES_WGSL } from '../../placement/treeLeavesWgsl.ts'
 import { ROOT_BOXES_WGSL } from '../../placement/rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from '../../placement/rowWordsWgsl.ts'
@@ -14,6 +15,7 @@ export const COMPOSE_SHADERS = {
   TREE_LEAVES_WGSL,
   COMPOSE_ROOTS_WGSL,
   COMPOSE_WORLDS_WGSL,
+  COMPOSE_MOTION_WGSL,
   ROOT_BOXES_WGSL,
   DERIVE_ROWS_WGSL,
   ENTRY_CORNERS_WGSL,
