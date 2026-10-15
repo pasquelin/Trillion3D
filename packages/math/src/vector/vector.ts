@@ -407,18 +407,15 @@ export function transformDirectionVector3<T extends NumberSink>(
   outOffset = 0,
 ) {
   // Each product is stored as it is made, before the next row of `m` is read, so an `out` sharing
-  // memory with `m` reads the same entries. A double sink holds the products exactly: they are
-  // normalised from the locals, not read back. Any other sink (a `Float32Array`, an integer array)
-  // normalises what it rounded on writing. `out` holds the three components.
+  // memory with `m` reads the same entries. The products are normalised from the locals, in
+  // doubles, whatever the sink: a single-precision one rounds once, at the last store.
   const px = m[0] * x + m[4] * y + m[8] * z
   out[outOffset] = px
   const py = m[1] * x + m[5] * y + m[9] * z
   out[outOffset + 1] = py
   const pz = m[2] * x + m[6] * y + m[10] * z
   out[outOffset + 2] = pz
-  if (out instanceof Float64Array || Array.isArray(out))
-    writeNormalizedVector3(out, outOffset, px, py, pz)
-  else normalizeVector3(out, outOffset)
+  writeNormalizedVector3(out, outOffset, px, py, pz)
   return out
 }
 

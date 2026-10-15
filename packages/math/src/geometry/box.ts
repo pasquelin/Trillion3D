@@ -1,5 +1,5 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { length3 } from '../vector/vector.ts'
+import { length3, transformPointRow } from '../vector/vector.ts'
 
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
@@ -251,7 +251,7 @@ function unitW(
  * The eight corners of a box transformed by `m` (4×4 column-major), written flat — twenty-four
  * floats starting at `o`. Corner `i` takes `max` on `x` when bit 1 is set, on `y`
  * for bit 2, on `z` for bit 4. Each corner is the homogeneous transformation of a point:
- * `(m·p) / (m₃·p)`, inverse of `w` computed once then multiplied.
+ * `(m·p) / (m₃·p)`, each row `transformPointRow`, inverse of `w` computed once then multiplied.
  */
 export function boxCornersInto(
   out: Float64Array,
@@ -268,11 +268,11 @@ export function boxCornersInto(
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
       lz = i & 4 ? maxZ : minZ
-    const mw = 1 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15])
+    const mw = 1 / transformPointRow(m, 3, lx, ly, lz)
     const at = o + i * 3
-    out[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw
-    out[at + 1] = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) * mw
-    out[at + 2] = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) * mw
+    out[at] = transformPointRow(m, 0, lx, ly, lz) * mw
+    out[at + 1] = transformPointRow(m, 1, lx, ly, lz) * mw
+    out[at + 2] = transformPointRow(m, 2, lx, ly, lz) * mw
   }
 }
 
@@ -330,11 +330,11 @@ export function boxTransform(
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
       lz = i & 4 ? maxZ : minZ
-    let x = m0 * lx + m4 * ly + m8 * lz + m12,
-      y = m1 * lx + m5 * ly + m9 * lz + m13,
-      z = m2 * lx + m6 * ly + m10 * lz + m14
+    let x = transformPointRow(m, 0, lx, ly, lz),
+      y = transformPointRow(m, 1, lx, ly, lz),
+      z = transformPointRow(m, 2, lx, ly, lz)
     if (!affine) {
-      const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15)
+      const mw = 1 / transformPointRow(m, 3, lx, ly, lz)
       x *= mw
       y *= mw
       z *= mw
