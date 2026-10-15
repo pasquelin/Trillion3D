@@ -1,9 +1,10 @@
 // The partition's formulas in their packages/math homes, each against the expression it replaced.
 //
-// `lensSlope`, the perspective `cellReach` and the super-roots' `cos` are the same operations in
-// the same order (`perspectiveDiagonalSlope`, `frustumCornerDistance`, `length2(1, slope)`, whose
-// `1 * 1` is exact): the sweep holds them bit for bit, `aspect ** 2` against `aspect * aspect`
-// included. The orthographic `cellReach` and the super-roots' eye distance leave `Math.hypot`
+// `lensSlope` and the super-roots' `cos` are the same operations in the same order
+// (`perspectiveDiagonalSlope`, `length2(1, slope)`, whose `1 * 1` is exact): the sweep holds them
+// bit for bit, `aspect ** 2` against `aspect * aspect` included. The perspective `cellReach` is
+// `far · length2(1, lensSlope)`, the one diagonal slope a frame reads: it rounds the slope's
+// product once more than the old `far·√(1 + s²(1 + a²))`, a few ulps of the reach at most. The orthographic `cellReach` and the super-roots' eye distance leave `Math.hypot`
 // for `length3`, which can move the last bit. Neither number reaches a pixel or a GPU buffer:
 // the reach and the error decide which cells and index pages are read, the rung the rows are
 // sized at and a read priority, while the GPU cut alone decides what is drawn and a cell not read
@@ -14,9 +15,9 @@ import { HALTON_SWEEP, edgeValues, haltonSpan } from '../../../math/src/sequence
 import { drawnView, perspectiveSlope } from '../../../math/src/projection/camera.ts'
 import { projectedErrorAt } from '../page/selection/projection.ts'
 import { AHEAD } from './aheadShare.ts'
-import { cellReach, KEEP } from './plan.ts'
+import { cellReach, KEEP, lensSlope } from './plan.ts'
 import { heldSide, rungOf } from './sizing.ts'
-import { cellSuperRootError, lensSlope } from './superRoots.ts'
+import { cellSuperRootError } from './superRoots.ts'
 
 /** The old `lensSlope`. */
 const oldLensSlope = (fov: number, aspect: number, zoom: number) =>
@@ -51,7 +52,7 @@ function oldSuperRootError(bounds: Float64Array, eye: number[], lens: Lens) {
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1000, zoom: 1, orthographic: null }
 
-test('lensSlope and the perspective reach are the old expressions, bit for bit', () => {
+test('lensSlope is the old expression bit for bit, the perspective reach within a few ulps', () => {
   const aspects = edgeValues(0, 8)
   for (let i = 1; i <= HALTON_SWEEP; i++) aspects.push(haltonSpan(i, 2, 0.05, 8))
   for (let i = 0; i < aspects.length; i++) {
@@ -62,7 +63,8 @@ test('lensSlope and the perspective reach are the old expressions, bit for bit',
       far = haltonSpan(k, 7, 0.01, 1e7)
     const lens = { fov, aspect, zoom, orthographic: null, near: 0.1, far }
     assert.ok(Object.is(lensSlope(lens), oldLensSlope(fov, aspect, zoom)), `slope ${i}`)
-    assert.ok(Object.is(cellReach(lens), oldPerspectiveReach(fov, aspect, far, zoom)), `reach ${i}`)
+    const old = oldPerspectiveReach(fov, aspect, far, zoom)
+    assert.ok(Math.abs(cellReach(lens) - old) <= 4 * Number.EPSILON * old, `reach ${i}`)
   }
 })
 

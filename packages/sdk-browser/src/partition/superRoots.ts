@@ -20,8 +20,6 @@ import type { SelectionUniforms } from '../gpu/core/selection.ts'
 import { projectedErrorAt } from '../page/selection/projection.ts'
 import { sphereUnion } from '../../../math/src/geometry/sphere.ts'
 import { distanceVector3, length2 } from '../../../math/src/vector/vector.ts'
-import { perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
-import type { PartitionOptics } from './plan.ts'
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the
  *  super-roots replacing them, `x, y, z, radius`, world space. */
@@ -62,13 +60,6 @@ export type SuperRootLens = Pick<
   SelectionUniforms,
   'pixelScale' | 'pixelError' | 'near' | 'perspective'
 > & { slope: number }
-
-/** The slope of the frustum's diagonal `optics` sees, as `cellReach` reads it; 0 for an
- *  orthographic camera, which projects no depth. */
-export function lensSlope(optics: PartitionOptics) {
-  if (optics.orthographic) return 0
-  return perspectiveDiagonalSlope(optics.fov, optics.aspect, optics.zoom || 1)
-}
 
 /**
  * The largest error, in pixels, `cell`'s super-roots move a point the frustum shows, seen from

@@ -41,13 +41,15 @@ function planBoxes(
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6)
   const widen = 1 + tangent * tangent * (1 + optics.aspect ** 2)
-  assert.equal(cellReach({ ...optics, far: 1000 }), 1000 * Math.sqrt(widen))
+  assert.ok(Math.abs(cellReach({ ...optics, far: 1000 }) - 1000 * Math.sqrt(widen)) < 1e-9)
 })
 
 test('the reach follows the zoom: its frustum, and an orthographic box, widen as it shrinks', () => {
   const slope = Math.tan(Math.PI / 6) / 0.5
   const widen = 1 + slope * slope * (1 + optics.aspect ** 2)
-  assert.equal(cellReach({ ...optics, far: 1000, zoom: 0.5 }), 1000 * Math.sqrt(widen))
+  assert.ok(
+    Math.abs(cellReach({ ...optics, far: 1000, zoom: 0.5 }) - 1000 * Math.sqrt(widen)) < 1e-9,
+  )
   // The box `[-10, 10] × [-5, 5]` at zoom 0.5 sees `[-20, 20] × [-10, 10]` up to its far plane.
   const box = { left: -10, right: 10, top: 5, bottom: -5 }
   const orthographic = { ...optics, far: 1000, zoom: 0.5, orthographic: box }

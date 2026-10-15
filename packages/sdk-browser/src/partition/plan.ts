@@ -3,7 +3,7 @@
  *
  * A cell is read while the camera can draw any of it: until its box is past the frustum's farthest
  * corner — for a perspective camera `far·√(1 + tan²θ)`, `θ` the half diagonal of the field its
- * zoom narrows or widens (`perspectiveSlope`), the same off-axis majorant the certified cluster
+ * zoom narrows or widens (`lensSlope`), the same off-axis majorant the certified cluster
  * error takes (`screenErrorBound.ts`); for an orthographic one the far corner of its zoomed box
  * (`orthographicView`). Nothing coarser stands for a cell that is not read (it has no merged
  * proxy), so its objects are drawn wherever the far plane lets them be, however small they
@@ -22,14 +22,10 @@
  */
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { transformAffinePoint, length3 } from '../../../math/src/vector/vector.ts'
+import { transformAffinePoint, length2, length3 } from '../../../math/src/vector/vector.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
-import {
-  drawnView,
-  frustumCornerDistance,
-  perspectiveSlope,
-} from '../../../math/src/projection/camera.ts'
+import { drawnView, perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
@@ -51,8 +47,17 @@ export type PartitionOptics = Pick<
   'fov' | 'aspect' | 'near' | 'far' | 'zoom' | 'orthographic'
 >
 
-/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner. */
-export function cellReach(optics: PartitionOptics) {
+/** The slope of the frustum's diagonal `optics` sees — how far off its axis, per unit ahead, a
+ *  corner of its picture lies —; 0 for an orthographic camera, which projects no depth. Read once
+ *  a frame: the reach (`cellReach`) and the super-roots' lens (`superRoots.ts`) both take it. */
+export function lensSlope(optics: PartitionOptics) {
+  if (optics.orthographic) return 0
+  return perspectiveDiagonalSlope(optics.fov, optics.aspect, optics.zoom || 1)
+}
+
+/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner, for a
+ *  perspective camera `far·length2(1, slope)` on its diagonal of `slope` (`lensSlope`). */
+export function cellReach(optics: PartitionOptics, slope = lensSlope(optics)) {
   const { far, orthographic } = optics,
     zoom = optics.zoom || 1 // a zoom of 0 draws nothing: read as 1, never as an empty reach
   if (orthographic) {
@@ -62,7 +67,7 @@ export function cellReach(optics: PartitionOptics) {
     const depth = Math.max(Math.abs(far), Math.abs(optics.near))
     return length3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
   }
-  return frustumCornerDistance(far, perspectiveSlope(optics.fov, zoom), optics.aspect)
+  return far * length2(1, slope)
 }
 
 /**
