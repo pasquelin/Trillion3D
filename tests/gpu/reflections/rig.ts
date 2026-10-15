@@ -38,6 +38,10 @@ import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.
 import type { WebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
+import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
+import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
+import { REFLECTION_FORMAT } from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
  * The frame laid in the device, the engine's kernels built on it. `image` encodes one image; its
@@ -52,27 +56,28 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   const texture = (format: GPUTextureFormat, usage: number, size = [width, height]) =>
     device.createTexture({ size, format, usage })
   const sampled = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
-  const base = texture('rgba16float', sampled)
-  const flags = texture('r8uint', sampled)
-  const normals = texture('rgba16float', sampled)
+  const base = texture(SURFACE_FORMATS[0], sampled)
+  const flags = texture(SURFACE_FORMATS[3], sampled)
+  const normals = texture(SURFACE_FORMATS[1], sampled)
   // The HDR target of the image's turn (the radiance pyramid's levels in its mips), lit each image.
   const hdr = device.createTexture(hdrTargetDescriptor(width, height))
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
-  const lobes = texture('rgba32uint', sampled, frame.lobes ? [width, height] : [1, 1])
+  const lobes = texture(PHYSICAL_LOBES_FORMAT, sampled, frame.lobes ? [width, height] : [1, 1])
   // The engine's depth pyramid, its level 0 as the visibility leaves it: the image's depth.
   const { hiz, partition } = await standaloneHiz(device, width, height)
   const depth = hiz.depth()!
-  const write = (
-    target: GPUTexture,
-    data: ArrayBufferView<ArrayBuffer>,
-    texel: number,
-    size = [width, height],
-  ) => device.queue.writeTexture({ texture: target }, data, { bytesPerRow: size[0] * texel }, size)
-  write(base, halves(frame.base), 8)
-  write(flags, frame.flags, 1)
-  write(normals, halves(frame.normals), 8)
-  write(hiz.level0, frame.depth, 4)
-  if (frame.lobes) write(lobes, frame.lobes, 16)
+  const write = (target: GPUTexture, data: ArrayBufferView<ArrayBuffer>, size = [width, height]) =>
+    device.queue.writeTexture(
+      { texture: target },
+      data,
+      { bytesPerRow: size[0] * texelBytesOf(target.format) },
+      size,
+    )
+  write(base, halves(frame.base))
+  write(flags, frame.flags)
+  write(normals, halves(frame.normals))
+  write(hiz.level0, frame.depth)
+  if (frame.lobes) write(lobes, frame.lobes)
   const store = createSceneLightStore()
   if (frame.environment) store.setEnvironment({ exposure: 1, irradiance: frame.environment })
   const lights = createSceneLightContractBuffer(device, store)
@@ -137,7 +142,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size, !!told.front)
       pass.end()
       if (radiance) {
-        write(targets.hdrTexture, halves(lit), 8)
+        write(targets.hdrTexture, halves(lit))
         encodeImageRadiance(
           encoder,
           reflection,
@@ -164,13 +169,13 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       device.queue.writeTexture(
         { texture: reflection.target },
         new Uint16Array(width * height * 4).fill(word),
-        { bytesPerRow: width * 8 },
+        { bytesPerRow: width * texelBytesOf(REFLECTION_FORMAT) },
         [width, height],
       )
     },
     /** The reflection target, its raw half-float words. */
     async read() {
-      const bytes = await readTexture(device, reflection.target, 8)
+      const bytes = await readTexture(device, reflection.target, texelBytesOf(REFLECTION_FORMAT))
       return new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
     },
     dispose() {

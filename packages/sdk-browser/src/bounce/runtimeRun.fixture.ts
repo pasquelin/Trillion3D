@@ -43,7 +43,8 @@ const FUNCTIONS = [
   'rtLit',
   'rtProbeRay',
 ]
-const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
+/** The proxy's bindings the run declares. */
+export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 
 /** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both). */
 const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}

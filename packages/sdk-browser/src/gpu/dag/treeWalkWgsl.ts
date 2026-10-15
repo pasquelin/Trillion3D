@@ -6,7 +6,7 @@ import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from './nodeLayout.ts'
 import { TREE_GROUP } from './placementTree.ts'
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
-const TREE_DEPTH = 8
+export const TREE_DEPTH = 8
 
 /**
  * What differs between the rays that walk the placement tree (`placementTreeWalk`): where its nodes

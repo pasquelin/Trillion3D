@@ -7,6 +7,7 @@ import {
   PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
 
 /** The columns of the arena's cuts, one cut's after another. */
@@ -72,7 +73,7 @@ export function traceCut(
   let best = missed(limit)
   const stack: number[] = []
   let node = 0
-  for (let step = 0; step < 128; step++) {
+  for (let step = 0; step < BOUNCE_SETTINGS.traversalSteps; step++) {
     if (spent(s)) break
     s.work += 4
     const at = (node0 + node) * PROXY_NODE_FLOATS
@@ -102,7 +103,7 @@ export function traceCut(
       if (entry > best.distance) continue
       const count = byte(hi, 2)
       if (count > 0) {
-        for (let k = 0; k < Math.min(count, 8); k++) {
+        for (let k = 0; k < Math.min(count, BOUNCE_SETTINGS.proxyLeafTriangles); k++) {
           if (spent(s)) break
           const index = offset + k
           s.tests++

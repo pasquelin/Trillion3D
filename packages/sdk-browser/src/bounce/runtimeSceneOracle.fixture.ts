@@ -12,6 +12,7 @@ import {
   NODE_MIN,
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP } from '../gpu/dag/placementTree.ts'
+import { TREE_DEPTH } from '../gpu/dag/treeWalkWgsl.ts'
 import { RAY_WORK, RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { dotVector3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
@@ -138,7 +139,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
           float(child, NODE_MIN + 2),
         ],
         high: Vec = [float(child, NODE_MAX), float(child, NODE_MAX + 1), float(child, NODE_MAX + 2)]
-      if (boxEntry(low, high, o, d, best.distance) <= best.distance && level + 1 < 8) {
+      if (boxEntry(low, high, o, d, best.distance) <= best.distance && level + 1 < TREE_DEPTH) {
         at.push(child)
         next.push(0)
       }

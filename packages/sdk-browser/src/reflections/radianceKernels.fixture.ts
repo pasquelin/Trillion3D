@@ -3,6 +3,7 @@
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
+import { REFLECTION_SIDE as SIDE } from './constants.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { drawnFromHeld, heldImage } from './radiance.ts'
@@ -136,11 +137,11 @@ export function radianceKernels(drawn: number[]) {
     const hash = [0, 0, 0, 0]
     for (let y = 0; y < groups[1]; y++)
       for (let x = 0; x < groups[0]; x++) {
-        for (let lane = 0; lane < 64; lane++) run.radianceFill(lane, [x, y], bounds)
-        for (let lane = 0; lane < 64; lane++) {
-          const lid = [lane % 8, Math.floor(lane / 8)]
+        for (let lane = 0; lane < SIDE * SIDE; lane++) run.radianceFill(lane, [x, y], bounds)
+        for (let lane = 0; lane < SIDE * SIDE; lane++) {
+          const lid = [lane % SIDE, Math.floor(lane / SIDE)]
           run.radianceSum(lid, [x, y])
-          const c = [x * 8 + lid[0], y * 8 + lid[1]]
+          const c = [x * SIDE + lid[0], y * SIDE + lid[1]]
           if (hashed) {
             const sum = run.radianceFold(binding.finer, c)
             hash[0] = (hash[0] + sum[0]) >>> 0
@@ -161,7 +162,7 @@ export function radianceKernels(drawn: number[]) {
      *  before it too (`radianceFirstBoth`), its words in `before`. */
     first(
       source: Image,
-      groups = [ceilDiv(source.width, 32), ceilDiv(source.height, 32)],
+      groups = [ceilDiv(source.width, 4 * SIDE), ceilDiv(source.height, 4 * SIDE)],
       before?: Image,
     ) {
       io.finer = source
@@ -181,7 +182,7 @@ export function radianceKernels(drawn: number[]) {
       io.coarser = blank(source.width >> 1, source.height >> 1)
       io.coarsest = blank(io.coarser.width >> 1, io.coarser.height >> 1)
       dispatch(
-        [ceilDiv(io.coarsest.width, 8), ceilDiv(io.coarsest.height, 8)],
+        [ceilDiv(io.coarsest.width, SIDE), ceilDiv(io.coarsest.height, SIDE)],
         [source.width, source.height],
         false,
       )
