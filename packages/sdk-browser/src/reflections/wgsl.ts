@@ -50,7 +50,6 @@ import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
  *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)
  *  and its confidence: the fades of the image's border (in this image and in the one the radiance
  *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`) and of the screen
- *  distance (the march covers `REFLECTION_STEP_CAP` pixels, and the next stage the rest), of the
  *  march's iterations over the last quarter of its cap (`REFLECTION_MARCH_STEPS`: a ray that
  *  needed nearly all of them hands its answer over gradually, never a line where the cap falls),
  *  times the share of the depth-weighted reads the image covers. A hit has no fade of its own, neither by its
@@ -82,10 +81,8 @@ const reflectionSeenWgsl = (group: number) =>
  let edge=reflectionEdgeFade(H.xy,size)*reflectionEdgeFade(Q,reflectionView.radiance.xy);
  let pixel=reflectionPixelAt(hit);
  let cone=reflectionConeAt(distance(hit,P),pixel,lobe);
- let travel=abs(H.x-ray.o.x)+abs(H.y-ray.o.y);
  let confidence=edge
   *reflectionLevelTrust(cone.level,reflectionView.radiance.z)
-  *(1.0-smoothstep(0.5*REFLECTION_STEP_CAP,REFLECTION_STEP_CAP,travel))
   *(1.0-smoothstep(0.75*f32(REFLECTION_MARCH_STEPS),f32(REFLECTION_MARCH_STEPS),f32(marched.steps)));
  if(confidence==0.0){return seen;}
  let ratio=size/reflectionView.radiance.xy;

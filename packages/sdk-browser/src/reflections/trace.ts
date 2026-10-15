@@ -43,8 +43,8 @@ import { reflectionShareWgsl } from './weight.ts'
  *    transparent behind the front surface casts no ray: it reads the chain without the proxy.
  *
  * DISTANCE. A ray goes as far as the eye can tell it from the next stage, never a count of metres: the
- * screen's march ends at `REFLECTION_STEP_CAP` screen pixels or `REFLECTION_MARCH_STEPS` iterations,
- * its answer fading over the last of either; the proxy's ray ends where the probes' field stands for its
+ * screen's march ends at the image's edge or `REFLECTION_MARCH_STEPS` iterations, its answer fading
+ * over the last of them; the proxy's ray ends where the probes' field stands for its
  * lobe within one 8-bit step (`reach.ts`), none at all where the surface's pixel alone is a field cell
  * wide, and never past the field's last cascade, the scene's extent.
  *

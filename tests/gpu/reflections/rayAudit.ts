@@ -60,10 +60,10 @@ export function exactRays(
   return { exact, origins, mirrors, boxes: others.map((block) => block.box) as Box[] }
 }
 
-/** `pointOnScreen` of the exact hit of pixel `p`'s mirror ray among `boxes`. */
-export function hitOnScreen(view: Camera, boxes: Box[], origin: Vec3, mirror: Vec3, p: number) {
+/** `pointOnScreen` of the exact hit of a mirror ray among `boxes`. */
+export function hitOnScreen(view: Camera, boxes: Box[], origin: Vec3, mirror: Vec3) {
   const hit = castBoxes(origin, mirror, boxes)
-  return pointOnScreen(view, [0, 1, 2].map((c) => origin[c] + mirror[c] * hit.t) as Vec3, p)
+  return pointOnScreen(view, [0, 1, 2].map((c) => origin[c] + mirror[c] * hit.t) as Vec3)
 }
 
 /** Whether every pixel within two of `p` has the exact block of `p`: off every silhouette, which

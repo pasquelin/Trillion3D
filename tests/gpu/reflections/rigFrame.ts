@@ -78,15 +78,13 @@ export const rgbAt = (words: ArrayLike<number>, p: number) =>
 /** The half-float word of a not-a-number: what a pixel the trace leaves unwritten keeps. */
 export const HALF_NAN = 0x7e00
 
-/** Whether the world point `point`, reflected at pixel `p`, lies on the image, off its border
- *  (`REFLECTION_EDGE` of its height), within half of the distance the march covers
- *  (`REFLECTION_STEP_CAP`): the screen can answer it. Returns its pixel, or undefined. */
-export function pointOnScreen(view: Camera, point: Vec3, p: number): [number, number] | undefined {
+/** Whether the world point `point`, reflected at a pixel, lies on the image, off its border
+ *  (`REFLECTION_EDGE` of its height): the screen can answer it — its march goes to the image's edge.
+ *  Returns its pixel, or undefined. */
+export function pointOnScreen(view: Camera, point: Vec3): [number, number] | undefined {
   const [hx, hy] = view.project(point)
   const border = REFLECTION_CONSTANTS.REFLECTION_EDGE * view.height
   if (hx <= border || hy <= border || hx >= view.width - border || hy >= view.height - border)
     return undefined
-  const away =
-    Math.abs(hx - (p % view.width) - 0.5) + Math.abs(hy - Math.floor(p / view.width) - 0.5)
-  return away >= REFLECTION_CONSTANTS.REFLECTION_STEP_CAP / 2 ? undefined : [hx, hy]
+  return [hx, hy]
 }

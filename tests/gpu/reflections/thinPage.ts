@@ -80,11 +80,10 @@ export function run() {
       (d) => [d[0], -d[1], d[2]],
     )
     // Whether the screen answers: the exact hit lies on the image, off its border (`REFLECTION_EDGE`
-    // of its height), within half of the distance the march covers (`REFLECTION_STEP_CAP`), and in
-    // the open — the pole or the fence does not stand over it in the image, which would show them
+    // of its height), and in the open — the pole or the fence does not stand over it in the image, which would show them
     // there, not the wall.
     const answered = (p: number) => {
-      const at = hitOnScreen(view, boxes, origins[p], mirrors[p], p)
+      const at = hitOnScreen(view, boxes, origins[p], mirrors[p])
       if (!at) return false
       for (let v = -3; v <= 3; v++)
         for (let u = -3; u <= 3; u++) {

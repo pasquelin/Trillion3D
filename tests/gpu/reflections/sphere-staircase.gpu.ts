@@ -1,8 +1,8 @@
 // A mirror sphere over a dark floor under a sky shows the floor's reflection without a staircase
 // (`sphereStaircasePage.ts`, `sphereFrame.ts`): along the reflected horizon and below it the image
 // is continuous at the pixel. The analytic image is each sphere pixel's exact mirror ray, the
-// floor's colour where it meets the floor the screen answers whole (inside the image's border,
-// within half of the march's reach), the sky's where it meets nothing; between two neighbouring
+// floor's colour where it meets the floor the screen answers whole (inside the image's border),
+// the sky's where it meets nothing; between two neighbouring
 // pixels the engine's image may step by what the analytic image steps within a pixel of them (its
 // hard horizon) and by ε more.
 //
@@ -38,10 +38,10 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
   const { view, shown } = sphereFrame()
   // Whether the floor shows at the pixel of the world point `at` and all around it: the screen sees
   // it (a point behind a sphere, or at a silhouette, is not in the depth the march reads).
-  const floorSeen = (at: number[], from: number) => {
-    // Inside the image's border, and within half of the march's reach of the pixel: the screen's
-    // answer there is whole, its fades (`reflectionSeen`) are one.
-    const onScreen = pointOnScreen(view, at as [number, number, number], from)
+  const floorSeen = (at: number[]) => {
+    // Inside the image's border: the screen's answer there is whole, its fades (`reflectionSeen`)
+    // are one.
+    const onScreen = pointOnScreen(view, at as [number, number, number])
     if (!onScreen) return false
     const [hx, hy] = onScreen
     for (let v = -2; v <= 2; v++)
@@ -64,7 +64,7 @@ test('the floor reflected in a mirror sphere has no pixel-to-pixel step the anal
     for (let x = 0; x < width; x++) {
       const exact = exactReflection(view, x + 0.5, y + 0.5)
       if (!exact || exact.facing < FACING) continue
-      if (exact.index === -2 && floorSeen(exact.at, y * width + x)) {
+      if (exact.index === -2 && floorSeen(exact.at)) {
         analytic[y * width + x] = floor
         floored++
       } else if (exact.index === -1) analytic[y * width + x] = sky

@@ -7,8 +7,8 @@ import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 
 /**
  * The screen ray of a reflection (`reflectionRay`): its origin, its direction to the far end of its
- * reach, and how far along it the march goes (`end`: the image's edge, `screenMarchEnd`, or
- * `REFLECTION_STEP_CAP` pixels of L1 length at most). It leaves the surface one pixel off along its
+ * reach, and how far along it the march goes (`end`: the image's edge, `screenMarchEnd`: the march's
+ * hierarchy crosses empty screen in a few iterations, and `REFLECTION_MARCH_STEPS` bounds it). It leaves the surface one pixel off along its
  * normal — `pixel`, the world size of a pixel at `P` (`reflectionPixelAt`) —: a ray never starts
  * inside the depth it leaves.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
@@ -45,7 +45,7 @@ fn reflectionRay(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32)->ReflectionRay{
  let toward=reflectionView.viewProj*vec4f(lobe.R,0.0);
  let S0=clipToFramebuffer(A,size);
  let d=clipToFramebuffer(A+toward*reflectionReach(A,toward,lobe),size)-S0;
- let end=min(screenMarchEnd(S0.xy,d.xy,size),REFLECTION_STEP_CAP/max(abs(d.x)+abs(d.y),1e-6));
+ let end=screenMarchEnd(S0.xy,d.xy,size);
  return ReflectionRay(S0,d,end);
 }`,
   )

@@ -1,5 +1,5 @@
 // The march's iterations are bounded by the screen distance the ray covers, `K(M) = 4M + 6ℓ + 1`
-// for `M` pixels of L1 length (at most `REFLECTION_STEP_CAP`) and `ℓ` levels, on every ray, never
+// for `M` pixels of L1 length (to the image's edge) and `ℓ` levels, on every ray, never
 // out of the iterations it is given: 10⁵ mirror rays of generated floors seen at 0.5° to 89° from
 // their plane, flat and under waves, before a wall, the shipped WGSL run as JavaScript
 // (`scene.fixture.ts`). The mean and the 99th percentile of the iterations are published.

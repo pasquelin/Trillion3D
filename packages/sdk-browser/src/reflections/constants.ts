@@ -12,10 +12,6 @@ export const REFLECTION_CONSTANTS = {
   /** The taps of a footprint along its long axis at most: past that ratio of its axes, the level
    *  is the long axis's share of a tap. */
   REFLECTION_TAPS: 5,
-  /** The screen distance, in pixels (the L1 length of the ray on the image), a ray is marched over
-   *  at most: its iterations are bounded by it (`screenMarchBudget`), and the screen's confidence
-   *  fades over its second half, so that the next stage carries what lies farther. */
-  REFLECTION_STEP_CAP: 256,
   /** The thickness of a surface the march assumes, in pixels of its footprint: a ray behind a
    *  pixel's surface by more passes behind it and goes on (a pole, a fence), by less is inside it
    *  and hits. The same thickness at every depth and under every projection (`screenBack`). */

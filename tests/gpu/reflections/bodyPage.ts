@@ -53,7 +53,7 @@ export function run() {
     result.body = result.bodyHue = 0
     for (let p = 0; p < WIDTH * HEIGHT; p++) {
       if (exact[p] < BODY_AT || !interior(exact, WIDTH, HEIGHT, p)) continue
-      if (!hitOnScreen(view, boxes, origins[p], mirrors[p], p)) continue
+      if (!hitOnScreen(view, boxes, origins[p], mirrors[p])) continue
       result.body++
       if (hueOf(rgb(p), BODY_COLOR) > 0.98) result.bodyHue++
     }

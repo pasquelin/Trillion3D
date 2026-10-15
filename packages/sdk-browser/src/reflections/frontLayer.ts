@@ -28,7 +28,7 @@
  * base map's read, the material's where they reflect, no lighting —; the trace over the view, T pixels
  * traced, reused and accumulated as the opaque surface's (`trace.ts`), the rest a flag load each; a
  * forward fragment of the front layer, a depth texel and an 8-byte load. Worst case of
- * a fragment: a deeper one, the screen march (`REFLECTION_STEP_CAP` pixels) and the probes, no proxy
+ * a fragment: a deeper one, the screen march (`REFLECTION_MARCH_STEPS` iterations) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
  * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 52 more (normals, radiance, the grids,
