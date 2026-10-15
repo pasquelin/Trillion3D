@@ -1,15 +1,17 @@
-//! A primitive's triangles as the compiler reads them: its float `POSITION` accessor, and its
-//! index list — an unsigned `SCALAR` accessor of whole triangles, or the positions in order when
-//! the primitive has none.
+//! A primitive's triangles as every reader takes them — the compiler, the physics cook, the
+//! impostor's source and the reference tracer: its float `POSITION` accessor, and its index list —
+//! an unsigned `SCALAR` accessor of whole triangles naming vertices `POSITION` carries, or the
+//! positions in order when the primitive has none.
 use super::*;
 use crate::gltf_codes::{FLOAT, INDEX_COMPONENTS};
 
-/// The positions accessor of primitive `p`, its index list and its triangle count.
-pub(super) fn read<'a>(
+/// The positions accessor of primitive `p`, its index list and its triangle count. `validated`
+/// names the accessors an upstream pass already validated (`accessor`); `None` validates both.
+pub(crate) fn read<'a>(
     g: &'a Value,
     bin: &'a [u8],
     p: &Value,
-    validated: &BTreeSet<usize>,
+    validated: Option<&BTreeSet<usize>>,
 ) -> Result<(Accessor<'a>, Vec<u32>, usize)> {
     let positions = accessor(
         g,
@@ -20,7 +22,7 @@ pub(super) fn read<'a>(
                 .and_then(|a| a.get("POSITION")),
             "primitive.attributes.POSITION",
         )?,
-        Some(validated),
+        validated,
     )?;
     if positions.width != 3 || positions.component != FLOAT {
         return Err(invalid("POSITION must be float VEC3"));
@@ -30,7 +32,7 @@ pub(super) fn read<'a>(
             g,
             bin,
             required_index(p.get("indices"), "primitive.indices")?,
-            Some(validated),
+            validated,
         )?;
         if ids.width != 1 || ids.normalized || !INDEX_COMPONENTS.contains(&ids.component) {
             return Err(invalid("indices component must be unsigned SCALAR"));
@@ -50,5 +52,11 @@ pub(super) fn read<'a>(
         }
         ((0..positions.count as u32).collect(), positions.count / 3)
     };
+    if index_values.iter().any(|&i| i as usize >= positions.count) {
+        return Err(CompilerError::new(
+            "INVALID_TRIANGLES",
+            "An index names a vertex POSITION does not carry",
+        ));
+    }
     Ok((positions, index_values, triangle_count))
 }

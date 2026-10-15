@@ -1,7 +1,7 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
 pub(crate) mod cost;
-mod triangles;
+pub(crate) mod triangles;
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -63,7 +63,7 @@ pub(super) fn compile_primitive(
             "Only static triangles are supported",
         ));
     }
-    let (positions, index_values, triangle_count) = triangles::read(g, bin, p, validated)?;
+    let (positions, index_values, triangle_count) = triangles::read(g, bin, p, Some(validated))?;
     let pos = {
         let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?

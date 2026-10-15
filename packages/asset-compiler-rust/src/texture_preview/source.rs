@@ -36,7 +36,7 @@ pub(crate) fn raw_image_bytes(
 
 /// Inspect mapped or already resident bytes without allocating the encoded file again.
 /// Like every mapped compiler input, the source must stay unchanged during its cook.
-pub(super) fn with_image_bytes<T>(
+pub(crate) fn with_image_bytes<T>(
     g: &Value,
     bin: &[u8],
     image_root: &Path,

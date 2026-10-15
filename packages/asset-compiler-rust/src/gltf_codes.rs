@@ -31,6 +31,21 @@ pub(crate) fn component_bytes(component: usize) -> Option<usize> {
     }
 }
 
+/// The shape of an accessor `type`, `(columns, rows)` — a vector is one column — or `None` for
+/// a type glTF does not define: the one table every reader takes an element's width from.
+pub(crate) fn element_shape(kind: &str) -> Option<(usize, usize)> {
+    Some(match kind {
+        "SCALAR" => (1, 1),
+        "VEC2" => (1, 2),
+        "VEC3" => (1, 3),
+        "VEC4" => (1, 4),
+        "MAT2" => (2, 2),
+        "MAT3" => (3, 3),
+        "MAT4" => (4, 4),
+        _ => return None,
+    })
+}
+
 /// Bytes of one index of `component`, `None` for a code that is no index type.
 pub(crate) fn index_bytes_of(component: usize) -> Option<usize> {
     component_bytes(component).filter(|_| INDEX_COMPONENTS.contains(&component))

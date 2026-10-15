@@ -49,7 +49,8 @@ fn embedded_glb_and_triangle_strip_normalize_to_triangles() {
     glb.extend_from_slice(&(bin.len() as u32).to_le_bytes());
     glb.extend_from_slice(&0x004e4942u32.to_le_bytes());
     glb.extend_from_slice(&bin);
-    let (mut g, bin) = parse_glb(&glb).unwrap();
+    let (mut g, range) = parse_glb_parts(&glb).unwrap();
+    let bin = glb[range].to_vec();
     let (binary, mut offsets, _) =
         concat_gltf_buffers(&root, &g, Some(Binary::Owned(bin)), None).unwrap();
     let cancelled = AtomicBool::new(false);

@@ -1,4 +1,4 @@
-use crate::gltf_codes::{component_bytes, index_bytes_of};
+use crate::gltf_codes::{component_bytes, element_shape, index_bytes_of};
 use crate::{
     compiler_accessor_types::index_value, invalid, item, optional_index, required_index, values,
     Result,
@@ -47,16 +47,11 @@ pub fn validate(g: &Value, bin: &[u8], id: usize) -> Result<()> {
     let component = required_index(a.get("componentType"), "accessor.componentType")?;
     let bytes =
         component_bytes(component).ok_or_else(|| invalid("Unsupported accessor component"))?;
-    let (columns, rows) = match a.get("type").and_then(Value::as_str) {
-        Some("SCALAR") => (1, 1),
-        Some("VEC2") => (1, 2),
-        Some("VEC3") => (1, 3),
-        Some("VEC4") => (1, 4),
-        Some("MAT2") => (2, 2),
-        Some("MAT3") => (3, 3),
-        Some("MAT4") => (4, 4),
-        _ => return Err(invalid("Unsupported accessor type")),
-    };
+    let (columns, rows) = a
+        .get("type")
+        .and_then(Value::as_str)
+        .and_then(element_shape)
+        .ok_or_else(|| invalid("Unsupported accessor type"))?;
     let element_bytes = if columns == 1 {
         rows * bytes
     } else {

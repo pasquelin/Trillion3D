@@ -35,21 +35,16 @@ fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
 }
 
 #[test]
-fn borrowed_glb_parts_preserve_owned_parser_and_length_refusal() {
+fn glb_parts_locate_the_bin_and_refuse_a_wrong_length() {
     let g = json!({"buffers":[{"byteLength":4}]});
     let bytes = encode_glb(&g, &[5, 6, 7, 8]);
-    let (borrowed, range) = parse_glb_parts(&bytes).expect("borrowed parse");
-    let (owned, bin) = parse_glb(&bytes).expect("owned parse");
-    assert_eq!(borrowed, owned);
-    assert_eq!(&bytes[range], bin.as_slice());
+    let (parsed, range) = parse_glb_parts(&bytes).expect("parse");
+    assert_eq!(parsed, g);
+    assert_eq!(&bytes[range], &[5, 6, 7, 8]);
     let mut invalid = bytes;
     invalid[8..12].copy_from_slice(&0u32.to_le_bytes());
     assert_eq!(
         parse_glb_parts(&invalid).unwrap_err().message,
-        "GLB length mismatch"
-    );
-    assert_eq!(
-        parse_glb(&invalid).unwrap_err().message,
         "GLB length mismatch"
     );
 }

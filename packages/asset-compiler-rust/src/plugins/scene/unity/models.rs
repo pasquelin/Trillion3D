@@ -90,9 +90,9 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     if let Some(manifest) = &manifest {
         carry_report(manifest, &name, world.scene);
     }
-    let (gltf, buffers) = match load_gltf(&directory, &file) {
-        Some(loaded) => loaded,
-        None => {
+    let (gltf, binary) = match crate::compiler_source::flat_document(&directory.join(&file)) {
+        Ok(loaded) => loaded,
+        Err(_) => {
             world.scene.report.add("unity-model-buffer-unreadable");
             return None;
         }
@@ -103,7 +103,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
         .parent()
         .and_then(|parent| world.project.relative_uri(parent))
         .unwrap_or_default();
-    let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
+    let parts = merge::merge(&gltf, binary.bytes(), &prefix, world.scene);
     world.scene.read_model(&name, plugin.name(), &key);
     world.scene.count("models", 1);
     Some(scaled(parts, meta.scale(unit)))
@@ -175,24 +175,4 @@ fn scaled(parts: Parts, scale: f64) -> Parts {
         })
         .collect();
     Parts { nodes }
-}
-
-/// glTF of a model and its binaries. A `data:` buffer is not read: the driver counts it in the
-/// report rather than decoding its content blindly.
-fn load_gltf(directory: &Path, file: &str) -> Option<(Value, Vec<Vec<u8>>)> {
-    let bytes = fs::read(directory.join(file)).ok()?;
-    if crate::is_glb(&bytes) {
-        let (gltf, binary) = crate::parse_glb(&bytes).ok()?;
-        return Some((gltf, vec![binary]));
-    }
-    let gltf: Value = serde_json::from_slice(&bytes).ok()?;
-    let mut buffers = Vec::new();
-    for buffer in gltf["buffers"].as_array().map_or(&[][..], Vec::as_slice) {
-        let uri = buffer["uri"].as_str()?;
-        if uri.starts_with("data:") || !crate::is_safe_source_name(uri) {
-            return None;
-        }
-        buffers.push(fs::read(directory.join(uri)).ok()?);
-    }
-    Some((gltf, buffers))
 }

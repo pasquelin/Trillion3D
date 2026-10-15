@@ -7,12 +7,54 @@ use crate::le::u32_at;
 #[cfg(test)]
 mod tests;
 
+/// A glTF document, `.gltf` with its sidecars or GLB, as every reader takes it: its JSON, its
+/// buffers as one binary (`concat_gltf_buffers`), each buffer's offset in it, the digest of each
+/// sidecar, and the bytes the JSON itself weighs. The compiler decodes compression before it
+/// flattens the views (`load_model_file`); a reader that decodes none flattens at once
+/// (`flat_document`).
+pub(crate) struct Document {
+    pub(crate) g: Value,
+    pub(crate) binary: Binary,
+    pub(crate) offsets: Vec<usize>,
+    pub(crate) sidecars: Vec<(String, String)>,
+    pub(crate) json_bytes: usize,
+}
+
+/// Reads the document whose bytes are `file`, its sidecars in `dir`, checked against `declared`.
+pub(crate) fn read_document(
+    dir: &Path,
+    file: memmap2::Mmap,
+    declared: Option<&Value>,
+) -> Result<Document> {
+    let (g, embedded, json_bytes) = if is_glb(&file) {
+        let (g, range) = parse_glb_parts(&file)?;
+        let json_bytes = file.len() - range.len();
+        (g, Some(Binary::MappedRange(file, range)), json_bytes)
+    } else {
+        (serde_json::from_slice(&file)?, None, file.len())
+    };
+    let (binary, offsets, sidecars) = concat_gltf_buffers(dir, &g, embedded, declared)?;
+    Ok(Document {
+        g,
+        binary,
+        offsets,
+        sidecars,
+        json_bytes,
+    })
+}
+
+/// The document at `path` with every view on buffer 0, for a reader that decodes no compression:
+/// the reference tracer (`oracle`) and a Unity model's tables.
+pub(crate) fn flat_document(path: &Path) -> Result<(Value, Binary)> {
+    let dir = path.parent().unwrap_or(Path::new("."));
+    let mut document = read_document(dir, map_source(path)?, None)?;
+    let length = document.binary.bytes().len();
+    flatten_buffer_views(&mut document.g, &document.offsets, length)?;
+    Ok((document.g, document.binary))
+}
+
 pub(super) fn is_glb(bytes: &[u8]) -> bool {
     bytes.len() >= 4 && bytes[0] == b'g' && bytes[1] == b'l' && bytes[2] == b'T' && bytes[3] == b'F'
-}
-pub(super) fn parse_glb(bytes: &[u8]) -> Result<(Value, Vec<u8>)> {
-    let (json, bin) = parse_glb_parts(bytes)?;
-    Ok((json, bytes[bin].to_vec()))
 }
 
 /// Validates the container and locates its BIN without allocating a second copy.

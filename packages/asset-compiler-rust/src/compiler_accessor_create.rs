@@ -1,5 +1,5 @@
 use super::*;
-use crate::gltf_codes::{component_bytes, FLOAT};
+use crate::gltf_codes::{component_bytes, element_shape, FLOAT};
 
 /// `validated` holds the identifiers an upstream pass already validated — the
 /// deduplicated set from `plan_buffers`. `validate` is a pure function with no
@@ -25,13 +25,14 @@ pub(super) fn accessor<'a>(
     }
     let bytes = component_bytes(component)
         .ok_or_else(|| CompilerError::new("UNSUPPORTED_COMPONENT", component.to_string()))?;
-    let width = match a.get("type").and_then(Value::as_str) {
-        Some("SCALAR") => 1,
-        Some("VEC2") => 2,
-        Some("VEC3") => 3,
-        Some("VEC4") => 4,
+    let shape = a
+        .get("type")
+        .and_then(Value::as_str)
+        .and_then(element_shape);
+    let width = match shape {
+        Some((1, rows)) => rows,
         // A skin's inverse bind matrices: sixteen floats, no column padding.
-        Some("MAT4") if component == FLOAT => 16,
+        Some((4, 4)) if component == FLOAT => 16,
         _ => {
             return Err(CompilerError::new(
                 "UNSUPPORTED_ACCESSOR_TYPE",

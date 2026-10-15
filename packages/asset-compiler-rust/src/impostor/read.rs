@@ -30,7 +30,9 @@ impl Traceable {
                     accessor(g, bin, required_index(Some(id), name)?, None)?.collect_f32()?,
                 ))
             };
-            let positions = attribute("POSITION")?.unwrap_or_default();
+            let (positions, indices, _) =
+                crate::compiler_primitive::triangles::read(g, bin, primitive, None)?;
+            let positions = positions.collect_f32()?;
             let normals = attribute("NORMAL")?;
             let sets = [attribute("TEXCOORD_0")?, attribute("TEXCOORD_1")?];
             let colours = attribute("COLOR_0")?;
@@ -38,21 +40,13 @@ impl Traceable {
             let width = colours
                 .as_ref()
                 .map_or(4, |c| c.len() / (positions.len() / 3).max(1));
-            let indices: Vec<u32> = match primitive.get("indices") {
-                Some(id) => {
-                    accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32()?
-                }
-                None => (0..positions.len() as u32 / 3).collect(),
-            };
             let material = surfaces.len() as u32;
             surfaces.push(Surface::of(
                 g,
                 primitive.get("material").and_then(Value::as_u64),
                 previews,
             ));
-            // A corner outside POSITION leaves its triangle out, never a vertex at the origin.
-            let inside = |t: &&[u32; 3]| t.iter().all(|&i| (i as usize + 1) * 3 <= positions.len());
-            for triangle in indices.as_chunks::<3>().0.iter().filter(inside) {
+            for triangle in indices.as_chunks::<3>().0 {
                 let mut corner = Corners::default();
                 let mut normal = [0.0f32; 9];
                 let mut colour = [1.0f32; 12];
