@@ -6,6 +6,7 @@ import {
 } from '../webgpu/pages/prepare/contractLight.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { EngineCamera } from '../camera/engineCamera.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
@@ -33,10 +34,17 @@ const frame: ReflectionFrame = {
 const surroundings = createSurroundings()
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
- *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
-function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
+ *  programs read: `traced`, whether the trace runs this image; `pose`, the camera's view-projection,
+ *  the jitter aside; unchanged, nothing is sent. */
+function writeFrame(
+  rt: WebgpuPagesRuntime,
+  reflection: ScreenReflection,
+  traced: boolean,
+  pose: ArrayLike<number>,
+) {
   const { gpu, run } = rt
   frame.size = gpu.targetSize
+  frame.pose = pose
   frame.depthDrawn = run.depthDrawn
   const { environment } = rt.lights.store
   frame.surroundings = surroundings(
@@ -75,9 +83,14 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
  * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
  * read from the bounce cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
- * reads there (`gpu.deferred.update`, written before the image is submitted).
+ * reads there (`gpu.deferred.update`, written before the image is submitted); where the camera `cam`
+ * stands, the jitter aside, decides whether the image is drawn for a change.
  */
-export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeReflections(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+) {
   const { gpu, vis, lights } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
@@ -89,7 +102,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
   // Every image whose radiance is built is staged, its move decided: the build reads that decision.
-  writeFrame(rt, reflection, traced)
+  writeFrame(rt, reflection, traced, cam.viewProjection)
   if (!hiz || !depth) return
   const open = tracePass.begin(encoder)
   if (traced) {

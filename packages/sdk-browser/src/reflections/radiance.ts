@@ -58,12 +58,14 @@ export type RadianceStages = ReturnType<typeof radianceLayouts> & {
 
 /** What a view's radiance pyramid holds: whether it holds an image of this view, the
  *  view-projection and drawn size that image was drawn with — the next image reprojects its hits
- *  with them —, whether the image before it was drawn with the same view-projection and size: an
+ *  with them —, the camera's own view-projection, without the temporal accumulation's jitter
+ *  (`pose`), whether the image before it was drawn with the same view-projection and size: an
  *  image traced on it reads the view it is drawn from (`reflectionsSettled`) — (`still`); its build
  *  hashed it then, unless the view was settled (`RadiancePyramid.hashed`). */
 export type HeldImage = {
   valid: boolean
   viewProjection: Float64Array
+  pose: Float64Array
   size: [number, number]
   still: boolean
 }
@@ -72,23 +74,24 @@ export type HeldImage = {
 export const heldImage = (fields: Partial<HeldImage> = {}): HeldImage => ({
   valid: false,
   viewProjection: new Float64Array(16),
+  pose: new Float64Array(16),
   size: [0, 0],
   still: false,
   ...fields,
 })
 
-/** Whether an image drawn at `size` through `viewProjection` is drawn from where `held` was: the one
- *  rule, taken once an image (`stageReflectionImage`), that the quiet count and the hash both read —
- *  a resize, whatever its view-projection, is a move. */
+/** Whether an image drawn at `size` through `matrix` is drawn from where `held` was, `matrix` read
+ *  against the held one of its kind (`kept`): its view-projection, which the hash reads — the lit
+ *  image repeats only under the same one —, or its pose, which the quiet count reads — a jitter of the
+ *  temporal accumulation moves no camera. The one rule, taken once an image
+ *  (`stageReflectionImage`); a resize, whatever its matrices, is a move. */
 export const drawnFromHeld = (
   held: HeldImage,
   size: readonly [number, number],
-  viewProjection: ArrayLike<number>,
+  matrix: ArrayLike<number>,
+  kept: ArrayLike<number> = held.viewProjection,
 ) =>
-  held.valid &&
-  held.size[0] === size[0] &&
-  held.size[1] === size[1] &&
-  sameElements(held.viewProjection, viewProjection)
+  held.valid && held.size[0] === size[0] && held.size[1] === size[1] && sameElements(kept, matrix)
 
 /** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
  *  past level 0 of the frame's, whose level 0 the frame's targets count (`frameTargetBytes`). */

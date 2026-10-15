@@ -77,7 +77,7 @@ export function encodeSurfaceLighting(
   // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
   // transparents' front one, which the blends and the water read; behind it, they read the same
   // view inline.
-  encodeReflections(rt, encoder)
+  encodeReflections(rt, encoder, cam)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,

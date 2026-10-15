@@ -63,6 +63,7 @@ export function recordedBuild(
       inputs,
       size,
       viewProjection,
+      viewProjection,
       drawnFromHeld(pyramid.held, size, viewProjection),
       false,
     )

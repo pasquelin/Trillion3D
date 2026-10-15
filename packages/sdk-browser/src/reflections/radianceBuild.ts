@@ -79,7 +79,8 @@ const radianceGroups = (
  * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
  * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
  * the image is encoded (`fresh`, `adoptRadianceImage`). `inputs.view` is the lighting's view, whose
- * drawn size the first dispatch reads. `still`: the image is drawn from where the held one was, as the
+ * drawn size the first dispatch reads; `pose` the camera's view-projection without the temporal
+ * accumulation's jitter, kept with it. `still`: the image is drawn from where the held one was, as the
  * image decided it (`drawnFromHeld`). With `hashless` — a settled view, whose hash no sample reads
  * (`settle.verified`) — the image is not hashed: the next image that is hashes the one before it too.
  */
@@ -91,6 +92,7 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
+  pose: ArrayLike<number>,
   still: boolean,
   hashless: boolean,
 ) {
@@ -130,6 +132,7 @@ export function encodeRadiancePyramid(
   pyramid.hashed = hashing
   held.valid = true
   copyMatrix4(held.viewProjection, viewProjection)
+  copyMatrix4(held.pose, pose)
   held.size[0] = size[0]
   held.size[1] = size[1]
   pyramid.fresh = true

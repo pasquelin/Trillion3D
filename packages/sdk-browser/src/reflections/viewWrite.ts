@@ -8,6 +8,9 @@ import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 export type ReflectionFrame = {
   /** The render view-projection the depth was drawn with, jitter included. */
   viewProjection: ArrayLike<number>
+  /** The camera's view-projection, without the temporal accumulation's jitter: where the view
+   *  stands; the render one where absent. */
+  pose?: ArrayLike<number>
   /** The drawn size. */
   size: readonly [number, number]
   /** Whether the depth pyramid holds this image's whole depth. */
