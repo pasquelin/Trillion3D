@@ -99,7 +99,8 @@ export function createRadianceSettle(device: GPUDevice) {
     get quiet() {
       return Math.max(0, images + 1 - busy)
     },
-    /** Whether the last image drawn copied its history whole: the still view's reflections are frozen. */
+    /** Whether the last image drawn was the still view's `REFLECTION_HISTORY`th quiet one or a later
+     *  one: its history is complete, and every image after copies it — the reflections are frozen. */
     get frozen() {
       return this.quiet > REFLECTION_COUNTS.REFLECTION_HISTORY
     },
