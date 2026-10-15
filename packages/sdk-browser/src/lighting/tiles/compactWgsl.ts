@@ -64,7 +64,7 @@ var<workgroup> walked:vec4u;
 /** The entry of light \`index\`: its run in this column, \`EMPTY_RUN\` when it meets no cell. A
  *  directional light reaches every cell. */
 fn entryOf(column:Column,index:u32)->vec2u{
- let light=lights.items[index];
+ let light=directLights.items[index];
  let slot=select(0u,TILE_SHADOWED,light.params.y>-1.0);
  if(isSun(light)){return vec2u(index|slot,FULL_RUN);}
  let centre=light.positionRange.xyz-view.origin.xyz;
