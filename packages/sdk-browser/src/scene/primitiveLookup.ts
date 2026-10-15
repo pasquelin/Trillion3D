@@ -7,8 +7,7 @@ const finders = new WeakMap<readonly Primitive[], ReturnType<typeof createFinder
  * Manifest primitives looked up by their mesh association. A `find` per mesh walked the whole
  * manifest: loading a scene with N primitives paid N². The first primitive of a key wins,
  * like `find`; a NaN key finds nothing, like `===`. ONE finder per primitives array, built once
- * for every caller: a primitive pushed on the array since is indexed at the next find, one
- * `add`ed is found like the others.
+ * for every caller: a primitive pushed on the array since is indexed at the next find.
  */
 export function primitiveFinder(primitives: readonly Primitive[]) {
   let finder = finders.get(primitives)
@@ -34,7 +33,7 @@ function createFinder(primitives: readonly Primitive[]) {
     if (Number.isNaN(mesh) || Number.isNaN(primitive)) return undefined
     return byMesh.get(mesh)?.get(primitive)
   }
-  return Object.assign(find, { add })
+  return find
 }
 
 /** The name a page gives the primitive a mesh draws, `mesh/primitive` as in a cluster id; none

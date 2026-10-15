@@ -105,8 +105,8 @@ export async function addWebgpuPlacements(
   const blend = drawsBlended(primitive, surface) && blendRefusal(rt)
   if (blend) return blend
   if (!held) {
+    // Pushed on the manifest array the collector's finder indexes: found at its next look.
     context.metadata.primitives.push(primitive)
-    collector.primitiveOf.add(primitive)
     context.admitPages?.(primitivePages(primitive))
   }
   setup.texturePools?.coverage.read(surface)
