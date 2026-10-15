@@ -1,6 +1,7 @@
 import { bufferEntry, resourceEntry } from './liveEntries.ts'
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './bindLayout.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
+import { FRONT_TRACED_LAYOUT } from '../../reflections/frontLayer.ts'
 
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
@@ -96,7 +97,7 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   tileLights: ['fragment', STORAGE],
   // The front's traced radiance, a texture read by load: nothing the fragment stage could write, which
   // would cost the pass its early depth reject (4232 hidden fragment draws).
-  frontTraced: ['fragment', { texture: { sampleType: 'uint' } }],
+  frontTraced: ['fragment', FRONT_TRACED_LAYOUT],
   // The surfaces' records (`../material/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.

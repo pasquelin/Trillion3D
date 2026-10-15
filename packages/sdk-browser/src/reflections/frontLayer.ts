@@ -46,6 +46,10 @@ import { createHalfGrids, createKernelTexture, halfBytes, halfExtent } from './h
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
 export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
+/** How a fragment binds it: words, read by load (the blend's and the water composite's groups). */
+export const FRONT_TRACED_LAYOUT: { texture: GPUTextureBindingLayout } = {
+  texture: { sampleType: 'uint' },
+}
 /** The formats of the front pass's targets: the Hi-Z front layer it writes the covering depth to, the
  *  surface buffer's flags and normals, and the lobes target's (`../scene/physicalLobes.ts`). */
 export const FRONT_TARGET_FORMATS = {

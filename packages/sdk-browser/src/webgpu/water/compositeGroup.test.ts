@@ -12,6 +12,7 @@ import { readOnly } from '../core/bindLayout.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { waterCompositeLayoutEntries } from './compositeGroup.ts'
+import { FRONT_TRACED_LAYOUT } from '../../reflections/frontLayer.ts'
 
 const byBinding = (entries: GPUBindGroupLayoutEntry[]) =>
   [...entries].sort((a, b) => a.binding - b.binding)
@@ -29,7 +30,7 @@ test('the water composite layout is the one its bindings name, laid out as the r
     { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
     { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
     // The front's radiance the reflection trace wrote: words, read by load.
-    { binding: b.frontTraced, visibility: fragment, texture: { sampleType: 'uint' } },
+    { binding: b.frontTraced, visibility: fragment, ...FRONT_TRACED_LAYOUT },
     { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
     { binding: b.volumes, visibility: fragment, buffer: readOnly },
     { binding: b.items, visibility: fragment, buffer: readOnly },

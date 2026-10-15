@@ -6,6 +6,7 @@ import { readOnly } from '../core/bindLayout.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { FRONT_TRACED_LAYOUT } from '../../reflections/frontLayer.ts'
 
 /** What the composite's group is made of (`createWaterCompositeLayout`): the frame's targets,
  *  the blend view, the lighting, the item records and the verdict whose rectangle the quad covers. */
@@ -49,7 +50,7 @@ const HELD: readonly Held[] = [
   [b.shadowNoise, ({ lighting }) => lighting.shadowNoise],
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
   [b.probes, ({ lighting }) => lighting.probes],
-  [b.frontTraced, ({ lighting }) => lighting.frontTraced, { texture: { sampleType: 'uint' } }],
+  [b.frontTraced, ({ lighting }) => lighting.frontTraced, FRONT_TRACED_LAYOUT],
   [
     b.backdrop,
     ({ gpu }) => gpu.backdrop!.colorView,
