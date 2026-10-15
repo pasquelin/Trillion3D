@@ -26,21 +26,19 @@ fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->T
  let x=${k}UvTransform(slot);let m=mat2x2f(x[0],x[1]);
  return tileRead(s,m*uv+x[2],m*ddx,m*ddy,aniso);
 }
-/** The taps of one level along a line already folded, the table entry read once when the line
- *  stays in one tile of that level — a segment whose ends share a tile lies in it. */
+/** The taps of one level along a line already folded, the tile's table word cached: read again
+ *  only where a tap enters another tile — once for a line that stays in one. The tail's taps read
+ *  no word. */
 fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
- var word=0u;var oneTile=level>=s.tail;
- if(!oneTile){
-  let first=${k}Entry(s,c+step*tapOffset(0u,n),level);
-  oneTile=first==${k}Entry(s,c+step*tapOffset(n-1u,n),level);
-  if(oneTile){word=${k}Pages[first];}
- }
+ var entry=0xffffffffu;var word=0u;
  var sum=vec4f(0.0);
  for(var i=0u;i<n;i++){
   let uv=c+step*tapOffset(i,n);
-  var w=word;
-  if(!oneTile){w=${k}Pages[${k}Entry(s,uv,level)];}
-  sum+=${k}Tap(s.tap,${k}Place(s,uv,level,w,nearest));
+  if(level<s.tail){
+   let e=${k}Entry(s,uv,level);
+   if(e!=entry){entry=e;word=${k}Pages[e];}
+  }
+  sum+=${k}Tap(s.tap,${k}Place(s,uv,level,word,nearest));
  }
  return sum/f32(n);
 }`,
