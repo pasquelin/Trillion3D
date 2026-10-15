@@ -45,7 +45,7 @@ export const TAA_SAMPLES = upscalePhases(1, 1)
 /** Still images a hold needs at least: the shading is stochastic (shadow rays, light samples), so
  *  the uniform average must hold enough draws for its noise to fall to the converged image's:
  *  sixteen left a penumbra visibly grainier. */
-const TAA_STILL_DRAWS = 64
+export const TAA_STILL_DRAWS = 64
 
 /** Holding is legal only after the still average has converged and every phase has contributed
  *  as often as every other: a whole number of cycles, the first to hold `TAA_STILL_DRAWS` draws —

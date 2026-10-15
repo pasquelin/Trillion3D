@@ -1,4 +1,5 @@
 import { DEG2RAD } from '../../../math/src/constants.ts'
+import { TAA_STILL_DRAWS } from '../taa/jitter.ts'
 
 /**
  * The constants of the reflection's shaders, by the name they read, one table: the WGSL block is
@@ -50,9 +51,15 @@ export const REFLECTION_CONSTANTS = {
  * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
  */
 export const REFLECTION_COUNTS = {
-  /** The images a texel's history averages at most (`temporalWgsl.ts`): three turns of the 2×2 block's
-   *  four picks, and the count a still view's history freezes at. Four bits of the history's word. */
+  /** The images a texel's history averages at most while anything changes (`temporalWgsl.ts`): three
+   *  turns of the 2×2 block's four picks, the window an exponential mean then keeps. */
   REFLECTION_HISTORY: 12,
+  /** The images a still view's history averages, and the count it freezes at (`temporalWgsl.ts`): the
+   *  temporal accumulation's own still average (`TAA_STILL_DRAWS`), sixteen turns of the block's
+   *  picks — a glossy lobe read by one sample a texel an image needs that many, with its neighbours',
+   *  for its mean to fall within a quarter of the lobe's radiance where a bright body fills a tenth of
+   *  it. Six bits of the history's word (its count less one). */
+  REFLECTION_STILL: TAA_STILL_DRAWS,
   /** The widest spatial reuse, in half texels (`spatialWgsl.ts`): two bits of the fresh texel's word. */
   REFLECTION_REUSE_RADIUS: 3,
   /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius. */

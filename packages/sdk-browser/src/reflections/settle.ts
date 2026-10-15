@@ -60,7 +60,7 @@ const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 
  * some images later, and until then the view is unsettled. Only an image drawn from where the one
  * before it was is hashed (`radiance.ts`): a moving one is never the one a still view settles on.
  * The reflections' history (`temporalWgsl.ts`) freezes once the view has been quiet (`quiet`) for
- * `REFLECTION_HISTORY` images: from the image after (`frozen`) a still view reflects the same bits every
+ * `REFLECTION_STILL` images: from the image after (`frozen`) a still view reflects the same bits every
  * image, and the lit image is all that is waited for. An image whose trace sampled no lobe
  * (`sampled`, the trace's word, cleared at each image's staging and copied with the hash) has no
  * history to wait for: its mirrors are traced whole by their pixels, the same bits from the same lit
@@ -87,6 +87,7 @@ export function createRadianceSettle(device: GPUDevice) {
   })
   let images = 0,
     busy = 0,
+    moved = 0,
     equal = 0,
     bare = 0
   // A sample's answer: its image's hash is the one before it's, where it was hashed; and its trace
@@ -117,16 +118,26 @@ export function createRadianceSettle(device: GPUDevice) {
     busy() {
       busy = images + 1
     },
+    /** The image about to be drawn is drawn for a move — the camera, a light, a body of the scene —:
+     *  busy, and its history clamped (`temporalWgsl.ts`). Work landing (pages, probes, shadows) only
+     *  keeps the view busy: its images accumulate unclamped. */
+    move() {
+      busy = moved = images + 1
+    },
+    /** Whether the image being drawn is drawn for a move. */
+    get moving() {
+      return moved === images + 1
+    },
     /** The images drawn since the last busy one, the one being drawn counted: zero on an image drawn
      *  for a change — what the reflections' accumulation clamps on and freezes after
      *  (`temporalWgsl.ts`). */
     get quiet() {
       return Math.max(0, images + 1 - busy)
     },
-    /** Whether the last image drawn was the still view's `REFLECTION_HISTORY`th quiet one or a later
+    /** Whether the last image drawn was the still view's `REFLECTION_STILL`th quiet one or a later
      *  one: its history is complete, and every image after copies it — the reflections are frozen. */
     get frozen() {
-      return this.quiet > REFLECTION_COUNTS.REFLECTION_HISTORY
+      return this.quiet > REFLECTION_COUNTS.REFLECTION_STILL
     },
     /** Whether an image after the last busy one has the lit image of the one before it. */
     get verified() {

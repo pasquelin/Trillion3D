@@ -20,9 +20,10 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
  *    `frontLayer.ts`);
  *  - `temporal`, the reflections' turn (`x`: the image's rank in the picks of a 2×2 block and the
- *    samples' sequence — a still view's quiet count, held once frozen, `stageReflectionImage`) and the
- *    images drawn since the last change (`y`, `RadianceSettle.quiet`, capped): what the accumulation
- *    clamps, restarts and freezes by (`temporalWgsl.ts`);
+ *    samples' sequence — a still view's quiet count, held once frozen, `stageReflectionImage`), the
+ *    images drawn since the last change (`y`, `RadianceSettle.quiet`, capped) and whether this one is
+ *    drawn for a move (`z`, `RadianceSettle.moving`): what the accumulation restarts, freezes and
+ *    clamps by (`temporalWgsl.ts`);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).

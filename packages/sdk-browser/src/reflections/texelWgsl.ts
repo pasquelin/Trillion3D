@@ -41,9 +41,10 @@ const historyGatherFn = (name: string, near: boolean) =>
  *   the spatial reuse's radius in half texels (18–19), and a valid bit (20), zero where no pixel of the
  *   block reflects;
  * - a HISTORY texel, the temporal accumulation's (`historyPack`): its surface's linear depth as a half
- *   (0–15), its normal on the octahedron, six bits an axis (16–27), and how many images it averages
- *   (28–31, `REFLECTION_HISTORY` at most), zero where none: it carries the surface it was traced on into
- *   the next image, whose surface buffer no longer holds it.
+ *   (0–15, never zero for a surface in front of the eye), its normal on the octahedron, five bits an
+ *   axis (16–25, within 3° of it), and how many images it averages less one (26–31, `REFLECTION_STILL`
+ *   at most); a zero depth where none: it carries the surface it was traced on into the next image,
+ *   whose surface buffer no longer holds it.
  *
  * `reflectionLinearDepth`: a clip point's depth that grows linearly along the view — its `w` under a
  * perspective, its `z` under an orthographic projection —, `surfaceLinearDepth` the one of a world
@@ -88,13 +89,13 @@ fn freshPick(t:vec4u)->u32{return ((t.w>>16u)&3u)+1u;}
 fn freshRadius(t:vec4u)->u32{return (t.w>>18u)&3u;}
 fn freshHit(t:vec4u)->f32{return texelHalfOf(t.w);}
 fn historyPack(r:Reflected,depth:f32,N:vec3f,count:u32)->vec4u{
- let e=vec2u(round((octEncode(N)*0.5+vec2f(0.5))*63.0));
- return vec4u(texelRadiance(r),texelHalf(depth)|(e.x<<16u)|(e.y<<22u)|(count<<28u));
+ let e=vec2u(round((octEncode(N)*0.5+vec2f(0.5))*31.0));
+ return vec4u(texelRadiance(r),texelHalf(depth)|(e.x<<16u)|(e.y<<21u)|((count-1u)<<26u));
 }
-fn historyCount(t:vec4u)->u32{return t.w>>28u;}
+fn historyCount(t:vec4u)->u32{return select(0u,(t.w>>26u)+1u,(t.w&0xffffu)!=0u);}
 fn historyDepth(t:vec4u)->f32{return texelHalfOf(t.w);}
 fn historyNormal(t:vec4u)->vec3f{
- let e=vec2f(f32((t.w>>16u)&63u),f32((t.w>>22u)&63u))/63.0;
+ let e=vec2f(f32((t.w>>16u)&31u),f32((t.w>>21u)&31u))/31.0;
  return octDecode(e*2.0-vec2f(1.0));
 }
 /** The view's pixel of the half texel \`at\` that its \`pick\` names; \`halfPoint\` maps a point of the

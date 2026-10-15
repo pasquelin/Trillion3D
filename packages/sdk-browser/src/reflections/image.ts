@@ -15,13 +15,14 @@ import type { ReflectionFrame } from './viewWrite.ts'
  * the lights of epoch `lights`. Whether the image is drawn from where the held one was — its size
  * and view-projection — is decided here, once (`drawnFromHeld`, kept as `frame.still` for its
  * radiance build). An image whose camera moved — its pose, the temporal accumulation's jitter aside —,
- * or drawn under other lights, is drawn for a change: the accumulation clamps on it; a jitter is no
- * change, so a still view under the temporal accumulation settles as one without. The quiet images
- * after it are a still view's own series: the first restarts the history, each takes the turn of its
- * rank, and the history freezes once it holds `REFLECTION_HISTORY` of them (`temporalWgsl.ts`) — so
- * the image a still view holds is the mean of the same samples of it whatever was drawn before, and a
- * frozen view writes nothing, its turn held. An image drawn for a change takes the next turn of the
- * view's own count. Each image clears the trace's word the settle reads (`RadianceSettle.stage`).
+ * or drawn under other lights, is drawn for a move (`RadianceSettle.move`): the accumulation clamps on
+ * it; a jitter is no move, so a still view under the temporal accumulation settles as one without.
+ * The quiet images after a change are a still view's own series: the first restarts the history, each
+ * takes the turn of its rank, and the history freezes once it holds `REFLECTION_STILL` of them
+ * (`temporalWgsl.ts`) — so the image a still view holds is the mean of the same samples of it whatever
+ * was drawn before, and a frozen view writes nothing, its turn held. An image drawn for a change takes
+ * the next turn of the view's own count. Each image clears the trace's word the settle reads
+ * (`RadianceSettle.stage`).
  */
 export function stageReflectionImage(
   reflection: ScreenReflection,
@@ -31,11 +32,12 @@ export function stageReflectionImage(
   const { held, levels } = reflection.radiance
   frame.still = drawnFromHeld(held, frame.size, frame.viewProjection)
   const stands = drawnFromHeld(held, frame.size, frame.pose ?? frame.viewProjection, held.pose)
-  if (!stands || lights !== reflection.lightsSeen) reflection.settle.busy()
+  if (!stands || lights !== reflection.lightsSeen) reflection.settle.move()
   reflection.settle.stage()
   reflection.lightsSeen = lights
-  const { REFLECTION_HISTORY, REFLECTION_SEQUENCE } = REFLECTION_COUNTS
-  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_HISTORY)
+  const { REFLECTION_STILL, REFLECTION_SEQUENCE } = REFLECTION_COUNTS
+  frame.moving = reflection.settle.moving
+  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_STILL)
   if (frame.quiet === 0) reflection.turn = (reflection.turn + 1) % REFLECTION_SEQUENCE
   frame.turn = frame.quiet || reflection.turn
   reflection.writeView(frame, held, levels)

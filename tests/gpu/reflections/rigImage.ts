@@ -3,13 +3,16 @@
 // image's hash coming back some frames later — until the reflections are settled
 // (`reflectionsSettled`: the history frozen, the lit image final), its reflection target read back.
 import { animationFrame } from '../kit/frame.ts'
+import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { openRig } from './rig.ts'
 import type { RigFrame } from './rigFrame.ts'
 
 type Rig = Awaited<ReturnType<typeof openRig>>
 
-/** Images of `rig` drawn until its view is settled, at most `limit`: how many were drawn. */
-export async function untilSettled(rig: Rig, limit = 60) {
+/** Images of `rig` drawn until its view is settled, at most `limit`: how many were drawn — a still
+ *  view's history freezes after `REFLECTION_STILL` quiet images, and the lit image's hash answers some
+ *  images later, so twice that bounds it. */
+export async function untilSettled(rig: Rig, limit = 2 * REFLECTION_COUNTS.REFLECTION_STILL) {
   let images = 0
   while (!rig.settled() && images < limit) {
     rig.image()

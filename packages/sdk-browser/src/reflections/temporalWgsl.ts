@@ -22,17 +22,20 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  *   none kept, no history. No history either on an image whose screen is not traced
  *   (`forgetReflectedImage`: the content joined), nor on a still view's first quiet image
  *   (`ReflectionView.temporal.y` one): a still view's history is its own images' alone.
- * - CLAMP: on an image drawn for a change (`ReflectionView.temporal.y` zero: the camera moved, a light
- *   changed, the scene did), the history is clamped to the fresh texels around it, mean ± `REFLECTION_CLAMP`
- *   standard deviations: a lamp that moved lights the history at once. On a quiet image it is not, so the
- *   picks of the 2×2 block (`traceHalf.ts`) average without bias.
+ * - CLAMP: on an image drawn for a move (`ReflectionView.temporal.z`: the camera moved, a light changed,
+ *   a body of the scene moved or deformed, `RadianceSettle.move`), the history is clamped to the fresh
+ *   texels around it, mean ± `REFLECTION_CLAMP` standard deviations: a lamp that moved lights the
+ *   history at once. On any other image it is not: one sample a texel cannot tell a lobe's mean from
+ *   its own noise, and a clamp to it would darken every lobe that meets a small bright body — so the
+ *   images the engine draws while its own work lands (pages, probes, shadows) accumulate without bias.
  * - BLEND: the running mean of `count` images, `REFLECTION_HISTORY` at most, then an exponential mean of
- *   that window while anything moves. A still view's quiet images restart it, each at the turn of its
- *   rank (`stageReflectionImage`): once the view has been quiet for `REFLECTION_HISTORY` images, a texel
- *   whose history is full holds the mean of those images' samples alone, and is copied as it is: a still
- *   view's reflections freeze, the same bits image after image, the same whatever was drawn before them,
- *   and the view settles (`settle.ts`). The reprojection aims at the texel's centre
- *   (the traced pixel's point moved by the pixels between them), so a still view reads its own texel.
+ *   that window while anything changes. A still view's quiet images restart it, each at the turn of its
+ *   rank (`stageReflectionImage`), and let it grow to `REFLECTION_STILL`: once the view has been quiet
+ *   for that many images, a texel whose history is full holds the mean of those images' samples alone,
+ *   and is copied as it is: a still view's reflections freeze, the same bits image after image, the same
+ *   whatever was drawn before them, and the view settles (`settle.ts`). The reprojection aims at the
+ *   texel's centre (the traced pixel's point moved by the pixels between them), so a still view reads
+ *   its own texel.
  */
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   'REFLECTION_TEMPORAL_WGSL',
@@ -82,9 +85,9 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let fresh=textureLoad(temporalIn,at,0);
  if(!freshValid(fresh)){return vec4u(0u);}
  let quiet=reflectionView.temporal.y;
- if(quiet>=REFLECTION_HISTORY){
+ if(quiet>=REFLECTION_STILL){
   let kept=textureLoad(historyIn,at,0);
-  if(historyCount(kept)>=REFLECTION_HISTORY){return kept;}
+  if(historyCount(kept)>=REFLECTION_STILL){return kept;}
  }
  let coord=halfPixel(at,freshPick(fresh));
  let own=reflectingPixelAt(layer,coord,0u);
@@ -94,8 +97,8 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let full=u32(round(held.count));
  let depth=surfaceLinearDepth(P);
  var history=held.radiance;
- if(quiet==0u&&full>0u){history=temporalClamp(history,at);}
- let count=min(full+1u,REFLECTION_HISTORY);
+ if(reflectionView.temporal.z!=0u&&full>0u){history=temporalClamp(history,at);}
+ let count=min(full+1u,select(REFLECTION_HISTORY,REFLECTION_STILL,quiet>0u));
  let share=1.0/f32(count);
  let blended=Reflected(mix(history.base,now.base,share),mix(history.coat,now.coat,share));
  return historyPack(blended,depth,N,count);
