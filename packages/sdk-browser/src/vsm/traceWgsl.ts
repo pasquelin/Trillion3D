@@ -17,7 +17,12 @@ import { VSM_PROJECTION_LIGHT_STRUCT } from './projectionView.ts'
 import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
-import { VSM_TRACE_COMMON_WGSL, VSM_TRACE_RESULT_WGSL, vsmRayNoiseWgsl } from './traceCommonWgsl.ts'
+import {
+  VSM_TRACE_COMMON_WGSL,
+  VSM_TRACE_RESULT_WGSL,
+  rayCountStatement,
+  vsmRayNoiseWgsl,
+} from './traceCommonWgsl.ts'
 import { vsmTraceMapWgsl } from './traceMapWgsl.ts'
 import { vsmRayMissesWgsl, vsmTraceRayWgsl } from './traceRayWgsl.ts'
 import { VSM_TRACE_SPREAD_WGSL } from './traceSpreadWgsl.ts'
@@ -36,34 +41,6 @@ export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
   `${VSM_PROJECTION_LIGHT_STRUCT}
 fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{return light.kind==LIGHT_KIND_DIRECTIONAL;}`,
 )
-
-/**
- * A light's ray count (the adaptive ray count), decided after the first ray.
- * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`) stops there,
- *   alone: its other rays would sample the occluder's shadow inside its own pixel, so they would
- *   change it only below the pixel.
- * - A lane whose first ray missed has no occluder of its own to measure: it stops where no lane of
- *   its 32-pixel half hit a wide one (`vsmVoteAllTrue`), and goes on, as a lane that hit a wide
- *   one does, where one did — it may lie in that penumbra.
- * - At the adaptive count, a half all of whose lanes' rays hit so far (an umbra) stops. It is
- *   asked there alone: a half it does not stop holds a lane that missed, which votes no at every
- *   later ray (`missCount` never falls) and so is never stopped; a later vote could stop no lane
- *   (`projectionUmbraVote.test.ts`).
- * The group leaves the loop where both halves stopped (`vsmGroupVoted`): every lane idle, the
- * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
- * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
- */
-const rayCountStatement = (lone: boolean) =>
-  lone
-    ? `  if(i==0u&&running&&hit&&narrow){stopped=true;}
-`
-    : /* wgsl */ `  if(i==0u&&running&&hit&&narrow){stopped=true;}
-  var halfStops=false;
-  if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit||narrow);}
-  else if(i==u32(VSM_TRACE_VOTE_AFTER)){halfStops=vsmVoteAllTrue(!running||missCount==0u);}
-  if(halfStops&&running){stopped=true;stopIndex=i;}
-  if((i==0u||i==u32(VSM_TRACE_VOTE_AFTER))&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
-`
 
 /** What a host gives the trace (`vsmReceiverTraceWgsl`). */
 export interface VsmTraceHost {

@@ -88,3 +88,31 @@ struct VsmTraceResult{shadowFactor:f32,rayCount:u32,}
 fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u);}
 `,
 )
+
+/**
+ * A light's ray count (the adaptive ray count), decided after the first ray.
+ * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`) stops there,
+ *   alone: its other rays would sample the occluder's shadow inside its own pixel, so they would
+ *   change it only below the pixel.
+ * - A lane whose first ray missed has no occluder of its own to measure: it stops where no lane of
+ *   its 32-pixel half hit a wide one (`vsmVoteAllTrue`), and goes on, as a lane that hit a wide
+ *   one does, where one did — it may lie in that penumbra.
+ * - At the adaptive count, a half all of whose lanes' rays hit so far (an umbra) stops. It is
+ *   asked there alone: a half it does not stop holds a lane that missed, which votes no at every
+ *   later ray (`missCount` never falls) and so is never stopped; a later vote could stop no lane
+ *   (`projectionUmbraVote.test.ts`).
+ * The group leaves the loop where both halves stopped (`vsmGroupVoted`): every lane idle, the
+ * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
+ * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
+ */
+export const rayCountStatement = (lone: boolean) =>
+  lone
+    ? `  if(i==0u&&running&&hit&&narrow){stopped=true;}
+`
+    : /* wgsl */ `  if(i==0u&&running&&hit&&narrow){stopped=true;}
+  var halfStops=false;
+  if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit||narrow);}
+  else if(i==u32(VSM_TRACE_VOTE_AFTER)){halfStops=vsmVoteAllTrue(!running||missCount==0u);}
+  if(halfStops&&running){stopped=true;stopIndex=i;}
+  if((i==0u||i==u32(VSM_TRACE_VOTE_AFTER))&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
+`
