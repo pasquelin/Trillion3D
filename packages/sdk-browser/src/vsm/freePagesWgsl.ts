@@ -21,11 +21,12 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * THE ONE FREE STACK of the shadow pools, over the atomic words of \`buffer\`: its count at \`count\`,
- * its entries from \`first\`. \`<prefix>Take(n)\` takes the top n entries at once and returns the first
- * one's rank, or −1 when fewer are left — the count, taken by compare-exchange, never moves below
- * what is free, so a short take leaves the stack as it was and every take that succeeds holds its
- * own entries —, and tells its host by \`<prefix>Short(n)\`; \`<prefix>At(i)\` reads entry i;
- * \`<prefix>Push(v)\` gives one back. The physical pages' (\`pmPop\`) and the transmission's blocks.
+ * its entries from \`first\`. \`<prefix>Take(n)\` takes the top n entries with one atomic subtraction
+ * and returns the first one's rank: wait-free while the stack holds them. Where it held fewer (the
+ * old count, read signed, under n) the take adds them back, tells its host (\`<prefix>Short(n)\`) and
+ * returns −1: two atomics only when the pool is short, and a take racing it there may find it short
+ * too. \`<prefix>At(i)\` reads entry i; \`<prefix>Push(v)\` gives one back. The physical pages'
+ * (\`pmPop\`) and the transmission's blocks.
  */
 export const freeStackWgsl = (prefix: string, buffer: string, count: string, first: string) =>
   wgslBlock(
@@ -34,13 +35,10 @@ export const freeStackWgsl = (prefix: string, buffer: string, count: string, fir
     `fn ${prefix}At(i:u32)->u32{return atomicLoad(&${buffer}[${first}+i]);}
 fn ${prefix}Push(v:u32){atomicStore(&${buffer}[${first}+atomicAdd(&${buffer}[${count}],1u)],v);}
 fn ${prefix}Take(n:u32)->i32{
- var free=atomicLoad(&${buffer}[${count}]);
- loop{
-  if(free<n){${prefix}Short(n);return -1i;}
-  let r=atomicCompareExchangeWeak(&${buffer}[${count}],free,free-n);
-  if(r.exchanged){return i32(free-n);}
-  free=r.old_value;
- }
+ let held=bitcast<i32>(atomicSub(&${buffer}[${count}],n));
+ if(held>=i32(n)){return held-i32(n);}
+ atomicAdd(&${buffer}[${count}],n);
+ ${prefix}Short(n);
  return -1i;
 }`,
   )
@@ -49,9 +47,11 @@ fn ${prefix}Take(n:u32)->i32{
  *  sort's words; \`pmPop\` takes the top one. */
 export const VSM_FREE_PAGES_WGSL = wgslBlock(
   'VSM_FREE_PAGES_WGSL',
-  [freeStackWgsl('pmFree', 'vsmFreePages', 'PM_FREE_COUNT', 'PM_FREE_COUNT+2u')],
+  [freeStackWgsl('pmFree', 'vsmFreePages', 'PM_FREE_COUNT', 'PM_FREE_FIRST')],
   `const PM_FREE_COUNT:u32=${POOL_SORT_WORDS}u;
 const PM_FREE_SHORT:u32=PM_FREE_COUNT+1u;
+/** The free pages' first word: the stack's bottom entry. */
+const PM_FREE_FIRST:u32=PM_FREE_COUNT+2u;
 fn pmFreeShort(n:u32){atomicAdd(&vsmFreePages[PM_FREE_SHORT],n);}
 /** The free pages left less the requests none was left for: below zero when the pool fell short. */
 fn pmFreeCount()->i32{return bitcast<i32>(atomicLoad(&vsmFreePages[PM_FREE_COUNT]))-bitcast<i32>(atomicLoad(&vsmFreePages[PM_FREE_SHORT]));}
@@ -77,7 +77,7 @@ export const VSM_POOL_SORT_WGSL = wgslBlock(
     poolSortWordsWgsl(
       'vsmFreePages',
       (i) => i,
-      (i) => `PM_FREE_COUNT+2u+vsm.poolPages+${i}`,
+      (i) => `PM_FREE_FIRST+vsm.poolPages+${i}`,
     ),
   ],
   `/** The age of a page no map holds: the last age step, the first taken. */
@@ -103,7 +103,7 @@ fn poolBurst()->u32{return vsm.poolPages;}
 fn poolPlaced(total:u32){atomicStore(&vsmFreePages[PM_FREE_COUNT],total);atomicStore(&vsmFreePages[PM_FREE_SHORT],0u);}
 /** The queue's entry \`at\` (0 its head) as the stack's \`total − 1 − at\`: the head is popped first. */
 fn poolEmit(at:u32,j:u32){
- atomicStore(&vsmFreePages[PM_FREE_COUNT+2u+atomicLoad(&vsmFreePages[PM_FREE_COUNT])-1u-at],j);
+ atomicStore(&vsmFreePages[PM_FREE_FIRST+atomicLoad(&vsmFreePages[PM_FREE_COUNT])-1u-at],j);
 }
 `,
 )
