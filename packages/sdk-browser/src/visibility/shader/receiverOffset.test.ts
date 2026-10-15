@@ -9,7 +9,6 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
-import { STRUCTS } from './triangleScene.fixture.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { FLAG_LINE, FLAG_SPRITE } from '../types.ts'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
@@ -163,11 +162,7 @@ const HELPERS = [
 const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,
   ['shadowReceiver', ...HELPERS],
-  {
-    ...scope,
-    PixelTriangle: STRUCTS.PixelTriangle,
-    PageShape: STRUCTS.PageShape,
-  },
+  scope,
 )
 const { storedOffset } = shaderRun<{ storedOffset: (pixel: V) => V }>(
   `${STORED_WGSL}\n${SHIPPED}`,
