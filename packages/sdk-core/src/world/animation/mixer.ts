@@ -47,6 +47,9 @@ function writesOf(slots: (Slot | undefined)[], n: number): Writes {
 }
 const boundOf = new WeakMap<Action, Bound>()
 
+/** `Mixer.update`'s step with its mode: `seeking` writes the true pose whatever the view. */
+let stepMixer: (mixer: Mixer, seconds: number, seeking: boolean) => boolean
+
 /** Advances `action` by `seconds`; a `'once'` action past its end stops, sampled one last time. */
 function advance(action: Action, seconds: number) {
   action.time += seconds * action.timeScale

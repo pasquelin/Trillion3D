@@ -3,10 +3,10 @@ import type { Deformed } from './frame.ts'
 import { WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { WAVE_FLOATS, WORLD_BLOCK } from './layout.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
-import { leastStretchOf } from '../partition/boxes.ts'
+import { stretchOf } from '../partition/boxes.ts'
 
 /** What a wave placement's controls and reach are read from, held per placement: the world matrix
- *  they were read for, its inverse, and the least it stretches a distance (`leastStretchOf`). */
+ *  they were read for, its inverse, and the least it stretches a distance (`stretchOf`'s first). */
 export interface WaveHeld {
   matrix: Float64Array
   inverse: Float64Array
@@ -26,7 +26,7 @@ export function heldInverse(held: WaveHeld, elements: ArrayLike<number>) {
   if (!sameElements(held.matrix, elements)) {
     held.matrix.set(elements)
     invertMatrix4(held.inverse, elements)
-    held.stretch = leastStretchOf(elements, held.inverse)
+    held.stretch = stretchOf(elements, held.inverse)[0]
   }
   return held.inverse
 }

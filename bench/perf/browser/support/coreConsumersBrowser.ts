@@ -3,10 +3,8 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
 import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
-import {
-  setWindingEpoch,
-  windingCw,
-} from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
+import { windingCw } from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
+import { worldMoved } from '../../../../packages/sdk-browser/src/page/selection/rootWorld.ts'
 import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts'
 import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
 import { referenceProjectVisibilityVertex } from '../../../oracles/browser/core-math.ts'
@@ -35,7 +33,10 @@ export async function lignesConsommateursBrowser() {
   const { list, roots, ranks } = enregistrements
   // Each record is placed by its original rank.
   const placement = { baseOfRoot: Int32Array.from(roots, (_, i) => i), packedCount: roots.length }
-  const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }))
+  const hostileRoots = matrices.map((e) => ({
+    world: new THREE.Matrix4().fromArray(e),
+    worldAt: 0,
+  }))
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3)
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
@@ -89,7 +90,7 @@ export async function lignesConsommateursBrowser() {
       matrices,
       (l) => l.map((e) => matrixWindingCw(e)),
       parElement((_: Float64Array, i) => {
-        setWindingEpoch(i + 1)
+        worldMoved(hostileRoots[i])
         return windingCw(hostileRoots, i)
       }),
     ),

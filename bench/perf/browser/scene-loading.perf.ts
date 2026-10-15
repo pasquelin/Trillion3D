@@ -99,7 +99,6 @@ const passeCollect =
       requestCount: output.requests.size,
       prepared: output.prepared,
       blendCopies: output.blendCopies.length,
-      bootstrap: output.bootstrap.length,
       pages: output.allPages.map(recDe),
       boxes: output.roots.flatMap((root) => [
         ...boxToArray(root.localBox ?? new Float64Array(6)),

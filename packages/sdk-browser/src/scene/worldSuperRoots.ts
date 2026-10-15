@@ -46,8 +46,10 @@ type WorldPages = ReturnType<typeof worldRootPages>['pages']
 
 /** The world DAG as the one cut reads it: a `DagRoot` over its pages, the placed object of each
  *  object root, and the roots each bundle past the pinned top holds for its cell. */
-export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
+export type WorldDagRoot = Omit<DagRoot, 'pages' | 'culling'> & {
   pages: WorldPages
+  /** Its hierarchy with the bounds and links made once (`worldRootDag`). */
+  culling?: Required<NonNullable<DagRoot['culling']>>
   origins: Int32Array
   held: ReadonlyMap<number, readonly number[]>
 }

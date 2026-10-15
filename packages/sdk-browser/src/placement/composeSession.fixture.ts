@@ -66,8 +66,8 @@ export function session() {
     epoch: 1,
     worldWords: new Uint32Array(0),
     localWords: new Uint32Array(0),
-    rows: { whole: false, ranks: new Int32Array(0), count: 0 },
-    roots: { whole: false, ranks: new Int32Array(0), count: 0 },
+    rows: { whole: false, ranks: createChangedRuns() },
+    roots: { whole: false, ranks: createChangedRuns() },
     pass: undefined,
   }
   const encoder = device.createCommandEncoder(),
