@@ -5,9 +5,12 @@
  */
 import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts'
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
- *  rewrites it. */
-export const pixelRatioOf = (options: { pixelRatio?: number }) =>
-  options.pixelRatio ?? DEFAULT_PIXEL_RATIO
+ *  rewrites it. Unset, the screen's of `view` (the canvas's window) when one is given, else 1:
+ *  the one resolver of the ratio. */
+export const pixelRatioOf = (
+  options: { pixelRatio?: number },
+  view?: { devicePixelRatio?: number } | null,
+) => options.pixelRatio ?? view?.devicePixelRatio ?? DEFAULT_PIXEL_RATIO
 
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
