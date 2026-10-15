@@ -106,9 +106,7 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
   const shaded = SHADED,
     module = wgslModule(maskAlphaWgsl(true)),
     // The shadow cutout's own functions: its read, its sampled read and its read at a level.
-    shadow = ['maskAlpha', 'maskAlphaSampled', 'maskAlphaAt']
-      .map((name) => functionsOf(module, [name]))
-      .join('\n')
+    shadow = functionsOf(module, ['maskAlpha', 'maskAlphaSampled', 'maskAlphaAt'])
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/)
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/)
   assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/)
