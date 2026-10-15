@@ -1,5 +1,6 @@
 import { CONTRACT_BINDINGS_WGSL, surfaceBindingsWgsl } from '../../lighting/deferred/shaders.ts'
 import { VIEW_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
+import { DEFERRED_BINDINGS } from '../../lighting/deferred/bindings.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
 import {
@@ -20,25 +21,25 @@ import { waterQuadWgsl } from './quadWgsl.ts'
 import { BLEND_ITEM_WGSL } from '../blend/items.ts'
 import { VOLUME } from '../transparent/transmission.ts'
 
-/** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
- *  the contract, the probe grid — then the transparents' front radiance, and what only water reads: the frozen backdrop, the
+/** Bindings of the composite: the deferred bounce layout as-is, on its numbers (`DEFERRED_BINDINGS`) —
+ *  surfaces and depth, the view, the contract, the probe grid — then the transparents' front radiance, and what only water reads: the frozen backdrop, the
  *  opaque depth, the blend view uniform, the material volumes, the item records whose poses they
  *  name and the rectangle its quad covers. */
 export const WATER_BINDINGS = {
-  baseMetal: 0,
-  normalRough: 1,
-  emissiveAo: 2,
+  baseMetal: DEFERRED_BINDINGS.baseMetal,
+  normalRough: DEFERRED_BINDINGS.normalRough,
+  emissiveAo: DEFERRED_BINDINGS.emissiveAo,
   /** The water word the surface stage wrote (`surfaceWgsl.ts`), on the surface flags' number. */
-  word: 3,
-  depth: 4,
-  view: 5,
-  directLights: 6,
-  tileLights: 7,
-  shadowData: 8,
-  shadowAtlas: 9,
-  shadowSampler: 10,
-  bounceGrid: 11,
-  probes: 12,
+  word: DEFERRED_BINDINGS.flags,
+  depth: DEFERRED_BINDINGS.depth,
+  view: DEFERRED_BINDINGS.view,
+  directLights: DEFERRED_BINDINGS.lights,
+  tileLights: DEFERRED_BINDINGS.tiles,
+  shadowData: DEFERRED_BINDINGS.pageTable,
+  shadowAtlas: DEFERRED_BINDINGS.projectionData,
+  shadowSampler: DEFERRED_BINDINGS.uniforms,
+  bounceGrid: DEFERRED_BINDINGS.bounceGrid,
+  probes: DEFERRED_BINDINGS.probes,
   /** The transparents' front radiance the reflection trace wrote (`../../reflections/frontLayer.ts`),
    *  which a water pixel of the front surface reads its reflection from. */
   frontTraced: 13,
