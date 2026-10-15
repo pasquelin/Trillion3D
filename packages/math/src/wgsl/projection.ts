@@ -7,16 +7,17 @@ import { wgslFn } from './decl.ts'
  * rounding after an exact halving (`ndcToPixel`, which `clipToFramebuffer` calls).
  */
 
-export const pixelToNdc = wgslFn(
-  'pixelToNdc',
-  [],
-  'fn pixelToNdc(pixel:vec2f,size:vec2f)->vec2f{return vec2f(pixel.x/size.x*2.0-1.0,1.0-pixel.y/size.y*2.0);}',
-)
-
 export const uvToNdc = wgslFn(
   'uvToNdc',
   [],
   'fn uvToNdc(uv:vec2f)->vec2f{return vec2f(uv.x*2.0-1.0,1.0-uv.y*2.0);}',
+)
+
+/** A pixel to device coordinates: its texture coordinates (`pixel / size`) through `uvToNdc`. */
+export const pixelToNdc = wgslFn(
+  'pixelToNdc',
+  [uvToNdc],
+  'fn pixelToNdc(pixel:vec2f,size:vec2f)->vec2f{return uvToNdc(pixel/size);}',
 )
 
 /** The three first lanes of the homogeneous `h`, each divided by its `w`. */
@@ -26,10 +27,19 @@ export const perspectiveDivide = wgslFn(
   'fn perspectiveDivide(h:vec4f)->vec3f{return h.xyz/h.w;}',
 )
 
+/** Normalised device coordinates to texture coordinates, `y` flipped: `(½ + x·½, ½ − y·½)`, one
+ *  rounding after an exact halving. */
+export const ndcToUv = wgslFn(
+  'ndcToUv',
+  [],
+  'fn ndcToUv(c:vec2f)->vec2f{return vec2f(0.5,-0.5)*c+0.5;}',
+)
+
+/** Device coordinates to a pixel: their texture coordinates (`ndcToUv`) times the size. */
 export const ndcToPixel = wgslFn(
   'ndcToPixel',
-  [],
-  'fn ndcToPixel(ndc:vec2f,size:vec2f)->vec2f{return vec2f((ndc.x*0.5+0.5)*size.x,(0.5-ndc.y*0.5)*size.y);}',
+  [ndcToUv],
+  'fn ndcToPixel(ndc:vec2f,size:vec2f)->vec2f{return ndcToUv(ndc)*size;}',
 )
 
 /** The pixel of the clip point `clip` (`ndcToPixel`), its depth beside; on the CPU,
@@ -43,24 +53,19 @@ export const clipToFramebuffer = wgslFn(
 }`,
 )
 
+/** The texture coordinates of the clip point `clip`: `ndcToUv` of its division by `w`. */
 export const clipToUv = wgslFn(
   'clipToUv',
-  [],
-  'fn clipToUv(clip:vec4f)->vec2f{return vec2f(clip.x/clip.w*0.5+0.5,0.5-clip.y/clip.w*0.5);}',
+  [perspectiveDivide, ndcToUv],
+  'fn clipToUv(clip:vec4f)->vec2f{return ndcToUv(perspectiveDivide(clip).xy);}',
 )
 
-/** `y` kept: a projection that already flips it. */
-/** Normalised device coordinates to texture coordinates, y kept up. */
+/** Normalised device coordinates to texture coordinates, y kept up: a projection that already
+ *  flips it. */
 export const ndcToUvUnflipped = wgslFn(
   'ndcToUvUnflipped',
   [],
   'fn ndcToUvUnflipped(ndc:vec2f)->vec2f{return ndc*0.5+vec2f(0.5);}',
-)
-
-export const ndcToUv = wgslFn(
-  'ndcToUv',
-  [],
-  'fn ndcToUv(c:vec2f)->vec2f{return vec2f(0.5,-0.5)*c+0.5;}',
 )
 
 /** The homogeneous image of the point `p`, no division (`../vector/vector.ts`). */
@@ -73,8 +78,8 @@ export const transformHomogeneousPoint = wgslFn(
 /** The image of the point `p` under `m`, its `xyz` taken as is (no division): an affine map's point. */
 export const transformPoint = wgslFn(
   'transformPoint',
-  [],
-  'fn transformPoint(m:mat4x4f,p:vec3f)->vec3f{return (m*vec4f(p,1.0)).xyz;}',
+  [transformHomogeneousPoint],
+  'fn transformPoint(m:mat4x4f,p:vec3f)->vec3f{return transformHomogeneousPoint(m,p).xyz;}',
 )
 
 export const unprojectPoint = wgslFn(
