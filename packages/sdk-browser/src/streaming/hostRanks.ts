@@ -1,5 +1,5 @@
 import type { HostRetentionDelta } from './types.ts'
-import { resized } from '../../../math/src/sequence/resized.ts'
+import { createCutDelta } from '../webgpu/cut/delta.ts'
 
 /** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number }
@@ -9,77 +9,52 @@ const UNMARKED: Ranked = {}
 /**
  * The set of request ranks an image keeps, held from one image to the next and published as a delta.
  *
- * Nothing is allocated once the scene is known and no string is touched: membership is an epoch mark
- * read off a typed array, exits are read on the previous kept list, and two swapped buffers avoid any
- * reallocation. An image that keeps exactly the same ranks therefore publishes an empty delta, which
- * the cache recognises without walking anything.
+ * The ranks a pass marks are gathered as integers, and the one difference of the engine
+ * (`../webgpu/cut/delta.ts`) names what entered and what left: a rank marked twice in a pass is
+ * held once, and no string is touched. An image that keeps exactly the same ranks publishes an
+ * empty delta, which the cache recognises without walking anything.
  */
 export function createHostRankDelta(requestCount: number, urls: readonly string[]) {
-  let capacity = Math.max(1, requestCount)
-  /** Epoch of the pass where the rank was last marked. */
-  let markedAt = new Int32Array(capacity).fill(-1)
-  /** Published membership: what the cache holds as pinned. */
-  let published = new Uint8Array(capacity)
-  let entered = new Int32Array(capacity),
-    exited = new Int32Array(capacity)
-  let held = new Int32Array(capacity),
-    heldNext = new Int32Array(capacity)
-  let epoch = 0,
-    heldCount = 0,
-    nextCount = 0,
-    enteredCount = 0,
-    exitedCount = 0
+  /** Ranks past the table name no address: they are never marked. */
+  let capacity = requestCount
+  const difference = createCutDelta()
+  /** The ranks of the pass being marked, in marking order. */
+  const marked: number[] = []
   const delta = {
     urls,
     get entered() {
-      return entered
+      return difference.entered
     },
     get exited() {
-      return exited
+      return difference.exited
     },
     get enteredCount() {
-      return enteredCount
+      return difference.enteredCount
     },
     get exitedCount() {
-      return exitedCount
+      return difference.exitedCount
     },
     get held() {
-      return held
+      return difference.ids as Int32Array
     },
     get heldCount() {
-      return heldCount
+      return difference.count
     },
   } satisfies HostRetentionDelta
   const markRank = (rank: number) => {
-    if (rank < 0 || rank >= capacity || markedAt[rank] === epoch) return
-    markedAt[rank] = epoch
-    heldNext[nextCount++] = rank
-    if (published[rank]) return
-    published[rank] = 1
-    entered[enteredCount++] = rank
+    if (rank >= 0 && rank < capacity) marked.push(rank)
   }
   return {
     /** Extends a mounted catalogue without changing ranks or the address table's identity. */
     grow(count: number) {
-      if (count <= capacity) return
-      markedAt = resized(markedAt, count, -1)
-      published = resized(published, count)
-      entered = resized(entered, count)
-      exited = resized(exited, count)
-      held = resized(held, count)
-      heldNext = resized(heldNext, count)
-      capacity = markedAt.length
+      capacity = Math.max(capacity, count)
     },
     /** Opens a pass: what is not re-marked before `finish()` will leave the set. */
     begin() {
-      epoch++
-      nextCount = 0
-      enteredCount = 0
-      exitedCount = 0
+      marked.length = 0
     },
-    /** Marks the ranks of a list. A rank already marked in this pass costs only a read, and a
-     *  record repeated next to itself — the placements of one primitive, rank after rank — not
-     *  even that: marking its rank again would change nothing. */
+    /** Marks the ranks of a list. A record repeated next to itself — the placements of one
+     *  primitive, rank after rank — is marked once: marking its rank again would change nothing. */
     mark(list: readonly Ranked[]) {
       let last: Ranked = UNMARKED
       for (let i = 0; i < list.length; i++) {
@@ -93,22 +68,12 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     markRank,
     /** Closes the pass and returns the delta: what entered, what left. */
     finish(): HostRetentionDelta {
-      for (let i = 0; i < heldCount; i++) {
-        const rank = held[i]
-        if (markedAt[rank] === epoch) continue
-        published[rank] = 0
-        exited[exitedCount++] = rank
-      }
-      const swap = held
-      held = heldNext
-      heldNext = swap
-      heldCount = nextCount
+      difference.apply(marked, marked.length)
       return delta
     },
     /** The already-published set, without walking anything: the image keeps what it kept. */
     hold(): HostRetentionDelta {
-      enteredCount = 0
-      exitedCount = 0
+      difference.hold()
       return delta
     },
   }
