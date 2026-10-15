@@ -23,6 +23,11 @@ export const RADIANCE_BINDINGS = {
   hash: 6,
 } as const
 
+/** The words of the image's hash (`hash`), the one table the shader and the settle's read-back
+ *  (`settle.ts`) read: the lit image's two from `current`, the image before it's from `previous`
+ *  (`radianceRoll`), `count` in all. */
+export const RADIANCE_HASH_WORDS = { current: 0, previous: 2, count: 4 } as const
+
 /**
  * The radiance pyramid: the lit image of the frame, before the temporal resolve, and its filtered
  * levels, which the next image's reflections read over their footprints. Level 0 is the lit image
@@ -63,6 +68,7 @@ export const RADIANCE_BINDINGS = {
  * the same image as when every image hashed.
  */
 const B = RADIANCE_BINDINGS
+const H = RADIANCE_HASH_WORDS
 export const RADIANCE_SHADER = wgslProgram(
   `@group(0) @binding(${B.finer}) var finer:texture_2d<f32>;
 @group(0) @binding(${B.coarser}) var coarser:texture_storage_2d<${HDR_FORMAT},write>;
@@ -72,7 +78,7 @@ export const RADIANCE_SHADER = wgslProgram(
 @group(0) @binding(${B.view}) var<uniform> view:View;
 @group(0) @binding(${B.hash}) var<storage,read_write> hash:array<atomic<u32>>;
 var<workgroup> tile:array<vec4f,${TILE * TILE}>;
-var<workgroup> folded:array<atomic<u32>,4>;
+var<workgroup> folded:array<atomic<u32>,${H.count}>;
 fn tent(k:i32)->f32{return select(1.0,3.0,k==1||k==2);}
 fn radianceTent(q:vec2i,bounds:vec2i)->vec4f{
  let size=vec2f(textureDimensions(finer));
@@ -146,26 +152,26 @@ fn radianceFirst(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) l
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceFirstHashed(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceLevels(lane,wg.xy,lid.xy);
- radianceAdd(0u,radianceFold(finer,vec2i(wg.xy*${REFLECTION_SIDE}u+lid.xy)));
+ radianceAdd(${H.current}u,radianceFold(finer,vec2i(wg.xy*${REFLECTION_SIDE}u+lid.xy)));
  workgroupBarrier();
- radianceFlush(lane,0u);
+ radianceFlush(lane,${H.current}u);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceFirstBoth(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
  radianceLevels(lane,wg.xy,lid.xy);
  let c=vec2i(wg.xy*${REFLECTION_SIDE}u+lid.xy);
- radianceAdd(0u,radianceFold(finer,c));
- radianceAdd(2u,radianceFold(previous,c));
+ radianceAdd(${H.current}u,radianceFold(finer,c));
+ radianceAdd(${H.previous}u,radianceFold(previous,c));
  workgroupBarrier();
- radianceFlush(lane,0u);
- radianceFlush(lane,2u);
+ radianceFlush(lane,${H.current}u);
+ radianceFlush(lane,${H.previous}u);
 }
 @compute @workgroup_size(1)
 fn radianceRoll(){
- atomicStore(&hash[2],atomicLoad(&hash[0]));
- atomicStore(&hash[3],atomicLoad(&hash[1]));
- atomicStore(&hash[0],0u);
- atomicStore(&hash[1],0u);
+ atomicStore(&hash[${H.previous}],atomicLoad(&hash[${H.current}]));
+ atomicStore(&hash[${H.previous + 1}],atomicLoad(&hash[${H.current + 1}]));
+ atomicStore(&hash[${H.current}],0u);
+ atomicStore(&hash[${H.current + 1}],0u);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn radianceDown(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){

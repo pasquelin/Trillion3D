@@ -1,8 +1,9 @@
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
 import { REFLECTION_COUNTS } from './constants.ts'
+import { RADIANCE_HASH_WORDS as H } from './radianceWgsl.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
-const RADIANCE_HASH_BYTES = 16
+const RADIANCE_HASH_BYTES = H.count * 4
 /** Bytes of the trace's word: whether the image sampled a lobe (`traceHalf.ts`). */
 const SAMPLED_BYTES = 4
 /** Bytes of a sample: the hash, then the trace's word. */
@@ -96,9 +97,12 @@ export function createRadianceSettle(device: GPUDevice) {
   const samples = createSampleRing(device, (tag, words) => {
     const hashed = tag % 2 === 1,
       image = (tag - (hashed ? 1 : 0)) / 2
-    if (!hashed || words[0] !== words[2] || words[1] !== words[3]) return
+    const now = H.current,
+      before = H.previous
+    if (!hashed || words[now] !== words[before] || words[now + 1] !== words[before + 1]) return
     equal = Math.max(equal, image)
-    if (words[4] === 0) bare = Math.max(bare, image)
+    // The trace's word follows the hash.
+    if (words[H.count] === 0) bare = Math.max(bare, image)
   })
   return {
     hash,
