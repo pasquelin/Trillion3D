@@ -3,12 +3,10 @@ import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 import { arrayOf, fieldLayout } from '../gpu/core/fieldLayout.ts'
 
-/** A cascade level: `originSpacing.w` the cell's side (its `xyz` read by no shader, left at
- *  zero), `base.xyz` the base cell and `base.w` the cell's inverse side — a bounce point's cell of
- *  the world light grid. */
+/** A cascade level, one vector: its base cell (`base`) and its cell's side (`spacing`). */
 export const BOUNCE_LEVEL = fieldLayout('BounceLevel', [
-  ['originSpacing', 'vec4f'],
-  ['base', 'vec4f'],
+  ['base', 'vec3f'],
+  ['spacing', 'f32'],
 ] as const)
 
 /**
@@ -72,9 +70,8 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
     integers[G.counts + 1] = cascades.levels.length
     cascades.levels.forEach((level, index) => {
       const at = G.levels + index * BOUNCE_LEVEL.words
-      floats[at + L.originSpacing + 3] = level.spacing
       for (let axis = 0; axis < 3; axis++) floats[at + L.base + axis] = level.base[axis]
-      floats[at + L.base + 3] = 1 / level.spacing
+      floats[at + L.spacing] = level.spacing
     })
   }
   upload()

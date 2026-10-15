@@ -123,9 +123,7 @@ export function listsOf(bounce: string) {
       bounce: {
         lists: [0, 0, 0, 0],
         counts: [side, 1, 0, 0],
-        levels: [
-          { base: [corner, corner, corner, 1 / spacing], originSpacing: [0, 0, 0, spacing] },
-        ],
+        levels: [{ base: [corner, corner, corner], spacing }],
       },
       directLights: { count: 1 },
       // The cell's record word itself: the reader's cell, read back below.

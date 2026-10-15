@@ -63,7 +63,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // A sleeping probe — buried in a surface or lost in open sky — fires no ray
  // as long as its cell does not change and no light has moved.
  if(held&&probeAt(probe,PROBE_IDLE).w==f32(bounce.frame.x)){return;}
- let spacing=bounce.levels[level].originSpacing.w;
+ let spacing=bounce.levels[level].spacing;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
  let rotation=hashUnit(rank*9781u+bounce.frame.z)*TWO_PI;

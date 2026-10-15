@@ -16,9 +16,9 @@ export const BOUNCE_LIGHT_LIST_BINDING = 6
  * light that reaches past it (`WORLD_GRID_BOUNDS_WGSL`): no point walks every light for lying out of
  * the lattice. A cascade-less frame, lists not yet listed, or a cell the pool had no room for walks
  * every declared light (`cellSlice`): the same sum, a light its cell does not list reaching no point
- * of it. The cell is the point's offset from the lattice's corner times the cell's inverse side
- * (`base.w`), which the lists' runs are widened past. Every reader of the irradiance walks it so — the bounce passes, the
- * reflections' proxy hits —: one behaviour of the loop.
+ * of it. The cell is the point's offset from the lattice's corner over the cell's side, as the
+ * lists' runs are cut (`lightRun`), which they are widened past. Every reader of the irradiance
+ * walks it so — the bounce passes, the reflections' proxy hits —: one behaviour of the loop.
  *
  * Cost: R · L light reads become R · L_cell, R the probe and reflection hits on owned leaves,
  * L_cell the lights of their cells, for one pass over side²
@@ -33,7 +33,7 @@ fn bounceLightSlice(P:vec3f)->vec2u{
  if(bounce.counts.y==0u||start==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
  let last=bounce.counts.y-1u;
  let side=bounce.counts.x;
- let at=floor((P-bounceLevelLow(last))*bounce.levels[last].base.w);
+ let at=floor((P-bounceLevelLow(last))/bounce.levels[last].spacing);
  let cell=vec3u(clamp(at,vec3f(0.0),vec3f(f32(side-1u))));
  return cellSlice(start+((cell.y*side+cell.x)*side+cell.z)*TILE_STRIDE);
 }`,

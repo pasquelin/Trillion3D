@@ -55,7 +55,7 @@ fn probeAddress(level:u32,wrapped:vec3u)->vec3u{
 fn probeOf(level:u32,cell:vec3i)->vec3u{return probeAddress(level,probeWrap(cell));}
 /** A level's low corner in the world: its base cell times its spacing. */
 fn bounceLevelLow(level:u32)->vec3f{
- return bounce.levels[level].base.xyz*bounce.levels[level].originSpacing.w;
+ return bounce.levels[level].base*bounce.levels[level].spacing;
 }
 /**
  * Where a level reads a surface at \`P\` of normal \`N\`: the point pushed off it by the normal bias
@@ -66,8 +66,8 @@ fn bounceLevelLow(level:u32)->vec3f{
  */
 struct BounceRead{biased:vec3f,local:vec3f,corner:vec3i,holds:bool,}
 fn bounceRead(level:u32,P:vec3f,N:vec3f)->BounceRead{
- let spacing=bounce.levels[level].originSpacing.w;
- let base=vec3i(bounce.levels[level].base.xyz);
+ let spacing=bounce.levels[level].spacing;
+ let base=vec3i(bounce.levels[level].base);
  let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
  let local=biased/spacing-vec3f(0.5);
  let corner=vec3i(floor(local));
@@ -133,7 +133,7 @@ export const probeFieldWgsl = (name: string, level: string, params: string, valu
     `fn ${level}(level:u32,P:vec3f,N:vec3f${params})->vec4f{
  let read=bounceRead(level,P,N);
  if(!read.holds){return vec4f(0.0);}
- let spacing=bounce.levels[level].originSpacing.w;
+ let spacing=bounce.levels[level].spacing;
  let biased=read.biased;
  let corner=read.corner;
  let fraction=clamp(read.local-floor(read.local),vec3f(0.0),vec3f(1.0));

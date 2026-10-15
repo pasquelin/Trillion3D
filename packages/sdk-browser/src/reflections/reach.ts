@@ -89,14 +89,14 @@ fn reflectionFieldSpacing(P:vec3f,N:vec3f)->f32{
  if(bounce.counts.w==0u){return 0.0;}
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
-  if(bounceRead(level,P,N).holds){return bounce.levels[level].originSpacing.w;}
+  if(bounceRead(level,P,N).holds){return bounce.levels[level].spacing;}
  }
  return 0.0;
 }
 fn reflectionSceneReach()->f32{
  if(bounce.counts.w==0u||bounce.counts.y==0u){return REFLECTION_FAR;}
  let last=min(bounce.counts.y,CASCADE_LEVELS)-1u;
- return sqrt(3.0)*f32(bounce.counts.x)*bounce.levels[last].originSpacing.w;
+ return sqrt(3.0)*f32(bounce.counts.x)*bounce.levels[last].spacing;
 }
 fn reflectionProxyReach(P:vec3f,N:vec3f,alpha:f32,tangent:f32,pixel:f32)->f32{
  let far=reflectionSceneReach();
