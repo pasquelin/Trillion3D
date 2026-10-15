@@ -11,9 +11,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
-import { rgbAt } from './rigFrame.ts'
+import { pointOnScreen, rgbAt } from './rigFrame.ts'
 import { exactReflection, SPHERES, sphereFrame } from './sphereFrame.ts'
-import { pointOnScreen } from './rigFrame.ts'
 
 /** The step ε two neighbours may take beyond the analytic one, a share of the sky's radiance over
  *  the floor's: the shipped march gives 0.03 (a pixel's reflected footprint a tap or two wide); a
