@@ -20,6 +20,15 @@ export const visPageIndex = wgslFn(
   `fn visPageIndex(id:u32)->u32{return (id>>${VIS_TRIANGLE_BITS}u)-1u;}`,
 )
 
+/** Whether identifier `id` names a row of a table of `rows`: the one "no page" test. The
+ *  background (0) and every id below a page's first (`visPageIndex` wraps them past any table),
+ *  and a card's pixel (`VIS_CARD_BASE`, past every table a view holds), name none. */
+export const visRowIn = wgslFn(
+  'visRowIn',
+  [visPageIndex],
+  `fn visRowIn(id:u32,rows:u32)->bool{return visPageIndex(id)<rows;}`,
+)
+
 /** The triangle of its page that identifier (or cached word) `id` names, as WGSL: its low bits. */
 export const visTriangle = wgslFn(
   'visTriangle',

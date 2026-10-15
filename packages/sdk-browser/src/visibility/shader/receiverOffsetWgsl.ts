@@ -10,7 +10,7 @@ import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL, PAGE_SCREEN_WGSL } from './pageGeom
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { FLAG_LINE, FLAG_SPRITE } from '../types.ts'
-import { visPageIndex, visTriangle } from '../visWords.ts'
+import { visPageIndex, visRowIn, visTriangle } from '../visWords.ts'
 
 /**
  * THE SHADOW RECEIVER OF A PIXEL: its shading-point offset and its triangle's plane, the
@@ -53,14 +53,14 @@ const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
     SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
     unitOrZero,
     visPageIndex,
+    visRowIn,
     visTriangle,
   ],
   `fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let none=ShadowReceiver(vec3f(0.0),vec3f(0.0));
  let id=textureLoad(vis,vec2i(i32(pixel.x),i32(pixel.y)),0).r;
- if(id==0u){return none;}
+ if(!visRowIn(id,uni.pageCount)){return none;}
  let pageIndex=visPageIndex(id);
- if(pageIndex>=uni.pageCount){return none;}
  let tri=visTriangle(id);
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount||(page.materialClass&${CLASS_FEATURE.HAS_VERTEX_NORMAL}u)==0u||(page.flags&${FLAG_SPRITE | FLAG_LINE}u)!=0u){return none;}
