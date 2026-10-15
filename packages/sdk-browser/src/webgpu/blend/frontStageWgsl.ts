@@ -6,7 +6,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../../reflections/constantsWgsl.ts'
 import { FRONT_OUTPUTS, type FrontOutputs } from '../../reflections/frontLayer.ts'
-import { fragmentMembersWgsl, fragmentZeroWgsl } from '../../gpu/core/fragmentOutputs.ts'
+import { fragmentMembers, fragmentZeros } from '../../gpu/core/fragmentOutputs.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
@@ -53,7 +53,7 @@ const frontStageWgsl = (outputs: FrontOutputs) => {
       REFLECTION_CONSTANTS_WGSL,
       ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [BLEND_LOBELESS_WGSL]),
     ],
-    `struct FrontOut{${fragmentMembersWgsl(written)}}
+    `struct FrontOut{${fragmentMembers(written)}}
 const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};
 /** Whether a blend of item flags \`flags\` is lit by a lit view, of a model that reflects. */
 fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelFlag(flags));}
@@ -62,11 +62,11 @@ fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelF
  let base=blendBase(in,g);
  let covers=blendAlpha(in,base)>=REFLECTION_FRONT_COVERAGE;
  let reflects=${reflects ? 'frontReflects(in.ids.y)' : 'false'};
- if(!blendKeeps(in,base,front)||!lineDash(in.uv.x,in.alphaAo.zw)||!(covers||reflects)){discard;return FrontOut(${fragmentZeroWgsl(written)});}
+ if(!blendKeeps(in,base,front)||!lineDash(in.uv.x,in.alphaAo.zw)||!(covers||reflects)){discard;return FrontOut(${fragmentZeros(written)});}
  let depth=vec4f(select(0.0,in.position.z*FRONT_BEHIND,covers),0.0,0.0,0.0);
 ${
   reflects
-    ? ` if(!reflects){return FrontOut(depth,${fragmentZeroWgsl(written.slice(1))});}
+    ? ` if(!reflects){return FrontOut(depth,${fragmentZeros(written.slice(1))});}
  blendPhysicalBegin(in,g);
  let s=blendSurface(in,front,g,base);
 ${

@@ -11,11 +11,11 @@ export const fragmentTargets = (outputs: readonly FragmentOutput[]): GPUColorTar
   outputs.map(({ format }) => ({ format }))
 
 /** The members of an output struct of `fields`, each at its location in their order. */
-export const fragmentMembersWgsl = (fields: readonly FragmentField[]) =>
+export const fragmentMembers = (fields: readonly FragmentField[]) =>
   fields.map(({ name, wgsl }, at) => `@location(${at}) ${name}:${wgsl},`).join('')
 
 /** The zero of each of `fields`, in their order, as a constructor's arguments. */
-export const fragmentZeroWgsl = (fields: readonly FragmentField[]) =>
+export const fragmentZeros = (fields: readonly FragmentField[]) =>
   fields
     .map(({ wgsl }) => (wgsl === 'u32' ? '0u' : `${wgsl}(0${wgsl.endsWith('u') ? 'u' : '.0'})`))
     .join(',')

@@ -1,4 +1,4 @@
-import { fragmentMembersWgsl, type FragmentField } from '../../gpu/core/fragmentOutputs.ts'
+import { fragmentMembers, type FragmentField } from '../../gpu/core/fragmentOutputs.ts'
 
 /** A measurement-only fragment entry with the same colour outputs and no feedback target. */
 export function feedbackFreeEntry(
@@ -11,7 +11,7 @@ export function feedbackFreeEntry(
 ) {
   const marked = `@fragment fn ${entry}(${parameters}`
   if (!shader.includes(marked)) throw new Error(`FEEDBACK_ENTRY_MISSING:${entry}`)
-  const members = fragmentMembersWgsl(fields)
+  const members = fragmentMembers(fields)
   const values = fields.map(({ name }) => `result.${name}`).join(',')
   const plain = parameters.replace(/@builtin\([^)]*\)\s*/g, '')
   const source = shader

@@ -5,17 +5,17 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
 import { waterSurfaceOutputs } from './surfaceTargets.ts'
-import { fragmentMembersWgsl, fragmentZeroWgsl } from '../../gpu/core/fragmentOutputs.ts'
+import { fragmentMembers, fragmentZeros } from '../../gpu/core/fragmentOutputs.ts'
 
 /** One entry of the stage: `fsWater`, or with `lobed` `fsWaterLobed`, which reads the item's
  *  record before its material (`blendPhysicalBegin`) and stores the fragment's lobes. */
 function waterEntry(lobed: boolean) {
   const name = lobed ? 'WaterLobed' : 'Water',
     fields = waterSurfaceOutputs(true, lobed)
-  return `struct ${name}Out{${fragmentMembersWgsl(fields)}}
+  return `struct ${name}Out{${fragmentMembers(fields)}}
 @fragment fn fs${name}(in:VSOut,@builtin(front_facing) front:bool)->${name}Out{
  let g=blendGrads(in);let base=blendBase(in,g);
- if(!blendKeeps(in,base,front)){discard;return ${name}Out(${fragmentZeroWgsl(fields)});}
+ if(!blendKeeps(in,base,front)){discard;return ${name}Out(${fragmentZeros(fields)});}
  ${lobed ? 'blendPhysicalBegin(in,g);' : ''}
  let s=blendSurface(in,front,g,base);
  return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'blendLobedTexel(in,front,g,s).texel,' : ''}s.request);
