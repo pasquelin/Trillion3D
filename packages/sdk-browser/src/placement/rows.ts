@@ -16,7 +16,7 @@
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
-import { carryCellsMoved } from '../partition/rowCells.ts'
+import type { ChangedRuns } from '../webgpu/residency/ranges.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 
@@ -41,6 +41,9 @@ export type PlacementRows = {
   /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
    *  among the cell's nodes; a column of its own, absent until a cell places one. */
   cells?: ({ cell: number; node: number } | undefined)[]
+  /** The rows whose cell moved since a backend last linked them to the world object they draw
+   *  (`../partition/rowCells.ts`, `takeCellsMoved`): one changed list, kept by a growth. */
+  cellsMoved?: ChangedRuns
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -64,7 +67,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.live.set(before.live)
     rows.shadowless.set(before.shadowless)
     rows.cells = before.cells?.slice()
-    carryCellsMoved(before, rows)
+    rows.cellsMoved = before.cellsMoved
   }
   return rows
 }
