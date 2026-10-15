@@ -14,7 +14,7 @@ import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
  * in a sharp highlight), 9 % off at worst. The cross product keeps the sine whole
  * (\`standardLighting.test.ts\`).
  */
-const GGX_DISTRIBUTION_WGSL = wgslBlock(
+export const GGX_DISTRIBUTION_WGSL = wgslBlock(
   'GGX_DISTRIBUTION_WGSL',
   [PI],
   `

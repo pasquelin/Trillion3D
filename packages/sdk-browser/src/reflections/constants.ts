@@ -34,8 +34,8 @@ export const REFLECTION_CONSTANTS = {
   REFLECTION_FAR: 2 ** 23,
   /** The same-surface test's normals (`reflectionSameSurface`): two normals within this angle's cosine
    *  are one surface, whole. A normal map tilts a pixel's normal from its neighbours' by up to about
-   *  20° on a bumpy road: a test that weighed it down (a power of N·Nₜ) let one texel of four answer
-   *  the pixel, and showed the half grid's blocks. Cos 25°. */
+   *  20° on a bumpy road: a test that weighed it down (a power of N·Nₜ) would let one neighbour of
+   *  several answer a pixel, and show blocks. Cos 25°. */
   REFLECTION_CREASE_NEAR: Math.cos(25 * DEG2RAD),
   /** The same-surface test's crease: normals this far apart and more (cos 50°) are two surfaces — a
    *  modelled body's edge is 45° or more —, the weight falling smoothly from `REFLECTION_CREASE_NEAR`. */
@@ -51,12 +51,6 @@ export const REFLECTION_CONSTANTS = {
    *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
    *  distance — shows no seam between the two sources. */
   REFLECTION_REACH_FADE: 3 / 4,
-  /** How far apart, in a perceptual space (c / (1 + c) a channel), the half grid's texels of a pixel's
-   *  surface may answer before the pixel traces its own sample (`upsampleWgsl.ts`): 1/32, eight steps of
-   *  an 8-bit channel in that space. Past it the four texels hold a reflected edge, which their bilinear
-   *  mean would spread over two more pixels; under it their mean differs from the pixel's own answer by
-   *  less than the step the half grid's spread can show. */
-  REFLECTION_EDGE_CONTRAST: 1 / 32,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair
@@ -78,9 +72,12 @@ export const REFLECTION_COUNTS = {
    *  for its mean to fall within a quarter of the lobe's radiance where a bright body fills a tenth of
    *  it. Six bits of the history's word (its count less one). */
   REFLECTION_STILL: TAA_STILL_DRAWS,
-  /** The widest spatial reuse, in half texels (`spatialWgsl.ts`): two bits of the fresh texel's word. */
-  REFLECTION_REUSE_RADIUS: 3,
-  /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius. */
+  /** The widest spatial reuse, in pixels (`spatialWgsl.ts`): the lobe's own reach bounds it below
+   *  this, which a ray that met the far scene through a wide lobe reaches. */
+  REFLECTION_REUSE_RADIUS: 8,
+  /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius: with
+   *  the pixel's own ray and a history of `REFLECTION_HISTORY` images, about a hundred samples of a lobe
+   *  while anything changes. */
   REFLECTION_REUSE_TAPS: 8,
   /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`): the march's own
    *  bound grows with the screen distance, to 1091 at 1080p, while a mirror ray of floors and waves

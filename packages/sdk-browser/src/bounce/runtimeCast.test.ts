@@ -1,11 +1,11 @@
 // The run-time proxy's rays, the shipped WGSL run as JavaScript: they bind nothing writable, and a scene
 // with no placement wearing a proxy casts nothing; the reflections' trace casts one a lobe, every image
-// (`../reflections/traceHalf.ts`).
+// (`../reflections/trace.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BINDINGS, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
-import { REFLECTION_TRACE_SHADER } from '../reflections/traceHalf.ts'
+import { REFLECTION_TRACE_SHADER } from '../reflections/trace.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 

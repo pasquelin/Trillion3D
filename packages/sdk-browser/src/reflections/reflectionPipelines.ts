@@ -14,8 +14,8 @@ import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
-import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
-import { createTraceStages } from './halfEncode.ts'
+import { REFLECTION_TRACE_SHADER } from './trace.ts'
+import { createTraceStages } from './traceEncode.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
@@ -49,7 +49,7 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   })
 })
 
-/** The reflection's kernels — the trace and the upsample of both surfaces, the radiance pyramid's —
+/** The reflection's kernels — the trace, reuse and accumulation of both surfaces, the radiance pyramid's —
  *  compiled once a device under one validation scope. */
 export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
   validated(device, async () => {

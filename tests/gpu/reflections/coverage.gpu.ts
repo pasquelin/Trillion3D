@@ -1,5 +1,5 @@
 // A display's image is traced whole: all-mirror images at 3840 × 2160, 3440 × 1440 and 2880 × 1800,
-// every pixel of each written over a not-a-number by the half grid's trace and its upsample
+// every pixel of each written over a not-a-number by the trace, a pixel a ray, and its accumulation
 // (`coveragePage.ts`).
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/coverage.gpu.ts

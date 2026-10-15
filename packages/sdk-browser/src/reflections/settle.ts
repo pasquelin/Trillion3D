@@ -4,7 +4,7 @@ import { RADIANCE_HASH_WORDS as H } from './radianceWgsl.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 const RADIANCE_HASH_BYTES = H.count * 4
-/** Bytes of the trace's word: whether the image sampled a lobe (`traceHalf.ts`). */
+/** Bytes of the trace's word: whether the image sampled a lobe (`trace.ts`). */
 const SAMPLED_BYTES = 4
 /** Bytes of a sample: the hash, then the trace's word. */
 const SAMPLE_BYTES = RADIANCE_HASH_BYTES + SAMPLED_BYTES
@@ -106,7 +106,7 @@ export function createRadianceSettle(device: GPUDevice) {
   })
   return {
     hash,
-    /** The trace's word: set where the image sampled a lobe (`traceHalf.ts`). */
+    /** The trace's word: set where the image sampled a lobe (`trace.ts`). */
     sampled,
     /** An image is staged: while samples are taken, its trace's word cleared before its commands. */
     stage() {

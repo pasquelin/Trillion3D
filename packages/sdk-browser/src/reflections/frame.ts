@@ -7,7 +7,7 @@ import type { EngineCamera } from '../camera/engineCamera.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
-import { encodeReflectionTrace } from './halfEncode.ts'
+import { encodeReflectionTrace } from './traceEncode.ts'
 import {
   environmentCurve,
   environmentExposure,
@@ -61,8 +61,8 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
 }
 
 /**
- * The image's reflections, before its lighting: the view uniform, then one compute pass — the trace
- * of both surfaces' half grids and their upsample (`traceHalf.ts`) into the reflection target the
+ * The image's reflections, before its lighting: the view uniform, then one compute pass — both
+ * surfaces' rays, traced a pixel each, reused and accumulated (`trace.ts`) into the reflection target the
  * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
  * read from the bounce cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace

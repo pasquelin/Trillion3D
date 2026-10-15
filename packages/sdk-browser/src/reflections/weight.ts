@@ -29,8 +29,8 @@ export const REFLECTED_WGSL = wgslStruct(
  * `Reflected` is what its lobes reflect, the radiance of each: the base lobe's and, where the surface
  * carries a clear coat, the coat's. `reflectionShare` is that radiance weighed on a reflectance, the
  * base let through the coat as every other term is (`lobeThrough`), and the coat's added. A program
- * without lobes has no coat and a round lobe. The reflections' upsample weighs each full-resolution
- * pixel here, on its own reflectance (`upsampleWgsl.ts`).
+ * without lobes has no coat and a round lobe. The reflections' accumulation weighs each pixel here,
+ * on its own reflectance (`temporalWgsl.ts`).
  */
 export const reflectionWeighWgsl = (lobes: boolean) =>
   wgslBlock(
@@ -58,7 +58,8 @@ ${
  * `setLobes` left — its direction and αt where the material is anisotropic, a round lobe elsewhere),
  * and, where the surface carries a clear coat, the coat's own dielectric lobe on its normal and
  * roughness, only where the coat is above zero; the reflection's hit is the nearer of its lobes'
- * (`reflectionHit`, `REFLECTION_FAR` where none traced). Each lobe is one `reflectionLobeRadiance`.
+ * (`reflectionHit`, `REFLECTION_FAR` where none traced), its direction the base lobe's (`reflectionRay`).
+ * Each lobe is one `reflectionLobeRadiance`.
  * With `scene`, the proxy's bindings — the reflections' trace alone —, the chain holds the proxy's
  * stage (`reflectedRadianceWgsl`) and every lobe is sampled by `u` (`sampleWgsl.ts`); without, every
  * lobe is read along its centre, `u` unread, and
@@ -83,9 +84,11 @@ fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
  var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
   let hit=reflectionHit;
+  let ray=reflectionRay;
   let alpha=lobeAlpha(lobes.coatRough);
   traced.coat=reflectionLobeRadiance(P,lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
   reflectionHit=min(hit,reflectionHit);
+  reflectionRay=ray;
  }
  return traced;
 }`
@@ -106,7 +109,7 @@ const FRONT_DEPTH_MATCH = 8 * depthLayerUnits(TRANSPARENT_DEPTH_LAYER) * 2 ** -2
  * bind group `group` and the front's traced radiance at binding `traced` of group 0
  * (`frontLayer.ts`). `forwardTrace` is what a fragment's lobes reflect: where it is the front surface
  * of its pixel — its depth the front pass's there, in an image whose trace answered the front —, the
- * radiance the trace's upsample wrote for that pixel, one load; anywhere else — a surface behind the front, an image whose trace
+ * radiance the trace's accumulation wrote for that pixel, one load; anywhere else — a surface behind the front, an image whose trace
  * did not answer it —, the chain without the proxy's stage (`reflectionTrace`): the screen, the probes
  * and the environment, never a ray of the proxy. `surfaceReflection` is the blend's, weighed on the
  * reflectance `f0` as the opaque trace's is; the water traces once (`forwardTrace`) and weighs the one
@@ -146,7 +149,7 @@ export const REFLECTION_TARGET = loadOnlyTarget(
   'reflectionTarget',
 )
 
-/** The opaque resolve's reflection: the share the compute pass upsampled for its pixel, weighed and
+/** The opaque resolve's reflection: the share the compute pass accumulated for its pixel, weighed and
  *  coated there (`reflectionShare`), added as it is. */
 export const resolvedReflectionWgsl = wgslBlock(
   'resolvedReflectionWgsl',

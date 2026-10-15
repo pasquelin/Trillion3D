@@ -2,12 +2,12 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { LOBES_DECODE_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
-import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
+import { REFLECTION_TRACE_BINDINGS as B } from './traceBindings.ts'
 import { REFLECTION_GROUP, reflectionFrontWgsl } from './viewLayout.ts'
 
 /**
- * THE SURFACE THE REFLECTIONS READ, one reading for every kernel (`traceHalf.ts`): a group binds one of
- * each pixel's two surfaces (`halfEncode.ts`) — the opaque one's targets, or the transparents' front
+ * THE SURFACE THE REFLECTIONS READ, one reading for every kernel (`trace.ts`): a group binds one of
+ * each pixel's two surfaces (`traceEncode.ts`) — the opaque one's targets, or the transparents' front
  * one's (`frontLayer.ts`) — and its flags, normal and roughness and lobes are read from it alike. Only
  * the depth differs: `layer` 0 is the opaque one the Hi-Z holds, 1 the front pass's own; every kernel
  * passes its layer as a constant. `reflectingPixelAt`: the surface `layer` at pixel `coord` as every

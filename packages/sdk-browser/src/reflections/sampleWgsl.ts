@@ -39,7 +39,7 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  *
  * - DIRECTION: the half-vector drawn by D(h)·(n·h) — the unit GGX slopes, r = √(u/(1 − u)) at the angle
  *   2πv, stretched by the lobe's widths along its axis and across (`reflectionSampleDirection`) —, the ray
- *   its mirror about it; one under the surface takes the centre. The split-sum weight the upsample applies
+ *   its mirror about it; one under the surface takes the centre. The split-sum weight the accumulation applies
  *   assumes this very distribution of directions.
  * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
  *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a

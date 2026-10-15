@@ -25,7 +25,7 @@ import {
   hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
-import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/halfEncode.ts'
+import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
 import { standaloneHiz } from '../kit/standaloneHiz.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'

@@ -3,8 +3,8 @@ import { maxChannel } from '../../../math/src/wgsl/sampling.ts'
 
 /**
  * The front layer's codec (`FRONT_TRACED_FORMAT`, `frontLayer.ts`): a radiance on a shared exponent,
- * nine bits a channel (rgb9e5), a colour in one word. One home: the reflections' upsample packs
- * (`upsampleWgsl.ts`), the forward fragments unpack (`forwardTrace`).
+ * nine bits a channel (rgb9e5), a colour in one word. One home: the reflections' accumulation packs
+ * (`temporalWgsl.ts`), the forward fragments unpack (`forwardTrace`).
  */
 export const FRONT_PACK_WGSL = wgslBlock(
   'FRONT_PACK_WGSL',

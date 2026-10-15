@@ -1,7 +1,7 @@
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
  * `R` is one function, `reflectedRadianceAlong`, every program shares — the opaque surfaces in one
- * compute pass (`traceHalf.ts`), the transparents' front surface in the same pass (`frontLayer.ts`), the
+ * compute pass (`trace.ts`), the transparents' front surface in the same pass (`frontLayer.ts`), the
  * blended surfaces and the water behind it inline in their fragment stage (`weight.ts`) — and it reads
  * what the view holds: its depth, the previous lit image of the same view, the resident proxy and the
  * bounce probes, and the environment. It is one chain of
@@ -11,7 +11,7 @@
  *
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
  * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees — in the
- *   trace alone, one ray a lobe of a half-resolution texel: a program without the proxy (`scene`
+ *   trace alone, one ray a lobe of a reflecting pixel: a program without the proxy (`scene`
  *   absent, a transparent fragment behind the front surface) has no such stage, and its share goes on;
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
  *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
@@ -108,7 +108,8 @@ const reflectionSeenWgsl = (group: number) =>
  * α along it (`w`; `alpha` on a round lobe): the material's anisotropic GGX parameters
  * (`reflectionLobeOf`). It leaves in `reflectionHit` the distance of what answered the larger share
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
- * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`).
+ * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`); and in
+ * `reflectionRay` the direction it traced, which the reuse weighs the ray by.
  * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
  * `width` is the α of the lobe the ray stands for — its own, or the whole lobe a thin sample of it is
  * drawn from (`sampleWgsl.ts`) —: how far the proxy's ray goes before the field holds that lobe
@@ -128,6 +129,7 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       LOBE_AXIS_WGSL,
     ],
     `var<private> reflectionHit:f32;
+var<private> reflectionRay:vec3f;
 /** One stage of the chain: its answer's share of what is left added, \`reflectionHit\` its distance
  *  where it takes the larger share, what is left reduced. */
 fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<function,f32>){
@@ -140,6 +142,7 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,w
  var radiance=vec3f(0.0);
  var rest=1.0;
  reflectionHit=REFLECTION_FAR;
+ reflectionRay=R;
  let pixel=reflectionPixelAt(P);
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
   reflectionTake(reflectionSeen(P,N,ellipse,pixel),&radiance,&rest);

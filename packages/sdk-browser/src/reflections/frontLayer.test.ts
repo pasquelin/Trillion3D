@@ -1,5 +1,5 @@
 // The transparents' front layer (`frontLayer.ts`), the shipped WGSL run as JavaScript: a forward fragment
-// reads the radiance the trace's upsample wrote where it is the front surface of this image, one load, and
+// reads the radiance the trace's accumulation wrote where it is the front surface of this image, one load, and
 // the chain without the proxy anywhere else — no program but the trace casts a ray of the proxy.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -7,12 +7,12 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { TRACE_SCENE_BINDINGS } from './halfBindings.ts'
-import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
+import { TRACE_SCENE_BINDINGS } from './traceBindings.ts'
+import { REFLECTION_TRACE_SHADER } from './trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
-/** The upsample's packer of a front texel's word (`frontPack`). */
+/** The accumulation's packer of a front texel's word (`frontPack`). */
 const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
   wgslModule(FRONT_PACK_WGSL),
   ['frontPack'],
@@ -70,15 +70,15 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
   for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectedRadianceWgsl(1, TRACE_SCENE_BINDINGS)), /\breflectionProxied\b/)
-  // The front surface is traced, accumulated and upsampled as the opaque one, by the same kernels on
-  // its own layer (the pipeline's, `createTraceStages`), and the upsample writes its radiance where the
-  // forward fragments read it.
+  // The front surface is traced, reused and accumulated as the opaque one, a pixel a thread, by the same
+  // kernels on its own layer (the pipeline's, `createTraceStages`), and its accumulation writes its
+  // radiance where the forward fragments read it.
   for (const kernel of [
     'override REFLECTION_LAYER:u32;',
-    'let fresh=traceTexel(id.xy,REFLECTION_LAYER);',
-    'textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),REFLECTION_LAYER));',
-    'reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags))',
+    'let fresh=traceTexel(vec2i(id.xy),REFLECTION_LAYER);',
+    'textureStore(spatialOut,id.xy,spatialTexel(vec2i(id.xy),REFLECTION_LAYER));',
+    'let p=temporalPixel(id.xy,1u);',
   ])
     assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
-  assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))
+  assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,p.coord,'))
 })
