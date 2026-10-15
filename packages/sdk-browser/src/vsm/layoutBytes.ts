@@ -53,11 +53,9 @@ type VsmSetBuffer =
   | 'stats'
   | 'feedback'
   | 'pagesToClear'
-  | 'pagesToMerge'
   | 'pagesForTiles'
   | 'tileDepths'
   | 'clearArgs'
-  | 'mergeArgs'
   | 'tileArgs'
   | 'freePages'
 
@@ -69,11 +67,9 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     stats: VSM_COUNTERS * 4,
     feedback: 16,
     pagesToClear: (2 * maxPages + 1) * 4,
-    pagesToMerge: (2 * maxPages + 1) * 4,
     pagesForTiles: (2 * maxPages + 1) * 4,
     tileDepths: maxPages * VSM_TILE_DEPTHS_PER_PAGE * 4,
     clearArgs: 16,
-    mergeArgs: 2 * 16,
     tileArgs: 2 * 16,
     // The pool sort's words, the free pages' count and the pages, then the sort's scratch, the
     // whole pool a burst (`freePages`).

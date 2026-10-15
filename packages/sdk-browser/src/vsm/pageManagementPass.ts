@@ -46,8 +46,8 @@ export interface VsmPageManagementFrame {
 export const SLOT_MAIN = 0
 export const SLOT_ADDRESSES = 1
 const SLOT_COUNT = 2
-/** Cleared indirect arguments: three 4-word sets. */
-const ARGS_INIT_BYTES = 48
+/** Cleared indirect arguments: one 4-word set (16, 0, 1, 0). */
+const ARGS_INIT_BYTES = 16
 
 type Kernels = ReturnType<typeof vsmPhysicalPageKernels> &
   ReturnType<typeof vsmPageManagementKernels>
@@ -158,14 +158,13 @@ export function vsmPageManagementContext(
     layout: paramsLayout,
     entries: sequentialEntries([{ buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES }]),
   })
-  // Cleared indirect args: initialize and tile depths (16, 0, 1, 0); post-process merge (16, 0, 1, 0)
-  // + filter set (0, 1, 1, 0).
+  // Cleared indirect args: the clears and the tile depths (16, 0, 1, 0).
   const argsInit = device.createBuffer({
     label: 'vsm.pm.argsInit',
     size: ARGS_INIT_BYTES,
     usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(argsInit, 0, new Uint32Array([16, 0, 1, 0, 16, 0, 1, 0, 0, 1, 1, 0]))
+  device.queue.writeBuffer(argsInit, 0, new Uint32Array([16, 0, 1, 0]))
 
   const pipes = {} as Record<KernelName, Pipe>
   for (const [name, made] of Object.entries(vsmPageManagementPipes(device, res.layout, stats)))

@@ -163,8 +163,8 @@ export function encodeVsmPageMapping(
   pass.end()
 }
 
-/** After the render: fold dirty flags, merge static into dynamic; then, where slice 0 changed,
- *  the pages' tile depths the sun's rays test (their selection and dispatch). */
+/** After the render: fold dirty flags; then, where slice 0 changed, the pages' tile depths the
+ *  rays' miss proof reads (their selection and dispatch). */
 export function encodeVsmAfterRaster(
   encoder: GPUCommandEncoder,
   res: VsmResources,
@@ -172,14 +172,10 @@ export function encodeVsmAfterRaster(
 ) {
   if (frame.mapCount === 0) return
   const ctx = vsmPageManagementContext(res, frame)
-  // The indirect dispatch args: merge set in (16, pages, 1) form, filter set (0, 1, 1).
-  encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.tileArgs, 0, 16)
   const pass = encoder.beginComputePass({ label: `${VSM_PASS_PREFIX}afterRaster` })
   run(ctx, res, pass, 'foldRasterMarks', SLOT_MAIN)
-  bind(ctx, res, pass, 'mergeStatic', SLOT_MAIN)
-  pass.dispatchWorkgroupsIndirect(res.mergeArgs, 0)
   bind(ctx, res, pass, 'tileDepthsBuild', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.tileArgs, 0)
   pass.end()

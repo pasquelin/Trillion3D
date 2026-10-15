@@ -4,7 +4,8 @@
  * 16384-wide viewport without a 16384² attachment, so the vertex shader maps the pair's virtual
  * page onto the whole viewport (the same pixel centres as a virtual raster: page offsets are whole
  * pixels) and the fragment adds the physical page origin (flat varying) before the 32-bit
- * `atomicMax` into `pool[physical texel, slice]`. A triangle over four pages is drawn four times,
+ * `atomicMax` into `pool[physical texel, slice]` — a static caster's into slice 0 as well. A
+ * triangle over four pages is drawn four times,
  * once per pair. The page clip (clip distances to the uncached rect) is the pair's page itself.
  *
  * One non-indexed `drawIndirect` per chunk (vertex pulling): `vertex_index` is the corner of the
@@ -170,7 +171,12 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  if(onEmitter||(in.masked!=0u&&!maskKeep(pages[in.row],in.uv,1.0,gx,gy))){discard;}
  let physical=vec2u(in.dest.x&0x3FFu,(in.dest.x>>10u)&0x3FFu);
  let texel=physical*VSM_PAGE_TEXELS+min(vec2u(in.position.xy),vec2u(VSM_PAGE_TEXEL_MASK));
- vsmPoolAtomicMax(texel,in.dest.y,bitcast<u32>(clamp(in.position.z,0.0,1.0)));
+ let depth=bitcast<u32>(clamp(in.position.z,0.0,1.0));
+ vsmPoolAtomicMax(texel,in.dest.y,depth);
+ // A static caster draws a page whose static layer is drawn again this frame, whose dynamic layer
+ // (slice 0, what every reader samples) was cleared with it: it joins slice 0 too, which holds
+ // then both layers once the dynamic casters drew theirs — no merge after the raster.
+ if(in.dest.y!=0u){vsmPoolAtomicMax(texel,0u,depth);}
 }
 `,
     [

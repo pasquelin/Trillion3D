@@ -78,11 +78,9 @@ export interface VsmResources {
   perPageIds: GPUBuffer
   /** 2·poolPages + 1 words per list. */
   pagesToClear: GPUBuffer
-  pagesToMerge: GPUBuffer
   pagesForTiles: GPUBuffer
   /** Indirect dispatch args: 1D, post-process 2×(x,y,z,count), tile depths 2×4. */
   clearArgs: GPUBuffer
-  mergeArgs: GPUBuffer
   tileArgs: GPUBuffer
   /** The pool sort's `POOL_SORT_WORDS` counts and places, zero at creation, then the count of
    *  free pages and the pages, the next one to take last (`freePagesWgsl.ts`). */
@@ -202,11 +200,9 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     feedback: buffer('feedback', once.feedback),
     perPageIds,
     pagesToClear: buffer('pagesToClear', once.pagesToClear),
-    pagesToMerge: buffer('pagesToMerge', once.pagesToMerge),
     pagesForTiles: buffer('pagesForTiles', once.pagesForTiles),
     tileDepths: buffer('tileDepths', once.tileDepths),
     clearArgs: buffer('clearArgs', once.clearArgs, indirect),
-    mergeArgs: buffer('mergeArgs', once.mergeArgs, indirect),
     tileArgs: buffer('tileArgs', once.tileArgs, indirect),
     freePages: buffer('freePages', once.freePages),
     prevFrameKept: false,
@@ -303,11 +299,9 @@ type VsmBindingResource =
   | 'feedback'
   | 'perPageIds'
   | 'pagesToClear'
-  | 'pagesToMerge'
   | 'pagesForTiles'
   | 'tileDepths'
   | 'clearArgs'
-  | 'mergeArgs'
   | 'tileArgs'
 
 export interface VsmBindingSpec {
@@ -345,11 +339,9 @@ const U32_TABLES = new Set<VsmBindingResource>([
   'feedback',
   'perPageIds',
   'pagesToClear',
-  'pagesToMerge',
   'pagesForTiles',
   'tileDepths',
   'clearArgs',
-  'mergeArgs',
   'tileArgs',
 ])
 
