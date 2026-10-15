@@ -5,7 +5,7 @@ import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } f
 import { createTransferQueue } from './queueRanges.ts'
 import { createReadFailures } from './failures.ts'
 import { retriableError } from '../cluster/checked.ts'
-import { createStreamingCache } from './cache.ts'
+import { cacheStats, createStreamingCache } from './cache.ts'
 import { asIndices } from './indexView.ts'
 import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
 import { createReadWatch } from './readWatch.ts'
@@ -151,7 +151,6 @@ export function createPageStreamer(
      *  settles once every read and `onPage` has, rejecting with the first failure in `urls` order. */
     async request(urls: readonly string[], options: BatchRead) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))]
-      state.requested += unique.length
       emit?.('page-request-batch', 'Batched page request received', () => ({
         version: 1,
         requested: urls.length,
@@ -159,7 +158,7 @@ export function createPageStreamer(
       }))
       const { signal, priority, onPage } = options
       const landed = await Promise.allSettled(
-        unique.map((url) => read(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
+        unique.map((url) => readBytes(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
       )
       for (const page of landed) if (page.status === 'rejected') throw page.reason
     },
@@ -173,9 +172,7 @@ export function createPageStreamer(
         loading: state.active,
         queued: queue.size,
         transferInFlightBytes: state.activeBytes,
-        resident: store.pageCount,
-        residentBytes: store.bytes,
-        maxCachedBytes: store.budgetBytes,
+        ...cacheStats(store),
         /** CPU bytes held (manifest tables, transfers, the engine's tables, the cache's entries). */
         cpuBytes: state.tableBytes + state.activeBytes + state.engineBytes + store.bytes,
         cpuBudgetBytes: store.cpuBytes,

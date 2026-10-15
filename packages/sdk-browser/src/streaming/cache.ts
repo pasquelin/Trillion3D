@@ -2,6 +2,14 @@ import type { StreamContext } from './types.ts'
 import type { PageCache } from './pageCache.ts'
 import { createStreamingPins } from './streamingPins.ts'
 
+/** What the cache holds, as every diagnostic and the streamer's stats say it: its pages, their
+ *  bytes, and its budget. */
+export const cacheStats = (store: PageCache) => ({
+  resident: store.pageCount,
+  residentBytes: store.bytes,
+  maxCachedBytes: store.budgetBytes,
+})
+
 /** A session's side of the page cache: its reserve and its holds. Its reserve — its manifest
  *  tables, its transfer queue and the engine's host tables, beside its pages — is told the cache
  *  each time it moves; the cache evicts (`PageCache.fit`), and tells the session each page that
@@ -23,9 +31,7 @@ export function createStreamingCache(context: StreamContext) {
       url,
       reason: 'capacity',
       drawDetached: false,
-      resident: store.pageCount,
-      residentBytes: store.bytes,
-      maxCachedBytes: store.budgetBytes,
+      ...cacheStats(store),
     }))
     onEvict?.(url)
   }
@@ -33,9 +39,7 @@ export function createStreamingCache(context: StreamContext) {
     state.admissionBlocked++
     emit?.('page-cache-admission-blocked', 'No evictable page to meet the budget', () => ({
       version: 1,
-      resident: store.pageCount,
-      residentBytes: store.bytes,
-      maxCachedBytes: store.budgetBytes,
+      ...cacheStats(store),
       pinned: pinned.size,
       loading: state.active,
     }))
