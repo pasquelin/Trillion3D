@@ -33,7 +33,7 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
   const base = blockCount * WORK_BLOCK_WORDS,
     viewWords = base + FRAME_COUNTERS,
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS,
-    lastUse = drawnGroupsMax + 13,
+    lastUse = drawnGroupsMax + 15,
     raised = lastUse + groupCount,
     poolSort = raised + 1 + RAISED_PER_GROUP * groupCount
   return {
@@ -52,7 +52,7 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
     /** The word behind the camera's per-view rows (`VIEW_WORD_ROWS`, one word each). */
     drawnGroupsMax,
     /** The two kept lists' group counts, then the journal a swap writes back's, then the three
-     *  descent queues', x and y each (`armWgsl.ts`). */
+     *  descent queues', then the pool sort's, x and y each (`armWgsl.ts`). */
     listGroups: drawnGroupsMax + 1,
     /** Each key group's last use, the frame it was last used in (`lastUseWgsl.ts`): kept from one
      *  cut to the next, atomic, so a group raised by many threads is walked up by one. */

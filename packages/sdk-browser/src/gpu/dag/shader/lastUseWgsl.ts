@@ -33,12 +33,19 @@ export const DAG_LAST_USE_WGSL = wgslBlock(
   'DAG_LAST_USE_WGSL',
   [ceilDivWgsl, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL],
   `/** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2), then
- *  the descent queues' (3 to 5, \`queueGroups\`): what the arming kernel copies (\`armWgsl.ts\`). */
+ *  the descent queues' (3 to 5, \`queueGroups\`), then the pool sort's (6, \`poolGroups\`): what the
+ *  arming kernel copies (\`armWgsl.ts\`). */
 fn listGroups(l:u32)->u32{return drawnGroupsMax()+1u+2u*l;}
+/** THE ONE COUNT TO DISPATCH ARGUMENT: \`groups\` workgroups in rows (\`groupGrid\`), x then y at
+ *  \`work[at]\`, as the arming kernel copies them (\`armWgsl.ts\`); none for zero. */
+fn armGroups(at:u32,groups:u32){let g=groupGrid(groups);atomicStore(&work[at],g.x);atomicStore(&work[at+1u],g.y);}
 /** The groups of a list of \`n\`, at least one, written for \`listGroups(l)\`. */
-fn armList(l:u32,n:u32){let g=groupGrid(ceilDiv(max(n,1u),WORKGROUP_THREADS));atomicStore(&work[listGroups(l)],g.x);atomicStore(&work[listGroups(l)+1u],g.y);}
+fn armList(l:u32,n:u32){armGroups(listGroups(l),ceilDiv(max(n,1u),WORKGROUP_THREADS));}
+/** The drawn log's count made \`count\`, its groups armed for it (\`dagCommitMask\`,
+ *  \`dagRestoreJournal\`). */
+fn setDrawn(count:u32){atomicStore(&work[drawnCounter()],count);armGroups(drawnGroups(),ceilDiv(count,WORKGROUP_THREADS));}
 /** Group \`g\`'s last use, behind the lists' group counts. */
-fn lastUseAt(g:u32)->u32{return listGroups(6u)+g;}
+fn lastUseAt(g:u32)->u32{return listGroups(7u)+g;}
 /** The groups this cut raised: their count, then the groups. */
 fn raisedBase()->u32{return lastUseAt(views[0u].groupCount);}
 fn raisedCap()->u32{return ${RAISED_PER_GROUP}u*views[0u].groupCount;}

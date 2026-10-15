@@ -4,16 +4,17 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 export const DAG_ARM_BINDING = { work: 10, args: 11 } as const
 
 /**
- * The cut's indirect dispatch arguments, armed inside its pass. Nine lists have no bound the layout
+ * The cut's indirect dispatch arguments, armed inside its pass. Ten lists have no bound the layout
  * knows — the previous frame's drawn journal, the candidates, the live clusters, the two lists the
- * readout keeps (`differenceWgsl.ts`), the journal a swap writes back (`swapWgsl.ts`) and the three
- * descent queues (`levelWgsl.ts`) —, and the kernels that fill or count them write each list's
- * group count, x and y, in `work`. A kernel that
+ * readout keeps (`differenceWgsl.ts`), the journal a swap writes back (`swapWgsl.ts`), the three
+ * descent queues (`levelWgsl.ts`) and the pool's list the eviction sorts (`evictWgsl.ts`,
+ * `armPoolSort`) —, and the kernels that fill or count them write each list's group count, x and
+ * y, in `work` (`armGroups`, `openSlice`). A kernel that
  * dispatches over a list reads its argument from `args`, a buffer the selection's group does not
  * bind: an indirect dispatch may not read a buffer the groups its pipeline uses bind writable, and
  * only this kernel's own group binds `args`, writable.
  *
- * Each run copies the six counts, one record each, `[x, y, 1]`: a record is read by the dispatch
+ * Each run copies the ten counts, one record each, `[x, y, 1]`: a record is read by the dispatch
  * that follows the run after its list was filled, and a record copied before its list is complete
  * is copied again before anything reads it. z has been one since the buffer was made. The drawn
  * journal holds one workgroup at least, as the lists armed by count do (`armList`): their first
@@ -35,12 +36,12 @@ override DRAWN_GROUPS:u32;
 override CAND_GROUPS:u32;
 override LIVE_GROUPS:u32;
 override LIST_GROUPS:u32;
-@compute @workgroup_size(9) fn dagArm(@builtin(local_invocation_index) list:u32){
+@compute @workgroup_size(10) fn dagArm(@builtin(local_invocation_index) list:u32){
  var at=DRAWN_GROUPS;
  if(list==1u){at=CAND_GROUPS;}
  if(list==2u){at=LIVE_GROUPS;}
  if(list>=3u){at=LIST_GROUPS+2u*(list-3u);}
- let least=select(0u,1u,list==0u||list>=6u);
+ let least=select(0u,1u,list==0u||(list>=6u&&list<9u));
  armArgs[list*3u]=max(armWork[at],least);
  armArgs[list*3u+1u]=max(armWork[at+1u],least);
 }`,
@@ -56,8 +57,8 @@ export const DAG_ARGS = {
   restore: 60,
   /** The descent queues', one record each (`levelWgsl.ts`, `queueGroups`). */
   queues: [72, 84, 96],
-  /** The pool sort's per-group stages (`../../pool/sort.ts`): armed by the host, which writes the
-   *  pool's list and its count in the queue's order (`../poolList.ts`), never by `dagArm`. */
+  /** The pool sort's per-group stages (`../../pool/sort.ts`), armed for the pool list's count by
+   *  `dagPrepare` (`evictWgsl.ts`, `armPoolSort`): no workgroup for an empty list. */
   pool: 108,
 } as const
 /** `args` as made: ten records, each one deep, none of them a workgroup yet. */

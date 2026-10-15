@@ -137,8 +137,8 @@ function encodeOnce(
   pass.dispatchWorkgroups(1)
   pass.setPipeline(raisePipeline)
   pass.dispatchWorkgroups(1)
-  // A thread a slot of the pool's list, its group stages armed for the list's own count
-  // (`../poolList.ts`, `poolSortArming`).
+  // A thread a slot of the pool's list, its group stages armed for the list's own count by
+  // `dagPrepare` (`shader/evictWgsl.ts`, `armPoolSort`).
   encodePoolSort(pass, evictSort, 0, width, dispatchArgs, DAG_ARGS.pool)
   // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
   // (`../../webgpu/row/rowEviction.ts`): the cut's group back after them.
