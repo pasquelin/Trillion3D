@@ -561,7 +561,7 @@ fn vsmPoolFeedback(){
 /**
  * After the render, a thread a page: folds the dirty flags into the page metadata, then lists the
  * page by those flags (16 groups a listed page each list):
- * - its slice 0 changed this frame — dirty, static or dynamic, referenced, a sun's —: for its tile
+ * - its slice 0 changed this frame — dirty, static or dynamic, referenced —: for its tile
  *   depths (`pagesForTiles`, `tileArgs`, `vsmTileDepthsBuild`). The tile depths
  *   are slice 0's, so a dynamic change makes them stale too, not only a static one;
  * - its static slice was written — allocated, referenced, cached for the view —: to merge static
@@ -576,9 +576,8 @@ function foldRasterMarks(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 2, access: 'read_write' },
     { resource: 'tileArgs', binding: 3, access: 'atomic' },
     { resource: 'pagesForTiles', binding: 4, access: 'read_write' },
-    { resource: 'projectionData', binding: 5 },
-    { resource: 'mergeArgs', binding: 6, access: 'atomic' },
-    { resource: 'pagesToMerge', binding: 7, access: 'read_write' },
+    { resource: 'mergeArgs', binding: 5, access: 'atomic' },
+    { resource: 'pagesToMerge', binding: 6, access: 'read_write' },
   ]
   const body = wgslBlock(
     'foldRasterMarks',
@@ -613,10 +612,8 @@ fn pmFoldMarks(poolIndex:u32)->u32{
 fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=vsm.poolPages){return;}
  let flags=pmFoldMarks(id.x);
- if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_ANY_DRAWN)!=0u&&(flags&VSM_META_UNSEEN)==0u
-  // A sun's page only: the clipmap rays alone read tile depths. A page handed to a sun later is
-  // initialised there, dirty then.
-  &&vsmProjectionData[vsmPoolPageInfo[id.x].mapId].lightKind==LIGHT_KIND_DIRECTIONAL){
+ // Every map's rays prove their misses on tile depths (\`vsmRayMisses\`).
+ if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_ANY_DRAWN)!=0u&&(flags&VSM_META_UNSEEN)==0u){
   let slot=atomicAdd(&vsmTileArgs[1],1u);
   vsmPagesForTilesStore(slot,id.x);
  }
@@ -638,7 +635,7 @@ fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
  * The tile depths of the listed pages, after the merge (a
  * group per 32×32 tile, each thread 2×2 texels): each 8×8 tile's greatest slice-0 word whose
  * float is not below 0 or NaN — the closest depth a sample in it can read
- * (`vsmSunRayMisses`). Workgroup memory starts at zero (WebGPU).
+ * (`vsmRayMisses`). Workgroup memory starts at zero (WebGPU).
  */
 function tileDepthsBuild(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [

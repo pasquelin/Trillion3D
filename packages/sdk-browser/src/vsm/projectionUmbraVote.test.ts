@@ -14,7 +14,7 @@ import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
-const SHIPPED = vsmProjectionWgsl(LAYOUT, { subgroups: false })
+const SHIPPED = vsmProjectionWgsl(LAYOUT)
 const STRUCTS = constructors(SHIPPED)
 const AT_COUNT = 'else if(i==u32(settings.voteAfter)){halfStops='
 /** The traces with the umbra vote asked at every ray from the adaptive count on. */

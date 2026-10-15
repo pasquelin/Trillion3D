@@ -36,7 +36,7 @@ export function projectionKit() {
       res,
       {
         ...inputs,
-        ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1, subgroups: false },
+        ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1 },
         ...frame,
       },
       lights,

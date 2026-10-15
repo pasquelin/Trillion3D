@@ -14,9 +14,6 @@ import { unitF32 } from '../../../math/src/vector/unitF32.fixture.ts'
 
 export const PROJECTION_CODE = vsmProjectionWgsl(
   vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
-  {
-    subgroups: false,
-  },
 )
 export type V3 = [number, number, number]
 export interface Light {

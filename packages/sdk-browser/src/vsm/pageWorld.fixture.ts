@@ -15,7 +15,7 @@ import { vsmLayout } from './layout.ts'
 const { VSM_ENTRY_MAPPED_BIT: ANY, VSM_ENTRY_DRAWABLE_BIT: RENDER } =
   wgslConstants(VSM_CONSTANTS_WGSL)
 const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
-export const CODE = vsmProjectionWgsl(LAYOUT, { subgroups: false })
+export const CODE = vsmProjectionWgsl(LAYOUT)
 
 /** A 32-bit hash of integers, the engine's `mixWord` folded over them: the same for the same ones. */
 export const hash = (...words: number[]) =>

@@ -1,6 +1,6 @@
 /**
- * Host side of the projection (`projectionWgsl.ts`): the view uniform, the pipelines (subgroup /
- * shared-memory vote variants), the dispatch into the engine's mask, and the view uniform fields the
+ * Host side of the projection (`projectionWgsl.ts`): the view uniform, its one pipeline per pool
+ * layout, the dispatch into the engine's mask, and the view uniform fields the
  * projection reads (inverse device Z to world Z transform, screen ray length multiplier, tan and
  * inverse tan of the half field of view).
  *
@@ -17,7 +17,6 @@ import {
   namedEntries,
 } from '../gpu/core/computeBindings.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
-import { hasSubgroups } from '../gpu/core/subgroups.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
@@ -32,8 +31,8 @@ import {
   negateRowMatrix4,
 } from '../../../math/src/matrix/matrix4.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
-import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
-import { preparedPipelines, type PreparedPipelines } from '../gpu/core/preparedPipelines.ts'
+import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { createVsmBlueNoiseTexture, VSM_BLUE_NOISE_BYTES } from './blueNoise.ts'
 import {
   VSM_LIGHT_KIND_DIRECTIONAL,
@@ -59,10 +58,6 @@ import {
   vsmProjectionGroups,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts'
-import {
-  VSM_PROJECTION_KINDS_DIRECTIONAL,
-  VSM_PROJECTION_KINDS_LOCAL,
-} from './receiverTraceWgsl.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -104,8 +99,6 @@ interface VsmProjectionInputs {
   camera: VsmProjectionCamera
   /** The state frame index: drives the blue noise in time. */
   frameIndex: number
-  /** Force the vote variant; default `vsmProjectionCanUseSubgroups(device)`. */
-  subgroups?: boolean
   /** The engine's mask (`vsmEncode.ts`): its 2-D array (`VSM_PROJECTION_MASK_FORMAT`, a layer per
    *  four lights at least) and its tile words (`VSM_PROJECTION_TILE_FORMAT`, a texel per group at
    *  least), both storage bindings, the size of the textures the view is drawn in (dynamic
@@ -151,11 +144,6 @@ export type VsmProjectionLight = VsmProjectionLightCommon &
   )
 
 type VsmProjectionLightType = VsmProjectionLight['type']
-
-/** Whether the projection votes by subgroup (`voteWgsl`): exact at any subgroup size, the workgroup
- *  counter taking over in a group where a half spans several subgroups — always, where the adapter
- *  says its subgroups are under 32 lanes, which the plain variant counts at less cost. */
-export const vsmProjectionCanUseSubgroups = (device: GPUDevice) => hasSubgroups(device, 32)
 
 const KIND: Record<VsmProjectionLightType, number> = {
   directional: VSM_LIGHT_KIND_DIRECTIONAL,
@@ -324,21 +312,15 @@ function writeVsmProjectionView(
   return 4 * words
 }
 
-/** The projection's module and layouts for one layout and vote variant, and its
- *  pipelines by their constants (`pipelineFor`): the variants share all but their pipeline; the
- *  groups are each set's (`VsmProjectionState`). */
+/** The projection's layouts for one pool layout and its one pipeline (`pipeline`, compiled off
+ *  the frame by the prepare step, at once where a frame asks first); the groups are each set's
+ *  (`VsmProjectionState`). */
 interface Pipelines {
-  module: GPUShaderModule
-  layout: GPUPipelineLayout
   vsmLayout: GPUBindGroupLayout
   passLayout: GPUBindGroupLayout
   receiverLayout: GPUBindGroupLayout
   device: GPUDevice
-  /** By 2 · VSM_PROJECTION_KINDS + VSM_PROJECTION_ONE_LIGHT, each compiled off the frame; the
-   *  pipeline every pass can run (`TWIN`) the prepare step awaits (`vsmProjectionTwin`), every
-   *  other started once, when first made: one the device refuses is not asked again, the twin
-   *  drawing its pixels for good. */
-  variants: PreparedPipelines<number, GPUComputePipeline>
+  pipeline: PreparedPipeline<GPUComputePipeline>
 }
 
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
@@ -433,23 +415,6 @@ function projectionState(res: VsmResources) {
 /** The projection's pass, and its pipelines. */
 export const VSM_PROJECTION_PASS = `${VSM_PASS_PREFIX}projection`
 
-/** The key of the pipeline every pass can run: all kinds, many lights (`pipelineFor`). */
-const TWIN = 0
-
-/** The descriptor of the pipeline of `key` (2 · kinds + one light). */
-const projectionDescriptor = (
-  p: Pick<Pipelines, 'module' | 'layout'>,
-  key: number,
-): GPUComputePipelineDescriptor => ({
-  label: VSM_PROJECTION_PASS,
-  layout: p.layout,
-  compute: {
-    module: p.module,
-    entryPoint: 'vsmProjection',
-    constants: { VSM_PROJECTION_ONE_LIGHT: key & 1, VSM_PROJECTION_KINDS: key >> 1 },
-  },
-})
-
 /** The layout of the pass group: the view uniform, the scene's depth, normals and flags, the blue
  *  noise, and the mask and its tiles the pass writes. */
 function projectionPassLayout(device: GPUDevice) {
@@ -480,22 +445,16 @@ function projectionPassLayout(device: GPUDevice) {
   })
 }
 
-/** What decides a projection's module and layouts: the pool's layout and the votes. */
-interface ProjectionVariant {
-  layout: VsmLayout
-  subgroups: boolean
-}
-
-/** The projection's module, layouts and pipelines for these variants. */
-function makePipelines(device: GPUDevice, { layout, subgroups }: ProjectionVariant): Pipelines {
+/** The projection's layouts and pipeline for the pool `layout`. */
+function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
   })
   const passLayout = projectionPassLayout(device)
   const module = device.createShaderModule({
-    label: `vsm.projection${subgroups ? '.subgroups' : ''}`,
-    code: vsmProjectionWgsl(layout, { subgroups }),
+    label: 'vsm.projection',
+    code: vsmProjectionWgsl(layout),
   })
   const receiverLayout = device.createBindGroupLayout({
     label: 'vsm.projection.receiver',
@@ -506,34 +465,27 @@ function makePipelines(device: GPUDevice, { layout, subgroups }: ProjectionVaria
   })
   return {
     device,
-    module,
-    layout: pipelineLayout,
     vsmLayout,
     passLayout,
     receiverLayout,
-    variants: preparedPipelines((key: number) => {
-      const variant = preparedComputePipeline(
-        device,
-        projectionDescriptor({ module, layout: pipelineLayout }, key),
-      )
-      return key === TWIN ? variant : started(variant)
+    pipeline: preparedComputePipeline(device, {
+      label: VSM_PROJECTION_PASS,
+      layout: pipelineLayout,
+      compute: { module, entryPoint: 'vsmProjection' },
     }),
   }
 }
 
-/** The device's projections, by the variant they were compiled for (`ProjectionVariant`), made
- *  once a device. */
+/** The device's projections, by the pool layout they were compiled for, made once a device. */
 const projections = oncePerDevice((device: GPUDevice) =>
   preparedPipelines(
-    (variant: ProjectionVariant) => makePipelines(device, variant),
-    ({ layout, subgroups }) =>
-      `${subgroups}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
+    (layout: VsmLayout) => makePipelines(device, layout),
+    (layout) => `${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
   ),
 )
 
-/** The projection of `device` for these variants (`projections`). */
-const pipelinesFor = (device: GPUDevice, layout: VsmLayout, subgroups: boolean) =>
-  projections(device).of({ layout, subgroups })
+/** The projection of `device` for `layout` (`projections`). */
+const pipelinesFor = (device: GPUDevice, layout: VsmLayout) => projections(device).of(layout)
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
 const tablesGroup = (res: VsmResources, p: Pipelines) =>
@@ -543,35 +495,9 @@ const tablesGroup = (res: VsmResources, p: Pipelines) =>
     entries: vsmBindGroupEntries(res, VSM_PROJECTION_VSM_SPECS),
   })
 
-/** The projection's twin for `layout`, at the votes `device` takes: prepared by the prepare step
- *  (`prepareVsmPipelines`). */
-export const vsmProjectionTwin = (device: GPUDevice, layout: VsmLayout) =>
-  pipelinesFor(device, layout, vsmProjectionCanUseSubgroups(device)).variants.of(TWIN)
-
-/**
- * The pipeline of `p` for a pass of `lights`: VSM_PROJECTION_ONE_LIGHT for one light, and
- * VSM_PROJECTION_KINDS their kinds. The asked pipeline compiles off the frame while its twin, every
- * kind and any count of lights, serves the pass — the same pixels, each light taking its own kind
- * branch (`projectionKinds.test.ts`). The twin is made at once the first time a layout asks (the
- * frame that grants the maps, whose pool is allocated in that frame, and whose layout no prepare
- * knows): a frame never draws without its projection, and a new light mix never stalls on a
- * compile.
- */
-function pipelineFor(p: Pipelines, lights: readonly VsmProjectionLight[]) {
-  let kinds = 0
-  for (const light of lights)
-    kinds |=
-      KIND[light.type] === VSM_LIGHT_KIND_DIRECTIONAL
-        ? VSM_PROJECTION_KINDS_DIRECTIONAL
-        : VSM_PROJECTION_KINDS_LOCAL
-  const key = 2 * kinds + (lights.length === 1 ? 1 : 0)
-  const twin = p.variants.of(TWIN).get()
-  if (key === TWIN) return twin
-  // Started off the frame when made, no frame held on it: the twin draws the same pixels meanwhile,
-  // and for good where the device refuses it.
-  const variant = p.variants.of(key)
-  return variant.ready ? variant.get() : twin
-}
+/** The projection's pipeline for `layout`: prepared by the prepare step (`prepareVsmPipelines`). */
+export const vsmProjectionPipeline = (device: GPUDevice, layout: VsmLayout) =>
+  pipelinesFor(device, layout).pipeline
 
 /** The pass group of `state` over the frame's inputs: made again only when the layout or one of
  *  the views it binds moved (`createWebgpuBindIdentity`). */
@@ -648,8 +574,7 @@ export function encodeVirtualShadowProjection(
     throw new Error(`VSM projection: at most ${VSM_PROJECTION_MAX_PASS_LIGHTS} lights per pass`)
   const { device, width, height } = inputs
   const state = vsmProjectionReserve(device, res)
-  const subgroups = inputs.subgroups ?? vsmProjectionCanUseSubgroups(device)
-  const p = pipelinesFor(device, res.layout, subgroups)
+  const p = pipelinesFor(device, res.layout)
 
   const bytes = writeVsmProjectionView(state.words, inputs, lights)
   device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
@@ -657,7 +582,7 @@ export function encodeVirtualShadowProjection(
   const vsmGroup = vsmPerFrameSet(state.tables, res, tablesGroup, p, p.vsmLayout)
   const passGroup = passGroupFor(device, state, p, inputs)
   const pass = encoder.beginComputePass({ label: VSM_PROJECTION_PASS })
-  pass.setPipeline(pipelineFor(p, lights))
+  pass.setPipeline(p.pipeline.get())
   pass.setBindGroup(0, vsmGroup)
   pass.setBindGroup(1, passGroup)
   pass.setBindGroup(

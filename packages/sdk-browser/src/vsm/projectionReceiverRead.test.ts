@@ -10,8 +10,8 @@ import { vsmLayout } from './layout.ts'
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
 
 test('the receiver texel is loaded with the surface reads and decoded for a lit pixel alone', () => {
-  for (const subgroups of [false, true]) {
-    const code = vsmProjectionWgsl(LAYOUT, { subgroups })
+  {
+    const code = vsmProjectionWgsl(LAYOUT)
     const load = code.indexOf('let receiverTexel=shadowReceiverTexel(vec2i(coord));'),
       shading = code.indexOf(
         'p.info=vsmSurfaceOf(coord,p.inRect,textureLoad(vsmNormalRough,coord,0).xyz);',

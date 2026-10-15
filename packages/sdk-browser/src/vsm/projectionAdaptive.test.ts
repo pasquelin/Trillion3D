@@ -8,13 +8,11 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { IDENTITY } from './pageWorld.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
-import { VSM_CONSTANTS_WGSL, VSM_TRACE_RAYS_SUN } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_TRACE_RAYS } from './constants.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
-  subgroups: false,
-})
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
 
 /** Rays one lane traces, and its result, when each ray `hits(i)` an occluder `depth` above the
  *  receiver's 0.5 (spread: one pixel per 0.1 of depth, `vsmSunRaySpread`) and the rest of its half
@@ -27,7 +25,7 @@ function trace(hits: (i: number) => boolean, others: boolean, depth = 0.5) {
   }>(CODE, ['vsmTraceSun', 'vsmEmptyTrace'], {
     vsmTraceSetupSun: () => ({
       voteAfter: wgslConstants(VSM_CONSTANTS_WGSL).VSM_TRACE_VOTE_AFTER,
-      rayCount: VSM_TRACE_RAYS_SUN,
+      rayCount: VSM_TRACE_RAYS,
       stepsPerRay: 8,
       slopeCapSetting: 5,
       ditherTexels: 0,
@@ -83,7 +81,7 @@ test('a lit half stops after its first ray, an umbra after its second', () => {
 })
 
 test('a lane in penumbra, or a neighbour that disagrees, traces all seven rays', () => {
-  const all = VSM_TRACE_RAYS_SUN
+  const all = VSM_TRACE_RAYS
   assert.deepEqual(
     trace((i) => i % 2 === 0, true),
     { rays: all, factor: 3 / 7, rayCount: all },
@@ -103,8 +101,8 @@ test('a lane whose first ray hit an occluder within a pixel stops there, whateve
       trace(() => true, others, -0.0625),
       { rays: 1, factor: 0, rayCount: 1 },
     )
-    assert.equal(trace(() => true, false, 0.125).rays, VSM_TRACE_RAYS_SUN)
+    assert.equal(trace(() => true, false, 0.125).rays, VSM_TRACE_RAYS)
     // A first ray that missed has no occluder of its own: its half decides.
-    assert.equal(trace((i) => i > 0, false, 0.0625).rays, VSM_TRACE_RAYS_SUN)
+    assert.equal(trace((i) => i > 0, false, 0.0625).rays, VSM_TRACE_RAYS)
   }
 })

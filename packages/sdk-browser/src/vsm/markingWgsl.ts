@@ -516,8 +516,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));
  // Directional lights.
  {
-  let hasMargin=VSM_MARK_SUN_MARGIN>0.0;
-  let marginOffset=VSM_MARK_SUN_MARGIN*marginSide;
+  let hasMargin=VSM_MARK_MARGIN>0.0;
+  let marginOffset=VSM_MARK_MARGIN*marginSide;
   for(var index=0u;index<vsmMarking.sunMapCount;index++){
    let handle=vsmHandleFromId(vsmDirectionalLightIds[index]);
    let pd=vsmProjectionOf(handle);
@@ -529,8 +529,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  // Local lights, over the engine's light grid cell: lights without a VSM, single-page "distant"
  // lights and directional lights are skipped in the walk.
  {
-  let hasMargin=VSM_MARK_LOCAL_MARGIN>0.0;
-  let marginOffset=VSM_MARK_LOCAL_MARGIN*marginSide;
+  let hasMargin=VSM_MARK_MARGIN>0.0;
+  let marginOffset=VSM_MARK_MARGIN*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
   let cell=pixelCell(vec2f(localPosition)+0.5,deviceZ);
   if(cell==TILE_NO_SLICE){return;}

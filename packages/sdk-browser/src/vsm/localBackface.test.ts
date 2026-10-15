@@ -17,7 +17,7 @@ import { saturate } from '../../../math/src/scalar/reals.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
-  PROJECTION = vsmProjectionWgsl(LAYOUT, { subgroups: false })
+  PROJECTION = vsmProjectionWgsl(LAYOUT)
 type V3 = [number, number, number]
 type Backface = (toLight: V3, normal: V3, radius: number) => boolean
 const run = (code: string) =>

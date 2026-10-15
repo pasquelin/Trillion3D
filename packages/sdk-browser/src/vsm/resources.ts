@@ -68,7 +68,7 @@ export interface VsmResources {
   /** Per physical page, the closest depth (the greatest word, read as a float) of each of its
    *  8×8-texel tiles of slice 0 (`VSM_LOG2_TILE_DEPTH_TEXELS`), rebuilt where a page changed
    *  (`vsmTileDepthsBuild`): what the sun's rays prove they miss against
-   *  (`vsmSunRayMisses`). Made with the pool, both zero: a page never written holds 0. */
+   *  (`vsmRayMisses`). Made with the pool, both zero: a page never written holds 0. */
   tileDepths: GPUBuffer
   /** The `VSM_COUNTERS` counters. */
   stats: GPUBuffer
