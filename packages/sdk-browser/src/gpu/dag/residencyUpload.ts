@@ -1,5 +1,5 @@
 import type { ResidencyChanges, PageResidency } from '../core/selection.ts'
-import { childBase, residentBase, residentWords } from './layout.ts'
+import { childBase, residentWords } from './layout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { flipBit, hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import type { PackedDag } from './types.ts'
@@ -49,8 +49,8 @@ function writeBlankBits(
   readiness: Pick<ReturnType<typeof createDagReadiness>, 'blankPages'>,
   bits: Uint32Array,
 ) {
-  const sets = [residentBase(packed.pageCount), childBase(packed.pageCount)]
-  bits.fill(0, sets[0], sets[0] + 2 * residentWords(packed.pageCount))
+  const sets = [0, childBase(packed.pageCount)]
+  bits.fill(0, 0, 2 * residentWords(packed.pageCount))
   for (let w = 0; w < packed.cutLinks.length; w++) {
     const { pageBase } = packed.cutLinks[w],
       { ready, child } = readiness.blankPages(w)
@@ -94,7 +94,7 @@ export function createDagResidencyUpload(
   let touched = new Int32Array(8)
   const changed = { pages: new Int32Array(8), count: 0 }
   const sets = [
-    { values: readiness.isReady, base: residentBase(pageCount) },
+    { values: readiness.isReady, base: 0 },
     { values: readiness.isChildReady, base: childBase(pageCount) },
   ]
   /** One write per range of the `count` sorted ranks of `touched`, `stride` words each from
@@ -110,14 +110,8 @@ export function createDagResidencyUpload(
   // nothing resident; the node counts are the packing's own, uploaded with the nodes
   // (`packCullingNodes`). From then on only what moves is.
   writeBlankBits(packed, readiness, bits)
-  const { pageCones } = packed,
-    from = residentBase(pageCount)
-  cold(
-    from * 4,
-    pageCones.buffer as ArrayBuffer,
-    pageCones.byteOffset + from * 4,
-    2 * residentWords(pageCount) * 4,
-  )
+  const { pageCones } = packed
+  cold(0, pageCones.buffer as ArrayBuffer, pageCones.byteOffset, 2 * residentWords(pageCount) * 4)
   const apply = (
     next: PageResidency,
     changes?: ResidencyChanges,

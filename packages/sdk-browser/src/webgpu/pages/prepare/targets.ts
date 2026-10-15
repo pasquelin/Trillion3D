@@ -107,7 +107,6 @@ export const targetAllocationOf = (rt: WebgpuPagesRuntime) => ({
   height: rt.gpu.allocatedSize[1],
   allocationBytes: rt.gpu.targetBytes,
   captureAllocationBytes: rt.capture.captureAllocationBytes,
-  physicalVramBytes: null,
   surfaceVersion: 1,
 })
 

@@ -12,6 +12,7 @@ import {
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { pastBinding, readoutRow } from './bufferTable.ts'
 import { admitBeside } from './cutBuffers.ts'
+import { DAG_PASS } from './encodeDifference.ts'
 import type { DagResources } from './resources.ts'
 import { newRegions } from './swap.ts'
 import { HELD_BY_WORD } from './frameTable.ts'
@@ -147,7 +148,7 @@ function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap:
     from.listCap * 4,
   )
   device.queue.writeBuffer(to.uniforms, viewWord('listCap') * 4, Uint32Array.of(to.listCap))
-  const pass = encoder.beginComputePass({ label: 'Trillion3D DAG selection' })
+  const pass = encoder.beginComputePass(DAG_PASS)
   to.rekeepPipelines.forEach((pipeline, l) => {
     pass.setBindGroup(0, to.rankGroups[l])
     pass.setPipeline(pipeline)

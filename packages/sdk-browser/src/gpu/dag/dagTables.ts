@@ -2,8 +2,6 @@ import type { PackedDag } from './types.ts'
 import { primitiveFrameWords } from './worlds.ts'
 import { createCameraFrames } from './cameraFrames.ts'
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
-import { VIEW_BLOCK_WORDS } from './viewLayout.ts'
-import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts'
 import { createDagList } from './listCap.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
@@ -28,8 +26,8 @@ export function dagTables(
   heldSlots: number,
 ) {
   const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed)
-  // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
-  const uniformData = new Float32Array((AHEAD_VIEW + 1) * VIEW_BLOCK_WORDS)
+  // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`, `DAG_UNIFORM_BYTES`).
+  const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4)
   const frameData = primitiveFrameWords(packed)
   const uniforms = own({
     label: 'Trillion3D DAG uniforms',

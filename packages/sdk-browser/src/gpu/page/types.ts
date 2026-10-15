@@ -14,7 +14,7 @@ export interface ResidentPage {
   offset: number
   /** Its size. */
   bytes: number
-  /** How many times its slot was reused. */
+  /** The cache's placing count when it landed (`commit.ts`): a page placed again reads another. */
   generation: number
 }
 export type GpuPageContext = {

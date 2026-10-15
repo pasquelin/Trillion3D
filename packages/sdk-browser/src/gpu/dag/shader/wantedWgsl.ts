@@ -44,8 +44,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  stampUse(r);markSeed(ROW_SEED_ASKED);
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
- *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
- *  A cluster nothing replaces falls back on its own, as that path does. */
+ *  ranks a request. A cluster nothing replaces falls back on its own. */
 fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
 `,
 )

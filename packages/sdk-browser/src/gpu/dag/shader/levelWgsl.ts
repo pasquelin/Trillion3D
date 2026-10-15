@@ -118,7 +118,7 @@ fn drawnAppend(page:u32){listAppend(writtenCounter(),NO_INDEX,writtenBase(),1u,v
  *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
  atomicStore(&work[liveCounter()],0u);resetGrid(liveGroups());
- atomicStore(&work[queueCounter(0u)],rootSlots()*views[0u].viewCount);
+ atomicStore(&work[queueCounter(0u)],rootSlots());
  atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
  for(var q=0u;q<${LEVEL_QUEUES}u;q++){resetGrid(queueGroups(q));}
  atomicStore(&work[candCounter()],0u);resetGrid(candGroups());

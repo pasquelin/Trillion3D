@@ -79,8 +79,6 @@ export function createGpuPageCache(
       state.refused = false
       return refused
     },
-    /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
-     * `get` can compare it instead of querying every page again. */
     /** How many pages are resident now. */
     get residentPages() {
       return resident.size

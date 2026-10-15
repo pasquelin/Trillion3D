@@ -1,5 +1,5 @@
 import { createDagResidencyUpload } from './residencyUpload.ts'
-import { childBase, residentBase } from './layout.ts'
+import { childBase } from './layout.ts'
 import type { PackedDag } from './types.ts'
 import type { PageResidency } from '../core/selection.ts'
 import { residentFlags } from './layout.fixture.ts'
@@ -41,7 +41,7 @@ export function ruleResidency(packed: PackedDag, resident: ArrayLike<number> | P
     ),
     pageCount = packed.pageCount
   return {
-    ready: residentFlags(bits, pageCount, residentBase(pageCount)),
+    ready: residentFlags(bits, pageCount, 0),
     childReady: residentFlags(bits, pageCount, childBase(pageCount)),
   }
 }

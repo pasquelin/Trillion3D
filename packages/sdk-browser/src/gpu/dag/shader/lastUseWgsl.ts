@@ -35,7 +35,7 @@ export const DAG_LAST_USE_WGSL = wgslBlock(
   `/** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2), then
  *  the descent queues' (3 to 5, \`queueGroups\`), then the pool sort's (6, \`poolGroups\`): what the
  *  arming kernel copies (\`armWgsl.ts\`). */
-fn listGroups(l:u32)->u32{return drawnGroupsMax()+1u+2u*l;}
+fn listGroups(l:u32)->u32{return extraBase()+2u*l;}
 /** THE ONE COUNT TO DISPATCH ARGUMENT: \`groups\` workgroups in rows (\`groupGrid\`), x then y at
  *  \`work[at]\`, as the arming kernel copies them (\`armWgsl.ts\`); none for zero. */
 fn armGroups(at:u32,groups:u32){let g=groupGrid(groups);atomicStore(&work[at],g.x);atomicStore(&work[at+1u],g.y);}

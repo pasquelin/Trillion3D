@@ -14,8 +14,11 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
  */
 export const SELECTION_HEADER_WORDS = 8
 
+/** Words of a list of `ranks` ranks in `out` or a copy of it: its header, then its ranks. */
+export const listWords = (ranks: number) => SELECTION_HEADER_WORDS + ranks
+
 /** Word of `out` where the eviction queue's header starts, behind the drawn list. */
-export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap)
+export const evictionWord = (listCap: number) => 2 * listWords(listCap)
 
 /** Victims one readback hands the cache, a chosen margin over what one frame's main-thread share
  *  (`MAIN_THREAD_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */

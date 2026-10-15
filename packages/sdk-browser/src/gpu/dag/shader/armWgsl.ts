@@ -27,6 +27,28 @@ export const DAG_ARM_BINDING = { work: 10, args: 11 } as const
  * bindings the selection's group leaves free (`DAG_ARM_BINDING`), and its list words are the
  * pipeline's overrides, which no other stage reads.
  */
+/** The lists `dagArm` arms, in the order of their records in `args`: its lanes, one a list. The
+ *  kept lists, the restored journal, the descent queues and the pool's lie in `work` in this order
+ *  from `LIST_GROUPS` (`lastUseWgsl.ts`, `listGroups`). */
+const ARMED = [
+  'drawn',
+  'cand',
+  'live',
+  'list0',
+  'list1',
+  'restore',
+  'queue0',
+  'queue1',
+  'queue2',
+  'pool',
+] as const
+/** Bytes of one indirect record: x, y, z. */
+const RECORD_BYTES = 12
+const recordOf = (list: (typeof ARMED)[number]) => ARMED.indexOf(list) * RECORD_BYTES
+const FIRST_LISTED = ARMED.indexOf('list0'),
+  FIRST_QUEUE = ARMED.indexOf('queue0'),
+  POOL = ARMED.indexOf('pool')
+
 export const DAG_ARM_WGSL = wgslBlock(
   'DAG_ARM_WGSL',
   [],
@@ -36,30 +58,32 @@ override DRAWN_GROUPS:u32;
 override CAND_GROUPS:u32;
 override LIVE_GROUPS:u32;
 override LIST_GROUPS:u32;
-@compute @workgroup_size(10) fn dagArm(@builtin(local_invocation_index) list:u32){
+@compute @workgroup_size(${ARMED.length}) fn dagArm(@builtin(local_invocation_index) list:u32){
  var at=DRAWN_GROUPS;
- if(list==1u){at=CAND_GROUPS;}
- if(list==2u){at=LIVE_GROUPS;}
- if(list>=3u){at=LIST_GROUPS+2u*(list-3u);}
- let least=select(0u,1u,list==0u||(list>=6u&&list<9u));
+ if(list==${recordOf('cand') / RECORD_BYTES}u){at=CAND_GROUPS;}
+ if(list==${recordOf('live') / RECORD_BYTES}u){at=LIVE_GROUPS;}
+ if(list>=${FIRST_LISTED}u){at=LIST_GROUPS+2u*(list-${FIRST_LISTED}u);}
+ let least=select(0u,1u,list==${recordOf('drawn') / RECORD_BYTES}u||(list>=${FIRST_QUEUE}u&&list<${POOL}u));
  armArgs[list*3u]=max(armWork[at],least);
  armArgs[list*3u+1u]=max(armWork[at+1u],least);
 }`,
 )
 
-/** Byte offset of each list's record in `args`: the order `dagArm` writes them in. */
+/** Byte offset of each list's record in `args`: the order `dagArm` writes them in (`ARMED`). */
 export const DAG_ARGS = {
-  drawn: 0,
-  cand: 12,
-  live: 24,
-  list0: 36,
-  list1: 48,
-  restore: 60,
+  drawn: recordOf('drawn'),
+  cand: recordOf('cand'),
+  live: recordOf('live'),
+  list0: recordOf('list0'),
+  list1: recordOf('list1'),
+  restore: recordOf('restore'),
   /** The descent queues', one record each (`levelWgsl.ts`, `queueGroups`). */
-  queues: [72, 84, 96],
+  queues: [recordOf('queue0'), recordOf('queue1'), recordOf('queue2')],
   /** The pool sort's per-group stages (`../../pool/sort.ts`), armed for the pool list's count by
    *  `dagPrepare` (`evictWgsl.ts`, `armPoolSort`): no workgroup for an empty list. */
-  pool: 108,
+  pool: recordOf('pool'),
 } as const
-/** `args` as made: ten records, each one deep, none of them a workgroup yet. */
-export const DAG_ARGS_INITIAL = new Uint32Array(30).map((_, at) => (at % 3 === 2 ? 1 : 0))
+/** `args` as made: a record a list, each one deep, none of them a workgroup yet. */
+export const DAG_ARGS_INITIAL = new Uint32Array(ARMED.length * 3).map((_, at) =>
+  at % 3 === 2 ? 1 : 0,
+)

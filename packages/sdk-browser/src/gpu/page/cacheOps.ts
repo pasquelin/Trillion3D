@@ -53,7 +53,6 @@ export function pageCacheStats(context: GpuPageContext) {
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,
     pinned: context.eviction.pinnedCount,
-    physicalVramBytes: null,
   }
 }
 

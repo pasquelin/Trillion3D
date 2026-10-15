@@ -17,6 +17,16 @@ import type { StructureTable } from './structureTable.ts'
  *  sphere, the floor and a flags word (`packNodes.ts`). */
 export const DAG_NODE_FLOATS = 24,
   CULL_STRIDE = 15
+/** A culling node's fields in its manifest row of `CULL_STRIDE` numbers: its box (min, max), its
+ *  sphere, its error ceiling, its first child and child count, its first page and page count. */
+export const CULL_MIN = 0,
+  CULL_MAX = 3,
+  CULL_SPHERE = 6,
+  CULL_CEIL = 10,
+  CULL_FIRST_CHILD = 11,
+  CULL_CHILD_COUNT = 12,
+  CULL_FIRST_PAGE = 13,
+  CULL_PAGE_COUNT = 14
 /** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
  *  into it (`shader/primitiveWgsl.ts`). */
 export const FRAME_ROW_WORDS = 7

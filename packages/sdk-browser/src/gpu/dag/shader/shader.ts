@@ -82,15 +82,13 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
  if(i<blockCount()){atomicStore(&work[blockBase()+i],0u);for(var k=0u;k<BLOCK_MASK_WORDS;k++){atomicStore(&work[drawMaskBase()+BLOCK_MASK_WORDS*i+k],0u);}}
- if(i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
- if(i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();armPoolSort();}
+ if(i==0u){clearRaised();armPoolSort();}
  if(hasTree()){prepareTreeRoots(i);return;}
- let world=views[0u].worldCount;
- if(i>=world*views[0u].viewCount){return;}
- vi=i/world;let w=i-vi*world;
+ if(i>=views[0u].worldCount){return;}
+ vi=0u;
  // The primitive's root opens the descent: one thread, one root, no counter to contend for, unless
  // its gate closes it (\`opensRoot\`).
- openRoot(i,w);
+ openRoot(i,i);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){

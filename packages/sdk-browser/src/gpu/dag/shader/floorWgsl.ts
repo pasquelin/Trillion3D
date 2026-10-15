@@ -15,9 +15,9 @@
  */
 /**
  * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
- * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the camera's
- * per-view words (`viewsWgsl.ts`), the lists' group counts, and each key group's last use with the
- * groups a cut raised (`lastUseWgsl.ts`), and the eviction sort's words (`evictWgsl.ts`). Set HERE and
+ * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the lists' group counts,
+ * and each key group's last use with the groups a cut raised (`lastUseWgsl.ts`), and the eviction
+ * sort's words (`evictWgsl.ts`). Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
  * kernel by hand reread it, so a word added to the kernel cannot leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
@@ -31,9 +31,8 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
   // no word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
   // `flags`, `differenceWgsl.ts`).
   const base = blockCount * WORK_BLOCK_WORDS,
-    viewWords = base + FRAME_COUNTERS,
-    drawnGroupsMax = viewWords + VIEW_WORD_ROWS,
-    lastUse = drawnGroupsMax + 15,
+    listGroups = base + FRAME_COUNTERS,
+    lastUse = listGroups + 14,
     raised = lastUse + groupCount,
     poolSort = raised + 1 + RAISED_PER_GROUP * groupCount
   return {
@@ -49,11 +48,9 @@ export function dagWorkLayout(blockCount: number, groupCount = 0) {
     candGroups: base + 7,
     drawnCounter: base + 9,
     drawnGroups: base + 10,
-    /** The word behind the camera's per-view rows (`VIEW_WORD_ROWS`, one word each). */
-    drawnGroupsMax,
     /** The two kept lists' group counts, then the journal a swap writes back's, then the three
      *  descent queues', then the pool sort's, x and y each (`armWgsl.ts`). */
-    listGroups: drawnGroupsMax + 1,
+    listGroups,
     /** Each key group's last use, the frame it was last used in (`lastUseWgsl.ts`): kept from one
      *  cut to the next, atomic, so a group raised by many threads is walked up by one. */
     lastUse,
@@ -92,7 +89,6 @@ export const BLOCK_MASK_WORDS_WGSL = wgslConst(
 export const WORK_BLOCK_WORDS = 2 + 2 * BLOCK_MASK_WORDS
 
 import { WORKGROUP_THREADS } from '../../dispatch/grid.ts'
-import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { POOL_SORT_WORDS } from '../../pool/sortWords.ts'
 import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'

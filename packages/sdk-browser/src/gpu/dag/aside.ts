@@ -3,7 +3,7 @@ import type { AsideCut } from '../core/aside.ts'
 import { copySelectionUniforms } from '../core/selectionCopy.ts'
 import { writeDagUniforms } from './uniforms.ts'
 import { encodeDagKernels } from './encode.ts'
-import { SELECTION_HEADER_WORDS, levelCountsWord } from './readoutWords.ts'
+import { levelCountsWord, listWords } from './readoutWords.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { DagResources } from './resources.ts'
@@ -149,7 +149,7 @@ function copyLists(
 ) {
   const { output, listCap } = resources,
     ranks = Math.min(slots.copied, listCap),
-    bytes = (SELECTION_HEADER_WORDS + ranks) * 4
+    bytes = listWords(ranks) * 4
   const captured = {
     uniforms: snap,
     worldRevision: state.worldRevision,
@@ -161,7 +161,7 @@ function copyLists(
   // The requests, then the drawn list right behind them, each its header and `ranks` ranks, then
   // the requests' admission counts.
   shared.copyBufferToBuffer(output, 0, target, 0, bytes)
-  shared.copyBufferToBuffer(output, (SELECTION_HEADER_WORDS + listCap) * 4, target, bytes, bytes)
+  shared.copyBufferToBuffer(output, listWords(listCap) * 4, target, bytes, bytes)
   const counts = levelCountsWord(listCap) * 4
   shared.copyBufferToBuffer(output, counts, target, 2 * bytes, ADMISSION_BUCKETS * 4)
   slots.inFlight = serial

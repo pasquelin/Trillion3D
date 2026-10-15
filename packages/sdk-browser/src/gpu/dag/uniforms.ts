@@ -101,10 +101,8 @@ export function writeDagUniforms(
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
-  // One view, the camera's, on buffers sized for one, whose queues hold every placement's every
-  // node: two words an entry, the node then its placement (`shader/levelWgsl.ts`).
-  ints[W('viewCount')] = 1
-  ints[W('viewCapacity')] = 1
+  // The camera's queues hold every placement's every node: two words an entry, the node then its
+  // placement (`shader/levelWgsl.ts`).
   ints[W('queueCap')] = at.queueWords ?? dagQueueWords(packed)
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
   ints[W('heldBase')] = at.base

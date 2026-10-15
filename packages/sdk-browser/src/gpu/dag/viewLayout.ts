@@ -31,8 +31,6 @@ const VIEW_FIELDS = [
   ['cameraStretch', 'f32'],
   ['listCap', 'u32'],
   ['perspective', 'f32'],
-  ['viewCount', 'u32'],
-  ['viewCapacity', 'u32'],
   ['queueCap', 'u32'],
   ['ahead', 'u32'],
   ['admitByLevel', 'u32'],

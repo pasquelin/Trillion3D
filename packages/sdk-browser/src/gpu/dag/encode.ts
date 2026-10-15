@@ -1,13 +1,10 @@
 import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
-import { encodeDifference } from './encodeDifference.ts'
+import { DAG_PASS, encodeDifference } from './encodeDifference.ts'
 import { encodePoolSort } from '../pool/sort.ts'
 import { BLOCK_MASK_WORDS } from './shader/floorWgsl.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
-
-const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /**
  * Cut kernels, encoded in order, in ONE compute pass. Each dispatch waits for the previous — the
