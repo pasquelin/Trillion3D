@@ -64,15 +64,18 @@ export const TRACE_SCENE_BINDINGS: SceneBindings = {
   tree: B.proxyTree,
 }
 
-/** The surface every kernel reads: its flags, normals and lobes. */
+/** The surface every kernel reads: its normals and lobes. */
 const surface = () => [
-  computeTextureEntry(B.flags, 'uint'),
   computeTextureEntry(B.normals, 'unfilterable-float'),
   computeTextureEntry(B.lobes, 'uint'),
 ]
 
+/** The surface's flags, which the trace and the upsamples read (`surfaceFlagsAt`); the spatial reuse
+ *  and the accumulation take a pixel's lobe without them. */
+const flags = () => computeTextureEntry(B.flags, 'uint')
+
 /** What a ray reads of the scene — the lights, the light grid's lists, the bounce cascades and their
- *  probes, the proxy and the culling's worlds and tree —, and the settle's word the trace sets. */
+ *  probes, the proxy and the culling's worlds and tree. */
 const scene = () => [
   computeBufferEntry(B.lights, 'read-only-storage'),
   computeBufferEntry(B.lightLists, 'read-only-storage'),
@@ -81,16 +84,20 @@ const scene = () => [
   computeBufferEntry(B.proxy, 'read-only-storage'),
   computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
   computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
-  computeBufferEntry(B.sampled, 'storage'),
 ]
 
-/** The layouts of each kernel's group 0: the trace, the spatial reuse, the temporal accumulation, and
- *  the two upsamples. */
+/** The layouts of each kernel's group 0: the trace — which alone sets the settle's word —, the
+ *  spatial reuse, the temporal accumulation, and the two upsamples. */
 export const halfLayouts = (device: GPUDevice) => {
   const layout = (entries: GPUBindGroupLayoutEntry[]) =>
     device.createBindGroupLayout({ entries: [...surface(), ...entries] })
   return {
-    trace: layout([...scene(), computeStorageTextureEntry(B.traceOut, HALF_FORMAT)]),
+    trace: layout([
+      flags(),
+      ...scene(),
+      computeBufferEntry(B.sampled, 'storage'),
+      computeStorageTextureEntry(B.traceOut, HALF_FORMAT),
+    ]),
     spatial: layout([
       computeTextureEntry(B.spatialIn, 'uint'),
       computeStorageTextureEntry(B.spatialOut, HALF_FORMAT),
@@ -101,12 +108,14 @@ export const halfLayouts = (device: GPUDevice) => {
       computeStorageTextureEntry(B.historyOut, HALF_FORMAT),
     ]),
     upsample: layout([
+      flags(),
       ...scene(),
       computeTextureEntry(B.upsampleIn, 'uint'),
       computeTextureEntry(B.base, 'unfilterable-float'),
       computeStorageTextureEntry(B.target, HDR_FORMAT),
     ]),
     upsampleFront: layout([
+      flags(),
       ...scene(),
       computeTextureEntry(B.upsampleIn, 'uint'),
       computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT),
