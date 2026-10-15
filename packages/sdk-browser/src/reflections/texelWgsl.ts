@@ -5,7 +5,8 @@ import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTED_WGSL } from './weight.ts'
-import { slabPerspective } from '../../../math/src/wgsl/projection.ts'
+import { ndcToUvUnflipped, slabPerspective } from '../../../math/src/wgsl/projection.ts'
+import { unitToSigned2 } from '../../../math/src/wgsl/reals.ts'
 
 /** The gather `name` (`historyGather`): with `near`, the bilinear sum of the held taps too — the
  *  upsample's fallback alone reads it, so the accumulation's gather adds none. One text, both. */
@@ -69,6 +70,8 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
     slabPerspective,
     octEncode,
     octDecode,
+    ndcToUvUnflipped,
+    unitToSigned2,
     REFLECTION_CONSTANTS_WGSL,
     reflectionBindingsWgsl(REFLECTION_GROUP),
   ],
@@ -92,14 +95,14 @@ fn freshPick(t:vec4u)->u32{return ((t.w>>16u)&3u)+1u;}
 fn freshRadius(t:vec4u)->u32{return (t.w>>18u)&3u;}
 fn freshHit(t:vec4u)->f32{return texelHalfOf(t.w);}
 fn historyPack(r:Reflected,depth:f32,N:vec3f,count:u32)->vec4u{
- let e=vec2u(round((octEncode(N)*0.5+vec2f(0.5))*31.0));
+ let e=vec2u(round(ndcToUvUnflipped(octEncode(N))*31.0));
  return vec4u(texelRadiance(r),texelHalf(depth)|(e.x<<16u)|(e.y<<21u)|((count-1u)<<26u));
 }
 fn historyCount(t:vec4u)->u32{return select(0u,(t.w>>26u)+1u,lowHalf(t.w)!=0u);}
 fn historyDepth(t:vec4u)->f32{return texelHalfOf(t.w);}
 fn historyNormal(t:vec4u)->vec3f{
  let e=vec2f(f32((t.w>>16u)&31u),f32((t.w>>21u)&31u))/31.0;
- return octDecode(e*2.0-vec2f(1.0));
+ return octDecode(unitToSigned2(e));
 }
 /** The view's pixel of the half texel \`at\` that its \`pick\` names; \`halfPoint\` maps a point of the
  *  view's pixels to the half grid's (texel centres on the integers), \`halfCentre\` the half texel
