@@ -2,7 +2,8 @@
 //! distance a collision search measures, and a whole primitive's collider and pages, computed on
 //! one thread and on many, on random inputs and on the edge cases (empty, one triangle, NaN, ±0,
 //! ±Inf, a mesh of many tiles).
-use super::hausdorff::{one_sided_distance, Level0};
+use super::hausdorff::reference::one_sided_distance;
+use super::hausdorff::Level0;
 use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use crate::tests::fixtures::{files, grid_indices, portable_sin};
 use crate::tests::random::Xorshift;

@@ -16,8 +16,12 @@ fn a_part_removed_whole_costs_its_extent_and_its_distance_to_what_is_kept() {
     let weld: Vec<u32> = (0..10).collect();
     let mesh = [0, 1, 2, 3, 4, 5, 6, 7, 8, 6, 9, 8];
     let extents = vanished::part_extents(&positions, &mesh, &weld);
+    // What removing them costs: the largest of their source extents and of their distances to
+    // the triangles of `kept`.
     let error = |source: &[u32], kept: &[u32]| {
-        vanished::vanished_error(source, kept, &positions, &weld, &extents)
+        let (extent, removed) = vanished::vanished_parts(source, kept, &weld, &extents);
+        let distance = crate::physics_cook::hausdorff::reference::one_sided_distance;
+        extent.max(distance(&positions, &removed, kept))
     };
     let far = error(&[0, 1, 2, 3, 4, 5], &[0, 1, 2]);
     assert!((far - 3.0).abs() < 1e-9, "{far}");

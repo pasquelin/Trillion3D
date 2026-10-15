@@ -77,7 +77,7 @@ fn every_collider_holds_its_tolerance() {
         assert!(error <= t, "{name}: {error} over {t}");
         assert_eq!(
             error,
-            hausdorff::distance(&pos, &source, &tiles.concat()),
+            hausdorff::reference::distance(&pos, &source, &tiles.concat()),
             "{name}"
         );
     }

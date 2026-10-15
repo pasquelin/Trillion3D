@@ -63,23 +63,6 @@ pub(crate) fn extent(positions: &[f32], part: &[u32]) -> f64 {
     2.0 * point_sphere(positions, part)[3]
 }
 
-/// What removing the parts of `source` of which `kept` holds no vertex costs: the largest of their
-/// source extents (`part_extents`) and of their distances to the triangles of `kept`, both over
-/// the source vertices; parts meet at a shared position (`weld`).
-#[cfg(test)]
-pub(super) fn vanished_error(
-    source: &[u32],
-    kept: &[u32],
-    positions: &[f32],
-    weld: &[u32],
-    extents: &[f64],
-) -> f64 {
-    let (extent, removed) = vanished_parts(source, kept, weld, extents);
-    extent.max(crate::physics_cook::hausdorff::one_sided_distance(
-        positions, &removed, kept,
-    ))
-}
-
 /// The largest source extent of the parts of `source` of which `kept` holds no vertex, and their
 /// triangles. Their distance to `kept` is within the sampled distance from all of `source` to
 /// `kept`, which the published error covers (`measured.rs`), so only the extent is returned.
@@ -87,7 +70,14 @@ pub(super) fn vanished_extent(source: &[u32], kept: &[u32], weld: &[u32], extent
     vanished_parts(source, kept, weld, extents).0
 }
 
-fn vanished_parts(source: &[u32], kept: &[u32], weld: &[u32], extents: &[f64]) -> (f64, Vec<u32>) {
+/// The largest source extent of the parts of `source` of which `kept` holds no vertex, and the
+/// triangles of those parts.
+pub(super) fn vanished_parts(
+    source: &[u32],
+    kept: &[u32],
+    weld: &[u32],
+    extents: &[f64],
+) -> (f64, Vec<u32>) {
     let (local, corners, mut join) = joined(source, weld);
     let mut alive = vec![false; local.len()];
     for v in kept {
