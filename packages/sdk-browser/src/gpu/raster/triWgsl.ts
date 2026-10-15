@@ -6,6 +6,7 @@ import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
+import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../../visibility/types.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -86,7 +87,7 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  // Only a mask material clips in the raster: it alone pays the read of its three UVs and of the
  // alpha its vertex colours bring to the cutout, carried as a third coordinate.
  var ua=vec3f(0.0);var ub=vec3f(0.0);var uc=vec3f(0.0);
- if((page.flags&128u)!=0u){
+ if((page.flags&${FLAG_MASK}u)!=0u){
   ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));ub=vec3f(pageUv(page,h,ib),pageMaskAlpha(page,h,ib));uc=vec3f(pageUv(page,h,ic),pageMaskAlpha(page,h,ic));
  }
  let cl=clipNear(ca,cb,cc,ua,ub,uc);
@@ -100,7 +101,7 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  let orient=area0+area1;
  if(abs(orient)<1e-8){return t;}
  let front=select((orient>0.0),(orient<0.0),(det>=0.0));
- if((page.flags&2u)==0u){if((page.flags&256u)!=0u){if(front){return t;}}else if(!front){return t;}}
+ if((page.flags&${FLAG_DOUBLE}u)==0u){if((page.flags&${FLAG_BACK}u)!=0u){if(front){return t;}}else if(!front){return t;}}
  var lo=min(a,min(b,c));var hi=max(a,max(b,c));
  if(cl.n==4u){lo=min(lo,d);hi=max(hi,d);}
  let box=boxOf(lo,hi);
