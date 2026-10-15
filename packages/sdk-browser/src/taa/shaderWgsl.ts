@@ -11,6 +11,7 @@ import {
   shareText,
 } from './historyWgsl.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
+import { ACCUMULATION_WGSL } from './accumulationWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {
   clipToUv,
@@ -87,11 +88,11 @@ fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
 /** What the resolve measures once its 3×3 is read and `filtered` known (`shadingHistoryWgsl.ts`):
  *  the image's luma, linear and in the measurement curve, the blurred luma and the box of the
  *  blurred lumas over the 3×3 — exact for a luma that varies linearly across it —, and the outputs
- *  a pixel without history writes: a fresh flicker measure, one sample, no gradient. */
+ *  a pixel without history writes: a fresh flicker measure and no gradient. */
 export const MEASURES = ` let lumaNow=toYcocg(filtered.rgb).x;let now=shadingLuma(lumaNow);
  let blurLuma=blur.x/16.0;let blurSpread=(abs(blur.y)+abs(blur.z))/8.0;
  let blurred=shadingLuma(blurLuma);let blurRange=vec2f(shadingLuma(blurLuma-blurSpread),shadingLuma(blurLuma+blurSpread));
- var moire=shadingPack(shadingFresh(blurred));var historyCount=1.0;var gradient=0.0;`
+ var moire=shadingPack(shadingFresh(blurred));var gradient=0.0;`
 
 /** One neighbour's as-is share, weighed like its colour, read through `read`;
  *  nothing in the flagless one. */
@@ -120,6 +121,7 @@ export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) =>
       SHADING_HISTORY_WGSL,
       CLOSEST_SURFACE_WGSL,
       CURRENT_SHARE_WGSL,
+      ACCUMULATION_WGSL,
       RANGE_BOUND,
       clampToExtent,
     ],

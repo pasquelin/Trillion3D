@@ -1,7 +1,7 @@
 import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
-import { gradientOut } from './shadingHistoryWgsl.ts'
+import { HISTORY_SAMPLES_MAX, gradientOut } from './shadingHistoryWgsl.ts'
 import { computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** The display layers, the tint and the added value (`../webgpu/blend/displayFilter.ts`). */
@@ -46,28 +46,29 @@ export const layerText = (filtered: boolean, part: keyof typeof PARTS) =>
 
 /** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
  *  in a resolve without it (`asIs` false), and written beside the flicker gradient
- *  (`shadingHistoryWgsl.ts`, in eight bits, `gradientOut`), the weight its still average holds,
- *  `count` (`stillWeightOut`), and the history count; then the pixel's geometry (`historyWgsl.ts`)
- *  and its flicker measure, `moire`. */
+ *  (`shadingHistoryWgsl.ts`, in eight bits, `gradientOut`), a free byte, and the weight the history
+ *  holds, `count` (`historyWeightOut`); then the pixel's geometry (`historyWgsl.ts`) and its flicker
+ *  measure, `moire`. */
 export const taaOut = (asIs: boolean, filtered: boolean, mixed = false) => {
   const mix = (now: string, kept: string) => (mixed ? `(${now}*wc+${kept}*wh)/(wc+wh)` : now)
-  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},${stillWeightOut('count')},historyCount/16.0),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
+  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},0.0,${historyWeightOut('count')}),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
 }
 
 /**
- * The most weight a still average records, `64·(render/display)²`, the frame's own: one image
- * gives a display pixel `(render/display)²/2` on average (the Blackman-Harris window of one display
- * pixel, integrated over render texels: an eighth at half the display), and a still image ends at
- * the hold, 74 images at most from the render scale's floor of one half (`taaStillFrames`) — at
- * least 1.7 times the weight held then, never saturating. A fixed maximum (16) saturated from three
- * quarters of the display on and turned the average into an exponential one, five to fourteen
- * times noisier than the exact mean (`upscaleStill.test.ts`).
+ * The most weight a history records, `64·(render/display)²`, the frame's own, and never below the
+ * moving history's `HISTORY_SAMPLES_MAX`: one still image gives a display pixel
+ * `(render/display)²/2` on average (the Blackman-Harris window of one display pixel, integrated over
+ * render texels: an eighth at half the display), and a still image ends at the hold, 74 images at
+ * most from the render scale's floor of one half (`taaStillFrames`) — at least 1.7 times the weight
+ * held then, never saturating. A fixed maximum (16) saturated from three quarters of the display on
+ * and turned the average into an exponential one, five to fourteen times noisier than the exact
+ * mean (`upscaleStill.test.ts`).
  */
-const STILL_WEIGHT_MAX = '(64.0*view.render.x*view.viewport.z*view.render.x*view.viewport.z)'
+export const HISTORY_WEIGHT_MAX = `max(64.0*view.render.x*view.viewport.z*view.render.x*view.viewport.z,${HISTORY_SAMPLES_MAX}.0)`
 /** The weight `count` in eight bits, finer near zero where the first images weigh most; read
- *  back by `stillWeightIn`. */
-const stillWeightOut = (count: string) => `sqrt(saturate(${count}/${STILL_WEIGHT_MAX}))`
-export const stillWeightIn = (stored: string) => `${stored}*${stored}*${STILL_WEIGHT_MAX}`
+ *  back by `historyWeightIn`. */
+const historyWeightOut = (count: string) => `sqrt(saturate(${count}/${HISTORY_WEIGHT_MAX}))`
+export const historyWeightIn = (stored: string) => `${stored}*${stored}*${HISTORY_WEIGHT_MAX}`
 
 /** The layers' four textures in a `filtered` resolve's layout, read by the fragment stage. */
 export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>

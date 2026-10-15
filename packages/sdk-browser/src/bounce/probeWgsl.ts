@@ -125,8 +125,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // a new probe, one that just changed cell (nothing held) or one whose estimate jumps restarts its
  // count and takes the fresh estimate whole.
  let restart=select(updates,0.0,change>MOVING_RESIDUAL);
- let blend=accumulationShare(restart,PROBE_SAMPLES);
- let count=accumulationCount(restart,PROBE_SAMPLES);
+ let blend=accumulationShare(restart,1.0,PROBE_SAMPLES);
+ let count=accumulationCount(restart,1.0,PROBE_SAMPLES);
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
  var state=array<f32,9>();
  state[0]=count;state[PROBE_VALID]=usable;

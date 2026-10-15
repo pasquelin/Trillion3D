@@ -87,7 +87,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
   assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|sharePast|shareLo|keptShare/)
   const outputs = (text: string) => [
     ...text.matchAll(
-      /TaaOut\((.*),vec4f\((.*),gradient\*[\d.]+\+[\d.]+,sqrt\(.*\),historyCount\/16\.0\),geometry,moire\);\}?$/gm,
+      /TaaOut\((.*),vec4f\((.*),gradient\*[\d.]+\+[\d.]+,0\.0,sqrt\(.*\)\),geometry,moire\);\}?$/gm,
     ),
   ]
   const kept = outputs(TAA_SHADER),
@@ -100,13 +100,11 @@ test('the flagless resolve is the flag-reading one without its share, written as
   )
   const flagged = new Set(TAA_SHADER.split('\n'))
   const own = flagless.split('\n').filter((line) => !flagged.has(line))
-  // Its three outputs, and its still average reading the weight held at the point, as the share
-  // target's sample the flag-reading one keeps (`stillAverage`).
-  assert.equal(own.length, 4, 'only its three outputs and its still weight read are its own')
+  assert.equal(own.length, 3, 'only its three outputs are its own')
   for (const line of own)
     assert.match(
       line,
-      /TaaOut\(.*,vec4f\(0\.0,gradient\*[\d.]+\+[\d.]+,sqrt\(.*\),historyCount\/16\.0\),geometry,moire\);\}?$|let held=textureSampleLevel\(shareHistory/,
+      /TaaOut\(.*,vec4f\(0\.0,gradient\*[\d.]+\+[\d.]+,0\.0,sqrt\(.*\)\),geometry,moire\);\}?$/,
     )
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line))
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)

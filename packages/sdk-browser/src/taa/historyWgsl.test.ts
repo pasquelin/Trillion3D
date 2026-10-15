@@ -19,31 +19,26 @@ import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
-type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number }
+type Share = { currentShare: (share: number, rho: number, fresh: boolean) => number }
 const { currentShare } = shaderRun<Share>(wgslSource(CURRENT_SHARE_WGSL), ['currentShare'], {})
 const MOVING = 1 / 8
 
 test('a pixel with no history takes the current sample whole', () => {
-  for (const [reach, rho] of [
-    [1, 0],
+  for (const [share, rho] of [
+    [MOVING, 0],
     [0, 0],
     [0.3, 0.95],
   ])
-    assert.equal(currentShare(MOVING, reach, rho, true), 1, `reach ${reach}, reactive ${rho}`)
+    assert.equal(currentShare(share, rho, true), 1, `share ${share}, reactive ${rho}`)
 })
 
 test('a reactive value raises the current share to at least itself, never above 0.9', () => {
   assert.equal(REACTIVE_MAX, 0.9)
-  assert.equal(currentShare(MOVING, 1, 0, false), MOVING, 'no reactive: today’s share')
-  assert.equal(currentShare(MOVING, 1, 0.05, false), MOVING, 'below the share: nothing')
-  for (const rho of [0.3, 0.5, 0.9]) assert.equal(currentShare(MOVING, 1, rho, false), rho)
-  for (const rho of [0.95, 1]) assert.equal(currentShare(MOVING, 1, rho, false), REACTIVE_MAX)
-  assert.equal(currentShare(MOVING, 0, 0.4, false), 0.4, 'even for a far sample')
-})
-
-test('a sample far from its display pixel lowers its weight', () => {
-  const shares = [1, 0.6, 0.2, 0].map((reach) => currentShare(MOVING, reach, 0, false))
-  assert.deepEqual(shares, [MOVING, MOVING * 0.6, MOVING * 0.2, 0])
+  assert.equal(currentShare(MOVING, 0, false), MOVING, 'no reactive: the accumulation’s share')
+  assert.equal(currentShare(MOVING, 0.05, false), MOVING, 'below the share: nothing')
+  for (const rho of [0.3, 0.5, 0.9]) assert.equal(currentShare(MOVING, rho, false), rho)
+  for (const rho of [0.95, 1]) assert.equal(currentShare(MOVING, rho, false), REACTIVE_MAX)
+  assert.equal(currentShare(0, 0.4, false), 0.4, 'even for a sample of no weight')
 })
 
 type Cap = { historyCap: (uv: number[], coord: number[], now: number, kept: number) => number }

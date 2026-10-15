@@ -46,7 +46,8 @@ test('an uncovered pixel keeps none of its history', () => {
     })
     const { color, count } = upscaleRun(frame, asIs, filtered)(3, 3)
     assert.ok(color.every(Number.isFinite))
-    assert.equal(count, 1 / 16, 'one sample: the current one')
+    const fresh = upscaleRun({ ...frame, history: undefined }, asIs, filtered)(3, 3)
+    assert.equal(count, fresh.count, 'one sample: the current one')
   }
 })
 

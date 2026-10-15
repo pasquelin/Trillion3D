@@ -66,8 +66,6 @@ interface Resolved {
   moire: number
   /** The geometry identity written (`pageOf`): the placement plus one, 0 the background. */
   tag: number
-  /** The weight a still average holds, as stored (`stillWeightOut`). */
-  held: number
   layers: number[][]
   reads: number[][]
   /** Texels and filtered samples read, gathers included: the pixel's fetches. */
@@ -146,11 +144,11 @@ export function upscaleRun(
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
     TaaOut: (
       color: number[],
-      [share, gradient, held, count]: number[],
+      [share, gradient, , count]: number[],
       geometry: number[],
       moire: number,
       ...layers: number[][]
-    ) => ({ color, share, gradient, count, tag: geometry[0], held, moire, layers }),
+    ) => ({ color, share, gradient, count, tag: geometry[0], moire, layers }),
   }
   /** The blurred luma the pixel resolved is measuring: what a history of its own holds. */
   const owner = { blurred: 0 }
