@@ -1,13 +1,7 @@
 import { judgeCadence, resetCadence, type Cadence } from './cadence.ts'
 import { samePeriod, SUPPORT, type createRefreshClock } from './refreshClock.ts'
-import {
-  displayMoved,
-  HISTORY,
-  INTERVAL_PAUSE_MS,
-  PERIOD,
-  SECOND_MS,
-  type createTargetCap,
-} from './scaleTargets.ts'
+import { displayMoved, HISTORY, INTERVAL_PAUSE_MS, PERIOD, SECOND_MS } from './scaleTargets.ts'
+import type { createScaleMemory } from './scaleMemory.ts'
 import {
   clearCosts,
   fitScale,
@@ -25,7 +19,7 @@ export interface ScaleParts {
   w: ScaleWindow
   refresh: ReturnType<typeof createRefreshClock>
   display: { width: number; height: number; ratio: number }
-  targets: ReturnType<typeof createTargetCap>
+  memory: ReturnType<typeof createScaleMemory>
   cadence: Cadence
 }
 
@@ -108,8 +102,7 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
     gpu = timed && w.images - w.timedAt < HISTORY,
     moved = displayMoved(p.display)
   if (moved) {
-    p.targets.lift()
-    w.max = w.bounds.max
+    p.memory.uncap()
     refresh.reset()
     resetCadence(p.cadence)
   }

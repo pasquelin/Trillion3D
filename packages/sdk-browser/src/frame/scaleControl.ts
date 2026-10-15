@@ -83,7 +83,7 @@ export function createScaleControl(option: RenderScale | undefined) {
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
     cadence = createCadence(),
-    parts = { w, refresh, display, targets, cadence }
+    parts = { w, refresh, display, memory, cadence }
   const control = {
     get bounds() {
       return w.bounds
