@@ -13,14 +13,15 @@ import {
 import { TREE_GROUP, type PlacementTree } from '../gpu/dag/placementTree.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
 import { TREE_DEPTH, WALK_LIST } from '../gpu/dag/treeWalkWgsl.ts'
-import { boxEntry, spent, type Hit, type Spent, type Vec } from './runtimeOracle.fixture.ts'
+import { boxEntry, spent, type Hit, type Spent } from './runtimeOracle.fixture.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 /** The nearest hit from `hit` over `tree`'s members, each ordered by where the ray enters its box (`entry`)
  *  and entered by `enter`, the walk's units spent in `s`. */
 export function walkTree(
   tree: PlacementTree,
-  o: Vec,
-  d: Vec,
+  o: Vec3,
+  d: Vec3,
   hit: Hit,
   s: Spent,
   enter: (w: number, best: Hit) => Hit,
@@ -30,7 +31,7 @@ export function walkTree(
   // The tree's nodes, indexed within the tree (`treeTable.ts`): its top is node 0.
   const nodes = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset, tree.nodes.length)
   const float = (n: number, at: number) => tree.nodes[n * DAG_NODE_FLOATS + at]
-  const box = (n: number, at: number): Vec => [float(n, at), float(n, at + 1), float(n, at + 2)]
+  const box = (n: number, at: number): Vec3 => [float(n, at), float(n, at + 1), float(n, at + 2)]
   // Front to back (`placementTreeWalk`): a level's node and the children one scan of it keeps — the
   // `WALK_LIST` nearest after the last kept, by entry then index —, those entered, whether it left any out.
   type Level = {

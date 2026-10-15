@@ -5,16 +5,14 @@
 // lets the rest through, an opaque one ends the ray). Nothing here reads the engine but the contract's layer
 // count (`RAY_LAYERS`).
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { add, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { add, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import { rayRectangle, raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
 import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
-export type Vec = [number, number, number]
-
 /** A world vector in a shape's frame: the inverse of its pose, `pitch` about x then `yaw` about y. */
-function unturn(v: Vec, yaw: number, pitch: number): Vec {
+function unturn(v: Vec3, yaw: number, pitch: number): Vec3 {
   const [cp, sp, cy, sy] = [Math.cos(pitch), Math.sin(pitch), Math.cos(yaw), Math.sin(yaw)]
   const x = v[0] * cy - v[2] * sy,
     y0 = v[1],
@@ -23,10 +21,10 @@ function unturn(v: Vec, yaw: number, pitch: number): Vec {
 }
 
 /** Where shape `s` stands once its move is made: its centre plus the move. */
-const finalCentre = (s: Shape): Vec => (s.kind === 'skinned' ? s.centre : add(s.centre, s.move))
+const finalCentre = (s: Shape): Vec3 => (s.kind === 'skinned' ? s.centre : add(s.centre, s.move))
 
 /** The parameters `t > 1e-6` at which the ray `o + t d` crosses shape `s`, ascending. */
-export function crossings(s: Shape, o: Vec, d: Vec): number[] {
+export function crossings(s: Shape, o: Vec3, d: Vec3): number[] {
   const lo = unturn(subtract(o, finalCentre(s)), s.yaw, s.pitch),
     ld = unturn(d, s.yaw, s.pitch)
   if (s.kind === 'skinned') {
@@ -49,9 +47,9 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
   if (s.kind === 'sphere' || s.kind === 'morph') {
     // An ellipsoid: the axes a, a(1 + 0.6 w), a; a sphere at weight zero — the unit sphere in its
     // scaled frame.
-    const k: Vec = [1 / a, 1 / (a * (1 + 0.6 * s.weight)), 1 / a]
-    const p: Vec = [lo[0] * k[0], lo[1] * k[1], lo[2] * k[2]],
-      q: Vec = [ld[0] * k[0], ld[1] * k[1], ld[2] * k[2]]
+    const k: Vec3 = [1 / a, 1 / (a * (1 + 0.6 * s.weight)), 1 / a]
+    const p: Vec3 = [lo[0] * k[0], lo[1] * k[1], lo[2] * k[2]],
+      q: Vec3 = [ld[0] * k[0], ld[1] * k[1], ld[2] * k[2]]
     const span = new Float64Array(2)
     if (raySphere(span, p, q, [0, 0, 0], 1)) hits.push(...span)
   } else if (s.kind === 'box') {
@@ -129,7 +127,7 @@ export function crossings(s: Shape, o: Vec, d: Vec): number[] {
 /** What the ray brings back: the emission of what it meets, a blended surface weighing its own and letting
  *  the rest through, an opaque one (emitting or dark) ending it; the third layer is the last. The
  *  environment is black. `first` names the first thing met, or -1. */
-export function radiance(c: FamilyCase, o: Vec, d: Vec): { rgb: Rgb; first: number } {
+export function radiance(c: FamilyCase, o: Vec3, d: Vec3): { rgb: Rgb; first: number } {
   const hits: { t: number; at: number }[] = []
   c.shapes.forEach((s, at) => {
     const t = crossings(s, o, d)

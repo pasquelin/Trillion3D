@@ -9,13 +9,14 @@ import { reflectedRadianceWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
-import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
+import { rasterize, type Box, type Camera } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
 import { radianceLevels } from '../scene/targetFormats.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 type Seen = { color: number[]; confidence: number }
 /** A pixel's reflection lobe, as the shipped `reflectionLobeOf` returns it. */
-export type Lobe = { R: V3; T: V3; bands: number[]; widths: number[]; tangents: number[] }
+export type Lobe = { R: Vec3; T: Vec3; bands: number[]; widths: number[]; tangents: number[] }
 type Cone = { short: number; long: number; level: number }
 /** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
  *  as the run reads them, every other field four numbers. */
@@ -65,12 +66,12 @@ export function reflectionRunner(
   const counter = { loads: 0, taps: [] as number[][], cells: [] as number[][] }
   const token = { depth: { layers: HIZ_DEPTH_LAYERS }, pyramid: {}, image: {} }
   const run = shaderRun<{
-    reflectionLobeOf: (R: V3, alpha: number, lobe: number[]) => Lobe
-    reflectionPixelAt: (P: V3) => number
-    reflectionSeen: (P: V3, N: V3, lobe: Lobe, pixel: number) => Seen
+    reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => Lobe
+    reflectionPixelAt: (P: Vec3) => number
+    reflectionSeen: (P: Vec3, N: Vec3, lobe: Lobe, pixel: number) => Seen
     reflectionRay: (
-      P: V3,
-      N: V3,
+      P: Vec3,
+      N: Vec3,
       lobe: Lobe,
       pixel: number,
     ) => { o: number[]; d: number[]; end: number }
@@ -88,7 +89,7 @@ export function reflectionRunner(
     reflectionConeTangent: (alpha: number) => number
     reflectionFootprint: (
       Q: number[],
-      hit: V3,
+      hit: Vec3,
       pixel: number,
       lobe: Lobe,
       cone: Cone,

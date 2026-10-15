@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
-import { camera, castBoxes, type Box, type V3 } from './boxes.fixture.ts'
+import { camera, castBoxes, type Box } from './boxes.fixture.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 const TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS
 
@@ -35,7 +36,7 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
     [-40, 0.8],
   ]) {
     const a = (azimuth * Math.PI) / 180
-    const eye: V3 = [9 * Math.sin(a), height, 9 * Math.cos(a)]
+    const eye: Vec3 = [9 * Math.sin(a), height, 9 * Math.cos(a)]
     const view = camera(eye, [0, 0.8, 0], Wv, Hv, (50 * Math.PI) / 180)
     const scene = sceneOver(view, boxes)
     const onePlane = (x: number, y: number) => {
@@ -50,9 +51,9 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
         const d = view.ray(x + 0.5, y + 0.5)
         const front = castBoxes(eye, d, [sheet])
         if (!(front.t < castBoxes(eye, d, boxes).t)) continue
-        const P = [0, 1, 2].map((k) => eye[k] + d[k] * front.t) as V3
+        const P = [0, 1, 2].map((k) => eye[k] + d[k] * front.t) as Vec3
         if (Math.abs(P[2] - sheet.high[2]) > 1e-9) continue
-        const R: V3 = [d[0], d[1], -d[2]]
+        const R: Vec3 = [d[0], d[1], -d[2]]
         const seen = scene.reflectionSeen(
           P,
           [0, 0, 1],
@@ -69,7 +70,7 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
           `${azimuth}° ${height}: a hit where nothing is, ${x},${y}`,
         )
         const S = view.project(P),
-          T = view.project([0, 1, 2].map((k) => P[k] + R[k] * exact) as V3)
+          T = view.project([0, 1, 2].map((k) => P[k] + R[k] * exact) as Vec3)
         const reached = Math.hypot(Q[0] - S[0], Q[1] - S[1]),
           truth = Math.hypot(T[0] - S[0], T[1] - S[1])
         assert.ok(reached > truth - 2, `${azimuth}° ${height}: a hit before the surface, ${x},${y}`)
@@ -100,12 +101,12 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
       },
     },
   )
-  const hit: V3 = [0, 1, 0],
-    R: V3 = [0, 0, 1],
+  const hit: Vec3 = [0, 1, 0],
+    R: Vec3 = [0, 0, 1],
     Q = view.project(hit).slice(0, 2),
     pixel = view.project(hit)[3] * view.scale
   /** The footprint's taps from `P`, two metres or more from the hit, of `alpha` and `lobe`. */
-  const taps = (P: V3, alpha: number, lobe: number[]) => {
+  const taps = (P: Vec3, alpha: number, lobe: number[]) => {
     read.length = 0
     const ellipse = run.reflectionLobeOf(R, alpha, lobe)
     const cone = run.reflectionConeAt(Math.hypot(...hit.map((v, k) => v - P[k])), pixel, ellipse)

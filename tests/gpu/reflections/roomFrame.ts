@@ -4,19 +4,19 @@
 // leaves the screen finds the room again in the proxy, and never the background. The patch lies
 // metres from every wall. Its far wall's colour is a parameter (`roomFrame`): a dark one tells the
 // proxy's answer from the background's.
-import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import type { RigFrame } from './rigFrame.ts'
 import type { RigFace } from './rigRuntime.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** The room's inner extent: x, y and z from `low` to `high`. */
-const LOW: V3 = [-5, 0, -10],
-  HIGH: V3 = [5, 4, 0]
+const LOW: Vec3 = [-5, 0, -10],
+  HIGH: Vec3 = [5, 4, 0]
 const THICK = 0.5
 
 /** The faces of the room, each an axis, a side (0 low, 1 high), and its colour: nearly one grey, the
  *  largest channel `ROOM_MAXIMUM`. */
-const FACES: { axis: number; side: number; color: V3 }[] = [
+const FACES: { axis: number; side: number; color: Vec3 }[] = [
   { axis: 0, side: 0, color: [0.48, 0.5, 0.5] },
   { axis: 0, side: 1, color: [0.52, 0.5, 0.5] },
   { axis: 1, side: 0, color: [0.3, 0.3, 0.3] },
@@ -33,8 +33,8 @@ const PATCH: Block['box'] = { low: [-2, 0, -8], high: [2, 0.002, -2] }
 
 /** The slab behind each face, thick outward. */
 function slab(axis: number, side: number): Block['box'] {
-  const low: V3 = [LOW[0] - THICK, LOW[1] - THICK, LOW[2] - THICK]
-  const high: V3 = [HIGH[0] + THICK, HIGH[1] + THICK, HIGH[2] + THICK]
+  const low: Vec3 = [LOW[0] - THICK, LOW[1] - THICK, LOW[2] - THICK]
+  const high: Vec3 = [HIGH[0] + THICK, HIGH[1] + THICK, HIGH[2] + THICK]
   if (side) low[axis] = HIGH[axis]
   else high[axis] = LOW[axis]
   return { low, high }
@@ -69,12 +69,12 @@ function roomProxy(faces: typeof FACES) {
  *  roughness `rough`, the proxy beyond the screen, a white background; the far wall's colour is
  *  `far`, the room's own by default. */
 export function roomFrame(
-  eye: V3,
-  target: V3,
+  eye: Vec3,
+  target: Vec3,
   width: number,
   height: number,
   rough: number,
-  far: V3 = FACES[FAR].color,
+  far: Vec3 = FACES[FAR].color,
 ) {
   const faces = FACES.map((face, k) => (k === FAR ? { ...face, color: far } : face))
   const blocks: Block[] = faces.map(({ axis, side, color }) => ({ box: slab(axis, side), color }))

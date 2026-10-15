@@ -18,7 +18,7 @@ import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { dotVector3 } from '../../../../math/src/vector/vector.ts'
-import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { cross, unit, type Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 
 const LOBED = waterCompositeShader({})
 const PLAIN = waterCompositeShader({ lobeless: true })
@@ -40,21 +40,20 @@ const SHARED = [
 ]
 const LOBE = ['lobeLight', 'anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
-type V3 = [number, number, number]
 
 /** A pixel's lobes as `setLobes` leaves them: a strength along a direction across `N`, a coat. */
 function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: number[], V: number[]) {
-  const T = unit(cross(N as V3, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
+  const T = unit(cross(N as Vec3, Math.abs(N[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]))
   const strength = r() < 0.3 ? 0 : u(0, 1),
     coat = r() < 0.3 ? 0 : u(0, 1)
-  const coatN = unit(N.map((n) => n + u(-0.2, 0.2)) as V3)
+  const coatN = unit(N.map((n) => n + u(-0.2, 0.2)) as Vec3)
   const facing = Math.max(dotVector3(coatN, V), 0)
   const grazing = saturate(1 - facing)
   return {
     on: true,
     strength,
     T,
-    B: cross(N as V3, T),
+    B: cross(N as Vec3, T),
     coat,
     coatRough: u(0.06, 1),
     coatN,

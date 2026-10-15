@@ -3,15 +3,15 @@
 // wall pixel whose exact ray meets the body, away from the body's silhouette, must show the body's
 // colour — the reflection of a body is continuous, never the shards of its edges the ray happens to
 // meet inside a thin slab.
-import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import type { Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
-const EYE: V3 = [3, 2.5, 5]
-const TARGET: V3 = [0, 1.5, -8]
+const EYE: Vec3 = [3, 2.5, 5]
+const TARGET: Vec3 = [0, 1.5, -8]
 
 const WALL: Block = {
   box: { low: [-14, 0, -8.3], high: [14, 12, -8] },
@@ -19,12 +19,12 @@ const WALL: Block = {
   mirror: true,
 }
 const FLOOR: Block = { box: { low: [-14, -0.3, -16], high: [14, 0, 6] }, color: [0.3, 0.3, 0.3] }
-const BODY_COLOR: V3 = [0.9, 0.6, 0.1]
+const BODY_COLOR: Vec3 = [0.9, 0.6, 0.1]
 /** The body, 1.8 m thick, and four teeth along its top. */
 const BODY: Block[] = [
   { box: { low: [-1.5, 0.3, -5], high: [1.5, 2.3, -3.2] }, color: BODY_COLOR },
   ...[-1.2, -0.4, 0.4, 1.2].map((x) => ({
-    box: { low: [x - 0.2, 2.3, -5] as V3, high: [x + 0.2, 3, -3.2] as V3 },
+    box: { low: [x - 0.2, 2.3, -5] as Vec3, high: [x + 0.2, 3, -3.2] as Vec3 },
     color: BODY_COLOR,
   })),
 ]

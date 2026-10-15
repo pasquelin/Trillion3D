@@ -6,10 +6,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { reflect, scale, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
+import { reflect, scale, subtract, unit, type Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { reflectionRunner, sceneFromDepth } from './scene.fixture.ts'
-import { camera, type V3 } from './boxes.fixture.ts'
+import { camera } from './boxes.fixture.ts'
 
 const RAYS = 100_000
 const SCENES = 40
@@ -22,7 +22,7 @@ const wave = (amplitude: number, x: number, z: number) =>
 
 /** The first `t` at which the ray `o + d·t` is under the surface `y = height(x, z)`, found by a
  *  march of steps shrinking toward the horizon and bisected, or Infinity. */
-function castHeightfield(o: V3, d: V3, height: (x: number, z: number) => number) {
+function castHeightfield(o: Vec3, d: Vec3, height: (x: number, z: number) => number) {
   let previous = 0
   for (let t = 0.02; t < 400; t *= 1.01) {
     const y = o[1] + d[1] * t - height(o[0] + d[0] * t, o[2] + d[2] * t)
@@ -52,7 +52,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
     const pitch = (0.5 * (89 / 0.5) ** ((scene >> 1) / (SCENES / 2 - 1)) * Math.PI) / 180
     const amplitude = scene % 2 ? 0 : 0.05 + 0.1 * rand()
     const height = (x: number, z: number) => wave(amplitude, x, z)
-    const eye: V3 = [0, 3, 0]
+    const eye: Vec3 = [0, 3, 0]
     const view = camera(
       eye,
       [0, eye[1] - Math.sin(pitch), -Math.cos(pitch)],
@@ -62,7 +62,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
     )
     const wallDistance = 12 + 30 * rand()
     const depth = new Float64Array(WIDTH * HEIGHT)
-    const surfaces: (V3 | undefined)[] = []
+    const surfaces: (Vec3 | undefined)[] = []
     for (let y = 0; y < HEIGHT; y++)
       for (let x = 0; x < WIDTH; x++) {
         const d = view.ray(x + 0.5, y + 0.5)
@@ -70,11 +70,11 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         const wall = d[2] < 0 ? wallDistance / -d[2] : Infinity
         const t = Math.min(floor, wall)
         depth[y * WIDTH + x] = view.depthOf(d, t)
-        surfaces.push(t === floor ? ([0, 1, 2].map((k) => eye[k] + d[k] * t) as V3) : undefined)
+        surfaces.push(t === floor ? ([0, 1, 2].map((k) => eye[k] + d[k] * t) as Vec3) : undefined)
       }
     const run = reflectionRunner(...sceneFromDepth(view, depth))
     for (let k = 0; k < RAYS / SCENES; k++) {
-      let P: V3 | undefined
+      let P: Vec3 | undefined
       while (!P) P = surfaces[Math.floor(rand() * WIDTH * HEIGHT)]
       // The surface's normal, from its slopes.
       const e = 1e-3

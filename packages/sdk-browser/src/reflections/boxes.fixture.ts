@@ -1,7 +1,7 @@
 // Synthetic views for the reflection's tests: opaque boxes, the exact ray cast of them, a reversed
 // infinite perspective camera, and the boxes rasterized into a reversed depth.
 import { dotVector3, transformHomogeneousPoint } from '../../../math/src/vector/vector.ts'
-import { cross, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
+import { cross, subtract, unit, type Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { perspectiveProjection, perspectiveSlope } from '../../../math/src/projection/camera.ts'
@@ -9,17 +9,16 @@ import { clipToPixel } from '../../../math/src/projection/clip.ts'
 import { RAD2DEG } from '../../../math/src/constants.ts'
 import { slabCut } from '../../../math/src/geometry/slab.ts'
 
-export type V3 = [number, number, number]
-export type Box = { low: V3; high: V3 }
+export type Box = { low: Vec3; high: Vec3 }
 
 /** Where the ray `o + d·t`, t > `from`, enters `box`, `from` when it starts inside, or Infinity. */
-function rayBox(o: V3, d: V3, box: Box, from = 0) {
+function rayBox(o: Vec3, d: Vec3, box: Box, from = 0) {
   const span = new Float64Array([from, Infinity])
   return slabCut(span, box.low, 0, box.high, 0, o, d) ? span[0] : Infinity
 }
 
 /** The first of `boxes` the ray meets, and which. */
-export function castBoxes(o: V3, d: V3, boxes: Box[], from = 0) {
+export function castBoxes(o: Vec3, d: Vec3, boxes: Box[], from = 0) {
   let t = Infinity,
     index = -1
   boxes.forEach((box, k) => {
@@ -40,8 +39,8 @@ export function castBoxes(o: V3, d: V3, boxes: Box[], from = 0) {
  * (0 when the ray meets nothing).
  */
 export function camera(
-  eye: V3,
-  target: V3,
+  eye: Vec3,
+  target: Vec3,
   width: number,
   height: number,
   fov = Math.PI / 3,
@@ -63,16 +62,16 @@ export function camera(
   ])
   const projection = perspectiveProjection(new Float64Array(16), degrees, a, near, 1)
   const m = multiplyMatrix4(new Float64Array(16), projection, view)
-  const project = (p: V3) => {
+  const project = (p: Vec3) => {
     const c = transformHomogeneousPoint([0, 0, 0, 0], m, p[0], p[1], p[2])
     return [...clipToPixel(c, width, height), c[3]]
   }
-  const ray = (x: number, y: number): V3 => {
+  const ray = (x: number, y: number): Vec3 => {
     const nx = (x / width) * 2 - 1,
       ny = 1 - (y / height) * 2
-    return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) * slope) as V3)
+    return unit([0, 1, 2].map((k) => f[k] + (nx * a * r[k] + ny * u[k]) * slope) as Vec3)
   }
-  const depthOf = (d: V3, t: number) => (Number.isFinite(t) ? near / (t * dotVector3(d, f)) : 0)
+  const depthOf = (d: Vec3, t: number) => (Number.isFinite(t) ? near / (t * dotVector3(d, f)) : 0)
   return {
     eye,
     forward: f,
@@ -94,14 +93,14 @@ export type Camera = ReturnType<typeof camera>
 export const faceIndex = (axis: number, high: boolean) => 2 * axis + (high ? 1 : 0)
 
 /** The outward normal of the face `face` (`faceIndex`). */
-export function faceNormal(face: number): V3 {
-  const normal: V3 = [0, 0, 0]
+export function faceNormal(face: number): Vec3 {
+  const normal: Vec3 = [0, 0, 0]
   normal[face >> 1] = face & 1 ? 1 : -1
   return normal
 }
 
 /** The face of `box` the point `p` on it lies on (`faceIndex`). */
-function faceOf(box: Box, p: V3) {
+function faceOf(box: Box, p: Vec3) {
   let face = 0,
     best = Infinity
   for (let k = 0; k < 3; k++)
@@ -128,7 +127,7 @@ export function rasterize(view: Camera, boxes: Box[]) {
       shown[y * view.width + x] =
         index < 0
           ? -1
-          : 6 * index + faceOf(boxes[index], [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as V3)
+          : 6 * index + faceOf(boxes[index], [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as Vec3)
     }
   return { depth, shown }
 }

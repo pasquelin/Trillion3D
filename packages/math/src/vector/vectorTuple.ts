@@ -1,6 +1,7 @@
 import { addVector3, crossVector3, dotVector3, normalizeVector3, subVector3 } from './vector.ts'
 
-type Vec3 = [number, number, number]
+/** A 3-component vector as a fixed tuple. */
+export type Vec3 = [number, number, number]
 
 /** A difference in a fresh tuple, accepting arrays and typed-array inputs. */
 export const subtract = (a: ArrayLike<number>, b: ArrayLike<number>): Vec3 =>

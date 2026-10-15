@@ -6,21 +6,22 @@
 // rises past its top edge): the room's proxy answers alone, and shows the far wall's colour, a dark
 // one, never the background's.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { faceIndex } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 const WIDTH = 320,
   HEIGHT = 180
 /** The face of a block that looks up: the high side of y. */
 const TOP = faceIndex(1, true)
-const EYE: V3 = [0, 1.7, -0.3]
+const EYE: Vec3 = [0, 1.7, -0.3]
 
 /** A view of the room: its yaw in degrees, how far (metres, over ten ahead) its target lies below
  *  the eye, the floor patch's roughness and the far wall's colour (the room's own by default). */
-export type VeilCase = { yaw: number; drop: number; rough: number; far?: V3 }
+export type VeilCase = { yaw: number; drop: number; rough: number; far?: Vec3 }
 
 /** What the proof reads, per view: the smallest and the largest reflected value, the largest change
  *  from a floor pixel to its neighbour on the right or below, and the pixels reflected. */
@@ -33,7 +34,7 @@ export function run(cases: VeilCase[]) {
     result.poses = []
     for (const { yaw, drop, rough, far } of cases) {
       const a = yaw * DEG2RAD
-      const target: V3 = [EYE[0] + Math.sin(a) * 10, EYE[1] - drop, EYE[2] - Math.cos(a) * 10]
+      const target: Vec3 = [EYE[0] + Math.sin(a) * 10, EYE[1] - drop, EYE[2] - Math.cos(a) * 10]
       const { frame, shown, floor } = roomFrame(EYE, target, WIDTH, HEIGHT, rough, far)
       const words = await settledImage(device, frame)
       // The patch's top, its mirror: the film's two-millimetre edge shows a pixel of side now and then.

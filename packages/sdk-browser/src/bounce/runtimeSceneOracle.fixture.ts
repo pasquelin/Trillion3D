@@ -6,7 +6,7 @@ import type { PackedDag } from '../gpu/dag/types.ts'
 import { walkTree } from './runtimeTreeOracle.fixture.ts'
 import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { dotVector3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
-import { cross, subtract } from '../../../math/src/vector/vectorTuple.ts'
+import { cross, subtract, type Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 import {
   boxEntry,
   missed,
@@ -18,7 +18,6 @@ import {
   type Hit,
   type Instance,
   type Spent,
-  type Vec,
 } from './runtimeOracle.fixture.ts'
 
 /** What the scene is made of: the culling's packing (its tree, its worlds), the arena and who wears
@@ -42,13 +41,18 @@ const worldOf = (scene: OracleScene, w: number) =>
     : scene.packed.worlds.subarray(w * 16, w * 16 + 16)
 
 /** Member `w`'s world as its three linear columns and its translation. */
-function columnsOf(scene: OracleScene, w: number): [Vec, Vec, Vec, Vec] {
+function columnsOf(scene: OracleScene, w: number): [Vec3, Vec3, Vec3, Vec3] {
   const m = worldOf(scene, w)
-  return [0, 4, 8, 12].map((at) => [m[at], m[at + 1], m[at + 2]] as Vec) as [Vec, Vec, Vec, Vec]
+  return [0, 4, 8, 12].map((at) => [m[at], m[at + 1], m[at + 2]] as Vec3) as [
+    Vec3,
+    Vec3,
+    Vec3,
+    Vec3,
+  ]
 }
 
 /** `rtEntry`: where the ray enters placement `w`'s world box, past `limit` where it meets none. */
-function entryOf(scene: OracleScene, w: number, o: Vec, d: Vec, limit: number) {
+function entryOf(scene: OracleScene, w: number, o: Vec3, d: Vec3, limit: number) {
   const instance = scene.instances.get(w)
   if (!instance) return limit + 1
   const [a, b, c, t] = columnsOf(scene, w)
@@ -60,21 +64,21 @@ function entryOf(scene: OracleScene, w: number, o: Vec, d: Vec, limit: number) {
     extent = [0, 1, 2].map(
       (k) => Math.abs(a[k]) * half[0] + Math.abs(b[k]) * half[1] + Math.abs(c[k]) * half[2],
     )
-  const low = world.map((v, k) => v - extent[k]) as Vec,
-    high = world.map((v, k) => v + extent[k]) as Vec
+  const low = world.map((v, k) => v - extent[k]) as Vec3,
+    high = world.map((v, k) => v + extent[k]) as Vec3
   return boxEntry(low, high, o, d, limit)
 }
 
 /** `rtEnter`: the ray against placement `w`, its world box first. */
-function enter(scene: OracleScene, w: number, o: Vec, d: Vec, best: Hit, s: Spent): Hit {
+function enter(scene: OracleScene, w: number, o: Vec3, d: Vec3, best: Hit, s: Spent): Hit {
   const instance = scene.instances.get(w)
   if (!instance || entryOf(scene, w, o, d, best.distance) > best.distance) return best
   const [a, b, c, t] = columnsOf(scene, w)
   const r0 = cross(b, c),
     det = dotVector3(a, r0)
   if (Math.abs(det) < 1e-30) return best
-  const r = [r0, cross(c, a), cross(a, b)].map((row) => row.map((v) => v / det) as Vec)
-  const apply = (v: Vec): Vec => [dotVector3(r[0], v), dotVector3(r[1], v), dotVector3(r[2], v)]
+  const r = [r0, cross(c, a), cross(a, b)].map((row) => row.map((v) => v / det) as Vec3)
+  const apply = (v: Vec3): Vec3 => [dotVector3(r[0], v), dotVector3(r[1], v), dotVector3(r[2], v)]
   const hit = traceCut(
     scene.columns,
     apply(subtract(o, t)),
@@ -89,7 +93,7 @@ function enter(scene: OracleScene, w: number, o: Vec, d: Vec, best: Hit, s: Spen
 }
 
 /** `rtScene`: the nearest hit over every placement, the tree walked front to back (`walkTree`). */
-export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s: Spent): Hit {
+export function traceScene(scene: OracleScene, o: Vec3, d: Vec3, limit: number, s: Spent): Hit {
   let best = missed(limit)
   const { packed } = scene,
     tree = packed.placementTree
@@ -114,7 +118,7 @@ export function traceScene(scene: OracleScene, o: Vec, d: Vec, limit: number, s:
 }
 
 /** The blended copies, members after the placements: each tried in turn, a unit apiece. */
-function copiesOf(scene: OracleScene, o: Vec, d: Vec, hit: Hit, s: Spent) {
+function copiesOf(scene: OracleScene, o: Vec3, d: Vec3, hit: Hit, s: Spent) {
   let best = hit
   const count = scene.copyWorlds ? scene.copyWorlds.length / RUNTIME_WORLD_WORDS : 0
   for (let k = 0; k < count; k++) {
@@ -126,11 +130,11 @@ function copiesOf(scene: OracleScene, o: Vec, d: Vec, hit: Hit, s: Spent) {
 }
 
 /** Every triangle of every placement tested in turn, through the placement's world. */
-export function bruteForce(scene: OracleScene, o: Vec, d: Vec, limit: number): Hit {
+export function bruteForce(scene: OracleScene, o: Vec3, d: Vec3, limit: number): Hit {
   let best = missed(limit)
   for (const [w, instance] of scene.instances) {
     const m = worldOf(scene, w)
-    const place = (v: Vec) => transformAffinePoint<Vec>([0, 0, 0], m, v[0], v[1], v[2])
+    const place = (v: Vec3) => transformAffinePoint<Vec3>([0, 0, 0], m, v[0], v[1], v[2])
     for (let k = 0; k < instance.triangles; k++) {
       const t = instance.triangle + k
       const corners = [0, 1, 2].flatMap((c) => place(vertex(scene.columns, t, c)))

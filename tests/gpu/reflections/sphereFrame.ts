@@ -4,24 +4,24 @@
 // what the screen cannot answer is the sky's). `exactReflection`
 // is the mirror ray of a sphere pixel followed exactly, the reference the engine's image is read
 // against.
-import { camera, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { reflect, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { reflect, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
 
 export const SPHERES = {
   width: 960,
   height: 720,
-  eye: [0, 0.5, 6] as V3,
-  target: [0, 0.8, 0] as V3,
+  eye: [0, 0.5, 6] as Vec3,
+  target: [0, 0.8, 0] as Vec3,
   fov: 50 * DEG2RAD,
   /** The spheres' centres, their common radius. */
   centres: [
     [-1.3, 1, 0],
     [1.4, 1, -1.5],
-  ] as V3[],
+  ] as Vec3[],
   radius: 1,
   /** The floor's lit colour, the spheres' (their previous image's), the sky's (the background). */
   floor: 0.02,
@@ -33,7 +33,7 @@ export const SPHERES = {
 const span = new Float64Array(2)
 /** What the ray `o + d·t` (t > `from`) meets first: a sphere (its index), the floor (-2) or the sky
  *  (-1), and the distance. */
-function castSpheres(o: V3, d: V3, from = 0) {
+function castSpheres(o: Vec3, d: Vec3, from = 0) {
   let t = Infinity,
     index = -1
   SPHERES.centres.forEach((c, k) => {
@@ -72,7 +72,7 @@ export function sphereFrame() {
       shown[p] = index
       if (index === -1) continue
       frame.depth[p] = view.depthOf(d, t)
-      const point = [0, 1, 2].map((k) => eye[k] + d[k] * t) as V3
+      const point = [0, 1, 2].map((k) => eye[k] + d[k] * t) as Vec3
       if (index >= 0) {
         const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius)
         paintPixel(frame, p, true, n, [SPHERES.sphere, SPHERES.sphere, SPHERES.sphere])
@@ -88,13 +88,13 @@ export function exactReflection(view: ReturnType<typeof camera>, x: number, y: n
   const d = view.ray(x, y),
     { t, index } = castSpheres(view.eye, d)
   if (index < 0) return undefined
-  const point = [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as V3
-  const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius) as V3
+  const point = [0, 1, 2].map((k) => view.eye[k] + d[k] * t) as Vec3
+  const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius) as Vec3
   const R = reflect(d, n)
   const hit = castSpheres(point, R, 1e-6)
   return {
     index: hit.index,
-    at: point.map((c, i) => c + R[i] * hit.t) as V3,
+    at: point.map((c, i) => c + R[i] * hit.t) as Vec3,
     facing: -dotVector3(d, n),
   }
 }

@@ -9,6 +9,7 @@ import {
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { rayTriangle } from '../../../math/src/geometry/rayTriangle.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 /** The columns of the arena's cuts, one cut's after another. */
 export type ArenaColumns = {
@@ -25,7 +26,6 @@ export const spent = (s: Spent) => s.work >= RAY_WORK || s.tests >= RAY_TRIANGLE
 /** A ray's spending before it starts. */
 export const freshSpent = (): Spent => ({ work: 0, tests: 0 })
 
-export type Vec = [number, number, number]
 /** The answer of a ray that has met nothing before `limit`. */
 export const missed = (limit: number): Hit => ({
   distance: limit,
@@ -37,7 +37,7 @@ export const missed = (limit: number): Hit => ({
 /** `rayBoxEntry`: where the ray enters the box, or `limit + 1` — by the shipped kernel's own rule,
  *  each plane distance times the direction's reciprocal clamped at 1e-20 (`rayInverseDirection`),
  *  not the math slab's quotient (`slabCut`), whose roundings and zero axes visit other nodes. */
-export function boxEntry(low: Vec, high: Vec, o: Vec, d: Vec, limit: number) {
+export function boxEntry(low: Vec3, high: Vec3, o: Vec3, d: Vec3, limit: number) {
   let entry = 0,
     exit = limit
   for (let a = 0; a < 3; a++) {
@@ -52,10 +52,15 @@ export function boxEntry(low: Vec, high: Vec, o: Vec, d: Vec, limit: number) {
 
 /** `rayTriangleDistance` on the triangle whose nine floats start at `at` of `v`: the distance along
  *  `d`, or `limit` where the ray misses or meets it within the 1e-4 self-hit bound. */
-export const triangleDistance = (o: Vec, d: Vec, v: ArrayLike<number>, at: number, limit: number) =>
-  rayTriangle(o, d, v, at, 1e-4, limit)
+export const triangleDistance = (
+  o: Vec3,
+  d: Vec3,
+  v: ArrayLike<number>,
+  at: number,
+  limit: number,
+) => rayTriangle(o, d, v, at, 1e-4, limit)
 
-export const vertex = (columns: ArenaColumns, index: number, k: number): Vec => {
+export const vertex = (columns: ArenaColumns, index: number, k: number): Vec3 => {
   const at = index * PROXY_TRIANGLE_FLOATS + k * 3
   return [columns.triangles[at], columns.triangles[at + 1], columns.triangles[at + 2]]
 }
@@ -64,8 +69,8 @@ export const vertex = (columns: ArenaColumns, index: number, k: number): Vec => 
  *  triangle in the columns. */
 export function traceCut(
   columns: ArenaColumns,
-  o: Vec,
-  d: Vec,
+  o: Vec3,
+  d: Vec3,
   limit: number,
   node0: number,
   tri0: number,
@@ -79,8 +84,8 @@ export function traceCut(
     if (spent(s)) break
     s.work += 4
     const at = (node0 + node) * PROXY_NODE_FLOATS
-    const low = [...columns.nodeBounds.subarray(at, at + 3)] as Vec,
-      high = [...columns.nodeBounds.subarray(at + 3, at + 6)] as Vec
+    const low = [...columns.nodeBounds.subarray(at, at + 3)] as Vec3,
+      high = [...columns.nodeBounds.subarray(at + 3, at + 6)] as Vec3
     if (boxEntry(low, high, o, d, best.distance) > best.distance) {
       const next = stack.pop()
       if (next === undefined) break
@@ -99,8 +104,8 @@ export function traceCut(
       const byte = (word: number, k: number) => (word >>> (k * 8)) & 255
       const span = [0, 1, 2].map((a) => (high[a] - low[a]) / 255)
       const bytes = [byte(lo, 0), byte(lo, 1), byte(lo, 2), byte(lo, 3), byte(hi, 0), byte(hi, 1)]
-      const childLow = [0, 1, 2].map((a) => low[a] + span[a] * bytes[a]) as Vec,
-        childHigh = [0, 1, 2].map((a) => low[a] + span[a] * bytes[3 + a]) as Vec
+      const childLow = [0, 1, 2].map((a) => low[a] + span[a] * bytes[a]) as Vec3,
+        childHigh = [0, 1, 2].map((a) => low[a] + span[a] * bytes[3 + a]) as Vec3
       const entry = boxEntry(childLow, childHigh, o, d, best.distance)
       if (entry > best.distance) continue
       const count = byte(hi, 2)

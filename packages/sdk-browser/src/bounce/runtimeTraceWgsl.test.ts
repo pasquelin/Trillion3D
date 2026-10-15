@@ -4,11 +4,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { fieldRay, world } from './runtimeScene.fixture.ts'
-import { freshSpent, type Vec } from './runtimeOracle.fixture.ts'
+import { freshSpent } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { along, runOver } from './runtimeRun.fixture.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
 import { traceScene } from './runtimeSceneOracle.fixture.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 for (const count of [5, 400]) {
   test(`${count} placements: the shipped WGSL walks the tree and the cuts as the oracle does`, () => {
@@ -45,8 +46,8 @@ test('blended copies, members after the placements, are met as the oracle meets 
   const random = lcgRandom(9)
   let hits = 0
   for (let ray = 0; ray < 150; ray++) {
-    const origin: Vec = [random() * 16 - 2, 6, random() * 16]
-    const direction: Vec = [random() - 0.5, -1, random() - 0.5]
+    const origin: Vec3 = [random() * 16 - 2, 6, random() * 16]
+    const direction: Vec3 = [random() - 0.5, -1, random() - 0.5]
     const spent = freshSpent()
     const want = traceScene(w.scene, origin, direction, 100, spent)
     run.rtBegin()
@@ -72,8 +73,8 @@ test('a long ray across a dense field meets the near cube first, its budget neve
   const w = world(256, 1, { places: along(256, 3) }),
     run = runOver(w)
   assert.ok(w.packed.placementTree, 'a tree')
-  const origin: Vec = [800, 0, 0],
-    direction: Vec = [-1, 0, 0]
+  const origin: Vec3 = [800, 0, 0],
+    direction: Vec3 = [-1, 0, 0]
   const spent = freshSpent()
   const want = traceScene(w.scene, origin, direction, 1000, spent)
   run.rtBegin()

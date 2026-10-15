@@ -5,21 +5,21 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import type { Vec } from '../bounce/runtimeOracle.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { TRACE_SCENE_BINDINGS } from './halfBindings.ts'
 import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 /** The upsample's packer of a front texel's word (`frontPack`). */
-const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec) => number }>(
+const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
   wgslModule(FRONT_PACK_WGSL),
   ['frontPack'],
   {},
 )
 
-type Reflected = { base: Vec; coat: Vec }
+type Reflected = { base: Vec3; coat: Vec3 }
 
 /** `forwardTrace` of the shipped forward program, over a front texel `texel` and a front depth `depth` at
  *  every pixel, `answered` whether this image's trace answered the front; the chain without the proxy
@@ -28,9 +28,9 @@ function forward(texel: number[], depth: number, answered = true) {
   const chain: Reflected = { base: [7, 7, 7], coat: [0, 0, 0] }
   const run = shaderRun<{
     forwardTrace: (
-      P: Vec,
-      N: Vec,
-      V: Vec,
+      P: Vec3,
+      N: Vec3,
+      V: Vec3,
       rough: number,
       position: number[],
       front: boolean,

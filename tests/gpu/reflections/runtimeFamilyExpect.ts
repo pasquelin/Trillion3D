@@ -5,14 +5,14 @@
 // nor its four neighbours have their mirror ray end on another shape: the pixels on the edge of a reflected
 // shape are antialiased, which no ray answers whole.
 import { DEG2RAD, TAU } from '../../../packages/math/src/constants.ts'
-import { add, reflect, scale } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { add, reflect, scale, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts'
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import { halton } from '../../../packages/math/src/sequence/halton.ts'
 import { gridPixels, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
-import { crossings, radiance, type Vec } from './runtimeFamilyRays.ts'
+import { crossings, radiance } from './runtimeFamilyRays.ts'
 
 /**
  * The lobe's reference samples: the mean of the GGX lobe over this many directions wherever the engine samples
@@ -47,8 +47,8 @@ type Decided = {
   at: [number, number]
   hit: number
   /** The floor point and the unit vector from it to the eye. */
-  point: Vec
-  view: Vec
+  point: Vec3
+  view: Vec3
 }
 
 /** The decided pixels of the grid of an image `width × height` and what each must show. */
@@ -58,24 +58,24 @@ export function expectedFloor(
   height: number,
   lobeSamples = LOBE_SAMPLES,
 ): Decided[] {
-  const eye: Vec = c.eye
+  const eye: Vec3 = c.eye
   const view = camera(eye, c.target, width, height, c.fov * DEG2RAD)
   const primary = (i: number, j: number) => view.ray(i + 0.5, j + 0.5)
   /** The floor point of the ray `d` from the eye, or null when a shape or the sky comes first. */
-  const floorPoint = (d: Vec): Vec | null => {
+  const floorPoint = (d: Vec3): Vec3 | null => {
     if (d[1] >= -1e-6) return null
     const t = -eye[1] / d[1],
-      p: Vec = add(eye, scale(d, t))
+      p: Vec3 = add(eye, scale(d, t))
     if (Math.abs(p[0]) > FLOOR_REACH || Math.abs(p[2]) > FLOOR_REACH) return null
     return c.shapes.some((s) => crossings(s, eye, d)[0] < t) ? null : p
   }
-  const mirror = (d: Vec): Vec => [d[0], -d[1], d[2]]
+  const mirror = (d: Vec3): Vec3 => [d[0], -d[1], d[2]]
   const rough = c.floor.roughness
   const out: Decided[] = []
   for (const [index, [i, j]] of gridPixels(width, height).entries()) {
     const here = floorPoint(primary(i, j))
     if (!here) continue
-    const first = (p: Vec, d: Vec) => radiance(c, p, mirror(d)).first
+    const first = (p: Vec3, d: Vec3) => radiance(c, p, mirror(d)).first
     const own = first(here, primary(i, j))
     let rim = false
     for (const [di, dj] of [
@@ -90,7 +90,7 @@ export function expectedFloor(
     }
     if (rim) continue
     const d = primary(i, j),
-      v: Vec = [-d[0], -d[1], -d[2]],
+      v: Vec3 = [-d[0], -d[1], -d[2]],
       nov = v[1]
     const alpha = Math.max(rough * rough, 1e-4)
     const total: Rgb = [0, 0, 0]

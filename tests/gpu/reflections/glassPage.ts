@@ -23,15 +23,15 @@ import {
   pixelOf,
   rayOf,
 } from './glassView.ts'
-import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** Pane A: its centre, its half-side and its yaw (its normal is `(sin yaw, 0, cos yaw)`). */
-const A = { at: [-1.3, 0.7, -2.8] as V3, half: 0.7, yaw: 1.1 }
+const A = { at: [-1.3, 0.7, -2.8] as Vec3, half: 0.7, yaw: 1.1 }
 /** Pane B: standing where A's mirror rays go, turned back toward A. */
-const B = { at: [2.6, 0.7, -4.6] as V3, half: 0.7, yaw: -1.15 }
+const B = { at: [2.6, 0.7, -4.6] as Vec3, half: 0.7, yaw: -1.15 }
 /** The bases, flat squares at the feet of the panes, as wide as the panes. */
-const BASE_A = { at: [-1.3, 0.01, -2.8] as V3, half: 1.4, color: 0xe08020 }
-const BASE_B = { at: [2.6, 0.01, -4.6] as V3, half: 1.6, color: 0x20c040 }
+const BASE_A = { at: [-1.3, 0.01, -2.8] as Vec3, half: 1.4, color: 0xe08020 }
+const BASE_B = { at: [2.6, 0.01, -4.6] as Vec3, half: 1.6, color: 0x20c040 }
 const FLOOR = 0x808890
 /** The colour of B's pane; A's is white. */
 const PANE_B = 0xffc0c0
@@ -131,7 +131,7 @@ export const run = (kind: GlassKind) =>
     result.seesBase = []
     result.seesFloor = []
     result.behindPane = []
-    const onBase = (p: V3) =>
+    const onBase = (p: Vec3) =>
       Math.abs(p[0] - BASE_B.at[0]) < BASE_B.half && Math.abs(p[2] - BASE_B.at[2]) < BASE_B.half
     for (let y = 0; y < HEIGHT; y++)
       for (let x = 0; x < WIDTH; x++) {
@@ -149,7 +149,7 @@ export const run = (kind: GlassKind) =>
           if (!own || (other_ && other_.t < own.t)) continue
           const r = mirror(d, pane.yaw)
           const floorT = r[1] < 0 ? -own.p[1] / r[1] : Infinity
-          const point = (t: number): V3 => [
+          const point = (t: number): Vec3 => [
             own.p[0] + r[0] * t,
             own.p[1] + r[1] * t,
             own.p[2] + r[2] * t,

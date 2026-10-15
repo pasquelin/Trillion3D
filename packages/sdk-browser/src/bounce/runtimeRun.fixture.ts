@@ -5,8 +5,9 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
-import type { Hit, Vec } from './runtimeOracle.fixture.ts'
+import type { Hit } from './runtimeOracle.fixture.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
+import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
@@ -55,14 +56,14 @@ export function runOver(w: ReturnType<typeof world>) {
   const { header } = w
   const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
   const run = shaderRun<{
-    rtScene: (o: Vec, d: Vec, limit: number) => Hit
+    rtScene: (o: Vec3, d: Vec3, limit: number) => Hit
     rtRadiance: (
-      o: Vec,
-      d: Vec,
+      o: Vec3,
+      d: Vec3,
       reach: number,
       tangent: number,
       budget: number,
-    ) => { color: Vec; confidence: number; distance: number }
+    ) => { color: Vec3; confidence: number; distance: number }
     testWork: () => number
     testTests: () => number
     rtBegin: () => void
@@ -77,11 +78,11 @@ export function runOver(w: ReturnType<typeof world>) {
     rtAnyHit: false,
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
-    surfaceLit: (tint: Vec) => tint,
+    surfaceLit: (tint: Vec3) => tint,
   })
   return {
     ...run,
-    rtRadiance: (o: Vec, d: Vec, reach: number, tangent: number, budget = RAY_WORK) =>
+    rtRadiance: (o: Vec3, d: Vec3, reach: number, tangent: number, budget = RAY_WORK) =>
       run.rtRadiance(o, d, reach, tangent, budget),
   }
 }
@@ -89,5 +90,5 @@ export function runOver(w: ReturnType<typeof world>) {
 /** Cubes along a line of sight from the origin, `gap` apart, the first at `gap`. */
 export const along = (count: number, gap: number) =>
   Array.from({ length: count }, (_, k) => new Matrix4().makeTranslation(k * gap + gap, 0, 0))
-export const ahead: Vec = [1, 0, 0]
-export const origin: Vec = [0, 0, 0]
+export const ahead: Vec3 = [1, 0, 0]
+export const origin: Vec3 = [0, 0, 0]

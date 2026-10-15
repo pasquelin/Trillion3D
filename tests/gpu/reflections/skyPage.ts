@@ -7,17 +7,18 @@ import {
   addUniformIrradiance,
   emptyIrradiance,
 } from '../../../packages/sdk-core/src/scene/core/environment.ts'
-import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { faceIndex } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 const WIDTH = 160,
   HEIGHT = 90
-const EYE: V3 = [0, 1, 0],
-  TARGET: V3 = [0, 1, -6]
+const EYE: Vec3 = [0, 1, 0],
+  TARGET: Vec3 = [0, 1, -6]
 /** The pane's front face: the high side of z. */
 const FRONT = faceIndex(2, true)
 
