@@ -1,5 +1,9 @@
-import { coalesceRanges, type RangeRule } from '../../webgpu/residency/ranges.ts'
-import { resized } from '../../../../math/src/sequence/resized.ts'
+import {
+  WRITE_CAP,
+  coalesceRanges,
+  writeRule,
+  type RangeRule,
+} from '../../webgpu/residency/ranges.ts'
 
 /** Where `writeRanges` sends a run: `size` bytes of `data` from `dataOffset`, at byte `offset` of
  *  the table the target lays out — a record table's field (`../core/recordTexture.ts`, `target`),
@@ -20,42 +24,19 @@ export type RangeSource = {
   stride: number
 }
 
-/** Bytes a run may leave unchanged between two written records and still be one write. */
-const GAP_BYTES = 256
-/** Writes an upload makes at most; past it, the narrowest gaps join. */
-const CAP = 1024
-
-/** The runs a write joins its indices into (`joinedRanges`): one scratch for every upload, `CAP`
- *  runs at most, `[first, last]` pairs the next join overwrites. */
-export const joinedSpans = new Int32Array(CAP * 2)
-/** The one rule every upload joins by, its gap set to the record's bytes. */
-const rule: RangeRule & { overflow: 'narrowest' } = {
-  gap: 0,
-  cap: CAP,
-  overflow: 'narrowest',
-  steps: new Int32Array(64),
-}
-
-/**
- * How the indices of records of `stride` words join into writes, by their bytes whatever the
- * record — a link, an exact translation, a world, a tree node, a card —: a run spans at most
- * `GAP_BYTES` unchanged, up to `CAP` writes, the narrowest gaps joined past it. Scattered moves
- * never rewrite everything between the lowest and the highest.
- */
-function ruleFor(stride: number, count: number): RangeRule {
-  rule.steps = resized(rule.steps, count)
-  rule.gap = 1 + Math.floor(GAP_BYTES / (stride * 4))
-  return rule
-}
+/** The runs a write joins its indices into (`joinedRanges`): one scratch for every upload,
+ *  `WRITE_CAP` runs at most, `[first, last]` pairs the next join overwrites. */
+export const joinedSpans = new Int32Array(WRITE_CAP * 2)
+const rule: RangeRule = { gap: 0, cap: WRITE_CAP, steps: new Int32Array(64) }
 
 /**
  * The `count` increasing indices of `sorted`, records of `stride` words, joined into ranges by the
- * engine's one rule (`ruleFor`, `coalesceRanges`): `[first, last]` pairs in `joinedSpans`, which
+ * engine's one write rule (`writeRule`, `coalesceRanges`): `[first, last]` pairs in `joinedSpans`, which
  * the next join overwrites; their count — nothing allocated. What `writeRanges` sends, and what a
  * writer that packs its records itself sends a run at a time (`../../placement/rootWorlds.ts`).
  */
 export const joinedRanges = (sorted: Int32Array, count: number, stride: number) =>
-  coalesceRanges(sorted, count, joinedSpans, ruleFor(stride, count))
+  coalesceRanges(sorted, count, joinedSpans, writeRule(rule, stride, count))
 
 /**
  * The one run writer of the engine's tables: the `count` increasing indices of `sorted` joined into

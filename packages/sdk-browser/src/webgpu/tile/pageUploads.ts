@@ -1,8 +1,8 @@
 import { createChangedRuns } from '../residency/ranges.ts'
-import { PAGE_TABLE_RULE } from './pageTableRule.ts'
 
 export function createPageUploads() {
-  const changed = createChangedRuns(PAGE_TABLE_RULE.gap, PAGE_TABLE_RULE.cap)
+  // A page table's words, one a record: joined by the engine's write rule.
+  const changed = createChangedRuns(1)
   return {
     /** Word `index` changed since the last flush. */
     mark: changed.mark,

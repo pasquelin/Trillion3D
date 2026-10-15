@@ -3,17 +3,29 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 /**
  * How increasing indices become write ranges. `gap`: the largest step between two neighbours still
  * sent in one range — the indices in between are rewritten with their current value, which changes
- * nothing and saves a write. `cap`: the most ranges returned. Past it, `overflow` says what is
- * joined: everything into one range, or the ranges across the `narrowest` steps until `cap` remain
- * (`steps`: a scratch of at least `count` ints).
+ * nothing and saves a write. `cap`: the most ranges returned; past it, the ranges across the
+ * narrowest steps are joined until `cap` remain (`steps`: a scratch of at least `count` ints).
  */
-export type RangeRule = { gap: number; cap: number } & (
-  { overflow: 'whole' } | { overflow: 'narrowest'; steps: Int32Array }
-)
+export type RangeRule = { gap: number; cap: number; steps: Int32Array }
 
-/** Residency flushes: skipped pages closer than 64 share a write, and past 32 ranges everything is
- *  written at once — thousands of small writes cost more than the one they replace. */
-export const RESIDENCY_RULE: RangeRule = { gap: 64, cap: 32, overflow: 'whole' }
+/** Bytes a write may leave unchanged between two changed records and still be one write. */
+const WRITE_GAP_BYTES = 256
+/** Writes an upload makes at most: past it, the narrowest gaps join. */
+export const WRITE_CAP = 64
+
+/**
+ * THE write rule of every upload that sends changed records from a table it mirrors — the
+ * changed words of a buffer (`../../gpu/core/writeChanged.ts`), the run writes of the engine's
+ * tables (`../../gpu/dag/runWrites.ts`), the texture page tables: `rule` set for records of
+ * `strideWords` words and `count` indices — a run spans at most `WRITE_GAP_BYTES` unchanged, up to
+ * `WRITE_CAP` writes. Scattered changes never rewrite everything between the lowest and the highest.
+ */
+export function writeRule(rule: RangeRule, strideWords: number, count: number) {
+  rule.steps = resized(rule.steps, count)
+  rule.gap = 1 + Math.floor(WRITE_GAP_BYTES / (strideWords * 4))
+  rule.cap = WRITE_CAP
+  return rule
+}
 
 /**
  * Groups the `count` increasing, distinct indices of `sorted` into ranges under `rule`, written
@@ -34,16 +46,9 @@ export function coalesceRanges(
   for (let i = 1; i < count; i++) {
     const step = sorted[i] - sorted[i - 1]
     if (step <= gap) continue
-    if (rule.overflow === 'narrowest') rule.steps[far] = step
-    else if (far + 1 >= cap) {
-      into[0] = sorted[0]
-      into[1] = sorted[count - 1]
-      return 1
-    }
-    far++
+    rule.steps[far++] = step
   }
-  if (rule.overflow === 'narrowest' && far >= cap)
-    join = rule.steps.subarray(0, far).sort()[far - cap]
+  if (far >= cap) join = rule.steps.subarray(0, far).sort()[far - cap]
   let ranges = 0,
     from = sorted[0]
   for (let i = 1; i <= count; i++) {
@@ -58,9 +63,10 @@ export function coalesceRanges(
 
 /**
  * The indices that changed since the last upload, each once: the one changed list of every flush
- * that sends what changed — rows, words, slots, records, placements. A flush takes them as the runs
- * of its own coalescer (`runs`): `gap` the largest step two neighbours share a run across, `cap` the
- * most runs (none bounds them: every run stays apart), made when asked, once per change. A writer
+ * that sends what changed — rows, words, slots, records, placements. A flush takes them as runs
+ * (`runs`), made when asked, once per change: an upload from a table it mirrors gives its records'
+ * `strideWords` and joins them by the write rule (`writeRule`); a walk of the changed indices
+ * themselves gives none and gets every run of neighbours apart, no unchanged index in it. A writer
  * whose runs follow the stride of its records takes them increasing instead (`take`) and coalesces
  * them by their bytes (`../../gpu/dag/runWrites.ts`, `writeRanges`).
  *
@@ -68,7 +74,7 @@ export function coalesceRanges(
  * table the engine holds, so the marks weigh a byte per entry of it at most, and a mark is one array
  * write — no probe, which a flush of every row of a rebuilt table would pay per row.
  */
-export function createChangedRuns(gap = 1, cap = Infinity) {
+export function createChangedRuns(strideWords = 0) {
   let marked = new Uint8Array(0),
     changed = new Int32Array(8),
     count = 0,
@@ -78,7 +84,7 @@ export function createChangedRuns(gap = 1, cap = Infinity) {
   let pairs = new Int32Array(0),
     runCount = 0,
     joined = true
-  const rule = { gap, cap, overflow: 'narrowest', steps: new Int32Array(0) } satisfies RangeRule
+  const rule: RangeRule = { gap: 1, cap: 0, steps: new Int32Array(0) }
   const runs = {
     /** How many indices changed. */
     get count() {
@@ -106,8 +112,9 @@ export function createChangedRuns(gap = 1, cap = Infinity) {
     /** The runs of the changed indices, in increasing order, as `[first, last]` pairs. */
     runs() {
       if (!joined) {
-        rule.cap = Math.min(cap, count)
-        rule.steps = resized(rule.steps, count)
+        if (strideWords) writeRule(rule, strideWords, count)
+        else rule.steps = resized(rule.steps, count)
+        rule.cap = strideWords ? Math.min(WRITE_CAP, count) : count
         pairs = resized(pairs, 2 * rule.cap)
         runCount = coalesceRanges(changed.subarray(0, count).sort(), count, pairs, rule)
         joined = true

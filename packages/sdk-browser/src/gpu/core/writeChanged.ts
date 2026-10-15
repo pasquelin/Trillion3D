@@ -8,19 +8,19 @@
  * maps' records of a table. The buffer then holds every word of the image it was given, the same
  * bytes a whole write would have left.
  */
-import { coalesceRanges, RESIDENCY_RULE, type RangeRule } from '../../webgpu/residency/ranges.ts'
+import {
+  WRITE_CAP,
+  coalesceRanges,
+  writeRule,
+  type RangeRule,
+} from '../../webgpu/residency/ranges.ts'
 import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>()
 let changed = new Int32Array(64)
-const rule = {
-  gap: RESIDENCY_RULE.gap,
-  cap: RESIDENCY_RULE.cap,
-  overflow: 'narrowest' as const,
-  steps: new Int32Array(64),
-}
-const ranges = new Int32Array(2 * rule.cap)
+const rule: RangeRule = { gap: 0, cap: WRITE_CAP, steps: new Int32Array(64) }
+const ranges = new Int32Array(2 * WRITE_CAP)
 
 /** `target`, a copy of `source` whole (`copyBufferToBuffer`), holds the words `source` held: the
  *  next write to it sends what differs from them. */
@@ -47,7 +47,6 @@ function follow(held: Uint32Array, image: Uint32Array, k: number, count: number)
   held[k] = image[k]
   if (count === changed.length) {
     changed = resized(changed, count + 1)
-    rule.steps = new Int32Array(changed.length)
   }
   changed[count] = k
   return count + 1
@@ -60,9 +59,9 @@ function send(
   buffer: GPUBuffer,
   image: Uint32Array<ArrayBuffer>,
   count: number,
-  join: RangeRule = rule,
+  join?: RangeRule,
 ) {
-  const n = coalesceRanges(changed, count, ranges, join)
+  const n = coalesceRanges(changed, count, ranges, join ?? writeRule(rule, 1, count))
   for (let r = 0; r < n; r++) {
     const first = ranges[2 * r]
     device.queue.writeBuffer(buffer, first * 4, image, first, ranges[2 * r + 1] - first + 1)
@@ -89,7 +88,7 @@ type SlotWrites = 'ranges' | 'one'
 
 /** Every changed word in one write, from the first to the last: the words between hold their
  *  value, so the buffer is the same; for slots a whole write once sent, never more writes. */
-const ONE_WRITE: RangeRule = { gap: Infinity, cap: 1, overflow: 'whole' }
+const ONE_WRITE: RangeRule = { gap: Infinity, cap: 1, steps: new Int32Array(0) }
 
 /** As `writeChanged`, over slots [`first`, `end`) of `slots`, each its `words` words, in an
  *  image laid as the buffer (`strideWords` a slot): the padding up to the device's alignment, never
@@ -112,7 +111,7 @@ export function writeChangedSlots(
   for (let s = first; s < end; s++)
     for (let k = s * strideWords, last = k + words; k < last; k++)
       changes = follow(held, image, k, changes)
-  send(device, buffer, image, changes, writes === 'one' ? ONE_WRITE : rule)
+  send(device, buffer, image, changes, writes === 'one' ? ONE_WRITE : undefined)
 }
 
 /** As `writeChanged`, over the records `records` lists alone — `count` record indices,
