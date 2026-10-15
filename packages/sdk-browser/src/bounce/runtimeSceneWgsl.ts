@@ -2,7 +2,6 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
-import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { placementRay } from '../gpu/dag/placementRayWgsl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../math/src/wgsl/geometry.ts'
@@ -59,7 +58,6 @@ ${wgslConsts({
   RT_INSTANCE_SURFACE: INSTANCE.surface,
   RT_INSTANCE_MARK: INSTANCE.mark,
   RT_WORLD_WORDS: RUNTIME_WORLD_WORDS,
-  RT_TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
 @group(${scene.group}) @binding(${scene.proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
@@ -80,7 +78,7 @@ fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtBudget=RT_WORK;}
 fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
- return rtVec(rtProxy.trianglesWord+index*RT_TRIANGLE_FLOATS+vertex*3u);
+ return rtVec(rtProxy.trianglesWord+index*TRIANGLE_FLOATS+vertex*3u);
 }
 ${wideNodeFns({
   box: 'rtBox',

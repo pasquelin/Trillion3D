@@ -1,8 +1,10 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import {
   PROXY_CHILD_WORDS,
+  PROXY_CHILDREN,
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
+  PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { byteOf, isFiniteWord } from '../../../math/src/wgsl/integer.ts'
@@ -54,7 +56,7 @@ fn ${child}(node:u32,slot:u32,frame:Box)->ProxyChild{
 
 /**
  * What a proxy node carries, and how a ray reads it: a node's exact bounds and the four quantized boxes of
- * its children.
+ * its children (`CHILDREN`), and the floats of a triangle (`TRIANGLE_FLOATS`).
  *
  * A child box fits in six bytes, written in the parent's bounds and rounded outward by
  * the compiler: dequantized, it always contains what it contained, so no triangle
@@ -69,6 +71,8 @@ ${wgslConsts({
   NODE_FLOATS: PROXY_NODE_FLOATS,
   NODE_WORDS: PROXY_NODE_WORDS,
   CHILD_WORDS: PROXY_CHILD_WORDS,
+  CHILDREN: PROXY_CHILDREN,
+  TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
 })}
 struct Box{low:vec3f,high:vec3f,}
 struct ProxyChild{box:Box,offset:u32,count:u32,present:bool,}`,

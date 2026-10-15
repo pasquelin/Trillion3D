@@ -1,9 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
-import {
-  PROXY_CHILDREN,
-  PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { WIDE_NODE_WGSL } from './nodeWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {
@@ -112,10 +108,9 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
 }`
 
 /**
- * The constants of a wide traversal and the blocks it reads: the leaf's triangles, the numbers of a triangle,
- * the children of a node, the stack. Three bounds known before the frame: visited nodes (the walk's own
- * steps), triangles of a leaf, and stack depth — a wide node stacks three at most, and the tree is balanced by
- * construction, so the stack does not overflow; if it did, the ray would be exhausted (`overflow`), the one rule
+ * The constants of a wide traversal and the blocks it reads: the leaf's triangles and the stack. Three
+ * bounds known before the frame: visited nodes (the walk's own steps), triangles of a leaf, and stack
+ * depth — a wide node stacks three at most, and the tree is balanced by construction, so the stack does not overflow; if it did, the ray would be exhausted (`overflow`), the one rule
  * of a ray past its bounds: zero weight, never a darkening nor a leak.
  */
 export const WIDE_TRAVERSAL_WGSL = wgslBlock(
@@ -123,8 +118,6 @@ export const WIDE_TRAVERSAL_WGSL = wgslBlock(
   [WIDE_NODE_WGSL, rayInverseDirection, rayBoxEntry, rayTriangleDistance],
   wgslConsts({
     LEAF_TRIANGLES: BOUNCE_SETTINGS.proxyLeafTriangles,
-    TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
-    CHILDREN: PROXY_CHILDREN,
     STACK_DEPTH: BOUNCE_SETTINGS.traversalStack,
   }),
 )

@@ -3,10 +3,6 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
 import { CORNER_INFLUENCES } from '../../../sdk-core/src/contracts/proxy.ts'
 import {
-  PROXY_CHILDREN,
-  PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/contracts/writtenFormats.ts'
-import {
   DEFORM_AT_WGSL,
   deformRecordFns,
   deformSkinFn,
@@ -66,8 +62,6 @@ ${wgslConsts({
   POSE_CORNERS: POSE_ENTRY.corners,
   POSE_RECORD_WORD: POSE_ENTRY.record,
   INFLUENCES: CORNER_INFLUENCES,
-  TRIANGLE_FLOATS: PROXY_TRIANGLE_FLOATS,
-  CHILDREN: PROXY_CHILDREN,
 })}
 @group(0) @binding(0) var<storage,read_write> arena:RuntimeProxy;
 @group(0) @binding(1) var<storage,read> pool:array<f32>;
