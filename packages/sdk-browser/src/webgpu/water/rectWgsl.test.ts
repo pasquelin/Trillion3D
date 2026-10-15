@@ -9,7 +9,7 @@ import { FLAG_CLUSTER_PAGE, FLAG_PAGED } from '../../visibility/types.ts'
 import { refreshBlendPlan } from '../blend/plan.ts'
 import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
-import { WATER_RANK_SHIFT } from './rank.ts'
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
 import { blankVolumes, frame, scene } from '../../../../../tests/gpu/water/rectKernel.ts'
 import { SIZE } from '../../../../../tests/gpu/water/waterCostScene.ts'
 
@@ -78,7 +78,7 @@ test('a clipped water box keeps legal edge texels, and two kept copies make one 
     box[3] += dx
     const elements = Array.from(other.item.matrix.elements)
     elements[12] += dx
-    const flags = (other.item.flags & ((1 << WATER_RANK_SHIFT) - 1)) | (rank << WATER_RANK_SHIFT)
+    const flags = (other.item.flags & WATER_MAX_ITEMS) | (rank << WATER_RANK_SHIFT)
     return { ...other.item, flags, bounds: box, matrix: { ...other.item.matrix, elements } }
   }
   const width = other.item.bounds![3] - other.item.bounds![0]
