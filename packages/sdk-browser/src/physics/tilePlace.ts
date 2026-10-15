@@ -15,6 +15,7 @@ import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { selectByKey } from '../../../math/src/select.ts'
+import { keepRadius } from '../partition/plan.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
@@ -70,9 +71,6 @@ export const selectNearest = (list: Placed[], count: number, k: number) =>
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1
-/** How much farther than it came in a resident tile stays, so one at the edge of a reach is not
- *  loaded and released every frame. */
-const HYSTERESIS = 1.5
 
 const place = new Matrix4(),
   local = new Matrix4(),
@@ -174,8 +172,9 @@ export function moversOf(
 
 /**
  * How near tile `p` is wanted: 0 within reach of a moving body of the first `count` values of
- * `movers` (`moversOf`), its distance to `eye` within `range`, else `Infinity`; a resident tile
- * `HYSTERESIS` times as far.
+ * `movers` (`moversOf`), its distance to `eye` within `range`, else `Infinity`; a resident tile as
+ * far as the keep sphere of each reach (`keepRadius`), the one rule a streamed cell leaves by, so
+ * one at the edge of a reach is not loaded and released every frame.
  */
 export function nearness(
   p: Placed,
@@ -184,10 +183,10 @@ export function nearness(
   movers: number[],
   count: number,
 ) {
-  const keep = p.id >= 0 ? HYSTERESIS : 1
+  const reach = p.id >= 0 ? keepRadius : (r: number) => r
   for (let m = 0; m < count; m += 4)
-    if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3] * keep)
+    if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= reach(movers[m + 3]))
       return 0
   const near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2])
-  return near <= range * keep ? near : Infinity
+  return near <= reach(range) ? near : Infinity
 }
