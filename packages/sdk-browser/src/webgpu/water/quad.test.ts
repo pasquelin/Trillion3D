@@ -4,8 +4,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeWaterPass } from './pass.ts'
-import { createWaterPass } from './waterPass.ts'
-import { prepared, replay, stepsOf, targets } from './pass.fixture.ts'
+import { stepsOf } from './pass.fixture.ts'
+import { recordedWaterPass } from './recordedPass.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
@@ -15,13 +15,10 @@ import { WATER_BACKDROP_PASS, WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '.
 /** A water pass on the recording replay (`pass.fixture.ts`), its restore pipeline, the verdict
  *  its draws read, and the compute passes the frame's encoder recorded. */
 async function recorded() {
-  const { blendState, gpu } = prepared()
-  targets(gpu)
-  const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
+  const { fake, blendState, ...r } = await recordedWaterPass()
   const restore = fake.renderPipelines.find((p) => p.fragment?.entryPoint === 'restore_fs')!
   const verdict = blendState.expand!.buffers.verdict
-  return { ...replay(blendState, gpu), restore, verdict }
+  return { ...r, restore, verdict }
 }
 
 test('the surface pass restores the opaque depth on the GPU rectangle, before any surface', async () => {
@@ -64,17 +61,13 @@ test('the surface pass restores the opaque depth on the GPU rectangle, before an
 })
 
 test('the backdrop freeze is a compute copy dispatched from the verdict, never sized by the CPU', async () => {
-  const { blendState, gpu } = prepared()
-  targets(gpu)
-  const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
-  const r = replay(blendState, gpu)
+  const r = await recordedWaterPass()
   const own = fakeDevice()
   const encoder = own.device.createCommandEncoder()
   assert.equal(encodeWaterPass(r.rt, encoder), true)
   const copy = own.computePasses.find((pass) => pass.label === WATER_BACKDROP_PASS)!
   assert.deepEqual(commandArgs(copy.commands, 'dispatchWorkgroupsIndirect'), [
-    [blendState.expand!.buffers.verdict, VERDICT.copyArgs * 4],
+    [r.blendState.expand!.buffers.verdict, VERDICT.copyArgs * 4],
   ])
   assert.deepEqual(commandArgs(copy.commands, 'dispatchWorkgroups'), [])
 })

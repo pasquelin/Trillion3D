@@ -8,17 +8,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeWaterPass } from './pass.ts'
-import { createWaterPass } from './waterPass.ts'
-import { prepared, replay, stepsOf, targets, writesOf } from './pass.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { stepsOf, writesOf } from './pass.fixture.ts'
+import { recordedWaterPass } from './recordedPass.fixture.ts'
 import { waterSurfaceTargets } from './surfaceTargets.ts'
 
 test('a lobed transmissive surface draws the lobed stage into the lobes target', async () => {
-  const { blendState, gpu } = prepared()
-  targets(gpu)
-  const fake = fakeDevice()
-  blendState.water = await createWaterPass(fake.device, {} as never, {} as never, true)
-  const r = replay(blendState, gpu)
+  const r = await recordedWaterPass()
+  const { blendState, gpu, fake, water } = r
   const surfaces = gpu.surfaces as unknown as { lobesView: GPUTextureView; lobes: object }
   const cases: [boolean, boolean][] = [
     [false, false],
@@ -27,9 +23,8 @@ test('a lobed transmissive surface draws the lobed stage into the lobes target',
     [true, true],
   ]
   for (const ready of [false, true]) {
-    if (ready) await blendState.water.lobed.prepare()
-    else
-      assert.equal(blendState.water.lobed.get(), undefined, 'nothing compiled before it is asked')
+    if (ready) await water.lobed.prepare()
+    else assert.equal(water.lobed.get(), undefined, 'nothing compiled before it is asked')
     for (const [waterLobed, hasLobes] of cases) drawn(waterLobed, hasLobes, ready)
   }
   function drawn(waterLobed: boolean, hasLobes: boolean, ready: boolean) {
