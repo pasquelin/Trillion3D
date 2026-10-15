@@ -20,8 +20,9 @@ export const createWaveHeld = (): WaveHeld => ({
 })
 
 /** `held`'s inverse of the world matrix `elements`: inverted, and its stretch read, again only when
- *  one of the matrix's floats moved. */
-function heldInverse(held: WaveHeld, elements: ArrayLike<number>) {
+ *  one of the matrix's floats moved — the one inverse of a wave placement's world, its records'
+ *  and its pages' boxes' (`wavePages.ts`). */
+export function heldInverse(held: WaveHeld, elements: ArrayLike<number>) {
   if (!sameElements(held.matrix, elements)) {
     held.matrix.set(elements)
     invertMatrix4(held.inverse, elements)

@@ -2,7 +2,8 @@ import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/anim
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
-import { createWaveHeld, wavesChanged, writeWaves, type WaveHeld } from './waveFrame.ts'
+import { createWaveHeld, heldInverse, wavesChanged, writeWaves } from './waveFrame.ts'
+import type { WaveHeld } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes } from './skinPalettes.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
@@ -208,7 +209,6 @@ function writeRecord(
     kinds |= KIND_SKIN
   }
   if (shape.targets && mesh.morphTargetInfluences) {
-    // A weight that moved is `stale`'s already (`staleOnce`): no second compare.
     const morphed = writeMorphs(r, entry, weights, cold)
     most += morphed * (kinds & KIND_SKIN ? paletteStretch(block, palette, shape.joints) : 1)
     kinds |= KIND_MORPH
@@ -315,9 +315,9 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
       return r.words[r.bases[i] - 1] & KIND_WAVE ? (entry!.mesh.waves?.waveModel ?? null) : null
     },
     /** How many waves placement `i`'s record draws: its count when the session opened. */
-    drawnWaves(i: number) {
-      return r.placed[i]?.shape.waves ?? 0
-    },
+    drawnWaves: (i: number) => r.placed[i]?.shape.waves ?? 0,
+    /** Wave placement `i`'s world `elements` inverted, as its record holds it (`heldInverse`). */
+    waveInverse: (i: number, elements: ArrayLike<number>) => heldInverse(r.waveHeld[i]!, elements),
     /** Whether the next frame's records differ from this one's, or this one moved from the last:
      *  a frame that cannot be held, nor count as quiet. The answers are noted for `frame`'s
      *  `update` (`staleOnce`); without one, none is. */
