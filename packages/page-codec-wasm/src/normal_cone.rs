@@ -5,7 +5,12 @@
 //! run time (`packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
 //!
 //! One cone is built: the narrowest, whose axis points at the centre of the smallest ball holding
-//! the unit face normals (`min_ball`). Its angle is measured by fdlibm's arccosine
+//! the unit face normals (`min_ball`). Below a half-turn it is the smallest cap holding them, so
+//! never looser than any other axis's cone, the summed normals' included: the smallest cap of
+//! angle θ* < π/2 sits in a ball of radius sin θ*, so the smallest ball has radius r ≤ sin θ* < 1;
+//! a ball of radius under one cuts the unit sphere in a cap no wider than a hemisphere, whose
+//! circle, of radius sin θ, lies in the ball: sin θ ≤ r ≤ sin θ*, θ ≤ θ*, and the widest normal
+//! about the axis is θ*. At π/2 or more no view can cull the cluster by its cone: it is open. Its angle is measured by fdlibm's arccosine
 //! (`trillion3d_math::acos`, the same bits everywhere; JavaScript's `Math.acos` follows the machine)
 //! and raised by [`ANGLE_MARGIN_ULPS`], so it bounds every face on any runtime; a wider cone only
 //! culls less (`tests/integration/cooked-cones.test.ts`).
@@ -78,7 +83,7 @@ fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
 
 /// The cone whose axis points at the centre of the smallest ball enclosing the unit face normals
 /// (`min_ball`), its angle measured and raised (`raised_cone`), so the same bound holds on any
-/// runtime; `None` when there is no face, a normal is not a number (a face with a non-finite
+/// runtime; open from a quarter-turn up (nothing culls there); `None` when there is no face, a normal is not a number (a face with a non-finite
 /// vertex) or the centre is the origin.
 fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
     let mut normals = Vec::with_capacity(faces.len());
@@ -94,7 +99,11 @@ fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
     if length.is_nan() || length <= 1e-9 {
         return None;
     }
-    Some(raised_cone(faces, divide(centre, length)))
+    let cone = raised_cone(faces, divide(centre, length));
+    Some(match cone[3] < std::f64::consts::FRAC_PI_2 {
+        true => cone,
+        false => OPEN_CONE,
+    })
 }
 
 /// The cone of each cluster `[start, end)` of `ranges` over `indices`, written as four floats per

@@ -95,5 +95,19 @@ fn a_random_mesh_gets_a_cone_holding_every_face() {
             .collect();
         let cone = triangle_cone(&pos, &indices);
         assert!(holds(cone, &pos, &indices), "case {case}: {cone:?}");
+        // Never looser than the summed normals' cone: narrower, or open where that one is too wide
+        // to cull anything.
+        let faces = faces(&pos, &indices);
+        let sum = faces.iter().fold([0.0; 3], |s, &(c, len)| {
+            [0, 1, 2].map(|k| s[k] + c[k] / len)
+        });
+        let length = hypot(sum);
+        if faces.is_empty() || !(length > 1e-9) {
+            continue;
+        }
+        let mean = raised_cone(&faces, divide(sum, length));
+        let narrower = cone[3] <= mean[3];
+        let open = cone == OPEN_CONE && mean[3] >= std::f64::consts::FRAC_PI_2;
+        assert!(narrower || open, "case {case}: {cone:?} against {mean:?}");
     }
 }
