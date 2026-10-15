@@ -143,6 +143,15 @@ fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i,front:bool)->bool{
 }`,
 )
 
+/** The levels uniform's struct (`hizLevelWords`), declared by every host that binds it as
+ *  \`hizLevels\`: per level its nearest bound's first index, width, height and finished depth's
+ *  farthest's first index; then the count of levels, the front word and \`upper\` (\`hizRoute\`). */
+export const HIZ_LEVELS_STRUCT_WGSL = wgslBlock(
+  'HIZ_LEVELS_STRUCT_WGSL',
+  [],
+  `struct HizLevels{level:array<vec4u,${HIZ_MAX_LEVELS}>,count:vec4u,}`,
+)
+
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0 —
  * the depth the image drew, and in its second layer, when it holds one, the nearest transparent
@@ -157,9 +166,8 @@ fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i,front:bool)->bool{
 export const hizDepthWgsl = (group: number, binding: number) =>
   wgslBlock(
     `hizDepthWgsl(${group}, ${binding})`,
-    [HIZ_READ_WGSL, HIZ_FOLD_WGSL],
-    `struct HizLevels{level:array<vec4u,${HIZ_MAX_LEVELS}>,count:vec4u,}
-@group(${group}) @binding(${binding}) var hizDepth:texture_2d_array<f32>;
+    [HIZ_READ_WGSL, HIZ_FOLD_WGSL, HIZ_LEVELS_STRUCT_WGSL],
+    `@group(${group}) @binding(${binding}) var hizDepth:texture_2d_array<f32>;
 @group(${group}) @binding(${binding + 1}) var hizPyramid:texture_2d_array<u32>;
 @group(${group}) @binding(${binding + 2}) var<uniform> hizLevels:HizLevels;
 fn hizLevelCount()->i32{return i32(hizLevels.count.x);}

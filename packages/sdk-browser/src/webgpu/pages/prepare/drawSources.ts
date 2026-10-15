@@ -8,4 +8,5 @@ export const partitionSourcesOf = (draw: GpuDraw, hiz: GpuHiz) => ({
   items: draw.itemsBuffer,
   flags: hiz.flags,
   restBits: draw.restBitsBuffer,
+  hizLevels: hiz.levelTable,
 })

@@ -5,7 +5,7 @@ import {
   ROW_DATA_U32,
   STATE_WORDS,
   TESTED_BOX,
-  UNIFORM_U32,
+  PARTITION_UNI,
 } from './contract.ts'
 import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
 
@@ -24,7 +24,7 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   })
   const uniforms = device.createBuffer({
     label: 'Trillion3D partition uniform v1',
-    size: UNIFORM_U32 * 4,
+    size: PARTITION_UNI.words * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] }
@@ -67,6 +67,7 @@ const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = 
   restBits: 'storage',
   state: 'storage',
   uniforms: 'uniform',
+  hizLevels: 'uniform',
 }
 /** The bind layout of one kernel: its resources alone, at the module's binding numbers — its
  *  buffers, and the pyramid texture whose farthest layer it reads. */

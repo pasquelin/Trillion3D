@@ -14,6 +14,7 @@ test('the frame clears nothing from the encoder: its first dispatch zeroes what 
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
+    hizLevels: buffer('levels'),
     pyramid: () => pyramid,
   }))!
   const quiet = device.createCommandEncoder()
@@ -47,6 +48,7 @@ test('rows past one dimension of a dispatch run in rows of 65,535 groups (`dispa
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
+    hizLevels: buffer('levels'),
     pyramid: () => view('pyramid'),
   }))!
   partition.beginFrame(device.createCommandEncoder(), frame(rows))

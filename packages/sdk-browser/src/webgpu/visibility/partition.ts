@@ -6,7 +6,6 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { prepared } from '../pages/state/prepared.ts'
 
-const noLevels: Array<{ offset: number; width: number }> = []
 const noMatrix = new Float64Array(16)
 
 /**
@@ -23,7 +22,6 @@ const frame: PartitionFrame = {
   rows: 0,
   width: 0,
   height: 0,
-  levels: noLevels,
   layerTop: 0,
   hasRest: false,
   viewMoved: true,
@@ -76,7 +74,6 @@ export function encodeWebgpuPartition(
   frame.rows = rows.packedCount
   frame.width = gpu.targetSize[0]
   frame.height = gpu.targetSize[1]
-  frame.levels = twoPass ? prepared(vis, 'gpuHiz').levels() : noLevels
   frame.layerTop = visLayerTop(vis)
   frame.hasRest = twoPass
   // A moved view, a moved world or a dropped history free the rows the test kept: what stood

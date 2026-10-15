@@ -66,7 +66,6 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
     passes,
     slots: passes.map((_, i) => slots.offset(i)),
     words: hizBuildWords(sizes, cull, passes, slots.stride, packed.upper),
-    levels: sizes.map((size, level) => ({ offset: cull[level], width: size[0] })),
     levelWords: hizLevelWords(sizes, packed.offsets, packed),
   }
 }

@@ -46,11 +46,9 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
     rowData: [...f.rowData],
     flags: [...f.flags],
     restBits: new Array<number>(bitWords(f.rows)).fill(0),
-    slotUsed: new Array<number>(16).fill(0),
     state: new Array<number>(C.STATE_WORDS).fill(0),
     tested: [] as number[],
   }
-  const levels = [0, 1, 2, 3].map((k) => [4 * k, 4 * k + 1, 4 * k + 2, 4 * k + 3])
   const scope = {
     ...m,
     items: f.items,
@@ -60,17 +58,28 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
     bitcast_i32: (x: number) => x | 0,
     projectBox: (i: number) => ({ ...f.boxes[i], rect: [...f.boxes[i].rect] }),
     hiddenByPyramid: (rect: number[]) => (rect[0] & 1) === 0,
-    hizLevelFor: (rect: number[]) => [rect[0] & 3, (rect[1] & 3) !== 0 ? 1 : 0, 3],
+    // The one pick, clipped to the 64 × 48 viewport; the mip table's offset and width of a level.
+    hizRectPick: (rect: number[]) => {
+      const r = [
+        Math.max(rect[0], 0),
+        Math.max(rect[1], 0),
+        Math.min(rect[2], 63),
+        Math.min(rect[3], 47),
+      ]
+      const empty = r[2] < r[0] || r[3] < r[1]
+      return { rect: r, level: r[0] & 3, coarse: 3, found: !empty && (r[1] & 3) !== 0 }
+    },
+    hizMip: (l: number) => [l, l],
     pyramidHides: (minX: number, minY: number) => ((minX + minY) & 1) === 0,
     tallyAdd: () => {},
   }
-  const uni = { rows: f.rows, width: 64, height: 48, levels: 4, layerTop: 1, hasRest: f.hasRest }
+  const uni = { rows: f.rows, width: 64, height: 48, layerTop: 1, hasRest: f.hasRest }
   const partition = shaderRun<Record<string, Fn>>(
     PARTITION_SHADER,
     ['projectRow', 'classifyRow', 'bitWord', 'bitMask'],
     {
       ...scope,
-      uni: { ...uni, viewMoved: 0, levelOffset: levels, levelWidth: levels },
+      uni: { ...uni, viewMoved: 0 },
     },
   )
   const bounds: Record<string, number>[] = []

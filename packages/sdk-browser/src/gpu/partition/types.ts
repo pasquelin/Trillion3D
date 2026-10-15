@@ -11,6 +11,8 @@ export type PartitionSources = {
   items: GPUBuffer
   flags: GPUBuffer
   restBits: GPUBuffer
+  /** The Hi-Z levels uniform: the one mip table the cull and the packing read (`hizMip`). */
+  hizLevels: GPUBuffer
   pyramid: () => GPUTextureView | undefined
 }
 

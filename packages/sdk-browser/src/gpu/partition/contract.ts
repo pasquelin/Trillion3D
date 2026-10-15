@@ -1,6 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
-import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
 import { fieldLayout } from '../core/fieldLayout.ts'
 
 /**
@@ -130,25 +129,51 @@ export const PARTITION_BINDING = {
   state: 6,
   uniforms: 7,
   pyramid: 8,
+  hizLevels: 9,
 } as const
 /** What each kernel binds: each layout names only the resources its entry point reads or
  *  writes. */
 export const PARTITION_KERNEL_BINDINGS = {
   clearRows: ['restBits', 'state', 'uniforms'],
-  projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],
-  classifyRows: ['items', 'flags', 'rowData', 'tested', 'restBits', 'state', 'uniforms'],
+  projectRows: [
+    'corners',
+    'items',
+    'flags',
+    'rowData',
+    'state',
+    'uniforms',
+    'pyramid',
+    'hizLevels',
+  ],
+  classifyRows: [
+    'items',
+    'flags',
+    'rowData',
+    'tested',
+    'restBits',
+    'state',
+    'uniforms',
+    'hizLevels',
+  ],
 } as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>
 
 /**
- * Uniform words: view (16) and view-projection (16), both ALREADY composed with the anchor
- * translation; the anchor in two single-precision values, with the near plane; then the
- * scalars — nine, padded to the sixteen-byte alignment of the array that follows —, then the
- * mip table — offset and width — that bound packing reads.
+ * The frame's uniform, one table for the WGSL struct (`PARTITION_UNI_WGSL`) and its writer
+ * (`uniform.ts`): view and view-projection, both ALREADY composed with the anchor translation;
+ * the anchor in two single-precision values, with the near plane; then the scalars. The pyramid's
+ * mip table is the Hi-Z levels uniform's (`hizMip`), bound beside it.
  */
-export const UNI_VIEW = 0,
-  UNI_VIEW_PROJ = 16,
-  UNI_ANCHOR = 32,
-  UNI_ANCHOR_LOW = 36,
-  UNI_SCALARS = 40,
-  UNI_LEVELS = 52
-export const UNIFORM_U32 = UNI_LEVELS + HIZ_MAX_LEVELS * 2
+export const PARTITION_UNI = fieldLayout('Uni', [
+  ['view', 'mat4x4f'],
+  ['viewProj', 'mat4x4f'],
+  ['anchorHigh', 'vec3f'],
+  ['near', 'f32'],
+  ['anchorLow', 'vec3f'],
+  ['rows', 'u32'],
+  ['width', 'u32'],
+  ['height', 'u32'],
+  ['layerTop', 'u32'],
+  ['hasRest', 'u32'],
+  ['viewMoved', 'u32'],
+  ['counting', 'u32'],
+] as const)

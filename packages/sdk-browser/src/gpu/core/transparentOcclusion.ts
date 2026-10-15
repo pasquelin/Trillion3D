@@ -16,10 +16,11 @@ export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
 >
 
-/** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built,
- *  the uniform the partition wrote for it, and the compact's verdict buffer. */
+/** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built and its
+ *  levels uniform, the uniform the partition wrote for it, and the compact's verdict buffer. */
 export type TransparentOcclusionSources = {
   pyramid: () => GPUTextureView | undefined
+  levels: GPUBuffer
   uniforms: GPUBuffer
   /** The verdict buffer the compact owns, read at each image: it follows the compact's growth. */
   occluded: () => GPUBuffer
@@ -145,6 +146,7 @@ async function occlusionPipeline(device: GPUDevice) {
       computeBufferEntry(2, 'storage'),
       computeBufferEntry(3, 'uniform'),
       computeBufferEntry(4, 'read-only-storage'),
+      computeBufferEntry(5, 'uniform'),
     ],
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader() })
@@ -171,6 +173,7 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
   next[2] = o.corners
   next[3] = o.unculled
   next[4] = sources.uniforms
+  next[5] = sources.levels
   if (o.bound.moved())
     o.bindGroup = o.device.createBindGroup({
       layout: o.layout,
@@ -180,6 +183,7 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
         { buffer: occluded },
         { buffer: sources.uniforms },
         { buffer: o.unculled },
+        { buffer: sources.levels },
       ]),
     })
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })

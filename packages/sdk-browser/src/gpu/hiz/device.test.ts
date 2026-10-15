@@ -44,9 +44,8 @@ test('with no boxes attached the test encodes nothing; once attached it dispatch
   // Group 1 is the page table, whose Hi-Z slot word marks a row never culled.
   const [pagesGroup] = groups.slice(1) as [{ entries: GPUBindGroupEntry[] }]
   assert.deepEqual(pagesGroup.entries, [{ binding: 0, resource: { buffer: pages } }])
-  // Mips the partition reads to express a rectangle in texels: offset then width.
-  assert.deepEqual(hiz.levels()[0], { offset: 0, width: 33 })
-  assert.equal(hiz.levels().length > 1, true)
+  // The levels uniform the partition binds for its mip table (`hizMip`).
+  assert.ok(hiz.levelTable)
   hiz.dispose()
 })
 
@@ -75,9 +74,9 @@ test('each view keeps its own pyramid: a switch allocates nothing and finds its 
   assert.equal(destroyed.length, 0, 'the main view’s pyramid is kept aside, whole')
   const made = textures.length
   const side = hiz.swap(main)
-  assert.deepEqual([hiz.width, hiz.height, hiz.levels()[0].width], [32, 32, 32])
+  assert.deepEqual([hiz.width, hiz.height], [32, 32])
   assert.equal(hiz.swap(side), main)
-  assert.deepEqual([hiz.width, hiz.height, hiz.levels()[0].width], [16, 8, 16])
+  assert.deepEqual([hiz.width, hiz.height], [16, 8])
   assert.equal(textures.length, made, 'no pyramid is made again')
   hiz.swap(main)?.destroy()
   hiz.dispose()

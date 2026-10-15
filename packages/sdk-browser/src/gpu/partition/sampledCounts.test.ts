@@ -61,7 +61,6 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     tested: [] as number[],
     tally: new Array<number>(C.ST_REJECTED_TRIANGLES + 1).fill(0),
   }
-  const levels = [0, 1, 2, 3].map((k) => [4 * k, 4 * k + 1, 4 * k + 2, 4 * k + 3])
   const scope = {
     ...m,
     items: frame.items,
@@ -74,7 +73,18 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     // What the pyramids answer: a function of what is asked, the same in both runs.
     projectBox: (i: number) => ({ ...frame.boxes[i], rect: [...frame.boxes[i].rect] }),
     hiddenByPyramid: (rect: number[]) => (rect[0] & 1) === 0,
-    hizLevelFor: (rect: number[]) => [rect[0] & 3, (rect[1] & 3) !== 0 ? 1 : 0, 3],
+    // The one pick, clipped to the 64 × 48 viewport; the mip table's offset and width of a level.
+    hizRectPick: (rect: number[]) => {
+      const r = [
+        Math.max(rect[0], 0),
+        Math.max(rect[1], 0),
+        Math.min(rect[2], 63),
+        Math.min(rect[3], 47),
+      ]
+      const empty = r[2] < r[0] || r[3] < r[1]
+      return { rect: r, level: r[0] & 3, coarse: 3, found: !empty && (r[1] & 3) !== 0 }
+    },
+    hizMip: (l: number) => [l, l],
     pyramidHides: (minX: number, minY: number) => ((minX + minY) & 1) === 0,
     ...(perRow && {
       tallyAdd: (word: number, n: number) => (m.state[word] = (m.state[word] + n) >>> 0),
@@ -86,7 +96,6 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     rows,
     width: 64,
     height: 48,
-    levels: 4,
     layerTop: 1,
     hasRest: 1,
     counting: counted,
@@ -96,7 +105,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     ['projectRow', 'classifyRow', 'bitWord', 'bitMask', ...own],
     {
       ...scope,
-      uni: { ...uni, viewMoved: frame.viewMoved, levelOffset: levels, levelWidth: levels },
+      uni: { ...uni, viewMoved: frame.viewMoved },
     },
   )
   const bounds: Record<string, number>[] = []
@@ -165,14 +174,14 @@ test('the partition copies its counters on the frame that counted, and only then
   let at = 0
   // A frame from 40 to 44 has no pyramid: it runs no kernel, counts nothing, and its sample waits.
   const partition = (await createGpuPartition(device, 4, {
-    ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r') },
+    ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r'), hizLevels: buffer('l') },
     pyramid: () => (at < 40 || at > 44 ? ({} as GPUTextureView) : undefined),
   }))!
   /** The frames whose encoding copied. */
   const copies: number[] = []
   const encoder = device.createCommandEncoder()
   const matrix = new Float64Array(16),
-    sizes = { width: 8, height: 8, levels: [], layerTop: 0, hasRest: true, viewMoved: false }
+    sizes = { width: 8, height: 8, layerTop: 0, hasRest: true, viewMoved: false }
   const frame = { view: matrix, viewProj: matrix, anchor: [0, 0, 0] as const, near: 1, rows: 4 }
   for (; at < 60; at++) {
     // The caller's one `countsDue` answer: the frame's `counting`.

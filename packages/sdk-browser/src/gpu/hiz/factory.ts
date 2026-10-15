@@ -138,9 +138,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
       bindHiz(h)
     },
     growFlags: (rows) => hizGrowFlags(h, gpu, rows),
-    /** Pyramid mips, with their offset and width: what the partition reads to express a
-     *  screen rectangle in texels of the mip that covers it exactly. */
-    levels: () => h.at?.drawn.levels ?? [],
+    levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
     front: (encoder, wanted) => hizFront(h, gpu, encoder, wanted),

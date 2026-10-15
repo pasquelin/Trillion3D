@@ -2,7 +2,7 @@ import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { floorLog2 as floorLog2Decl } from '../../../../math/src/wgsl/integer.ts'
-import { HIZ_READ_WGSL } from './pyramidTexture.ts'
+import { HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL } from './pyramidTexture.ts'
 
 /**
  * The one pick of the pyramid rectangle of a screen rectangle: clipped to the viewport, the mip
@@ -10,12 +10,13 @@ import { HIZ_READ_WGSL } from './pyramidTexture.ts'
  * it. Every reader of a box's pyramid rectangle calls `hizRectPick` — the partition packing the
  * tested half (`classifyRows`), its main-pass cull and the transparent-cluster test (both through
  * `hiddenByPyramid`) —, so their rectangles and levels cannot diverge. It reads no pyramid, only
- * the host's uniform `uni` (`width`, `height`, `levels`); a rectangle no mip covers is never
+ * the host's uniform `uni` (`width`, `height`) and the Hi-Z levels uniform the host binds as
+ * `hizLevels` (`HIZ_LEVELS_STRUCT_WGSL`): the one mip table. A rectangle no mip covers is never
  * rejected.
  */
 export const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
-  [floorLog2Decl],
+  [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL],
   `
 /** Lowest mip where a span of \`span\` texels can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
@@ -53,11 +54,15 @@ struct HizRectPick{rect:vec4i,level:u32,coarse:u32,found:bool,}
 fn hizRectPick(rect:vec4i)->HizRectPick{
  let r=vec4i(max(rect.x,0),max(rect.y,0),min(rect.z,i32(uni.width)-1),min(rect.w,i32(uni.height)-1));
  if(r.z<r.x||r.w<r.y){return HizRectPick(r,0u,0u,false);}
- let pick=hizLevelFor(r,uni.levels);
+ let pick=hizLevelFor(r,hizLevels.count.x);
  return HizRectPick(r,pick.x,pick.z,pick.y!=0u);
 }
-/** Mip \`l\`'s first index in the culling layer and its width, from the host's mip table. */
-fn hizMip(l:u32)->vec2u{return vec2u(uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u]);}
+/** Mip \`l\`'s first index in the culling layer and its width: level 0's every layer is its own
+ *  slice, a coarser level's culling bound lies \`upper\` before its nearest (\`hizRoute\`). */
+fn hizMip(l:u32)->vec2u{
+ let level=hizLevels.level[l];
+ return vec2u(select(level.x-hizLevels.count.z,level.x,l==0u),level.y);
+}
 `,
 )
 
@@ -101,7 +106,7 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
  * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
- * (`PARTITION_UNI_WGSL`) and the sampled pyramid `hizPyramid`, which the host kernel declares
+ * (`PARTITION_UNI_WGSL`), the levels uniform `hizLevels` and the sampled pyramid `hizPyramid`, which the host kernel declares
  * (`HIZ_READ_WGSL`); the opaque main-pass cull
  * and the transparent-cluster test are this same function on their own inputs, so the two rules
  * cannot diverge.
