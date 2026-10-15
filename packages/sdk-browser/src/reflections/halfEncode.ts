@@ -5,7 +5,8 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP } from './viewLayout.ts'
 import type { FrontLayer } from './frontLayer.ts'
-import { REFLECTION_TRACE_BINDINGS, halfLayouts } from './halfBindings.ts'
+import { sceneBindEntries } from '../bounce/sceneBindings.ts'
+import { REFLECTION_TRACE_BINDINGS, TRACE_SCENE_BINDINGS, halfLayouts } from './halfBindings.ts'
 import { halfExtent, type HalfGrids } from './halfTexture.ts'
 
 /** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
@@ -90,6 +91,7 @@ function surfaceGroups(
   device: GPUDevice,
   layouts: TraceStages['layouts'],
   scene: Named,
+  proxy: GPUBindGroupEntry[],
   sampled: GPUBindingResource,
   surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
   grids: HalfGrids,
@@ -97,17 +99,18 @@ function surfaceGroups(
 ): SurfaceGroups {
   // The flags only the trace and the upsamples read (`halfLayouts`).
   const { flags, normals, lobes } = surface
-  const group = (layout: GPUBindGroupLayout, named: Named) =>
+  const group = (layout: GPUBindGroupLayout, named: Named, more: GPUBindGroupEntry[] = []) =>
     device.createBindGroup({
       layout,
-      entries: namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, ...named }),
+      entries: [...namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, ...named }), ...more],
     })
+  // What a ray reads, the trace's and the upsamples': the scene, the proxy and the flags.
+  const ray = (layout: GPUBindGroupLayout, named: Named) =>
+    group(layout, { ...scene, flags, ...named }, proxy)
   return {
     // The trace writes the grid that is not the history, the spatial reuse reads it into the scratch,
     // the accumulation reads the scratch and the history into it again, which the upsample reads.
-    trace: [0, 1].map((p) =>
-      group(layouts.trace, { ...scene, flags, sampled, traceOut: grids.turn[p] }),
-    ),
+    trace: [0, 1].map((p) => ray(layouts.trace, { sampled, traceOut: grids.turn[p] })),
     spatial: [0, 1].map((p) =>
       group(layouts.spatial, { spatialIn: grids.turn[p], spatialOut: grids.scratch }),
     ),
@@ -119,7 +122,7 @@ function surfaceGroups(
       }),
     ),
     upsample: [0, 1].map((p) =>
-      group(upsample.layout, { ...scene, flags, ...upsample.out, upsampleIn: grids.turn[p] }),
+      ray(upsample.layout, { ...upsample.out, upsampleIn: grids.turn[p] }),
     ),
   }
 }
@@ -142,17 +145,19 @@ function traceGroups(reflection: TraceResources, stages: TraceStages, inputs: Tr
     lightLists: { buffer: inputs.lightLists },
     bounceGrid: { buffer: inputs.bounceGrid },
     probes: inputs.probes,
-    proxy: { buffer: inputs.proxy },
-    proxyWorlds: inputs.proxyWorlds,
-    proxyTree: inputs.proxyTree,
   }
+  const proxy = sceneBindEntries(TRACE_SCENE_BINDINGS, {
+    buffer: inputs.proxy,
+    worlds: inputs.proxyWorlds,
+    tree: inputs.proxyTree,
+  })
   const sampled = { buffer: settle.sampled }
   return (trace.groups = {
-    opaque: surfaceGroups(device, layouts, scene, sampled, inputs, half, {
+    opaque: surfaceGroups(device, layouts, scene, proxy, sampled, inputs, half, {
       layout: layouts.upsample,
       out: { base: inputs.base, target: targetView },
     }),
-    front: surfaceGroups(device, layouts, scene, sampled, front.views, front.half, {
+    front: surfaceGroups(device, layouts, scene, proxy, sampled, front.views, front.half, {
       layout: layouts.upsampleFront,
       out: { frontTarget: front.views.traced },
     }),

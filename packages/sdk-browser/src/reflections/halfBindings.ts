@@ -3,7 +3,7 @@ import {
   computeStorageTextureEntry,
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
-import type { SceneBindings } from '../bounce/sceneBindings.ts'
+import { sceneLayoutEntries, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { atlasEntry } from '../bounce/atlas.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
@@ -82,9 +82,7 @@ const scene = () => [
   computeBufferEntry(B.lightLists, 'read-only-storage'),
   computeBufferEntry(B.bounceGrid, 'uniform'),
   atlasEntry(B.probes),
-  computeBufferEntry(B.proxy, 'read-only-storage'),
-  computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
-  computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
+  ...sceneLayoutEntries(TRACE_SCENE_BINDINGS),
 ]
 
 /** The layouts of each kernel's group 0: the trace — which alone sets the settle's word —, the
