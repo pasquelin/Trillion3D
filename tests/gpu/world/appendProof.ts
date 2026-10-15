@@ -10,6 +10,7 @@ import {
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { animationFrame } from '../kit/frame.ts'
+import { gaps } from '../kit/patternImage.ts'
 
 export type World = ReturnType<typeof createWorld>
 
@@ -80,8 +81,9 @@ export async function changed(world: World, before: string) {
 type Content = (world: World) => void | Promise<void>
 
 /** A world opened on `held`, then `added` joining it while it runs, against a world opened on
- *  both — their models loaded in one burst, one session opened on them all —: the images, and the
- *  sessions the first was opened with, before and after. */
+ *  both — their models loaded in one burst, one session opened on them all —: the images, how far
+ *  apart the two settled images lie channel by channel (`gaps`), and the sessions the first was
+ *  opened with, before and after. */
 export async function joined(held: Content, added: Content) {
   const grown = open()
   try {
@@ -96,10 +98,17 @@ export async function joined(held: Content, added: Content) {
       await reference.world.ready
       await Promise.all([held(reference.world), added(reference.world)])
       const opened = await changed(reference.world, '')
+      const grownPixels = new Uint8Array(await sessionOf(grown.world).capture()),
+        openedPixels = new Uint8Array(await sessionOf(reference.world).capture())
+      const apart = {
+        ...gaps(grownPixels, openedPixels),
+        sizes: [grownPixels.length, openedPixels.length],
+      }
       return {
         before,
         after,
         opened,
+        apart,
         sessions: [sessions, grown.world.diagnostic.sessions],
         clusters: [lastFrameOf(grown.world)?.clusters, lastFrameOf(reference.world)?.clusters],
       }
