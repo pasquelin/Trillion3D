@@ -181,7 +181,6 @@ const direction: [number, number, number] = [0, 0, 0],
   worldToLightRotation = new Float64Array(16),
   worldToLightView = new Float64Array(16),
   viewToWorldRotation = new Float64Array(16),
-  cm = new Float64Array(16),
   lastLevelSnap = new Float64Array(3),
   eyeInLight = new Float64Array(3),
   swc = new Float64Array(3),
@@ -327,10 +326,10 @@ export function createVsmClipmap(
     const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
     depthRadius = levelEntry.clipmap.depthRadius
 
-    // The matrix in centimetres (cm) and its metre twin (same clip values from metres).
+    // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
+    // taken from the centimetre values themselves: the exact value, no unit round trip.
     const zScale = 0.5 / depthRadius
     const zOffset = depthRadius + eyeDepthShift
-    forwardOrthographicProjection(cm, halfWidthCm, halfWidthCm, zScale, zOffset)
     const viewToClip = forwardOrthographicProjection(
       level.viewToClip,
       halfWidthCm * VSM_UNIT_PER_CM,
@@ -338,7 +337,7 @@ export function createVsmClipmap(
       zScale * VSM_CM_PER_UNIT,
       zOffset * VSM_UNIT_PER_CM,
     )
-    viewToClip[14] = cm[14] // 1 − zOffset·zScale is unitless: keep the exact value
+    viewToClip[14] = 1 - zOffset * zScale
 
     for (let k = 0; k < 3; k++) level.worldCentre[k] = swc[k] * VSM_UNIT_PER_CM
   }
