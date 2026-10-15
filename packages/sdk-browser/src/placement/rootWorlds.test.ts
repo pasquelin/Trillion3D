@@ -62,8 +62,8 @@ test('roots a cut took in place before they join are sent and listed for the roo
   // The running cut appends both in place (`startGrownCut`): their stretch is the pass's to write.
   growth.appended = 2
   sendRootWorlds(rt, device)
-  assert.deepEqual(Array.from(held.roots.ranks.subarray(0, held.roots.count)), [2, 3])
-  assert.equal(held.rows.count, 0, 'their rows wait for them to join')
+  assert.deepEqual(Array.from(held.roots.ranks.take()), [2, 3])
+  assert.equal(held.rows.ranks.count, 0, 'their rows wait for them to join')
   assert.deepEqual([held.sent, held.held], [2, 4])
   const words = new Uint32Array((held.worlds as unknown as { data: Uint8Array }).data.buffer),
     expected = new Uint32Array(ROOT_WORLD_WORDS)
@@ -89,7 +89,7 @@ test('roots taken in place are not sent again when they join: their rows alone a
   held.roots.whole = held.rows.whole = false
   growth.appended = 2
   sendRootWorlds(rt, device)
-  held.roots.count = 0
+  held.roots.ranks.clear()
   // They join at the ranks they were taken at, with a third the cut never took.
   selectionRoots.push(...growth.roots, at(5))
   growth.appended = 0
@@ -101,6 +101,6 @@ test('roots taken in place are not sent again when they join: their rows alone a
     [4 * ROOT_WORLD_WORDS * 4],
     'the one the cut never took',
   )
-  assert.deepEqual(Array.from(held.roots.ranks.subarray(0, held.roots.count)), [4])
-  assert.deepEqual(Array.from(held.rows.ranks.subarray(0, held.rows.count)), [2, 3, 4])
+  assert.deepEqual(Array.from(held.roots.ranks.take()), [4])
+  assert.deepEqual(Array.from(held.rows.ranks.take()), [2, 3, 4])
 })

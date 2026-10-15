@@ -19,8 +19,7 @@ function session() {
   const rt = {} as Pick<WebgpuPagesRuntime, 'rowWords'>
   deriveRootRows(rt, 0)
   rt.rowWords!.all = false
-  rt.rowWords!.roots.length = 0
-  rt.rowWords!.rootListed.fill(0)
+  rt.rowWords!.roots.clear()
   return rt.rowWords!
 }
 
