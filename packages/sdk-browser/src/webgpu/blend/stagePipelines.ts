@@ -15,6 +15,7 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
+import { CULL_MODES } from './planCull.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
@@ -128,8 +129,6 @@ export async function blendStagePipelines(
   )
   return [none, front, back]
 }
-
-const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
  *  display mask's layout of a filtered image's pipelines; without `reflected`, the blend group alone —

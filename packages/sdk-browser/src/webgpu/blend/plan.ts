@@ -16,14 +16,12 @@ import {
   PLAN_VERTEX_CULL_BIT,
   planEntry,
 } from './planEntry.ts'
-import { CULL_RANKS, modeOf, planCull } from './planCull.ts'
+import { CULL_RANK, modeBase, modeOf, planCull } from './planCull.ts'
 
-/** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
- *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
- *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the three normal ones. */
-const PIPELINE_NONE = 0,
-  PIPELINE_FRONT = 1,
-  PIPELINE_BACK = 2
+/** The cull ranks of a pass's pipelines (`CULL_RANK`): a plan entry picks them without a test, and
+ *  the rank, plus its blend mode's base (`modeBase`), indexes the pipelines of the pass
+ *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the normal mode's. */
+const { none: PIPELINE_NONE, front: PIPELINE_FRONT, back: PIPELINE_BACK } = CULL_RANK
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
 const planVertexCull = (entry: number) =>
@@ -32,8 +30,8 @@ const planVertexCull = (entry: number) =>
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry)
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
-const modeBase = (surface: PageSurface, transmissive: boolean) =>
-  BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)) * CULL_RANKS
+const firstPipeline = (surface: PageSurface, transmissive: boolean) =>
+  modeBase(BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)))
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
@@ -45,7 +43,7 @@ function sidesOf(item: BlendGpuItem) {
   // switched in place (see the room reserved above).
   const surface = item.surface
   const side = surface.side,
-    base = modeBase(surface, !!item.transmissive)
+    base = firstPipeline(surface, !!item.transmissive)
   if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front]
   if (side === 'front') return [base + front]
   if (side === 'back') return [base + back]
