@@ -1,5 +1,5 @@
 import { ROW_DATA_U32 } from './contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../core/computeStages.ts'
 import { createGpuPartitionBuffers, createGpuPartitionLayout } from './buffers.ts'
 import { createPartitionUniformWriter } from './uniform.ts'
 import { createPartitionCounters } from './counters.ts'
@@ -104,12 +104,7 @@ function compilePartition(device: GPUDevice) {
     // each, compiled together.
     const layouts = KERNELS.map((kernel) => createGpuPartitionLayout(device, kernel))
     const pipelines = await Promise.all(
-      KERNELS.map((entryPoint, k) =>
-        buildComputePipeline(device, {
-          layout: device.createPipelineLayout({ bindGroupLayouts: [layouts[k]] }),
-          compute: { module, entryPoint },
-        }),
-      ),
+      KERNELS.map((entryPoint, k) => buildComputeStage(device, [layouts[k]], module, entryPoint)),
     )
     return { layouts, pipelines }
   })

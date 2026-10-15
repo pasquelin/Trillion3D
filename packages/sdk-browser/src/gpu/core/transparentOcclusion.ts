@@ -1,5 +1,5 @@
 import { CORNER_VALUES } from '../partition/contract.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from './computeStages.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { retire } from './frameRetire.ts'
@@ -151,10 +151,7 @@ async function occlusionPipeline(device: GPUDevice) {
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader() })
   if (await shaderFailed(module)) return undefined
-  const pipeline = await buildComputePipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'testTransparentClusters' },
-  })
+  const pipeline = await buildComputeStage(device, [layout], module, 'testTransparentClusters')
   return { layout, pipeline }
 }
 
