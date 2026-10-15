@@ -91,12 +91,14 @@ export function worldSelectionRoot(
   order: number,
   pose?: PlacementRows,
 ): (ClusterRoot<PageRec> & WorldHeld) | undefined {
-  let fallback: WorldWearer | undefined
-  for (const { primitive } of dag.pages)
-    if ((fallback = primitive === null ? undefined : wear(primitive))) break
+  // Each cluster's wearer, asked once; the first found dresses those without one.
+  const wearers = dag.pages.map(({ primitive }) =>
+    primitive === null ? undefined : wear(primitive),
+  )
+  const fallback = wearers.find((wearer) => wearer !== undefined)
   if (!fallback) return undefined
   const pages = dag.pages.map((page, rank) => {
-    const wearer = page.primitive === null ? undefined : wear(page.primitive)
+    const wearer = wearers[rank]
     // No wearer: a record without a page, worn as any other only to stay a record.
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
