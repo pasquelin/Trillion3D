@@ -102,7 +102,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
   for (const kind of [1, 2] as const) {
     const run = shaderRun<{ fs: Fragment; fsFiltered: Fragment }>(
       BLEND_SHADER,
-      ['fs', 'fsFiltered', 'blendFragment', ...ROUTE_FUNCTIONS],
+      ['fs', 'fsFiltered', 'blendFragment', 'blendLit', ...ROUTE_FUNCTIONS],
       {
         ...routeScope(kind, leftHalf),
         fwidth: () => [0, 0, 0],

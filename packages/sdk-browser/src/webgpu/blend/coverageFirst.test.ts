@@ -54,6 +54,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'lineDash',
     'floorMod',
     'modelFlag',
+    'blendLit',
     // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
     'blendPhysicalBegin',
     'blendLobes',
