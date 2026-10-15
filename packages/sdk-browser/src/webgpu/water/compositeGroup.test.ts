@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { deferredLayoutEntries } from '../../lighting/deferred/layoutEntries.ts'
-import { readOnly } from '../core/bindLayout.ts'
+import { bufferLayout } from '../../gpu/core/computeBindings.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { waterCompositeLayoutEntries } from './compositeGroup.ts'
@@ -32,9 +32,9 @@ test('the water composite layout is the one its bindings name, laid out as the r
     // The front's radiance the reflection trace wrote: words, read by load.
     { binding: b.frontTraced, visibility: fragment, ...FRONT_TRACED_LAYOUT },
     { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
-    { binding: b.volumes, visibility: fragment, buffer: readOnly },
-    { binding: b.items, visibility: fragment, buffer: readOnly },
-    { binding: b.rect, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    { binding: b.volumes, visibility: fragment, ...bufferLayout('read-only-storage') },
+    { binding: b.items, visibility: fragment, ...bufferLayout('read-only-storage') },
+    { binding: b.rect, visibility: GPUShaderStage.VERTEX, ...bufferLayout('read-only-storage') },
     PHYSICAL_LOBES_TARGET.layoutEntry(),
   ] as GPUBindGroupLayoutEntry[]
   assert.deepEqual(byBinding(waterCompositeLayoutEntries()), byBinding(written))

@@ -1,6 +1,7 @@
 // The surface stage's WGSL (`rank.ts` says what it stores), imported with transmission's code
 // (`transmissionCode.ts`): the core holds the rank alone.
-import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
+import { WATER_MAX_ITEMS, WATER_OPACITY_STEPS, WATER_RANK_SHIFT } from './rank.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
@@ -47,7 +48,7 @@ const waterSurfaceWordWgsl = (lobes: boolean) =>
     [blendSurfaceWgsl(lobes)],
     `
 fn waterSurfaceWord(in:VSOut,s:BlendSurface)->vec4f{
- let opacity=u32(round(clamp(s.alpha,0.0,1.0)*65535.0));
+ let opacity=u32(round(clamp(s.alpha,0.0,1.0)*${wgslF32(WATER_OPACITY_STEPS)}));
  return unpack4x8unorm((in.water&${WATER_MAX_ITEMS}u)|(opacity<<${WATER_RANK_SHIFT}u));
 }`,
   )
@@ -66,6 +67,6 @@ export const WATER_UNPACK_WGSL = wgslBlock(
   `
 fn waterWordAt(coord:vec2i)->u32{return pack4x8unorm(textureLoad(waterWord,coord,0));}
 fn waterRank(packed:u32)->u32{return (packed&${WATER_MAX_ITEMS}u)-1u;}
-fn waterOpacity(packed:u32)->f32{return f32(packed>>${WATER_RANK_SHIFT}u)/65535.0;}
+fn waterOpacity(packed:u32)->f32{return f32(packed>>${WATER_RANK_SHIFT}u)/${wgslF32(WATER_OPACITY_STEPS)};}
 `,
 )

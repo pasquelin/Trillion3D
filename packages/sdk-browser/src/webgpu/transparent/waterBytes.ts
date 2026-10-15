@@ -1,4 +1,7 @@
-/** The frozen backdrop costs a half-float colour (8 bytes) per pixel, and the depth the surface
- *  stage tests and writes 4 more; the other surfaces are the opaque resolve's, and the water word
+import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
+import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
+
+/** The water pass's own bytes a pixel: the frozen backdrop, an HDR colour, and the depth the
+ *  surface stage tests and writes; the other surfaces are the opaque resolve's, and the water word
  *  borrows the display colour (`../water/surfaceWgsl.ts`), already paid. */
-export const WATER_BYTES_PER_PIXEL = 8 + 4
+export const WATER_BYTES_PER_PIXEL = texelBytesOf(HDR_FORMAT) + texelBytesOf(DEPTH_FORMAT)
