@@ -3,19 +3,19 @@ import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { families } from '../host/families.ts'
-import { addressFlag } from '../host/addressFlag.ts'
+import { debugMode } from '../host/debugMode.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { transparentCounts } from '../webgpu/pages/state/transparentCounts.ts'
 import { log } from '../diagnostic/log.ts'
 
-/** Opt-in audit, no per-frame trace: add `trillion3dFrameAudit=1` to the host URL. */
-export const frameCostAuditEnabled = addressFlag(
-  (params) => params.get('trillion3dFrameAudit') === '1',
-)
+/** The frame audit, no per-frame trace, is a debug-mode tool (`debugMode`: a world's `debug`,
+ *  `?profile`): no switch of its own. Read by `webgpu/pages/render/cpuSteps.ts` until it reads
+ *  `debugMode` alone. */
+export const frameCostAuditEnabled = () => debugMode()
 
 /** Serialisation and the console stay outside the measured render call. */
 export function logFrameCostAudit(context: Record<string, unknown>) {
-  if (!frameCostAuditEnabled()) return
+  if (!debugMode()) return
   queueMicrotask(() => {
     try {
       log.info('frame audit', JSON.stringify(context))
@@ -37,7 +37,7 @@ const viewPose = (cam: EngineCamera) => ({
  * verdict's count, read back a few images late (`verdictRead.ts`): no CPU walk repeats it, and no
  * selection changes. */
 export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
-  if (!frameCostAuditEnabled()) return undefined
+  if (!debugMode()) return undefined
   const { blendState, run, timing } = rt,
     blend = transparentCounts(rt)
   return {
@@ -69,7 +69,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
 export function createHostFrameCostAudit() {
   let last = -Infinity
   return (frame: number, metrics: FrameMetrics) => {
-    if (!frameCostAuditEnabled()) return
+    if (!debugMode()) return
     const now = cpuNow()
     if (now - last < 2000) return
     last = now
