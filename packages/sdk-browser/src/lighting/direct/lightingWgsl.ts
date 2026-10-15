@@ -95,9 +95,8 @@ export const lightingBase = (
   bindings: LightingBindings,
   key: Partial<ContractKey>,
   { narrow = false, pair = false } = {},
-) => {
-  const shadowed = !key.unshadowed
-  return wgslBlock(
+) =>
+  wgslBlock(
     `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
@@ -115,7 +114,7 @@ export const lightingBase = (
       FOG_WGSL,
       declaredLightWgsl(key, { pair }),
       TILE_SLICE_WGSL,
-      sliceLightingWgsl(!shadowed, pair),
+      sliceLightingWgsl(pair),
     ],
     `
 var<private> thinSubsurface:vec3f=vec3f(0.0);
@@ -139,7 +138,6 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
 }
 `,
   )
-}
 
 /** The opaque resolve's bindings (`lightingBase`). */
 const DIRECT_BINDINGS: LightingBindings = {
@@ -165,7 +163,7 @@ const DIRECT_BINDINGS: LightingBindings = {
  * The program `key` names (`ContractKey`, `LOBELESS_KEY` unless given). `narrow`, the resolve of a
  * scene of at most `TILE_LIGHTS` lights (#849): its light array is that long. `unshadowed`, the
  * resolve of a scene no light of which holds a shadow slot: the same sums with no shadow code
- * compiled in (`declaredLightWgsl`, #1249) and the range reject in its loop (`sliceLightingWgsl`).
+ * compiled in (`declaredLightWgsl`, #1249).
  * `rectless`, the resolve of a scene that holds no rectangle light: the same sums with no rectangle
  * code in the light loop (`declaredLightWgsl`, #1369). Without `lobeless`, the resolve of an image
  * that holds an anisotropic or clear-coat surface (`lobesWgsl.ts`).

@@ -151,19 +151,14 @@ const shadeStatement = (pair: boolean) => `
  * rank; a bounce point's irradiance (\`lightsIrradiance\`, \`term\` \`irradiance\`), every light of
  * the scene, which no list of the view's grid holds (its cells are the view's own).
  *
- * With \`reject\`, a light is first rejected on its sphere alone, before its record is read in full,
- * where it lies past its range by a ten-thousandth of its squared range (\`RANGE_REJECT\`): there
- * \`directIncidence\` — and a rectangle's range window — would have returned zero before any
- * shading, so the sum loses an exact zero only. The kind is read alone (\`isSunKind\`), not through
- * \`isSun\`, which takes the whole record. Timed on the resolve (64 lamps, a million pixels), it
- * takes 30 % off a light out of range for 13 % on one in range: in the resolve program with shadow
- * code that 13 % is not repaid (42.3 → 47.9 ps a light in range), so that program runs the loop
- * without the reject (#1249). The irradiance always rejects: a light in range there costs a ray
- * through the proxy, which the sphere test's few words do not weigh.
+ * Every walk reads a listed light's record and shades it, the one loop: a light out of its range
+ * gives its exact zero in its own term (\`directIncidence\`, \`rectView\`, \`localLightReaches\`) before
+ * any shading, and an irradiance's before its shadow ray. A list holds the lights that reach its
+ * cell, so a sphere test ahead of the record would mostly re-read what the term reads.
  */
-export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm = 'surface') =>
+export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
   wgslBlock(
-    `sliceLightingWgsl(${reject}, ${pair}, ${term})`,
+    `sliceLightingWgsl(${pair}, ${term})`,
     [],
     term === 'surface'
       ? lightLoop(
@@ -173,7 +168,6 @@ export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm
  let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
           'slice.y',
           LISTED_PICK,
-          reject,
           pair
             ? PAIR_SUM
             : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);',
@@ -185,24 +179,16 @@ export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm
  var result=vec3f(0.0);`,
           'slice.y',
           LISTED_PICK,
-          reject,
           'result+=declaredIrradiance(directLights.items[light],P,N,reach);',
         ),
   )
 
 /** The loop's text: \`head\` its signature, \`start\` its result and what its lights share, \`count\`
  *  its lights, \`pick\` the rank a light is read at, \`sum\` what a light adds. */
-const lightLoop = (
-  head: string,
-  start: string,
-  count: string,
-  pick: string,
-  reject: boolean,
-  sum: string,
-) => `
+const lightLoop = (head: string, start: string, count: string, pick: string, sum: string) => `
 fn ${head}{${start}
  for(var index=0u;index<${count};index++){
-  ${pick}${reject ? RANGE_REJECT_TEST : ''}
+  ${pick}
   ${sum}
  }
  return result;
@@ -215,18 +201,12 @@ const LISTED_PICK = 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights
 const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
 
-const RANGE_REJECT_TEST = `
-  let sphere=directLights.items[light].positionRange;
-  let offset=sphere.xyz-P;
-  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`
-
 /**
- * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, with the range
- * reject, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
+ * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
  * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer).
  */
 export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
   'LIGHTS_IRRADIANCE_WGSL',
-  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(true, false, 'irradiance')],
+  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(false, 'irradiance')],
   '',
 )

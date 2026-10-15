@@ -23,7 +23,6 @@ function lightLoop(rect: boolean) {
     lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
   }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
     directLights,
-    RANGE_REJECT: 1.0001,
     isRect: () => rect,
     isSun: () => false,
     isSunKind: () => false,

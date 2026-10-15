@@ -115,10 +115,6 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** The unshadowed resolve's range reject (\`sliceLightingWgsl\`): a light is skipped past
- *  this many times its squared range, far above the f32 roundings of \`length\`, so
- *  \`directIncidence\` and \`rectView\` would have given it zero there. */
-const RANGE_REJECT:f32=1.0001;
 `,
   )
 export const DIRECT_LIGHT_WGSL = directLightWgsl()
