@@ -9,7 +9,7 @@ pub struct ClusterPlane {
 
 use trillion3d_math::aabb::{extend_aabb, longest_side};
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{cross, point_checked, unit_unless_zero};
+use trillion3d_math::vec3::{cross, frame_across, point_checked, unit_unless_zero};
 use trillion3d_math::vecn::{add, dot, length, scale};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
@@ -108,17 +108,12 @@ const PARALLEL_COSINE: f64 = 1.0 - 1e-6;
 /// Two axes of the plane, derived from its normal alone, so every surface of one plane is measured
 /// in the same frame whatever order they were read in.
 pub fn plane_frame(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
-    let axis = if normal[0].abs() <= normal[1].abs() && normal[0].abs() <= normal[2].abs() {
-        [1.0, 0.0, 0.0]
-    } else if normal[1].abs() <= normal[2].abs() {
-        [0.0, 1.0, 0.0]
-    } else {
-        [0.0, 0.0, 1.0]
-    };
-    let Some(u) = unit_unless_zero(cross(normal, axis)) else {
+    // The first row of the frame around the unit normal (`frame_across`), its second `n × u`.
+    let Some(n) = unit_unless_zero(normal) else {
         return ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
     };
-    (u, cross(normal, u))
+    let u = frame_across(n);
+    (u, cross(n, u))
 }
 
 /// Hash bucket of a world plane. The normal is quantised in fixed steps and the distance in steps of

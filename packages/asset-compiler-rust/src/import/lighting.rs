@@ -3,7 +3,7 @@
 //! imported data.
 use super::*;
 use trillion3d_math::matrix::transform_direction;
-use trillion3d_math::vec3::{cross, normalize, normalized_or};
+use trillion3d_math::vec3::{cross, frame_across, normalized_or};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     matrix_columns(m).to_vec()
@@ -22,13 +22,8 @@ pub(super) fn matrix_is_finite(m: &[f64]) -> bool {
 pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64> {
     let d = normalized_or([direction.x, direction.y, direction.z], [0.0, 0.0, -1.0]);
     let z = [-d[0], -d[1], -d[2]];
-    let up = if z[1].abs() > 0.99 {
-        [1.0, 0.0, 0.0]
-    } else {
-        [0.0, 1.0, 0.0]
-    };
-    let x = cross(up, z);
-    let x = normalize(x);
+    // FBX gives no roll about the axis: the frame around it (`frame_across`).
+    let x = frame_across(z);
     let y = cross(z, x);
     let n = &node.node_to_world;
     let columns = matrix_columns(n);

@@ -4,7 +4,7 @@ import { MASK_CUTOFF } from '../../../../sdk-core/src/contracts/material.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
-import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
+import { frameAround } from '../../../../math/src/wgsl/basis.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { requestLoopWgsl } from '../tile/requestWgsl.ts'
 import { fragmentMembers, type FragmentField } from '../../gpu/core/fragmentOutputs.ts'
@@ -107,7 +107,7 @@ struct CardVary{
  // The normal matrix, transpose(inverse).
  let normalMatrix=transpose(back);
  return CardVary(clip,back*(p-origin)-pivot,i,vec4f(eye,c.shape.x),
-  vec4f(k.w,lod),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
+  vec4f(k.w,lod),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),frameAround(na).x,frameAround(nb).x,frameAround(nc).x,
   na,nb,nc,normalMatrix[0],normalMatrix[1],normalMatrix[2]);
 }
 /** The maps a card pixel reads, and its three taps: what both stages read at it. */
@@ -192,5 +192,5 @@ struct CardOut{${fragmentMembers([...CARD_SURFACE_FIELDS, { name: 'feedback', wg
  let px=cardPixel(in);let s=cardSurface(in,px);
  return CardOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags,cardRequest(px,in.clip.xy,in.weightsLod.w));
 }`,
-    [impostorCardWgsl(reads), tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
+    [impostorCardWgsl(reads), frameAround, core.SPRITE_WGSL, worldMatrix3],
   )

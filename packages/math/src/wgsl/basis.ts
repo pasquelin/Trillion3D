@@ -7,15 +7,6 @@ import { wgslFn, wgslStruct } from './decl.ts'
  * a unit axis, branchless, and the moves into and out of it.
  */
 
-export const tangentImpostor = wgslFn(
-  'tangentImpostor',
-  [],
-  `fn tangentImpostor(n:vec3f)->vec3f{
- let up=select(vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0),abs(n.y)>0.999);
- return normalize(cross(up,n));
-}`,
-)
-
 /** Not normalised. */
 export const tangentFallback = wgslFn(
   'tangentFallback',
