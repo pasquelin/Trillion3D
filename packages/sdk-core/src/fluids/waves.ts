@@ -2,6 +2,7 @@ import { length2, normalizeVector2, normalizeVector3 } from '../../../math/src/v
 import { HALF_PI, TAU } from '../../../math/src/constants.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { GRAVITY_PRESETS } from '../physics/options.ts'
 
 /**
  * The one wave model of the engine: a sum of trochoidal waves. Buoyancy reads it on the CPU (the
@@ -25,9 +26,6 @@ export interface WaveSpec {
   /** Phase at `t = 0`, radians. */
   phase?: number
 }
-
-/** Deep-water gravity, m/s²: a wave's angular speed is `sqrt(GRAVITY × k)`. */
-const WAVE_GRAVITY = 9.81
 
 /**
  * The least and greatest of the cosine, then of the sine, over the angles `[a, b]`, into `out`:
@@ -156,7 +154,8 @@ export class Waves {
       this.amplitude[i] = spec.amplitude
       // Qᵢ·Aᵢ·kᵢ = steepnessᵢ × scale: the lateral amplitude Qᵢ·Aᵢ follows.
       this.lateral[i] = spec.amplitude > 0 ? (spec.steepness * scale) / this.k[i] : 0
-      this.omega[i] = Math.sqrt(WAVE_GRAVITY * this.k[i])
+      // Deep water: ω = √(g·k), g the engine's one gravity.
+      this.omega[i] = Math.sqrt(GRAVITY_PRESETS.earth * this.k[i])
       this.phase0[i] = spec.phase ?? 0
     })
     this.crest = this.amplitude.reduce((a, b) => a + b, 0)

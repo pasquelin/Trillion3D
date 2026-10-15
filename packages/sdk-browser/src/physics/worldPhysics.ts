@@ -33,7 +33,7 @@ const simulationControls = (s: PhysicsState) => ({
     enable(s, on)
   },
   /** Gravity in m/s², a live vector; set a preset (`'earth'`, `'moon'`, `'mars'`, `'none'`)
-   *  or a vector. @defaultValue 'earth' (0, −9.81, 0) */
+   *  or a vector. @defaultValue 'earth' (0, −9.80665, 0) */
   get gravity(): Vector3 {
     return s.gravity
   },
