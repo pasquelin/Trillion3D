@@ -23,16 +23,11 @@ import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 type Opened = Awaited<ReturnType<typeof createExplorerSession>>
 type Reference = ReturnType<typeof referenceOptions>['reference']
 
-/** The frame report on `window.__trillion3d`, a debug handle of the page's console. */
+/** The session's one profiler on `window.__trillion3d`, a debug handle of the page's console:
+ *  `__trillion3d.profiler.printReport()`, `.startAutoLog(2)`. */
 function exposeProfiler(profiler: EngineProfiler) {
   if (typeof window === 'undefined') return
-  ;(window as unknown as { __trillion3d: unknown }).__trillion3d = {
-    profiler,
-    getReport: () => profiler.getReport(),
-    printReport: () => profiler.printReport(),
-    enableAutoLog: (sec = 2) => profiler.startAutoLog(sec),
-    disableAutoLog: () => profiler.stopAutoLog(),
-  }
+  ;(window as unknown as { __trillion3d: unknown }).__trillion3d = { profiler }
 }
 
 /** The public session over its runtime: the API, its own loop when interactive, and the captures
