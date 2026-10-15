@@ -41,7 +41,7 @@ export function vsmPerPageDispatchWgsl(group: number) {
 /** The layout entries of the dispatch setup's group: its slot (dynamic uniform) and the ids. */
 export const vsmPerPageDispatchEntries = (): GPUBindGroupLayoutEntry[] => [
   computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: 16 }),
-  computeBufferEntry(1, 'read-only-storage', GPUShaderStage.COMPUTE),
+  computeBufferEntry(1, 'read-only-storage'),
 ]
 
 /** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */

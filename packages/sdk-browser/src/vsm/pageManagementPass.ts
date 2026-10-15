@@ -5,7 +5,7 @@
  */
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { computeUniformEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeUniformEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { VsmPerPageBin } from './markingPass.ts'
 import {
   vsmPerPageDispatcherBytes,
@@ -116,11 +116,7 @@ export function vsmPageManagementPipes(device: GPUDevice, layout: VsmLayout, sta
   for (const name of Object.keys(kernels) as KernelName[]) {
     const kernel = kernels[name]
     const groups: GPUBindGroupLayoutEntry[][] = []
-    groups[VSM_PM_GROUP_RESOURCES] = vsmBindGroupLayoutEntries(
-      kernel.specs,
-      layout,
-      GPUShaderStage.COMPUTE,
-    )
+    groups[VSM_PM_GROUP_RESOURCES] = vsmBindGroupLayoutEntries(kernel.specs, layout, COMPUTE)
     groups[VSM_PM_GROUP_PARAMS] = paramsEntries()
     if (kernel.perPage) groups[VSM_PM_GROUP_PER_PAGE] = vsmPerPageDispatchEntries()
     const label = `vsm.pm.${kernel.label}`

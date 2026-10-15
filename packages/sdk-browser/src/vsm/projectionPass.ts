@@ -11,6 +11,7 @@
  * same split double the projection data carries.
  */
 import {
+  COMPUTE,
   computeTextureEntry,
   computeUniformEntry,
   sequentialEntries,
@@ -426,10 +427,10 @@ function projectionPassLayout(device: GPUDevice) {
       computeTextureEntry(VSM_PROJECTION_BINDING.normalRough, 'unfilterable-float'),
       computeTextureEntry(VSM_PROJECTION_BINDING.flags, 'uint'),
       computeTextureEntry(VSM_PROJECTION_BINDING.blueNoise, 'unfilterable-float'),
-      ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, GPUShaderStage.COMPUTE),
+      ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, COMPUTE),
       {
         binding: VSM_PROJECTION_BINDING.shadowMask,
-        visibility: GPUShaderStage.COMPUTE,
+        visibility: COMPUTE,
         storageTexture: {
           access: 'write-only',
           format: VSM_PROJECTION_MASK_FORMAT,
@@ -438,7 +439,7 @@ function projectionPassLayout(device: GPUDevice) {
       },
       {
         binding: VSM_PROJECTION_BINDING.shadowMaskTiles,
-        visibility: GPUShaderStage.COMPUTE,
+        visibility: COMPUTE,
         storageTexture: { access: 'write-only', format: VSM_PROJECTION_TILE_FORMAT },
       },
     ],
@@ -449,7 +450,7 @@ function projectionPassLayout(device: GPUDevice) {
 function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
-    entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
+    entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, COMPUTE),
   })
   const passLayout = projectionPassLayout(device)
   const module = device.createShaderModule({
@@ -458,7 +459,7 @@ function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   })
   const receiverLayout = device.createBindGroupLayout({
     label: 'vsm.projection.receiver',
-    entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.COMPUTE)],
+    entries: [computeTextureEntry(0, 'uint', '2d', COMPUTE)],
   })
   const pipelineLayout = device.createPipelineLayout({
     bindGroupLayouts: [vsmLayout, passLayout, receiverLayout],

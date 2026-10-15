@@ -3,7 +3,7 @@
  * their arguments — the opaque raster's, and the transmission's with its own cull —, what a pass
  * holds of its chunks.
  */
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { UniformSlots } from '../residency/pools.ts'
 import type { VsmLayout } from './layout.ts'
@@ -35,7 +35,6 @@ export function vsmChunkKernels(
   label: string,
   cullCode: string,
 ): VsmChunkKernels {
-  const C = GPUShaderStage.COMPUTE
   const P = vsmRenderParamsEntry
   const pipe = (
     name: string,
@@ -44,28 +43,28 @@ export function vsmChunkKernels(
     groups: GPUBindGroupLayoutEntry[][],
   ) => vsmComputePipe(device, `${label}.${name}`, code, entryPoint, groups)
   const cull = pipe('cull', cullCode, 'vsmRenderCull', [
-    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, C),
+    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, COMPUTE),
     [
       P(0),
-      computeBufferEntry(1, 'read-only-storage', C),
-      computeBufferEntry(2, 'read-only-storage', C),
-      computeBufferEntry(3, 'storage', C),
-      computeBufferEntry(4, 'storage', C),
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeBufferEntry(2, 'read-only-storage', COMPUTE),
+      computeBufferEntry(3, 'storage', COMPUTE),
+      computeBufferEntry(4, 'storage', COMPUTE),
     ],
   ])
   const expand = pipe('expand', vsmRenderExpandWgsl(layout), 'vsmRenderExpand', [
-    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, C),
+    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, COMPUTE),
     [
       P(0),
-      computeBufferEntry(1, 'read-only-storage', C),
-      computeBufferEntry(2, 'storage', C),
-      computeBufferEntry(3, 'storage', C),
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeBufferEntry(2, 'storage', COMPUTE),
+      computeBufferEntry(3, 'storage', COMPUTE),
     ],
   ])
   const argsEntries = [
     P(0),
-    computeBufferEntry(1, 'storage', C),
-    computeBufferEntry(2, 'storage', C),
+    computeBufferEntry(1, 'storage', COMPUTE),
+    computeBufferEntry(2, 'storage', COMPUTE),
   ]
   const args = (entryPoint: string) => pipe('args', VSM_RENDER_ARGS_WGSL, entryPoint, [argsEntries])
   return {
