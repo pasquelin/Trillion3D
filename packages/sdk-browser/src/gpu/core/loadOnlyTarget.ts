@@ -1,3 +1,4 @@
+import { computeStorageTextureEntry } from './computeBindings.ts'
 import { texelBytesOf } from './textureBytes.ts'
 
 /**
@@ -20,11 +21,8 @@ export function loadOnlyTarget(binding: number, format: GPUTextureFormat, name: 
       (wanted ? width * height : 1) * texelBytes,
     wgsl: `@group(0) @binding(${binding}) var ${name}:texture_storage_2d<${format},read>;`,
     /** Its layout entry, made when a layout is: the stage constants exist then. */
-    layoutEntry: (): GPUBindGroupLayoutEntry => ({
-      binding,
-      visibility: GPUShaderStage.FRAGMENT,
-      storageTexture: { access: 'read-only', format },
-    }),
+    layoutEntry: (): GPUBindGroupLayoutEntry =>
+      computeStorageTextureEntry(binding, format, 'read-only', '2d', GPUShaderStage.FRAGMENT),
   }
 }
 

@@ -1,13 +1,22 @@
 /** `GPUShaderStage.COMPUTE`, written in the clear: the bind entries are also read from Node, without that global. */
 export const COMPUTE = 4
 
+/** The layout of a buffer binding of `type`, past its number and stage: what a layout table holds
+ *  per binding, and what every buffer entry below is made of. */
+export const bufferLayout = (type: GPUBufferBindingType) => ({ buffer: { type } })
+/** The layout of a sampled texture binding, past its number and stage. */
+export const textureLayout = (
+  sampleType: GPUTextureSampleType,
+  viewDimension: GPUTextureViewDimension = '2d',
+) => ({ texture: { sampleType, viewDimension } })
+
 /** A buffer binding of `type` at `binding` in a layout, seen by `visibility` (the compute stage by
  *  default): the one writing of the entry every layout of a kernel repeats. */
 export const computeBufferEntry = (
   binding: number,
   type: GPUBufferBindingType,
   visibility = COMPUTE,
-): GPUBindGroupLayoutEntry => ({ binding, visibility, buffer: { type } })
+): GPUBindGroupLayoutEntry => ({ binding, visibility, ...bufferLayout(type) })
 
 /** A uniform buffer binding at `binding` in a layout, seen by `visibility` (the compute stage by
  *  default): read at a dynamic offset when `hasDynamicOffset`, `minBindingSize` bytes at least. */
@@ -35,7 +44,7 @@ export const computeTextureEntry = (
   sampleType: GPUTextureSampleType,
   viewDimension: GPUTextureViewDimension = '2d',
   visibility = COMPUTE,
-): GPUBindGroupLayoutEntry => ({ binding, visibility, texture: { sampleType, viewDimension } })
+): GPUBindGroupLayoutEntry => ({ binding, visibility, ...textureLayout(sampleType, viewDimension) })
 
 /** A sampler binding of `type` (filtering by default) at `binding` in a layout, seen by
  *  `visibility` (the compute stage by default). */

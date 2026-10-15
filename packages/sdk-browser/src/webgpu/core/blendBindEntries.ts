@@ -1,5 +1,6 @@
 import { bufferEntry, resourceEntry } from './liveEntries.ts'
-import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from './bindLayout.ts'
+import { BLEND_BINDINGS, atlasLayoutEntries } from './bindLayout.ts'
+import { bufferLayout, textureLayout } from '../../gpu/core/computeBindings.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 import { FRONT_TRACED_LAYOUT } from '../../reflections/frontLayer.ts'
 
@@ -59,9 +60,9 @@ type Layout = Omit<GPUBindGroupLayoutEntry, 'binding' | 'visibility'>
 type Row = readonly [stage: Stage, layout: Layout, sized?: 'sized']
 type Single = Exclude<keyof typeof BLEND_BINDINGS, 'color' | 'data'>
 
-const STORAGE: Layout = { buffer: readOnly },
-  UNIFORM: Layout = { buffer: { type: 'uniform' } },
-  FLOAT_ARRAY: Layout = { texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' } }
+const STORAGE: Layout = bufferLayout('read-only-storage'),
+  UNIFORM: Layout = bufferLayout('uniform'),
+  FLOAT_ARRAY: Layout = textureLayout('unfilterable-float', '2d-array')
 
 /**
  * Every single binding of the forward materials' group, by its name in `BLEND_BINDINGS`, in one
@@ -88,10 +89,10 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowData: ['fragment', STORAGE],
   shadowAtlas: ['fragment', STORAGE],
   shadowSampler: ['fragment', UNIFORM],
-  shadowTransmittance: ['fragment', { texture: { sampleType: 'uint', viewDimension: '2d-array' } }],
+  shadowTransmittance: ['fragment', textureLayout('uint', '2d-array')],
   shadowPool: ['fragment', STORAGE],
   shadowView: ['fragment', UNIFORM],
-  shadowNoise: ['fragment', { texture: { sampleType: 'unfilterable-float' } }],
+  shadowNoise: ['fragment', textureLayout('unfilterable-float')],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],

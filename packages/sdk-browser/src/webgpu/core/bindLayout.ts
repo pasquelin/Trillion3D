@@ -1,7 +1,7 @@
 import { PREVIEW_LAYOUT_NAMES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
-import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -18,17 +18,12 @@ export const atlasBindings = (base: number) => ({
 })
 export type AtlasBindings = ReturnType<typeof atlasBindings>
 
-/** Two binding shapes the layouts repeat, written once and for all. */
-export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
+/** The layout entries of an atlas's lanes and page table, seen by `visibility`. */
 export const atlasLayoutEntries = (
   bindings: AtlasBindings,
   visibility = GPUShaderStage.FRAGMENT,
 ): GPUBindGroupLayoutEntry[] => [
-  ...bindings.lanes.map((binding) => ({
-    binding,
-    visibility,
-    texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
-  })),
+  ...bindings.lanes.map((binding) => computeTextureEntry(binding, 'float', '2d-array', visibility)),
   computeBufferEntry(bindings.pages, 'read-only-storage', visibility),
 ]
 /** Bytes of the visibility-buffer uniform `Uniforms` (`VIS_UNIFORM`). */
