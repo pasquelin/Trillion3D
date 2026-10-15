@@ -55,30 +55,6 @@ export function multiplyQuaternion(out: Float64Array, a: ArrayLike<number>, b: A
   return out
 }
 
-/** `a ⊗ b` like `multiplyQuaternion`, its sums in the other order: the vector part
- *  `a.xyz·b.w + a.w·b.xyz + a.xyz × b.xyz`, the scalar `a.w·b.w − a.xyz·b.xyz`, each left to right.
- *  x and w round as `multiplyQuaternion`'s, y and z can differ in the last bit: `lookAtNode`'s aim
- *  is held to this order. `out` may alias `a` or `b`. */
-export function multiplyQuaternionVectorFirst(
-  out: Float64Array,
-  a: ArrayLike<number>,
-  b: ArrayLike<number>,
-) {
-  const ax = a[0],
-    ay = a[1],
-    az = a[2],
-    aw = a[3],
-    bx = b[0],
-    by = b[1],
-    bz = b[2],
-    bw = b[3]
-  out[0] = ax * bw + aw * bx + ay * bz - az * by
-  out[1] = ay * bw + aw * by + az * bx - ax * bz
-  out[2] = az * bw + aw * bz + ax * by - ay * bx
-  out[3] = aw * bw - ax * bx - ay * by - az * bz
-  return out
-}
-
 /** `a · b` on the four components read at `aAt` and `bAt`, summed `x, y, z, w` left to right. */
 export function dotQuaternion(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
   return (

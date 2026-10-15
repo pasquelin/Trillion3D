@@ -156,17 +156,10 @@ function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z
   return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
 }
 
-/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`, the planes
- *  in their slot order at constant offsets; a NaN, comparing false, keeps the point. */
+/** True when `(x, y, z)` is on the inner side of all six `planes`: the sphere of no radius kept
+ *  (`frustumExcludesSphere`); a NaN, comparing false, keeps the point. */
 export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
-  return !(
-    planeDistance(planes, 0, x, y, z) < 0 ||
-    planeDistance(planes, 4, x, y, z) < 0 ||
-    planeDistance(planes, 8, x, y, z) < 0 ||
-    planeDistance(planes, 12, x, y, z) < 0 ||
-    planeDistance(planes, FAR_PLANE_SLOT * 4, x, y, z) < 0 ||
-    planeDistance(planes, 20, x, y, z) < 0
-  )
+  return !frustumExcludesSphere(planes, x, y, z, 0)
 }
 
 /** True when the sphere of centre `(x, y, z)` and radius `reach` lies wholly behind one of the six

@@ -4,7 +4,7 @@ import {
 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import {
   conjugateQuaternion,
-  multiplyQuaternionVectorFirst,
+  multiplyQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import {
   crossVector3,
@@ -107,7 +107,7 @@ function aimQuaternion(
   // keeps its `x` and `w` and negates its `y` and `z`, the axis being an axial vector. The local
   // turn is the product `c ⊗ q`, `c` the parent's conjugate and `q` the world aim.
   conjugateQuaternion(parentTurn, parentTurn)
-  multiplyQuaternionVectorFirst(out, parentTurn, out)
+  multiplyQuaternion(out, parentTurn, out)
   if (parentScale[0] < 0) {
     out[1] = -out[1]
     out[2] = -out[2]
