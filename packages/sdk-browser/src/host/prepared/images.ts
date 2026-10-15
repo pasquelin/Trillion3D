@@ -1,8 +1,8 @@
 /**
  * The images the prepared scene's textures sample, read from where the scene tables say they are —
  * an address beside the published document, or a view of its binary — and decoded the way the host
- * loader decoded them: an `ImageBitmap` with neither premultiplication nor colour conversion where
- * the platform offers one, an image element otherwise.
+ * loader decoded them: an `ImageBitmap` with neither premultiplication nor colour conversion
+ * (`decodeRaw`), the engine's one decoder.
  *
  * An image whose whole mip chain the cache baked is not read, whether it lives at an address or in
  * the binary: a one-pixel placeholder stands in its place, and the engine reads the baked levels
@@ -11,14 +11,9 @@
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
-import { decodeRaw, fetchDecoded, imageElement } from '../../texture/decode.ts'
+import { decodeRaw, fetchDecoded } from '../../texture/decode.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import { log } from '../../diagnostic/log.ts'
-
-async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
-  if (typeof createImageBitmap !== 'function') return imageElement(url)
-  return fetchDecoded(url, signal, meter)
-}
 
 /** A failed read of the document's binary, told apart from an image that cannot be decoded. */
 class UnreadBinary extends Error {
@@ -27,16 +22,8 @@ class UnreadBinary extends Error {
   }
 }
 
-async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {
-  const blob = new Blob([bytes], { type })
-  if (typeof createImageBitmap === 'function') return decodeRaw(blob)
-  const url = URL.createObjectURL(blob)
-  try {
-    return await imageElement(url)
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
+const decodeBytes = (bytes: Uint8Array<ArrayBuffer>, type: string) =>
+  decodeRaw(new Blob([bytes], { type }))
 
 type Inputs = {
   document: TableDocument
@@ -61,11 +48,11 @@ export function preparedImages(inputs: Inputs) {
   const { document, documentUrl, binary, skipped, signal, track, meter } = inputs
   const read = async (rank: number): Promise<unknown> => {
     if (skipped.has(rank))
-      return track(PLACEHOLDER_IMAGE, decodeAddress(PLACEHOLDER_IMAGE, signal, meter))
+      return track(PLACEHOLDER_IMAGE, fetchDecoded(PLACEHOLDER_IMAGE, signal, meter))
     const image = document.images[rank]
     if (image.uri !== null) {
       const url = new URL(image.uri, documentUrl).href
-      return track(url, decodeAddress(url, signal, meter))
+      return track(url, fetchDecoded(url, signal, meter))
     }
     if (image.view === null) throw new Error(`image ${rank} names no source`)
     const view = document.views[image.view]
