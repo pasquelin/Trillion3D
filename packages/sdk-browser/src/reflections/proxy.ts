@@ -38,6 +38,11 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
  let budget=select(RT_WORK/REFLECTION_MOVING_SHARE,RT_WORK,reflectionView.temporal.y>0u);
  var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent,budget);
  seen.distance+=lift;
+ // Where the field takes over (a reach short of the scene's), the proxy's answer fades into it over the
+ // last stretch of the ray: a body at the reach's end is never a line where the two sources meet.
+ if(reach<reflectionSceneReach()){
+  seen.confidence*=1.0-smoothstep(REFLECTION_REACH_FADE*reach,reach,seen.distance);
+ }
  return seen;
 }`,
   )

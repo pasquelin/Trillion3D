@@ -20,7 +20,8 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * (`screenBack`); a coarser cell's surfaces lie between its farthest depth of the finished image
  * (its planes to their far corner) and its nearest, and so do their slabs: between the farthest's
  * back and the nearest. It returns the `t` it stopped at, the plane (depth at its centre, slopes)
- * and centre of the pixel it stopped in (`ScreenHit`); `t` −1 where it meets nothing. `front` says
+ * and centre of the pixel it stopped in (`ScreenHit`), and the iterations it took (`steps`, its budget
+ * where it meets nothing); `t` −1 where it meets nothing. `front` says
  * the hit is a transparent surface before the opaque depth: `hizFrontOver`, false where the pyramid holds none: the reflection keeps
  * it, the contact shadow skips it.
  *
@@ -57,7 +58,7 @@ export const SCREEN_MARCH_WGSL = (group: number, binding: number) =>
     `SCREEN_MARCH_WGSL(${group}, ${binding})`,
     [hizDepthWgsl(group, binding), slabPerspective],
     `const SCREEN_MARCH_NUDGE:f32=${wgslF32(SCREEN_MARCH_NUDGE)};
-struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,}
+struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,steps:u32,}
 fn screenBack(z:f32,pixels:f32,slab:vec4f)->f32{
  let k=pixels*slab.x;
  let perspective=z-(z-slab.y)*k/(1.0+k);
@@ -100,10 +101,10 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->Screen
    let h0=z0-s0;
    let h1=z1-s1;
    if(h0>=0.0){
-    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)));}
+    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)),k);}
    }else if(s0>0.0){
     let back=screenBack(s0,thickness,slab);
-    if(z0>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)));}
+    if(z0>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k);}
    }
    t=across;
    level=min(1,top);
@@ -117,6 +118,6 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->Screen
   }
   level-=1;
  }
- return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false);
+ return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,steps);
 }`,
   )

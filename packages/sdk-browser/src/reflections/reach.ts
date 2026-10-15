@@ -73,8 +73,10 @@ export function fieldAlpha(step = 1 / 255) {
 export const REFLECTION_FIELD_ALPHA = fieldAlpha()
 
 /**
- * `reflectionFieldSpacing`: the cell of the cascade the field reads a surface at `P` of normal `N`
- * from (`bounceRead`), zero where none holds it or the field is off. `reflectionSceneReach`: the
+ * `reflectionFieldSpacing`: the cell of the cascades the field reads a surface at `P` of normal `N`
+ * from (`bounceRead`), each level weighed by its share as the field weighs it (`BounceRead.fade`) — so
+ * that the cut moves smoothly across a level's edge, never a line on a floor —, zero where none holds
+ * it or the field is off. `reflectionSceneReach`: the
  * hard bound, the last cascade's diagonal, or `REFLECTION_FAR`. `reflectionProxyReach`: the length
  * of the proxy's ray from a surface at `P` of normal `N`, its pixel `pixel` metres wide, through a
  * lobe whose narrower width is `alpha` and cone tangent `tangent` (zero: no ray). The program
@@ -86,11 +88,17 @@ export const REFLECTION_REACH_WGSL = wgslBlock(
   `const REFLECTION_FIELD_ALPHA:f32=${wgslF32(REFLECTION_FIELD_ALPHA)};
 fn reflectionFieldSpacing(P:vec3f,N:vec3f)->f32{
  if(bounce.counts.w==0u){return 0.0;}
+ var spacing=0.0;
+ var rest=1.0;
  for(var level=0u;level<CASCADE_LEVELS;level++){
-  if(level>=bounce.counts.y){break;}
-  if(bounceRead(level,P,N).holds){return bounce.levels[level].spacing;}
+  if(level>=bounce.counts.y||rest<=1e-5){break;}
+  let read=bounceRead(level,P,N);
+  if(!read.holds){continue;}
+  let take=rest*read.fade;
+  spacing+=take*bounce.levels[level].spacing;
+  rest-=take;
  }
- return 0.0;
+ return select(spacing/(1.0-rest),0.0,rest>=1.0);
 }
 fn reflectionSceneReach()->f32{
  if(bounce.counts.w==0u||bounce.counts.y==0u){return REFLECTION_FAR;}
