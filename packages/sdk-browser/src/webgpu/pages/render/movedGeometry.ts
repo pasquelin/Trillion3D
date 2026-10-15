@@ -10,7 +10,7 @@ import {
 import { boxUnionBatch } from '../../../../../math/src/batch/batch.ts'
 
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'
-import { rootMark } from '../../../deformation/halfFloat.ts'
+import { holdReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -98,13 +98,9 @@ function holdMotion(
   boxed: boolean,
 ) {
   const root = rt.layout.selectionRoots[rank]
-  if (reach !== (root.reach ?? 0)) {
-    root.reach = reach
-    rt.run.gpuSelection?.markWorld(rank, rootMark(root))
-    if (!boxed) {
-      from = 0
-      to = root.pages.length - 1
-    }
+  if (holdReach(rt, rank, reach) && !boxed) {
+    from = 0
+    to = root.pages.length - 1
   }
   markRootRows(rt, root, from, to)
 }
