@@ -48,7 +48,12 @@ export async function linkedCrates() {
   const files = [binary]
   for (const crate of CRATES) {
     await mkdir(join(packages, crate, 'src/golden'), { recursive: true })
-    await writeFile(join(packages, crate, 'Cargo.toml'), '[package]\n')
+    // The compiler's manifest links the other two by path, as the real one does.
+    const links =
+      crate === CRATES[0]
+        ? 'a = { path = "../page-codec-wasm" }\nb = { path = "../math/rust" }\n'
+        : ''
+    await writeFile(join(packages, crate, 'Cargo.toml'), `[package]\n${links}`)
     await writeFile(join(packages, crate, 'src/lib.rs'), '#[cfg(test)]\nmod screen;\n')
     for (const test of ['src/lib_tests.rs', 'src/golden/value.rs', 'src/screen.rs'])
       await writeFile(join(packages, crate, test), '')
