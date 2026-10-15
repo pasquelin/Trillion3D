@@ -5,15 +5,14 @@
 // floor a lit standard surface, the quad a diffuse one, which reflects nothing), its normal and
 // roughness, and the lit colour the image holds there.
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
-import { rigFrameOf, type RigFrame } from './rigFrame.ts'
+import { paintPixel, rigFrameOf, type RigFrame } from './rigFrame.ts'
 
 export const MIRROR = {
   size: 128,
   near: 0.1,
   /** The quad's lit colour, and the floor's own. */
-  quad: [1, 0.25, 0, 1],
-  floor: [0.05, 0.05, 0.05, 1],
+  quad: [1, 0.25, 0],
+  floor: [0.05, 0.05, 0.05],
 }
 
 /** The eye of the frame: at the origin, looking down -z, 60° vertically. */
@@ -25,7 +24,6 @@ export function mirrorScene(): RigFrame {
   const { size, quad, floor } = MIRROR
   const view = eye()
   const frame = rigFrameOf([size, size], view.m, [0, 0, 0])
-  frame.base.fill(1)
   for (let py = 0; py < size; py++)
     for (let px = 0; px < size; px++) {
       const at = py * size + px
@@ -36,9 +34,7 @@ export function mirrorScene(): RigFrame {
       const onFloor = !onQuad && ray[1] < 0
       if (!onQuad && !onFloor) continue
       frame.depth[at] = view.depthOf(d, onQuad ? 6 / -d[2] : -1 / d[1])
-      frame.flags[at] = onQuad ? MODEL_FLAG.diffuse : MODEL_FLAG.physical
-      frame.normals.set(onQuad ? [0, 0, 1, 1] : [0, 1, 0, 0], at * 4)
-      frame.radiance.set(onQuad ? quad : floor, at * 4)
+      paintPixel(frame, at, !onQuad, onQuad ? [0, 0, 1] : [0, 1, 0], onQuad ? quad : floor)
     }
   return frame
 }

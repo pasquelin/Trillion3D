@@ -9,8 +9,7 @@ import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { reflect, subtract } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
-import { rigFrameOf } from './rigFrame.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
+import { paintPixel, rigFrameOf } from './rigFrame.ts'
 
 export const SPHERES = {
   width: 960,
@@ -75,18 +74,9 @@ export function sphereFrame() {
       frame.depth[p] = view.depthOf(d, t)
       const point = [0, 1, 2].map((k) => eye[k] + d[k] * t) as V3
       if (index >= 0) {
-        const c = SPHERES.centres[index]
-        const n = subtract(point, c).map((v) => v / SPHERES.radius)
-        frame.flags[p] = MODEL_FLAG.physical
-        frame.normals.set([...n, 0], p * 4)
-        frame.base.set([1, 1, 1, 1], p * 4)
-        frame.radiance.set([SPHERES.sphere, SPHERES.sphere, SPHERES.sphere, 1], p * 4)
-      } else {
-        frame.flags[p] = MODEL_FLAG.diffuse
-        frame.normals.set([0, 1, 0, 1], p * 4)
-        frame.base.set([SPHERES.floor, SPHERES.floor, SPHERES.floor, 0], p * 4)
-        frame.radiance.set([SPHERES.floor, SPHERES.floor, SPHERES.floor, 1], p * 4)
-      }
+        const n = subtract(point, SPHERES.centres[index]).map((v) => v / SPHERES.radius)
+        paintPixel(frame, p, true, n, [SPHERES.sphere, SPHERES.sphere, SPHERES.sphere])
+      } else paintPixel(frame, p, false, [0, 1, 0], [SPHERES.floor, SPHERES.floor, SPHERES.floor])
     }
   return { frame, view, shown }
 }

@@ -4,6 +4,7 @@ import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
 import type { Camera, V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** A synthetic still frame of `size` pixels: what the engine's targets hold, as arrays of the
  *  image's pixels, `normals`, `base` and `radiance` four floats each (the normal and the roughness,
@@ -48,6 +49,21 @@ export function rigFrameOf(
     base: new Float32Array(pixels * 4),
     radiance: new Float32Array(pixels * 4),
   }
+}
+
+/** Paints pixel `p` of `frame`, of normal `normal`, lit to `color`: a mirror — a physical surface,
+ *  roughness zero, a white metal — or a diffuse surface of roughness one and albedo `color`. */
+export function paintPixel(
+  frame: RigFrame,
+  p: number,
+  mirror: boolean,
+  normal: readonly number[],
+  color: readonly number[],
+) {
+  frame.flags[p] = mirror ? MODEL_FLAG.physical : MODEL_FLAG.diffuse
+  frame.normals.set([...normal, mirror ? 0 : 1], p * 4)
+  frame.base.set(mirror ? [1, 1, 1, 1] : [...color, 0], p * 4)
+  frame.radiance.set([...color, 1], p * 4)
 }
 
 export const halves = (values: ArrayLike<number>) => Uint16Array.from(values, toHalf)

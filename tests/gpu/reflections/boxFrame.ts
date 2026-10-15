@@ -12,8 +12,7 @@ import {
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { rigFrameOf } from './rigFrame.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
+import { paintPixel, rigFrameOf } from './rigFrame.ts'
 
 /** A box of the frame: its geometry, its colour, and whether it is a mirror. */
 export type Block = { box: Box; color: V3; mirror?: boolean }
@@ -41,10 +40,7 @@ export function boxFrame(
   for (let p = 0; p < pixels; p++) {
     if (shown[p] < 0) continue
     const block = blocks[Math.floor(shown[p] / 6)]
-    frame.flags[p] = block.mirror ? MODEL_FLAG.physical : MODEL_FLAG.diffuse
-    frame.normals.set([...faceNormal(shown[p] % 6), block.mirror ? 0 : 1], p * 4)
-    frame.base.set(block.mirror ? [1, 1, 1, 1] : [...block.color, 0], p * 4)
-    frame.radiance.set([...block.color, 1], p * 4)
+    paintPixel(frame, p, !!block.mirror, faceNormal(shown[p] % 6), block.color)
   }
   return { frame, view: view as Camera, shown }
 }
