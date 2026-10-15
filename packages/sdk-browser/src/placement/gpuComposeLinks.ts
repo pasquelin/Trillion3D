@@ -74,7 +74,6 @@ export function takeSlot(
   if (p !== undefined) return slot
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
-  state.winding[slot] = undefined as unknown as boolean
   state.worlds = resized(state.worlds, state.slots * MATRIX_VALUES)
   state.previous = resized(state.previous, state.slots * MATRIX_VALUES)
   state.previous.set(world, slot * MATRIX_VALUES)

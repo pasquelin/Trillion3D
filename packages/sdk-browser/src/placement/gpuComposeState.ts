@@ -81,9 +81,6 @@ export function createComposeState(roots: number) {
     worlds: new Float64Array(MATRIX_VALUES),
     /** Each parent's world at the last drawn frame, in double. */
     previous: new Float64Array(MATRIX_VALUES),
-    /** Whether each parent's world reverses orientation, as the draw bins of its rows were made
-     *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
-    winding: [] as boolean[],
     packed: new Uint32Array(PACKED_MATRIX_WORDS),
     /** Roots linked since the last frame, with the world their motion starts from. */
     seeds: new Map<number, Float32Array<ArrayBuffer>>(),

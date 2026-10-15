@@ -10,16 +10,12 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { moveRootRows, poseEntries } from '../webgpu/pages/render/movedRoot.ts'
 import { slotRanks, type ComposeState } from './gpuComposeState.ts'
 
-/** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes,
- *  when its winding turned: a mirror changes which face each row's bin culls (`pipelineFor.ts`).
- *  The rows are written as a row moved is (`moveRootRows`), once a turn, never a move. */
+/** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes:
+ *  a mirror changes which face each row's bin culls (`pipelineFor.ts`). Called when the parent's
+ *  move turned its winding, decided off the two worlds the move compares (`settleSlot`), no
+ *  winding held beside them; the rows are written as a row moved is (`moveRootRows`), once a turn,
+ *  never a move. */
 function remakeBins(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
-  const cw = matrixWindingCw(
-    state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
-  )
-  const was = state.winding[slot]
-  state.winding[slot] = cw
-  if (was === undefined || was === cw) return
   for (const rank of slotRanks(state, slot)) moveRootRows(rt, rt.layout.selectionRoots[rank], rank)
 }
 
@@ -62,20 +58,19 @@ export function settleSlot(
   // Whether the parent moved: one linked now, or sent at the world it held, did not.
   const moved = p !== undefined && !sameElements(state.worlds, world, slot * MATRIX_VALUES)
   // A parent's move moves its roots: its first makes them moving casters, each how far it went
-  // (`mobility.moveLead`), from the world it held.
-  if (moved)
-    rt.lights.mobility.moveLead(
-      slot,
-      state.ranksOf[slot],
-      state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES),
-      world,
-    )
+  // (`mobility.moveLead`), from the world it held; a turn of its winding, their bins.
+  let turned = false
+  if (moved) {
+    const held = state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES)
+    rt.lights.mobility.moveLead(slot, state.ranksOf[slot], held, world)
+    turned = matrixWindingCw(held) !== matrixWindingCw(world)
+  }
   if (moved || p === undefined) state.parentsMoved.mark(slot)
   state.worlds.set(world, slot * MATRIX_VALUES)
   // The slot's composition moves only with its world or a link: a still parent sent again, and
   // every other slot, keep their composed worlds and every memo keyed by their stamps.
   if (moved || relinked || p === undefined) state.slotVersions[slot] = ++state.version
-  remakeBins(rt, state, slot)
+  if (turned) remakeBins(rt, state, slot)
   if (!moved && !relinked) return
   // The impostor cards of its roots are written again from the composed worlds they read, and so
   // are the corners of its blended roots' transparent entries, from the worlds the GPU composes.
