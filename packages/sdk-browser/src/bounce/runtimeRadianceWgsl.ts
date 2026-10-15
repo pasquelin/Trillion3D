@@ -32,9 +32,9 @@ export const RADIANCE_ANSWER = wgslStruct(
  * rest left to the next stage, and the distance to the first surface it met. The radiance of a surface is
  * its emission and its diffuse tint under the irradiance the cascades hold (`surfaceSeen`): read, its cost
  * the same whatever the lights. A mesh whose placement deforms is traced at its rest shape, its confidence
- * cut by the placement's reach against the footprint. `rtProbeRay` is the probes' ray: the tint of the first
- * surface lit by the lights — shadows traced against the proxy (`rtBlocked`) — and the bounce
- * (`surfaceLit`), what the cascades are made of, and the distance to it.
+ * cut by the placement's reach against the footprint. `rtProbeRay` is the probes' ray on the same walk
+ * (`rtLayers`), its surfaces lit by the lights — shadows traced against the proxy (`rtBlocked`) — and the
+ * bounce (`surfaceLit`), what the cascades are made of, and the distance to the first.
  */
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
@@ -90,16 +90,17 @@ fn rtSeen(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,world:mat3x3f
  return surface.emission+surfaceSeen(surface.tint,origin+direction*hit.distance,N);
 }
 /**
- * The run-time proxy's answer to a ray of length \`reach\` from \`origin\`: its first surface, and
+ * The run-time proxy's one walk of a ray of length \`reach\` from \`origin\`: its first surface, and
  * the ones behind it while the surfaces met let light through, up to \`RT_LAYERS\`. The answer is the
  * radiance of the light they hold, \`confidence\` the share of the ray they stop; the rest goes on to the
- * next stage, \`distance\` the first surface's, \`reach\` where none. \`error\` is the width the ray's lobe covers at a metre, \`tangent\`: a deformed placement's
- * reach, which its rest shape does not hold, takes confidence from a hit narrower than it.
- * A hit's radiance is read (\`rtSeen\`): no light is evaluated and no shadow ray cast for it. Exhausted
- * — its \`budget\` of units spent, \`RT_WORK\` at most — is no answer at all, confidence zero
- * (\`runtimeLayout.ts\`).
+ * next stage, \`distance\` the first surface's, \`reach\` where none. \`error\` is the width the ray's lobe
+ * covers at a metre, \`tangent\`: a deformed placement's reach, which its rest shape does not hold, takes
+ * confidence from a hit narrower than it. A hit's radiance is its shading, the one thing the callers
+ * pass: \`lit\`, the probes', lit by the lights and the bounce (\`rtLit\`); else a reflection's, read
+ * (\`rtSeen\`), no light evaluated and no shadow ray cast. Exhausted — its \`budget\` of units spent,
+ * \`RT_WORK\` at most — is no answer at all, confidence zero (\`runtimeLayout.ts\`).
  */
-fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
+fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bool)->RadianceAnswer{
  rtBegin();
  rtBudget=min(budget,RT_WORK);
  var first=reach;
@@ -119,7 +120,10 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->Ra
   let world=worldMatrix3(rtWorldOf(hit.placement));
   let known=spread/(spread+marked*length(world[0]));
   let opacity=select(1.0,surface.opacity,surface.blended)*known;
-  color+=through*opacity*rtSeen(hit,start,direction,surface,world);
+  var radiance:vec3f;
+  if(lit){radiance=rtLit(hit,start,direction,surface,reach,world);}
+  else{radiance=rtSeen(hit,start,direction,surface,world);}
+  color+=through*opacity*radiance;
   through*=1.0-opacity;
   let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
   start+=direction*travelled;
@@ -129,20 +133,20 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->Ra
  let held=1.0-through;
  return RadianceAnswer(select(vec3f(0.0),color/held,held>0.0),held,first);
 }
-
-/** The light a probe's ray brings back: from \`origin\` along \`direction\`, \`reach\` far, what the first surface it
- *  meets is lit to — its emission is not bounced, the lamp lights the room directly — and the distance travelled,
- *  \`reach\` where it meets nothing. An exhausted ray carries zero weight (\`runtimeLayout.ts\`): its distance is
- *  then negative, and the probe leaves it out of its estimate. */
+/** A reflection's ray (\`rtLayers\`, read). */
+fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
+ return rtLayers(origin,direction,reach,tangent,budget,false);
+}
+/** The light a probe's ray brings back (\`rtLayers\`, lit, a ray of no width): from \`origin\` along
+ *  \`direction\`, \`reach\` far, what the surfaces it meets are lit to — their emission is not bounced, the
+ *  lamp lights the room directly — through a blended one as a reflection sees through it, and the
+ *  distance to the first, \`reach\` where it meets nothing. An exhausted ray, or one whose shadow rays
+ *  spent its budget, carries zero weight (\`runtimeLayout.ts\`): its distance is then negative, and the
+ *  probe leaves it out of its estimate. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- rtBegin();
- let hit=rtScene(origin,direction,reach);
- if(rtSpent()){return vec4f(0.0,0.0,0.0,-1.0);}
- if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- let surface=rtSurfaceOf(rtWorldsInstance(hit.placement,0u)[RT_INSTANCE_SURFACE]);
- let lit=rtLit(hit,origin,direction,surface,reach,worldMatrix3(rtWorldOf(hit.placement)));
- if(rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
- return vec4f(lit,hit.distance);
+ let answer=rtLayers(origin,direction,reach,0.0,RT_WORK,true);
+ if(rtSpent()||rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
+ return vec4f(answer.color*answer.confidence,answer.distance);
 }
 `,
   )

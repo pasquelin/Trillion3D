@@ -13,6 +13,7 @@ import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 const FUNCTIONS = [
   'rtBegin',
   'rtRadiance',
+  'rtLayers',
   'rtSurfaceOf',
   'rtSeen',
   'rtFacing',
