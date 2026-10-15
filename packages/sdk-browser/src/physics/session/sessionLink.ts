@@ -15,7 +15,7 @@ import { along, type createStepClock } from '../stepClock.ts'
  * last frame drew (a tick, the world woken or at rest); `drawnStep` and `drawnOwed`: the time it
  * drew and what it answered, a frame at that time with nothing new draws nothing again (a paused
  * clock); `moving`: what it answered. `received`: page ms spent on ticks since the last frame, its
- * `physics` stage's; `namedAt`: page ms the last soft bodies brought back were named at; `asked`:
+ * `physics` stage's; `asked`:
  * the scene queries sent; `waterAt`: the page's step the water's waves start at (`setWater`).
  */
 export function createSessionState() {
@@ -32,7 +32,6 @@ export function createSessionState() {
     drawnOwed: Number.NaN,
     moving: false,
     received: 0,
-    namedAt: -Infinity,
     asked: 0,
     waterAt: 0,
   }

@@ -32,18 +32,6 @@ function receiveResults(c: SessionParts, posed: SessionParts['bodies'], m: Physi
   if (changed) c.invalidate()
 }
 
-/** Soft bodies brought back to a good state stay: counted, and named in an error that stops
- *  nothing, once a second at most (one brought back at every step would flood the console). */
-function receiveRecovered(c: SessionParts, data: Message<'recovered'>) {
-  c.stats.softRecoveries += data.bodies.length
-  const now = cpuNow()
-  if (now - c.s.namedAt < 1000) return
-  c.s.namedAt = now
-  const names = data.bodies.flatMap((id) => c.bodies.meshOf(id)?.name ?? [])
-  const message = `Physics: ${data.bodies.length} soft body(ies) diverged and were brought back to their last good state.`
-  c.failed(new EngineError('PHYSICS_DIVERGED', message, names.length ? { names } : {}), false)
-}
-
 /** The worker refused or lost bodies: refused shapes leave, tiles and cooked soft bodies by their
  *  owner; diverged, joints break. */
 function receiveRefused(c: SessionParts, data: Message<'error'>) {
@@ -66,7 +54,6 @@ export function listenToWorker(c: SessionParts) {
     } else if (data.type === 'results') receiveResults(c, posed, data)
     else if (data.type === 'rest') c.link.rested(data.heard, data.step)
     else if (data.type === 'broken') c.joints.broke(data.joints)
-    else if (data.type === 'recovered') receiveRecovered(c, data)
     else if (data.type === 'cast') {
       c.casts.get(data.id)?.(data.hits)
       c.casts.delete(data.id)

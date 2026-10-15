@@ -167,7 +167,6 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   w.eventWords = w.dropped = w.updateError = 0;
   w.refused.clear();
   w.diverged.clear();
-  w.recovered.clear();
   w.stepping = dt > 0;
   dt = w.elapsed();
   ++w.step;
@@ -213,10 +212,6 @@ uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
 /// The last step's bodies whose pose or vertices went non-finite, taken out: count, engine ids.
 uint32_t jolt_diverged_count() { return uint32_t(world().diverged.size()); }
 uint32_t jolt_diverged(uint32_t i) { return world().diverged[i]; }
-/// The last step's soft bodies that diverged on amplitude and were brought back to rest, kept in
-/// the simulation (`soft.cpp`): count, engine ids.
-uint32_t jolt_recovered_count() { return uint32_t(world().recovered.size()); }
-uint32_t jolt_recovered(uint32_t i) { return world().recovered[i]; }
 uint32_t jolt_error() { return world().error; }
 /// Leaves still owed from a step whose event buffer was full: the next step writes them first.
 uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }

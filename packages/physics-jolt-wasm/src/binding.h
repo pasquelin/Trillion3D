@@ -111,9 +111,8 @@ struct World {
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
   /** This step's bodies (engine ids) whose shape was refused, whose pose or vertices went
-   *  non-finite (sent nothing, taken out), and the soft bodies that diverged on amplitude and were
-   *  brought back to rest (`soft.cpp`); then its enters the buffer dropped. */
-  std::vector<uint32_t> refused, diverged, recovered;
+   *  non-finite (sent nothing, taken out); then its enters the buffer dropped. */
+  std::vector<uint32_t> refused, diverged;
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};

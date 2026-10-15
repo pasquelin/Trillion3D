@@ -69,9 +69,6 @@ export function createTickResults(
     }
     leave('PHYSICS_FAILED', jolt.refused(), 'body shape(s) refused by the module')
     leave('PHYSICS_DIVERGED', jolt.diverged(), 'body(ies) went non-finite and left the simulation')
-    // Soft bodies the module brought back to a good state stay: the page hears their ids, and counts them.
-    const recovered = jolt.recovered()
-    if (recovered.length) send({ type: 'recovered', bodies: recovered })
     const now = jolt.overflow().join(', ')
     if (now && now !== overflow) {
       const message = `Physics budget "${now}" exceeded in a step: contacts were missed.`

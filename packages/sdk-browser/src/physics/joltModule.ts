@@ -36,8 +36,6 @@ interface JoltExports {
   jolt_refused(i: number): number
   jolt_diverged_count(): number
   jolt_diverged(i: number): number
-  jolt_recovered_count(): number
-  jolt_recovered(i: number): number
   jolt_error(): number
   jolt_active_count(): number
   jolt_owed_leaves(): number
@@ -160,10 +158,6 @@ export function startJolt(
     /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
     diverged: () =>
       Array.from({ length: jolt.jolt_diverged_count() }, (_, i) => jolt.jolt_diverged(i)),
-    /** The engine ids of the soft bodies the last step found diverged on amplitude and brought
-     *  back to a good state: kept in the simulation (`soft.cpp`). */
-    recovered: () =>
-      Array.from({ length: jolt.jolt_recovered_count() }, (_, i) => jolt.jolt_recovered(i)),
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
