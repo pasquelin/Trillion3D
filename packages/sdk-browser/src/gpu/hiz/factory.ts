@@ -140,7 +140,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
-    front: (_encoder, wanted) => hizFront(h, wanted),
+    front: (wanted) => hizFront(h, wanted),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

@@ -1,5 +1,5 @@
-import { HOLD_IDLE_MS } from './heldBuffers.ts'
-import { createReadbackRing, type ReadbackRing } from './readbackRing.ts'
+import { holdIdle } from './heldBuffers.ts'
+import { ReadbackRefused, createReadbackRing, type ReadbackRing } from './readbackRing.ts'
 
 /** Captures one device reads back at once: past them, a capture waits for one to land. */
 const CAPTURES_IN_FLIGHT = 4
@@ -9,7 +9,7 @@ const CAPTURES_IN_FLIGHT = 4
 type Capture = { run?: () => Promise<void>; read: (mapped: ArrayBuffer) => void }
 
 /** A device's capture ring, and the timer that destroys it once no capture came. */
-type Held = { ring: ReadbackRing<Capture>; active: number; idle?: ReturnType<typeof setTimeout> }
+type Held = { ring: ReadbackRing<Capture>; active: number; idle: ReturnType<typeof holdIdle> }
 const held = new WeakMap<GPUDevice, Held>()
 
 /** The device's ring of the engine's one staging pool (`createReadbackRing`), chained: a capture
@@ -27,9 +27,9 @@ function captureRing(device: GPUDevice) {
       },
       (mapped, _staging, capture) => capture.read(mapped),
     )
-    held.set(device, (hold = { ring, active: 0 }))
+    held.set(device, (hold = { ring, active: 0, idle: holdIdle() }))
   }
-  clearTimeout(hold.idle)
+  hold.idle.stop()
   hold.active++
   return hold
 }
@@ -38,13 +38,10 @@ function captureRing(device: GPUDevice) {
  *  in flight — a scene at rest holds no byte. */
 function rest(device: GPUDevice, hold: Held) {
   if (--hold.active > 0) return
-  clearTimeout(hold.idle)
-  hold.idle = setTimeout(() => {
+  hold.idle.restart(() => {
     hold.ring.destroy()
     held.delete(device)
-  }, HOLD_IDLE_MS)
-  // A host process never waits on the hold.
-  ;(hold.idle as { unref?: () => void }).unref?.()
+  })
 }
 
 /**
@@ -64,7 +61,12 @@ export async function captureRead<T>(
   let value: T | undefined
   const capture: Capture = { read: (mapped) => void (value = read(mapped)) }
   let staging = hold.ring.take(capture, bytes)
+  // Every buffer in flight: wait for one to land. None in flight: the device refused the buffer.
   while (!staging) {
+    if (hold.ring.held() === 0) {
+      rest(device, hold)
+      throw new ReadbackRefused('READBACK_STAGING_REFUSED')
+    }
     await hold.ring.settled()
     staging = hold.ring.take(capture, bytes)
   }

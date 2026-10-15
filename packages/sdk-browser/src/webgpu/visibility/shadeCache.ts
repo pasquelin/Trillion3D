@@ -1,3 +1,4 @@
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { cachePasses } from './shadeCachePasses.ts'
@@ -116,7 +117,7 @@ function layFor(
     rows * (ROW_RECORD_WORDS + ROW_MARK_WORDS) +
     capacity * TRIANGLE_WORDS
   if (needed > c.words) {
-    c.buffer.destroy()
+    retire(c.device, c.buffer)
     c.buffer = cacheBuffer(c.device, (c.words = needed))
   }
   c.width = pixelWidth

@@ -11,7 +11,7 @@ import { createBounceSchedule } from './schedule.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../gpu/core/computeStages.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { worldLightLists } from './worldLightLists.ts'
@@ -76,10 +76,7 @@ export async function createGpuBounceProbes(
   })
   try {
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
-    pipeline = await buildComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'updateProbes' },
-    })
+    pipeline = await buildComputeStage(device, [layout], module, 'updateProbes')
     follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView)
   } catch (error) {
     release()

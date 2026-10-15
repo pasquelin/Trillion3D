@@ -49,7 +49,7 @@ type VisBuild = {
   device: GPUDevice
   layout: GPUPipelineLayout
   module: GPUShaderModule
-  fragment: string
+  fragment: ReturnType<typeof visVariantFragment>
   twins: boolean
 }
 function visBuild(
@@ -73,12 +73,12 @@ async function visPipeline(
   depthStencil = VIS_DEPTH,
 ) {
   const { device, layout, module } = build
-  const descriptor = (constants?: Record<string, number>): GPURenderPipelineDescriptor => ({
+  const descriptor = (constants = build.fragment.constants): GPURenderPipelineDescriptor => ({
     layout,
     vertex: { module, entryPoint: 'vis_vs' },
     fragment: {
       module,
-      entryPoint: build.fragment,
+      entryPoint: build.fragment.entryPoint,
       targets: VIS_TARGETS,
       ...(constants && { constants }),
     },

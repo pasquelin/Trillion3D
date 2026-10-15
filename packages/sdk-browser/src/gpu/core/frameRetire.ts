@@ -12,7 +12,8 @@ const retiredOf = oncePerDevice((): Retired[] => [])
  * THE FRAME-END RETIRE LIST: a resource replaced while the image is encoded — a table grown, a
  * target remade — may still be named by commands of this image not yet submitted, so it is retired
  * here rather than destroyed, and destroyed right after the frame's `queue.submit`
- * (`destroyRetired`, `../../webgpu/pages/render/encoder.ts`). Destroyed after the submit that names
+ * (`destroyRetired`, `../../webgpu/pages/render/encoder.ts`), and at a session's dispose, after its last
+ * submit (`../../webgpu/pages/io/metrics.ts`). Destroyed after the submit that names
  * it, it lives while that work runs: WebGPU frees a resource once the work submitted before its
  * `destroy` is done. One list per device and one walk a frame, no promise per resource.
  */

@@ -1,4 +1,4 @@
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../gpu/core/computeStages.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { computeBufferEntry, namedEntries } from '../gpu/core/computeBindings.ts'
 import { atlasEntry } from './atlas.ts'
@@ -31,10 +31,7 @@ export async function createSnapshotFollow(
       atlasEntry(B.snapshot, true),
     ],
   })
-  const pipeline = await buildComputePipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'followSnapshot' },
-  })
+  const pipeline = await buildComputeStage(device, [layout], module, 'followSnapshot')
   const group = device.createBindGroup({
     layout,
     entries: namedEntries(B, {

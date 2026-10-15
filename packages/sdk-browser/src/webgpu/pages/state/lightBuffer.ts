@@ -1,3 +1,4 @@
+import { retire } from '../../../gpu/core/frameRetire.ts'
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_FLOATS,
@@ -43,7 +44,8 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   const { store } = lights
   if (!lights.buffer) return false
   if (contractBufferSlots(lights.buffer) !== bufferSlots(store)) {
-    lights.buffer.destroy()
+    // This image's commands may still name it: retired, destroyed after the frame's submit.
+    retire(device, lights.buffer)
     lights.buffer = createSceneLightContractBuffer(device, store)
     lights.uploadedEpoch = -1
   }

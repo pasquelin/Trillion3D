@@ -24,14 +24,13 @@ test('level 0 holds the front layer from its making: an ask makes, copies and bi
   const level0 = hiz.level0
   assert.equal(level0.depthOrArrayLayers, HIZ_DEPTH_LAYERS, 'the opaque depth and the front depth')
   const depth = hiz.depth()
-  const encoder = device.createCommandEncoder()
-  const front = hiz.front(encoder, true)
+  const front = hiz.front(true)
   assert.ok(front)
   assert.equal(level0s().length, 1, 'nothing made at the ask')
   assert.equal(hiz.level0, level0)
   assert.equal(textureCopies.length, 0, 'nothing copied')
   assert.equal(hiz.depth(), depth, 'its readers keep their group')
-  assert.equal(hiz.front(encoder, true), front, 'asked again, the same layer')
+  assert.equal(hiz.front(true), front, 'asked again, the same layer')
   assert.equal(hiz.resize(device, 32, 32), true)
   assert.equal(hiz.level0.depthOrArrayLayers, HIZ_DEPTH_LAYERS, 'a pyramid made after holds it')
   hiz.dispose()
@@ -41,8 +40,7 @@ test('a scene whose transparents come and go keeps the front layer: its fold fol
   const { device, textureCopies, writes, passDescriptors } = fakeDevice()
   const hiz = await createGpuHiz(device, 16, 8, 4)
   assert.ok(hiz)
-  const encoder = device.createCommandEncoder()
-  const front = hiz.front(encoder, true)
+  const front = hiz.front(true)
   assert.ok(front)
   const glass = hiz.level0,
     depth = hiz.depth()!,
@@ -55,13 +53,13 @@ test('a scene whose transparents come and go keeps the front layer: its fold fol
         front,
     ).length
   assert.equal(word(), 1, 'the readers fold the layer this image writes')
-  assert.equal(hiz.front(encoder, false), undefined, 'no front layer this image writes')
+  assert.equal(hiz.front(false), undefined, 'no front layer this image writes')
   assert.equal(word(), 0, 'the fold reads the opaque depth alone, never the last glass')
   assert.equal(hiz.level0, glass, 'level 0 kept: nothing made, copied or bound again')
   assert.equal(hiz.depth(), depth)
   assert.equal(textureCopies.length, 0, 'nothing carried: the layer was made with level 0')
-  assert.equal(hiz.front(encoder, false), undefined)
-  assert.equal(hiz.front(encoder, true), front, 'the glass back: the same layer')
+  assert.equal(hiz.front(false), undefined)
+  assert.equal(hiz.front(true), front, 'the glass back: the same layer')
   assert.equal(clears(), 0, 'the front depth clears the last glass, its one owner')
   assert.equal(word(), 1)
   assert.equal(hiz.resize(device, 32, 32), true)

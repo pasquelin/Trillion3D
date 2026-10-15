@@ -36,7 +36,7 @@ export type GpuHiz = {
    *  fold writes it. Made with level 0: the readers fold it by a frame word only while an image
    *  writes it, so no reader folds a layer this image did not write. It changes identity on every
    *  target resize. */
-  front(encoder: GPUCommandEncoder, wanted: boolean): GPUTextureView | undefined
+  front(wanted: boolean): GPUTextureView | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does

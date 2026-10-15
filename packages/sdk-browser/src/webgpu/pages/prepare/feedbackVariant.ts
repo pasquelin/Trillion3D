@@ -1,3 +1,4 @@
+import { retire } from '../../../gpu/core/frameRetire.ts'
 import { FEEDBACK_BYTES } from '../../../scene/surfaceBuffer.ts'
 import { SHADE_SHADER } from '../../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
@@ -37,7 +38,7 @@ export function syncFeedbackTarget(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const [width, height] = gpu.allocatedSize
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   else {
-    gpu.feedbackTexture!.destroy()
+    retire(device, gpu.feedbackTexture!)
     gpu.feedbackTexture = gpu.feedbackView = undefined
   }
   gpu.targetBytes += (vis.writesFeedback ? 1 : -1) * width * height * FEEDBACK_BYTES
