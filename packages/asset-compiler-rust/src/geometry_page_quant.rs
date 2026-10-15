@@ -27,7 +27,8 @@ pub fn primitive_exponent(
 
 /// The texture grid of a primitive (`uv_grid_exponent`, the run-time cut's rule too), from the
 /// widest span of its texture coordinates over every vertex (`widest_uv_span`): a DAG page may
-/// hold the primitive whole, so that is the span every page must fit.
+/// hold the primitive whole. Never coarser than the format's; a page whose own span overflows its
+/// field is fitted by the encoder alone (`page_uv_exponent`).
 pub fn primitive_uv_exponent(
     carried: &[&trillion3d_page_codec::encode::Attribute],
     blended: bool,

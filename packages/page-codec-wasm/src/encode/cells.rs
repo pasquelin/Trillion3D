@@ -1,6 +1,7 @@
 //! The cells of a page — every vertex on every grid, from the primitive's attributes.
 
 use super::{Attribute, EncodeError, Result};
+use crate::bits::grid::page_uv_exponent;
 use crate::bits::{self, Quant, QuantRefusal};
 use crate::simd::dispatch;
 use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
@@ -110,8 +111,9 @@ pub fn grids(
     let mut uv_records = [Quant::<2>::flat(uv_exponent); 2];
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if let Some(a) = by_flag(flag) {
-            let (quant, uv_cells) =
-                quantize::<2>(&gather(&a.values, 2, 2, original)?, uv_exponent)?;
+            let values = gather(&a.values, 2, 2, original)?;
+            let exponent = page_uv_exponent(uv_exponent, &values);
+            let (quant, uv_cells) = quantize::<2>(&values, exponent)?;
             uv_records[set] = quant;
             for (cell, q) in cells.iter_mut().zip(uv_cells) {
                 cell.uv[set] = q;

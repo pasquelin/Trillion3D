@@ -85,15 +85,26 @@ pub fn primitive_grid_exponent(
     }
 }
 
-/// The texture grid of a primitive whose pages must each hold a texture-coordinate span of `span`:
-/// the one rule of both cuts. A `blended` primitive takes the finest grid that span fits, one grid
-/// however it is cut; any other the format's, coarser only where the span would not fit a page's
-/// field. No span (none measured, or none carried): the format's.
+/// The texture grid of a primitive whose pages may hold a texture-coordinate span of `span`: the
+/// one rule of both cuts. Never coarser than the format's 2^`UV_EXPONENT`: a `blended` primitive
+/// takes the finest grid that span fits, one grid however it is cut, finer than the format's when
+/// the span allows; any other the format's. A page whose own span would not fit its field takes
+/// the coarser grid that holds it, alone (`page_uv_exponent`): no primitive pays for one page.
 pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
-    match (span > 0.0, blended) {
-        (false, _) => UV_EXPONENT,
-        (true, true) => finest_exponent(span),
-        (true, false) => finest_exponent(span).max(UV_EXPONENT),
+    match blended && span > 0.0 {
+        true => finest_exponent(span).min(UV_EXPONENT),
+        false => UV_EXPONENT,
+    }
+}
+
+/// The texture grid one page is written on: the primitive's `grid`, coarser only when the page's
+/// own coordinates (`values`, two floats a vertex) span more than its field holds there. Each page
+/// carries its exponent and its minimum, so only that page's precision moves.
+pub fn page_uv_exponent(grid: i32, values: &[f32]) -> i32 {
+    let span = widest_uv_span(values, &[], &[]);
+    match span > 0.0 {
+        true => grid.max(finest_exponent(span)),
+        false => grid,
     }
 }
 
