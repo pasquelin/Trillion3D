@@ -104,7 +104,7 @@ ${BLEND_DIAGNOSTIC}
    shadowCamera=uni.camPos.xyz;
    blendLobes(in,front,g,s,V,clamped);
    rgb=litSurface(declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy,in.position.z),bounceLighting(rgb,m,s.N,in.view,s.ao),environmentLighting(rgb,m,s.N,s.ao),surfaceReflection(f0Of(rgb,m),clamped,s.N,V,in.view,in.position),s.emissive);
-   if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
+   if(thinSurface()){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
   }
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
