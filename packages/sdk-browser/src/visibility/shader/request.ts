@@ -1,5 +1,6 @@
 import { SHADE_UNIFORM } from './uniformLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { requestLoopWgsl } from '../../webgpu/tile/requestWgsl.ts'
 
 /**
  * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's
@@ -35,16 +36,13 @@ fn shadePick(p:RequestPick,missing:bool,m:Material,uv:vec2f,ddx:vec2f,ddy:vec2f)
 /** Tile rank this pixel asks for, plus one, or zero: on a convergence's asking rows
  *  (\`feedbackMissing\`), the first of its picks whose tile is missing (\`everyPick\`), else its
  *  own — the tile it reads, stamped. */
-fn shadeRequest(m:Material,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->u32{
- let physical=HAS_PHYSICAL&&physicalOn;
- if(!(HAS_UV&&(ANY_MAP||m.subsurfaceMap!=0u||physical))||!feedbackPhase(pos,uni.feedback)){return 0u;}
- let choices=MAP_CHOICES+1u+select(0u,1u,m.subsurfaceMap!=0u)+select(0u,4u,physical);
- if(feedbackMissing(pos,uni.feedback)){
-  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
-   let rank=shadePick(everyPick(pos,choices,turn),true,m,uv,ddx,ddy);
-   if(rank!=0u){return rank;}
-  }
- }
- return shadePick(requestPick(pos,choices,uni.feedback),false,m,uv,ddx,ddy);
-}`,
+${requestLoopWgsl({
+  head: 'fn shadeRequest(m:Material,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->u32',
+  pos: 'pos',
+  word: 'uni.feedback',
+  before:
+    'let physical=HAS_PHYSICAL&&physicalOn;if(!(HAS_UV&&(ANY_MAP||m.subsurfaceMap!=0u||physical))){return 0u;}',
+  choices: 'MAP_CHOICES+1u+select(0u,1u,m.subsurfaceMap!=0u)+select(0u,4u,physical)',
+  pick: (p, missing) => `shadePick(${p},${missing},m,uv,ddx,ddy)`,
+})}`,
 )
