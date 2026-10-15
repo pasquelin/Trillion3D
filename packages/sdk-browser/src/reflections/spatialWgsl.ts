@@ -58,7 +58,7 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let hit=freshHit(centre);
  let depth=surfaceLinearDepth(P);
  let last=vec2i(textureDimensions(spatialIn))-vec2i(1);
- let turn=f32(reflectionView.temporal.x%REFLECTION_SEQUENCE)*GOLDEN_ANGLE;
+ let turn=f32(reflectionView.temporal.x)*GOLDEN_ANGLE;
  var sum=texelReflected(centre);
  var total=1.0;
  for(var k=0u;k<REFLECTION_REUSE_TAPS;k++){

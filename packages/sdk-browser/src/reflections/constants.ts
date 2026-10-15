@@ -77,9 +77,12 @@ export const REFLECTION_COUNTS = {
    *  traces nothing. Measured at 2056×1144 on the bench's open world: the trace 2.95 ms in orbit,
    *  0 frozen. */
   REFLECTION_MOVING_SHARE: 8,
-  /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
-  REFLECTION_SEQUENCE: 4096,
 } as const
+
+/** The period of the per-image sample sequence (`sampleWgsl.ts`, `spatialWgsl.ts`): the turn wraps
+ *  on it once, on the CPU (`stageReflectionImage`), so the word the shaders read stays below it and
+ *  exact in an `f32`. */
+export const REFLECTION_SEQUENCE = 4096
 
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 export const REFLECTION_SIDE = 8

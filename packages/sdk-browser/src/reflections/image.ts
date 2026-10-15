@@ -1,5 +1,5 @@
 import { REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
-import { REFLECTION_COUNTS } from './constants.ts'
+import { REFLECTION_COUNTS, REFLECTION_SEQUENCE } from './constants.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { drawnFromHeld, type RadianceStages } from './radiance.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
@@ -35,7 +35,7 @@ export function stageReflectionImage(
   if (!stands || lights !== reflection.lightsSeen) reflection.settle.move()
   reflection.settle.stage()
   reflection.lightsSeen = lights
-  const { REFLECTION_STILL, REFLECTION_SEQUENCE } = REFLECTION_COUNTS
+  const { REFLECTION_STILL } = REFLECTION_COUNTS
   frame.moving = reflection.settle.moving
   frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_STILL + 1)
   if (frame.quiet === 0) reflection.turn = (reflection.turn + 1) % REFLECTION_SEQUENCE

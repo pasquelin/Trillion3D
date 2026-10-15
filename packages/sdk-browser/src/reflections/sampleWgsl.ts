@@ -80,7 +80,7 @@ fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLEC
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
  let shift=vec2f(f32(seed&0xffffu),f32(seed>>16u))/65536.0;
- return additive2d(shift,reflectionView.temporal.x%REFLECTION_SEQUENCE);
+ return additive2d(shift,reflectionView.temporal.x);
 }
 fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->vec3f{
  var T=axis-N*dot(axis,N);
