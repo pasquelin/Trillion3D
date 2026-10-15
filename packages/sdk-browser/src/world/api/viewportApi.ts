@@ -5,6 +5,7 @@ import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import { hostPoint } from '../../host/scene/graphObjects.ts'
+import { poseCamera } from '../render/sessionState.ts'
 
 /** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
 export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height)
@@ -41,14 +42,8 @@ export function createExplorerViewportApi(inputs: Inputs) {
       check()
       // A view of its own, drawn with its material surfaces.
       const view = camera.clone()
-      view.position.fromArray(pose.position)
-      view.fov = pose.fov
-      view.near = pose.near
-      view.far = pose.far
       view.aspect = size.width / size.height
-      view.lookAt(hostPoint(pose.target[0], pose.target[1], pose.target[2]))
-      view.updateProjectionMatrix()
-      view.updateMatrixWorld()
+      poseCamera(view, pose, hostPoint(0, 0, 0))
       setCapturingSurface(true)
       try {
         return await engine.captureSurfaceView(view, size)
