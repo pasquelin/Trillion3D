@@ -91,7 +91,7 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       // the rigid one past its own restitution speed.
       const float k[MANIFOLD_POINTS][MANIFOLD_POINTS] = {{1.0f / t.mass + inverseMassAlong(b, arm)}};
       float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
-      float substep = world().dt / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
+      float substep = world().fixedStep / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
       const float speed[MANIFOLD_POINTS] = {bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep)};
       impulse = normalImpulse(1, speed, k);
     }

@@ -480,22 +480,22 @@ void writeSoft() {
     if (hidden) slot.restWrites = 0;
     if (hidden ? !active : slot.rests(active, 1)) continue;
     Gauge gauge;
-    settle(soft, body, world.dt);
+    settle(soft, body, world.elapsed());
     if (hidden) {
       gauge.measure(body);
-      if (diverges(soft, body, gauge, world.dt)) recover(soft, body);
-      else keep(soft, body, gauge, world.dt);
+      if (diverges(soft, body, gauge, world.elapsed())) recover(soft, body);
+      else keep(soft, body, gauge, world.elapsed());
       continue;
     }
     const size_t start = state.size();
     bool finite = written(soft, body, start, active ? &gauge : nullptr);
     // Brought back to a good state, it is written where it now is.
-    if (active && diverges(soft, body, gauge, world.dt)) {
+    if (active && diverges(soft, body, gauge, world.elapsed())) {
       recover(soft, body);
       state.resize(start);
       finite = written(soft, body, start, nullptr);
     } else if (active && finite)
-      keep(soft, body, gauge, world.dt);
+      keep(soft, body, gauge, world.elapsed());
     // A diverged body sends no vertex: it leaves the simulation after the step (`jolt_step`).
     if (!finite) {
       state.resize(start);

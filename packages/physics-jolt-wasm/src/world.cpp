@@ -159,15 +159,17 @@ uint32_t *jolt_buffer(uint32_t which, uint32_t words) {
   return w.buffers[which];
 }
 
-/// Runs `commandWords` words of commands, then advances by `dt` seconds in one collision step (none
-/// when `dt` is 0). Returns the pose count, or 0xFFFFFFFF on failure (`jolt_error`).
+/// Runs `commandWords` words of commands, then, when `dt` is above 0, advances by one fixed step
+/// (`jolt_init`'s, the only one the page steps by) in one collision step. Returns the pose count,
+/// or 0xFFFFFFFF on failure (`jolt_error`).
 uint32_t jolt_step(uint32_t commandWords, float dt) {
   trillion::World &w = world();
   w.eventWords = w.dropped = w.updateError = 0;
   w.refused.clear();
   w.diverged.clear();
   w.recovered.clear();
-  w.dt = dt;
+  w.stepping = dt > 0;
+  dt = w.elapsed();
   ++w.step;
   trillion::sendOwedLeaves();
   trillion::prunePrimitives();

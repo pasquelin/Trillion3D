@@ -118,12 +118,12 @@ struct World {
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
   uint32_t capacity[3] = {0, 0, 0}, eventWords = 0, error = NONE;
-  /** What the last `PhysicsSystem::Update` could not hold (`EPhysicsUpdateError` bits). */
-  uint32_t updateError = 0, step = 0;
-  float dt = 0;
-  /** The page's fixed step, s (`jolt_init`): what a soft body's bend floor and calm are reckoned
-   *  with (`soft.cpp`), whatever a command's own step. */
+  uint32_t updateError = 0, step = 0;  ///< What the last Update could not hold (bits); runs so far.
+  /** The page's fixed step, s (`jolt_init`), the only step the world advances by; and whether
+   *  this run advances by it (`jolt_step`): the seconds it advances, `elapsed`. */
   float fixedStep = 0;
+  bool stepping = false;
+  float elapsed() const { return stepping ? fixedStep : 0.0f; }
 };
 
 World &world();

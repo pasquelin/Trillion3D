@@ -117,7 +117,7 @@ uint32_t runBuoyancy(const uint32_t *w) {
   while (plane < end) {
     uint32_t engine = plane[0];
     const Slot *slot = slotOf(engine);
-    Body *body = slot && world.dt > 0 ? locks.TryGetBody(slot->id) : nullptr;
+    Body *body = slot && world.stepping ? locks.TryGetBody(slot->id) : nullptr;
     float total = 0, submerged = 0;
     Vec3 centre = Vec3::sZero();
     for (; plane < end && plane[0] == engine; plane += PLANE_WORDS) {
@@ -149,7 +149,7 @@ uint32_t runBuoyancy(const uint32_t *w) {
     // density over the body's: `density` is the water's.
     float factor = density * total * body->GetMotionProperties()->GetInverseMass();
     body->ApplyBuoyancyImpulse(total, submerged, centre, factor, linearDrag, angularDrag, current,
-                               gravity, world.dt);
+                               gravity, world.fixedStep);
   }
   return BUOYANCY_WORDS + count * PLANE_WORDS;
 }
