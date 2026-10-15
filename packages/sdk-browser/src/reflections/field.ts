@@ -62,8 +62,7 @@ export const REFLECTION_CONE_WGSL = wgslBlock(
  return 2.0*h/(1.0-h*h);
 }
 fn reflectionEdgeFade(pixel:vec2f,size:vec2f)->f32{
- let inside=clamp(min(pixel,size-pixel)/(REFLECTION_EDGE*size.y),vec2f(0.0),vec2f(1.0));
- let s=inside*inside*(3.0-2.0*inside);
+ let s=smoothstep(vec2f(0.0),vec2f(1.0),min(pixel,size-pixel)/(REFLECTION_EDGE*size.y));
  return s.x*s.y;
 }
 fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,top,level);}`,
