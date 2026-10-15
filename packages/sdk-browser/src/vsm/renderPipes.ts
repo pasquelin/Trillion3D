@@ -73,7 +73,8 @@ function makeRaster(
     layout: device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] }),
     vertex: { module, entryPoint: 'vsmRenderVs' },
     fragment: { module, entryPoint: 'vsmRenderFs', targets: [] },
-    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    // Each vertex emits its triangle light-facing counter-clockwise (`vsmRenderEmitsSwapped`).
+    primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'back' },
     depthStencil: {
       format: VSM_RENDER_TARGET_FORMAT,
       depthWriteEnabled: false,

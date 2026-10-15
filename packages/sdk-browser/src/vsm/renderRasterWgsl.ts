@@ -12,13 +12,13 @@
  * row (`PageInfo.indexCount`, the chunk's draw counts the largest), `instance_index` the pair;
  * corners past a row's own and culled triangles output a NaN position.
  *
- * Face culling: the mesh's cull mode is applied for VSM (two-sided → none, VSM never reverses).
- * Here it is decided per triangle in the vertex shader, in world space, the camera's convention: a
- * triangle is front when its counter-clockwise normal (flipped by a mirroring placement, the main
- * raster's `windingCw`) faces the light — toward −light-direction for an orthographic view (the
- * reversed-Z clip z gradient), toward the light position (the shifted origin) for a
- * perspective one. Double-sided rows (`FLAG_DOUBLE`) cull nothing, back-side rows (`FLAG_BACK`)
- * cull the front.
+ * Face culling: the mesh's cull mode, by the rasterizer (`cullMode: 'back'`, `frontFace: 'ccw'`): each
+ * vertex emits its triangle in the winding that makes a face toward the light counter-clockwise on
+ * the framebuffer (`vsmRenderEmitsSwapped`): a counter-clockwise world normal, turned by a mirroring
+ * placement (the main raster's `windingCw`) and by a back-side row (`FLAG_BACK`, which keeps its back
+ * faces), against the map's own handedness. A two-sided row (`FLAG_DOUBLE`) draws its corners twice,
+ * the second time swapped: one of the two copies faces the light. A vertex decodes its own corner
+ * alone.
  *
  * Emitter envelope: a local light that declares an emitter radius (`emitterSize`, the
  * scene light's `emitterRadius`) accepts no depth from inside that sphere — the bulb, the glass or
@@ -123,12 +123,22 @@ struct VsmRenderOut{
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
-/** Whether the mesh cull mode keeps triangle (a,b,c) seen from the VSM view \`raw\`. */
-fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
- if((page.flags&${FLAG_DOUBLE}u)!=0u){return true;}
- let front=vsmRenderFacesLight(page,raw,a,b,c,twA);
- let back=(page.flags&${FLAG_BACK}u)!=0u;
- return select(front,!front,back);
+/**
+ * Whether a vertex emits its triangle with corners 1 and 2 swapped, so that a face toward the light
+ * is counter-clockwise on the framebuffer. A triangle's projected winding is its facing times the
+ * sign of D: for a perspective map, D = −det of the UV matrix's u, v, w rows (the light at the
+ * shifted origin, those rows linear), for an orthographic one det of its u, v, z rows (z toward the
+ * light, reversed Z); the page's NDC y and the framebuffer's y each turn it once. Swapped where D < 0,
+ * where a mirroring placement turns the counter-clockwise normal, where a back-side row keeps its back
+ * faces, and for a two-sided row's second copy.
+ */
+fn vsmRenderEmitsSwapped(page:PageInfo,raw:VsmProjectionRecord,second:bool)->bool{
+ let m=raw.shiftedToMapUv;
+ let ortho=raw.lightViewToClip[3][3]>=1.0;
+ let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
+ let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
+ let negative=select(d>0.0,d<0.0,ortho);
+ return negative!=(matrixWindingCw(page.world)!=(((page.flags&${FLAG_BACK}u)!=0u)!=second));
 }
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VsmRenderOut{
  let pair=vsmRenderPairs[instanceIndex];
@@ -136,17 +146,17 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,bitAt(pair.y,21u));out.fromEmitter=vec4f(0.0);
  let page=pages[pair.x];
  out.masked=page.flags&${FLAG_MASK}u;
- if(vertexIndex>=page.indexCount){out.position=vsmRenderNan();return out;}
+ let n=page.indexCount;
+ let second=vertexIndex>=n;
+ if(vertexIndex>=select(n,2u*n,(page.flags&${FLAG_DOUBLE}u)!=0u)){out.position=vsmRenderNan();return out;}
+ let v=select(vertexIndex,vertexIndex-n,second);
  let raw=vsmProjectionData[pair.y&0xFFFFu];
  let h=pageHeaderFor(page,pageSurfaceRead(page));
- let tri=pageTriangle(page,h,vertexIndex/3u);
- let corner=vertexIndex%3u;
- let a=vsmRenderWorld(page,h,tri.x);
- let b=vsmRenderWorld(page,h,tri.y);
- let c=vsmRenderWorld(page,h,tri.z);
- if(!vsmRenderFaceKept(page,raw,a,b,c,vsmRenderShifted(raw,a))){out.position=vsmRenderNan();return out;}
+ let tri=pageTriangle(page,h,v/3u);
+ var corner=v%3u;
+ if(corner!=0u&&vsmRenderEmitsSwapped(page,raw,second)){corner=3u-corner;}
  let id=select(select(tri.z,tri.y,corner==1u),tri.x,corner==0u);
- let world=select(select(c,b,corner==1u),a,corner==0u);
+ let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip.
  let shifted=vsmRenderShifted(raw,world);
  let isOrthoView=raw.lightViewToClip[3][3]>=1.0;

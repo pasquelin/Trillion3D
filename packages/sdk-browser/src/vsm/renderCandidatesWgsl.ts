@@ -4,7 +4,7 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
-import { FLAG_BLEND_CASTER, FLAG_SPRITE } from '../visibility/types.ts'
+import { FLAG_BLEND_CASTER, FLAG_DOUBLE, FLAG_SPRITE } from '../visibility/types.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
@@ -57,8 +57,10 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
 fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
  return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||(page.flags&${FLAG_SPRITE}u)!=0u||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
 }
-/** Appends the row's candidate when the main view's level of detail, residency folded, selects it. */
-fn vsmRenderAppendCandidate(row:u32,page:PageInfo){
+/** Appends the row's candidate when the main view's level of detail, residency folded, selects it,
+ *  with the corners it draws: \`corners\` (its indices, twice for a two-sided row of the opaque raster,
+ *  \`vsmRenderVs\`). */
+fn vsmRenderAppendCandidate(row:u32,page:PageInfo,corners:u32){
  let lod=lods[row];
  let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
  let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
@@ -66,7 +68,7 @@ fn vsmRenderAppendCandidate(row:u32,page:PageInfo){
  let s=spheres[row];
  let flags=vsmRenderCandidateFlags(mobility[row],page.deformOutput);
  let at=atomicAdd(&counts[0],1u);
- candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags);
+ candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,corners,flags);
 }`,
 )
 
@@ -79,7 +81,11 @@ export const vsmCandidatesKernel = (name: string, blend: boolean) => `
  let row=${blend ? 'frame.rowFirst+i' : 'i'};
  let page=pages[row];
  if(vsmRenderCasterSkipped(page,row,${blend})){return;}
- vsmRenderAppendCandidate(row,page);
+ vsmRenderAppendCandidate(row,page,${
+   blend
+     ? 'page.indexCount'
+     : `select(page.indexCount,2u*page.indexCount,(page.flags&${FLAG_DOUBLE}u)!=0u)`
+ });
 }
 `
 
