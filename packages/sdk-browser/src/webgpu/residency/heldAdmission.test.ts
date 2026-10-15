@@ -1,5 +1,5 @@
 // #974, #1483: past the pool, admission keeps whole coarse levels and cuts in the one that
-// straddles, walking the requests in the order the GPU ranked them; a readback is walked once.
+// straddles (`rankedQueue.ts`); only a drawn capture's readback is walked, once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/types.ts'
@@ -69,23 +69,24 @@ test('a shared address ranks at its coarsest holder, and at the next one once it
   assert.deepEqual(queueOf(w.tracking.wanted).map(url), ['mid'], 'filed at level 0 now')
 })
 
-test('a readback is walked once: the same one again walks nothing, a new one walks again', () => {
+test("the views' readbacks are never walked; a drawn capture's is, once, its asks lifted first", () => {
   const w = world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)))
   const walks = { requests: 0 }
-  const admission = createRequestAdmission(
-    w.sets,
-    w.tracking,
-    { closeOver: (ids, visit, full) => (walks.requests++, w.closure.closeOver(ids, visit, full)) },
-    (id) => w.packed[id],
-  )
+  const admission = createRequestAdmission(w.sets, w.tracking, {
+    closeOver: (ids, visit, full) => (walks.requests++, w.closure.closeOver(ids, visit, full)),
+  })
   w.delta.apply([0, 1, 2, 3, 4, 5])
   w.cut()
-  const readback = () => ({ cuts: [readbackOf([0, 1, 2, 3, 4, 5], w.packed, 3)], first: null })
-  const first = readback()
-  admission(3, first)
-  admission(3, first)
-  assert.equal(walks.requests, 1, 'one readback, one walk of its requests')
-  admission(3, readback())
-  assert.equal(walks.requests, 2, 'a new readback is walked')
+  const views = { cuts: [readbackOf([0, 1, 2, 3, 4, 5], w.packed, 3)], first: null }
+  admission(3, views)
+  admission(3, views)
+  assert.equal(walks.requests, 0, 'the queue follows the cuts by difference')
   assert.equal(keysOf(w.tracking.wanted).size, 3)
+  // A capture asking for the finest pages: they rank above the views' coarser ones.
+  const capture = { cuts: views.cuts, first: readbackOf([0, 4], w.packed, 3) }
+  admission(3, capture)
+  admission(3, capture)
+  assert.equal(walks.requests, 1, 'one capture readback, one walk of its requests')
+  const queued = keysOf(w.tracking.wanted)
+  for (const id of [0, 4]) assert.ok(queued.has(w.tracking.keyOf(w.packed[id])), `p${id} queued`)
 })

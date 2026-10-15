@@ -156,7 +156,6 @@ export function createResidencyFor(
   const residency = createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
-    recordOf: rt.layout.recordOf,
     room: parts.room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,

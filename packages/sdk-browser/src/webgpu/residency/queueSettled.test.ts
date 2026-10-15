@@ -14,13 +14,12 @@ test('a pass that left nothing to do runs again only once what it reads moved', 
   const ensureResident = Object.assign(async () => (passes++, settled), {
     revision: () => revision,
   })
-  const sets = { desiredCount: 0, acceptedRevision: 0, followDesired() {} }
+  const sets = { desiredCount: 0, acceptedRevision: 0, setRoom() {}, lift() {}, orderQueue() {} }
   const cache = {}
   const queue = createWebgpuResidencyQueue({
     tracking: createWebgpuPageTracking([]),
     sets: sets as never,
     closure: {} as never,
-    recordOf: () => undefined,
     room: () => 0,
     getCache: () => cache as never,
     getFrame: () => 0,

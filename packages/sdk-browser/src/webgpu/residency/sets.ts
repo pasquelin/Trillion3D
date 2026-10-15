@@ -4,6 +4,7 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { createCoverHolders } from './coverHolders.ts'
+import { admissionRank, createRankedQueue } from './rankedQueue.ts'
 import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 
 export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
@@ -18,8 +19,8 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * pinned and never weighed by the budget. The cut arrives as a DELTA of
  * each view's GPU readback, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
- * walks: the desired set itself, unless the page budget forces the coarser subset the admission
- * ranks (`requestAdmission.ts`).
+ * walks: the desired set ranked by admission, the first `room` of it (`rankedQueue.ts`) — the
+ * desired set itself while the pool holds it.
  */
 export function createWebgpuResidencySets(options: {
   tracking: WebgpuPageTracking
@@ -37,17 +38,12 @@ export function createWebgpuResidencySets(options: {
     coverLeaving = createDenseKeySet()
   const desiredPages: PageRec[] = []
   const desired = createDenseKeySet(desiredPages)
-  let followsDesired = true
   const requested = createKeyUnion({
     members: desired,
     keyCount,
     covered: bootstrapKey,
-    onListed: (key, page) => {
-      if (followsDesired) enqueue(key, page)
-    },
-    onUnlisted: (key) => {
-      if (followsDesired) dequeue(key)
-    },
+    onListed: (key) => ranked.enter(key),
+    onUnlisted: (key) => ranked.leave(key),
   })
   const keep = createKeyUnion({ members: tracking.keep, keyCount })
   for (let key = 0; key < keyCount; key++)
@@ -73,6 +69,13 @@ export function createWebgpuResidencySets(options: {
     acceptedRevision++
     keep.release(key)
   }
+  /** The queue: the cuts' asks ranked by admission, the first `room` of them (`rankedQueue.ts`). */
+  const ranked = createRankedQueue({
+    enqueue,
+    dequeue,
+    pageOf: (key) => desiredPages[desired.indexOf(key)],
+    wanted,
+  })
   /**
    * A cut's difference into `union`: each placement that entered holds its page's cache key — cached
    * on its record by the tracking (`PageRec.keyIndex`) — and each that left lets it go. Several
@@ -81,31 +84,17 @@ export function createWebgpuResidencySets(options: {
    * touches nothing.
    */
   const follow = (union: typeof requested, delta: IdDelta) => {
-    for (let i = 0; i < delta.exitedCount; i++) union.release(keyOf(recordOf(delta.exited[i])!))
+    const ranks = union === requested
+    for (let i = 0; i < delta.exitedCount; i++) {
+      const page = recordOf(delta.exited[i])!
+      if (ranks) ranked.drop(keyOf(page), admissionRank(page))
+      union.release(keyOf(page))
+    }
     for (let i = 0; i < delta.enteredCount; i++) {
       const page = recordOf(delta.entered[i])!
+      if (ranks) ranked.hold(keyOf(page), admissionRank(page))
       union.retain(keyOf(page), page)
     }
-  }
-  /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
-   *  those keys: new holds are taken before old ones are let go of, so a key in both never leaves
-   *  `keep`, and a queue ranked again to the same pages changes nothing. */
-  const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
-    followsDesired = false
-    let same = count === wanted.count
-    for (let i = 0; same && i < count; i++) same = wanted.has(keys[i])
-    if (same) return
-    for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i])
-    for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i])
-    wanted.clear()
-    acceptedRevision++
-    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i])
-  }
-  /** The queue follows the cut whole: every page it asks for fits the pool. */
-  const followDesired = () => {
-    if (followsDesired) return
-    admit(desired.list, desiredPages, desired.count)
-    followsDesired = true
   }
   return {
     coverEntering,
@@ -114,8 +103,12 @@ export function createWebgpuResidencySets(options: {
     get desiredCount() {
       return desired.count
     },
-    followDesired,
-    admit,
+    /** The slots the queue may fill, beyond the root cover. */
+    setRoom: ranked.setRoom,
+    /** The keys a drawn capture's cut closes over, ranked above every other (#268). */
+    lift: ranked.lift,
+    /** The queue laid out by rank, coarsest first, for the job that walks it. */
+    orderQueue: ranked.order,
     /** True for a key of the pinned root cover, which no budget weighs. */
     covers: (key: number) => bootstrapKey[key] > 0,
     /** Keys this image asks the cache for, the pinned cover included. */
@@ -135,7 +128,8 @@ export function createWebgpuResidencySets(options: {
         requested.byteLength +
         keep.byteLength +
         wanted.byteLength +
-        cover.byteLength
+        cover.byteLength +
+        ranked.byteLength
       )
     },
     /** Changes whenever `accepts` may answer differently. */

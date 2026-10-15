@@ -1,11 +1,10 @@
-import type { ViewReadbacks } from './readbackMerge.ts'
-import { createRequestAdmission } from './requestAdmission.ts'
+import { createRequestAdmission, type ViewReadbacks } from './requestAdmission.ts'
 import { createLanding, followQueue, type QueueOptions, type QueueRun } from './queueJob.ts'
 
 /** Follows the wanted set with one asynchronous uploader, and never rebuilds that set to do it. */
 export function createWebgpuResidencyQueue(options: QueueOptions) {
   const { tracking, sets, ensureResident } = options
-  const admitRequests = createRequestAdmission(sets, tracking, options.closure, options.recordOf)
+  const admitRequests = createRequestAdmission(sets, tracking, options.closure)
   const q: QueueRun = {
     options,
     // The pages of the wanted set, one record per key: the queue is that set, not a copy of it.
@@ -24,19 +23,14 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   }
   return {
     items: q.items,
-    /** The views' cuts: the queue keeps loading at full budget, admission reading their
-     *  readbacks' requests in the GPU's order, coarsest first under a short pool; the rest is drawn
-     *  by its nearest resident ancestor. */
+    /** The views' cuts: the queue keeps loading at full budget, the first `room` of their asks by
+     *  admission rank (`rankedQueue.ts`); the rest is drawn by its nearest resident ancestor. */
     queueCuts(readbacks: ViewReadbacks) {
       admitRequests(options.room(), readbacks)
       followQueue(q)
     },
     /** The pool cannot hold the views' cuts whole: the GPU ranks their requests by admission. */
     short: () => admitRequests.short(options.room()),
-    /** Bytes of the GPU cut's admission tables (`requestAdmission.ts`). */
-    get hostBytes() {
-      return admitRequests.hostBytes()
-    },
     nextJobId: () => ++q.job,
     quietPending: () => void (q.pending = q.pending.catch(() => {})),
     get pending() {

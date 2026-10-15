@@ -1,6 +1,6 @@
-// #836, #1483: admission reads the readback's requests (#478) in the order the GPU ranked them for
-// a short pool. Past the pool it keeps the coarsest levels whole, from a room the image's arrivals
-// never move, so a still view settles on one queue.
+// #836, #1483: the queue is the cuts' asks ranked by admission (`rankedQueue.ts`). Past the pool it
+// keeps the coarsest levels whole, from a room the image's arrivals never move, so a still view
+// settles on one queue.
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -28,7 +28,7 @@ function gpuCut() {
     [...pages, ...loose],
   )
   const w = world([...pages, ...loose], [pages[0]])
-  const admit = createRequestAdmission(w.sets, w.tracking, closure, (id) => w.packed[id])
+  const admit = createRequestAdmission(w.sets, w.tracking, closure)
   const id = (url: string) => w.packed.findIndex((page) => page.url === url)
   const drawn = createCutDelta(w.packed)
   /** One image: the readback's requests, ranked by the GPU, then admission at `room`. */
@@ -41,11 +41,15 @@ function gpuCut() {
     w.sets.applyDrawn(drawn)
     const readback = ranked
       ? readbackOf(pageIds, w.packed, w.tracking.topLevel)
-      : { uniforms: { admitByLevel: false }, result: { pageIds } }
+      : ({ uniforms: { admitByLevel: false }, result: { pageIds } } as never)
     admit(room, { cuts: [readback], first: null })
   }
   const url = (key: number) => w.tracking.pageCatalog[key]
-  const queue = () => Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url)
+  /** The queue as the job walks it: by rank, coarsest first. */
+  const queue = () => (
+    w.sets.orderQueue(),
+    Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url)
+  )
   return { ...w, closure, admit, image, queue }
 }
 
@@ -57,14 +61,14 @@ test('past the pool, the queue keeps the coarsest levels whole, in the GPU’s o
   assert.deepEqual(cut.queue(), ['c0', 'm0', 'm1', 'f0'], 'the straddled level in request order')
   cut.image(8, 'f0 m0 f1 c0 m1')
   assert.deepEqual(new Set(cut.queue()), new Set(['c0', 'm0', 'm1', 'f0', 'f1']), 'all fits')
-  assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables')
+  assert.ok(cut.sets.hostBytes > 0, 'its tables are counted in the host tables')
 })
 
 // #1237: a page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
 // pool it goes first, above every level, so the root the view refuses is replaced before any detail.
-// A readback cut while the pool still held the views' cuts is in the cut's order: the walk files
-// every request instead of stopping at the first finer one, so a coarser one behind is kept.
-test('a readback the GPU did not rank by level is walked whole', () => {
+// A readback cut while the pool still held the views' cuts is in the cut's order: the queue ranks
+// the asks whatever the order they came in, so a coarser one behind is kept.
+test('a readback the GPU did not rank by level is ranked whole', () => {
   const cut = gpuCut()
   cut.image(1, 'm0 f0 c0', '', false)
   assert.deepEqual(cut.queue(), ['c0'], 'the coarsest level, though it came last')
@@ -150,7 +154,6 @@ test('a page the image keeps is never pinned: the GPU order holds it, the host o
   const queue = createWebgpuResidencyQueue({
     tracking: cut.tracking,
     sets: cut.sets,
-    recordOf: (id) => cut.packed[id],
     room: () => 8,
     getCache: () => cache as never,
     getFrame: () => 0,

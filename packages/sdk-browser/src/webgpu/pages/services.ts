@@ -73,6 +73,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residency,
     affectsImage,
     ...publication,
-    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes + rowSync.cacheBytes, // + admission, rows
+    // The publication's tables (the residency sets and their ranked queue among them), then the rows'.
+    hostTableBytes: () => publication.hostTableBytes() + rowSync.cacheBytes,
   }
 }

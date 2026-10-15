@@ -94,13 +94,12 @@ test('after a stop, the pending set drains to full detail', async () => {
   const b = banc(7, ['v0', 'v1'], ['a0', 'a1', 'a2', 'a3', 'a4', 'a5'])
   const queue = createWebgpuResidencyQueue({
     tracking: b.tracking,
-    sets: { desiredCount: 0, followDesired() {} } as never,
+    sets: { desiredCount: 0, setRoom() {}, lift() {}, orderQueue() {} } as never,
     room: () => 7,
     getCache: () => b.cache as never,
     getFrame: () => 0,
     updatePins() {},
     closure: {} as never,
-    recordOf: () => undefined,
     ensureResident: b.ensure,
     markLost() {},
     traceEnabled: false,

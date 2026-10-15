@@ -7,6 +7,7 @@ import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTr
 import { createWebgpuResidencySets } from './sets.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import { ADMISSION_BUCKETS, ADMISSION_LEVEL_MAX } from '../../gpu/dag/request.ts'
+import type { GpuCut } from '../../gpu/core/selection.ts'
 
 export const rec = (url: string, level: number) => ({ url, level }) as unknown as PageRec
 
@@ -30,10 +31,11 @@ export const admissionOrder = (ids: ArrayLike<number>, packed: readonly PageRec[
     .map(({ id }) => id)
 
 /** The readback of a cut asking for `ids`, ranked by the GPU for a short pool. */
-export const readbackOf = (ids: ArrayLike<number>, packed: readonly PageRec[], top: number) => ({
-  uniforms: { admitByLevel: true },
-  result: { pageIds: admissionOrder(ids, packed, top), levelCounts: bucketCounts(ids, packed) },
-})
+export const readbackOf = (ids: ArrayLike<number>, packed: readonly PageRec[], top: number) =>
+  ({
+    uniforms: { admitByLevel: true },
+    result: { pageIds: admissionOrder(ids, packed, top), levelCounts: bucketCounts(ids, packed) },
+  }) as unknown as GpuCut
 
 /** The admission counts the GPU writes beside such a list (`levelCountsWord`): each bucket's
  *  requests, a bucket the page's level, the minimum capacity's bit above. */
@@ -58,7 +60,7 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const pages: PageRec[] = []
   const delta = createCutDelta(packed, pages)
   const closure = createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packed),
-    admission = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
+    admission = createRequestAdmission(sets, tracking, closure)
   const cut = (difference: CutDelta = delta) => {
     closure.apply(difference)
     sets.applyCut(closure.delta)
