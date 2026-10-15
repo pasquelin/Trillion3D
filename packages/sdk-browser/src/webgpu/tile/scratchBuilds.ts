@@ -89,7 +89,8 @@ function buildAsked(
  * that ask it — built inside the pass, the whole source uploaded and reduced is a spike its budget
  * never counted —, a task after the frame building what was asked, their mips in one batch, and is
  * held until a pass copies from it, or until feedback newer than its ask passes it over (`drop`):
- * a pass run without that feedback would free it unread.
+ * a pass run without that feedback would free it unread. An id held is never asked: `ask` is
+ * called only for an id with nothing held, and `refresh` withdraws an ask its id made before.
  */
 export function createScratches(
   device: GPUDevice,
@@ -143,6 +144,8 @@ export function createScratches(
       id: number,
       copy: (encoder: GPUCommandEncoder, texture: GPUTexture) => void,
     ) {
+      // An id held is never asked: a build asked for it before it turned live is let go.
+      asked.delete(id)
       const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
       let entry = held.get(id)
       if (entry) entry.scratch.fill(encoder)
