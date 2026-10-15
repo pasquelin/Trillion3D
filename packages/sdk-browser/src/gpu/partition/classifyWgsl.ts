@@ -14,7 +14,7 @@ import {
   ST_OVERSIZED_TRIANGLES,
   ST_TESTED,
   ST_TESTED_TRIANGLES,
-  TESTED_U32,
+  TESTED_BOX,
   STATE_TALLY_WGSL,
 } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -56,39 +56,28 @@ fn classifyRow(i:u32){
  let item=items[i];
  atomicAdd(&slotUsed[rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);
  if(rest==0u){return;}
- // Only the tested half travels to the kernel, each box naming the row it answers for.
- // The rectangle is already clipped to the viewport and expressed in texels of the mip that
- // covers it exactly: mirror of \`hizTestRect\` then of the packing the CPU did box by box.
+ // Only a box the pyramid can judge travels to the test, naming the row it answers for, its
+ // rectangle the one pick (\`hizRectPick\`) in texels of its mip: a row cut by the near plane, off
+ // screen or wider than every mip stays at the kept verdict written above.
  let unclipped=vec4i(bitcast<i32>(rowData[base]),bitcast<i32>(rowData[base+1u]),
   bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
- let x0=max(unclipped.x,0);let y0=max(unclipped.y,0);
- let x1=min(unclipped.z,i32(uni.width)-1);let y1=min(unclipped.w,i32(uni.height)-1);
- var level=0u;var coarse=0u;var found=false;
- if(!clips&&x1>=x0&&y1>=y0){
-  let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
-  level=pick.x;coarse=pick.z;found=pick.y!=0u;
+ let p=hizRectPick(select(unclipped,vec4i(0,0,-1,-1),clips));
+ if(p.found){
+  let l=p.level;let fine=hizMip(l);let coarse=hizMip(p.coarse);
+  let slot=atomicAdd(&state[${ST_TESTED}u],1u)*${TESTED_BOX.words}u;
+  tested[slot+${TESTED_BOX.at.minX}u]=bitcast<u32>(p.rect.x>>l);
+  tested[slot+${TESTED_BOX.at.minY}u]=bitcast<u32>(p.rect.y>>l);
+  tested[slot+${TESTED_BOX.at.maxX}u]=bitcast<u32>(p.rect.z>>l);
+  tested[slot+${TESTED_BOX.at.maxY}u]=bitcast<u32>(p.rect.w>>l);
+  tested[slot+${TESTED_BOX.at.nearest}u]=rowData[base+${ROW_NEAREST}u];
+  tested[slot+${TESTED_BOX.at.row}u]=i;
+  tested[slot+${TESTED_BOX.at.fineOffset}u]=fine.x;
+  tested[slot+${TESTED_BOX.at.fineWidth}u]=fine.y;
+  tested[slot+${TESTED_BOX.at.triangles}u]=item.triangles;
+  tested[slot+${TESTED_BOX.at.coarseOffset}u]=coarse.x;
+  tested[slot+${TESTED_BOX.at.coarseWidth}u]=coarse.y;
+  tested[slot+${TESTED_BOX.at.coarseShift}u]=p.coarse-l;
  }
- let slot=atomicAdd(&state[${ST_TESTED}u],1u)*${TESTED_U32}u;
- if(found){
-  tested[slot]=bitcast<u32>(x0>>level);
-  tested[slot+1u]=bitcast<u32>(y0>>level);
-  tested[slot+2u]=bitcast<u32>(x1>>level);
-  tested[slot+3u]=bitcast<u32>(y1>>level);
-  tested[slot+5u]=i<<1u;
-  tested[slot+6u]=uni.levelOffset[level>>2u][level&3u];
-  tested[slot+7u]=uni.levelWidth[level>>2u][level&3u];
-  // Coarse pre-test mip of the Hi-Z test (\`pyramidHides\`): the box is read there first.
-  tested[slot+9u]=uni.levelOffset[coarse>>2u][coarse&3u];
-  tested[slot+10u]=uni.levelWidth[coarse>>2u][coarse&3u];
-  tested[slot+11u]=coarse-level;
- }else{
-  tested[slot]=0u;tested[slot+1u]=0u;tested[slot+2u]=0u;tested[slot+3u]=0u;
-  tested[slot+5u]=(i<<1u)|1u;
-  tested[slot+6u]=0u;
-  tested[slot+7u]=uni.width;
- }
- tested[slot+4u]=rowData[base+${ROW_NEAREST}u];
- tested[slot+8u]=item.triangles;
  tallyAdd(${ST_TESTED_TRIANGLES}u,item.triangles);
  // A footprint wider than the level-0 kernel answers from a coarser mip: it is counted on the
  // UNCLIPPED rectangle, like \`hizOversized\`.

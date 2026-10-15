@@ -4,7 +4,7 @@ import {
   PARTITION_KERNEL_BINDINGS,
   ROW_DATA_U32,
   STATE_WORDS,
-  TESTED_U32,
+  TESTED_BOX,
   UNIFORM_U32,
 } from './contract.ts'
 import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
@@ -46,7 +46,7 @@ export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
   })
   const tested = device.createBuffer({
     label: 'Trillion3D partition tested bounds v1',
-    size: rows * TESTED_U32 * 4,
+    size: rows * TESTED_BOX.words * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   })
   return { rows, corners, rowData, tested, all: [corners, rowData, tested] }

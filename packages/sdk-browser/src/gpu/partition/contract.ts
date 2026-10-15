@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
+import { fieldLayout } from '../core/fieldLayout.ts'
 
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
@@ -44,11 +45,26 @@ export const FLAG_CLIP = 1,
   FLAG_KEPT = 16
 
 /**
- * Words per tested box: the rectangle already clipped to the viewport and expressed in texels of
- * the mip that covers it, the depth bound, the verdict row, the mip address, the triangles
- * whose count weighs a reject, and the address and shift of the coarse mip the test reads first.
+ * A tested box, the one table the partition writes it from (`classifyRows`) and the Hi-Z test
+ * reads it through (`struct Bounds`): the rectangle already clipped to the viewport and expressed
+ * in texels of the mip that covers it, the depth bound, the verdict row, the mip address, the
+ * triangles whose count weighs a reject, and the address and shift of the coarse mip the test reads
+ * first. Only a box the pyramid can judge is written: every field holds a found pick.
  */
-export const TESTED_U32 = 12
+export const TESTED_BOX = fieldLayout('Bounds', [
+  ['minX', 'i32'],
+  ['minY', 'i32'],
+  ['maxX', 'i32'],
+  ['maxY', 'i32'],
+  ['nearest', 'f32'],
+  ['row', 'u32'],
+  ['fineOffset', 'u32'],
+  ['fineWidth', 'u32'],
+  ['triangles', 'u32'],
+  ['coarseOffset', 'u32'],
+  ['coarseWidth', 'u32'],
+  ['coarseShift', 'u32'],
+] as const)
 
 /** Words of `state`: the frame counters, all atomic. */
 export const STATE_WORDS = 16

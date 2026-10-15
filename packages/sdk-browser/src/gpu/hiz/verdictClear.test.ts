@@ -82,7 +82,7 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
   if (clear) m.flags.fill(0, 0, Math.min(f.flags.length, f.rows))
   for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
     const box = Object.fromEntries(
-      BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_U32 + w] ?? 0]),
+      BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_BOX.words + w] ?? 0]),
     )
     for (const side of ['minX', 'minY', 'maxX', 'maxY']) box[side] |= 0
     box.nearest = builtins.bitcast_f32(box.nearest) as number

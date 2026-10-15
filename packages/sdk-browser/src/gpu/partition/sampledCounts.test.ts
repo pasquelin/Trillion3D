@@ -119,7 +119,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   each(partition.projectRow, rows, partition.flushTally)
   each(partition.classifyRow, rows, partition.flushTally)
   for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
-    const words = BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_U32 + w] ?? 0])
+    const words = BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_BOX.words + w] ?? 0])
     const box = Object.fromEntries(words)
     for (const side of ['minX', 'minY', 'maxX', 'maxY']) box[side] |= 0
     box.nearest = builtins.bitcast_f32(box.nearest) as number

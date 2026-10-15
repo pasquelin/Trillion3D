@@ -78,7 +78,7 @@ fn projectRow(i:u32){
  // A frame with no tested half has nowhere to send a withdrawn row; a rectangle never projected
  // or cut by the near plane is nothing the pyramid can judge.
  let judged=(held&(${FLAG_PROJECTED}u|${FLAG_CLIP}u))==${FLAG_PROJECTED}u;
- if(drawn!=0u&&!kept&&uni.hasRest!=0u&&uni.levels>0u&&judged){
+ if(drawn!=0u&&!kept&&uni.hasRest!=0u&&judged){
   let heldRect=vec4i(bitcast<i32>(rowData[base]),bitcast<i32>(rowData[base+1u]),
    bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
   if(hiddenByPyramid(heldRect,bitcast<f32>(rowData[base+${ROW_NEAREST}u]))){

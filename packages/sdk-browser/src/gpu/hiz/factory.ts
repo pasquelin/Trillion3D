@@ -3,7 +3,7 @@ import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS_WORDS } from './levelsUniform.ts'
 import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
 import { HIZ_TEST_ARGS_BYTES } from './bindEntries.ts'
-import { TESTED_U32 } from '../partition/contract.ts'
+import { TESTED_BOX } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import {
@@ -64,7 +64,7 @@ function hizState(
   // Tested boxes and the frame state belong to the GPU partition, which does not exist yet.
   const idle = device.createBuffer({
     label: 'Trillion3D HiZ idle bounds v1',
-    size: TESTED_U32 * 4,
+    size: TESTED_BOX.words * 4,
     usage: GPUBufferUsage.STORAGE,
   })
   const flags = hizFlags(device, cap)

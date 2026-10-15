@@ -11,7 +11,7 @@ import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
  *
  * This is the SAME rule as the opaques', to the letter: the same conservative projection
  * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
- * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
+ * rectangle pick (`hizRectPick`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
  * the Hi-Z pyramid the frame just built. Nothing is proper to transparents except what fidelity requires:
  *
  *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry, and at
@@ -43,7 +43,7 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_
  // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
  // transparent passes' own.
  let open=bitIsSet(unculled[bitWord(i)],i);
- let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
+ let reject=!open&&box.clips==0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
 `,
