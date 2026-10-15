@@ -3,7 +3,7 @@
 import * as THREE from 'three'
 import { decomposeMatrix4 } from '../../../../packages/math/src/matrix/matrix4Trs.ts'
 import {
-  SINGULAR_DETERMINANT,
+  DIVISOR_FLOOR,
   normalizedLinearDeterminant,
 } from '../../../../packages/math/src/matrix/singular.ts'
 import { compare } from '../../../core/measureStress.ts'
@@ -69,7 +69,7 @@ export function referenceNormal(matrice: THREE.Matrix4): Float64Array {
     b = column3(e, 4),
     c = column3(e, 8)
   const x = new THREE.Vector3().crossVectors(b, c)
-  if (a.dot(x) !== 0 && Math.abs(normalise) > SINGULAR_DETERMINANT)
+  if (a.dot(x) !== 0 && Math.abs(normalise) > DIVISOR_FLOOR)
     return f64(new THREE.Matrix3().getNormalMatrix(matrice).elements)
   const y = new THREE.Vector3().crossVectors(c, a),
     z = new THREE.Vector3().crossVectors(a, b)
