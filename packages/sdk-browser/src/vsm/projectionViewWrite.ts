@@ -2,6 +2,7 @@
  * THE PROJECTION'S VIEW UNIFORM, WRITTEN (`projectionPass.ts`): its header from the camera — the
  * shifted view, its clip and their inverses, the depth and screen words — and each light's record.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
@@ -13,13 +14,7 @@ import {
   negateRowMatrix4,
 } from '../../../math/src/matrix/matrix4.ts'
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
-import {
-  VSM_LIGHT_KIND_DIRECTIONAL,
-  VSM_LIGHT_KIND_POINT,
-  VSM_LIGHT_KIND_RECT,
-  VSM_LIGHT_KIND_SPOT,
-  vsmWriteDepthFromDeviceZ,
-} from './constants.ts'
+import { vsmWriteDepthFromDeviceZ } from './constants.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
   VSM_PROJECTION_LIGHT_WORD,
@@ -32,10 +27,10 @@ import type { VsmProjectionInputs, VsmProjectionLight } from './projectionPass.t
 type VsmProjectionLightType = VsmProjectionLight['type']
 
 const KIND: Record<VsmProjectionLightType, number> = {
-  directional: VSM_LIGHT_KIND_DIRECTIONAL,
-  point: VSM_LIGHT_KIND_POINT,
-  spot: VSM_LIGHT_KIND_SPOT,
-  rect: VSM_LIGHT_KIND_RECT,
+  directional: LIGHT_KIND.directional,
+  point: LIGHT_KIND.point,
+  spot: LIGHT_KIND.spot,
+  rect: LIGHT_KIND.rect,
 }
 
 const scratch = {

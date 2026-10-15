@@ -1,3 +1,4 @@
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -117,13 +118,6 @@ const VSM_META_ANY_STALE = VSM_META_DYNAMIC_STALE | VSM_META_STATIC_STALE
 const VSM_ENTRY_DRAWABLE_BIT = 0x40000000
 const VSM_ENTRY_MAPPED_BIT = 0x80000000
 
-/** The light kinds (a map's `VsmProjectionData.lightKind`, a projected light's
- *  `VsmProjectionLight.kind`; a rect light is projected only). */
-export const VSM_LIGHT_KIND_DIRECTIONAL = 0
-export const VSM_LIGHT_KIND_POINT = 1
-export const VSM_LIGHT_KIND_SPOT = 2
-export const VSM_LIGHT_KIND_RECT = 3
-
 /** Kernel group sizes. */
 export const VSM_GROUP_WIDTH = 256
 
@@ -235,7 +229,7 @@ const VSM_TRACE_VOTE_AFTER = 1
  *  rays smooth the penumbra (its noise falls as one over their root), more samples catch thinner
  *  occluders; each costs in proportion. */
 export const VSM_TRACE_RAYS = 7
-const VSM_TRACE_STEPS = 8
+export const VSM_TRACE_STEPS = 8
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
 const VSM_TRACE_CONE_LIMIT = 0.03
@@ -338,9 +332,10 @@ ${wgslConsts({
   VSM_META_ANY_STALE,
   VSM_ENTRY_DRAWABLE_BIT,
   VSM_ENTRY_MAPPED_BIT,
-  LIGHT_KIND_DIRECTIONAL: VSM_LIGHT_KIND_DIRECTIONAL,
-  LIGHT_KIND_SPOT: VSM_LIGHT_KIND_SPOT,
-  LIGHT_KIND_RECT: VSM_LIGHT_KIND_RECT,
+  // The lights' one kind numbering (`LIGHT_KIND`), the lighting's and the maps' alike.
+  LIGHT_KIND_DIRECTIONAL: LIGHT_KIND.directional,
+  LIGHT_KIND_SPOT: LIGHT_KIND.spot,
+  LIGHT_KIND_RECT: LIGHT_KIND.rect,
   VSM_GROUP_WIDTH,
 })}
 const VSM_CM_PER_UNIT:f32=${wgslF32(VSM_CM_PER_UNIT)};

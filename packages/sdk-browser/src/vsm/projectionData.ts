@@ -14,11 +14,12 @@
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 
 /** Each field's byte offset in a record (`VsmProjectionRecord`). */
 const RECORD_OFFSET = {
@@ -82,7 +83,7 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     shiftedToMapUv: new Float64Array(16),
     planesToMapUv: new Float64Array(16),
     lightDirection: [0, 0, 0],
-    lightKind: VSM_LIGHT_KIND_DIRECTIONAL,
+    lightKind: LIGHT_KIND.directional,
     originShift: [0, 0, 0],
     lightRange: 0,
     levelBias: 0,

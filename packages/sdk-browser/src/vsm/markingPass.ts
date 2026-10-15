@@ -16,9 +16,9 @@
  * Pipelines are cached per device and per shader text; bind groups once per frame set (`res.current`,
  * the two in turn), the pixel pass's view group again only when a resource of the view moved.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import {
   VSM_GROUP_WIDTH,
-  VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_MIPS,
   VSM_MARK_STRIDE_X,
   VSM_MARK_STRIDE_Y,
@@ -157,7 +157,7 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
         to = (entries[count] ??= { id: 0, finestMip: 0, directional: false })
       to.id = entry.mapId + index
       to.finestMip = data.finestMip
-      to.directional = data.lightKind === VSM_LIGHT_KIND_DIRECTIONAL
+      to.directional = data.lightKind === LIGHT_KIND.directional
       if (to.directional) directional++
     }
   }

@@ -1,6 +1,5 @@
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import {
-  VSM_LIGHT_KIND_POINT,
-  VSM_LIGHT_KIND_SPOT,
   VSM_LOCAL_NEAR_PLANE,
   VSM_MIPS,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
@@ -283,7 +282,7 @@ export function addVsmLocalLightShadow(
       data.mapLevel = 0
       data.levelsLeft = -1
     }
-    data.lightKind = isSpot ? VSM_LIGHT_KIND_SPOT : VSM_LIGHT_KIND_POINT
+    data.lightKind = isSpot ? LIGHT_KIND.spot : LIGHT_KIND.point
     data.emitterSize = light.sourceRadius ?? 0
     data.lightRange = radius
     data.ditherTexels = light.ditherTexels ?? 1

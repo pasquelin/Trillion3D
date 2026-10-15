@@ -3,6 +3,7 @@
 // page's 8×8 tiles get their greatest word whose float is not below 0 or NaN
 // (`vsmTileDepthsBuild`), the shipped kernels run lane by lane over a made-up pool
 // (`projectionEarlyOut.fixture.ts`).
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import test from 'node:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
@@ -97,7 +98,10 @@ test("the pages whose slice 0 changed are listed: allocated, dirty static or dyn
     vsm: { poolPages: flags.length },
     pmFoldMarks: (page: number) => flags[page],
     vsmPoolPageInfo: flags.map((_, page) => ({ mapId: mapOf(page) })),
-    vsmProjectionData: { 8: { lightKind: 0 }, 9: { lightKind: 1 } },
+    vsmProjectionData: {
+      8: { lightKind: LIGHT_KIND.directional },
+      9: { lightKind: LIGHT_KIND.point },
+    },
     vsmCount: () => {},
     vsmTileArgs: args,
     vsmPagesForTilesStore: (slot: number, page: number) => void (listed[slot] = page),

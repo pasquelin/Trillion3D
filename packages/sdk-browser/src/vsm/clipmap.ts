@@ -11,6 +11,7 @@
  * MATRICES. The matrices are the engine's: column-major, column-vector (`m[column·4 + row]`).
  * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `transformAffinePoint` applies one to a point.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { forwardOrthographicProjection } from '../../../math/src/projection/forwardZ.ts'
 import {
@@ -26,7 +27,6 @@ import {
   VSM_SUN_DEPTH_SPAN,
   VSM_CM_PER_UNIT,
   VSM_LEVEL0_PAGES,
-  VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_COARSE,
   VSM_MAP_UNCACHED,
@@ -371,7 +371,7 @@ function vsmClipmapProjectionData(
   }
   flags |= VSM_MAP_COVERAGE
   flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
-  out.lightKind = VSM_LIGHT_KIND_DIRECTIONAL
+  out.lightKind = LIGHT_KIND.directional
   out.lightRange = 0
   out.levelBias = clipmap.levelBias
   out.emitterSize = 0 // a directional light has no source radius

@@ -1,16 +1,16 @@
 // The projection shader data as the shaders read it: each field the host writes sits at the offset
 // the WGSL struct `VsmProjectionRecord` gives it, and the record is the struct's size.
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  VSM_LIGHT_KIND_SPOT,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_COARSE,
   VSM_MAP_UNCACHED,
   VSM_PROJECTION_RECORD_BYTES,
 } from './constants.ts'
 import {
-  vsmShadowUvMatrix,
+  vsmShadowMatrices,
   vsmDefaultProjectionData,
   writeVsmProjectionData,
 } from './projectionData.ts'
@@ -99,10 +99,11 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
   const translation = [12345.678901, -0.000123, 4096.5]
   writeVsmProjectionData(buffer, 2, {
     lightViewToClip: counting(100),
+    shiftedToClip: counting(600),
     shiftedToMapUv: counting(200),
     planesToMapUv: counting(400),
     lightDirection: [0.25, -0.5, 0.75],
-    lightKind: VSM_LIGHT_KIND_SPOT,
+    lightKind: LIGHT_KIND.spot,
     originShift: translation,
     lightRange: 7.5,
     levelBias: 1.25,
@@ -114,6 +115,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
     flags: FLAGS,
     ditherTexels: 2,
     finestMip: 3,
+    tableOrigin: 7 | (9 << 16),
   })
   const at = 2 * R,
     view = new DataView(buffer, at, R),
@@ -128,7 +130,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
     for (let k = 0; k < 16; k++) assert.equal(f(offset + 4 * k), base + k)
   const vec3 = (offset: number) => [f(offset), f(offset + 4), f(offset + 8)]
   assert.deepEqual(vec3(o.lightDirection), [0.25, -0.5, 0.75])
-  assert.equal(u(o.lightKind), VSM_LIGHT_KIND_SPOT)
+  assert.equal(u(o.lightKind), LIGHT_KIND.spot)
   for (let a = 0; a < 3; a++) {
     // High is the f32 of the double, low the f32 of what it missed: their sum is the double.
     const high = f(o.originShiftHigh + 4 * a),
@@ -163,7 +165,13 @@ test('the defaults of a record', () => {
 
 test('the shadow UV matrix maps clip space to UV, y down', () => {
   const identity = Float64Array.from({ length: 16 }, (_, k) => (k % 5 === 0 ? 1 : 0))
-  const uv = vsmShadowUvMatrix(new Float64Array(16), identity, identity)
+  const matrices = {
+    shiftedToClip: new Float64Array(16),
+    shiftedToMapUv: new Float64Array(16),
+    planesToMapUv: new Float64Array(16),
+  }
+  vsmShadowMatrices(matrices, identity, identity)
+  const uv = matrices.shiftedToMapUv
   const apply = (x: number, y: number, z: number) => [
     uv[0] * x + uv[4] * y + uv[8] * z + uv[12],
     uv[1] * x + uv[5] * y + uv[9] * z + uv[13],
