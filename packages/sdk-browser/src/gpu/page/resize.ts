@@ -3,7 +3,7 @@ import { ledgerReplacing } from '../core/deviceLedger.ts'
 import { grownByCopy } from '../core/tableGrowth.ts'
 import { evictResident } from './commit.ts'
 import type { Eviction } from './eviction.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
+import { checkBudget, storageBufferCap } from '../../residency/pools.ts'
 import { extendHomes, pageHomes, type PageHomes } from './homes.ts'
 import { createPlacement, poolBytes } from './placement.ts'
 
@@ -15,9 +15,9 @@ export const pageBufferBytes = (
   slots: number,
   homes?: PageHomes,
 ) => {
+  checkBudget(slots, 'INVALID_PAGE_BUDGET')
   const size = poolBytes(pageBytes, slots, homes)
-  if (!Number.isSafeInteger(slots) || slots < 1 || size > storageBufferCap(device.limits))
-    throw new Error('INVALID_PAGE_BUDGET')
+  if (size > storageBufferCap(device.limits)) throw new Error('INVALID_PAGE_BUDGET')
   return size
 }
 
