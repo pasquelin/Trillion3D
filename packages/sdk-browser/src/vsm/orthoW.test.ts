@@ -5,7 +5,7 @@
 // perspective projection keeps its divide.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { createVsmClipmap } from './clipmap.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
@@ -47,11 +47,11 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
 test('only the sun marks without the divide: a lamp keeps it', () => {
   const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }))
   assert.match(
-    functionText(code, 'vsmMarkPage'),
+    functionsOf(code, ['vsmMarkPage']),
     /if\(!ortho\)\{mapUvz=vec4f\(perspectiveDivide\(mapUvz\),mapUvz\.w\);\}/,
   )
-  assert.match(functionText(code, 'vsmMarkPageDirectional'), /marginOffset,true\);/)
-  assert.match(functionText(code, 'vsmMarkPageLocal'), /marginOffset,false\);/)
+  assert.match(functionsOf(code, ['vsmMarkPageDirectional']), /marginOffset,true\);/)
+  assert.match(functionsOf(code, ['vsmMarkPageLocal']), /marginOffset,false\);/)
 })
 
 test('the camera kind decides the projection path: an orthographic matrix scaled ×0.25 stays one', () => {

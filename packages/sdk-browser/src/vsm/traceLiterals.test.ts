@@ -4,7 +4,7 @@
 // casters' flattening share is 1 - 2^-24 too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { VSM_F32_BELOW_ONE } from './constants.ts'
 import { VSM_TRACE_COMMON_WGSL, vsmTraceWgsl } from './traceWgsl.ts'
 import { vsmBlueNoiseTwo } from './blueNoise.ts'
@@ -33,7 +33,7 @@ test('the greatest f32 below 1 is 1 - 2^-24, read back from its decimal bit for 
 })
 
 test('the square-to-disk map reads 1 - 2^-24 and the smallest normal f32 as their decimals', () => {
-  const map = functionText(wgslSource(VSM_TRACE_COMMON_WGSL), 'vsmSquareToDiskPolar')
+  const map = functionsOf(wgslSource(VSM_TRACE_COMMON_WGSL), ['vsmSquareToDiskPolar'])
   assert.equal(literal(map, /2\.0\*E-([0-9.e-]+);/), 1 - 2 ** -24)
   const guard = literal(
     wgslSource(VSM_TRACE_COMMON_WGSL),

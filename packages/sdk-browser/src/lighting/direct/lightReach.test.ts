@@ -9,7 +9,7 @@
 // that lists it, and a light listed past its reach adds the lighting's exact zero.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { localLightReaches } from './lightWgsl.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts'
@@ -25,10 +25,10 @@ const MARKING = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63, sunMapC
 const BOUNCE = BOUNCE_PROBE_SHADER
 
 test('the predicate has one home: the marking and the projection hold its one text, the lighting and the bounce one incidence', () => {
-  const home = functionText(localLightReaches, 'localLightReaches')
+  const home = functionsOf(localLightReaches, ['localLightReaches'])
   for (const code of [MARKING, PROJECTION_CODE]) {
     assert.equal(code.split('fn localLightReaches(').length, 2, 'one definition')
-    assert.equal(functionText(code, 'localLightReaches'), home)
+    assert.equal(functionsOf(code, ['localLightReaches']), home)
   }
   // The marking's call, on the vector from the point to the light and the light buffer's record.
   assert.ok(MARKING.includes('let lightShiftedPosition=vsmLightShiftedPosition(light);'))
@@ -41,7 +41,7 @@ test('the predicate has one home: the marking and the projection hold its one te
   )
   // The deferred lighting and the bounce irradiance shade with one incidence text.
   for (const name of ['directIncidence', 'rangeWindow', 'rectView'])
-    assert.equal(functionText(BOUNCE, name), functionText(LIGHTING, name), name)
+    assert.equal(functionsOf(BOUNCE, [name]), functionsOf(LIGHTING, [name]), name)
 })
 
 test('on generated lights of every kind, points just inside and just outside each edge get one verdict from every reader', () => {

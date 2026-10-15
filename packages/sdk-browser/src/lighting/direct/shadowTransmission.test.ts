@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { functionText } from '../../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -72,7 +72,7 @@ const RESOLVE_READ = [
 type Resolve = { shadowFactor: (...a: unknown[]) => number; testTransmission: () => V }
 
 test('the resolve reads the mask, and the transmission alone where a pane covers its sample', () => {
-  const read = functionText(RESOLVE, 'vsmTransmissionRead')
+  const read = functionsOf(RESOLVE, ['vsmTransmissionRead'])
   assert.doesNotMatch(read, /\.depth/, 'no opaque compare')
   assert.match(read, /if\(!vsmTransmissionPaned\(at\.sm\)\)\{return;\}\n shadowTransmission=/)
   const uv = new Mat([0.01 / 1.6384, 0, 0, 0, 0, 0, 1, 0, 0, 0.01 / 1.6384, 0, 0, 0.5, 0.5, 0.5, 1])

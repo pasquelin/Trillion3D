@@ -35,6 +35,13 @@ export function functionsOf(input: WgslSource, names: string[]) {
     .join('\n')
 }
 
+/** The body of the function `name` of a shipped shader (`functionsOf`): between its opening brace
+ *  and its closing one, both left out. */
+export function functionBody(input: WgslSource, name: string) {
+  const text = functionsOf(input, [name])
+  return text.slice(text.indexOf('{') + 1, text.lastIndexOf('}'))
+}
+
 /** The text of the functions `names` and of every shared helper (`LIBRARY_FUNCTIONS`) of `input`
  *  they call, through each other, but those `bound` already defines: a test names the shader's own
  *  functions it runs, never the shared helpers. */

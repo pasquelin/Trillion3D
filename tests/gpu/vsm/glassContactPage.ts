@@ -21,7 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/vsm/projectionView.ts'
 import { vsmLayout } from '../../../packages/sdk-browser/src/vsm/layout.ts'
 import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/projectionWgsl.ts'
-import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
@@ -52,7 +52,7 @@ const castText = () => {
   const module = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
     subgroups: false,
   })
-  return `${functionText(module, 'vsmScreenRayCast')}\n}`
+  return functionsOf(module, ['vsmScreenRayCast'])
 }
 
 const SHADER = (group: number) =>

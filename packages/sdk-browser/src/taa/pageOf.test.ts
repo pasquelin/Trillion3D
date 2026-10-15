@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
 import { taaShader } from './shaderWgsl.ts'
@@ -67,8 +67,8 @@ test('each resolve reads the record once, and no function of its own indexes the
     ['upscaling, fragment', taaUpscaleShader(false, false, false, true), 'resolve'],
   ] as const) {
     const calls = (text: string, call: string) => text.split(call).length - 1
-    assert.equal(calls(functionText(shader, 'pageOf'), 'pages['), 1, `${name}: pageOf`)
-    const body = functionText(shader, main)
+    assert.equal(calls(functionsOf(shader, ['pageOf']), 'pages['), 1, `${name}: pageOf`)
+    const body = functionsOf(shader, [main])
     assert.equal(calls(body, 'pageOf('), 1, `${name}: ${main} asks the page once`)
     for (const gone of ['pages[', 'placementOf(', 'dynamicPixel(', 'geometryIdentity(']) {
       assert.equal(calls(body, gone), 0, `${name}: ${main} has no ${gone}`)

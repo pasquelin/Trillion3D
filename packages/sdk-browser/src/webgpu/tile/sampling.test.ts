@@ -13,11 +13,10 @@ import {
 import { atlasReadWgsl } from './atlasReadWgsl.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { TILE_POOL_WGSL, maskAlphaWgsl } from './wgsl.ts'
-import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { wgslConstants, functionsOf } from '../../texture/shaderRule.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 /** The colour's public read, on the camera's pool. */
@@ -108,7 +107,7 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
     module = wgslModule(maskAlphaWgsl(true)),
     // The shadow cutout's own functions: its read, its sampled read and its read at a level.
     shadow = ['maskAlpha', 'maskAlphaSampled', 'maskAlphaAt']
-      .map((name) => functionText(module, name))
+      .map((name) => functionsOf(module, [name]))
       .join('\n')
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/)
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/)

@@ -6,9 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directLightingWgsl } from './lightingWgsl.ts'
-import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderFunctions, wgslConstants, functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const UNSHADOWED = wgslModule(directLightingWgsl({ unshadowed: true, lobeless: true }))
@@ -80,7 +79,7 @@ test('the reject margin keeps a lamp at its very range: the shading gives its ze
 })
 
 test('the program with shadow code pays no range test: its loop reads a light once', () => {
-  const loop = (code: string) => functionText(code, 'sliceLighting')
+  const loop = (code: string) => functionsOf(code, ['sliceLighting'])
   for (const narrow of [false, true]) {
     const shadowed = loop(wgslModule(directLightingWgsl({ narrow, lobeless: true }))),
       unshadowed = loop(

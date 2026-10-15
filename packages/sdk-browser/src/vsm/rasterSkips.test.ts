@@ -5,7 +5,7 @@
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { FLAG_MASK } from '../visibility/types.ts'
 import { vsmBindingsWgsl } from './resources.ts'
@@ -17,8 +17,8 @@ const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
 const CODE = vsmRenderRasterWgsl(LAYOUT)
 
 test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', () => {
-  const vertex = functionText(CODE, 'vsmRenderVs'),
-    fragment = functionText(CODE, 'vsmRenderFs')
+  const vertex = functionsOf(CODE, ['vsmRenderVs']),
+    fragment = functionsOf(CODE, ['vsmRenderFs'])
   assert.ok(vertex.includes(`out.masked=page.flags&${FLAG_MASK}u;`))
   assert.ok(
     fragment.includes(
@@ -44,7 +44,7 @@ test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', (
 
 test('the pool max writes only a greater depth, and every word ends the max of its depths', () => {
   const pool = wgslModule(vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, LAYOUT))
-  const accessor = functionText(pool, 'vsmPoolAtomicMax')
+  const accessor = functionsOf(pool, ['vsmPoolAtomicMax'])
   const parts = [...accessor.matchAll(/^ case \d+u:\{(.*)\}$/gm)].map((m) => m[1])
   assert.ok(parts.length >= 2, 'a part a slice at least')
   for (const body of parts)

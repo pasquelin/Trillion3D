@@ -7,7 +7,7 @@
 import { fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -17,7 +17,7 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
   const code = vsmProjectionSampleWgsl(
     wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}'),
   )
-  const transform = functionText(code, 'vsmLevelToLevelOf')
+  const transform = functionsOf(code, ['vsmLevelToLevelOf'])
   assert.match(
     transform,
     /r\.scale=select\(pow2FromExponent\(-levelOffset\),1\.0\/pow2FromExponent\(levelOffset\),levelOffset>=0\);/,
@@ -38,14 +38,14 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
     assert.equal(Math.fround(1 / scale), inverse, `offset ${k}`)
   }
   // The texel's level (`vsmClipmapTexel`) carries the inverse, its read multiplies by it.
-  const texel = functionText(code, 'vsmClipmapTexel')
+  const texel = functionsOf(code, ['vsmClipmapTexel'])
   assert.match(texel, /if\(levelGap>0u\)\{[^}]*r\.depthLevelInverse=t\.depthInverse;/)
   assert.match(
-    functionText(code, 'vsmClipmapTexelDepth'),
+    functionsOf(code, ['vsmClipmapTexelDepth']),
     /return \(raw-t\.depthLevelBias\)\*t\.depthLevelInverse;/,
   )
   assert.match(
-    functionText(code, 'vsmReadClipmapPage'),
+    functionsOf(code, ['vsmReadClipmapPage']),
     /r\.depth=vsmClipmapTexelDepth\(t,vsmPoolDepth\(t\.poolTexel\)\);/,
   )
   // `vsmLevelToLevelOf` is called with the same positive offset.

@@ -7,9 +7,8 @@
 // the translucent casters' point read, the one reader of the rest.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderFunctions, wgslConstants, functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
-import { functionText } from '../../bounce/wgslBody.fixture.ts'
 
 const surfaceOf = (shader: string) => shader.slice(shader.indexOf('fn lightSurface('))
 
@@ -28,10 +27,10 @@ test('the surface reads its cell once and sets up its shadow read behind the cel
     assert.doesNotMatch(shader, /pixelFootprint|shadowFootprint|shadowAngularPixel/)
     // The lighting finds no cell again, nor reads the flag again.
     assert.doesNotMatch(
-      functionText(shader, 'contractLighting'),
+      functionsOf(shader, ['contractLighting']),
       /gridCell|pixelCell|TILE_SHADOWED/,
     )
-    const setup = functionText(shader, 'shadowSetup')
+    const setup = functionsOf(shader, ['shadowSetup'])
     // The mask's pixel first; the eye and receiver only for the translucent casters' read.
     assert.ok(setup.includes('{\n vsmMaskAt(coord);\n if(vsmTranslucentCasters()){'))
     const translucent = setup.slice(setup.indexOf('if(vsmTranslucentCasters()){'))

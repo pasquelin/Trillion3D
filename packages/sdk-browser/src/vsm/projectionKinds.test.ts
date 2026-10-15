@@ -5,9 +5,8 @@
 // starts every workgroup variable: no store, no barrier for it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { wgslConstants } from '../texture/shaderRule.fixture.ts'
+import { wgslConstants, functionsOf } from '../texture/shaderRule.fixture.ts'
 import {
   VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_LIGHT_KIND_POINT,
@@ -48,11 +47,11 @@ test('each light of a pass takes its own kind branch, whatever kinds the pass is
   }
   // No branch of the region test or the trace reads the kind past it.
   const branches =
-    functionText(CODE, 'vsmProjectLight') + functionText(CODE, 'vsmLightParticipates')
+    functionsOf(CODE, ['vsmProjectLight']) + functionsOf(CODE, ['vsmLightParticipates'])
   assert.doesNotMatch(branches, /kind==LIGHT_KIND_DIRECTIONAL/)
 })
 
 test("the tile's light words start at 0 by WebGPU: no store of them", () => {
-  const entry = functionText(vsmProjectionWgsl(LAYOUT, { subgroups: false }), 'vsmProjection')
+  const entry = functionsOf(vsmProjectionWgsl(LAYOUT, { subgroups: false }), ['vsmProjection'])
   assert.doesNotMatch(entry, /atomicStore\(&vsmTileLights/)
 })

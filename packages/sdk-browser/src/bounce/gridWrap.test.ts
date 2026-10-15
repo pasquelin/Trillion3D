@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { functionBody } from './wgslBody.fixture.ts'
+import { functionBody } from '../texture/shaderRule.fixture.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 
 const I32_MIN = -(2 ** 31)

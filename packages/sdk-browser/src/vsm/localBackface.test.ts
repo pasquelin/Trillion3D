@@ -7,7 +7,7 @@
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
@@ -38,8 +38,8 @@ test('the marking and the trace call the one back-face test, with the vector to 
   for (const code of [MARKING, PROJECTION])
     assert.equal(code.split('fn vsmFacesAwayFromLocal(').length, 2, 'one definition')
   assert.equal(
-    functionText(MARKING, 'vsmFacesAwayFromLocal'),
-    functionText(PROJECTION, 'vsmFacesAwayFromLocal'),
+    functionsOf(MARKING, ['vsmFacesAwayFromLocal']),
+    functionsOf(PROJECTION, ['vsmFacesAwayFromLocal']),
   )
   assert.ok(MARKING.includes('vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)'))
   assert.ok(MARKING.includes('let d=lightShiftedPosition-shiftedPosition;'))

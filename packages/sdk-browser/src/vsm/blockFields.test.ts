@@ -14,7 +14,7 @@ import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from './constants.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 
 /** The shaders that read the maps: every engine shader and the direct shadow read as each pass
  *  composes it. */
@@ -46,7 +46,7 @@ const bytesOf = (text: string, name: string) =>
 
 /** `text` without the function `name` (the decode, which reads every field), when it holds it. */
 const without = (text: string, name: string) =>
-  text.includes(`fn ${name}(`) ? text.replace(functionText(text, name), '') : text
+  text.includes(`fn ${name}(`) ? text.replace(functionsOf(text, [name]), '') : text
 
 /** The fields of `fields` that no text of `texts` reads as `<receiver>.field` (`receivers` the
  *  names a shader holds the block or a record under, `.field` alone when empty). */

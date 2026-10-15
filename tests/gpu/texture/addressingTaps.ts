@@ -2,7 +2,7 @@
 // float targets — the engine's wrap WGSL beside the native sampler set to the map's mode.
 import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
 import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
-import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.fixture.ts'
+import { functionBody } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -34,7 +34,7 @@ export const BLEND_BIT = 0x80000000
  *  `colorLevel`): its four fetches and their mix, read from the engine's own text, each fetch of the
  *  pool turned into a tap of the test texture through the sampler in clamp. */
 function seamRead() {
-  const level = functionText(COLOR_SAMPLE_WGSL, 'colorLevel')
+  const level = functionBody(COLOR_SAMPLE_WGSL, 'colorLevel')
   const seam = level.slice(level.indexOf(' let s00='))
   const fetch = /colorFetch\(s,(.+?),level,finest,nearest\)/g
   if (seam.match(fetch)?.length !== 4 || !seam.includes('return bilinear4('))

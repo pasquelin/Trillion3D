@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { functionText } from '../bounce/wgslBody.fixture.ts'
+import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { vsmBindingsWgsl } from './resources.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS } from './constants.ts'
@@ -76,12 +76,12 @@ function casesOf(text: string) {
 }
 
 test('the passes and the forward readers read the mirror’s word in its window', () => {
-  const forward = functionText(wgslModule(directShadowWgsl(20)), 'vsmPoolLoad')
+  const forward = functionsOf(wgslModule(directShadowWgsl(20)), ['vsmPoolLoad'])
   for (const layout of LAYOUTS) {
     const windows = poolWindowSizes(layout).length
     const specs = [{ resource: 'pagePool', binding: 0, access: 'read_write' }] as const
     const passes = vsmBindingsWgsl(0, specs, layout)
-    const load = functionText(passes, 'vsmPoolLoad')
+    const load = functionsOf(passes, ['vsmPoolLoad'])
     // The case a texel takes is its slice's windows, then its own: case k reads slice ⌊k / W⌋'s
     // window k mod W, every one once.
     assert.deepEqual(
