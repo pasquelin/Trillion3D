@@ -30,12 +30,14 @@ private:
   uint32_t engine;
 };
 
-void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Vec3 normal) {
+/// Writes the hit on body `id`, its one lock reading the engine id and the normal (`normal(body)`).
+template <class Normal> void writeHit(uint32_t *out, const BodyID &id, float fraction, RVec3 point, Normal normal) {
   BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), id);
   if (!lock.Succeeded()) return;
   const Body &body = lock.GetBody();
   out[0] = uint32_t(body.GetUserData());
-  float values[7] = {fraction, float(point.GetX()), float(point.GetY()), float(point.GetZ()), normal.GetX(), normal.GetY(), normal.GetZ()};
+  Vec3 n = normal(body);
+  float values[7] = {fraction, float(point.GetX()), float(point.GetY()), float(point.GetZ()), n.GetX(), n.GetY(), n.GetZ()};
   std::memcpy(out + 1, values, sizeof values);
 }
 
@@ -48,12 +50,9 @@ void cast(const uint32_t *q, uint32_t *out) {
     RRayCast ray(origin, travel);
     RayCastResult hit;
     if (!query.CastRay(ray, hit, {}, {}, ignored)) return;
-    BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), hit.mBodyID);
-    if (!lock.Succeeded()) return;
     RVec3 point = ray.GetPointOnRay(hit.mFraction);
-    Vec3 normal = lock.GetBody().GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, point);
-    lock.ReleaseLock();
-    return writeHit(out, hit.mBodyID, hit.mFraction, point, normal);
+    return writeHit(out, hit.mBodyID, hit.mFraction, point,
+                    [&](const Body &body) { return body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, point); });
   }
   // The swept shape is the body primitive of the same dimensions (layout.ts CAST: sphere 1, box 2,
   // capsule 3).
@@ -65,7 +64,8 @@ void cast(const uint32_t *q, uint32_t *out) {
   query.CastShape(sweep, settings, origin, closest, {}, {}, ignored);
   if (!closest.HadHit()) return;
   const ShapeCastResult &hit = closest.mHit;
-  writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2, -hit.mPenetrationAxis.NormalizedOr(Vec3::sZero()));
+  writeHit(out, hit.mBodyID2, hit.mFraction, origin + hit.mContactPointOn2,
+           [&](const Body &) { return -hit.mPenetrationAxis.NormalizedOr(Vec3::sZero()); });
 }
 
 }  // namespace
