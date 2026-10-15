@@ -15,7 +15,7 @@ export function worldRootsBinSource(
     const { offset, bytes } = table.bundles[bundle]
     return worldBundlePages(table, bundle, bin.slice(offset, offset + bytes))
   }
-  const source = worldPageServer(table, read, landed)
+  const source = worldPageServer(table, table.payload.url, read, landed)
   return { source, reads }
 }
 

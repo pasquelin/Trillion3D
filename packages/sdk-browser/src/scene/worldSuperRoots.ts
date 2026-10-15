@@ -18,10 +18,7 @@
 
 import type { DagRoot } from '../gpu/dag/types.ts'
 import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/contracts/geometry.ts'
-import {
-  WORLD_ROOTS_BIN,
-  type WorldRootsCluster,
-} from '../../../sdk-core/src/manifest/worldRoots.ts'
+import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import { cullingNodes } from '../page/selection/helpers.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
@@ -35,7 +32,9 @@ export type WorldRootsDagTable = {
   clusters?: readonly WorldRootsCluster[]
   groups?: ClusterGroup[]
   culling?: CullingHierarchy
-  payload?: { url: string }
+  /** The binary's resolved address, which every page address starts with: two worlds' pages never
+   *  share one (`worldRootsPageAddress`). */
+  url: string
   pinned: number
 }
 
@@ -56,7 +55,7 @@ export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
  * cook rank, a `ClusterStructureIndex` from its groups, and the culling hierarchy the cook built
  * over them, every bound raised by the world's quantization displacement as a primitive's is
  * (`cullingNodes`). A
- * super-root's page is named by `payload.url` and its `bundle`/`offset`; an object root's is left
+ * super-root's page is named by the binary's resolved `url` and its `bundle`/`offset`; an object root's is left
  * to its own stream (the cut reads its residency through the structure, its page through the
  * placement). The clusters nothing replaces are the structure's roots; those of the pinned bundles,
  * the world top, are the cut's fallback as a primitive's root cover is, and the cell super-roots
@@ -71,8 +70,7 @@ export function worldRootDag(
   const { clusters, groups } = table
   if (!clusters?.length || !groups?.length) return undefined
   // The cook writes every world's hierarchy (version 6): a DAG without one is refused when read.
-  const url = table.payload?.url || WORLD_ROOTS_BIN
-  const { roots, held, pages, origins, slack } = pagesOf(clusters, url, table.pinned)
+  const { roots, held, pages, origins, slack } = pagesOf(clusters, table.url, table.pinned)
   const structure = structureIndex({ version: 1, roots, groups }, pages.length, slack)
   return {
     world: IDENTITY_WORLD,

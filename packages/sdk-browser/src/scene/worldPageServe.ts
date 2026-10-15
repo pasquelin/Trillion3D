@@ -104,7 +104,7 @@ type BundlePages = (
 ) => Promise<WorldRootsPage[]>
 
 /**
- * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
+ * The page server of `table`, its binary at the resolved `url`, its bundles read through `bundlePages`: a page is resolved at its
  * world address by the pages of its bundle and its rank among them (`rankAt`). A bundle the table
  * does not list, or an offset it does not name, is `WORLD_PAGE_MISSING`. A bundle read lands its
  * other pages too: `landed` is told their addresses while the read is still shared, so a reader
@@ -113,6 +113,7 @@ type BundlePages = (
  */
 export function worldPageServer(
   table: WorldRoots,
+  url: string,
   bundlePages: BundlePages,
   landed?: (addresses: readonly string[]) => void,
 ) {
@@ -170,8 +171,9 @@ export function worldPageServer(
       if (--own.users === 0 && streamed.get(bundle) === own) streamed.delete(bundle)
     }
   }
-  /** What every address of its pages starts with: its binary's name (`worldRootPages`). */
-  const prefix = `${table.payload.url}#`
+  /** What every address of its pages starts with: its binary's resolved address
+   *  (`worldRootPages`), so two worlds' servers never claim each other's pages. */
+  const prefix = `${url}#`
   const server = {
     /** Whether `address` names one of its pages: the one test a reader routes a page by. */
     serves: (address: string) => address.startsWith(prefix),

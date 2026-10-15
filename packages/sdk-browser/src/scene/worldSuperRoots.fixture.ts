@@ -53,7 +53,7 @@ export function worldDag(alone = 0): RuleDag & { origins: Int32Array } {
   const owner = new Array<number | null>(clusters.length).fill(null)
   for (const [at, group] of groups.entries()) for (const child of group.children) owner[child] = at
   const root = worldRootDag(
-    { clusters, groups, culling: cooked.culling, payload: { url: 'world-roots.bin' }, pinned: 1 },
+    { clusters, groups, culling: cooked.culling, url: 'world-roots.bin', pinned: 1 },
     worldRootPages,
   )!
   // The cut's `RulePage` reads a world page as the cook names it: a cluster carries no manifest

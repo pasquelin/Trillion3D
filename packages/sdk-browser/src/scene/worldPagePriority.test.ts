@@ -22,7 +22,7 @@ test("a world page's bundle is read at the priority its asker gave", async () =>
   } as unknown as PageQueue
   const bundles = createWorldBundles(table, 'world-roots.bin', [[]])
   bundles.bind(queue)
-  const server = worldPageServer(table, bundles.pages)
+  const server = worldPageServer(table, 'world-roots.bin', bundles.pages)
   const page = await server.read(
     worldRootsPageAddress('world-roots.bin', 2, 0),
     undefined,
