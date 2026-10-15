@@ -63,9 +63,7 @@ export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>
 /**
  * A 2D scale, turn and slide composed into a 3 × 3 affine matrix, column-major — entries 0 to 2
  * the first column, 6 and 7 the slide — written into `into`: `translate · scale · rotate(−rotation)`,
- * the turn about the origin (a texture's UV transform, `Texture.transform`). The expression is the
- * general one with a pivot of zero, written out, so the doubles — and the f32 bits a sampling word
- * takes of them — are those of the composition with a pivot (`-0` products included).
+ * the turn about the origin (a texture's UV transform, `Texture.transform`).
  */
 export function composeAffine2(
   into: Float64Array,
@@ -74,15 +72,16 @@ export function composeAffine2(
   rotation: number,
 ) {
   const [tx, ty, sx, sy] = [translate.x, translate.y, scale.x, scale.y]
-  const [cx, cy, c, s] = [0, 0, Math.cos(rotation), Math.sin(rotation)]
+  const [c, s] = [Math.cos(rotation), Math.sin(rotation)]
   into[0] = sx * c
   into[1] = -sy * s
   into[2] = 0
   into[3] = sx * s
   into[4] = sy * c
   into[5] = 0
-  into[6] = -sx * (c * cx + s * cy) + cx + tx
-  into[7] = -sy * (-s * cx + c * cy) + cy + ty
+  // The slide as given, a `-0` made `+0`: what the pivot's zero terms summed into it.
+  into[6] = tx + 0
+  into[7] = ty + 0
   into[8] = 1
   return into
 }
