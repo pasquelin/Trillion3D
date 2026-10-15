@@ -68,6 +68,8 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   // Word by word: this write happens every encoded frame, and therefore allocates nothing.
   const writeLevels = () => {
     integers[G.counts + 1] = cascades.levels.length
+    // A cascade-less frame has no lattice to list on: no lists (`bounceLightSlice`).
+    if (!cascades.levels.length) integers[G.lists] = TILE_NO_SLICE
     cascades.levels.forEach((level, index) => {
       const at = G.levels + index * BOUNCE_LEVEL.words
       for (let axis = 0; axis < 3; axis++) floats[at + L.base + axis] = level.base[axis]
