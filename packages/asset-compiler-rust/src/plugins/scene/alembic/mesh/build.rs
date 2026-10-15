@@ -3,7 +3,7 @@
 //! A corner is a triplet (vertex, normal, texture coordinate). Two corners that carry the same
 //! triplet are one glTF vertex; two corners that do not make two, because the format has only one
 //! normal array and one coordinate array, indexed like the positions.
-use super::super::geom::Geometry;
+use super::super::geom::{GeomParam, Geometry};
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
 use crate::import::Vertices;
@@ -67,14 +67,20 @@ impl Builder {
                     "alembic: a face index falls outside the position table",
                 )
             })?;
-        let normal = geometry
-            .normals
-            .as_ref()
-            .map_or(0, |param| param.slot(corner, vertex, face));
-        let uv = geometry
-            .uv
-            .as_ref()
-            .map_or(0, |param| param.slot(corner, vertex, face));
+        // A parameter index that names no value refuses the file like a face index that names
+        // no position: rank zero would give this corner another corner's value.
+        let slot = |param: Option<&GeomParam>| match param {
+            Some(param) => param.slot(corner, vertex, face),
+            None => Some(0),
+        };
+        let (Some(normal), Some(uv)) =
+            (slot(geometry.normals.as_ref()), slot(geometry.uv.as_ref()))
+        else {
+            return Err(CompilerError::new(
+                TOPOLOGY_INVALID,
+                "alembic: a parameter index falls outside its table",
+            ));
+        };
         let key = (u32::try_from(vertex).unwrap_or_default(), normal, uv);
         if let Some(known) = self.unique.get(&key) {
             return Ok(*known);

@@ -9,25 +9,16 @@
 use super::archive::{meta_value, Archive};
 use super::property::{Properties, POD_F32, POD_I32, POD_U32};
 use super::values::{f32s, i32s, u32s};
+use crate::plugins::scene::spread::Spread;
 use crate::Result;
 
-/// A parameter's scope: what its rank designates for a given face corner.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Scope {
-    Vertex,
-    FaceVarying,
-    Uniform,
-    Constant,
-}
-
-impl Scope {
-    fn read(meta: &str) -> Scope {
-        match meta_value(meta, "geoScope") {
-            Some("fvr") => Scope::FaceVarying,
-            Some("uni") => Scope::Uniform,
-            Some("con") => Scope::Constant,
-            _ => Scope::Vertex,
-        }
+/// A parameter's scope, read from its metadata, as the spread it names.
+fn scope_of(meta: &str) -> Spread {
+    match meta_value(meta, "geoScope") {
+        Some("fvr") => Spread::FaceVarying,
+        Some("uni") => Spread::Uniform,
+        Some("con") => Spread::Constant,
+        _ => Spread::Point,
     }
 }
 
@@ -36,23 +27,15 @@ pub(super) struct GeomParam {
     values: Vec<f32>,
     width: usize,
     indices: Option<Vec<u32>>,
-    scope: Scope,
+    scope: Spread,
 }
 
 impl GeomParam {
-    /// The rank of this corner's value: `corner` is its rank in the face-index table, `vertex`
-    /// the vertex it designates, `face` the face it belongs to.
-    pub(super) fn slot(&self, corner: usize, vertex: usize, face: usize) -> u32 {
-        let raw = match self.scope {
-            Scope::Vertex => vertex,
-            Scope::FaceVarying => corner,
-            Scope::Uniform => face,
-            Scope::Constant => 0,
-        };
-        match &self.indices {
-            Some(indices) => indices.get(raw).copied().unwrap_or_default(),
-            None => u32::try_from(raw).unwrap_or_default(),
-        }
+    /// The rank of this corner's value: the one rule of `Spread::slot`. `corner` is its rank in
+    /// the face-index table, `vertex` the vertex it designates, `face` the face it belongs to.
+    pub(super) fn slot(&self, corner: usize, vertex: usize, face: usize) -> Option<u32> {
+        self.scope
+            .slot(self.indices.as_deref(), corner, face, vertex)
     }
 
     /// The value at this rank, or `None` if the file places it outside what it wrote.
@@ -66,14 +49,14 @@ impl GeomParam {
     fn covers(&self, corners: &[i32], faces: usize) -> bool {
         let count = self.values.len() / self.width;
         let domain = match self.scope {
-            Scope::Vertex => corners
+            Spread::Point => corners
                 .iter()
                 .copied()
                 .max()
                 .map_or(0, |highest| usize::try_from(highest).unwrap_or(0) + 1),
-            Scope::FaceVarying => corners.len(),
-            Scope::Uniform => faces,
-            Scope::Constant => 1,
+            Spread::FaceVarying => corners.len(),
+            Spread::Uniform => faces,
+            Spread::Constant => 1,
         };
         match &self.indices {
             Some(indices) => {
@@ -153,7 +136,7 @@ fn read_param(
     let Some(header) = geom.find(name) else {
         return Ok(None);
     };
-    let scope = Scope::read(&header.meta);
+    let scope = scope_of(&header.meta);
     if let Some(compound) = geom.compound(archive, name)? {
         let Some(values) = compound.sample(archive, ".vals", POD_F32, Some(width as u8))? else {
             return Ok(None);

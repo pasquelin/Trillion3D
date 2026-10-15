@@ -6,40 +6,21 @@
 //! serves as the glTF vertex deduplication key — two corners that cite the same rank share a
 //! vertex.
 use super::*;
+use crate::plugins::scene::spread::Spread;
 
-/// How a primvar is spread over the surface.
-#[derive(Clone, Copy, PartialEq)]
-pub(super) enum Spread {
-    /// A single value for the whole surface.
-    Constant,
-    /// One value per face.
-    Uniform,
-    /// One value per point, cited by the face's vertex index.
-    Point,
-    /// One value per face corner.
-    FaceVarying,
-}
-
-impl Spread {
-    /// Spread the layer declares, or the one the array length names when it does not declare
-    /// it: a primvar as long as the points follows the points, as long as the corners follows
-    /// the corners. That is what a reader that refuses to guess at random does.
-    pub(super) fn read(
-        declared: Option<&str>,
-        values: usize,
-        points: usize,
-        corners: usize,
-    ) -> Self {
-        match declared {
-            Some("constant") => Self::Constant,
-            Some("uniform") => Self::Uniform,
-            Some("vertex" | "varying") => Self::Point,
-            Some("faceVarying") => Self::FaceVarying,
-            _ if values == points => Self::Point,
-            _ if values == corners => Self::FaceVarying,
-            _ if values <= 1 => Self::Constant,
-            _ => Self::FaceVarying,
-        }
+/// Spread the layer declares, or the one the array length names when it does not declare it: a
+/// primvar as long as the points follows the points, as long as the corners follows the
+/// corners. That is what a reader that refuses to guess at random does.
+fn declared_spread(declared: Option<&str>, values: usize, points: usize, corners: usize) -> Spread {
+    match declared {
+        Some("constant") => Spread::Constant,
+        Some("uniform") => Spread::Uniform,
+        Some("vertex" | "varying") => Spread::Point,
+        Some("faceVarying") => Spread::FaceVarying,
+        _ if values == points => Spread::Point,
+        _ if values == corners => Spread::FaceVarying,
+        _ if values <= 1 => Spread::Constant,
+        _ => Spread::FaceVarying,
     }
 }
 
@@ -58,21 +39,10 @@ impl<T: Copy> Primvar<T> {
             spread,
         }
     }
-    /// Rank of the array this corner depends on. `corner` is the corner's rank in the whole
-    /// surface, `face` that of its face, `point` the point index the face cites at this corner.
-    /// A rank that leaves the index array, or a negative index, names nothing: `None`, never
-    /// rank zero, which would give this corner another corner's value.
+    /// Rank of the array this corner depends on: the one rule of `Spread::slot`.
     pub(super) fn slot(&self, corner: usize, face: usize, point: usize) -> Option<u32> {
-        let raw = match self.spread {
-            Spread::Constant => 0,
-            Spread::Uniform => face,
-            Spread::Point => point,
-            Spread::FaceVarying => corner,
-        };
-        let Some(indices) = &self.indices else {
-            return u32::try_from(raw).ok();
-        };
-        u32::try_from(*indices.get(raw)?).ok()
+        self.spread
+            .slot(self.indices.as_deref(), corner, face, point)
     }
     /// Value of a rank, or `None` when the array is shorter than what the indices say.
     pub(super) fn get(&self, slot: u32) -> Option<T> {
@@ -100,6 +70,6 @@ pub(super) fn read<T: Copy>(
         None => None,
     };
     let declared = read::metadata(&attribute, "interpolation");
-    let spread = Spread::read(declared.as_deref(), values.len(), points, corners);
+    let spread = declared_spread(declared.as_deref(), values.len(), points, corners);
     Some((Primvar::new(values, indices, spread), sampled))
 }

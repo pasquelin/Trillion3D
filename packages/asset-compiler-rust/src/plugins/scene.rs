@@ -24,6 +24,7 @@ mod normals;
 mod obj;
 mod output;
 mod route;
+mod spread;
 mod ufbx_driver;
 mod unity;
 mod unitypackage;
