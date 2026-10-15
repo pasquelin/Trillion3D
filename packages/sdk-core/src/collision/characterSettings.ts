@@ -1,4 +1,4 @@
-import { PHYSICS_MATERIALS } from '../physics/options.ts'
+import { GRAVITY_PRESETS, PHYSICS_MATERIALS } from '../physics/options.ts'
 import type { CharacterEvents, CharacterInput } from './characterDrive.ts'
 import { QUARTER_PI } from '../../../math/src/constants.ts'
 
@@ -139,7 +139,7 @@ export const SOLE_FRICTION = PHYSICS_MATERIALS.rubber.friction
 export const DECLARED_FLOOR = PHYSICS_MATERIALS.stone.friction
 
 const STATURE = 1.75,
-  GRAVITY = 9.80665,
+  GRAVITY = GRAVITY_PRESETS.earth,
   JUMP_APEX = 0.5
 
 /** Steps per second of a running human, both feet counted, declared: 170 a minute stands for the

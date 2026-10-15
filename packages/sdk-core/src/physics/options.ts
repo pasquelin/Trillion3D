@@ -64,7 +64,7 @@ export type PhysicsOption = PhysicsType | PhysicsBodyOptions | SoftBodyOptions
 
 /** Named gravities, in m/s² along −y. */
 export const GRAVITY_PRESETS = {
-  /** The Earth's. */ earth: 9.81,
+  /** The Earth's, the standard 9.80665: the engine's one gravity. */ earth: 9.80665,
   /** The Moon's. */ moon: 1.62,
   /** Mars's. */ mars: 3.71,
   /** No gravity. */ none: 0,
