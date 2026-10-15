@@ -46,16 +46,17 @@ export const REFLECTION_CONSTANTS = {
   /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
    *  a texel: a history further from their mean than this is pulled back to it. */
   REFLECTION_CLAMP: 1.25,
-  /** How much farther a ray is shared on an image drawn while anything changes (`spatialWgsl.ts`):
-   *  its history holds `REFLECTION_HISTORY` images, not `REFLECTION_STILL` — a sixth —, and sharing
-   *  over twice the reach, four times the neighbours a disc holds, gives back most of that count; the
-   *  reflection's edges soften by the lobe's own width, which a moving image shows for one image. */
-  REFLECTION_SHORT_REACH: 2,
   /** Where along a proxy ray cut short for the field (`reach.ts`) its answer starts fading into the
    *  field's, a share of its reach (`proxy.ts`): over the last quarter a body met weighs less and less,
    *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
    *  distance — shows no seam between the two sources. */
   REFLECTION_REACH_FADE: 3 / 4,
+  /** The pixels a lobe's cone spans over the screen march (`sampleWgsl.ts`) past which its centre ray
+   *  has no share and its samples answer alone; from one pixel to this many both answer, the centre
+   *  ray's share falling smoothly. Four: the half grid reconstructs a reflection over its 2×2 block and
+   *  its bilinear neighbours, about four pixels, a spread a lobe this wide already holds — so the
+   *  half grid's answer adds no blur the lobe has not. */
+  REFLECTION_MIRROR_BAND: 4,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair

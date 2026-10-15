@@ -61,7 +61,10 @@ fn reflectedAt(coord:vec2i,own:ReflectingPixel)->Reflected{
  var r=reflectionTrace(own.P,own.N,own.V,own.rough,REFLECTION_MIRRORS);
  if(any(sampled)){
   let h=upsampled(coord,own.P,own.N,own.V);
-  r=Reflected(select(r.base,h.base,sampled.x),select(r.coat,h.coat,sampled.y));
+  // The centre ray's share and the half grid's the rest: one lobe, two estimates of it.
+  let mirror=reflectionMirrorShares(own.rough);
+  r=Reflected(select(r.base,mix(h.base,r.base,mirror.x),sampled.x),
+   select(r.coat,mix(h.coat,r.coat,mirror.y),sampled.y));
  }
  return r;
 }

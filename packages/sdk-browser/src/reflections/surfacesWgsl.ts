@@ -16,8 +16,8 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
  * kernel opens it — its point, unit normal, direction to the eye and roughness —, its physical lobes
  * decoded (`lobesAt`) where `flags` carry them, none elsewhere; a kernel that weighs no lobe passes no
  * flag. `reflectionSampledLobes`: which of the lobes of the pixel last opened, of roughness `rough`, are
- * sampled (`reflectionSampled`) — the base's, the coat's —, the half grid's; the others are mirrors,
- * their own pixel's (`sampleWgsl.ts`).
+ * sampled (`reflectionSampled`) — the base's, the coat's —, the half grid's; `reflectionMirrorShares`
+ * their centre rays' shares, their own pixel's (`sampleWgsl.ts`).
  */
 export const REFLECTION_SURFACES_WGSL = wgslBlock(
   'REFLECTION_SURFACES_WGSL',
@@ -54,5 +54,8 @@ fn reflectingPixelAt(layer:u32,coord:vec2i,flags:u32)->ReflectingPixel{
 fn reflectionSampledLobes(rough:f32)->vec2<bool>{
  let coat=lobes.on&&lobes.coat>0.0&&reflectionSampled(lobeAlpha(lobes.coatRough));
  return vec2<bool>(reflectionSampled(lobeAlpha(rough)),coat);
+}
+fn reflectionMirrorShares(rough:f32)->vec2f{
+ return vec2f(reflectionMirrorShare(lobeAlpha(rough)),reflectionMirrorShare(lobeAlpha(lobes.coatRough)));
 }`,
 )

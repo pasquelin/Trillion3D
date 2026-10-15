@@ -36,9 +36,14 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  * history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average the whole lobe,
  * its long tail included, where one centre ray read it through a cone alone.
  *
- * - MIRROR: a lobe whose cone stays under a pixel over the whole screen march
- *   (`reflectionConeTangent(α)·REFLECTION_STEP_CAP < 1`, `reflectionSampled`) keeps its one centre ray:
- *   sampling it would only add noise.
+ * - MIRROR, ONE ESTIMATOR: a mirror is the limit of the sampled lobe, never a switch. With m the
+ *   pixels the lobe's cone spans over the screen march (`reflectionConeTangent(α)·REFLECTION_STEP_CAP`),
+ *   a lobe of m < 1 is read along its centre alone, at its own pixel; one of m ≥ `REFLECTION_MIRROR_BAND`
+ *   is sampled alone, in the half grid; between them the pixel's answer is both, the centre ray's share
+ *   (`reflectionMirrorShare`) falling smoothly from one to none. Both estimate the same lobe — its
+ *   centre read through its cone, its samples' mean — and they meet where the lobe is narrow, so a floor
+ *   whose roughness crosses the band shows neither a ring nor two looks. A lobe sampled at all is in
+ *   the half grid (`reflectionSampled`, m ≥ 1).
  * - DIRECTION: the half-vector drawn by D(h)·(n·h) — the unit GGX slopes, r = √(u/(1 − u)) at the angle
  *   2πv, stretched by the lobe's widths along its axis and across (`reflectionSampleDirection`) —, the ray
  *   its mirror about it; one under the surface takes the centre. The split-sum weight the upsample applies
@@ -57,11 +62,11 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  * The coat's lobe is sampled the same way, its pair of numbers swapped (`reflectionTrace`).
  *
  * WHICH LOBES A CALL READS: a sampled lobe is the half grid's (`traceHalf.ts`), its rays shared over
- * neighbours and images; a mirror lobe is its own pixel's, read along its centre by the upsample
- * (`upsampleWgsl.ts`) at full resolution, where a half-resolution texel would spread its sharp
- * reflection over the two pixels around. `u` in [0, 1)² is the half grid's sample, and the mirror lobes
- * there give nothing; `REFLECTION_MIRRORS` (negative) asks for the mirror lobes alone, the sampled ones
- * giving nothing.
+ * neighbours and images; a lobe with a centre ray's share is its own pixel's too, read along its centre
+ * by the upsample (`upsampleWgsl.ts`) at full resolution, where a half-resolution texel would spread a
+ * sharp reflection over the two pixels around. `u` in [0, 1)² is the half grid's sample, and a lobe
+ * not sampled gives nothing there; `REFLECTION_MIRRORS` (negative) asks for the centre rays of the
+ * lobes with a share, the others giving nothing.
  */
 export const REFLECTION_SAMPLE_WGSL = wgslBlock(
   'REFLECTION_SAMPLE_WGSL',
@@ -82,6 +87,9 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
   ],
   `const REFLECTION_MIRRORS=vec2f(-1.0);
 fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
+fn reflectionMirrorShare(alpha:f32)->f32{
+ return 1.0-smoothstep(1.0,REFLECTION_MIRROR_BAND,reflectionConeTangent(alpha)*REFLECTION_STEP_CAP);
+}
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
  let shift=vec2f(f32(lowHalf(seed)),f32(highHalf(seed)))/65536.0;
@@ -99,9 +107,11 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  return select(reflect(-V,N),L,dot(L,N)>0.0);
 }
 fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- let sampled=reflectionSampled(alpha);
- if(sampled==(u.x<0.0)){return vec3f(0.0);}
- if(!sampled){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
+ if(u.x<0.0){
+  if(reflectionMirrorShare(alpha)<=0.0){return vec3f(0.0);}
+  return reflectionCentreRadiance(P,N,V,alpha,lobe);
+ }
+ if(!reflectionSampled(alpha)){return vec3f(0.0);}
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
  let thin=lobeAlpha(0.0);
  return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin),min(alpha,lobe.w));
