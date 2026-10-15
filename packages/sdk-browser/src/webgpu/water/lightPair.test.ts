@@ -13,7 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import { same, shadedLightScope, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
+import { randomLampScope, same, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -44,19 +44,8 @@ test('one walk of the lights gives the two sums of two walks, bit for bit', () =
     u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (let round = 0; round < 600; round++) {
-    const count = 1 + Math.floor(u(0, 24))
-    const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
-    const items = [...Array(count).keys()].map((rank) => {
-      const spot = rank % 3 === 0
-      return {
-        positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
-        colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
-        directionCone: [0, -1, 0, spot ? 0.7 : -1],
-        params: [spot ? K.KIND_SPOT : 0, rank % 2 ? rank : -1, 0, spot ? 0.9 : 0],
-        shape: [0, 0, 0, 0],
-      }
-    })
-    const { normal: N, scope: shared } = shadedLightScope(r, u, K, count, items, round)
+    const lamps = randomLampScope(r, u, K, round, (_, rank) => (rank % 2 ? rank : -1))
+    const { count, P, normal: N, scope: shared } = lamps
     const V = [0.6, 0.8, 0]
     const scope = { ...shared, shadowTransmission: [0.9, 0.7, 0.5] }
     const { sliceLightingPair } = shaderRun<{ sliceLightingPair: Pair }>(
