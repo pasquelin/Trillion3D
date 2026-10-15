@@ -11,7 +11,7 @@ import { LINEAR_PART } from './matrixElements.ts'
  *
  * THE RULE, in one sentence. The linear part is divided by the sum of the absolute values of its
  * nine terms — its scale — BEFORE the determinant; it is singular when this normalised
- * determinant does not exceed `SINGULAR_DETERMINANT`. A zero, infinite or NaN scale is singular:
+ * determinant does not exceed `DIVISOR_FLOOR`. A zero, infinite or NaN scale is singular:
  * the division then yields nothing.
  *
  * WHERE IT APPLIES. `normalMatrix3` (`matrix3.ts`) on the CPU, `invTranspose3Prep`
@@ -30,7 +30,7 @@ import { LINEAR_PART } from './matrixElements.ts'
  * single precision: only normalisation crosses that floor, so this threshold judges
  * nothing but the shape of the matrix, never its size.
  */
-export const SINGULAR_DETERMINANT = 1e-20
+export const DIVISOR_FLOOR = 1e-20 // also every shader divisor's floor (`../wgsl/constants.ts`)
 
 /**
  * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a
@@ -117,6 +117,6 @@ const SCALED = /* @__PURE__ */ new Float64Array(16)
 export function adjugateFactor(m: ArrayLike<number>, determinant: number) {
   const normalized = normalizedLinearDeterminant(m)
   if (Number.isNaN(normalized)) return null
-  if (determinant === 0 || !(Math.abs(normalized) > SINGULAR_DETERMINANT)) return 1
+  if (determinant === 0 || !(Math.abs(normalized) > DIVISOR_FLOOR)) return 1
   return 1 / determinant
 }

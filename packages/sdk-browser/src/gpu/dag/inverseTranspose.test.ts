@@ -10,8 +10,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { SINGULAR_DETERMINANT } from '../../../../math/src/matrix/singular.ts'
-import { SINGULAR_DETERMINANT as SINGULAR_DETERMINANT_DECL } from '../../../../math/src/wgsl/constants.ts'
+import { DIVISOR_FLOOR } from '../../../../math/src/matrix/singular.ts'
+import { DIVISOR_FLOOR as DIVISOR_FLOOR_DECL } from '../../../../math/src/wgsl/constants.ts'
 import { isFiniteScale } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { inverseTransposeShipped, unit } from '../../../../../tests/gpu/math/inverseTransposeF32.ts'
 
@@ -68,12 +68,12 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   // And this number is not written in the shader: it is the declaration of the constant shared
   // with the CPU (`packages/math/src/matrix/singular.ts`), its f32 written once. A threshold
   // changed on one side only is impossible.
-  assert.match(corps, /finite&&abs\(det\)>SINGULAR_DETERMINANT\)/, 'shared threshold')
-  assert.ok(DAG_SELECTION_SHADER.includes(SINGULAR_DETERMINANT_DECL.text), 'threshold declared')
-  const literal = /=([^;]+);$/.exec(SINGULAR_DETERMINANT_DECL.text)![1]
+  assert.match(corps, /finite&&abs\(det\)>DIVISOR_FLOOR\)/, 'shared threshold')
+  assert.ok(DAG_SELECTION_SHADER.includes(DIVISOR_FLOOR_DECL.text), 'threshold declared')
+  const literal = /=([^;]+);$/.exec(DIVISOR_FLOOR_DECL.text)![1]
   assert.equal(
     Math.fround(Number(literal)),
-    Math.fround(SINGULAR_DETERMINANT),
+    Math.fround(DIVISOR_FLOOR),
     'the declared threshold is no longer the CPU’s 1e-20',
   )
   assert.match(corps, /let finite=isFiniteScale\(t\);/, 'null, infinite or NaN sum not rejected')

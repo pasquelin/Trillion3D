@@ -1,5 +1,5 @@
 import { wgslFn, wgslStruct } from './decl.ts'
-import { SINGULAR_DETERMINANT } from './constants.ts'
+import { DIVISOR_FLOOR } from './constants.ts'
 import { isFiniteWord } from './integer.ts'
 import { cofactor3 } from './matrix.ts'
 
@@ -47,14 +47,14 @@ export const isFiniteScale = wgslFn(
 
 export const invTranspose3Prep = wgslFn(
   'invTranspose3Prep',
-  [InvT3, SINGULAR_DETERMINANT, absoluteSum3, isFiniteScale, cofactor3],
+  [InvT3, DIVISOR_FLOOR, absoluteSum3, isFiniteScale, cofactor3],
   `fn invTranspose3Prep(m:mat3x3f)->InvT3{
  let t=absoluteSum3(m);
  let finite=isFiniteScale(t);
  let a=m[0]/t;
  let C=cofactor3(a,m[1]/t,m[2]/t);
  let det=dot(a,C[0]);let z=vec3f(0.0);
- return InvT3(mat3x3f(select(z,C[0],finite),select(z,C[1],finite),select(z,C[2],finite)),1.0/(det*t),finite&&abs(det)>SINGULAR_DETERMINANT);
+ return InvT3(mat3x3f(select(z,C[0],finite),select(z,C[1],finite),select(z,C[2],finite)),1.0/(det*t),finite&&abs(det)>DIVISOR_FLOOR);
 }`,
 )
 
