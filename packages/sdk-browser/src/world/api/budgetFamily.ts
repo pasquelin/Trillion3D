@@ -1,22 +1,8 @@
-import type { World } from '../core/world.ts'
-
 /**
- * The `budget` family: the fixed envelopes the engine does not exceed. `memory(world)` is what the
- * world holds now (`world.budget`); the two pools build the setting a world takes.
+ * The `budget` family: the pool settings a world takes. What a world holds now is its own
+ * `world.budget` (totals, split, pools, ceilings, canvas), read there.
  */
 export const budget = {
-  /** The memory budgets a world holds right now: the GPU and CPU totals, how the rule splits them,
-   *  both pools and the largest each may grow to, and the canvas the effect targets are reserved at. */
-  memory: ({ budget: b }: World) => ({
-    gpu: b.gpu,
-    cpu: b.cpu,
-    canvas: b.canvas,
-    split: b.split,
-    geometryPool: b.geometryPool,
-    texturePool: b.texturePool,
-    geometryPoolCeiling: b.geometryPoolCeiling,
-    texturePoolCeiling: b.texturePoolCeiling,
-  }),
   /**
    * A geometry pool setting of `bytes`, ready to hand to a world.
    * @param bytes - Bytes for geometry pages.
