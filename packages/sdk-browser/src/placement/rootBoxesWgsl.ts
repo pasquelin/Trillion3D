@@ -19,6 +19,7 @@
  *   frames      r32uint        the cut's frame words, written alone (`../gpu/dag/frameTable.ts`):
  *                              a root's stretch, its own field
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { frameTableWgsl } from '../gpu/dag/frameTable.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -38,8 +39,8 @@ export const ROOT_BOXES_WGSL = wgslProgram(
 @group(0) @binding(3) var<storage,read_write> rootBoxes:array<vec2u>;
 @group(0) @binding(4) var<storage,read> ranks:array<u32>;
 fn deriveRoot(rank:u32){
- var world:array<vec2u,16>;
- for(var k=0u;k<16u;k++){world[k]=rootWorlds[rank*16u+k];}
+ var world:array<vec2u,${MATRIX_VALUES}>;
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){world[k]=rootWorlds[rank*${MATRIX_VALUES}u+k];}
  let stretch=stretchBits(world,composeRoot(rank,world));
  if(stretch!=0xffffffffu){framesSetStretch(rank,stretch);}
 }

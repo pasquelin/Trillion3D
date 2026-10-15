@@ -4,6 +4,7 @@
  * (`webgpuGrowth.ts`), at the ranks they will hold —, packed in doubles and written in runs; a root a
  * parent composes is the GPU's, never sent.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -36,7 +37,13 @@ function sendRun(rt: WebgpuPagesRuntime, device: GPUDevice, from: number, to: nu
     count = to - from + 1
   held.worldWords = resized(held.worldWords, count * ROOT_WORLD_WORDS)
   for (let k = 0; k < count; k++)
-    packDoubles(held.worldWords, k * ROOT_WORLD_WORDS, rootAt(rt, from + k).world.elements, 0, 16)
+    packDoubles(
+      held.worldWords,
+      k * ROOT_WORLD_WORDS,
+      rootAt(rt, from + k).world.elements,
+      0,
+      MATRIX_VALUES,
+    )
   const at = from * ROOT_WORLD_WORDS * 4
   device.queue.writeBuffer(held.worlds!, at, held.worldWords, 0, count * ROOT_WORLD_WORDS)
 }

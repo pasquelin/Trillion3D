@@ -88,7 +88,8 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   state.motionBound = undefined
   const linked = writeLinks(device, gpu, state, fresh)
   const seeded = state.seeds.size > 0
-  for (const [rank, pose] of state.seeds) device.queue.writeBuffer(gpu.previous, rank * 64, pose)
+  for (const [rank, pose] of state.seeds)
+    device.queue.writeBuffer(gpu.previous, rank * MATRIX_VALUES * 4, pose)
   state.seeds.clear()
   // The list of composed roots: on a fresh table whole, else its places moved since.
   if (fresh) state.rankList.moves.clear()

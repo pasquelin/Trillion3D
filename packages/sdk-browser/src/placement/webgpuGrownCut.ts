@@ -5,6 +5,7 @@
  * cut made over them replaces the running one — or the running one took them in place —, and the
  * new rows follow their owner's writes.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
@@ -75,7 +76,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   placeDeformation(rt)
   // The worlds the cut takes, laid out for every placement its tables hold: a growth into its room
   // keeps them, one past it lays them out once more.
-  const slots = Math.max(1, selectionRoots.length, ready.cut.worldCapacity) * 16
+  const slots = Math.max(1, selectionRoots.length, ready.cut.worldCapacity) * MATRIX_VALUES
   if (layout.worldUpdates.length !== slots) {
     const worlds = new Float32Array(slots)
     worlds.set(layout.worldUpdates.subarray(0, Math.min(slots, layout.worldUpdates.length)))

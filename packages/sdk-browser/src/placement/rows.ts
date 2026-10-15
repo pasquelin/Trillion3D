@@ -18,6 +18,7 @@ import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { carryCellsMoved } from '../partition/rowCells.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -45,7 +46,7 @@ export type PlacementRows = {
 export function createPlacementRows(capacity: number): PlacementRows {
   const rows = Math.max(1, capacity)
   return {
-    matrices: new Float64Array(rows * 16),
+    matrices: new Float64Array(rows * MATRIX_VALUES),
     live: new Uint8Array(rows),
     shadowless: new Uint8Array(rows),
     capacity: rows,
@@ -70,7 +71,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
 
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
 export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
-  elements: rows.matrices.subarray(index * 16, index * 16 + 16),
+  elements: rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
 })
 
 /** What a root or a blended copy carries of the row it was collected from: the rows, and its rank

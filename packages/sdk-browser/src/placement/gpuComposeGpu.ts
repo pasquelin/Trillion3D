@@ -2,6 +2,7 @@
  * WHAT THE COMPOSITION HOLDS ON THE GPU (`gpuCompose.ts`): the links, the parents' worlds, the
  * previous worlds and the motion mode, the lists, the passes' parameters and their groups.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
 import { heldGroup } from '../webgpu/core/bindIdentity.ts'
 import { passParams } from '../gpu/core/passParams.ts'
@@ -20,7 +21,7 @@ export function createComposeGpu(device: GPUDevice, rootCount: number) {
   })
   const previous = device.createBuffer({
     label: 'Trillion3D composed previous worlds',
-    size: Math.max(1, rootCount) * 64,
+    size: Math.max(1, rootCount) * MATRIX_VALUES * 4,
     usage: storage,
   })
   const motionMode = device.createBuffer({

@@ -16,6 +16,8 @@
  *                           the mark (`+ 3`)
  *   nodes    rgba32uint     the cut's nodes (`../gpu/dag/nodeTable.ts`): the root's box
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import { CARRIED_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { markReachWgsl, reachUnboundedWgsl } from '../deformation/halfFloat.ts'
@@ -42,8 +44,8 @@ export const TREE_LEAVES_WGSL = wgslProgram(
 fn writeLeaf(w:u32){
  let root=framesWord(w,${ROOT_WORD}u);
  if(root==${NO_INDEX}u){return;}
- var world:array<vec2u,16>;
- for(var k=0u;k<16u;k++){world[k]=worlds[w*16u+k];}
+ var world:array<vec2u,${MATRIX_VALUES}>;
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){world[k]=worlds[w*${MATRIX_VALUES}u+k];}
  // The reach its mark carries (its frame row's mark word), none past every finite one.
  let mark=framesWord(w,${MARK_WORD}u);
  var reach=vec2u(0u,0u);
@@ -55,7 +57,7 @@ fn writeLeaf(w:u32){
   hi[a]=dAdd(fromF32(nodesWord(root,${NODE_MAX}u+a)),reach);
  }
  let box=carriedBox(world,lo,hi);
- for(var k=0u;k<6u;k++){members[w*6u+k]=box[k];}
+ for(var k=0u;k<${BOX_VALUES}u;k++){members[w*${BOX_VALUES}u+k]=box[k];}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}

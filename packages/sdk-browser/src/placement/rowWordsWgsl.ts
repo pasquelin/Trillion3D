@@ -7,6 +7,7 @@
  * `rowSphere.ts`), so a word is the one the CPU would have written from the same world. One thread a
  * row: every row of the table (`params.all`), or the rows a list names.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { CORNERS_WGSL, LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
@@ -154,10 +155,10 @@ fn deriveRow(row:u32,emit:bool,stale:bool){
  }
  let rank=table[base+${PAGE_INFO.at.placement}u];
  if(rank>=params.rootCount){return;}
- var world:array<vec2u,16>;
+ var world:array<vec2u,${MATRIX_VALUES}>;
  var worldSame=true;
- for(var k=0u;k<16u;k++){
-  world[k]=rootWorlds[rank*16u+k];
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){
+  world[k]=rootWorlds[rank*${MATRIX_VALUES}u+k];
   let single=toF32(world[k]);
   worldSame=worldSame&&table[base+k]==single;
   table[base+k]=single;
