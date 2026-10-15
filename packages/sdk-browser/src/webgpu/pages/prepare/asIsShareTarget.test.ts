@@ -8,14 +8,7 @@ import { seedAsIsShare } from './asIsShareTarget.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { drawBlendPass } from '../../blend/draw.ts'
 import type { BlendGpuItem } from '../../blend/state.ts'
-import {
-  device,
-  mountDevice,
-  prepared,
-  replay,
-  targets,
-  writesOf,
-} from '../../water/pass.fixture.ts'
+import { mountDevice, prepared, replay, targets, writesOf } from '../../water/pass.fixture.ts'
 import type { FakePass } from '../../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { reflectionFront } from '../../../reflections/frontDepth.fixture.ts'
@@ -66,7 +59,7 @@ test('a blended scene with no debug view runs no share pass and makes no share t
 })
 
 test('without a debug view the transparent pass binds no share and draws the shareless pipelines', () => {
-  const { blendState, gpu } = prepared()
+  const { blendState, gpu, device } = prepared()
   targets(gpu)
   const { rt, encoder, passes } = replay(blendState, gpu)
   const asked: (boolean | undefined)[] = []

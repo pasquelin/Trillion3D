@@ -36,7 +36,7 @@ import {
   VOLUME,
   waterRankOf,
 } from '../../../packages/sdk-browser/src/webgpu/transparent/transmission.ts'
-import { device, prepared } from '../../../packages/sdk-browser/src/webgpu/water/pass.fixture.ts'
+import { prepared } from '../../../packages/sdk-browser/src/webgpu/water/pass.fixture.ts'
 import { waterCostScene, waterCostCamera, poseWaterCost, SIZE } from './waterCostScene.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 
@@ -115,7 +115,7 @@ export function scene(enabled = true) {
     source.indices,
   )
   const state = createWebgpuBlendState(),
-    { gpu } = prepared()
+    { gpu, device } = prepared()
   state.transmissive = prepareWebgpuBlend(
     device,
     collected.blendCopies,

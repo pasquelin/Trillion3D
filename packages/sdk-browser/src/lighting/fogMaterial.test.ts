@@ -7,7 +7,7 @@ import { writeMaterialRecord } from '../webgpu/material/materialRecord.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../webgpu/material/materialLayout.ts'
 import { FOG_FREE_MODEL_BIT } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
-import { prepared, device } from '../webgpu/water/pass.fixture.ts'
+import { prepared } from '../webgpu/water/pass.fixture.ts'
 import { writeVolumeRecords } from '../webgpu/transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import {
@@ -39,7 +39,7 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
 })
 
 test('a fog-free transmissive material reaches the water composite without changing opacity', () => {
-  const { blendState, gpu } = prepared()
+  const { blendState, gpu, device } = prepared()
   const item = blendState.blendGpu.find((entry) => entry.transmissive)
   assert.ok(item)
   item.surface.fog = false

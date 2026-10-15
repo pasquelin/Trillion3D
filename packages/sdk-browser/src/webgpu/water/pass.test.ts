@@ -7,7 +7,7 @@ import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { createBackdrop } from '../transparent/transmission.ts'
 import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { device, mountDevice, prepared, replay, targets, writesOf } from './pass.fixture.ts'
+import { mountDevice, prepared, replay, targets, writesOf } from './pass.fixture.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
 import { createWebgpuPagesLayout } from '../pages/prepare/layout.ts'
@@ -19,11 +19,11 @@ import { WATER_BYTES_PER_PIXEL } from '../transparent/waterBytes.ts'
 
 /** The prepared scene, its frame targets, and a real water pass built on a counting device. */
 async function mounted() {
-  const { blendState, gpu } = prepared()
+  const { blendState, gpu, device } = prepared()
   targets(gpu)
   const mount = mountDevice()
   blendState.water = await createWaterPass(mount.device, {} as never, {} as never)
-  return { blendState, gpu, mount, groups: mount.groups, ...replay(blendState, gpu) }
+  return { blendState, gpu, device, mount, groups: mount.groups, ...replay(blendState, gpu) }
 }
 
 test('water writes the reactive value into the frame’s share, with the share composite', async () => {
@@ -41,7 +41,7 @@ test('water writes the reactive value into the frame’s share, with the share c
 })
 
 test('the water pass follows the blends: frozen backdrop, surfaces, then one composite', async () => {
-  const { rt, encoder, passes, textureCopies, drawn } = await mounted()
+  const { rt, encoder, passes, textureCopies, drawn, device } = await mounted()
   drawBlendPass(rt, device, encoder)
   assert.equal(encodeWaterPass(rt, encoder), true, 'the pass was encoded')
   assert.deepEqual(

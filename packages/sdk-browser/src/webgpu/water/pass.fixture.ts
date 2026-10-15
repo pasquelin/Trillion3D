@@ -12,7 +12,6 @@ import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../blend/order.ts'
 import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
@@ -20,9 +19,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 import { verdictWords } from '../blend/verdictLayout.ts'
 
-/** What the water-pass tests share: a scene of three transparent copies, one of which transmits,
- *  prepared and planned as `prepareBlendResources` does, and the frame targets of a replay. */
-installGpuGlobals()
+// What the water-pass tests share: a scene of three transparent copies, one of which transmits,
+// prepared and planned as `prepareBlendResources` does, and the frame targets of a replay.
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer
 
 /** A device that records every pipeline and group it builds; `pipelines` names the render
@@ -53,7 +51,6 @@ export function mountDevice() {
     device,
   }
 }
-export const device = mountDevice().device
 
 /** One triangle per mesh: only the material class distinguishes the three copies. */
 function copy(material: PageSurface, order: number) {
@@ -75,7 +72,9 @@ function eau(transmission: number) {
   })
 }
 
+/** The scene prepared on a kit device of its own, `device`, which the test draws it with. */
 export function prepared() {
+  const { device } = fakeDevice()
   const blendState = createWebgpuBlendState()
   const gpu = {
     positionBuffers: new Map(),
@@ -113,7 +112,7 @@ export function prepared() {
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   Object.assign(blendState, { viewBuffer: buffer(), itemBuffer: buffer() })
-  return { blendState, gpu }
+  return { blendState, gpu, device }
 }
 
 /** Frame targets of the replay: the HDR image, the opaque depth and surfaces, the backdrop. */

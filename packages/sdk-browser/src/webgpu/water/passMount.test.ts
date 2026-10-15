@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts'
 import { drawBlendPass } from '../blend/draw.ts'
 import { encodeWaterPass } from './pass.ts'
-import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts'
+import { mountDevice, prepared, replay, targets } from './pass.fixture.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 
 const items = (count: number, transmissive: boolean, blending = 'normal') =>
@@ -58,7 +58,7 @@ test('a device that refuses the water pipelines keeps the blends, and the refusa
 })
 
 test('without the pass, the transmission slice draws as one more blend', () => {
-  const { blendState, gpu } = prepared()
+  const { blendState, gpu, device } = prepared()
   targets(gpu)
   const { rt, encoder, passes, textureCopies, drawn } = replay(blendState, gpu)
   // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
