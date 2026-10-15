@@ -14,6 +14,10 @@ test("a moved root asks its rows' shadow change, and declares no box", () => {
   const root = selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds)
   const { rt, motions } = runtime(source, [root], worlds)
   setWebgpuTransform(rt, 'target', moved)
-  assert.deepEqual(rt.rowWords?.roots, [0], 'its rows derived again, their change asked')
+  assert.deepEqual(
+    [...rt.rowWords!.roots.take()],
+    [0],
+    'its rows derived again, their change asked',
+  )
   assert.deepEqual(motions, [], 'no box declared on the CPU')
 })
