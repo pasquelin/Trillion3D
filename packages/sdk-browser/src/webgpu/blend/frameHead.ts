@@ -35,6 +35,12 @@ export const VIEW_AFFINE = 1
  *  and a slot per entry of each pass (`order.ts`). */
 export const orderFrameWords = (entries: number) => FRAME_HEAD.words + 2 * EXPAND_PASSES * entries
 
+/** The read `name(at)` of the double at word `at` of the `u32` array `array`, as the emulated
+ *  doubles hold it (`math/src/wgsl/double.ts`: high word, low word): the frame's and the key
+ *  records' one text. */
+export const doubleReadWgsl = (name: string, array: string) =>
+  `fn ${name}(at:u32)->vec2u{return vec2u(${array}[at+1u],${array}[at]);}`
+
 /** The head's layout and its doubles' read, as each kernel that binds `frame` names them. */
 export const FRAME_HEAD_WGSL = wgslBlock(
   'FRAME_HEAD_WGSL',
@@ -55,5 +61,5 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     VIEW_AFFINE,
     PLANE_USABLE,
   })}
-fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}`,
+${doubleReadWgsl('frameDouble', 'frame')}`,
 )

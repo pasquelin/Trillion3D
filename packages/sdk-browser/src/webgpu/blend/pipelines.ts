@@ -9,6 +9,7 @@ import {
   type BlendModePipelines,
 } from './stagePipelines.ts'
 import { BLEND_MODES } from '../../scene/materialBlending.ts'
+import { cullOf, modeOf } from './planCull.ts'
 import { createRoutedPipelines } from './routedPipelines.ts'
 import { createReach, type Reach } from './reach.ts'
 import { filtersDisplay } from './equations.ts'
@@ -186,10 +187,10 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     lit: (frame, lobed) => setup.programs().pick(frame, lobed).pipelines,
     lobedAwaited: () => setup.programs().awaited(FULL_CONTRACT),
     at(rank, filtered = false, withShare = false) {
-      const mode = BLEND_MODES[Math.floor(rank / 3)]
+      const mode = BLEND_MODES[modeOf(rank)]
       if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`)
       const set = sets[+withShare]
-      return (filtered ? set.routed.filtered : set.perMode).at(mode, rank % 3)
+      return (filtered ? set.routed.filtered : set.perMode).at(mode, cullOf(rank))
     },
   }
   return { module, pipelines }

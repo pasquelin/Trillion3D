@@ -4,6 +4,7 @@ import { fragmentTargets } from '../../gpu/core/fragmentOutputs.ts'
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
 import { blendFrontShader, blendReflects } from './frontStageWgsl.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
+import { cullOf } from './planCull.ts'
 import type { PageSurface } from '../../page/surface.ts'
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
@@ -57,7 +58,7 @@ export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout)
         for (const cull of made()) cull.ask()
       },
       prepare: () => Promise.all(made().map((cull) => cull.prepare())),
-      at: (rank) => made()[rank % 3].get(),
+      at: (rank) => made()[cullOf(rank)].get(),
     }
   }
   return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))

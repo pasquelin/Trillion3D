@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
+import { doubleReadWgsl } from './frameHead.ts'
 
 /**
  * AN ITEM'S KEY RECORD (`keyRecords.ts`), which the order, the frustum verdict and the water
@@ -24,5 +25,5 @@ export const KEYED_WGSL = wgslBlock(
     KEY_HAS_BOX,
     KEY_DRAWN,
   })}
-fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}`,
+${doubleReadWgsl('keyedDouble', 'keyed')}`,
 )

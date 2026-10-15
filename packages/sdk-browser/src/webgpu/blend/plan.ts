@@ -16,7 +16,7 @@ import {
   PLAN_VERTEX_CULL_BIT,
   planEntry,
 } from './planEntry.ts'
-import { planCull } from './planCull.ts'
+import { CULL_RANKS, modeOf, planCull } from './planCull.ts'
 
 /** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
  *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
@@ -33,7 +33,7 @@ export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - pl
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
 const modeBase = (surface: PageSurface, transmissive: boolean) =>
-  BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)) * 3
+  BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)) * CULL_RANKS
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
@@ -72,8 +72,8 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
       into = item.transmissive ? transmission : blend
     const sides = sidesOf(item),
       vertexCull = !!item.paged && sides.length === MAX_SIDES
-    filters ||= filtersDisplay(BLEND_MODES[Math.floor(sides[0] / 3)])
-    modes.add(BLEND_MODES[Math.floor(sides[0] / 3)])
+    filters ||= filtersDisplay(BLEND_MODES[modeOf(sides[0])])
+    modes.add(BLEND_MODES[modeOf(sides[0])])
     for (const side of sides) {
       into.push(planEntry(i, side, !!item.paged, vertexCull))
       if (item.paged) continue
