@@ -60,6 +60,18 @@ export const REFLECTION_COUNTS = {
   REFLECTION_REUSE_RADIUS: 3,
   /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius. */
   REFLECTION_REUSE_TAPS: 8,
+  /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`): the march's own
+   *  bound grows with the screen distance, to 1091 at 1080p, while a mirror ray of floors and waves
+   *  seen from 0.5° to 89° takes 16 on average and 35 at the 99th percentile (`budget.test.ts`): 48
+   *  answers nearly every ray, and the rest — rays grazing a surface across the image — go to the
+   *  proxy, a bounded worst case of 48 iterations a ray. */
+  REFLECTION_MARCH_STEPS: 48,
+  /** The share of a ray's budget (`RAY_WORK`, its lighting's shadow rays included) a proxy ray of an
+   *  image drawn for a change walks, one over this (`proxy.ts`): that image is replaced by the next,
+   *  and a still view's quiet images, which the view holds, walk it whole. 512 / 8 = 64 units: a
+   *  descent of the placement tree and one cut's leaf; a ray that spends them is no answer, its share
+   *  the field's. */
+  REFLECTION_MOVING_SHARE: 8,
   /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
   REFLECTION_SEQUENCE: 4096,
 } as const

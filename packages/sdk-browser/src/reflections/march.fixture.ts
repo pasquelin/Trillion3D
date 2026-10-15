@@ -31,7 +31,11 @@ export function marcher(
     hit(o: number[], d: number[]) {
       run.counter.loads = 0
       const end = run.screenMarchEnd(o.slice(0, 2), d.slice(0, 2), size)
-      const { t, plane, front: transparent } = run.screenMarch(o, d, end, run.thickness, run.slab)
+      const {
+        t,
+        plane,
+        front: transparent,
+      } = run.screenMarch(o, d, end, run.thickness, run.slab, 2 ** 32 - 1)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
       return {
         at,

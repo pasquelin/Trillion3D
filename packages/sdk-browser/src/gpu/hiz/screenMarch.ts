@@ -37,7 +37,9 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * (`screenMarchBudget`): each cell of a level is crossed once, two levels' worth of ascents and
  * descents around each pixel the ray crosses, and the levels once more; a ray that leaves its
  * surface climbs the levels, and takes O(log reach) of them. A pixel a ray crosses is never
- * stepped over, whatever its width: the cells are exact bounds, never samples.
+ * stepped over, whatever its width: the cells are exact bounds, never samples. A caller may hold
+ * the march to fewer iterations (`cap`): a ray that spends them meets nothing on the screen, and its
+ * answer is the next stage's.
  *
  * `slab` is the geometry of a surface's thickness (`screenSlab`): the world size of a pixel at a
  * unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness spans
@@ -69,7 +71,7 @@ fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
 fn screenMarchBudget(d:vec3f,end:f32,levels:i32)->u32{
  return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }
-fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
+fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
  let tiny=vec2f(1e-6);
  let ahead=d.xy>=vec2f(0.0);
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
@@ -78,7 +80,7 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f)->ScreenHit{
  let levels=hizLevelCount();
  let top=levels-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
- let steps=screenMarchBudget(d,end,levels);
+ let steps=min(screenMarchBudget(d,end,levels),cap);
  var t=min(first.x,first.y);
  var level=0;
  for(var k=0u;k<steps;k++){

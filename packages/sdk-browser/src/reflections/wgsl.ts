@@ -70,7 +70,7 @@ const reflectionSeenWgsl = (group: number) =>
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
- let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab,REFLECTION_MARCH_STEPS);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
@@ -108,7 +108,11 @@ const reflectionSeenWgsl = (group: number) =>
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
  * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`).
  * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
- * With `scene`, the proxy's bindings, the chain holds the proxy's stage; without, it has none.
+ * `width` is the α of the lobe the ray stands for — its own, or the whole lobe a thin sample of it is
+ * drawn from (`sampleWgsl.ts`) —: how far the proxy's ray goes before the field holds that lobe
+ * (`reflectionProxyReach`). With `scene`, the proxy's bindings, the chain holds the proxy's stage;
+ * without, it has none. The `// @cut` lines are the bench's cut points (`bench/dawn/shaderCuts.ts`):
+ * comments, nothing the engine runs.
  */
 export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
   wgslBlock(
@@ -129,7 +133,7 @@ fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<fu
  if(*rest>0.5&&*rest*(1.0-answer.confidence)<=0.5){reflectionHit=answer.distance;}
  *rest*=1.0-answer.confidence;
 }
-fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)->vec3f{
+fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
  var rest=1.0;
@@ -138,9 +142,11 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f)-
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
   reflectionTake(reflectionSeen(P,N,ellipse,pixel),&radiance,&rest);
  }
+ // @cut screen -> radiance+vec3f(rest) keep: ;
 ${
   scene
-    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel),&radiance,&rest);}
+    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width),&radiance,&rest);}
+ // @cut proxy -> radiance+vec3f(rest) keep: ;
 `
     : ''
 } if(rest>REFLECTION_EPSILON){

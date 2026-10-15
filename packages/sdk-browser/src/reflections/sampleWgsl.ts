@@ -13,7 +13,7 @@ const reflectionCentreRadiance = wgslFn(
   'reflectionCentreRadiance',
   [],
   `fn reflectionCentreRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f)->vec3f{
- return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe);
+ return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe,min(alpha,lobe.w));
 }`,
 )
 
@@ -99,6 +99,6 @@ fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)-
  if(!sampled){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
  let thin=lobeAlpha(0.0);
- return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin));
+ return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin),min(alpha,lobe.w));
 }`,
 )
