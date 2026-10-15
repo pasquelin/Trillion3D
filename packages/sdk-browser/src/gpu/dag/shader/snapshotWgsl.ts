@@ -6,6 +6,7 @@ import {
   REQUEST_STAGED_WORDS,
 } from '../request.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { ROW_BURST, SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 
 /**
@@ -28,14 +29,12 @@ import { ROW_BURST, SELECTION_HEADER_WORDS } from '../readoutWords.ts'
  * priority —, where the frame copy never reads, in the order the threads won the counter, and the
  * view ahead's behind them, on their own counter; `dagSortRequests` then writes their pages into
  * the snapshot by `requestRank`, highest first: the camera's whole, then as many ahead as the cap
- * leaves (`OUT_AHEAD_PLACED`, `../layout.ts`). The host reads them in that order and ranks nothing.
- * The camera's are counted by admission bucket on the way (`levelCountsWord`): a list ranked by
- * admission comes back with where each level starts, so the host merges views without reading a
- * request's level.
+ * leaves (`OUT_AHEAD_PLACED`, `../layout.ts`). The host reads them in that order: its queue ranks
+ * the asks by difference (`../../../webgpu/residency/rankedQueue.ts`), no list merged.
  */
 export const DAG_READING_WGSL = wgslBlock(
   'DAG_READING_WGSL',
-  [],
+  [LANE_SCAN_WGSL],
   `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
  *  is truncated. */
 fn emitOne(page:u32,priority:u32){
@@ -75,11 +74,12 @@ fn stagedFrom(s:u32,n:u32)->u32{
 /** The rank staged request \`s\` sorts by. */
 fn stagedRank(s:u32,n:u32)->u32{return requestRank(out.pages[stagedFrom(s,n)+1u]);}
 const RANKS:u32=${REQUEST_PRIORITY_MAX + 1}u;
-const SORT_LANES:u32=256u;
+const SORT_LANES:u32=WORKGROUP_THREADS;
 var<workgroup> rankPlace:array<atomic<u32>,RANKS>;
 /** Counting sort of the staged requests into the snapshot, one workgroup: count each rank, give
- *  each rank its first place from the highest down, then scatter. Within a rank the order is the
- *  threads', as it was the counter's: the rank alone orders. */
+ *  each rank its first place from the highest down — the engine's one descending place step, the
+ *  lane scan's run offsets (\`laneRunOffsets\`), as the pool sort places its ranks —, then scatter.
+ *  Within a rank the order is the threads', as it was the counter's: the rank alone orders. */
 @compute @workgroup_size(SORT_LANES)
 fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
  let cap=views[0u].listCap;let n=min(atomicLoad(&out.count),cap);let total=n+min(atomicLoad(&out.ahead),aheadCap());
@@ -87,25 +87,16 @@ fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
  workgroupBarrier();
  for(var s=lane;s<total;s+=SORT_LANES){atomicAdd(&rankPlace[stagedRank(s,n)],1u);}
  workgroupBarrier();
- // Each admission bucket sums its error steps' counts: the camera's ranks, above every one ahead.
- for(var b=lane;b<${ADMISSION_BUCKETS}u;b+=SORT_LANES){
-  var counted=0u;
-  for(var e=0u;e<${1 << ADMISSION_ERROR_BITS}u;e++){counted+=atomicLoad(&rankPlace[${REQUEST_AHEAD}u+(b<<${ADMISSION_ERROR_BITS}u)+e]);}
-  out.pages[levelCountAt(b)]=counted;
- }
- workgroupBarrier();
  // Every request ahead ranks below every one of the camera's: they fill what the camera leaves.
  // The camera's list as the difference reads it, its groups armed for its kernels.
- if(lane==0u){out.aheadPlaced=min(placeRanks(),cap)-n;armList(0u,n);}
+ // Each rank's count made its first place, from the highest rank down; the last lane's cursor
+ // ends the total.
+ let span=laneRun(lane,RANKS);
+ ${laneRunOffsets('d', 'span', 'lane', '', 'atomicLoad(&rankPlace[RANKS-1u-d])', 'atomicStore(&rankPlace[RANKS-1u-d],cursor)')}
+ if(lane==0u){out.aheadPlaced=min(laneSums[WORKGROUP_THREADS-1u],cap)-n;armList(0u,n);}
  workgroupBarrier();
  // One staged pair read at its place: its priority, then its page, adjacent words.
  for(var s=lane;s<total;s+=SORT_LANES){let src=stagedFrom(s,n);let at=atomicAdd(&rankPlace[requestRank(out.pages[src+1u])],1u);if(at<cap){out.pages[at]=out.pages[src];}}
-}
-/** Turns each rank's count into its first place, from the highest rank down; returns the total. */
-fn placeRanks()->u32{
- var place=0u;
- for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
- return place;
 }
 `,
 )
