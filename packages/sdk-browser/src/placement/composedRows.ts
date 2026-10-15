@@ -64,10 +64,10 @@ export function followComposedRun(rt: WebgpuPagesRuntime, from: number, to: numb
  * The rows list, as the rows pass reads it: every caster row of the table listed again from the
  * words it holds once the list starts following it (`rowsFollowed`) — at the first link, after a
  * frame no parent composed —, then the rows of each root linked or unlinked since, found by its
- * pages (`rowOf`), O(its pages).
+ * pages (`rootRows`), O(its pages).
  */
 export function followComposedRows(rt: WebgpuPagesRuntime, state: ComposeState) {
-  const { rows, selectionRoots } = rt.layout
+  const { rows } = rt.layout
   if (!rows.pageTableInts) return
   if (!state.rowsFollowed) {
     state.rowList.set.clear()
@@ -78,15 +78,26 @@ export function followComposedRows(rt: WebgpuPagesRuntime, state: ComposeState) 
     for (let row = rows.blendFirst; row < rows.casterSlots; row++) followRow(state, rows, row)
     return
   }
-  for (const rank of state.relinked) {
-    const root = selectionRoots[rank],
-      base = root?.packedBase ?? -1
-    if (!root || base < 0) continue
-    for (let page = 0; page < root.pages.length; page++) {
-      const index = base + page,
-        row = root.pages[page].transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-      if (row >= 0) followRow(state, rows, row)
-    }
-  }
+  for (const rank of state.relinked) rootRows(rt, rank, (row) => followRow(state, rows, row))
   state.relinked.length = 0
+}
+
+/**
+ * THE ROWS OF ROOT `rank`'S RESIDENT PAGES, each handed to `visit`: a page's caster row — a blended
+ * cluster's own (`../webgpu/row/blendCasters.ts`) —, never past the caster slots, and an opaque row
+ * only while it is still this page's: a row the cache gave back may name another page since.
+ */
+export function rootRows(rt: WebgpuPagesRuntime, rank: number, visit: (row: number) => void) {
+  const { rows, selectionRoots } = rt.layout,
+    root = selectionRoots[rank],
+    base = root?.packedBase ?? -1
+  if (!root || base < 0) return
+  for (let page = 0; page < root.pages.length; page++) {
+    const index = base + page,
+      transparent = !!root.pages[page].transparent
+    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
+    if (row < 0 || row >= rows.casterSlots) continue
+    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
+    visit(row)
+  }
 }

@@ -17,7 +17,7 @@ import type { RowRunVisitor } from '../webgpu/row/dirty.ts'
 import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from './rowInputs.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { takeMoved } from './rootMoves.ts'
-import { followComposedRun } from './composedRows.ts'
+import { followComposedRun, rootRows } from './composedRows.ts'
 import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
 import { ROW_EMITS, ROW_STALES } from './rowWordsWgsl.ts'
@@ -90,24 +90,10 @@ const dirtyRun: RowRunVisitor<WebgpuPagesRuntime> = (rt, from, to) => {
   followComposedRun(rt, from, to)
 }
 
-/** The rows of root `rank`'s resident pages derived again — its world was sent —, their shadow
- *  changes asked when `emits`. A row the cache gave back may name another page since: only a row
- *  that is this page's. */
-function targetRootRows(rt: WebgpuPagesRuntime, state: RowWords, rank: number, emits: boolean) {
-  const { rows, selectionRoots } = rt.layout,
-    root = selectionRoots[rank],
-    base = root?.packedBase ?? -1
-  if (!root || base < 0) return
-  for (let page = 0; page < root.pages.length; page++) {
-    const index = base + page,
-      transparent = !!root.pages[page].transparent
-    // A blended cluster moves its caster row (`../webgpu/row/blendCasters.ts`), which is its own.
-    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-    if (row < 0 || row >= rows.casterSlots) continue
-    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
-    target(state, row, emits ? ROW_EMITS : 0)
-  }
-}
+/** The rows of root `rank`'s resident pages derived again (`rootRows`) — its world was sent —,
+ *  their shadow changes asked when `emits`. */
+const targetRootRows = (rt: WebgpuPagesRuntime, state: RowWords, rank: number, emits: boolean) =>
+  rootRows(rt, rank, (row) => target(state, row, emits ? ROW_EMITS : 0))
 
 /**
  * Brings the rows pass's inputs and its rows level with the table and the worlds, before the rows
