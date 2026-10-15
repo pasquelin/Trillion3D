@@ -23,11 +23,12 @@ export const REFLECTION_LAYER_WGSL = wgslBlock(
  * accumulation and the upsample (`traceHalf.ts`): the WGSL declarations, the layouts and the entries read their numbers here.
  * A group serves one surface — the opaque one or the transparents' front one (`frontLayer.ts`) — and one
  * parity of the history's turn about (`halfEncode.ts`): its flags, normals and lobes (its depth is the
- * reflection group's), the lights (the upsample's weight reads their fitted table too), what the trace
- * reads of the scene — the light grid's world lists, the bounce cascades and their probes, the proxy's
- * buffer, the culling's worlds and its placement tree —, and the half grids each kernel reads or
- * writes (`halfTexture.ts`). The opaque upsample writes the reflection target the resolve reads, the
- * front one the radiance the forward fragments read.
+ * reflection group's), what a ray reads of the scene — the lights, the light grid's world lists, the
+ * bounce cascades and their probes, the proxy's buffer, the culling's worlds and its placement tree —,
+ * which the trace and the upsamples (a mirror lobe's ray) read, and the half grids each kernel reads or
+ * writes (`halfTexture.ts`). The trace tells the settle whether it sampled a lobe (`sampled`). The opaque
+ * upsample writes the reflection target the resolve reads, the front one the radiance the forward
+ * fragments read.
  */
 export const REFLECTION_TRACE_BINDINGS = {
   flags: 0,
@@ -50,6 +51,7 @@ export const REFLECTION_TRACE_BINDINGS = {
   base: 17,
   target: 18,
   frontTarget: 19,
+  sampled: 20,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -69,22 +71,26 @@ const surface = () => [
   computeTextureEntry(B.lobes, 'uint'),
 ]
 
+/** What a ray reads of the scene — the lights, the light grid's lists, the bounce cascades and their
+ *  probes, the proxy and the culling's worlds and tree —, and the settle's word the trace sets. */
+const scene = () => [
+  computeBufferEntry(B.lights, 'read-only-storage'),
+  computeBufferEntry(B.lightLists, 'read-only-storage'),
+  computeBufferEntry(B.bounceGrid, 'uniform'),
+  computeTextureEntry(B.probes, 'unfilterable-float', '2d-array'),
+  computeBufferEntry(B.proxy, 'read-only-storage'),
+  computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
+  computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
+  computeBufferEntry(B.sampled, 'storage'),
+]
+
 /** The layouts of each kernel's group 0: the trace, the spatial reuse, the temporal accumulation, and
  *  the two upsamples. */
 export const halfLayouts = (device: GPUDevice) => {
   const layout = (entries: GPUBindGroupLayoutEntry[]) =>
     device.createBindGroupLayout({ entries: [...surface(), ...entries] })
   return {
-    trace: layout([
-      computeBufferEntry(B.lights, 'read-only-storage'),
-      computeBufferEntry(B.lightLists, 'read-only-storage'),
-      computeBufferEntry(B.bounceGrid, 'uniform'),
-      computeTextureEntry(B.probes, 'unfilterable-float', '2d-array'),
-      computeBufferEntry(B.proxy, 'read-only-storage'),
-      computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
-      computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
-      computeStorageTextureEntry(B.traceOut, HALF_FORMAT),
-    ]),
+    trace: layout([...scene(), computeStorageTextureEntry(B.traceOut, HALF_FORMAT)]),
     spatial: layout([
       computeTextureEntry(B.spatialIn, 'uint'),
       computeStorageTextureEntry(B.spatialOut, HALF_FORMAT),
@@ -95,12 +101,13 @@ export const halfLayouts = (device: GPUDevice) => {
       computeStorageTextureEntry(B.historyOut, HALF_FORMAT),
     ]),
     upsample: layout([
-      computeBufferEntry(B.lights, 'read-only-storage'),
+      ...scene(),
       computeTextureEntry(B.upsampleIn, 'uint'),
       computeTextureEntry(B.base, 'unfilterable-float'),
       computeStorageTextureEntry(B.target, HDR_FORMAT),
     ]),
     upsampleFront: layout([
+      ...scene(),
       computeTextureEntry(B.upsampleIn, 'uint'),
       computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT),
     ]),

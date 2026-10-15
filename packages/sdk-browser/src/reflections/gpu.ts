@@ -179,10 +179,11 @@ export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
 /**
  * Whether the view's reflections are what a still view shows: the radiance pyramid holds an image
  * of this view, and — when no temporal accumulation turns the projection from image to image, whose
- * own settling covers it — that image was drawn from where the one before it was, the reflections'
- * history is frozen (`settle.frozen`) and its lit image is the one before it's (`settle.verified`), so
- * the image traced on it reflects the view as it stands, never the one it moved from nor the light it
- * changed. A held image is then final: drawn again, it gives the same bits.
+ * own settling covers it — that image was drawn from where the one before it was and the reflections
+ * are final (`settle.final`): their lit image is the one before it's, and their history is frozen or
+ * the trace sampled nothing to accumulate, so the image traced on it reflects the view as it stands,
+ * never the one it moved from nor the light it changed. A held image is then final: drawn again, it
+ * gives the same bits.
  */
 export const reflectionsSettled = (
   reflection: ScreenReflection | undefined,
@@ -190,5 +191,4 @@ export const reflectionsSettled = (
 ) =>
   !reflection ||
   (reflection.radiance.held.valid &&
-    (accumulating ||
-      (reflection.radiance.held.still && reflection.settle.frozen && reflection.settle.verified)))
+    (accumulating || (reflection.radiance.held.still && reflection.settle.final)))

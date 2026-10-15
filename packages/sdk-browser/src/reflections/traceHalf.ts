@@ -27,25 +27,27 @@ import { reflectionShareWgsl } from './weight.ts'
  * pass, before its lighting. Four kernels a surface, over its half grids (`halfTexture.ts`):
  *
  * 1. TRACE (`traceSurface`): one thread a texel of a half-resolution grid over the whole
- *    view, a texel a 2×2 block of pixels. It traces one pixel of its block whose surface reflects, the
- *    first in a turn of four images (`halfPick`: the diagonal, then the other), along each of its lobes
- *    (the base's and the clear coat's): a mirror along its centre, a glossy lobe in a direction drawn from
- *    its GGX distribution, a low-discrepancy sequence turning every image (`sampleWgsl.ts`), through the
- *    one chain (`wgsl.ts`): the screen first (the Hi-Z march, `../gpu/hiz/screenMarch.ts`, read in the
+ *    view, a texel a 2×2 block of pixels. It traces one pixel of its block whose surface reflects through
+ *    a sampled lobe, the first in a turn of four images (`traceTexel`: the diagonal, then the other),
+ *    along each of its glossy lobes (the base's and the clear coat's) in a direction drawn from its GGX
+ *    distribution, a low-discrepancy sequence turning every image (`sampleWgsl.ts`), through the one
+ *    chain (`wgsl.ts`): the screen first (the Hi-Z march, `../gpu/hiz/screenMarch.ts`, read in the
  *    radiance pyramid), on what the screen leaves the run-time proxy (`proxy.ts`, as far as `reach.ts`
  *    lets a ray go), then the probes' field and the environment. It writes the fresh texel whole: the
  *    pixel it traced, the distance of what answered and its reuse radius (`texelWgsl.ts`).
- * 2. SPATIAL (`spatialWgsl.ts`): a glossy texel averages its ray with its sampled neighbours' on the same
- *    surface, depth and normal weighted, as far as the lobe's width at the rays' hits covers the
- *    distance between them (`reflectionReuseReach`).
+ * 2. SPATIAL (`spatialWgsl.ts`): a texel averages its ray with its neighbours' on the same surface,
+ *    depth and normal weighted, as far as the lobe's width at the rays' hits covers the distance between
+ *    them (`reflectionReuseReach`).
  * 3. TEMPORAL (`temporalWgsl.ts`): each texel blends its fresh radiance with its history reprojected
- *    through the last image's view-projection (a mirror by its reflection's virtual point), rejected by
- *    depth and normal, clamped to the fresh neighbourhood on an image drawn for a change, frozen once a
- *    still view's history is full, so the view settles.
- * 4. UPSAMPLE (`upsampleWgsl.ts`): every reflecting pixel reads its four nearest history texels, weighed
- *    by depth and normal; the opaque one weighs the radiance on its own reflectance into the reflection
- *    target the resolve reads, the front one writes its radiance where the forward fragments read one
- *    texel. A transparent behind the front surface casts no ray: it reads the chain without the proxy.
+ *    through the last image's view-projection, rejected by depth and normal, clamped to the fresh
+ *    neighbourhood on an image drawn for a change, frozen once a still view's history is full, so the
+ *    view settles.
+ * 4. UPSAMPLE (`upsampleWgsl.ts`): every reflecting pixel reads its four nearest history texels for its
+ *    sampled lobes, weighed by depth and normal, and traces its mirror lobes itself along their centre,
+ *    at full resolution: a mirror's reflection is as sharp as its pixel. The opaque one weighs the
+ *    radiance on its own reflectance into the reflection target the resolve reads, the front one writes
+ *    its radiance where the forward fragments read one texel. A transparent behind the front surface
+ *    casts no ray: it reads the chain without the proxy.
  *
  * DISTANCE. A ray goes as far as the eye can tell it from the next stage, never a count of metres: the
  * screen's reach ends where the lobe's footprint fills the radiance pyramid's top level (`reflectionReach`)
@@ -73,11 +75,13 @@ import { reflectionShareWgsl } from './weight.ts'
  *   freezes on a still view, so the view settles and stops drawing.
  * - Its screen trace marches a fixed step count; ours is bounded by the screen distance itself
  *   (`screenMarchBudget`), and every stage hands on only the share it is not sure of.
- * - Compute only, on the GPU: no indirect list, no counter, no read back; the CPU dispatches the
- *   kernels over the view's size, the front ones only on an image whose front pass reflected.
+ * - Compute only, on the GPU: no indirect list, no counter; one word read back, whether the image
+ *   sampled a lobe (`traceSampled`), copied with the settle's hash while the view is unsettled
+ *   (`settle.ts`); the CPU dispatches the kernels over the view's size, the front ones only on an image
+ *   whose front pass reflected.
  *
  * COST at 1080p (N = 1920·1080 pixels, N/4 = 518 400 half texels, F the front pixels that reflect):
- * - trace: per half texel, at most 4 flag loads; per traced texel and lobe (two with a coat), the screen
+ * - trace: per half texel, at most 4 flag loads; per glossy texel and lobe (two with a coat), the screen
  *   march K(M) = 4M + 6ℓ + 1 iterations at most, M ≤ `REFLECTION_STEP_CAP` = 256 pixels and ℓ the
  *   pyramid's levels (1091 at 1080p), the footprint's ≤ 2·`REFLECTION_TAPS` level reads; on a screen
  *   miss, the proxy's walk ≤ `RAY_WORK` = 512 units (`../bounce/runtimeLayout.ts`) over a ray no longer
@@ -85,9 +89,11 @@ import { reflectionShareWgsl } from './weight.ts'
  * - spatial: per glossy texel, `REFLECTION_REUSE_TAPS` = 8 neighbours, each a texel, a depth, a normal.
  * - temporal: per texel, its traced pixel's depth and normal, 4 history texels, 9 fresh ones on a
  *   changed image; a frozen texel one copy.
- * - upsample: per pixel 1 flag load, and on a reflecting one 4 history texels.
- * - worst case per half texel: 2·(1091 + 512 units + 32 probes) + 24 + 15 texel loads, per pixel 5 + 4;
- *   the worst frame (N + F)/4 texels. What bounds it: the march by the screen, the walk by `RAY_WORK`,
+ * - upsample: per pixel 1 flag load, and on a reflecting one 4 history texels for its glossy lobes, one
+ *   ray of the same chain for each mirror lobe.
+ * - worst case per half texel: 2·(1091 + 512 units + 32 probes) + 24 + 15 texel loads, per pixel 5 + 4,
+ *   and on a mirror pixel 2·(1091 + 512 units + 32 probes); the worst frame (N + F)/4 glossy texels, or
+ *   N + F mirror rays — a mirror at the half grid's resolution would lose its sharpness, an image loss. What bounds it: the march by the screen, the walk by `RAY_WORK`,
  *   the count by the view's pixels — never by the scene. Expected frame: t ≈ (N + F)/4 · (c_m·K̄ +
  *   p_miss·c_w·W̄ + c_s + c_t) + (N + F)·c_u, with K̄ the mean march, p_miss the share the screen leaves,
  *   W̄ the mean walk; at the walk's measured 3.4·10⁹ units a second (M2 class), 1.5 ms holds the frame
@@ -99,35 +105,38 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.lightLists}) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<${HALF_FORMAT},write>;
-/** The pixel of block \`block\` the surface \`layer\` is traced at this image: the first that reflects in
- *  the image's turn of the block — the diagonal, then the other —, its rank in the block plus one; zero
- *  where none does. */
-fn halfPick(block:vec2u,layer:u32)->u32{
+@group(0) @binding(${B.sampled}) var<storage,read_write> traceSampled:atomic<u32>;
+var<workgroup> groupSampled:atomic<u32>;
+/** The fresh texel of block \`block\` on the surface \`layer\`: its sampled lobes' radiance, traced now at
+ *  the first pixel that reflects through a sampled lobe in the image's turn of the block — the
+ *  diagonal, then the other —, its rank in the block plus one; zero where none does. */
+fn traceTexel(block:vec2u,layer:u32)->vec4u{
  let turn=reflectionView.temporal.x;
  for(var k=0u;k<4u;k++){
-  let rank=(4u-((turn+k)&3u))&3u;
-  let id=halfPixel(vec2i(block),rank+1u);
-  if(any(vec2f(id)>=view.viewport.xy)){continue;}
-  if(surfaceReflects(surfaceFlagsAt(id))){return rank+1u;}
+  let pick=((4u-((turn+k)&3u))&3u)+1u;
+  let coord=halfPixel(vec2i(block),pick);
+  if(any(vec2f(coord)>=view.viewport.xy)){continue;}
+  let flags=surfaceFlagsAt(coord);
+  if(!surfaceReflects(flags)){continue;}
+  let own=reflectingPixelAt(layer,coord,flags);
+  if(!any(reflectionSampledLobes(own.rough))){continue;}
+  let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(block,layer));
+  let reach=reflectionReuseReach(own.P,lobeAlpha(own.rough),reflectionHit);
+  return freshPack(traced,reflectionHit,pick,u32(min(0.5*reach,f32(REFLECTION_REUSE_RADIUS))));
  }
- return 0u;
+ return vec4u(0u);
 }
-/** The fresh texel of block \`block\` on the surface \`layer\`: its lobes' radiance, traced now. */
-fn traceTexel(block:vec2u,layer:u32)->vec4u{
- let pick=halfPick(block,layer);
- if(pick==0u){return vec4u(0u);}
- let coord=halfPixel(vec2i(block),pick);
- let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
- let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(block,layer));
- // A sampled lobe's ray is shared as far as its width at its hit covers; a mirror's is its own.
- let reach=reflectionReuseReach(own.P,lobeAlpha(own.rough),reflectionHit);
- let radius=u32(min(0.5*reach,f32(REFLECTION_REUSE_RADIUS)));
- return freshPack(traced,reflectionHit,pick,select(0u,radius,reflectionSampled(lobeAlpha(own.rough))));
-}
+/** One thread a texel; a workgroup that wrote a texel tells the settle the image sampled a lobe
+ *  (\`traceSampled\`, \`settle.ts\`). */
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn traceSurface(@builtin(global_invocation_id) id:vec3u){
- if(any(id.xy>=textureDimensions(traceOut))){return;}
- textureStore(traceOut,id.xy,traceTexel(id.xy,REFLECTION_LAYER));
+fn traceSurface(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+ if(all(id.xy<textureDimensions(traceOut))){
+  let fresh=traceTexel(id.xy,REFLECTION_LAYER);
+  textureStore(traceOut,id.xy,fresh);
+  if(freshValid(fresh)){atomicStore(&groupSampled,1u);}
+ }
+ workgroupBarrier();
+ if(lane==0u&&atomicLoad(&groupSampled)!=0u){atomicStore(&traceSampled,1u);}
 }`,
   [
     directLightWgsl(),

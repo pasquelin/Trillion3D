@@ -74,20 +74,21 @@ export const createTraceGroups = () => ({
 })
 
 /** What a view's trace holds: the target the upsample writes, the opaque surface's half grids, the
- *  transparents' front layer and its groups. */
+ *  transparents' front layer, its groups, and the settle's word the trace sets (`settle.ts`). */
 type TraceResources = {
   device: GPUDevice
   targetView: GPUTextureView
   half: HalfGrids
   front: Pick<FrontLayer, 'views' | 'half'>
   trace: ReturnType<typeof createTraceGroups>
+  settle: { sampled: GPUBuffer }
 }
 
 /** The groups of one surface — its targets `surface`, its grids `grids` —, for both parities. */
 function surfaceGroups(
   device: GPUDevice,
   layouts: TraceStages['layouts'],
-  inputs: TraceInputs,
+  scene: Named,
   surface: Named,
   grids: HalfGrids,
   upsample: { layout: GPUBindGroupLayout; out: Named },
@@ -97,22 +98,10 @@ function surfaceGroups(
       layout,
       entries: namedEntries(REFLECTION_TRACE_BINDINGS, { ...surface, ...named }),
     })
-  const lights = { buffer: inputs.lights }
   return {
     // The trace writes the grid that is not the history, the spatial reuse reads it into the scratch,
     // the accumulation reads the scratch and the history into it again, which the upsample reads.
-    trace: [0, 1].map((p) =>
-      group(layouts.trace, {
-        lights,
-        lightLists: { buffer: inputs.lightLists },
-        bounceGrid: { buffer: inputs.bounceGrid },
-        probes: inputs.probes,
-        proxy: { buffer: inputs.proxy },
-        proxyWorlds: inputs.proxyWorlds,
-        proxyTree: inputs.proxyTree,
-        traceOut: grids.turn[p],
-      }),
-    ),
+    trace: [0, 1].map((p) => group(layouts.trace, { ...scene, traceOut: grids.turn[p] })),
     spatial: [0, 1].map((p) =>
       group(layouts.spatial, { spatialIn: grids.turn[p], spatialOut: grids.scratch }),
     ),
@@ -124,7 +113,7 @@ function surfaceGroups(
       }),
     ),
     upsample: [0, 1].map((p) =>
-      group(upsample.layout, { ...upsample.out, upsampleIn: grids.turn[p] }),
+      group(upsample.layout, { ...scene, ...upsample.out, upsampleIn: grids.turn[p] }),
     ),
   }
 }
@@ -143,21 +132,33 @@ const surfaceOf = (views: {
 /** The bind groups of `reflection`'s trace over `inputs`, made again when a resource they name is
  *  not the one they were made over. */
 function traceGroups(reflection: TraceResources, stages: TraceStages, inputs: TraceInputs) {
-  const { device, targetView, half, trace, front } = reflection
+  const { device, targetView, half, trace, front, settle } = reflection
   const { next } = trace.identity
   next.length = 0
   next.push(stages, targetView, half, front.half, front.views.flags, front.views.normals)
   next.push(front.views.lobes, front.views.traced, inputs.base, inputs.flags, inputs.normals)
   next.push(inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid, inputs.probes)
-  next.push(inputs.proxy, inputs.proxyWorlds, inputs.proxyTree)
+  next.push(inputs.proxy, inputs.proxyWorlds, inputs.proxyTree, settle.sampled)
   if (!trace.identity.moved() && trace.groups) return trace.groups
   const { layouts } = stages
+  // What a ray reads of the scene, the trace's and the upsamples' (a mirror lobe's ray), and the
+  // settle's word.
+  const scene: Named = {
+    lights: { buffer: inputs.lights },
+    lightLists: { buffer: inputs.lightLists },
+    bounceGrid: { buffer: inputs.bounceGrid },
+    probes: inputs.probes,
+    proxy: { buffer: inputs.proxy },
+    proxyWorlds: inputs.proxyWorlds,
+    proxyTree: inputs.proxyTree,
+    sampled: { buffer: settle.sampled },
+  }
   return (trace.groups = {
-    opaque: surfaceGroups(device, layouts, inputs, surfaceOf(inputs), half, {
+    opaque: surfaceGroups(device, layouts, scene, surfaceOf(inputs), half, {
       layout: layouts.upsample,
-      out: { lights: { buffer: inputs.lights }, base: inputs.base, target: targetView },
+      out: { base: inputs.base, target: targetView },
     }),
-    front: surfaceGroups(device, layouts, inputs, surfaceOf(front.views), front.half, {
+    front: surfaceGroups(device, layouts, scene, surfaceOf(front.views), front.half, {
       layout: layouts.upsampleFront,
       out: { frontTarget: front.views.traced },
     }),

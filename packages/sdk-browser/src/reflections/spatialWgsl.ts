@@ -14,11 +14,9 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * temporal accumulation: a texel averages its ray with those of up to `REFLECTION_REUSE_TAPS`
  * neighbours on a disc of its reuse radius (`freshRadius`, a Vogel spiral turned by the golden angle
  * every image), each weighed by how surely it traced the same surface (`reflectionSameSurface`, on the
- * depth and normal of the pixels both traced) and kept only when it was sampled too. Neighbours on one
- * surface see one lobe from nearly one point: their rays are that lobe's samples, and the texel gains
- * their count. A mirror's texel (radius zero) is copied as it is: its reflection's detail is its own
- * pixel's. The texel keeps its own word — its hit, its pick, its radius —, which the accumulation
- * reads.
+ * depth and normal of the pixels both traced). Neighbours on one surface see one lobe from nearly one
+ * point: their rays are that lobe's samples, and the texel gains their count. The texel keeps its own
+ * word — its hit, its pick, its radius —, which the accumulation reads.
  *
  * HOW FAR (`reflectionReuseReach`): a neighbour `n` pixels away casts its lobe from a point and along a
  * direction of its own; the two lobes part, at the distance `t` of what they meet, by the pixels'
@@ -69,7 +67,7 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
   let tap=clamp(at+vec2i(round(reach*vec2f(cos(a),sin(a)))),vec2i(0),last);
   if(all(tap==at)){continue;}
   let t=textureLoad(spatialIn,tap,0);
-  if(!freshValid(t)||freshRadius(t)==0u){continue;}
+  if(!freshValid(t)){continue;}
   let s=halfPixel(tap,freshPick(t));
   let apart=distance(vec2f(s),vec2f(coord));
   if(apart>reflectionReuseReach(P,alpha,min(hit,freshHit(t)))){continue;}

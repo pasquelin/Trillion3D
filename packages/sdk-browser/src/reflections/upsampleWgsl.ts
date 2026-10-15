@@ -5,19 +5,22 @@ import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
-import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
+import { REFLECTION_TRACE_BINDINGS as B, TRACE_SCENE_BINDINGS } from './halfBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
-import { reflectionWeighWgsl } from './weight.ts'
+import { REFLECTION_GROUP } from './viewLayout.ts'
+import { reflectionShareWgsl, reflectionWeighWgsl } from './weight.ts'
 
 /**
- * THE UPSAMPLE, edge-aware: each full-resolution pixel of a reflecting surface reads the four history
- * texels nearest it (`upsampled`, `temporalWgsl.ts`), bilinear by its place among their centres, each
- * weighed by whether it holds the same surface (`reflectionSameSurface`: its depth and normal, which the
- * history texel carries), so that a reflection never bleeds across a silhouette or a crease. The pixel's
- * own half texel traced a pixel of its own surface in its 2×2 block, so one of the four is of the
- * pixel's surface; where none passes the test (a surface a pixel thin), the bilinear mean of the texels
- * that hold a history answers.
+ * THE UPSAMPLE, edge-aware: each full-resolution pixel of a reflecting surface reads, for its sampled
+ * lobes, the four history texels nearest it (`upsampled`, `temporalWgsl.ts`), bilinear by its place among
+ * their centres, each weighed by whether it holds the same surface (`reflectionSameSurface`: its depth
+ * and normal, which the history texel carries), so that a reflection never bleeds across a silhouette or
+ * a crease. The pixel's own half texel traced a pixel of its 2×2 block that samples a lobe; where none
+ * of the four passes the test (a surface a pixel thin), the bilinear mean of the texels that hold a
+ * history answers. Its mirror lobes it traces itself, along their centre (`reflectedAt`,
+ * `REFLECTION_MIRRORS`): a mirror's reflection is as sharp as the pixel, where the half grid's two pixels
+ * would blur its edges — a reflected silhouette — over two more.
  *
  * `upsampleOpaque` weighs the radiance on the pixel's own reflectance, normal, roughness and lobes
  * (`reflectionShare`) — the texture detail of a surface is the pixel's, never the half grid's — into the
@@ -30,6 +33,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
   [
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TEXEL_WGSL,
+    reflectionShareWgsl(REFLECTION_GROUP, true, TRACE_SCENE_BINDINGS),
     reflectionWeighWgsl(true),
     SHARED_EXPONENT_WGSL,
     surfaceReflects,
@@ -50,6 +54,17 @@ fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
  let n=max(g.nearWeight,1e-30);
  return Reflected(g.near.base/n,g.near.coat/n);
 }
+/** What the pixel \`own\` of the surface \`layer\` at \`coord\` reflects: its mirror lobes traced, its
+ *  sampled ones upsampled from the half grid. */
+fn reflectedAt(layer:u32,coord:vec2i,own:ReflectingPixel)->Reflected{
+ let sampled=reflectionSampledLobes(own.rough);
+ var r=reflectionTrace(own.P,own.N,own.V,own.rough,REFLECTION_MIRRORS);
+ if(any(sampled)){
+  let h=upsampled(layer,coord,own.P,own.N,own.V);
+  r=Reflected(select(r.base,h.base,sampled.x),select(r.coat,h.coat,sampled.y));
+ }
+ return r;
+}
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)){return;}
@@ -58,16 +73,16 @@ fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){
  if(!surfaceReflects(flags)){return;}
  let own=reflectingPixelAt(0u,coord,flags);
  let base=textureLoad(traceBase,coord,0);
- let share=reflectionShare(upsampled(0u,coord,own.P,own.N,own.V),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
+ let share=reflectionShare(reflectedAt(0u,coord,own),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
  textureStore(reflectionOut,coord,vec4f(share,1.0));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn upsampleFront(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)){return;}
  let coord=vec2i(id.xy);
- if(!surfaceReflects(surfaceFlagsAt(coord))){return;}
- let own=reflectingPixelAt(1u,coord,0u);
- let traced=upsampled(1u,coord,own.P,own.N,own.V);
+ let flags=surfaceFlagsAt(coord);
+ if(!surfaceReflects(flags)){return;}
+ let traced=reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags));
  textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),0u,0u));
 }`,
 )

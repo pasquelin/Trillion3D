@@ -74,9 +74,9 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
   // forward fragments read it.
   for (const kernel of [
     'override REFLECTION_LAYER:u32;',
-    'textureStore(traceOut,id.xy,traceTexel(id.xy,REFLECTION_LAYER));',
+    'let fresh=traceTexel(id.xy,REFLECTION_LAYER);',
     'textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),REFLECTION_LAYER));',
-    'reflectingPixelAt(1u,coord,0u)',
+    'reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags))',
   ])
     assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
   assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))

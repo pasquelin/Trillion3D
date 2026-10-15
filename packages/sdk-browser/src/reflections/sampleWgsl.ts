@@ -48,6 +48,13 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  *   low-discrepancy set within each texel's history, a turning one across the grid.
  *
  * The coat's lobe is sampled the same way, its pair of numbers swapped (`reflectionTrace`).
+ *
+ * WHICH LOBES A CALL READS: a sampled lobe is the half grid's (`traceHalf.ts`), its rays shared over
+ * neighbours and images; a mirror lobe is its own pixel's, read along its centre by the upsample
+ * (`upsampleWgsl.ts`) at full resolution, where a half-resolution texel would spread its sharp
+ * reflection over the two pixels around. `u` in [0, 1)² is the half grid's sample, and the mirror lobes
+ * there give nothing; `REFLECTION_MIRRORS` (negative) asks for the mirror lobes alone, the sampled ones
+ * giving nothing.
  */
 export const REFLECTION_SAMPLE_WGSL = wgslBlock(
   'REFLECTION_SAMPLE_WGSL',
@@ -62,7 +69,8 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     tangentFallback,
     reflectionCentreRadiance,
   ],
-  `fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
+  `const REFLECTION_MIRRORS=vec2f(-1.0);
+fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
  let shift=vec2f(f32(seed&0xffffu),f32(seed>>16u))/65536.0;
@@ -80,7 +88,9 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  return select(reflect(-V,N),L,dot(L,N)>0.0);
 }
 fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- if(!reflectionSampled(alpha)){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
+ let sampled=reflectionSampled(alpha);
+ if(sampled==(u.x<0.0)){return vec3f(0.0);}
+ if(!sampled){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
  let spread=sqrt(1.0-REFLECTION_SAMPLE_CONE*REFLECTION_SAMPLE_CONE);
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha)*spread,u);
  return reflectedRadianceAlong(P,N,V,R,alpha*REFLECTION_SAMPLE_CONE,vec4f(lobe.xyz,lobe.w*REFLECTION_SAMPLE_CONE));

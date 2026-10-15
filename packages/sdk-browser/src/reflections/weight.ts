@@ -57,11 +57,12 @@ ${
  * (`Reflected`): the base lobe's, along the lobe the lights read (`reflectionLobe`: the long axis
  * `setLobes` left — its direction and αt where the material is anisotropic, a round lobe elsewhere),
  * and, where the surface carries a clear coat, the coat's own dielectric lobe on its normal and
- * roughness, only where the coat is above zero; the base's hit stays the reflection's (`reflectionHit`).
- * Each lobe is one `reflectionLobeRadiance`. With `scene`, the proxy's bindings — the reflections' trace
- * alone —, the chain holds the proxy's stage (`reflectedRadianceWgsl`) and a glossy lobe is sampled by
- * `u` (`sampleWgsl.ts`); without, a lobe is read along its centre, `u` unread, and the chain has no
- * proxy's stage.
+ * roughness, only where the coat is above zero; the reflection's hit is the nearer of its lobes'
+ * (`reflectionHit`, `REFLECTION_FAR` where none traced). Each lobe is one `reflectionLobeRadiance`.
+ * With `scene`, the proxy's bindings — the reflections' trace alone —, the chain holds the proxy's
+ * stage (`reflectedRadianceWgsl`) and `u` names the lobes traced: a glossy lobe sampled by it, or the
+ * mirror lobes alone (`sampleWgsl.ts`); without, every lobe is read along its centre, `u` unread, and
+ * the chain has no proxy's stage.
  */
 export const reflectionShareWgsl = (group: number, lobes: boolean, scene?: SceneBindings) =>
   wgslBlock(
@@ -78,12 +79,13 @@ export const reflectionShareWgsl = (group: number, lobes: boolean, scene?: Scene
  return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
 }
 fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
+ reflectionHit=REFLECTION_FAR;
  var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
   let hit=reflectionHit;
   let alpha=lobeAlpha(lobes.coatRough);
   traced.coat=reflectionLobeRadiance(P,lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
-  reflectionHit=hit;
+  reflectionHit=min(hit,reflectionHit);
  }
  return traced;
 }`

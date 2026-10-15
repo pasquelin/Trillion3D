@@ -21,7 +21,7 @@ import type { ReflectionFrame } from './viewWrite.ts'
  * rank, and the history freezes once it holds `REFLECTION_HISTORY` of them (`temporalWgsl.ts`) — so
  * the image a still view holds is the mean of the same samples of it whatever was drawn before, and a
  * frozen view writes nothing, its turn held. An image drawn for a change takes the next turn of the
- * view's own count.
+ * view's own count. Each image clears the trace's word the settle reads (`RadianceSettle.stage`).
  */
 export function stageReflectionImage(
   reflection: ScreenReflection,
@@ -32,6 +32,7 @@ export function stageReflectionImage(
   frame.still = drawnFromHeld(held, frame.size, frame.viewProjection)
   const stands = drawnFromHeld(held, frame.size, frame.pose ?? frame.viewProjection, held.pose)
   if (!stands || lights !== reflection.lightsSeen) reflection.settle.busy()
+  reflection.settle.stage()
   reflection.lightsSeen = lights
   const { REFLECTION_HISTORY, REFLECTION_SEQUENCE } = REFLECTION_COUNTS
   frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_HISTORY)
