@@ -16,6 +16,10 @@ export type WebgpuBindIdentity = {
   /** Where the identity `next` named at the last `moved()` is held, below `depth`: the family keeps
    *  the groups it made for it at that rank, and makes them again when `moved()` was true. */
   readonly slot: number
+  /** The identity held at `slot` is forgotten: the next `moved()` naming it is true again. */
+  forget(): void
+  /** Every identity held is forgotten. */
+  clear(): void
 }
 
 /**
@@ -59,6 +63,12 @@ export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
       identity.slot = at
       named[at] = clock
       return true
+    },
+    forget() {
+      held[identity.slot].length = 0
+    },
+    clear() {
+      for (const kept of held) kept.length = 0
     },
     entriesMoved(layout: unknown) {
       next[0] = layout

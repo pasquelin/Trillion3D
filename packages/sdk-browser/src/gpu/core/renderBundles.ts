@@ -1,4 +1,7 @@
-import { sameEntries } from './sameEntries.ts'
+import {
+  createWebgpuBindIdentity,
+  type WebgpuBindIdentity,
+} from '../../webgpu/core/bindIdentity.ts'
 
 /** What a render pass and a render bundle encoder both take: the draw stream a bundle records. */
 export type RenderCommands = GPURenderCommandsMixin & GPUBindingCommandsMixin
@@ -15,9 +18,8 @@ export type RecordBundle<K extends readonly unknown[] = unknown[]> = (
 /** A frame's key past its layout (`keyed`): its words `K`, pushed in order. */
 type BundleKey<K extends readonly unknown[] = unknown[]> = { push(...words: K): number }
 
-/** A held bundle: the key it was recorded for, the one-bundle list a pass executes, and what its
- *  recording noted. */
-type Held = { key: unknown[]; bundles: GPURenderBundle[]; note: unknown }
+/** A held bundle: the one-bundle list a pass executes, and what its recording noted. */
+type Held = { bundles: GPURenderBundle[]; note: unknown }
 
 /**
  * The render bundles of one pass stream whose commands repeat from frame to frame: every count its
@@ -34,18 +36,19 @@ type Held = { key: unknown[]; bundles: GPURenderBundle[]; note: unknown }
  * Bundles hold no timestamp: the pass that executes one keeps its timestamp writes.
  */
 export class RenderBundles {
-  private readonly held: Held[] = []
-  private readonly next: unknown[] = []
-  private readonly capacity: number
+  /** The keys held, one a slot, the least lately named replaced first: the engine's one cache
+   *  keyed by an identity list (`createWebgpuBindIdentity`). */
+  private readonly identity: WebgpuBindIdentity
+  private readonly held: (Held | undefined)[] = []
 
   constructor(capacity: number) {
-    this.capacity = capacity
+    this.identity = createWebgpuBindIdentity(capacity)
   }
 
   /** The frame's key, emptied and opened with `layout`: the attachments the bundle executes in.
    *  With `K`, its words in one push, typed as the `RecordBundle<K>` that reads them. */
   keyed<K extends readonly unknown[] = unknown[]>(layout: GPURenderBundleEncoderDescriptor) {
-    const { next } = this
+    const { next } = this.identity
     next.length = 0
     next.push(layout)
     return next as unknown as BundleKey<K>
@@ -66,28 +69,24 @@ export class RenderBundles {
   /** Forgets the bundle the last `execute` ran: a stream recorded before all it names was ready,
    *  walked again at the next frame. */
   forgetLatest() {
-    this.held.shift()
+    this.identity.forget()
+    this.held[this.identity.slot] = undefined
   }
 
   /** Forgets every held bundle, and with them what their keys name. */
   clear() {
+    this.identity.clear()
     this.held.length = 0
   }
 
   private find<K extends readonly unknown[]>(device: GPUDevice, record: RecordBundle<K>): Held {
-    const { held, next } = this
-    for (let at = 0; at < held.length; at++) {
-      const entry = held[at]
-      if (!sameEntries(entry.key, next)) continue
-      for (let i = at; i > 0; i--) held[i] = held[i - 1]
-      return (held[0] = entry)
-    }
+    const { identity, held } = this
+    const kept = identity.moved() ? undefined : held[identity.slot]
+    if (kept) return kept
+    const { next } = identity
     const layout = next[0] as GPURenderBundleEncoderDescriptor
     const encoder = device.createRenderBundleEncoder(layout)
     const note = record(encoder, next as unknown as Parameters<RecordBundle<K>>[1])
-    const entry = { key: next.slice(), bundles: [encoder.finish({ label: layout.label })], note }
-    if (held.length >= this.capacity) held.length = this.capacity - 1
-    held.unshift(entry)
-    return entry
+    return (held[identity.slot] = { bundles: [encoder.finish({ label: layout.label })], note })
   }
 }
