@@ -7,6 +7,7 @@ import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import {
   proxyArena,
   proxyBuffer,
+  proxyHeader,
 } from '../../../packages/sdk-browser/src/bounce/proxyBuffer.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
@@ -46,14 +47,11 @@ function proxyWords(faces: readonly RigFace[]) {
   // Surface: no tint, opaque, the radiance the face gives.
   const surfaces = faces.map(({ radiance }) => [0, 0, 0, 1, ...radiance, 0])
   const arena = proxyArena(columns, surfaces)
-  const header = {
+  const header = proxyHeader(arena, {
     instances: faces.length,
-    ...arena.regions,
     treeRoot: NO_INDEX,
     members: faces.length,
-    error: 0,
-    copies: 0,
-  }
+  })
   return { words: proxyBuffer(header, arena.words), instances: Uint32Array.from(instances) }
 }
 

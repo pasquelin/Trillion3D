@@ -13,7 +13,7 @@ import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFo
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
 import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
-import { proxyArena } from './proxyBuffer.fixture.ts'
+import { proxyArena, proxyHeader } from './proxyBuffer.fixture.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { subtract, type Vec3 } from '../../../math/src/vector/vectorTuple.ts'
@@ -107,12 +107,11 @@ export function world(
   }
   const arena = proxyArena(cut, surfaces, copyWorlds)
   const header = {
-    instances: count,
-    ...arena.regions,
-    treeRoot: tree ? 0 : NO_INDEX,
-    members: tree ? tree.count : count,
-    error: 0,
-    copies: arena.copies,
+    ...proxyHeader(arena, {
+      instances: count,
+      treeRoot: tree ? 0 : NO_INDEX,
+      members: tree ? tree.count : count,
+    }),
     words: arena.words,
   }
   const columns: ArenaColumns = {

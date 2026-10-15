@@ -47,6 +47,13 @@ export function proxyArena(
   }
 }
 
+/** The header over `arena` (`proxyArena`): its regions and copies, the placements' count, the
+ *  placement tree's root and members, no error. */
+export const proxyHeader = (
+  arena: ReturnType<typeof proxyArena>,
+  fields: { instances: number; treeRoot: number; members: number },
+): ProxyHeader => ({ ...fields, ...arena.regions, error: 0, copies: arena.copies })
+
 /** The proxy's buffer: the header's fields at their words, `error` as an `f32`'s bits, then `arena`,
  *  and one word past it. */
 export function proxyBuffer(header: ProxyHeader, arena: Uint32Array) {
