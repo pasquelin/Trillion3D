@@ -16,6 +16,13 @@ function checkSoftSourceIds(count: number, ids: readonly number[], softVertices 
     throw new Error('PHYSICS_FORMAT')
 }
 
+/** The header of a whole copy's inputs, its floats in order: the flags, the target count, the
+ *  vertex count, the stride of a vertex's row; the rows follow (`floats`). */
+export const WHOLE_HEADER = { flags: 0, targets: 1, vertices: 2, stride: 3, floats: 4 } as const
+/** A vertex's row: its joints, then its weights (`width` each), then a morph target's floats each
+ *  target, its position's delta then its normal's (from `normal`). */
+export const WHOLE_TARGET = { floats: 6, normal: 3 } as const
+
 /** Whole-mesh transmission keeps its source representation; inputs are packed once per geometry. */
 export function wholeDeformationInputs(
   geometry: Geometry,
@@ -28,17 +35,15 @@ export function wholeDeformationInputs(
     width = softSourceIds ? 4 : streams.width
   const skin = width > 0
   if (softSourceIds) checkSoftSourceIds(count, softSourceIds, softVertices)
-  const stride = 2 * width + targets.length * 6
-  // Header: flags, target count, vertex count, stride; then one row of source attributes per vertex.
-  const data = new Float32Array(4 + count * stride)
-  data.set([
-    softSourceIds ? FLAG_SOFT_SOURCE | FLAG_SKIN : skin ? FLAG_SKIN : 0,
-    targets.length,
-    count,
-    stride,
-  ])
+  const stride = 2 * width + targets.length * WHOLE_TARGET.floats
+  // The header (`WHOLE_HEADER`), then one row of source attributes per vertex.
+  const data = new Float32Array(WHOLE_HEADER.floats + count * stride)
+  data[WHOLE_HEADER.flags] = softSourceIds ? FLAG_SOFT_SOURCE | FLAG_SKIN : skin ? FLAG_SKIN : 0
+  data[WHOLE_HEADER.targets] = targets.length
+  data[WHOLE_HEADER.vertices] = count
+  data[WHOLE_HEADER.stride] = stride
   for (let vertex = 0; vertex < count; vertex++) {
-    let at = 4 + vertex * stride
+    let at = WHOLE_HEADER.floats + vertex * stride
     if (skin) {
       for (let k = 0; k < width; k++) {
         data[at + k] = softSourceIds ? softSourceIds[vertex] : streams.read(vertex, k, false)
@@ -55,13 +60,13 @@ export function wholeDeformationInputs(
             ? 0
             : readComponent(geometry, geometry.attributes.position, vertex, c))
         if (normal)
-          data[at + 3 + c] =
+          data[at + WHOLE_TARGET.normal + c] =
             readComponent(geometry, normal, vertex, c) -
             (geometry.morphTargetsRelative || !geometry.attributes.normal
               ? 0
               : readComponent(geometry, geometry.attributes.normal, vertex, c))
       }
-      at += 6
+      at += WHOLE_TARGET.floats
     }
   }
   return data
