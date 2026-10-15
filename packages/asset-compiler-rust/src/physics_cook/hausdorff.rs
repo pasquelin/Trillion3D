@@ -12,7 +12,6 @@ mod bounded;
 mod level0;
 #[cfg(test)]
 pub(crate) mod reference;
-pub(crate) use bounded::distance_above;
 use bounded::one_sided;
 pub(crate) use level0::Level0;
 

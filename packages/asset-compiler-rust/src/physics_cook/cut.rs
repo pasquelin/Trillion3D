@@ -149,7 +149,7 @@ pub(crate) fn collision_cut(
     let level0 = hausdorff::Level0::new(pos, source);
     let measure = |threshold: f64| {
         let tiles = cut_tiles(dag, order, culling, threshold);
-        let hausdorff = level0.distance(&tiles.concat());
+        let hausdorff = level0.distance(&tiles.concat(), 0.0);
         (tiles, hausdorff)
     };
     let (mut held, mut failed) = (0, thresholds.len() - 1);

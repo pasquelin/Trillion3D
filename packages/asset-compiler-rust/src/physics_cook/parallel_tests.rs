@@ -26,7 +26,7 @@ fn serial_distance(pos: &[f32], level0: &[u32], cut: &[u32]) -> u64 {
     there.max(one_sided_distance(pos, cut, level0)).to_bits()
 }
 fn parallel_distance(pos: &[f32], level0: &[u32], cut: &[u32]) -> u64 {
-    Level0::new(pos, level0).distance(cut).to_bits()
+    Level0::new(pos, level0).distance(cut, 0.0).to_bits()
 }
 
 /// Every case measured on one thread, then on many, in one pass each.

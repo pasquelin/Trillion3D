@@ -1,6 +1,9 @@
-//! The distance of each cut a search tries to one fixed level 0: level 0's grid is built once for
-//! the whole search, not once per cut, and a cut's two sides are measured side by side on the
-//! compiler's pool. Each side and their maximum are the serial measure's, bit for bit.
+//! THE sampled Hausdorff distance between a fixed set of triangles — a primitive's level 0, a
+//! group's live surface — and a cut: the fixed side's grid is built once and kept for every cut
+//! measured against it, the cut's grid is built while its own side runs on the compiler's pool,
+//! and the first side found raises the floor of the second, so a sample under it is never
+//! measured exactly. Each side and their maximum are the serial measure's, bit for bit.
+use super::bounded::raised;
 use super::{one_sided, Grid};
 
 pub(crate) struct Level0<'a>(Grid<'a>);
@@ -10,23 +13,22 @@ impl<'a> Level0<'a> {
         Self(Grid::new(pos, triangles))
     }
 
-    /// The sampled Hausdorff distance between level 0 and `cut`; zero if either is empty.
-    pub(crate) fn distance(&self, cut: &[u32]) -> f64 {
+    /// `floor.max(distance(level 0, cut))`, a zero as `+0`; the floor raised to `0` when either
+    /// side is empty. A search passes `0.0`; a reduction its error bound, under which nothing
+    /// changes what it publishes.
+    pub(crate) fn distance(&self, cut: &[u32], floor: f64) -> f64 {
         let Self(level0) = self;
         if level0.triangles.is_empty() || cut.is_empty() {
-            return 0.0;
+            return raised(floor, 0.0);
         }
-        let (to_cut, to_level0) = rayon::join(
-            || {
-                one_sided(
-                    level0.pos,
-                    level0.triangles,
-                    &Grid::new(level0.pos, cut),
-                    0.0,
-                )
-            },
-            || one_sided(level0.pos, cut, level0, 0.0),
+        let (to_level0, grid_cut) = rayon::join(
+            || one_sided(level0.pos, cut, level0, floor),
+            || Grid::new(level0.pos, cut),
         );
-        to_cut.max(to_level0)
+        let floor = floor.max(to_level0);
+        raised(
+            floor,
+            one_sided(level0.pos, level0.triangles, &grid_cut, floor),
+        )
     }
 }

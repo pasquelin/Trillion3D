@@ -9,12 +9,12 @@
 //!
 //! Measuring every sample exactly multiplied the DAG build time by 3 to 11. Only the samples that
 //! can raise the error are measured exactly: a sample stops at the first triangle within the bound
-//! the quadrics, the children and the removed parts already give (`distance_above`), which returns
+//! the quadrics, the children and the removed parts already give (`Level0::distance`), which returns
 //! the same error bit for bit.
 //!
 //! Nor is it below how far the texture slides across the coarse surface (`texture.rs`).
 use super::GroupReductionInput;
-use crate::physics_cook::hausdorff::distance_above;
+use crate::physics_cook::hausdorff::Level0;
 
 /// The arrays a reduction's error is measured on: the level's (`Surface::of`), or a solve's own
 /// region with the vertices it placed (`placed::Local::measured`).
@@ -60,5 +60,5 @@ pub(super) fn step_error(
         return bound;
     }
     let bound = super::texture::texture_deviation_above(surface, live, kept, bound);
-    distance_above(surface.positions, live, kept, bound)
+    Level0::new(surface.positions, live).distance(kept, bound)
 }

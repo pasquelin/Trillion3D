@@ -12,7 +12,7 @@ use crate::compiler_primitive_warn::root_cover_triangles;
 use crate::dag::bounds::point_sphere;
 use crate::dag::clusters::weld_positions;
 use crate::dag::vanished::{extent, parts};
-use crate::physics_cook::hausdorff::one_sided_distance;
+use crate::physics_cook::hausdorff::reference::one_sided_distance;
 use crate::tests::thin_shapes::ThinShapes;
 use std::collections::HashSet;
 

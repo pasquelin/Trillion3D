@@ -13,5 +13,5 @@ pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
 /// The sampled Hausdorff distance between two triangle sets over the same positions: a one-shot
 /// `Level0`.
 pub(crate) fn distance(pos: &[f32], a: &[u32], b: &[u32]) -> f64 {
-    Level0::new(pos, a).distance(b)
+    Level0::new(pos, a).distance(b, 0.0)
 }

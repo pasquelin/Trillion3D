@@ -103,7 +103,7 @@ pub(super) fn bundle_dag_pages(
                 }
             }
             Ok(Bundle {
-                url: format!("../../objects/{}.bin", digest),
+                url: crate::compiler_storage::object_url(&digest),
                 digest,
                 bytes: payload.len(),
                 count: members.len(),
