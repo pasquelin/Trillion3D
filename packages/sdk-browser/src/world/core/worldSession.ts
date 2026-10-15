@@ -15,12 +15,15 @@ export const registerWorld = (world: object, access: Access, held: Held) => {
   worlds.set(world, { ...access, particles: held.particles })
 }
 
-/** The session drawing `world` now; a world that draws nothing yet is refused by name. */
-export function sessionOf(world: object): MeasuredWorld {
-  const session = worlds.get(world)?.session()
+/** `session`, the one drawing a world now; none — a world that draws nothing yet — is refused by
+ *  name. The one guard of every method that reaches a world's session. */
+export function drawing(session: MeasuredWorld | null | undefined): MeasuredWorld {
   if (!session) throw new Error('This world draws nothing yet: add an object or load a model first')
   return session
 }
+
+/** The session drawing `world` now (`drawing`). */
+export const sessionOf = (world: object) => drawing(worlds.get(world)?.session())
 
 /** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's frames:
  *  the world's own loop draws on while the pool moves, a world its page leads at each `render()`.

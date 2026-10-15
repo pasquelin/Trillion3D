@@ -1,13 +1,10 @@
 import type { MeasuredWorld } from '../session/explorer.ts'
 import type { SceneMaterialPatch } from '../api/materialValues.ts'
+import { drawing } from './worldSession.ts'
 
 /** The public world's page-material methods delegate to its current drawing session. */
 export function worldMaterialMethods(session: () => MeasuredWorld | null, invalidate: () => void) {
-  const drawn = () => {
-    const current = session()
-    if (!current) throw new Error('This world draws nothing yet: add a model first')
-    return current
-  }
+  const drawn = () => drawing(session())
   const createMaterial: MeasuredWorld['createMaterial'] = ((props = {}) =>
     drawn().createMaterial(props)) as MeasuredWorld['createMaterial']
   return {
