@@ -1,10 +1,10 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { FRAME_HEAD_WGSL } from '../blend/frameHead.ts'
 import { VERDICT_WGSL } from '../blend/verdictLayout.ts'
 
 /** The side of the backdrop copy's tiles (`copyWgsl.ts`). */
 export const WATER_COPY_TILE = 8
-const COPY_SHIFT = Math.log2(WATER_COPY_TILE)
 
 /**
  * WHAT THE WATER PASS DRAWS, written by one thread once the rectangles are folded
@@ -16,7 +16,7 @@ const COPY_SHIFT = Math.log2(WATER_COPY_TILE)
  */
 export const WATER_ARGS_WGSL = wgslBlock(
   'WATER_ARGS_WGSL',
-  [FRAME_HEAD_WGSL, VERDICT_WGSL],
+  [FRAME_HEAD_WGSL, VERDICT_WGSL, ceilDivWgsl],
   `/** Word \`k\` of a union, its minima uncomplemented. */
 fn unionWord(at:u32,k:u32)->u32{
  let word=atomicLoad(&verdict[at+k]);
@@ -44,7 +44,7 @@ fn writeWaterArgs(){
  atomicStore(&verdict[VERDICT_RECT+4u],width);
  atomicStore(&verdict[VERDICT_RECT+5u],height);
  writeWords(VERDICT_COPY,vec4u(copied.x,copied.y,size.x,size.y));
- writeWords(VERDICT_COPY_ARGS,vec4u((size.x+${WATER_COPY_TILE - 1}u)>>${COPY_SHIFT}u,(size.y+${WATER_COPY_TILE - 1}u)>>${COPY_SHIFT}u,n,0u));
+ writeWords(VERDICT_COPY_ARGS,vec4u(ceilDiv(size.x,${WATER_COPY_TILE}u),ceilDiv(size.y,${WATER_COPY_TILE}u),n,0u));
  writeWords(VERDICT_QUAD_ARGS,vec4u(6u,n,0u,0u));
 }
 `,
