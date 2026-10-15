@@ -115,8 +115,7 @@ export interface MeasuredWorldOptions {
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
    *  every source image, what a world asks for each model after its first, whose baked levels
-   *  the session's base does not serve (`worldLoader.ts`). Without `createImageBitmap` no level
-   *  can be read, and the images are read as under `'host'` (`resolveTextureSource`). */
+   *  the session's base does not serve (`worldLoader.ts`). */
   textureSource?: 'host' | 'cache'
   sceneLighting?: Object3D
   /** Lines and points drawn over the image, held by the world (`world.guides`). */

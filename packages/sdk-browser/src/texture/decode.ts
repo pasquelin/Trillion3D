@@ -2,7 +2,8 @@
  * The engine's one image decoder: every image it samples — a source image of a prepared scene, a
  * lossless baked level, a picture the loader reads as data — is decoded by `decodeRaw`, so the
  * bytes that reach the atlas by one path are those that reach it by another. An image at an
- * address is fetched and decoded by `fetchDecoded`, the one path of both.
+ * address is fetched and decoded by `fetchDecoded`, the one path of both. The engine needs
+ * `createImageBitmap`, which every browser that runs WebGPU has: no other decoder stands in.
  */
 import { type ByteMeter, unmetered } from '../cluster/byteMeter.ts'
 import { checked } from '../cluster/checked.ts'

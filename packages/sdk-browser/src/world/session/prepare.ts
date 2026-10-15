@@ -1,5 +1,4 @@
 import type { EngineContext, Engine } from '../../engine/types.ts'
-import { resolveTextureSource } from '../../engine/textureSource.ts'
 import { configureExplorer } from './capabilities.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerEngine } from './engine.ts'
@@ -66,7 +65,7 @@ type Inputs = {
 
 /** The scene the session draws: the one handed in, or the one the cache prepared, read through
  *  `streamer`, the session's queue (`sceneThrough`), its world tops said. `textureSource` is the
- *  loader's, resolved against what the platform can read. */
+ *  loader's, the baked levels by default. */
 async function sessionScene(
   session: ExplorerSession,
   inputs: Inputs,
@@ -75,7 +74,8 @@ async function sessionScene(
 ) {
   const { options, metadata, scope, diagnose } = session
   const { base, resources, progress } = inputs
-  const textureSource = resolveTextureSource(options.textureSource)
+  // The baked levels by default; a host that asked for the images is obeyed.
+  const textureSource = options.textureSource ?? 'cache'
   const keep = openingKeeps(resources, opening, (source) => releaseOwned(session, { source }))
   diagnose('texture-source', 'Texture source of this session', {
     kind: 'configuration',
@@ -182,12 +182,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     pageSources,
   })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(
-    source,
-    canvas,
-    options,
-    loadedScene.framingLot,
-  )
+  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
