@@ -13,12 +13,15 @@ import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import { VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
 import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
+import { VSM_RENDER_VIEWS_SPECS, vsmRenderViewsWgsl } from './renderViewsWgsl.ts'
 import { createVsmRowBound, type VsmRowBound } from './rowPageBound.ts'
 import { vsmChunkParamSlots, vsmRenderParamsEntry } from './chunkParams.ts'
 
 /** The cull, expand and argument kernels of a raster over caster rows (`renderCullWgsl.ts`):
  *  the opaque raster's, and the transmission atlas's with its own cull. */
 export interface VsmChunkKernels {
+  /** The views with pages to draw, listed on the GPU (`renderViewsWgsl.ts`). */
+  views: VsmComputePipe
   cull: VsmComputePipe
   expand: VsmComputePipe
   /** One source, one group layout: each pipe's `groups[0]` is the same entries. */
@@ -42,6 +45,10 @@ export function vsmChunkKernels(
     entryPoint: string,
     groups: GPUBindGroupLayoutEntry[][],
   ) => vsmComputePipe(device, `${label}.${name}`, code, entryPoint, groups)
+  const views = pipe('views', vsmRenderViewsWgsl(layout), 'vsmRenderViews', [
+    vsmBindGroupLayoutEntries(VSM_RENDER_VIEWS_SPECS, layout, COMPUTE),
+    [P(0), computeBufferEntry(1, 'storage', COMPUTE), computeBufferEntry(2, 'storage', COMPUTE)],
+  ])
   const cull = pipe('cull', cullCode, 'vsmRenderCull', [
     vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, COMPUTE),
     [
@@ -68,6 +75,7 @@ export function vsmChunkKernels(
   ]
   const args = (entryPoint: string) => pipe('args', VSM_RENDER_ARGS_WGSL, entryPoint, [argsEntries])
   return {
+    views,
     cull,
     expand,
     args: {

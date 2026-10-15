@@ -23,8 +23,12 @@ export class VsmMapIds implements VsmIdAllocator {
   /** Each previous id's record, kept across frames (`reset`), this frame's those listed. */
   readonly nextMaps: VsmNextMap[] = []
 
-  /** Empties the allocator for a new frame, keeping its storage. */
-  reset() {
+  /** The maps a frame may hold: the set's map slots (`VsmLayout.mapSlots`). */
+  capacity = 0
+
+  /** Empties the allocator for a new frame of `capacity` map slots, keeping its storage. */
+  reset(capacity: number) {
+    this.capacity = capacity
     this.mapCount = 0
     this.localMaps = 0
     this.unseenMaps = 0
@@ -33,6 +37,10 @@ export class VsmMapIds implements VsmIdAllocator {
     return this
   }
 
+  /** Whether `count` more maps fit the frame's slots. */
+  fits(count: number) {
+    return this.mapCount + count <= this.capacity
+  }
   /** Allocates `count` slots of the shadow map array. */
   private allocateMapSlots(count: number) {
     const id = this.mapCount

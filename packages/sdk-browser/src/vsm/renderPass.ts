@@ -43,14 +43,10 @@ import {
   vsmEnsureLists,
   vsmReleaseContext,
 } from './chunkLists.ts'
-import {
-  vsmRenderViews,
-  vsmWriteChunkParams,
-  type VsmRenderCamera,
-  type VsmRenderChunking,
-} from './chunkParams.ts'
+import { vsmWriteChunkParams, type VsmRenderCamera, type VsmRenderChunking } from './chunkParams.ts'
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
+import { vsmRenderViewBound } from './mapViews.ts'
 import { renderGroups, vsmEncodeChunks, type RasterTables } from './renderChunks.ts'
 
 /**
@@ -118,8 +114,7 @@ export function vsmRenderContextBytes(res: VsmResources) {
   return res.render ? vsmContextBytes(res.render) : 0
 }
 
-/** The frame's map views, its rows and its chunking, rewritten each frame. */
-const viewList: number[] = []
+/** The frame's rows and its chunking, rewritten each frame. */
 const range = { first: 0, end: 0, candidates: 0 }
 const chunking: VsmRenderChunking = {
   rowCount: 0,
@@ -141,15 +136,15 @@ export function encodeVsmRender(
   scene: VsmRenderScene,
 ): VsmRenderStats | undefined {
   const { device } = frame
-  const { views, viewMips } = vsmRenderViews(frame.lights, viewList)
-  const viewCount = views.length / 4
+  // The views' bound: every map of the frame's lights; the GPU lists those with pages to draw.
+  const { views: viewCount, viewMips } = vsmRenderViewBound(frame.lights)
   if (viewCount === 0 || scene.rowCount <= 0) return
 
   const ctx = vsmRenderContext(res, device, scene.pageLayout)
   const asked = renderChunking(device.limits, res.layout.poolPages, viewMips, scene.rowCount)
   range.end = range.candidates = scene.rowCount
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, asked)
-  const sizing = renderSizes(scene.rowCount, views.length, chosen, ctx.slots)
+  const sizing = renderSizes(scene.rowCount, 4 * viewCount, chosen, ctx.slots)
   const within = vsmChunkRowsWithin(device, ctx.buffers, chosen.rows, sizing.sizes, sizing.within)
   const roomLimited = within.limited,
     size = within.size
@@ -157,17 +152,17 @@ export function encodeVsmRender(
   if (!size) return { chunks: 0, chunkRows, roomLimited }
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
-  const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
+  const { params, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
   chunking.rowCount = scene.rowCount
   chunking.viewCount = viewCount
   chunking.chunks = chunks
   chunking.chunkRows = chunkRows
   chunking.cmds = chosen.cmds(chunkRows)
   chunking.pairs = chosen.pairs(chunkRows)
-  vsmWriteChunkParams(device, scene.camera, chunking, params, viewsBuffer, views, ctx.slots)
+  vsmWriteChunkParams(device, scene.camera, chunking, params, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
-  vsmEncodeChunks(encoder, ctx, tables, scene.pageGroup, args, scene.rowCount, chunks)
+  vsmEncodeChunks(encoder, ctx, tables, scene.pageGroup, args, scene.rowCount, chunks, viewCount)
   return { chunks, chunkRows, roomLimited }
 }

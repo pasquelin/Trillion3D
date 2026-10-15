@@ -12,6 +12,7 @@ import {
   vsmLocalMipLevel,
 } from './constants.ts'
 import { vsmShadowMatrices } from './projectionData.ts'
+import { vsmMapsOf } from './mapViews.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
@@ -249,7 +250,7 @@ export function addVsmLocalLightShadow(
       ),
     )
 
-  const numMaps = isSpot ? 1 : 6
+  const numMaps = vsmMapsOf(light.kind)
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
   const forceInvalidate = !cache.cacheEnabled

@@ -11,7 +11,7 @@ import {
   type VsmBoundLight,
   type VsmRowBound,
 } from './rowPageBound.ts'
-import { vsmRenderViews } from './chunkParams.ts'
+import { vsmRenderViewBound } from './mapViews.ts'
 import {
   bruteForce,
   bruteForceLocal,
@@ -28,8 +28,7 @@ import { landBins, topSums } from './rowBins.fixture.ts'
  *  a row at most the views' mips. */
 function ask(rows: SceneRows, lights: VsmBoundLight[], bound: VsmRowBound, bin = true) {
   const end = rows.packed.length / 8,
-    { views } = vsmRenderViews(lights),
-    cmdsPerRow = views.reduce((n, v, i) => (i % 4 === 1 ? n + v : n), 0)
+    cmdsPerRow = vsmRenderViewBound(lights).viewMips
   // A worst case of 64 rows a chunk: the scenes' few hundred rows take several.
   const worst = { ...worstOf(), rows: 64, cmdsPerRow },
     range = { first: 0, end, candidates: end }

@@ -5,6 +5,7 @@
  * then the candidates and, per chunk, the cull, its commands' redrawn pages and the bin.
  */
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
+import { VSM_RENDER_VIEWS_SPECS } from './renderViewsWgsl.ts'
 import { VSM_RENDER_ARGS_EXPAND, VSM_RENDER_ARGS_STRIDE_WORDS } from './renderParamsWgsl.ts'
 import {
   encodeVsmCandidates,
@@ -27,6 +28,7 @@ import type { BinPlan } from './transmissionBinPlan.ts'
 export interface ChunkLists {
   trans: VsmTransmission
   cand: GPUBindGroup
+  views1: GPUBindGroup
   cull1: GPUBindGroup
   args: GPUBindGroup
   pages1: GPUBindGroup
@@ -36,6 +38,8 @@ export interface ChunkLists {
  *  (`VsmTransmissionContext.tables`): the cull's two and the argument kernel's, as the opaque
  *  raster's chunk commands take them, the pages' and the bin's. */
 export interface ChunkTables {
+  views0: GPUBindGroup
+  views1: GPUBindGroup
   cull0: GPUBindGroup
   cull1: GPUBindGroup
   args: GPUBindGroup
@@ -50,7 +54,7 @@ function chunkLists(
   b: Required<VsmTransmissionContext['buffers']>,
 ): ChunkLists {
   const { device } = ctx
-  const { params, counts, pairs, cand, cull1, args } = vsmChunkListGroups(
+  const { params, counts, pairs, cand, views1, cull1, args } = vsmChunkListGroups(
     device,
     ctx,
     ctx.candidates.groups[0],
@@ -61,6 +65,7 @@ function chunkLists(
   return {
     trans,
     cand,
+    views1,
     cull1,
     args,
     pages1: vsmBufferGroup(device, ctx.pages.groups[1], [
@@ -76,8 +81,13 @@ function chunkLists(
 
 function chunkTables(res: VsmResources, ctx: VsmTransmissionContext): ChunkTables {
   const { device } = ctx,
-    { trans, cull1, args } = ctx.lists!
+    { trans, views1, cull1, args } = ctx.lists!
   return {
+    views0: device.createBindGroup({
+      layout: ctx.views.groups[0],
+      entries: vsmBindGroupEntries(res, VSM_RENDER_VIEWS_SPECS),
+    }),
+    views1,
     cull0: device.createBindGroup({
       layout: ctx.cull.groups[0],
       entries: vsmBindGroupEntries(res, VSM_RENDER_CULL_SPECS),
@@ -112,8 +122,8 @@ export function binLists(
   scene: VsmRenderScene,
   plan: BinPlan,
 ) {
-  const { params, views, counts } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, plan, params, views, plan.views, ctx.slots)
+  const { params, counts } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
+  vsmWriteChunkParams(ctx.device, scene.camera, plan, params, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
   if (vsmSceneRowsMoved(ctx.bound, scene, b, trans)) ctx.lists = undefined
@@ -132,7 +142,15 @@ export function encodeBin(
 ) {
   const lists = ctx.lists!,
     args = ctx.buffers.args!
-  encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, ctx, lists.args, plan.rowCount)
+  encodeVsmCandidates(
+    pass,
+    ctx.candidates.pipeline,
+    lists.cand,
+    ctx,
+    tables,
+    plan.rowCount,
+    plan.viewCount,
+  )
   for (let c = 0; c < plan.chunks; c++) {
     const { offset } = ctx.passes.chunk(c)
     encodeVsmChunkCommands(pass, ctx, tables, args, c, offset)

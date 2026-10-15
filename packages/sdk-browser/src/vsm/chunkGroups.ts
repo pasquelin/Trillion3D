@@ -17,19 +17,27 @@ import type { VsmRenderScene } from './renderPass.ts'
  *  bind it every frame without a new array. */
 const FIRST_SLOT: readonly number[] = [0]
 
-/** The candidates kernel over `rowCount` rows, then the cull dispatch of every chunk, in `pass`:
- *  the opaque raster's and the transmission's. */
+/** The candidates kernel over `rowCount` rows and the views with pages to draw among the first
+ *  `mapCount` maps (`renderViewsWgsl.ts`, groups `views0` over the VSM tables, `views1` over the
+ *  lists), then the cull dispatch of every chunk, in `pass`: the opaque raster's and the
+ *  transmission's. */
 export function encodeVsmCandidates(
   pass: GPUComputePassEncoder,
   candidates: GPUComputePipeline,
   candGroup: GPUBindGroup,
   kernels: VsmChunkKernels,
-  argsGroup: GPUBindGroup,
+  groups: { args: GPUBindGroup; views0: GPUBindGroup; views1: GPUBindGroup },
   rowCount: number,
+  mapCount: number,
 ) {
   pass.setPipeline(candidates)
   pass.setBindGroup(0, candGroup, FIRST_SLOT)
   dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
+  pass.setPipeline(kernels.views.pipeline)
+  pass.setBindGroup(0, groups.views0)
+  pass.setBindGroup(1, groups.views1, FIRST_SLOT)
+  dispatchRows(pass, ceilDiv(mapCount, WORKGROUP_THREADS))
+  const argsGroup = groups.args
   pass.setPipeline(kernels.args.cull.pipeline)
   pass.setBindGroup(0, argsGroup, FIRST_SLOT)
   pass.dispatchWorkgroups(1)
@@ -38,6 +46,8 @@ export function encodeVsmCandidates(
 /** The bind groups of one chunk's cull and expand: `cull0` / `expand0` the VSM tables', the
  *  others at the chunk's dynamic offset. */
 export interface VsmChunkGroups {
+  views0: GPUBindGroup
+  views1: GPUBindGroup
   cull0: GPUBindGroup
   cull1: GPUBindGroup
   expand0: GPUBindGroup
@@ -128,6 +138,7 @@ export function vsmChunkListGroups(
       counts,
       ...extra,
     ]),
+    views1: group(kernels.views.groups[1], [params, views, counts]),
     cull1: group(kernels.cull.groups[1], [params, views, candidates, counts, cmds]),
     expand1: group(kernels.expand.groups[1], [params, cmds, counts, pairs]),
     args: group(kernels.args.cull.groups[0], [params, counts, args]),

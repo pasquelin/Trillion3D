@@ -13,8 +13,10 @@ export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
 export const VSM_RENDER_ARGS_CULL = 0
 export const VSM_RENDER_ARGS_EXPAND = 3
 export const VSM_RENDER_ARGS_DRAW = 6
-/** Counter words: [0] candidates, then 4 per chunk from word 4: commands, pairs, max corners, pad. */
+/** Counter words: [0] candidates, [1] the views the GPU listed (`renderViewsWgsl.ts`), then 4 per
+ *  chunk from word 4: commands, pairs, max corners, pad. */
 export const VSM_RENDER_COUNTS_HEAD = 4
+export const VSM_RENDER_COUNT_VIEWS = 1
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
 export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
@@ -61,6 +63,7 @@ const VSM_RENDER_CAND_DEFORMING:u32=2u;
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_COUNTS_HEAD,
+  VSM_RENDER_COUNT_VIEWS,
 })}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
 `,
@@ -84,7 +87,7 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
   let n=select(0u,min(total-first,params.chunkRows),total>first);
   let at=vsmRenderArgsAt(c,${VSM_RENDER_ARGS_CULL}u);
   args[at]=ceilDiv(n,WORKGROUP_THREADS);
-  args[at+1u]=select(0u,params.viewCount,n>0u);
+  args[at+1u]=select(0u,min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount),n>0u);
   args[at+2u]=1u;
  }
 }

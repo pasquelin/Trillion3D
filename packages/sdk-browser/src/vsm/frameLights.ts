@@ -34,6 +34,8 @@ const lightIds = { ids: undefined as unknown as VsmMapIds, allocations: allocati
 // The local lights' input and views, rewritten for each light: the setup keeps neither.
 const localViews: ReturnType<typeof vsmLocalViewData>[] = []
 const localInput: VsmLocalLightInput = { id: '', kind: 'point', position: [], range: 0 }
+/** The frame's shadowed local lights, nearest the eye first. */
+const nearFirst: SceneLight[] = []
 
 /** The frame's next allocation record, rewritten whole. */
 function allocation(
@@ -82,9 +84,16 @@ function setupLocalLights(
   viewport: VsmViewport,
 ) {
   localViews.length = 0
-  for (const { light } of casting) {
-    if ((light.kind !== 'point' && light.kind !== 'spot') || !light.position || !light.range)
-      continue
+  // Nearest the eye first: past the map slots, the farthest lights go (`allocateLightIds`).
+  nearFirst.length = 0
+  for (const { light } of casting)
+    if ((light.kind === 'point' || light.kind === 'spot') && light.position && light.range)
+      nearFirst.push(light)
+  const eye = camera.eye
+  const distanceSq = (l: SceneLight) =>
+    (l.position![0] - eye[0]) ** 2 + (l.position![1] - eye[1]) ** 2 + (l.position![2] - eye[2]) ** 2
+  nearFirst.sort((a, b) => distanceSq(a) - distanceSq(b))
+  for (const light of nearFirst) {
     if (!localViews.length) localViews.push(vsmLocalViewData(camera, viewport))
     const input = localInput
     input.id = light.id
@@ -102,18 +111,28 @@ function setupLocalLights(
   }
 }
 
-/** The id allocation: directional, local, then unreferenced entries. */
+/** The id allocation: directional, local, then unreferenced entries, within the set's map slots: a
+ *  light past them — the farthest, the local lights coming nearest first — casts no shadow this
+ *  frame, its entry dropped; the others keep theirs. */
 function allocateLightIds(state: VsmFrameState) {
-  const ids = state.ids.reset()
+  const ids = state.ids.reset(state.resources.layout.mapSlots)
   allocationScratch.length = 0
   for (let i = 0; i < suns.length; i++) {
     const entry = clipmaps[i].cacheEntry
+    if (!ids.fits(entry.mapCaches.length)) {
+      state.cache.entries.delete(entry.lightId)
+      continue
+    }
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
     allocation(suns[i], entry, clipmaps[i], undefined)
   }
   for (let i = 0; i < locals.length; i++) {
     const setup = setups[i],
       entry = setup.cacheEntry
+    if (!ids.fits(entry.mapCaches.length)) {
+      state.cache.entries.delete(entry.lightId)
+      continue
+    }
     entry.moveToMapId(ids.allocateLocal(entry.mapCaches.length))
     allocation(locals[i], entry, undefined, setup)
   }

@@ -75,7 +75,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
  let local=wid.x*WORKGROUP_THREADS+lane;
  let k=params.chunkFirst+local;
- if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=params.viewCount){return;}
+ if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount)){return;}
  let cand=candidates[k];
  let view=views[wid.y];
  let h=vsmHandleFromId(view.x);

@@ -21,16 +21,20 @@ import { highHalf, lowBits, lowHalf } from '../../../math/src/wgsl/integer.ts'
  *   `vsmPageMarksLoad(index)` / `vsmReceiverCoverLoad(index)`.
  */
 
-/** The shadow map handle: its id. */
+/** The shadow map handle: its id and where its table lies — the origin and the finest mip its
+ *  record carries (\`tableBlocks.ts\`), read once when the handle is made, through the module's
+ *  \`vsmProjectionData\`, so that no table lookup reads the record again (\`vsmTableLevelOrigin\`). */
 export const VSM_HANDLE_WGSL = wgslBlock(
   'VSM_HANDLE_WGSL',
   [VSM_CONSTANTS_WGSL],
   `
-struct VsmHandle{id:u32,}
-fn vsmHandleFromId(id:u32)->VsmHandle{return VsmHandle(id);}
-fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu);}
+struct VsmHandle{id:u32,tableOrigin:u32,finestMip:u32,}
+fn vsmHandleFromId(id:u32)->VsmHandle{
+ return VsmHandle(id,vsmProjectionData[id].tableOrigin,vsmProjectionData[id].finestMip);
+}
+fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu,0u,0u);}
 /** The map \`offset\` ids on: a clipmap's next level, a cube's face. */
-fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return VsmHandle(u32(i32(h.id)+offset));}
+fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return vsmHandleFromId(u32(i32(h.id)+offset));}
 fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 `,
 )
@@ -118,18 +122,16 @@ fn vsmCoverInBounds(t:vec2u,m:u32)->bool{return all(t<(vsm.coverSize>>vec2u(m)))
 )
 
 /**
- * A map's table in the global one, through the module's `vsmProjectionData` (its record's
- * `tableOrigin` and `finestMip`, `tableBlocks.ts`): mip `mipLevel`'s first entry, and a page's.
- * A table holds the mips from its finest on.
+ * A map's table in the global one, from its handle's origin and finest mip (`tableBlocks.ts`): mip
+ * `mipLevel`'s first entry, and a page's. A table holds the mips from its finest on.
  */
 export const VSM_TABLE_ORIGIN_WGSL = wgslBlock(
   'VSM_TABLE_ORIGIN_WGSL',
   [VSM_PAGE_ADDRESS_WGSL, lowHalf, highHalf],
   `
 fn vsmTableLevelOrigin(h:VsmHandle,mipLevel:u32)->VsmTableLevel{
- let origin=vsmProjectionData[h.id].tableOrigin;
- let finest=vsmProjectionData[h.id].finestMip;
- return VsmTableLevel(vec2u(lowHalf(origin),highHalf(origin))+vsmMipTailOffset(mipLevel,finest));
+ let o=h.tableOrigin;
+ return VsmTableLevel(vec2u(lowHalf(o),highHalf(o))+vsmMipTailOffset(mipLevel,h.finestMip));
 }
 fn vsmTableEntryOf(h:VsmHandle,level:u32,pageAddress:vec2u)->VsmTableCell{
  return vsmTableEntryAt(vsmTableLevelOrigin(h,level),level,pageAddress);

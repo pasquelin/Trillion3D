@@ -43,6 +43,7 @@ export interface VsmNextMap {
 export interface VsmIdAllocator {
   allocateUnreferenced(count: number): number
   writeNextMap(prevMapId: number, data: VsmNextMap): void
+  fits(count: number): boolean
   readonly mapCount: number
 }
 
@@ -278,7 +279,10 @@ export class VsmCacheManager {
       if (entry.seenThisFrame) {
         if (entry.mapId + entry.mapCaches.length > ids.mapCount)
           throw new Error('VSM: referenced cache entry id out of range')
-      } else if (((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES) {
+      } else if (
+        ((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES &&
+        ids.fits(entry.mapCaches.length)
+      ) {
         const numMaps = entry.mapCaches.length
         entry.moveToMapId(ids.allocateUnreferenced(numMaps))
         for (const map of entry.mapCaches) {

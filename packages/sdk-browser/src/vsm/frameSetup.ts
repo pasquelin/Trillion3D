@@ -62,20 +62,19 @@ export interface VsmFramePlan {
 // The frame's light lists of `planVirtualShadowFrame`, emptied at each call.
 const castingScratch: VsmFrameLight[] = []
 
-/** The cache entries holding ids this frame, by id: the suns' first. */
-const byId: VsmLightCache[] = []
-
-/** Packs every map's table into the page table's blocks (`tableBlocks.ts`), the suns' first, each
- *  by its finest mip (a clipmap level's is 0), into its record's `tableOrigin`; returns the blocks
- *  taken. */
-function packTables(state: VsmFrameState) {
-  byId.length = 0
-  for (const entry of state.cache.entries.values()) if (entry.mapId >= 0) byId.push(entry)
-  byId.sort((a, b) => a.mapId - b.mapId)
+/** Packs every map's table into the page table's blocks (`tableBlocks.ts`) in the order the ids
+ *  were given — the suns' first, then the local lights', then the entries no light referenced —,
+ *  each by its finest mip (a clipmap level's is 0), into its record's `tableOrigin`; returns the
+ *  blocks taken. */
+function packTables(state: VsmFrameState, lights: readonly VsmLightAllocation[]) {
   const blocks = state.tableBlocks.reset()
-  for (const entry of byId)
+  const pack = (entry: VsmLightCache) => {
     for (const map of entry.mapCaches)
       map.projectionData.tableOrigin = blocks.take(map.projectionData.finestMip)
+  }
+  for (const light of lights) pack(light.entry)
+  for (const entry of state.cache.entries.values())
+    if (!entry.seenThisFrame && entry.mapId >= 0) pack(entry)
   return blocks.blocks
 }
 
@@ -120,7 +119,7 @@ export function planVirtualShadowFrame(
   for (const l of lights) if (vsmShadowed(l)) casting.push(l)
   const { ids, allocations } = allocateFrameLights(state, casting, camera, viewport)
   const uniforms = frameUniforms(state, ids)
-  const blocks = packTables(state)
+  const blocks = packTables(state, allocations)
   if (blocks > layout.fullMapCapacity && grow?.(blocks)) layout = resources.layout
   const plan: VsmFramePlan = {
     frameStamp: state.frameStamp,
@@ -131,7 +130,6 @@ export function planVirtualShadowFrame(
     nextMapCount: ids.nextMapCount,
     overflow:
       blocks > layout.fullMapCapacity ||
-      ids.mapCount > layout.mapSlots ||
       anyUnallocated(cache) ||
       ids.nextMapCount > layout.mapSlots,
   }
