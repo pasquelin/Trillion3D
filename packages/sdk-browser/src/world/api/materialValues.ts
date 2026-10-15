@@ -110,6 +110,11 @@ export function validate(
  *  when its alpha moved — and journals it: every reader takes it at its next read, as a World's
  *  live edit does (`../core/worldSurface.ts`). A family without metal or glow keeps neither;
  *  colours are new arrays, never written into ones a variant shares. */
+/** The cutoff a patch leaves `surface` at, as the open draws a table entry: the page's, or the one
+ *  kept, or glTF's for a new cutout. */
+export const cutoffOf = (surface: PageSurface, patch: SceneMaterialPatch) =>
+  patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
+
 export function write(surface: PageSurface, patch: SceneMaterialPatch, mode?: AlphaMode) {
   const metalRough = metalRoughFamily(surface.family)
   if (patch.baseColor) surface.baseColor = [...patch.baseColor]
@@ -117,9 +122,7 @@ export function write(surface: PageSurface, patch: SceneMaterialPatch, mode?: Al
   if (patch.metalness !== undefined && metalRough) surface.metalness = patch.metalness
   if (patch.roughness !== undefined && metalRough) surface.roughness = patch.roughness
   if (patch.emissive && surface.lit) surface.emissive = [...patch.emissive]
-  // As the open draws a table entry: the cutoff kept, or the page's, or glTF's for a new cutout.
-  const cutoff = patch.alphaCutoff ?? (surface.alphaTest || MASK_CUTOFF)
-  if (mode) Object.assign(surface, alphaModeFields(mode, cutoff))
+  if (mode) Object.assign(surface, alphaModeFields(mode, cutoffOf(surface, patch)))
   // A placement written on the record itself: every consumer's journal hears it. The record is
   // shared by the material's variants and may fill several slots: placed once, not once a wearer.
   const tiling = patch.tiling

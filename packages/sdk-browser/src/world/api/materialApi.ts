@@ -2,7 +2,7 @@ import type { Engine } from '../../engine/types.ts'
 import { runtimeMaterials } from './runtimeMaterials.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { tableRankOf } from '../../host/prepared/materials.ts'
+import { alphaModeFields, tableRankOf } from '../../host/prepared/materials.ts'
 import { materialTextures } from '../../scene/meshes.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
 import { primitiveName } from '../../scene/primitiveLookup.ts'
@@ -10,6 +10,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import {
+  cutoffOf,
   invalid,
   read,
   validate,
@@ -126,20 +127,18 @@ function setMaterial(
   validate(rank, patch)
   const from = alphaModeOf(worn[0]),
     mode = patch.alphaMode ?? from
-  // A masked material cut at zero is drawn as an opaque one.
-  const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode
+  // The mode the surfaces are drawn in once written, by the one rule (`alphaModeOf`): a masked
+  // material cut at zero is an opaque one.
+  const to = alphaModeOf(alphaModeFields(mode, cutoffOf(worn[0], patch)))
   const alpha = alphaMoves(from, to, patch.alphaCutoff !== undefined)
     ? { surfaces: worn, from, to }
     : undefined
   if (patch.tiling) refuseSharedTiling(id, rank, worn, scene().wearers, patch.tiling)
   // A created material no drawable wears yet is written alone: no engine draws it.
-  if (created.has(id) && !wearers.has(id)) {
-    for (const surface of worn) write(surface, patch, alpha?.to)
-    return true
-  }
-  if (alpha && to !== from) refuseClass(engine, id, alpha)
+  const drawn = !created.has(id) || wearers.has(id)
+  if (drawn && alpha && to !== from) refuseClass(engine, id, alpha)
   for (const surface of worn) write(surface, patch, alpha?.to)
-  return refreshed(engine, alpha)
+  return drawn ? refreshed(engine, alpha) : true
 }
 
 /** Drawable `primitive` (`mesh/primitive`, as the manifest names it) wears created material `id`
