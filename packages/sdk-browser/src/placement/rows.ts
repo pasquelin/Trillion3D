@@ -69,6 +69,20 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
   return rows
 }
 
+/** Row `row` of `rows` written as its owner writes it: its pose (`null` keeps the one it holds),
+ *  whether it places the resource, whether its mesh casts a shadow. */
+export function writePlacementRow(
+  rows: PlacementRows,
+  row: number,
+  matrix: ArrayLike<number> | null,
+  live: boolean,
+  castShadow: boolean,
+) {
+  if (matrix) rows.matrices.set(matrix, row * MATRIX_VALUES)
+  rows.live[row] = live ? 1 : 0
+  rows.shadowless[row] = castShadow ? 0 : 1
+}
+
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
 export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
   elements: rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
