@@ -20,7 +20,7 @@
  *                              a root's stretch, its own field
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
+import { LISTED_ROOTS_WGSL } from './listedRootsWgsl.ts'
 import { frameTableWgsl } from '../gpu/dag/frameTable.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { WORLD_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
@@ -32,9 +32,7 @@ export const ROOT_BOXES_ENTRY = 'deriveRootBoxes'
 export const ROOT_BOXES_FRAMES_BINDING = 5
 
 export const ROOT_BOXES_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
+  `@group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read> rootInputs:array<vec2u>;
 @group(0) @binding(3) var<storage,read_write> rootBoxes:array<vec2u>;
 @group(0) @binding(4) var<storage,read> ranks:array<u32>;
@@ -45,15 +43,11 @@ fn deriveRoot(rank:u32){
  if(stretch!=0xffffffffu){framesSetStretch(rank,stretch);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${ROOT_BOXES_ENTRY}(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- var rank=j;
- if(params.whole==0u){rank=ranks[j];}
- if(rank>=params.rootCount){return;}
- deriveRoot(rank);
+ let rank=listedRank(g,n);
+ if(rank!=NO_INDEX){deriveRoot(rank);}
 }`,
   [
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
+    LISTED_ROOTS_WGSL,
     WORLD_BOX_WGSL,
     STRETCH_WGSL,
     frameTableWgsl('frames', { group: 0, binding: ROOT_BOXES_FRAMES_BINDING, access: 'write' }),

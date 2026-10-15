@@ -23,7 +23,7 @@ import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
 import { markReachWgsl, reachUnboundedWgsl } from '../deformation/halfFloat.ts'
 import { nodeTableWgsl } from '../gpu/dag/nodeTable.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
+import { LISTED_ROOTS_WGSL } from './listedRootsWgsl.ts'
 import { frameTableWgsl, MARK_WORD, ROOT_WORD } from '../gpu/dag/frameTable.ts'
 import { fromF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -36,9 +36,7 @@ export const TREE_LEAVES_FRAMES_BINDING = 4,
 
 /** The pass's text: one thread a placement, each writing its leaf (`writeLeaf`). */
 export const TREE_LEAVES_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
+  `@group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(3) var<storage,read> ranks:array<u32>;
 fn writeLeaf(w:u32){
@@ -60,15 +58,11 @@ fn writeLeaf(w:u32){
  for(var k=0u;k<${BOX_VALUES}u;k++){members[w*${BOX_VALUES}u+k]=box[k];}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- var w=j;
- if(params.whole==0u){w=ranks[j];}
- if(w>=params.rootCount){return;}
- writeLeaf(w);
+ let w=listedRank(g,n);
+ if(w!=NO_INDEX){writeLeaf(w);}
 }`,
   [
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
+    LISTED_ROOTS_WGSL,
     fromF32,
     markReachWgsl,
     reachUnboundedWgsl,

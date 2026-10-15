@@ -12,10 +12,9 @@
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { dAdd, dMul } from '../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
+import { LISTED_ROOTS_WGSL } from './listedRootsWgsl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 
@@ -48,24 +47,21 @@ export const COMPOSE_WORLDS_ENTRY = 'composeWorlds'
  * rows pass read it.
  */
 export const COMPOSE_WORLDS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,pad0:u32,pad1:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> locals:array<vec2u>;
+  `@group(0) @binding(1) var<storage,read> locals:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(3) var<storage,read> parents:array<vec2u>;
 @group(0) @binding(4) var<storage,read_write> rootWorlds:array<vec2u>;
 @group(0) @binding(5) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn composeWorlds(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- let rank=ranks[j];
- if(rank>=params.rootCount){return;}
+ let rank=listedRank(g,n);
+ if(rank==NO_INDEX){return;}
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
  for(var k=0u;k<${MATRIX_VALUES}u;k++){
   rootWorlds[rank*${MATRIX_VALUES}u+k]=composed(p*${MATRIX_VALUES}u,rank*${MATRIX_VALUES}u,k);
  }
 }`,
-  [PRODUCT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
+  [PRODUCT_WGSL, LISTED_ROOTS_WGSL],
 )
 
 /**
@@ -77,15 +73,12 @@ export const COMPOSE_WORLDS_WGSL = wgslProgram(
  * (`composedMotionPass.ts`).
  */
 export const COMPOSE_ROOTS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,pad0:u32,pad1:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
+  `@group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(4) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- let rank=ranks[j];
- if(rank>=params.rootCount){return;}
+ let rank=listedRank(g,n);
+ if(rank==NO_INDEX){return;}
  let p=parentOf[rank];
  if(p==NO_INDEX){return;}
  var world:array<u32,${MATRIX_VALUES}>;
@@ -103,9 +96,7 @@ export const COMPOSE_ROOTS_WGSL = wgslProgram(
 }`,
   [
     toF32,
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
-    NO_INDEX,
+    LISTED_ROOTS_WGSL,
     worldTableWgsl('worlds', { group: 0, binding: ROOTS_CUT_WORLDS_BINDING, access: 'write' }),
   ],
 )
