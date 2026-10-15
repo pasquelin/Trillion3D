@@ -6,6 +6,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit, Vec } from './runtimeOracle.fixture.ts'
+import { RAY_WORK } from './runtimeLayout.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
 const FUNCTIONS = [
@@ -48,17 +49,18 @@ const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
 `
 
-/** The shipped program over `w`. */
+/** The shipped program over `w`; its rays' budget the whole one, `RAY_WORK`, unless one is given. */
 export function runOver(w: ReturnType<typeof world>) {
   const { header } = w
   const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
-  return shaderRun<{
+  const run = shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
       o: Vec,
       d: Vec,
       reach: number,
       tangent: number,
+      budget: number,
     ) => { color: Vec; confidence: number; distance: number }
     testWork: () => number
     testTests: () => number
@@ -70,11 +72,17 @@ export function runOver(w: ReturnType<typeof world>) {
     rtWork: 0,
     rtTests: 0,
     rtExtra: 0,
+    rtBudget: RAY_WORK,
     rtAnyHit: false,
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
   })
+  return {
+    ...run,
+    rtRadiance: (o: Vec, d: Vec, reach: number, tangent: number, budget = RAY_WORK) =>
+      run.rtRadiance(o, d, reach, tangent, budget),
+  }
 }
 
 /** Cubes along a line of sight from the origin, `gap` apart, the first at `gap`. */

@@ -34,7 +34,7 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
  let lift=rtProxy.error;
  if(reach<=lift){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  let tangent=reflectionReadTangent(lobe);
- var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent);
+ var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent,RT_WORK);
  seen.distance+=lift;
  return seen;
 }`,

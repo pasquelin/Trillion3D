@@ -87,11 +87,12 @@ fn rtShade(hit:RtHit,origin:vec3f,direction:vec3f,surface:RtSurface,reach:f32,wo
  * radiance of the light they hold, \`confidence\` the share of the ray they stop; the rest goes on to the
  * next stage, \`distance\` the first surface's, \`reach\` where none. \`error\` is the width the ray's lobe covers at a metre, \`tangent\`: a deformed placement's
  * reach, which its rest shape does not hold, takes confidence from a hit narrower than it.
- * Exhausted — its budget or a shadow ray's spent — is no answer at all, confidence zero
- * (\`runtimeLayout.ts\`).
+ * Exhausted — its \`budget\` of units spent, its lighting's shadow rays included, \`RT_WORK\` at most — is
+ * no answer at all, confidence zero (\`runtimeLayout.ts\`).
  */
-fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32)->RadianceAnswer{
+fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
  rtBegin();
+ rtBudget=min(budget,RT_WORK);
  var first=reach;
  var color=vec3f(0.0);
  var through=1.0;

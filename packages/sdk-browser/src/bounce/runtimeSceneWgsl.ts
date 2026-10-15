@@ -66,16 +66,20 @@ ${wgslConsts({
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
 var<private> rtTests:u32;
-/** The work of the shadow rays a hit's lighting cast (\`rtBlocked\`), which the ray that hit is charged. */
+/** The work of the shadow rays a hit's lighting cast (\`rtBlocked\`), which the ray that hit is charged:
+ *  the ray and its shadow rays share one budget (\`runtimeLayout.ts\`). */
 var<private> rtExtra:u32;
 /** Whether \`rtScene\` answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
 /** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
  *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
 var<private> rtLost:bool;
-/** A ray begins: nothing spent, nothing charged, nothing lost. */
-fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;}
-fn rtSpent()->bool{return rtWork>=RT_WORK||rtTests>=RT_TRIANGLES;}
+/** The units the ray may spend, its lighting's shadow rays included: \`RT_WORK\`, or fewer where its
+ *  caller asks (\`rtRadiance\`). */
+var<private> rtBudget:u32;
+/** A ray begins: nothing spent, nothing charged, nothing lost, the whole budget before it. */
+fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtBudget=RT_WORK;}
+fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=RT_TRIANGLES;}
 fn rtFloat(word:u32)->f32{return bitcast<f32>(rtProxy.words[word]);}
 fn rtVertex(index:u32,vertex:u32)->vec3f{
  return rtVec(rtProxy.trianglesWord+index*RT_TRIANGLE_FLOATS+vertex*3u);
@@ -103,7 +107,7 @@ ${wideTraversal({
      let distance=rayTriangleDistance(origin,direction,rtVertex(tri0+index,0u),rtVertex(tri0+index,1u),rtVertex(tri0+index,2u),best.distance);
      if(distance<best.distance){best=RtHit(distance,placement,tri0+index,true);if(rtAnyHit){return best;}}`,
   answer: 'best',
-  overflow: 'rtWork=RT_WORK;',
+  overflow: 'rtWork=rtBudget;',
 })}
 /** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record —
  *  its linear part (\`rtWorldsLinear\`) and the exact translation beside the matrix, rounded once to
@@ -160,7 +164,7 @@ ${placementTreeWalk({
   stop: 'if(rtSpent()){done=true;break;}',
   visit: 'rtWork+=1u;',
   steps: 'RT_TREE_STEPS',
-  cut: 'rtWork=RT_WORK;',
+  cut: 'rtWork=rtBudget;',
 })}
  }
  // The blended copies, members after the placements: each tried in turn, a unit apiece.
@@ -173,20 +177,19 @@ ${placementTreeWalk({
  return best;
 }
 /** Whether anything of the proxy stands on the segment of length \`span\` from \`origin\` along \`direction\`: the
- *  first surface met answers, not the nearest. The ray has its own budget; what it spent is charged to the
- *  ray the lighting is cast for (\`rtExtra\`). A ray that spends its budget marks that ray lost (\`rtLost\`):
+ *  first surface met answers, not the nearest. The ray spends what the ray the lighting is cast for left of
+ *  their one budget, and is charged to it (\`rtExtra\`). A ray that spends its budget marks that ray lost (\`rtLost\`):
  *  its answer carries zero weight, and this one reports a blocker, which spares the rest of its lighting. */
 fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  let work=rtWork;
  let tests=rtTests;
- rtWork=0u;
  rtTests=0u;
  rtAnyHit=true;
  let hit=rtScene(origin,direction,span);
  rtAnyHit=false;
  let lost=rtSpent();
  rtLost=rtLost||lost;
- rtExtra+=rtWork;
+ rtExtra+=max(rtWork,work)-work;
  rtWork=work;
  rtTests=tests;
  return hit.found||lost;

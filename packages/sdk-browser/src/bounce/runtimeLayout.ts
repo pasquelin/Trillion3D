@@ -66,7 +66,9 @@ export const SURFACE_BLENDED = 1
 /**
  * THE BUDGET OF A RAY. One counter of `work` units per ray, shared by the placement
  * tree and the cuts' own nodes: a child a tree node examines costs one, a cut's node four, a triangle
- * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests.
+ * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests. The shadow rays its hits'
+ * lighting casts (`rtBlocked`) spend the same budget: a ray, its lighting included, costs `RAY_WORK`
+ * units at most, whatever the lights its hits see — never one budget more a light.
  *
  * ONE RULE FOR AN EXHAUSTED RAY, the physically safe one: a ray that spends its budget — or whose
  * hit's lighting casts a shadow ray that spends its own — carries zero weight. It is never a miss
