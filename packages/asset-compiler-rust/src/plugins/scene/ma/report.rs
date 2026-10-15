@@ -43,10 +43,6 @@ pub(super) const DEGENERATE_FACE: &str = "ma-degenerate-face";
 /// A face declares a hole. A fan from its first corner would fill it, so the face is left: the
 /// silhouette of a hole is not guessed.
 pub(super) const FACE_HOLE: &str = "ma-face-hole-unsupported";
-/// A face that ear clipping could not cut entirely: a self-intersecting polygon, or with no
-/// plane — corners all colinear, zero area. It comes out as a fan from its first corner, which
-/// may fill it beyond its silhouette, and that is what this count says.
-pub(super) const NGON_UNCUT: &str = "ma-ngon-untriangulable";
 /// A `.fc` record outside those the documentation describes.
 pub(super) const FACE_RECORD_IGNORED: &str = "ma-face-record-ignored";
 /// A face record that the writing does not hang onto any face.

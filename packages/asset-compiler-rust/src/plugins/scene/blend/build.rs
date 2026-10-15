@@ -11,19 +11,12 @@
 //! and usd drivers, and it leaves the image bytes intact.
 use super::*;
 use crate::import::{primitive, Vertices};
-use crate::plugins::scene::{cancel, ngon::Ngon};
+use crate::plugins::scene::cancel;
+use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
 
-/// A face that ear-clipping could not fully cut: a self-intersecting polygon, or one with no
-/// plane — all corners aligned, zero area. It comes out fanned from its first corner, which can
-/// fill it beyond its silhouette, and that is what this count says.
-const NGON_UNCUT: &str = "blend-ngon-untriangulable";
-
-/// The arrays of a primitive under construction, and the rank of each vertex already poured.
-#[derive(Default)]
-struct Primitive {
-    vertices: Vertices,
-    seen: HashMap<[u32; 6], u32>,
-}
+/// A primitive under construction: the one corner builder, keyed by the vertex and the bits of
+/// the corner's normal and texture coordinate.
+type Primitive = Corners<[u32; 6]>;
 
 /// Builds the glTF mesh of a geometry and yields its JSON and its triangle count. `slots` gives
 /// the material of each mesh slot, when it has one. The cancellation token is reread by face
@@ -37,37 +30,34 @@ pub(super) fn mesh_json(
     cancelled: &AtomicBool,
 ) -> Result<(Value, usize)> {
     let mut groups: BTreeMap<u32, Primitive> = BTreeMap::new();
-    let mut cutter = Ngon::default();
     for face in 0..geometry.faces() {
         let first = geometry.offsets[face] as usize;
-        cutter.begin();
-        for vertex in geometry.face(face) {
-            cutter.corner(slice3(&geometry.positions, *vertex as usize).map(f64::from));
+        let group = groups
+            .entry(geometry.material[face])
+            .or_insert_with(|| Corners::new(Vertices::default()));
+        group.begin();
+        for (rank, vertex) in geometry.face(face).iter().enumerate() {
+            let (key, corner) = corner(geometry, normals, first + rank);
+            let point = slice3(&geometry.positions, *vertex as usize).map(f64::from);
+            group.corner(key, point, |out| corner.write(out));
         }
-        let Some(exact) = cutter.cut(cancelled) else {
-            return Err(cancel::refusal());
-        };
-        if !exact {
+        let uncut = group.uncut;
+        group.cut(cancelled, false).ok_or_else(cancel::refusal)?;
+        if group.uncut != uncut {
             out.scene.count(NGON_UNCUT, 1);
-        }
-        let group = groups.entry(geometry.material[face]).or_default();
-        for triangle in cutter.triangles() {
-            for rank in triangle {
-                let vertex = group.vertex(geometry, normals, first + rank);
-                group.vertices.indices.push(vertex);
-            }
         }
     }
     let mut primitives = Vec::new();
     let mut triangles = 0;
     for (slot, group) in groups {
-        if group.vertices.indices.is_empty() {
+        let group = group.vertices;
+        if group.indices.is_empty() {
             continue;
         }
-        triangles += group.vertices.indices.len() / 3;
+        triangles += group.indices.len() / 3;
         let material = slots.get(slot as usize).copied().flatten();
         primitives.push(primitive(
-            &group.vertices,
+            &group,
             &mut out.scene.bin,
             &mut out.scene.accessors,
             material,
@@ -76,39 +66,46 @@ pub(super) fn mesh_json(
     Ok((json!({"name": name, "primitives": primitives}), triangles))
 }
 
-impl Primitive {
-    /// The rank of this corner's vertex in this primitive, poured on first encounter.
-    fn vertex(&mut self, geometry: &Geometry, normals: &[f32], corner: usize) -> u32 {
-        let vertex = geometry.corners[corner];
-        let normal = slice3(normals, corner);
-        let uv = if geometry.uv.is_empty() {
-            [0.0, 0.0]
-        } else {
-            // Blender places the UV origin at the bottom left, glTF at the top left: only the V
-            // coordinate changes direction, and the image bytes are never retouched.
-            [geometry.uv[corner * 2], 1.0 - geometry.uv[corner * 2 + 1]]
-        };
-        let key = [
-            vertex,
-            normal[0].to_bits(),
-            normal[1].to_bits(),
-            normal[2].to_bits(),
-            uv[0].to_bits(),
-            uv[1].to_bits(),
-        ];
-        if let Some(known) = self.seen.get(&key) {
-            return *known;
-        }
-        let out = &mut self.vertices;
-        let rank = out.count() as u32;
-        out.positions
-            .extend_from_slice(&slice3(&geometry.positions, vertex as usize));
-        out.normals.extend_from_slice(&normal);
-        if !geometry.uv.is_empty() {
-            out.uvs.extend_from_slice(&uv);
-        }
-        self.seen.insert(key, rank);
-        rank
+/// What identifies a corner — its vertex and the bits of its normal and texture coordinate —
+/// and the vertex it carries.
+fn corner(geometry: &Geometry, normals: &[f32], corner: usize) -> ([u32; 6], Corner) {
+    let vertex = geometry.corners[corner];
+    let normal = slice3(normals, corner);
+    let uv = (!geometry.uv.is_empty())
+        .then(|| gltf_uv([geometry.uv[corner * 2], geometry.uv[corner * 2 + 1]]));
+    let [u, v] = uv.unwrap_or([0.0, 0.0]);
+    let [x, y, z] = normal;
+    let key = [
+        vertex,
+        x.to_bits(),
+        y.to_bits(),
+        z.to_bits(),
+        u.to_bits(),
+        v.to_bits(),
+    ];
+    let position = slice3(&geometry.positions, vertex as usize);
+    (
+        key,
+        Corner {
+            position,
+            normal,
+            uv,
+        },
+    )
+}
+
+/// What the vertex of a corner carries.
+struct Corner {
+    position: [f32; 3],
+    normal: [f32; 3],
+    uv: Option<[f32; 2]>,
+}
+
+impl Corner {
+    fn write(self, out: &mut Vertices) {
+        out.positions.extend(self.position);
+        out.normals.extend(self.normal);
+        out.uvs.extend(self.uv.into_iter().flatten());
     }
 }
 

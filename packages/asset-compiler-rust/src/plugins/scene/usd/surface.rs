@@ -7,7 +7,7 @@
 //! glTF's, at the top.
 use super::*;
 use crate::import::Vertices;
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
 
 /// Tables of a surface, read once for all its parts.
 pub(super) struct Surface {
@@ -59,51 +59,45 @@ impl Surface {
         world: &mut World<'_>,
         part: &subset::Part,
     ) -> Option<(Value, usize)> {
-        let mut out = Vertices::default();
-        let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
-        // A single ring and a single cutter, emptied from one face to the next: the loop walks
-        // each face of the part, and an allocation per face would only remake the same buffer.
-        let mut corners: Vec<u32> = Vec::new();
-        let mut cutter = Ngon::default();
+        let mut out: Corners<[u32; 3]> = Corners::new(Vertices::default());
         let cancelled = world.cancelled;
         for face in &part.faces {
             // An invisible face enters neither the buffer nor the indices: its vertices are
-            // not even created, `corner` being called only for emitted faces.
+            // not even created.
             if self.holes.contains(face) {
                 continue;
             }
             let Some((start, count)) = self.faces.get(*face).copied() else {
                 continue;
             };
-            corners.clear();
-            corners
-                .extend((0..count).filter_map(|offset| {
-                    self.corner(&mut out, &mut unique, start + offset, *face)
-                }));
             // Fewer than three corners, or a corner the tables do not carry: the face is not a
             // surface, it leaves the scene and its count says so.
-            if corners.len() < 3 || corners.len() < count {
+            let keys: Option<Vec<_>> = (0..count)
+                .map(|offset| self.key(start + offset, *face))
+                .collect();
+            let Some(keys) = keys.filter(|keys| keys.len() >= 3) else {
                 world.refuse(world::FACE_INVALID);
                 continue;
-            }
-            cutter.begin();
-            for offset in 0..count {
-                cutter.corner(self.point(start + offset));
+            };
+            out.begin();
+            for (offset, (key, values)) in keys.into_iter().enumerate() {
+                out.corner(key, self.point(start + offset), |vertices| {
+                    vertices.positions.extend(values.position);
+                    vertices.normals.extend(values.normal.into_iter().flatten());
+                    vertices.uvs.extend(values.uv.into_iter().flatten());
+                });
             }
             // The cutter rereads the token per face slice: a single huge mesh stops too. What
             // is placed stays, and `convert` then refuses the whole scene.
-            match cutter.cut(cancelled) {
-                None => break,
-                Some(false) => world.refuse(world::NGON_UNCUT),
-                Some(true) => {}
+            let uncut = out.uncut;
+            if out.cut(cancelled, self.reversed).is_none() {
+                break;
             }
-            for [a, b, c] in cutter.triangles() {
-                match self.reversed {
-                    true => out.indices.extend([corners[*a], corners[*c], corners[*b]]),
-                    false => out.indices.extend([corners[*a], corners[*b], corners[*c]]),
-                }
+            if out.uncut != uncut {
+                world.refuse(NGON_UNCUT);
             }
         }
+        let out = out.vertices;
         world.scene.part_primitive(&out, part.material)
     }
 
@@ -121,17 +115,12 @@ impl Surface {
         usize::try_from(*self.corners.get(corner)?).ok()
     }
 
-    /// glTF vertex of a face corner, created on first encounter. Nothing is written until the
-    /// three vertex attributes are all read: a table too short drops the corner, it does not
-    /// leave a half-vertex in the buffer.
-    fn corner(
-        &self,
-        out: &mut Vertices,
-        unique: &mut HashMap<[u32; 3], u32>,
-        corner: usize,
-        face: usize,
-    ) -> Option<u32> {
+    /// What identifies a face corner — its point, and the slots of its normal and texture
+    /// coordinate — and the values its vertex carries. `None` when a table is too short: the
+    /// corner, and its face, are dropped rather than leaving a half-vertex.
+    fn key(&self, corner: usize, face: usize) -> Option<([u32; 3], Values)> {
         let point = self.point_index(corner)?;
+        let slot = |values: Option<u32>| values.unwrap_or(0);
         let normal = match self.normals.as_ref() {
             Some(values) => Some(values.slot(corner, face, point)?),
             None => None,
@@ -140,37 +129,27 @@ impl Surface {
             Some(values) => Some(values.slot(corner, face, point)?),
             None => None,
         };
-        let key = [
-            u32::try_from(point).ok()?,
-            normal.unwrap_or(0),
-            uv.unwrap_or(0),
-        ];
-        if let Some(known) = unique.get(&key) {
-            return Some(*known);
-        }
-        let position = *self.points.get(point)?;
-        let normal = match (&self.normals, normal) {
-            (Some(values), Some(slot)) => Some(unit(values.get(slot)?)),
-            _ => None,
+        let key = [u32::try_from(point).ok()?, slot(normal), slot(uv)];
+        let values = Values {
+            position: *self.points.get(point)?,
+            normal: match (&self.normals, normal) {
+                (Some(values), Some(slot)) => Some(unit(values.get(slot)?)),
+                _ => None,
+            },
+            uv: match (&self.uvs, uv) {
+                (Some(values), Some(slot)) => Some(gltf_uv(values.get(slot)?)),
+                _ => None,
+            },
         };
-        let uv = match (&self.uvs, uv) {
-            (Some(values), Some(slot)) => {
-                let [u, v] = values.get(slot)?;
-                Some([u, 1.0 - v])
-            }
-            _ => None,
-        };
-        let id = u32::try_from(unique.len()).ok()?;
-        out.positions.extend(position);
-        if let Some(normal) = normal {
-            out.normals.extend(normal);
-        }
-        if let Some(uv) = uv {
-            out.uvs.extend(uv);
-        }
-        unique.insert(key, id);
-        Some(id)
+        Some((key, values))
     }
+}
+
+/// What the vertex of a corner carries.
+struct Values {
+    position: [f32; 3],
+    normal: Option<[f32; 3]>,
+    uv: Option<[f32; 2]>,
 }
 
 /// A normal brought back to length one; a null normal becomes glTF's up axis.

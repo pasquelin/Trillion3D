@@ -43,10 +43,6 @@ pub(super) const FACE_INVALID: &str = "usd-face-invalid";
 /// A face that `holeIndices` names: OpenUSD renders it invisible, whatever the subdivision
 /// scheme. It is removed from emission rather than rendered solid, and this count says so.
 pub(super) const FACE_HOLE: &str = "usd-face-hole";
-/// A face that ear clipping could not cut entirely: a self-intersecting polygon, or with no
-/// plane — corners all colinear, zero area. It comes out as a fan from its first corner, which
-/// may fill it beyond its silhouette, and that is what this count says.
-pub(super) const NGON_UNCUT: &str = "usd-ngon-untriangulable";
 /// A transform operation this driver does not compose (`!resetXformStack!`, inverse of a
 /// matrix, operation of unknown type).
 pub(super) const XFORM_UNSUPPORTED: &str = "usd-xform-unsupported";

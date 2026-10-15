@@ -18,10 +18,10 @@ fn is_convex(ring: &[[f64; 3]]) -> bool {
     fan_is_exact(&ngon.flat, turn)
 }
 
-/// Ear cut of a ring, forced past the convex path: the reference the fan must match.
+/// Ear cut of a ring with its full containment scan: the reference the convex walk must match.
 fn ears(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
     let (mut ngon, turn) = projected(ring);
-    let exact = ngon.ears(turn);
+    let exact = ngon.ears(turn, false);
     (ngon.triangles().to_vec(), exact)
 }
 

@@ -145,6 +145,7 @@ impl<'a> Importer<'a> {
                         &mut self.scene.bin,
                         &mut self.scene.accessors,
                         &mut self.scene.report,
+                        self.cancelled,
                     );
                     let id = converted.map(|out| {
                         self.scene.meshes.push(out.mesh);

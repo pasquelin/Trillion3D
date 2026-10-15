@@ -17,6 +17,7 @@ mod archive;
 mod axes;
 mod blend;
 mod cancel;
+pub(crate) mod corners;
 mod fbx;
 mod gltf;
 mod ma;

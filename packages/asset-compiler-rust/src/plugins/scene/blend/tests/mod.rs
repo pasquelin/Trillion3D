@@ -149,7 +149,12 @@ fn a_concave_polygon_keeps_its_own_area() {
     )
     .expect("the mesh");
     assert_eq!(triangles, 6, "eight corners make six triangles");
-    assert_eq!(out.scene.counts.get("blend-ngon-untriangulable"), None);
+    assert_eq!(
+        out.scene
+            .counts
+            .get(crate::plugins::scene::corners::NGON_UNCUT),
+        None
+    );
     let primitive = &mesh["primitives"][0];
     let positions: Vec<f32> = read(&out, &primitive["attributes"]["POSITION"])
         .as_chunks::<4>()

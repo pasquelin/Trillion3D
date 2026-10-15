@@ -12,8 +12,9 @@
 //! all colinear, zero area, non-finite coordinates — has no ear to cut: it comes out as a fan,
 //! and the cut says so to the caller, which counts it under its own name.
 //!
-//! A strictly convex ring is recognised in one pass and written as the fan at once, which is
-//! what the ears would have cut (`convex` says why); everything else goes through the ears.
+//! A strictly convex ring is recognised in one pass, and the one ear cut then skips its
+//! containment scan: every corner is an ear, so the cut walks the fan from the first corner in
+//! linear time (`convex` says why).
 mod convex;
 #[cfg(test)]
 mod tests;
@@ -66,16 +67,15 @@ impl Ngon {
             self.fan();
             return Some(false);
         };
-        if convex::fan_is_exact(&self.flat, turn) {
-            self.fan();
-            return Some(true);
-        }
-        Some(self.ears(turn))
+        let convex = convex::fan_is_exact(&self.flat, turn);
+        Some(self.ears(turn, convex))
     }
 
     /// Ear cut of the projected ring, walked in the sense `turn`: true when every triangle
-    /// was an ear, false when one had to be forced.
-    fn ears(&mut self, turn: f64) -> bool {
+    /// was an ear, false when one had to be forced. On a `convex` ring every corner of positive
+    /// area is an ear (`convex`): the containment scan is skipped, the walk stays the same, and
+    /// the cut is the fan from the first corner at linear cost.
+    fn ears(&mut self, turn: f64, convex: bool) -> bool {
         self.alive.clear();
         self.alive.extend(0..self.ring.len());
         let mut exact = true;
@@ -83,7 +83,7 @@ impl Ngon {
         while self.alive.len() > 3 {
             let found = (0..self.alive.len())
                 .map(|step| (at + step) % self.alive.len())
-                .find(|rank| self.is_ear(*rank, turn));
+                .find(|rank| self.is_ear(*rank, turn, convex));
             let rank = found.unwrap_or_else(|| self.widest(turn));
             exact &= found.is_some();
             let (before, after) = self.neighbours(rank);
@@ -102,8 +102,7 @@ impl Ngon {
         &self.triangles
     }
 
-    /// Fan from the first corner: the cut of a strictly convex ring, and what a ring with no
-    /// plane yields for lack of better.
+    /// Fan from the first corner: what a ring with no plane yields for lack of better.
     fn fan(&mut self) {
         for step in 1..self.ring.len() - 1 {
             self.triangles.push([0, step, step + 1]);
@@ -154,13 +153,13 @@ impl Ngon {
     /// stays there after the cut, on the wrong side of the remaining edge, and the next
     /// triangle starts backwards. An aligned or duplicated corner passes: its triangle has
     /// zero area, so it adds no surface, contains nothing, and the cut always advances.
-    fn is_ear(&self, rank: usize, turn: f64) -> bool {
+    fn is_ear(&self, rank: usize, turn: f64, convex: bool) -> bool {
         let [a, b, c] = self.ear(rank);
         let area = turn * double_area(a, b, c);
         if area < 0.0 {
             return false;
         }
-        if area == 0.0 {
+        if area == 0.0 || convex {
             return true;
         }
         let (before, after) = self.neighbours(rank);

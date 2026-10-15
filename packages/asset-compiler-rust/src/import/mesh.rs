@@ -1,5 +1,6 @@
 use super::*;
 use crate::gltf_codes::{UNSIGNED_INT, UNSIGNED_SHORT};
+use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
 
 pub(super) struct MeshOut {
     pub(super) mesh: Value,
@@ -11,11 +12,11 @@ pub(super) fn mesh_json(
     materials: &[Option<usize>],
     bin: &mut Bin,
     accessors: &mut Vec<Value>,
-    _report: &mut Report,
+    report: &mut Report,
+    cancelled: &AtomicBool,
 ) -> Option<MeshOut> {
     let mut primitives = Vec::new();
     let mut triangles = 0usize;
-    let mut scratch: Vec<u32> = Vec::new();
     let whole: Vec<u32>;
     let parts: Vec<(usize, &[u32])> = if mesh.material_parts.is_empty() {
         whole = (0..mesh.num_faces as u32).collect();
@@ -31,19 +32,18 @@ pub(super) fn mesh_json(
     let has_color = mesh.vertex_color.exists;
     let deform = MeshDeform::of(mesh);
     for (material_slot, faces) in parts {
-        let mut out = Vertices {
+        let out = Vertices {
             targets: (0..deform.targets()).map(|_| Default::default()).collect(),
             ..Default::default()
         };
-        let mut unique: CornerMap = CornerMap::default();
+        let mut corners: Corners<[u32; CORNER_VALUES]> = Corners::new(out);
         for &face_index in faces {
             let face = mesh.faces[face_index as usize];
             if face.num_indices < 3 {
                 continue;
             }
-            let count = ufbx::triangulate_face_vec(&mut scratch, mesh, face) as usize * 3;
-            for &corner in &scratch[..count] {
-                let c = corner as usize;
+            corners.begin();
+            for c in face.index_begin as usize..(face.index_begin + face.num_indices) as usize {
                 // A vertex is what it is worth, not the index the file gives it: an
                 // FBX that writes normals and UVs corner by corner (as most exporters do)
                 // would otherwise come out as three vertices per triangle, none
@@ -60,7 +60,7 @@ pub(super) fn mesh_json(
                 }
                 if has_uv {
                     let t = mesh.vertex_uv.values[mesh.vertex_uv.indices[c] as usize];
-                    values[CORNER_UV].copy_from_slice(&[t.x as f32, (1.0 - t.y) as f32]);
+                    values[CORNER_UV].copy_from_slice(&gltf_uv([t.x as f32, t.y as f32]));
                 }
                 if has_color {
                     let k = mesh.vertex_color.values[mesh.vertex_color.indices[c] as usize];
@@ -71,26 +71,24 @@ pub(super) fn mesh_json(
                 if deform.deformed() {
                     values[CORNER_VERTEX] = vertex as f32;
                 }
-                let next = unique.len() as u32;
-                let id = *unique
-                    .entry(CornerKey(values.map(f32::to_bits)))
-                    .or_insert_with(|| {
-                        out.positions.extend_from_slice(&values[CORNER_POSITION]);
-                        if has_normal {
-                            out.normals.extend_from_slice(&values[CORNER_NORMAL]);
-                        }
-                        if has_uv {
-                            out.uvs.extend_from_slice(&values[CORNER_UV]);
-                        }
-                        if has_color {
-                            out.colors.extend_from_slice(&values[CORNER_COLOR]);
-                        }
-                        deformed_vertex(&deform, vertex, &mut out);
-                        next
-                    });
-                out.indices.push(id);
+                corners.corner(values.map(f32::to_bits), [p.x, p.y, p.z], |out| {
+                    out.positions.extend_from_slice(&values[CORNER_POSITION]);
+                    if has_normal {
+                        out.normals.extend_from_slice(&values[CORNER_NORMAL]);
+                    }
+                    if has_uv {
+                        out.uvs.extend_from_slice(&values[CORNER_UV]);
+                    }
+                    if has_color {
+                        out.colors.extend_from_slice(&values[CORNER_COLOR]);
+                    }
+                    deformed_vertex(&deform, vertex, out);
+                });
             }
+            corners.cut(cancelled, false)?;
         }
+        report.add_count(NGON_UNCUT, corners.uncut);
+        let out = corners.vertices;
         if out.indices.is_empty() {
             continue;
         }
