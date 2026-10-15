@@ -3,7 +3,7 @@
 // the physics module's, never rewritten. Here only the driver's pedals and wheel become the controller's input,
 // and each step's wheels are written back for the page to draw. Word layouts:
 // `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
-#include "binding.h"
+#include "contacts.h"
 #include "slotLists.h"
 #include "words.h"
 
@@ -110,8 +110,7 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
   float maxSteer = f32(s + 28), grip = f32(s + 30), finalDrive = f32(s + 23);
   float omega = 2 * JPH_PI * frequency, gravity = world().system->GetGravity().Length();
   float share = mass / float(count), lock = grip * share * STANDARD_GRAVITY;
-  const MotionProperties &motion = *body.GetMotionProperties();
-  const Mat44 inverse = motion.GetLocalSpaceInverseInertia();
+  const Mat44 inverse = body.GetMotionProperties()->GetLocalSpaceInverseInertia();
   VehicleConstraintSettings settings;
   settings.mUp = UP;
   settings.mForward = FORWARD;
@@ -143,7 +142,7 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
     // (`VehicleConstraint.cpp`, `SetupVelocityConstraint`), millimetres off once `lower` moved the
     // centre of mass between the wheels.
     Vec3 arm = (vec3(p) - body.GetShape()->GetCenterOfMass()).Cross(-UP);
-    float felt = 1.0f / (motion.GetInverseMass() + arm.Dot(inverse.Multiply3x3(arm)));
+    float felt = 1.0f / inverseMassAlong(body, body.GetRotation() * arm);
     felts.push_back(felt);
     float sag = share * gravity / (felt * omega * omega);
     wheel->mSuspensionMinLength = radius;

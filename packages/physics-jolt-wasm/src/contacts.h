@@ -40,6 +40,12 @@ inline float inverseMass(const JPH::Body &body) {
 inline JPH::Mat44 inverseInertia(const JPH::Body &body) {
   return body.IsDynamic() ? body.GetInverseInertia() : JPH::Mat44::sZero();
 }
+/// The inverse mass `body` opposes to an impulse along a direction at a point, `arm` being that
+/// point's offset from its centre of mass crossed with the direction (world space):
+/// `m⁻¹ + arm·I⁻¹ arm`, 0 for a body that is not dynamic.
+inline float inverseMassAlong(const JPH::Body &body, JPH::Vec3 arm) {
+  return inverseMass(body) + arm.Dot(inverseInertia(body).Multiply3x3(arm));
+}
 /// The approach speed along the normal the solver takes out of a contact: all of `speed`, and
 /// `restitution` times more when it comes faster than `threshold` (it bounces back).
 inline float bounced(float speed, float restitution, float threshold) {

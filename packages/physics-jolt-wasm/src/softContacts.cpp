@@ -87,7 +87,7 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
       Vec3 arm = Vec3(RVec3(point) - b.GetCenterOfMassPosition()).Cross(normal);
-      float inverse = 1.0f / t.mass + inverseMass(b) + arm.Dot(inverseInertia(b).Multiply3x3(arm));
+      float inverse = 1.0f / t.mass + inverseMassAlong(b, arm);
       float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
       float substep = world().dt / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
       float speed = bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep);
