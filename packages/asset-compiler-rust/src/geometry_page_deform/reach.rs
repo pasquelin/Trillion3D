@@ -1,9 +1,7 @@
-//! How far a deformed primitive can move: the rest-pose ball of the vertices each joint
-//! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
-//! so that culling never drops a visible deformed cluster.
-use trillion3d_math::aabb::{centre, extend_aabb};
-use trillion3d_math::vecn::{length, sub};
+//! How far a deformed primitive can move, as the compiler writes it: the measure itself is the
+//! shared codec's (`trillion3d_page_codec::reach`), which the run-time cut runs too.
 use trillion3d_page_codec::encode::deformation::Deformation;
+use trillion3d_page_codec::reach::{joint_balls, target_radius};
 
 /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.
 pub fn reach_for_pass(d: &Deformation, positions: &[f32], whole: bool) -> serde_json::Value {
@@ -28,41 +26,17 @@ pub fn reach(d: &Deformation, positions: &[f32]) -> serde_json::Value {
     if d.skin.is_none() && d.targets.is_empty() {
         return serde_json::Value::Null;
     }
-    let mut balls: Vec<([f64; 3], [f64; 3])> = Vec::new();
-    if let Some((joints, weights)) = &d.skin {
-        for (v, point) in positions.as_chunks::<3>().0.iter().enumerate() {
-            for i in v * d.influences..(v + 1) * d.influences {
-                if weights[i] <= 0.0 {
-                    continue;
-                }
-                let j = joints[i] as usize;
-                if balls.len() <= j {
-                    balls.resize(j + 1, ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]));
-                }
-                let (low, high) = &mut balls[j];
-                extend_aabb(low, high, point.map(f64::from));
-            }
-        }
-    }
-    let joints: Vec<f64> = balls
+    let balls = match &d.skin {
+        Some((joints, weights)) => joint_balls(positions, joints, weights, d.influences),
+        None => Vec::new(),
+    };
+    let targets: Vec<f64> = d
+        .targets
         .iter()
-        .flat_map(|(low, high)| match low[0] <= high[0] {
-            true => {
-                let centre = centre(*low, *high);
-                [centre[0], centre[1], centre[2], length(sub(*high, centre))]
-            }
-            false => [0.0; 4],
-        })
-        .collect();
-    let targets: Vec<f64> = (d.targets.iter())
-        .map(|t| {
-            (t.position.as_chunks::<3>().0.iter())
-                .map(|d| length(d.map(f64::from)))
-                .fold(0.0, f64::max)
-        })
+        .map(|t| target_radius(&t.position))
         .collect();
     let soft = d.soft_source.is_some();
-    let mut reach = serde_json::json!({"joints": if soft { vec![] } else { joints }, "targets": targets, "softVertices": if soft { balls.len() } else { 0 }});
+    let mut reach = serde_json::json!({"joints": if soft { vec![] } else { balls.concat() }, "targets": targets, "softVertices": if soft { balls.len() } else { 0 }});
     // The kind the runtime draws by: a cloth is a sheet, seen from both sides.
     if let Some(kind) = d.soft_source {
         reach["softKind"] = serde_json::json!(kind);
