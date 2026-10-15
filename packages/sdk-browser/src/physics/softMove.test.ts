@@ -9,9 +9,9 @@ import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts'
 import { fakePhysicsWorld, idleTick } from './worker.fixture.ts'
 
 // A page-built soft body the page moves is carried there as a cooked one is, its
-// simulation kept; placed at another scale, it is refused by name and made again once back at it,
-// as a cooked one is.
-test('a page-built cloth moved is teleported with its flags; rescaled, refused by name until back', async () => {
+// simulation kept; placed at another scale, it is made again at the new one from its geometry
+// (`followNode`), which a cooked one, held to its cooked scale, cannot be.
+test('a page-built cloth moved is teleported with its flags; rescaled, made again at its new scale', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld()
   try {
     const cloth = new Mesh(plane(1, 1, 2, 2), new Material('meshStandard'))
@@ -35,16 +35,13 @@ test('a page-built cloth moved is teleported with its flags; rescaled, refused b
     assert.equal(moved.at(-1), FLAG.hidden, 'hidden: its vertices stay in the worker')
     cloth.scale.setScalar(2)
     physics.frame()
-    assert.equal(physics.handle.error?.code, 'PHYSICS_FAILED')
+    assert.notEqual(physics.handle.error?.code, 'PHYSICS_FAILED', 'no refusal')
+    const rescaled = worker.words.at(-1)!
     assert.deepEqual(
-      [...worker.words.at(-1)!],
-      [OP.remove, index],
-      'out, not made at the new scale',
+      [rescaled[0], rescaled[1], rescaled[2]],
+      [OP.remove, index, OP.soft],
+      'out, made again',
     )
-    assert.equal(physics.session()!.engineIdOf(cloth), -1)
-    cloth.scale.setScalar(1)
-    physics.frame()
-    assert.equal(worker.words.at(-1)![0], OP.soft, 'back at its scale, made again')
     assert.notEqual(physics.session()!.engineIdOf(cloth), -1)
     physics.dispose()
   } finally {

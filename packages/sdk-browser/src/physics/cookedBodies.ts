@@ -114,8 +114,15 @@ export function createCookedBodies(parts: CookedParts) {
   const start = (model: Model, opening: Opening, body: CookedBody) =>
     void add(model, opening, body).catch((error) => refuse(opening, body, error))
   /** `body` made again at `model`'s `scale` now, kept in `opening`; refused there, it waits in
-   *  its `refused` list for another scale. */
-  function remake(model: Model, opening: Opening, { body }: Refused, scale: number[]) {
+   *  its `refused` list for another scale. One refused before stands for its nodes again. */
+  function remake(
+    model: Model,
+    opening: Opening,
+    { body }: Refused,
+    scale: number[],
+    refused: boolean,
+  ) {
+    if (refused) countNodes(opening, body, 1)
     try {
       return make(model, opening, body)
     } catch (error) {
@@ -143,10 +150,23 @@ export function createCookedBodies(parts: CookedParts) {
           for (const one of made)
             if (one.carried) driveCarried(writer, one.carried, one.id & BODY_INDEX)
     },
-    /** A model moved: its bodies follow it (`followModel`). */
+    /** A model moved: its bodies follow it (`followModel`) — a carried one driven where its
+     *  node is, any other kinematic one where its model puts it. */
     moved(model: Model) {
       const opening = held.get(model)
-      if (opening) followModel(writer, model, opening, remake, bodies.release)
+      if (!opening) return
+      followModel<CookedMadeBody, Refused>(model, {
+        ...{ made: opening.made, refused: opening.refused },
+        entry: (one) => one.body,
+        madeAt: (one) => one.scale,
+        again: (one, scale, refused) => remake(model, opening, one, scale, refused),
+        release: (one) => bodies.release(one.id & BODY_INDEX),
+        place(one, { position, quaternion }) {
+          const slot = one.id & BODY_INDEX
+          if (one.carried) driveCarried(writer, one.carried, slot)
+          else if (!one.moves) writer.moveKinematic(slot, position, quaternion)
+        },
+      })
     },
     /** The worker refused `body`'s shape: out, its node static ground again, until its model
      *  opens again. */

@@ -9,7 +9,7 @@ import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { reachOf, worldPoseOf } from './bodyFrame.ts'
 import { hasBody, type Bodied } from './bodied.ts'
-import { addSoftBody, fits } from './softBodies.ts'
+import { addSoftBody } from './softBodies.ts'
 import { createBodyLedger } from './bodyLedger.ts'
 import { createBodySlots, type SlotOwner } from './bodySlots.ts'
 
@@ -43,14 +43,9 @@ export function createPhysicsBodies(
   const ledger = createBodyLedger(budget)
   const { count } = ledger
   const softMaps: (Uint32Array | null)[] = []
-  /** Bodies taken out: asleep decorative or refused ones (`null`), their mesh left where it came
-   *  to rest; soft ones placed at another scale than the one they were made at, kept. */
-  const retired = new WeakMap<Bodied['physics'], readonly number[] | null>()
-  /** Whether `mesh`'s soft body, taken out at another scale, is back at the one it was made at. */
-  const back = (mesh: Bodied) => {
-    const scale = retired.get(mesh.physics)
-    return !!scale && fits(worldPoseOf(mesh).scale, scale)
-  }
+  /** Bodies taken out: asleep decorative or refused ones, their mesh left where it came to rest,
+   *  until their `physics` is set again. */
+  const retired = new WeakSet<Bodied['physics']>()
   const add = (mesh: Bodied) => {
     const p = mesh.physics
     if (p._host) return
@@ -148,13 +143,12 @@ export function createPhysicsBodies(
     claim,
     release,
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
-     *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
-    retire(index: number, scale: readonly number[] | null = null) {
+     *  is set again. */
+    retire(index: number) {
       const p = physicsAt(index)
       removeAt(index)
-      if (p) retired.set(p, scale)
+      if (p) retired.add(p)
     },
-    back,
     /**
      * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
      * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
@@ -168,8 +162,7 @@ export function createPhysicsBodies(
       }
       root.traverse((node) => {
         if (!hasBody(node) || node.physics._host) return
-        if (retired.has(node.physics) && !back(node)) return
-        retired.delete(node.physics)
+        if (retired.has(node.physics)) return
         try {
           add(node)
         } catch (error) {

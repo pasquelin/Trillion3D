@@ -1,9 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MOTION, OP } from '../../../sdk-core/src/physics/layout.ts'
+import { BODY_INDEX, MOTION, OP } from '../../../sdk-core/src/physics/layout.ts'
 import type { CookedBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createCookedBodies } from './cookedBodies.ts'
+import { followNode } from './followNode.ts'
 import { followMove } from './nodePose.ts'
 import { createPosePlacer } from './placer.ts'
 import { createPhysicsPoses } from './poses.ts'
@@ -47,9 +48,14 @@ test('a declared dynamic body simulates, and its compiled node is drawn where it
   // Its model moved: the body is put where its node is now drawn.
   model.position.set(1, 0, 0)
   model.updateMatrixWorld(true)
-  tiles.moved(model)
+  followNode(model, bodies, writer, tiles, () => {})
   const moved = writer.take()
-  assert.deepEqual([moved[0], ...new Float32Array(moved.buffer, 8, 3)], [OP.teleport, 1, 2, 0])
+  // Commands of 9 words: the kinematic one driven by its model, the dynamic one by its node.
+  const at = [0, 9].find((w) => moved[w] === OP.teleport)!
+  assert.deepEqual(
+    [moved[at + 1], ...new Float32Array(moved.buffer, (at + 2) * 4, 3)],
+    [id & BODY_INDEX, 1, 2, 0],
+  )
   // A tick: its node is drawn at the simulated pose, local to its model; the other one stays.
   const poses = createPhysicsPoses(8, scene)
   const posed = { ...bodies, retire() {} }
