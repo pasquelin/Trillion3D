@@ -16,7 +16,7 @@ import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 
 type Seen = { color: number[]; confidence: number }
 /** A pixel's reflection lobe, as the shipped `reflectionLobeOf` returns it. */
-export type Lobe = { R: Vec3; T: Vec3; bands: number[]; widths: number[]; tangents: number[] }
+export type Lobe = { R: Vec3; T: Vec3; bands: number[]; tangents: number[] }
 type Cone = { short: number; long: number; level: number }
 /** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
  *  as the run reads them, every other field four numbers. */

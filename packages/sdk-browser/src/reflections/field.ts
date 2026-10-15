@@ -72,7 +72,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
  * The reflected lobe (`reflectionLobeOf`): one ellipse of directions around its centre `R` for both
  * answers — the screen footprint's two axes (`footprint.ts`) and the filter of the radiance field.
  * Its long axis `T` is the material's direction `lobe.xyz` across `R`, unit, zero on a round lobe;
- * its widths (`widths`) α = rough² across and the material's αt along `T`. Each axis keeps the
+ * its widths α = rough² across and the material's αt along `T`. Each axis keeps the
  * moments of the round GGX lobe of its width (`reflectionBands`: band attenuations a₁, a₂) — its
  * share of the mean cosine's deficit, (1 − a₁)/2, and its variance, σ² = (1 − a₂)/3 —, so with s
  * the short axis and t the long one `bands` is: band 1 × (a₁s + a₁t)/2 at `R`, band 2 × (2a₂s +
@@ -84,7 +84,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
 export const REFLECTION_LOBE_WGSL = wgslBlock(
   'REFLECTION_LOBE_WGSL',
   [REFLECTION_BANDS_WGSL, REFLECTION_CONE_WGSL],
-  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,widths:vec2f,tangents:vec2f,}
+  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,tangents:vec2f,}
 fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  let s=reflectionBands(alpha);
  let ts=reflectionConeTangent(alpha);
@@ -93,7 +93,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  if(lobe.w!=alpha){t=reflectionBands(lobe.w);tt=reflectionConeTangent(lobe.w);}
  let across=lobe.xyz-R*dot(lobe.xyz,R);
  let T=across*inverseSqrt(max(dot(across,across),REFLECTION_FLOOR));
- return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(alpha,lobe.w),vec2f(ts,tt));
+ return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(ts,tt));
 }
 fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
 )
