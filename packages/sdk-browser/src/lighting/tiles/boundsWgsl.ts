@@ -3,16 +3,18 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { uvToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
 import { faceNormal, sphereBehindPlane } from '../../../../math/src/wgsl/geometry.ts'
 import { FINITE_SENTINEL, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The range a light's run is solved for, in both grids: widened by a thousandth, and by a
  *  thousandth of a \`cell\`'s side where its cells are world lengths (the bounce's lattice; zero for
  *  the view's, whose depth ends are widened apart, \`RUN_FRONT\`/\`RUN_BACK\`), past every rounding of
  *  the point a reader takes its cell at: a run never misses a cell its light reaches, and a light it
  *  holds in excess adds an exact zero there. */
+export const RUN_REACH = { radius: 1.001, cell: 0.001 } as const
 const runReach = wgslFn(
   'runReach',
   [],
-  'fn runReach(radius:f32,cell:f32)->f32{return radius*1.001+cell*0.001;}',
+  `fn runReach(radius:f32,cell:f32)->f32{return radius*${wgslF32(RUN_REACH.radius)}+cell*${wgslF32(RUN_REACH.cell)};}`,
 )
 
 /**
