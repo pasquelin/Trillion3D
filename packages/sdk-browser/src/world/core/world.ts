@@ -260,7 +260,6 @@ function worldMethods(parts: WorldParts) {
      * `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this
      * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
-    /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks the world's own loop for a new frame after a change it could not see; a world its
      *  page leads draws at its next `render()`. */
     invalidate,
