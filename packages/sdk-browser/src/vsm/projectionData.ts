@@ -46,6 +46,8 @@ const RECORD_OFFSET = {
  *  frame (`vsmDefaultProjectionData` makes them). */
 export interface VsmProjectionDataValues {
   lightViewToClip: Float64Array
+  /** The CPU's alone, never uploaded: the clip matrix the UV one is made from (`vsmShadowMatrices`). */
+  shiftedToClip: Float64Array
   shiftedToMapUv: Float64Array
   planesToMapUv: Float64Array
   /** Directional: −light travel direction; local lights: zero. */
@@ -76,6 +78,7 @@ export interface VsmProjectionDataValues {
 export function vsmDefaultProjectionData(): VsmProjectionDataValues {
   return {
     lightViewToClip: new Float64Array(16),
+    shiftedToClip: new Float64Array(16),
     shiftedToMapUv: new Float64Array(16),
     planesToMapUv: new Float64Array(16),
     lightDirection: [0, 0, 0],
@@ -136,26 +139,19 @@ export function writeVsmProjectionData(
 /** Clip space to shadow UV: x·0.5+0.5, y·−0.5+0.5, z kept, column-vector form. */
 const CLIP_TO_UV = new Float64Array([0.5, 0, 0, 0, 0, -0.5, 0, 0, 0, 0, 1, 0, 0.5, 0.5, 0, 1])
 
-/** The shifted-to-shadow-UV matrix: `scaleBias · viewToClip · view`, the view applied first. */
-export function vsmShadowUvMatrix(
-  out: Float64Array,
-  shiftedToShadowView: Float64Array,
-  viewToClip: Float64Array,
-) {
-  multiplyMatrix4(out, viewToClip, shiftedToShadowView)
-  multiplyMatrix4(out, CLIP_TO_UV, out)
-  return out
-}
-
 const scratch = new Float64Array(16)
 
-/** The normal matrix, transpose(inverse(UV)): it takes a plane (normal, offset) to UV space. */
-export function vsmShadowUvNormalMatrix(
-  out: Float64Array,
+/** A map's three matrices from its view (shifted to shadow view) and its view-to-clip, each made
+ *  once into `d`: shifted-to-clip (the CPU's own reads of the map's clip rows), shifted-to-UV
+ *  (`CLIP_TO_UV` after it, the shaders'), and the planes' matrix, transpose(inverse(UV)), which takes
+ *  a plane (normal, offset) to UV space. */
+export function vsmShadowMatrices(
+  d: Pick<VsmProjectionDataValues, 'shiftedToClip' | 'shiftedToMapUv' | 'planesToMapUv'>,
   shiftedToShadowView: Float64Array,
   viewToClip: Float64Array,
 ) {
-  vsmShadowUvMatrix(scratch, shiftedToShadowView, viewToClip)
-  invertMatrix4(scratch, scratch)
-  return transposeMatrix4(out, scratch)
+  multiplyMatrix4(d.shiftedToClip, viewToClip, shiftedToShadowView)
+  multiplyMatrix4(d.shiftedToMapUv, CLIP_TO_UV, d.shiftedToClip)
+  invertMatrix4(scratch, d.shiftedToMapUv)
+  transposeMatrix4(d.planesToMapUv, scratch)
 }

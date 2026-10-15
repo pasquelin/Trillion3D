@@ -35,11 +35,7 @@ import {
   VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
 } from './constants.ts'
-import {
-  vsmShadowUvMatrix,
-  vsmShadowUvNormalMatrix,
-  type VsmProjectionDataValues,
-} from './projectionData.ts'
+import { vsmShadowMatrices, type VsmProjectionDataValues } from './projectionData.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 
 /** Level radii a level's footprint spans: its corner offset is half of it. */
@@ -363,8 +359,7 @@ function vsmClipmapProjectionData(
     out.clipmapOrigin[k] = clipmap.eyeWorld[k] + originShift[k]
   }
   out.lightViewToClip.set(level.viewToClip)
-  vsmShadowUvMatrix(out.shiftedToMapUv, clipmap.lightViewRotation, level.viewToClip)
-  vsmShadowUvNormalMatrix(out.planesToMapUv, clipmap.lightViewRotation, level.viewToClip)
+  vsmShadowMatrices(out, clipmap.lightViewRotation, level.viewToClip)
   out.cornerSteps[0] = level.cornerFromLast[0]
   out.cornerSteps[1] = level.cornerFromLast[1]
   const mapLevel = clipmap.firstLevel + levelIndex

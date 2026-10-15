@@ -1,7 +1,7 @@
 /**
  * THE KERNELS OF A CHUNKED RASTER OVER CASTER ROWS (`renderCullWgsl.ts`): the cull, the expand and
  * their arguments — the opaque raster's, and the transmission's with its own cull —, what a pass
- * holds of its chunks, and the chunk a frame's rows take.
+ * holds of its chunks.
  */
 import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
@@ -13,16 +13,7 @@ import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import { VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
 import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
-import {
-  createVsmRowBound,
-  vsmBoundChunk,
-  vsmWorstChunk,
-  type VsmBoundLight,
-  type VsmChunk,
-  type VsmRowBound,
-  type VsmRowSpheres,
-  type VsmWorst,
-} from './rowPageBound.ts'
+import { createVsmRowBound, type VsmRowBound } from './rowPageBound.ts'
 import { vsmChunkParamSlots, vsmRenderParamsEntry } from './chunkParams.ts'
 
 /** The cull, expand and argument kernels of a raster over caster rows (`renderCullWgsl.ts`):
@@ -141,21 +132,4 @@ function vsmChunkPasses(prefix: string, slots: UniformSlots) {
         offset: slots.offset(c),
       }),
   }
-}
-
-/**
- * The chunk of the rows `[first, end)`: by where they are (`vsmBoundChunk`), or, when the bound
- * cannot speak, the worst case.
- */
-export function vsmChunkRows(
-  bound: VsmRowBound,
-  spheres: VsmRowSpheres,
-  range: { first: number; end: number; candidates: number },
-  lights: readonly VsmBoundLight[],
-  worst: VsmWorst,
-): VsmChunk {
-  return (
-    vsmBoundChunk(bound, spheres, range, lights, worst) ||
-    vsmWorstChunk(bound.worst, worst.rows, worst.cmdsPerRow, worst.pages)
-  )
 }

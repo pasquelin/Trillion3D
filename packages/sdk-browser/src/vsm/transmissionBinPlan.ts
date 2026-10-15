@@ -4,8 +4,8 @@
  * bytes those lists take beside the first transmission.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { createWorstChunk, vsmWorstChunk, type VsmWorst } from './rowPageBound.ts'
-import { vsmChunkRows } from './chunkKernels.ts'
+import { createVsmRowBound, vsmChunkRows, type VsmWorst } from './rowPageBound.ts'
+import { answerUnbound } from './rowBoundMeasure.ts'
 import { vsmChunkRowsWithin, vsmDrawFloorBytes } from './chunkLists.ts'
 import { vsmListSizing, vsmSizingFor, type VsmListSizes, type VsmWithin } from './chunkSizing.ts'
 import { vsmChunkParamSlots, vsmRenderViews, type VsmRenderChunking } from './chunkParams.ts'
@@ -23,7 +23,8 @@ const CHUNK_ROWS = 64
 const viewList: number[] = []
 const range = { first: 0, end: 0, candidates: 0 }
 const worst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
-const floorChunk = createWorstChunk()
+const floorBound = createVsmRowBound()
+const floorWorst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
 /** The transmission's list sizing: its page list holds a header a command and the pages after
  *  them (`vsmListSizing`); its chunks cut the `used` rows, every blended row a candidate. */
 const sizing = vsmListSizing(VSM_TRANSMISSION_PAGE_BYTES, VSM_TRANSMISSION_HEADER_BYTES)
@@ -42,8 +43,12 @@ export function vsmTransmissionFloorBytes(
   pages: number,
 ) {
   if (used <= 0 || rowCount <= 0 || viewWords <= 0) return 0
-  const rows = Math.min(CHUNK_ROWS, used),
-    holds = vsmWorstChunk(floorChunk, rows, Math.min(viewMips, pages), pages)
+  const rows = Math.min(CHUNK_ROWS, used)
+  floorWorst.rows = rows
+  floorWorst.cmdsPerRow = Math.min(viewMips, pages)
+  floorWorst.pages = pages
+  floorWorst.cap = rows * pages
+  const holds = answerUnbound(floorBound, floorWorst, rows)
   const slots = vsmChunkParamSlots(limits)
   return vsmDrawFloorBytes(
     rows,

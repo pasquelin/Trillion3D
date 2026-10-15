@@ -11,7 +11,7 @@ import {
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
 } from './constants.ts'
-import { vsmShadowUvMatrix, vsmShadowUvNormalMatrix } from './projectionData.ts'
+import { vsmShadowMatrices } from './projectionData.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
@@ -274,8 +274,7 @@ export function addVsmLocalLightShadow(
       // The local light's projection matrices.
       const shiftedToView = isSpot ? spotView : POINT_FACE_VIEWS[index]
       data.lightViewToClip.set(viewToClip)
-      vsmShadowUvMatrix(data.shiftedToMapUv, shiftedToView, viewToClip)
-      vsmShadowUvNormalMatrix(data.planesToMapUv, shiftedToView, viewToClip)
+      vsmShadowMatrices(data, shiftedToView, viewToClip)
       for (let k = 0; k < 3; k++) {
         data.originShift[k] = preShadow[k]
         data.lightDirection[k] = 0

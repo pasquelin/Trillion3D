@@ -130,6 +130,19 @@ function measure(
     pairs.most = worst.pages
     sc.tops.push(pairs, meets)
   }
+  const chunk = fit(sc, worst, candidates, frame)
+  // The joint bins alone fill the worst case's chunk and one row more: they cannot beat it.
+  const k = worst.rows + 1
+  const hopeless =
+    frame.lamps &&
+    (Math.min(pairs.top(k), k * worst.pages) > worst.cap ||
+      Math.min(meets.top(k), k * worst.cmdsPerRow) > worst.cap)
+  return { chunk, hopeless }
+}
+
+/** The most rows ≥ `worst.rows` whose bound holds within `cap`: the tops of `sc` (the bins'), the
+ *  rows no bin places counted at the worst case — every page, every command — and `frame`'s own. */
+function fit(sc: Scratch, worst: VsmWorst, candidates: number, frame: BoundFrame) {
   const [placePairs, placeCmds] = sc.unplaced
   placePairs.rows = placeCmds.rows = frame.unplaced
   placePairs.weight = worst.pages
@@ -147,13 +160,20 @@ function measure(
     Math.max(worst.rows, candidates),
     (mid) => chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap,
   )
-  // The joint bins alone fill the worst case's chunk and one row more: they cannot beat it.
-  const k = worst.rows + 1
-  const hopeless =
-    frame.lamps &&
-    (Math.min(pairs.top(k), k * worst.pages) > worst.cap ||
-      Math.min(meets.top(k), k * worst.cmdsPerRow) > worst.cap)
-  return { chunk, hopeless }
+  return chunk
+}
+
+/** What a frame no histogram speaks for adds: nothing beside its rows, every one unplaced. */
+const unbound: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carried: false }
+
+/** The chunk of `candidates` rows no histogram places (none landed, other rows, a sun turned):
+ *  the same fit, every row at the worst case. Its answer is the scratch's: no held one stands. */
+export function answerUnbound(bound: VsmRowBound, worst: VsmWorst, candidates: number) {
+  const sc = bound.scratch
+  bound.held = undefined
+  sc.tops.length = 0
+  unbound.unplaced = candidates
+  return fit(sc, worst, candidates, unbound)
 }
 
 const numbers: number[] = []

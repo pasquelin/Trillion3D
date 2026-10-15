@@ -23,16 +23,22 @@
  * margin, still lie in their bins while the placements went no farther than it; past it, they are
  * counted as C's. Sound by construction: no page is ever missed.
  *
- * The worst case is kept when no histogram landed yet, when it binned other rows or other spheres,
- * when a sun's axes moved since it (a sun turning keeps it until it held still and its histogram
- * landed), and for full-map lights whose keys moved (`rowBinsKeys.ts`). Lamps found unable to beat
+ * Every row is counted at the worst case when no histogram landed yet, when it binned other rows or
+ * other spheres, when a sun's axes moved since it (a sun turning keeps it until it held still and
+ * its histogram landed), and for lights whose keys moved (`rowBinsKeys.ts`): one fit either way. Lamps found unable to beat
  * the worst case are binned no more until their keys or that worst case change.
  */
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { RowMotion } from '../gpu/shadow/rowMotion.ts'
 import { VSM_MIPS } from './constants.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
-import { answer, createScratch, type BoundFrame, type Scratch } from './rowBoundMeasure.ts'
+import {
+  answer,
+  answerUnbound,
+  createScratch,
+  type BoundFrame,
+  type Scratch,
+} from './rowBoundMeasure.ts'
 import { lampKeysOf } from './rowBinsKeys.ts'
 import { boundLights } from './rowBinsParams.ts'
 import { frameSuns, sameSuns } from './rowBinsSuns.ts'
@@ -56,36 +62,6 @@ export interface VsmChunk {
   pairs: (k: number) => number
 }
 
-/** The worst case as a chunk: `rows` a chunk, every row `cmdsPerRow` commands and every one of
- *  `pages`; its two bounds made once, reading the numbers each frame rewrites (`vsmWorstChunk`). */
-export interface VsmWorstChunk extends VsmChunk {
-  cmdsPerRow: number
-  pages: number
-}
-export function createWorstChunk(): VsmWorstChunk {
-  const chunk: VsmWorstChunk = {
-    rows: 0,
-    cmdsPerRow: 0,
-    pages: 0,
-    cmds: (k) => k * chunk.cmdsPerRow,
-    pairs: (k) => k * chunk.pages,
-  }
-  return chunk
-}
-
-/** `chunk` rewritten as the worst case of `rows` a chunk, `cmdsPerRow` commands and `pages`. */
-export function vsmWorstChunk(
-  chunk: VsmWorstChunk,
-  rows: number,
-  cmdsPerRow: number,
-  pages: number,
-) {
-  chunk.rows = rows
-  chunk.cmdsPerRow = cmdsPerRow
-  chunk.pages = pages
-  return chunk
-}
-
 /** The worst case of a pass: rows a chunk, commands a row, pages, and the most pairs and commands
  *  a chunk's lists hold (`cap` ≥ rows · pages ≥ rows · commands). */
 export interface VsmWorst {
@@ -96,18 +72,15 @@ export interface VsmWorst {
 }
 
 /** A pass's bound: its histograms (`rowBinsRecord.ts`), its last answer and what it was measured
- *  from, what `answer` reuses so a frame allocates nothing, and the worst case it answers when the
- *  histograms cannot speak (`vsmChunkRows`), rewritten in place. */
+ *  from, and what `answer` reuses so a frame allocates nothing, rewritten in place. */
 export interface VsmRowBound {
   bins: RowBins
   held?: { chunk: VsmChunk; key: Float64Array }
   scratch: Scratch
-  worst: VsmWorstChunk
 }
 export const createVsmRowBound = (): VsmRowBound => ({
   bins: createRowBins(),
   scratch: createScratch(),
-  worst: createWorstChunk(),
 })
 
 /** `worst`'s numbers, in `RowBins.hopelessUnder`'s order, rewritten by each read. */
@@ -125,19 +98,21 @@ const frame: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carrie
 
 /**
  * The chunk of rows `[first, end)` of `spheres`, `candidates` of them drawn, under this frame's
- * `lights`: at least `worst.rows` rows. Undefined when the last histogram landed cannot bound them
+ * `lights`: at least `worst.rows` rows. One fit (`rowBoundMeasure.ts`) over the rows the last
+ * histogram landed places, every other row at the worst case; all of them where it cannot speak
  * (none yet, other rows, a sun turned, a directional light without its clipmap, no sun and no lamp
- * it binned): the caller keeps the worst case.
+ * it binned).
  */
-export function vsmBoundChunk(
+export function vsmChunkRows(
   bound: VsmRowBound,
   spheres: VsmRowSpheres,
   range: { first: number; end: number; candidates: number },
   lights: readonly VsmBoundLight[],
   worst: VsmWorst,
-): VsmChunk | undefined {
+): VsmChunk {
+  const unbound = () => answerUnbound(bound, worst, range.candidates)
   const lit = boundLights(lights)
-  if (!lit || !(lit.suns.length || lit.maps.length)) return undefined
+  if (!lit || !(lit.suns.length || lit.maps.length)) return unbound()
   const bins = bound.bins
   // A verdict holds under the worst case it was judged against: under another, the lamps are binned
   // again (a pool grown, another candidate count).
@@ -145,11 +120,11 @@ export function vsmBoundChunk(
   // More rows than the worst case's chunk: the lamps' bins may pay, and are made.
   bins.pays = range.candidates > worst.rows
   const landed = bins.landed
-  if (!landed || landed.spheres !== spheres || landed.first !== range.first) return undefined
-  if (!sameSuns(landed.suns, lit.suns, frameSuns(lit.suns, false), false)) return undefined
+  if (!landed || landed.spheres !== spheres || landed.first !== range.first) return unbound()
+  if (!sameSuns(landed.suns, lit.suns, frameSuns(lit.suns, false), false)) return unbound()
   const keys = lit.maps.length ? lampKeysOf(bins, lit.maps) : undefined
   const lamps = !!keys && !!landed.lampKeys && sameValues(keys, landed.lampKeys)
-  if (!lit.suns.length && !lamps) return undefined
+  if (!lit.suns.length && !lamps) return unbound()
   const { motion } = spheres
   if (bins.read !== landed.seq) {
     bins.read = landed.seq

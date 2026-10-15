@@ -18,25 +18,20 @@ export const AT_SPREAD = 9,
   AT_POSITION = 11,
   AT_RANGE = 14,
   KEY = 15
-/** A clip row of `uv` (`vsmShiftedToClip`: x = 2u − w, y = w − 2v, w), its world x, y, z
+/** Row `row` of a map's clip matrix (`shiftedToClip`, `vsmShadowMatrices`), its world x, y, z
  *  then its translation. */
-const clipRow = (uv: ArrayLike<number>, row: 0 | 1 | 3, k: number) =>
-  row === 0
-    ? 2 * uv[k * 4] - uv[k * 4 + 3]
-    : row === 1
-      ? uv[k * 4 + 3] - 2 * uv[k * 4 + 1]
-      : uv[k * 4 + 3]
+const clipRow = (clip: ArrayLike<number>, row: 0 | 1 | 3, k: number) => clip[k * 4 + row]
 const ROWS = [0, 1, 3] as const
 
 /** A spot's axes — its map's clip rows x, y, w — into `out`'s first nine words; the greatest L1
  *  norm of those rows, or -1 when one has a translation. */
-function spotAxes(uv: ArrayLike<number>, out: Float64Array) {
+function spotAxes(clip: ArrayLike<number>, out: Float64Array) {
   let spread = 0
   for (const row of ROWS) {
-    if (clipRow(uv, row, 3) !== 0) return -1
+    if (clipRow(clip, row, 3) !== 0) return -1
     let l1 = 0
     for (let k = 0; k < 3; k++) {
-      const v = clipRow(uv, row, k)
+      const v = clipRow(clip, row, k)
       out[(row === 3 ? 2 : row) * 3 + k] = v
       l1 += Math.abs(v)
     }
@@ -50,22 +45,22 @@ function spotAxes(uv: ArrayLike<number>, out: Float64Array) {
  *  cube's faces: a row with a translation or reading two world axes, a face missing an axis, or
  *  the six depths not ± each axis once. */
 function cubeAxes(
-  maps: readonly { projectionData: { shiftedToMapUv: ArrayLike<number> } }[],
+  maps: readonly { projectionData: { shiftedToClip: ArrayLike<number> } }[],
   out: Float64Array,
 ) {
   let spread = 0,
     least = Infinity,
     depths = 0
   for (let m = 0; m < 6; m++) {
-    const uv = maps[m].projectionData.shiftedToMapUv
+    const clip = maps[m].projectionData.shiftedToClip
     let columns = 0
     for (const row of ROWS) {
-      if (clipRow(uv, row, 3) !== 0) return -1
+      if (clipRow(clip, row, 3) !== 0) return -1
       let l1 = 0,
         most = 0,
         column = 0
       for (let k = 0; k < 3; k++) {
-        const v = Math.abs(clipRow(uv, row, k))
+        const v = Math.abs(clipRow(clip, row, k))
         l1 += v
         if (v > most) {
           most = v
@@ -76,7 +71,7 @@ function cubeAxes(
       spread = Math.max(spread, l1)
       least = Math.min(least, most)
       columns |= 1 << column
-      if (row === 3) depths |= 1 << (column * 2 + (clipRow(uv, row, column) > 0 ? 1 : 0))
+      if (row === 3) depths |= 1 << (column * 2 + (clipRow(clip, row, column) > 0 ? 1 : 0))
     }
     if (columns !== 7) return -1
   }
@@ -95,7 +90,7 @@ function localKey(light: VsmBoundLight, out: Float64Array) {
     count = spot ? 1 : 6
   if (!maps || light.count !== count || maps.length < count) return false
   const data = maps[0].projectionData
-  const spread = spot ? spotAxes(data.shiftedToMapUv, out) : cubeAxes(maps, out)
+  const spread = spot ? spotAxes(data.shiftedToClip, out) : cubeAxes(maps, out)
   if (spread < 0) return false
   out[AT_SPREAD] = spread
   out[AT_CONE] = spot ? 1 : 0

@@ -8,15 +8,14 @@
  * Every page allocated and valid for rendering this frame is drawn this frame. The work list of the
  * raster is (row, page) pairs; its worst case is rows × PoolPages (a row can touch at most
  * every valid-for-rendering page once, each physical page backs one virtual page). Rows are
- * processed in chunks, as many as the row count needs, their rows chosen by where the rows are
- * (`vsmChunkRows`: the GPU's histograms of them, `rowPageBound.ts`), or, where that cannot speak,
- * by the worst case — K = pairCapacity / PoolPages candidates, commands ≤ K · min(view mips,
- * pages), pairs ≤ K · pages —, the lists sized for that chunk within the room the device admits
+ * processed in chunks, as many as the row count needs, their rows chosen by one fit
+ * (`vsmChunkRows`, `rowPageBound.ts`): the rows the GPU's histograms place by where they are, every
+ * other row at the worst case — K = pairCapacity / PoolPages candidates, commands ≤ K · min(view
+ * mips, pages), pairs ≤ K · pages —, the lists sized for that chunk within the room the device admits
  * (`vsmChunkRowsWithin`), and nothing waits for a later frame. The worst case's command bound is
  * exact: a row makes at most one command per (map, mip) — one per mip of each map view — and
  * only where its uncached rect overlaps a page flagged in that (map, mip): an allocated page of
- * it (a single-page map holds its one page at the last mip, the only rect its maps' bounds give
- * it), and each physical page backs one (map, mip).
+ * it, and each physical page backs one (map, mip).
  *
  * The camera's cut chooses the candidates on the GPU: the CPU knows no bound of them below the row
  * count, so it encodes the chunks that count needs. A chunk past the candidates culls, expands and
@@ -35,8 +34,8 @@ import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import type { VsmLayout } from './layout.ts'
 import type { VsmComputePipe } from './passKit.ts'
 import type { VsmResources } from './resources.ts'
-import type { VsmBoundLight, VsmRowSpheres } from './rowPageBound.ts'
-import { vsmChunkRows, type VsmChunkContext, type VsmChunkKernels } from './chunkKernels.ts'
+import { vsmChunkRows, type VsmBoundLight, type VsmRowSpheres } from './rowPageBound.ts'
+import { type VsmChunkContext, type VsmChunkKernels } from './chunkKernels.ts'
 import type { vsmChunkListGroups } from './chunkGroups.ts'
 import {
   vsmChunkRowsWithin,
