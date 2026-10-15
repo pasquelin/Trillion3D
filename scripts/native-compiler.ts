@@ -31,6 +31,7 @@ export interface FullCompile {
   /** Prefix of the resource URLs the cache records; relative by default, since a cache that
    *  names the machine it was built on is refused (`self-contained-repository.test.ts`). */
   resourceBase?: string
+  /** Threads the compiler may use: the compiler's own default, every core, when omitted. */
   threads?: number
   ramMb?: number
   simplification?: 'none' | 'qem-endpoints'
@@ -45,7 +46,7 @@ export function compileFullCache({
   source,
   cache = 'cache',
   resourceBase = '../../../../source/',
-  threads = 2,
+  threads,
   ramMb = 256,
   simplification = 'none',
   stdio = 'inherit',
@@ -58,7 +59,8 @@ export function compileFullCache({
       cache,
       'full',
       TRIANGLE_BUDGET,
-      String(threads),
+      // Empty: the compiler's own default (`machine_threads`).
+      threads === undefined ? '' : String(threads),
       String(ramMb),
       resourceBase,
       simplification,

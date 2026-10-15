@@ -5,7 +5,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
-import { reflectedRadianceWgsl } from './wgsl.ts'
+import { reflectionStagesWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
@@ -68,7 +68,7 @@ export function reflectionRunner(
   const run = shaderRun<{
     reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => Lobe
     reflectionPixelAt: (P: Vec3) => number
-    reflectionSeen: (P: Vec3, N: Vec3, lobe: Lobe, pixel: number, spread: number) => Seen
+    reflectionSeen: (P: Vec3, N: Vec3, lobe: Lobe, pixel: number) => Seen
     reflectionRay: (
       P: Vec3,
       N: Vec3,
@@ -82,7 +82,6 @@ export function reflectionRunner(
       thickness: number,
       slab: number[],
       cap: number,
-      spread: number,
     ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
     screenMarchEnd: (o: number[], d: number[], size: number[]) => number
     screenMarchBudget: (d: number[], end: number, levels: number) => number
@@ -98,7 +97,7 @@ export function reflectionRunner(
       surface: { pixel: number[]; plane: number[]; thickness: number },
     ) => { color: number[]; weight: number }
   }>(
-    wgslModule(reflectedRadianceWgsl(1), reflectionLightViewWgsl(REFLECTION_GROUP)),
+    wgslModule(reflectionStagesWgsl(1), reflectionLightViewWgsl(REFLECTION_GROUP)),
     [
       'reflectionLobeOf',
       'reflectionBands',

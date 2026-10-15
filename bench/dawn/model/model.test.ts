@@ -56,11 +56,12 @@ test('the passes count their shipped constants', () => {
   // Four lights fill one mask layer, five two.
   assert.equal(pass('vsm.projection').work({ ...frame, L: 5 }).bytes, 21 * frame.P + 8 * frame.P)
   assert.equal(pass('visibility primary').work(frame).triangles, frame.T)
-  // A reflecting pixel marches 16 iterations of three texels, and loads four plus four at its hit.
+  // A reflecting block of four pixels marches one ray: 16 iterations of three texels, four loads
+  // before and four at its hit, and five filtered taps there.
   const trace = pass('reflection trace')
   const marched = (reflecting: number) => trace.work({ ...frame, reflecting }).texels!
-  assert.equal((marched(1) - marched(0)) / frame.P, 4 + 16 * 3 + 4)
-  assert.equal(trace.work({ ...frame, reflecting: 1 }).filtered, 4 * frame.P)
+  assert.equal((marched(1) - marched(0)) / frame.P, (4 + 16 * 3 + 4) / 4)
+  assert.equal(trace.work({ ...frame, reflecting: 1 }).filtered, (5 * frame.P) / 4)
   // The radiance pyramid reads the lit image once and writes it, and a third of it again.
   const radiance = pass('reflection radiance').work(frame)
   assert.ok(Math.abs(radiance.bytes! / (8 * frame.P) - (2 + 1 / 3)) < 0.01)

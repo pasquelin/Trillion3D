@@ -1,5 +1,6 @@
 import { namedEntries } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 import type { FrontLayer } from './frontLayer.ts'
 import type { ReflectionGrids } from './grids.ts'
 import { CLASSIFY_BINDINGS } from './tiles.ts'
@@ -17,10 +18,13 @@ export type TraceInputs = {
   lightLists: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
+  /** The proxy the scene stage's rays walk (`reflectionProxy`). */
+  proxy: ProxyResources
 }
 
-/** The kernels a surface runs over its listed tiles, in their order (`trace.ts`). */
-export const KERNELS = ['trace', 'spatial', 'temporal', 'bilateral'] as const
+/** The kernels a surface runs, in their order (`trace.ts`): over its listed tiles, but the scene stage
+ *  over the rays the screen stage left. */
+export const KERNELS = ['screen', 'scene', 'spatial', 'temporal', 'bilateral'] as const
 type Kernel = (typeof KERNELS)[number]
 
 /** The layouts of the trace's groups 0: each kernel's (`traceLayouts`) and the classification's. */
@@ -41,8 +45,8 @@ export const createTraceGroups = () => ({
 })
 
 /** What a view's trace holds: the target the opaque last pass writes, the opaque surface's grids,
- *  the transparents' front layer, its groups, and the settle's word the classification sets
- *  (`settle.ts`). */
+ *  the transparents' front layer, its groups, and the
+ *  settle's word the classification sets (`settle.ts`). */
 export type TraceResources = {
   device: GPUDevice
   targetView: GPUTextureView
@@ -66,17 +70,19 @@ function surfaceGroups(
 ): SurfaceGroups {
   const { flags, normals, lobes } = surface
   const tiles = { buffer: grids.tiles }
+  const pending = { buffer: grids.pending }
   const group = (layout: GPUBindGroupLayout, named: Named) =>
     device.createBindGroup({
       layout,
-      entries: namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, tiles, ...named }),
+      entries: namedEntries(REFLECTION_TRACE_BINDINGS, { flags, normals, lobes, tiles, ...named }),
     })
   const parities = (make: (p: number) => GPUBindGroup) => [make(0), make(1)]
   return {
     // The classification lists the tiles and clears the fresh grid and the scratch elsewhere; the
-    // trace writes the grid that is not the history and the rays, the spatial reuse reads them into
-    // the scratch, the accumulation reads the scratch and the history into it again, and the last
-    // pass reads it.
+    // screen stage writes the grid that is not the history and the rays, and the partial answers of the
+    // rays it left into the scratch, which the scene stage finishes into that grid; the spatial reuse
+    // reads them into the scratch, the accumulation reads the scratch and the history into it again,
+    // and the last pass reads it.
     classify: parities((p) =>
       device.createBindGroup({
         layout: layouts.classify,
@@ -89,8 +95,23 @@ function surfaceGroups(
         }),
       }),
     ),
-    trace: parities((p) =>
-      group(layouts.trace, { ...scene, flags, traceOut: grids.turn[p], raysOut: grids.rays }),
+    screen: parities((p) =>
+      group(layouts.screen, {
+        bounceGrid: scene.bounceGrid,
+        probes: scene.probes,
+        traceOut: grids.turn[p],
+        raysOut: grids.rays,
+        partialOut: grids.scratch,
+        pendingOut: pending,
+      }),
+    ),
+    scene: parities((p) =>
+      group(layouts.scene, {
+        ...scene,
+        traceOut: grids.turn[p],
+        partialIn: grids.scratch,
+        pendingIn: pending,
+      }),
     ),
     spatial: parities((p) =>
       group(layouts.spatial, {
@@ -101,7 +122,6 @@ function surfaceGroups(
     ),
     temporal: parities((p) =>
       group(layouts.temporal, {
-        flags,
         temporalIn: grids.scratch,
         historyIn: grids.turn[1 - p],
         historyOut: grids.turn[p],
@@ -110,7 +130,6 @@ function surfaceGroups(
     bilateral: parities((p) =>
       group(last.layout, {
         ...last.out,
-        flags,
         temporalIn: grids.scratch,
         bilateralIn: grids.turn[p],
       }),
@@ -132,14 +151,17 @@ export function traceGroups(
   next.push(stages, targetView, grids, front.grids, front.views.flags, front.views.normals)
   next.push(front.views.lobes, front.views.traced, inputs.base, inputs.flags, inputs.normals)
   next.push(inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid, inputs.probes)
-  next.push(settle.sampled)
+  next.push(settle.sampled, inputs.proxy.buffer, inputs.proxy.worlds, inputs.proxy.tree)
   if (!trace.identity.moved() && trace.groups) return trace.groups
-  // What a ray reads of the scene, the trace's.
+  // What a ray reads of the scene, the scene stage's: the proxy it walks among it.
   const scene: Named = {
     lights: { buffer: inputs.lights },
     lightLists: { buffer: inputs.lightLists },
     bounceGrid: { buffer: inputs.bounceGrid },
     probes: inputs.probes,
+    proxy: { buffer: inputs.proxy.buffer },
+    worlds: inputs.proxy.worlds,
+    tree: inputs.proxy.tree,
   }
   const sampled = { buffer: settle.sampled }
   return (trace.groups = {

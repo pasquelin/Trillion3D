@@ -15,7 +15,7 @@ pub const FLAG_MORPH: u32 = 32;
 pub const MAX_JOINT_BITS: u32 = 16;
 /// The largest joint index a skin may name: a page stores a joint in sixteen bits. The one bound
 /// of the encoder and of the run-time deformation reach.
-pub const MAX_SKIN_JOINT: u32 = u16::MAX as u32;
+pub const MAX_SKIN_JOINT: u32 = 0xffff;
 /// Most morph targets a page carries: eight bits of word 23.
 pub const MAX_MORPH_TARGETS: usize = 255;
 /// Header words of one morph target: its first stream, then its position and normal records.

@@ -17,7 +17,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 
 /**
  * THE SPATIAL REUSE of a surface's fresh grid (`spatialSurface`), between the trace and the temporal
- * accumulation, the same for every pixel: a pixel averages its own ray with those of up to
+ * accumulation, the same for every texel: a texel averages its own ray with those of up to
  * `REFLECTION_REUSE_TAPS` neighbours on a disc (a Vogel spiral turned by the golden angle every image),
  * each ray weighed by what it brings to the pixel's own lobe — its BRDF over the pdf it was drawn with
  * (`reflectionReuseWeight`) — and by how surely it left the same surface (`reflectionSameSurface`, on
@@ -38,6 +38,10 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * (`reflectionConeTangent`). A neighbour is kept while that parting stays within the lobe's width,
  * `n ≤ t·tan θ / (w + t·a)` at the nearer hit, `REFLECTION_REUSE_RADIUS` pixels at most: a mirror's
  * disc is under a pixel, and it keeps its own ray alone — the same rule, no case of its own.
+ *
+ * A grid texel stands for its block of `REFLECTION_TRACE_BLOCK`² pixels (`grids.ts`), traced from one of
+ * its reflecting pixels every image (`reflectionTracedPixel`): every texel that reflects has its own
+ * ray, and one whose block does not reflect has none and is left as the trace left it.
  *
  * The mean is taken in the denoiser's space (`reflectionDenoised`), the same on every image: a bright
  * sample weighs as the range, never a thousandfold, and no sample is held to its neighbours — a small
@@ -81,10 +85,12 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let centre=textureLoad(spatialIn,at,0);
  if(!freshValid(centre)){return centre;}
  let mine=reflectionDenoised(texelReflected(centre));
- let own=reflectingPixelAt(layer,at,0u);
+ let pixel=vec2i(reflectionTracedPixel(vec2u(at)));
+ let own=reflectingPixelAt(layer,pixel,0u);
  let alpha=lobeAlpha(own.rough);
  let hit=freshHit(centre);
- let radius=min(reflectionReuseReach(own.P,alpha,hit),f32(REFLECTION_REUSE_RADIUS));
+ // The reach in pixels, the disc in grid texels: a texel a block of them.
+ let radius=min(reflectionReuseReach(own.P,alpha,hit),f32(REFLECTION_REUSE_RADIUS))/f32(REFLECTION_TRACE_BLOCK);
  if(radius<1.0){return centre;}
  let a2=alpha*alpha;
  let first=reflectionReuseWeight(own,a2,own.P,own.N,a2,rayDirection(textureLoad(raysIn,at,0).r),hit);
@@ -100,11 +106,12 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
   if(all(tap==at)){continue;}
   let t=textureLoad(spatialIn,tap,0);
   if(!freshValid(t)){continue;}
-  let apart=distance(vec2f(tap),vec2f(at));
+  let source=vec2i(reflectionTracedPixel(vec2u(tap)));
+  let apart=distance(vec2f(source),vec2f(pixel));
   let near=min(hit,freshHit(t));
   if(apart>reflectionReuseReach(own.P,alpha,near)){continue;}
-  let Q=surfacePointAt(layer,tap);
-  let normal=surfaceNormalAt(tap);
+  let Q=surfacePointAt(layer,source);
+  let normal=surfaceNormalAt(source);
   let Nq=normalize(normal.xyz);
   let same=reflectionSameSurface(depth,own.N,own.V,surfaceLinearDepth(Q),Nq,apart);
   if(same<=0.0){continue;}
@@ -119,8 +126,8 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  return vec4u(texelRadiance(reflectionLinear(Reflected(sum.base/total,sum.coat/total))),centre.w);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn spatialSurface(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) local:vec3u){
- let id=reflectionTilePixel(tile,local);
+fn spatialSurface(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u){
+ let id=reflectionTilePixel(tile,groups,local);
  if(any(id>=textureDimensions(spatialOut))){return;}
  textureStore(spatialOut,id,spatialTexel(vec2i(id),REFLECTION_LAYER));
 }`,

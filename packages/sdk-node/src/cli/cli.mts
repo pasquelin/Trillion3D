@@ -7,7 +7,6 @@ import { ASSET_SCOPES, DEFAULT_SCOPE } from '../../../sdk-core/src/contracts/bas
 import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
-  DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
   SIMPLIFICATIONS,
 } from '../../../sdk-core/src/contracts/compilerAbi.ts'
@@ -23,7 +22,7 @@ const [
   scope = DEFAULT_SCOPE,
   budget = String(DEFAULT_TRIANGLE_BUDGET),
   resourceBaseUrl,
-  threads = String(DEFAULT_THREADS),
+  threads,
   ramBudgetMb = String(DEFAULT_RAM_BUDGET_MB),
   simplification = DEFAULT_SIMPLIFICATION,
 ] = argv.filter((arg) => !arg.startsWith('--'))
@@ -56,7 +55,7 @@ const write = (value: unknown) => process.stderr.write(`${JSON.stringify(value)}
 const result = await prepare(input, output, scope, triangleBudget, {
   executable: process.env.TRILLION3D_COMPILER_BIN,
   resourceBaseUrl,
-  threads: Number(threads),
+  threads: threads === undefined ? undefined : Number(threads),
   ramBudgetMb: Number(ramBudgetMb),
   simplification,
   signal: controller.signal,

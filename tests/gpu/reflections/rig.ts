@@ -100,8 +100,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     false,
     direct,
   )
-  // The scene's proxy and the radiance its faces give; else no proxy, a header of zeros, which reads as
-  // no placement.
   const over = { lightView: lightView.buffer }
   const surroundings = createSurroundings()(frame.background ?? 0, 1, TONE_MAPPING_RANK.none)
   // What each image tells its view: the frame's, no transparent; the lights' epoch moves with `light`.
@@ -115,7 +113,12 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   let lightsEpoch = 0
   // No bounce probes, no light grid: the engine's stand-ins, as an image without them binds them.
   const standIns = createDeferredPlaceholders(device)
+  // The scene's proxy the scene stage walks, and the radiance its faces give; else no proxy, a header
+  // of zeros, which reads as no placement.
+  const { proxy, proxyWorlds, proxyTree } = rigProxy(device, standIns, frame.proxy?.faces)
+  const scene = { buffer: proxy, worlds: proxyWorlds, tree: proxyTree }
   const inputs = {
+    proxy: scene,
     base: base.createView(),
     flags: flags.createView(),
     normals: normals.createView(),
@@ -125,8 +128,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     probes: standIns.probes,
     lightLists: standIns.tiles,
   }
-  const { proxy, proxyWorlds, proxyTree } = rigProxy(device, standIns, frame.proxy?.faces)
-  const scene = { buffer: proxy, worlds: proxyWorlds, tree: proxyTree }
   return {
     reflection,
     /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the pyramid of
@@ -139,9 +140,9 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       // the finished depth's farthest.
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
-      const group = reflectionGroup(reflection, depth, over.lightView, scene)
-      encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size, !!told.front)
       pass.end()
+      const group = reflectionGroup(reflection, depth, over.lightView)
+      encodeReflectionTrace(encoder, reflection, pipelines, inputs, group, frame.size, !!told.front)
       if (radiance) {
         write(targets.hdrTexture, halves(lit))
         encodeImageRadiance(

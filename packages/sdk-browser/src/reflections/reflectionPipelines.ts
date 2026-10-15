@@ -13,7 +13,6 @@ import {
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance.ts'
-import { sceneLayoutEntries } from '../bounce/sceneBindings.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { REFLECTION_TRACE_SHADER } from './trace.ts'
 import { REFLECTION_CLASSIFY_SHADER } from './tiles.ts'
@@ -24,7 +23,6 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
-  REFLECTION_SCENE_BINDINGS,
   REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
@@ -48,9 +46,6 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
       // The transparents' front depth, a depth texture read as the float it holds.
       computeTextureEntry(REFLECTION_FRONT_BINDING, 'unfilterable-float', '2d', visibility),
-      // The proxy the trace's rays walk (`proxy.ts`): the compute stage alone, as the forward
-      // fragments read the trace's front layer and the field, never a ray of their own.
-      ...sceneLayoutEntries(REFLECTION_SCENE_BINDINGS, COMPUTE),
     ],
   })
 })

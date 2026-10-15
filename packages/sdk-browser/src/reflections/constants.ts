@@ -52,11 +52,12 @@ export const REFLECTION_CONSTANTS = {
    *  so every highlight a display shows is averaged whole, and a firefly a thousand times brighter than
    *  its neighbours weighs ten. */
   REFLECTION_DENOISER_RANGE: 10,
-  /** Where along a proxy ray cut short for the field (`reach.ts`) its end starts being drawn, a share
-   *  of its reach (`proxy.ts`): over the last quarter a body met stands less and less often — the ray
-   *  ends there by the inverse of a smoothstep of a dither —, the field answering the rest, so the
-   *  reach's end — a curve on a floor — shows no seam, and a ray pays one answer, never two. */
-  REFLECTION_REACH_FADE: 3 / 4,
+  /** The roughness past which a lobe casts no ray (`reach.ts`), the probes' field answering it whole:
+   *  the reference engine's bar for a dedicated reflection ray. */
+  REFLECTION_TRACE_ROUGHNESS: 0.4,
+  /** The roughness band under `REFLECTION_TRACE_ROUGHNESS` over which a lobe's ray gives way to the
+   *  field (`reflectionTraceShare`): whole under 0.3. */
+  REFLECTION_TRACE_FADE: 0.1,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair
@@ -85,10 +86,17 @@ export const REFLECTION_COUNTS = {
    *  the pixel's own ray and a history of `REFLECTION_HISTORY` images, about a hundred samples of a lobe
    *  while anything changes. */
   REFLECTION_REUSE_TAPS: 8,
+  /** The side of the blocks of pixels the reflections trace one ray of each image (`trace.ts`): a
+   *  reflecting pixel of each 2 × 2 block traces, the block's reflecting pixels taking turns image
+   *  after image (`reflectionTracedPixel`), every pixel's answer widened from the grid last
+   *  (`bilateralWgsl.ts`) — the reference engine's reflections at its high quality, a quarter of the
+   *  rays. A still view traces every reflecting pixel within four images, within its history's
+   *  sixteen. */
+  REFLECTION_TRACE_BLOCK: 2,
   /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`), whatever the
    *  screen distance: a ray in front of the surfaces climbs a level an iteration, so a dozen cross a
    *  4K image; a descent moves the ray to the cell's nearest depth first, so it always gains ground;
-   *  a glossy lobe's ray stops descending at the level its cone covers. A mirror ray of floors and
+   *  every ray, a glossy lobe's too, is marched exactly, as a mirror's is. A mirror ray of floors and
    *  waves seen from 0.5° to 89° took 16 on average and 35 at the 99th percentile before the descent
    *  gained ground (`budget.test.ts`). A ray that passes behind thin surfaces — poles, fences, a pane's
    *  edge — descends and climbs again at each, a few levels apiece: over the budget's last levels'
@@ -99,8 +107,8 @@ export const REFLECTION_COUNTS = {
   /** The units a reflection's proxy ray walks at most, on every image (`proxy.ts`): an eighth of a
    *  ray's budget (`RAY_WORK`), the placement tree walked nearest first (`treeWalkWgsl.ts`), so the
    *  first bodies along the ray are met within it. A ray that spends it is no answer, its share the
-   *  field's. Measured at 2056×1144 on the bench's open world, M2 class: the walk 3.4·10⁹ units a
-   *  second, so a miss costs 64 / 3.4·10⁹ ≈ 19 ns of the GPU at most, spread over its threads. */
+   *  field's. Measured on the wet street at 3200 × 2000, M2 Max, render scale fixed: the scene stage
+   *  takes about 35 ms at 64 units against 5 ms at 8 — the walk's units are its cost. */
   REFLECTION_PROXY_WORK: 64,
 } as const
 
@@ -111,10 +119,3 @@ export const REFLECTION_SEQUENCE = 4096
 
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 export const REFLECTION_SIDE = 8
-
-/** The listed tiles a row of an indirect dispatch holds (`tiles.ts`): the list's tiles are dispatched
- *  as rows of this many workgroups, so a view of any size stays within a dispatch's 65 535 workgroups a
- *  dimension — 2²⁴ tiles —, a row's last workgroups past the count returning at once. */
-export const REFLECTION_TILE_ROW = 256
-/** Words of a tile list's head: the indirect dispatch's three — the row, the rows, one — and the count. */
-export const REFLECTION_TILE_HEAD = 4

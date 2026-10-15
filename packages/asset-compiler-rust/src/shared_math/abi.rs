@@ -9,8 +9,6 @@ pub const FORMAT_VERSION: u32 = 11;
 pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 12;
 /// The triangle budget of a compilation that names none.
 pub const DEFAULT_TRIANGLE_BUDGET: usize = 150000;
-/// The threads of a compilation that names none.
-pub const DEFAULT_THREADS: usize = 2;
 /// The memory, in MB, of a compilation that names none.
 pub const DEFAULT_RAM_BUDGET_MB: usize = 256;
 /// The most threads one job may use.

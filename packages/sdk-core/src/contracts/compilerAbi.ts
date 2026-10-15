@@ -7,8 +7,6 @@
 
 /** The triangle budget a compilation keeps when none is named. */
 export const DEFAULT_TRIANGLE_BUDGET = 150000
-/** The threads the compiler may use when none are named. */
-export const DEFAULT_THREADS = 2
 /** The most threads one job may use. */
 export const MAX_THREADS = 64
 /** The memory the compiler may use, in MB, when none is named. */

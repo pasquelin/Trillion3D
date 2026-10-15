@@ -43,7 +43,12 @@ export function createRowEviction(host: RowsHost) {
     const buffer = (d: GPUBufferDescriptor, old?: GPUBuffer) => cutBuffer(cut, d, old)
     const map = createRowMapGpu(device, host.map.tables, host.map.journal, buffer),
       use = createRowUseWordsGpu(device, buffer),
-      closure = createRowClosure(device, cut, (d, bytes, old) => cutTexture(cut, d, bytes, old)),
+      closure = createRowClosure(
+        device,
+        cut,
+        (d, bytes, old) => cutTexture(cut, d, bytes, old),
+        buffer,
+      ),
       sort = createRowEvictSort(device, buffer)
     /** Per frame of the last `ROW_FRAMES`, the frame when its cut could not stamp. */
     const unstamped = new Int32Array(ROW_FRAMES).fill(-1)
@@ -58,7 +63,9 @@ export function createRowEviction(host: RowsHost) {
     const stampAndRank = (pass: GPUComputePassEncoder, read: boolean, frame: number) => {
       upload()
       const rows = { map: map.buffer!, use: use.buffer! }
-      if (!closure.encode(pass, cut.dispatchArgs, rows, structuresOf(cut.packed))) return false
+      const { packed } = cut
+      if (!closure.encode(pass, cut.dispatchArgs, rows, structuresOf(packed), packed.pageCount))
+        return false
       const { blendFirst, packedCount } = host.table,
         burst = rowBurst(cut.listCap)
       if (!read || blendFirst - packedCount >= burst) return true

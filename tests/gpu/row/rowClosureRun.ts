@@ -113,10 +113,10 @@ export function runRowClosure(scene: ReturnType<typeof closureScene>, clock: num
       device.queue.writeBuffer(useBuffer, 0, scene.initial)
       const map = createRowMapGpu(device, scene.rows, scene.journal, buffer)
       map.upload()
-      const closure = createRowClosure(device, kernel, texture)
+      const closure = createRowClosure(device, kernel, texture, buffer)
       const rows = { map: map.buffer!, use: useBuffer }
       await encodeWhenReady(device, bound.group, (pass) =>
-        closure.encode(pass, argsBuffer, rows, structuresOf(scene.packed)),
+        closure.encode(pass, argsBuffer, rows, structuresOf(scene.packed), scene.packed.pageCount),
       )
       use = (await readGpuBuffer(device, useBuffer, useBuffer.size))!
       const sort = createRowEvictSort(device, buffer),

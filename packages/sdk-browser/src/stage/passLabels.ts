@@ -83,9 +83,13 @@ export const BOUNCE_LIGHT_LISTS_PASS = 'Trillion3D bounce light lists v1'
 export const BOUNCE_PROBE_CLEAR_PASS = 'Trillion3D bounce probe level clear'
 /** The reflections' compute pass of the depth pyramid's nearest mips (`../reflections/frame.ts`). */
 export const REFLECTION_PASS = 'Trillion3D reflections'
-/** The opaque surfaces' reflection trace, timed alone: the proxy rays' budget reads it
- *  (`reflectionTraceGpuMs`). */
+/** The reflections' tile classification and screen stage, both surfaces' (`../reflections/trace.ts`). */
 export const REFLECTION_TRACE_PASS = 'Trillion3D reflection trace'
+/** The reflections' scene stage, the rays the screen left, both surfaces': the proxy rays' budget reads
+ *  it (`reflectionSceneGpuMs`). */
+export const REFLECTION_SCENE_PASS = 'Trillion3D reflection scene'
+/** The reflections' spatial reuse, temporal accumulation and last pass, both surfaces'. */
+export const REFLECTION_DENOISE_PASS = 'Trillion3D reflection denoise'
 /** The pose of the deformed placements' proxies: their corners moved, their bounds fitted again, before the
  *  reflections and the bounce trace them (`../gpu/dag/proxyPose.ts`). */
 export const PROXY_POSE_PASS = 'Trillion3D proxy pose'
@@ -162,6 +166,8 @@ export const ENGINE_PASSES = [
   definePass({ label: PROXY_POSE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_TRACE_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_SCENE_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_DENOISE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: DEFERRED_LIGHTING_PASS, stage: 'lighting', block: 'other' }),

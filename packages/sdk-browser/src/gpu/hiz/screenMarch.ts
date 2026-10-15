@@ -36,15 +36,15 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * consumes the pixel and goes on: it passes behind a thin surface, never in front of the surface
  * it stood on (the first pixel boundary opens the march).
  *
- * A FLOOR LEVEL: the march never descends below the level whose cell the ray's cone covers there —
- * `⌊log₂(spread · s)⌋` after `s` pixels travelled, `spread` the width the cone gains a pixel, zero for
- * an exact ray — nor, over the budget's last levels' worth of iterations, below one more level each,
- * so that every ray crosses the screen within its budget and none is cut short. A cell of the floor
- * that the ray does not consume is met where the ray lies within the slab of the pixel under it (at or
- * behind its surface, in front of its back: level 0's slab, so a thin surface stays thin), at the point
- * the ray crossed that pixel's plane — a hit as sharp as level 0's —, and crossed elsewhere: what the
- * cell holds beside that pixel is within the cone's width, or the budget's. A ray in front of the pixel
- * under it crosses the cell: a cone never meets the surface it leaves.
+ * A FLOOR LEVEL: over the budget's last levels' worth of iterations, the march descends no lower than
+ * one more level each, so that every ray crosses the screen within its budget and none is cut short.
+ * A cell of the floor that the ray does not consume is met where the ray lies within the slab of the
+ * pixel under it (at or behind its surface, in front of its back: level 0's slab, so a thin surface
+ * stays thin), at the point the ray crossed that pixel's plane — a hit as sharp as level 0's —, and
+ * crossed elsewhere: what the cell holds beside that pixel is within the budget's reach. Every ray is
+ * exact until then: a cone's width is no reason to step over a cell, whose surfaces beside the pixel
+ * under the ray a coarse cell would cross unmet — a lobe's rays, each its own direction, then meeting
+ * a wall or missing it at random.
  *
  * The iterations are bounded by the screen distance the ray covers, not by the pyramid
  * (`screenMarchBudget`): each cell of a level is crossed once, two levels' worth of ascents and
@@ -85,7 +85,7 @@ fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
 fn screenMarchBudget(d:vec3f,end:f32,levels:i32)->u32{
  return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }
-fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f32)->ScreenHit{
+fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
  let tiny=vec2f(1e-6);
  let ahead=d.xy>=vec2f(0.0);
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
@@ -95,16 +95,14 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f
  let top=levels-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
  let steps=min(screenMarchBudget(d,end,levels),cap);
- let travel=length(d.xy)*spread;
  var t=min(first.x,first.y);
  var level=0;
  for(var k=0u;k<steps;k++){
   if(t>=end){break;}
   let start=t;
-  // The widest level a cell may be met at: the one the cone's width covers here, or — over the budget's
-  // last levels' worth of iterations — one more each, so that a ray always crosses the screen.
-  let coneLevel=i32(floor(log2(max(travel*t,1.0))));
-  let floorLevel=min(max(coneLevel,i32(k)+top+1-i32(steps)),top);
+  // The widest level a cell may be met at: none but the pixel's, until the budget's last levels' worth
+  // of iterations, one more each, so that a ray always crosses the screen.
+  let floorLevel=min(max(0,i32(k)+top+1-i32(steps)),top);
   let size=exp2(f32(level));
   let p=o.xy+d.xy*t;
   let cell=floor(p/size);
@@ -147,7 +145,7 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f
   t=entry;
   // A cell no finer than the floor is met where the ray lies inside the slab of the pixel under it — at
   // or behind its surface, not past its back, level 0's slab, so a thin surface stays thin —, and
-  // crossed elsewhere: what it holds beside that pixel is within the cone's width, or the budget's.
+  // crossed elsewhere: what it holds beside that pixel is within the budget's reach.
   if(level<=floorLevel){
    let under=floor(o.xy+d.xy*t);
    let plane=hizPlane(vec2i(under));

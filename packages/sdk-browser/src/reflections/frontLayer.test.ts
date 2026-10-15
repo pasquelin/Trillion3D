@@ -1,12 +1,12 @@
 // The transparents' front layer (`frontLayer.ts`), the shipped WGSL run as JavaScript: a forward fragment
 // reads the radiance the trace's accumulation wrote where it is the front surface of this image, one load, and
-// the chain without the proxy anywhere else — no program but the trace casts a ray of the proxy.
+// the probes' field anywhere else — no program but the trace casts a ray.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
-import { reflectedRadianceWgsl } from './wgsl.ts'
+import { reflectionStagesWgsl } from './wgsl.ts'
 import { REFLECTION_TRACE_SHADER } from './trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
@@ -21,10 +21,9 @@ const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
 type Reflected = { base: Vec3; coat: Vec3 }
 
 /** `forwardTrace` of the shipped forward program, over a front texel `texel` and a front depth `depth` at
- *  every pixel, `answered` whether this image's trace answered the front; the chain without the proxy
- *  answers `chain`. */
+ *  every pixel, `answered` whether this image's trace answered the front; the field answers `field`. */
 function forward(texel: number[], depth: number, answered = true) {
-  const chain: Reflected = { base: [7, 7, 7], coat: [0, 0, 0] }
+  const field: Vec3 = [7, 7, 7]
   const run = shaderRun<{
     forwardTrace: (
       P: Vec3,
@@ -41,14 +40,14 @@ function forward(texel: number[], depth: number, answered = true) {
       frontTraced: { load: () => texel },
       reflectionFront: { load: () => [depth, 0, 0, 0] },
       reflectionView: { front: [answered ? 1 : 0, 0, 0, 0] },
-      reflectionTrace: () => chain,
+      reflectionField: () => field,
     },
   )
   return (z: number, front = true) =>
     run.forwardTrace([0, 0, 0], [0, 0, 1], [0, 0, 1], 0.1, [3.5, 4.5, z, 1], front)
 }
 
-test('a fragment at the front depth reads the trace’s radiance; any other, the chain', () => {
+test('a fragment at the front depth reads the trace’s radiance; any other, the field', () => {
   const z = 0.25
   const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), 0, 0]
   const read = forward(texel, z)
@@ -58,23 +57,25 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
   // Its depth within the transparent passes' bias of the front's: the same surface.
   assert.notDeepEqual(read(z * (1 + 2 ** -19)).base, [7, 7, 7])
   // A surface behind it, a fragment told it is not the front, an image whose trace did not answer the
-  // front: the chain, with no proxy stage.
+  // front: the field, no ray.
   assert.deepEqual(read(z * (1 - 2 ** -12)).base, [7, 7, 7])
   assert.deepEqual(read(z, false).base, [7, 7, 7])
   assert.deepEqual(forward(texel, z, false)(z).base, [7, 7, 7])
 })
 
-test('one chain: a forward program and the trace both walk the proxy and sample every lobe', () => {
+test('one chain: only the trace walks the proxy and samples a lobe; a forward program reads its answer', () => {
   const forwardText = wgslModule(forwardReflectionWgsl(1, true, 24))
   for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied', 'reflectionSampleDirection'])
-    assert.match(forwardText, new RegExp(`\\b${name}\\b`), name)
-  assert.match(wgslModule(reflectedRadianceWgsl(1)), /\breflectionProxied\b/)
-  // The front surface is traced, reused and accumulated as the opaque one, a pixel a thread of a listed
-  // tile, by the same kernels on its own layer (the pipeline's, `createTraceStages`), and its last pass
-  // writes its radiance where the forward fragments read it.
+    assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
+  assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionProxied\b/)
+  // The front surface is traced, reused and accumulated as the opaque one by the same kernels on its own
+  // layer (the pipeline's, `createTraceStages`) — a pixel a thread of a listed tile, the scene stage a
+  // thread a ray the screen left —, and its last pass writes its radiance where the forward fragments
+  // read it.
   for (const kernel of [
     'override REFLECTION_LAYER:u32;',
-    'textureStore(traceOut,id,traceTexel(vec2i(id),REFLECTION_LAYER));',
+    'left=traceScreenTexel(id,REFLECTION_LAYER);',
+    'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
     'textureStore(spatialOut,id,spatialTexel(vec2i(id),REFLECTION_LAYER));',
     'textureStore(historyOut,id,temporalTexel(vec2i(id),REFLECTION_LAYER));',
     'let r=bilateralTexel(coord,reflectingPixelAt(1u,coord,flags));',

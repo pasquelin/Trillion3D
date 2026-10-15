@@ -115,7 +115,9 @@ pub struct Options {
 fn check(o: &Options) -> Result<()> {
     plugins::scene::cancel::check(&o.cancelled)
 }
-fn implementation_hash() -> &'static str {
+/// The compiler's content key: the hash of every source its products depend on (`build.rs`), the same
+/// for two builds of the same sources, whatever their dates. A host keys its caches by it.
+pub fn implementation_hash() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/implementation_hash.txt"))
 }
 mod compiler_accessor_create;
@@ -167,7 +169,9 @@ mod shared_math_tests;
 mod tests;
 use compiler_accessor_create::*;
 use compiler_accessor_types::*;
-pub use compiler_args::{job_options, parse_compiler_args, positive, JobDefaults, ID_FIELD};
+pub use compiler_args::{
+    job_options, machine_threads, parse_compiler_args, positive, JobDefaults, ID_FIELD,
+};
 use compiler_buffers::*;
 pub use compiler_build::compile;
 use compiler_bundle_dependencies::*;

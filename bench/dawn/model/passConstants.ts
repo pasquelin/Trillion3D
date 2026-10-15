@@ -8,7 +8,11 @@ import {
   hizLevelTexels,
   hizNearestAccesses,
 } from '../../runner/counts/frameBudgetRates.ts'
-import { REFLECTION_SIDE } from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import {
+  REFLECTION_CONSTANTS,
+  REFLECTION_COUNTS,
+  REFLECTION_SIDE,
+} from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import type { Work } from './floor.ts'
 
 export type Frame = {
@@ -92,32 +96,36 @@ export const TILE_ID_BYTES = 4
 /** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
 export const MARK_STRIDE = 4,
   MARK_BYTES = 4 + 8 + 1
-/** The reflection's march of a reflecting pixel (`screenMarch`): its iterations, 16 on average
+/** The reflection's march of a reflecting pixel's lobe ray (`screenMarch`): its iterations, 16 on average
  *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
  *  the finished depth's farthest and the nearest (two texels), or at level 0 the depth, the
  *  transparent surface's depth and the slopes (`hizPlane`, three). The model counts the dearer
  *  iteration, three; what a pass takes above the mean iterations holds the tail. */
 export const MARCH_ITERATIONS = 16,
   MARCH_FETCHES = 3
-/** What a traced half texel reads besides its march (`REFLECTION_TRACE_SHADER`): its block's four
- *  flags, the picked pixel's depth, normal and lobes; at the hit, two texels for whether the surface
- *  is a transparent one (`hizFrontOver`) and two for the depth weight of the footprint
- *  (`reflectionDepthWeight`: the opaque and the transparent depth), then the radiance pyramid's four
- *  bilinear taps of a coarse level (`reflectionLevelColor`, at least one tap of the footprint); its
- *  16 bytes written (`HALF_FORMAT`). The spatial reuse of a glossy texel reads it, its traced pixel's
- *  depth and normal and eight neighbours with theirs, and writes 16 bytes (`spatialOpaque`). The temporal accumulation of a texel reads it, its traced
- *  pixel's depth and normal, four history texels and, on a changed image, nine fresh ones, and writes
- *  16 bytes (`temporalOpaque`). The upsample of a reflecting pixel reads its flags, depth, normal,
- *  lobes and base colour, then four history texels, which carry their depth and normal
- *  (`upsampleOpaque`), and writes 8 bytes (`HDR_FORMAT`). */
-export const TRACE_LOADS = 4 + 3,
+/** What a reflecting pixel's screen stage reads besides its march (`traceScreen`): its flags, depth,
+ *  normal and lobes; at the hit, two texels for whether the surface is a transparent one
+ *  (`hizFrontOver`) and two for the footprint's depth weight (`reflectionDepthWeight`), then the
+ *  radiance pyramid's taps of its footprint (`REFLECTION_TAPS` at most, `reflectionFootprint`); it
+ *  writes its 16-byte fresh texel and its 4-byte direction. A ray the screen left reads, in the scene
+ *  stage (`traceScene`), its 16-byte entry, its partial texel, its pixel's flags, depth, normal and
+ *  lobes, and writes its fresh texel; its walk of the proxy is the scene's, unmodelled here. The
+ *  spatial reuse reads the fresh texel and the pixel's depth and normal, and each neighbour's texel,
+ *  depth, normal and direction (`REFLECTION_REUSE_TAPS`); the temporal accumulation the scratch
+ *  texel, depth and normal, four history texels and 21 fresh ones; the last pass the pixel's flags,
+ *  depth, normal, lobes and base colour and its neighbours' history texels where its history is short;
+ *  each writes 16 bytes, the last 8 (`HDR_FORMAT`). */
+export const TRACE_SHARE = REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK ** 2,
+  TRACE_LOADS = 4,
   HIT_LOADS = 2 + 2,
-  HIT_TAPS = 4,
-  HALF_BYTES = 16,
-  SPATIAL_LOADS = 3 + 8 * 3,
-  TEMPORAL_LOADS = 3 + 4 + 9,
-  UPSAMPLE_LOADS = 5 + 4,
-  TRACE_BYTES = 8
+  HIT_TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS,
+  SCENE_LOADS = 2 + 4,
+  GRID_BYTES = 16,
+  RAY_BYTES = 4,
+  SPATIAL_LOADS = 3 + REFLECTION_COUNTS.REFLECTION_REUSE_TAPS * 4,
+  TEMPORAL_LOADS = 3 + 4 + 21,
+  BILATERAL_LOADS = 5 + REFLECTION_COUNTS.REFLECTION_REUSE_TAPS,
+  TARGET_BYTES = 8
 /** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written
  *  as level 0, the coarser levels written beside; the odd levels filled by four bilinear taps a
  *  texel over a tile with a texel of halo each side (`radianceFill`), the even ones summed in

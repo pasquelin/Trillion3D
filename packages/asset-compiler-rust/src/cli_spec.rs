@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use trillion3d_compiler::{
     compiler_budget::{batch_share, fit_workers},
-    job_field, job_options, positive, JobDefaults, Options, DEFAULT_RAM_BUDGET_MB, DEFAULT_THREADS,
+    job_field, job_options, machine_threads, positive, JobDefaults, Options, DEFAULT_RAM_BUDGET_MB,
     ID_FIELD, SCOPES,
 };
 
@@ -63,14 +63,15 @@ pub(super) fn parse_batch(
         DEFAULT_RAM_BUDGET_MB * workers,
         job_field::RAM_BUDGET_MB,
     )?;
-    let threads = positive(
-        spec.get(job_field::THREADS),
-        DEFAULT_THREADS,
-        job_field::THREADS,
-    )?;
     // Announced concurrency is admitted only if the total can carry it: a share
     // never goes below a job's floor, so it is the worker count that yields.
     let (workers, ram_budget_mb) = batch_share(workers, ram_total)?;
+    // A job that names no threads shares the machine's cores with the jobs running beside it.
+    let threads = positive(
+        spec.get(job_field::THREADS),
+        (machine_threads() / workers).max(1),
+        job_field::THREADS,
+    )?;
     // A batch job that names no scope cooks the full one.
     let defaults = JobDefaults {
         scope: SCOPES[1],

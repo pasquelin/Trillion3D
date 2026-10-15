@@ -47,7 +47,6 @@ export type {
 import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
-  DEFAULT_THREADS,
   DEFAULT_TRIANGLE_BUDGET,
   JOB_FIELDS,
   type JobField,
@@ -79,7 +78,8 @@ export async function prepare(
     cache: output,
     scope,
     triangleBudget: String(budget),
-    threads: String(options.threads ?? DEFAULT_THREADS),
+    // None named: an empty value, which the compiler reads as its own default (`machine_threads`).
+    threads: options.threads === undefined ? '' : String(options.threads),
     ramBudgetMb: String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
     resourceBaseUrl: options.resourceBaseUrl,
     simplification: options.simplification ?? DEFAULT_SIMPLIFICATION,

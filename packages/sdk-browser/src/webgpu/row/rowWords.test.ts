@@ -10,7 +10,6 @@ import {
   ROW_PAGE,
   ROW_USE,
   ROW_USE_WORDS,
-  ROW_WALK,
 } from './rowWords.ts'
 
 /** The rows each flush sends, as `[first, last]` row pairs. */
@@ -34,7 +33,7 @@ test('only the rows written are sent, each run once, nothing between', () => {
   assert.deepEqual(sent(words, 10), [], 'nothing written since')
 })
 
-test('a move carries its generation and its page, used now and never walked', () => {
+test('a move carries its generation and its page, used now', () => {
   const words = createRowUseWords()
   words.fit(8)
   sent(words, 0)
@@ -45,7 +44,6 @@ test('a move carries its generation and its page, used now and never walked', ()
   let data = new Uint32Array(0)
   words.flush(6, (row, run) => void (row === 1 && (data = run.slice(0, ROW_USE_WORDS))))
   assert.equal(data[ROW_USE], 12)
-  assert.equal(data[ROW_WALK], 0)
   assert.equal(data[ROW_PAGE], 50)
 })
 

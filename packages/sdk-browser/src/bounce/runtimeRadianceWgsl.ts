@@ -81,7 +81,8 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * the ones behind it while the surfaces met let light through (a blended one's opacity), up to
  * \`RT_LAYERS\`. The answer is the radiance of the light they hold and \`confidence\` the share of the ray
  * they answer; the rest goes on to the next stage, \`distance\` the first surface's, \`reach\` where
- * none, beside the share the surfaces physically stop (\`RtWalk.stopped\`). A deformed placement is traced at
+ * none, beside the share the surfaces physically stop (\`RtWalk.stopped\`) and the share that went
+ * on through them to the end of \`reach\` (\`RtWalk.open\`: none where the walk stopped on its layers). A deformed placement is traced at
  * its rest shape, whose reach (\`marked\`) its footprint may not cover: \`tangent\`, the width the ray's
  * lobe covers at a metre, against that reach takes CONFIDENCE from the hit (\`known\`), never opacity —
  * an opaque mesh stops the ray whatever its deformation. A hit's radiance: on the first surface of a
@@ -91,7 +92,7 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * evaluated and no shadow ray cast. Exhausted — its \`budget\` of units spent, \`RT_WORK\` at most — is
  * no answer at all, confidence zero (\`runtimeLayout.ts\`).
  */
-struct RtWalk{answer:RadianceAnswer,stopped:f32,}
+struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,}
 fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bool)->RtWalk{
  rtBegin();
  rtBudget=min(budget,RT_WORK);
@@ -99,12 +100,13 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
  var color=vec3f(0.0);
  var answered=0.0;
  var through=1.0;
+ var open=0.0;
  var start=origin;
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
   let hit=rtScene(start,direction,left);
-  if(rtSpent()){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0);}
-  if(!hit.found){break;}
+  if(rtSpent()){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
+  if(!hit.found){open=through;break;}
   if(layer==0u){first=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
   let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
@@ -124,9 +126,10 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
   let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
   start+=direction*travelled;
   left-=travelled;
-  if(through<RT_THROUGH_FLOOR||left<=0.0){break;}
+  if(left<=0.0){open=through;break;}
+  if(through<RT_THROUGH_FLOOR){break;}
  }
- return RtWalk(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through);
+ return RtWalk(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through,open);
 }
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{

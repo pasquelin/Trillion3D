@@ -12,7 +12,9 @@ import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 test('the proxy’s rays bind nothing writable and share no counter', () => {
   const rays = wgslModule(runtimeRadianceWgsl(BINDINGS))
   assert.ok(!rays.includes('read_write'), 'the rays write no binding')
-  assert.ok(!REFLECTION_TRACE_SHADER.includes('atomic'), 'no counter shared between rays')
+  assert.ok(!rays.includes('atomic'), 'no counter shared between rays')
+  // The reflections' trace walks it: the rays' own module, no other copy of the walk.
+  assert.ok(REFLECTION_TRACE_SHADER.includes('fn rtLayers('), 'the trace walks the one proxy walk')
 })
 
 test('a scene with no placement wearing a proxy casts nothing', () => {

@@ -32,7 +32,6 @@ function pixelOf(r: () => number, t: number) {
     declared: { lit: big(), specular: big() },
     bounce: big(),
     environment: big(),
-    reflected: big(),
     weight: v3(0, 1),
     through: { color: v3(0, 4), coverage: r() < 0.3 ? u(0, 1) : 1 },
     fog: u(0, 1),
@@ -89,9 +88,6 @@ function runner(text: string) {
       declaredLightingPair: () => pixel.declared,
       bounceLighting: () => (lit++, pixel.bounce),
       environmentLighting: () => pixel.environment,
-      // A lobe's sampled ray through the chain: the pixel's reflected radiance.
-      reflectionLobeRadiance: () => pixel.reflected,
-      reflectionSampleAt: () => [0, 0],
       reflectionLobe: () => [0, 0, 0, 0.25],
       reflectionWeight: () => pixel.weight,
       transmittedBackdrop: () => pixel.through,

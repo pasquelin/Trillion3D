@@ -9,7 +9,6 @@ import {
 } from './traceBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
-import { surfaceReflects } from '../scene/surfaceModel.ts'
 
 /**
  * THE TEMPORAL ACCUMULATION of a surface's grid, a pixel a thread (`temporalSurface`): each pixel
@@ -45,7 +44,6 @@ export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
     REFLECTION_TILES_WGSL,
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TEXEL_WGSL,
-    surfaceReflects,
     clipToFramebuffer,
   ],
   `@group(0) @binding(${B.temporalIn}) var temporalIn:texture_2d<u32>;
@@ -59,8 +57,9 @@ fn temporalHistory(P:vec3f,N:vec3f,V:vec3f)->TemporalHistory{
  let surface=reflectionView.radianceViewProj*vec4f(P,1.0);
  let restart=reflectionView.traced.x==0u||reflectionView.temporal.y==1u;
  if(restart||surface.w<=0.0){return held;}
- let at=clipToFramebuffer(surface,reflectionView.radiance.xy).xy-vec2f(0.5);
- let g=historyGather(historyIn,at,reflectionLinearDepth(surface),N,V,1.0);
+ // The last image's pixel, then its grid texel (a texel a block of pixels).
+ let at=clipToFramebuffer(surface,reflectionView.radiance.xy).xy/f32(REFLECTION_TRACE_BLOCK)-vec2f(0.5);
+ let g=historyGather(historyIn,at,reflectionLinearDepth(surface),N,V,f32(REFLECTION_TRACE_BLOCK));
  if(g.weight<REFLECTION_EPSILON){return held;}
  return TemporalHistory(Reflected(g.radiance.base/g.weight,g.radiance.coat/g.weight),g.count/g.weight);
 }
@@ -73,11 +72,12 @@ fn temporalMoved(h:Reflected,c:Reflected,b:ReflectedBounds)->f32{
 }
 /** The history texel of pixel \`at\` on the surface \`layer\`: this image's fresh radiance blended in. */
 fn temporalTexel(at:vec2i,layer:u32)->vec4u{
- let fresh=textureLoad(temporalIn,at,0);
- if(!freshValid(fresh)||!surfaceReflects(surfaceFlagsAt(at))){return vec4u(0u);}
  let quiet=reflectionView.temporal.y;
  if(quiet>REFLECTION_STILL){return textureLoad(historyIn,at,0);}
- let own=reflectingPixelAt(layer,at,0u);
+ // A block none of whose pixels reflects traced nothing, and holds no history.
+ let fresh=textureLoad(temporalIn,at,0);
+ if(!freshValid(fresh)){return vec4u(0u);}
+ let own=reflectingPixelAt(layer,vec2i(reflectionTracedPixel(vec2u(at))),0u);
  let now=reflectionDenoised(texelReflected(fresh));
  let held=temporalHistory(own.P,own.N,own.V);
  let history=reflectionDenoised(held.radiance);
@@ -91,8 +91,8 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  return historyPack(reflectionLinear(blended),surfaceLinearDepth(own.P),own.N,u32(round(count)));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn temporalSurface(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) local:vec3u){
- let id=reflectionTilePixel(tile,local);
+fn temporalSurface(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u){
+ let id=reflectionTilePixel(tile,groups,local);
  if(any(id>=textureDimensions(historyOut))){return;}
  textureStore(historyOut,id,temporalTexel(vec2i(id),REFLECTION_LAYER));
 }`,

@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { reflectedRadianceWgsl } from './wgsl.ts'
+import { reflectionStagesWgsl } from './wgsl.ts'
 import { bilinear, image, radianceKernels } from './radianceKernels.fixture.ts'
 
 test('a point of light read through the chain at a coarse level is round, never a square', () => {
@@ -29,7 +29,7 @@ test('a point of light read through the chain at a coarse level is round, never 
       surface: object,
     ) => void
   }>(
-    wgslModule(reflectedRadianceWgsl(1)),
+    wgslModule(reflectionStagesWgsl(1)),
     ['reflectionRadianceAt', 'reflectionLevelRead', 'reflectionLevelColor'],
     {
       reflectionImage: lit,

@@ -6,7 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
-import { REFLECTION_FIELD_STAGE_WGSL, reflectedRadianceWgsl } from './wgsl.ts'
+import { REFLECTION_FIELD_STAGE_WGSL } from './wgsl.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
@@ -66,43 +66,24 @@ export const reflectionLobeWgsl = (lobes: boolean) =>
   )
 
 /**
- * How a surface traces what its lobes reflect (`reflectionTrace`), the radiance of each traced once
- * (`Reflected`): the base lobe's, along the lobe the lights read (`reflectionLobe`: the long axis
- * `setLobes` left — its direction and αt where the material is anisotropic, a round lobe elsewhere),
- * and, where the surface carries a clear coat, the coat's own dielectric lobe on its normal and
- * roughness, only where the coat is above zero; the reflection's hit is the nearer of its lobes'
- * (`reflectionHit`, `REFLECTION_FAR` where none traced), its direction the base lobe's (`reflectionDirection`).
- * Each lobe is one `reflectionLobeRadiance`, sampled by `u` (`sampleWgsl.ts`) through the one chain,
- * its proxy's stage included (`reflectedRadianceWgsl`), in every program.
+ * The rays a surface casts for what its lobes reflect (`Reflected`), sampled by `u` (`sampleWgsl.ts`):
+ * the base lobe's (`reflectionBaseRay`), along the lobe the lights read (`reflectionLobe`), and, where
+ * the surface carries a clear coat (`lobes.coat`), the coat's own dielectric lobe on its normal
+ * and roughness (`reflectionCoatRay`), its pair of numbers swapped. The trace's kernels cast both
+ * through the chain's stages (`trace.ts`); the reflection's hit is the nearer of its lobes', its
+ * direction the base lobe's.
  */
-export const reflectionShareWgsl = (group: number, lobes: boolean) =>
-  wgslBlock(
-    `reflectionShareWgsl(${group}, ${lobes})`,
-    [
-      reflectedRadianceWgsl(group),
-      REFLECTION_SAMPLE_WGSL,
-      reflectionWeighWgsl(lobes),
-      reflectionLobeWgsl(lobes),
-      LOBE_AXIS_WGSL,
-    ],
-    lobes
-      ? `fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
- reflectionHit=REFLECTION_FAR;
- var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
- if(lobes.on&&lobes.coat>0.0){
-  let hit=reflectionHit;
-  let ray=reflectionDirection;
-  let alpha=lobeAlpha(lobes.coatRough);
-  traced.coat=reflectionLobeRadiance(P,lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
-  reflectionHit=min(hit,reflectionHit);
-  reflectionDirection=ray;
- }
- return traced;
-}`
-      : `fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
- return Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
+export const REFLECTION_LOBE_RAYS_WGSL = wgslBlock(
+  'REFLECTION_LOBE_RAYS_WGSL',
+  [REFLECTION_SAMPLE_WGSL, reflectionLobeWgsl(true), LOBE_AXIS_WGSL],
+  `fn reflectionBaseRay(N:vec3f,V:vec3f,rough:f32,u:vec2f)->ReflectionLobeRay{
+ return reflectionLobeRay(N,V,lobeAlpha(rough),reflectionLobe(rough),u);
+}
+fn reflectionCoatRay(V:vec3f,u:vec2f)->ReflectionLobeRay{
+ let alpha=lobeAlpha(lobes.coatRough);
+ return reflectionLobeRay(lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
 }`,
-  )
+)
 
 /** How far a fragment's depth may lie from the front depth and still be that surface (`forwardTrace`),
  *  relative to it: eight times the transparent passes' depth bias (`TRANSPARENT_DEPTH_LAYER`, in units of

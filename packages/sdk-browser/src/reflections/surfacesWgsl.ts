@@ -3,21 +3,31 @@ import { HIZ_OPAQUE_LAYER } from '../gpu/hiz/pyramidTexture.ts'
 import { LOBES_DECODE_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { REFLECTION_TRACE_BINDINGS as B } from './traceBindings.ts'
-import { REFLECTION_GROUP, reflectionFrontWgsl } from './viewLayout.ts'
+import { REFLECTION_GROUP, reflectionBindingsWgsl, reflectionFrontWgsl } from './viewLayout.ts'
+import { REFLECTION_BLOCK_PIXEL_WGSL, REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
+import { surfaceReflects } from '../scene/surfaceModel.ts'
 
 /**
  * THE SURFACE THE REFLECTIONS READ, one reading for every kernel (`trace.ts`): a group binds one of
  * each pixel's two surfaces (`traceEncode.ts`) — the opaque one's targets, or the transparents' front
  * one's (`frontLayer.ts`) — and its flags, normal and roughness and lobes are read from it alike. Only
  * the depth differs: `layer` 0 is the opaque one the Hi-Z holds, 1 the front pass's own; every kernel
- * passes its layer as a constant. `reflectingPixelAt`: the surface `layer` at pixel `coord` as every
+ * passes its layer as a constant. `reflectionTracedPixel`: the pixel a grid texel stands for this image
+ * (`grids.ts`). `reflectingPixelAt`: the surface `layer` at pixel `coord` as every
  * kernel opens it — its point, unit normal, direction to the eye and roughness —, its physical lobes
  * decoded (`lobesAt`) where `flags` carry them, none elsewhere; a kernel that weighs no lobe passes no
  * flag.
  */
 export const REFLECTION_SURFACES_WGSL = wgslBlock(
   'REFLECTION_SURFACES_WGSL',
-  [reflectionFrontWgsl(REFLECTION_GROUP), LOBES_DECODE_WGSL],
+  [
+    reflectionFrontWgsl(REFLECTION_GROUP),
+    reflectionBindingsWgsl(REFLECTION_GROUP),
+    REFLECTION_CONSTANTS_WGSL,
+    REFLECTION_BLOCK_PIXEL_WGSL,
+    surfaceReflects,
+    LOBES_DECODE_WGSL,
+  ],
   `@group(0) @binding(${B.flags}) var surfaceFlags:texture_2d<u32>;
 @group(0) @binding(${B.normals}) var surfaceNormals:texture_2d<f32>;
 @group(0) @binding(${B.lobes}) var surfaceLobes:texture_2d<u32>;
@@ -31,6 +41,25 @@ fn surfaceDepthAt(layer:u32,coord:vec2i)->f32{
 /** The world point of the surface \`layer\` at pixel \`coord\`, at its centre. */
 fn surfacePointAt(layer:u32,coord:vec2i)->vec3f{
  return worldAt(vec2f(coord)+vec2f(0.5),surfaceDepthAt(layer,coord));
+}
+/** The pixel of grid texel \`g\`'s block that traces this image: the block's reflecting pixels take
+ *  turns, so a texel any of whose pixels reflects traces every image; its first pixel where none does. */
+fn reflectionTracedPixel(g:vec2u)->vec2u{
+ let size=textureDimensions(surfaceFlags);
+ var reflects=0u;
+ var count=0u;
+ for(var k=0u;k<REFLECTION_TRACE_BLOCK*REFLECTION_TRACE_BLOCK;k++){
+  let p=reflectionBlockPixel(g,k);
+  if(all(p<size)&&surfaceReflects(surfaceFlagsAt(vec2i(p)))){reflects|=1u<<k;count+=1u;}
+ }
+ if(count==0u){return reflectionBlockPixel(g,0u);}
+ var turn=reflectionView.temporal.x%count;
+ for(var k=0u;k<REFLECTION_TRACE_BLOCK*REFLECTION_TRACE_BLOCK;k++){
+  if((reflects&(1u<<k))==0u){continue;}
+  if(turn==0u){return reflectionBlockPixel(g,k);}
+  turn-=1u;
+ }
+ return reflectionBlockPixel(g,0u);
 }
 struct ReflectingPixel{P:vec3f,N:vec3f,V:vec3f,rough:f32,}
 fn reflectingPixelAt(layer:u32,coord:vec2i,flags:u32)->ReflectingPixel{

@@ -43,8 +43,8 @@ export type Recut = GridInputs & { ends: Uint32Array }
  * its spatial rule, the compiler's: compact patches whatever the index order, a grid listed by
  * columns or a soup cut as a cooked mesh is. A `blended` surface keeps its source order, its paint
  * order, in consecutive runs; its `held` faces — faces that move after the cut: a dynamic
- * geometry's, a mesh the waves carry —, whose pages keep no cone, in runs no wider than a compact
- * cluster of their triangles, each page drawn by the shadow rasters into the pages it reaches.
+ * geometry's, a mesh the waves carry — keep no cone, each page drawn by the shadow rasters into
+ * the pages it reaches.
  * Lines and sprites (no `cones`) keep their order too: their quads have no area, their layer is
  * coplanar. Positions sit on the compiler's tiled grid (`cutGrid.ts`). Texture coordinates sit on
  * the format's 2^-14, or on the finest grid the widest cluster's range fits when it does not — a
@@ -90,8 +90,7 @@ export async function cutDrawnTriangles(
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   }
-  const rule: ClusterRule =
-    blended || !cones ? (blended && held && cones ? 'compact' : 'ordered') : 'spatial'
+  const rule: ClusterRule = blended || !cones ? 'ordered' : 'spatial'
   const { indices, ranges } = recut
     ? { indices: drawn.indices, ranges: givenClusters(recut.ends) }
     : clusterTriangles(module, drawn.indices, positions, rule)

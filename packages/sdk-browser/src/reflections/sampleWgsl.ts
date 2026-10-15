@@ -8,12 +8,21 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+
+/** A sampled ray of a lobe (`reflectionLobeRay`), what the chain's stages trace (`wgsl.ts`): its
+ *  direction `R`, the thin lobe it is read through — the lobe's long axis and the smoothest α
+ *  (`axis`) —, `width`, the narrower α of the lobe it stands for, and that lobe's widths across
+ *  (`alpha`) and along its axis (`along`). */
+export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
+  'REFLECTION_LOBE_RAY_WGSL',
+  [],
+  'struct ReflectionLobeRay{R:vec3f,axis:vec4f,width:f32,alpha:f32,along:f32,}',
+)
 
 /**
- * EVERY LOBE, SAMPLED (`reflectionLobeRadiance`, every program's — the trace's kernels and the forward
- * fragments, `u` turning per pixel and per image in both, `reflectionSampleAt`): every lobe, whatever its
- * roughness, casts its ray in a direction drawn from its own GGX distribution, a new one every image,
+ * EVERY LOBE, SAMPLED (`reflectionLobeRay`, the trace's kernels', `u` turning per pixel and per image,
+ * `reflectionSampleAt`): every lobe that traces (`reach.ts`) casts its ray in a direction drawn from its
+ * own GGX distribution, a new one every image,
  * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average
  * the whole lobe, its long tail included. A mirror is the limit: its widths at the smoothest lobe the
  * engine draws, its draws all within a fraction of a degree of its centre — its sample is its centre
@@ -51,6 +60,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     tangentFallback,
     vectorRejection,
     LOBE_AXIS_WGSL,
+    REFLECTION_LOBE_RAY_WGSL,
   ],
   `fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
@@ -71,26 +81,9 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  let L=reflect(-V,normalize(h.x*T+h.y*B+h.z*N));
  return L-2.0*min(dot(L,N),0.0)*N;
 }
-fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
+fn reflectionLobeRay(N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->ReflectionLobeRay{
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
  let thin=lobeAlpha(0.0);
- return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin),min(alpha,lobe.w));
-}`,
-)
-
-/**
- * THE CHAIN'S ONE DITHER (`reflectionDither`): a number in [0, 1) of the point `P`, the ray `R`, the
- * stage `stage` and the image's turn (`ReflectionView.temporal.x`), with which a stage of the chain
- * takes its answer whole or not at all, as often as it is sure — the screen whether it answers
- * (`wgsl.ts`), the proxy whether its hit stands where its reach fades into the field (`proxy.ts`). A
- * ray then pays one answer, never two blended; the images average the choice. Each stage draws its
- * own number: the two choices are independent.
- */
-export const REFLECTION_DITHER_WGSL = wgslBlock(
-  'REFLECTION_DITHER_WGSL',
-  [reflectionBindingsWgsl(REFLECTION_GROUP), mixWord, GOLDEN_U32],
-  `fn reflectionDither(P:vec3f,R:vec3f,stage:u32)->f32{
- let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^mixWord(reflectionView.temporal.x^(stage*GOLDEN_U32))))));
- return f32(w>>8u)*${wgslF32(2 ** -24)};
+ return ReflectionLobeRay(R,vec4f(lobe.xyz,thin),min(alpha,lobe.w),alpha,lobe.w);
 }`,
 )

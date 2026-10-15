@@ -4,19 +4,16 @@ import {
 } from '../../../../sdk-core/src/page/format.ts'
 import {
   CLUSTER_ORDERED,
-  CLUSTER_ORDERED_COMPACT,
   CLUSTER_SPATIAL,
 } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** The rules of `cluster_build` (`page-codec-wasm/src/wasm_clusters.rs`): `spatial`, compact
- *  patches in any index order; `ordered`, consecutive triangles in their source order;
- *  `compact`, ordered runs that stop where they would reach past a compact cluster. */
+ *  patches in any index order; `ordered`, consecutive triangles in their source order. */
 const CLUSTER_RULES = {
   spatial: CLUSTER_SPATIAL,
   ordered: CLUSTER_ORDERED,
-  compact: CLUSTER_ORDERED_COMPACT,
 } as const
 export type ClusterRule = keyof typeof CLUSTER_RULES
 

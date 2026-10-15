@@ -110,20 +110,14 @@ export const CULLING_STRIDE = 15
 export const CULLING_RECORD_FLOATS = 12
 
 /**
- * The rule `cluster_build` takes for compact patches in any index order (`clusters/spatial.rs`).
+ * `cluster_build`'s order word for clusters free to reorder the triangles (`clusters.rs`).
  */
 export const CLUSTER_SPATIAL = 0
 
 /**
- * The rule `cluster_build` takes for consecutive triangles in source order (`clusters/ordered.rs`).
+ * `cluster_build`'s order word for clusters held to the source order (`clusters.rs`).
  */
 export const CLUSTER_ORDERED = 1
-
-/**
- * The ordered rule with its runs held compact: a run stops where it would reach past a compact
- * cluster of its triangles.
- */
-export const CLUSTER_ORDERED_COMPACT = 2
 
 /**
  * The version of the cut-out answer sheet this runtime reads.

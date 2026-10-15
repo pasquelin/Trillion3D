@@ -5,22 +5,21 @@ import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
 /** The use words' buffer: a cut's (`cutBuffer`). */
 const LABEL = 'Trillion3D DAG row use'
 
-/** Words of a row's use: its last use, its walk gate, its page (`rowClosureWgsl.ts`). */
-export const ROW_USE_WORDS = 3
+/** Words of a row's use: its last use, its page (`rowClosureWgsl.ts`). */
+export const ROW_USE_WORDS = 2
 /** Word ranks inside a row's use. */
 export const ROW_USE = 0,
-  ROW_WALK = 1,
-  ROW_PAGE = 2
+  ROW_PAGE = 1
 
 /**
- * THE ROWS' USE WORDS (#1527), three per visibility row: `use`, the last frame a cut drew, asked or
+ * THE ROWS' USE WORDS (#1527), two per visibility row: `use`, the last frame a cut drew, asked or
  * asked ahead a page whose per-instance closure holds the row's page — raised by the GPU alone with
- * `atomicMax` (`rowClosureWgsl.ts`) —; `walk`, the gate one walk per placement and group takes each
- * frame; `page`, the occupant the victim queue names (`rowEvictSortWgsl.ts`).
+ * `atomicMax` (`rowClosureWgsl.ts`) —; `page`, the occupant the victim queue names
+ * (`rowEvictSortWgsl.ts`).
  *
  * The host writes a row's words only when its occupant changes or a request takes it, never reads
- * them back, and sends them before the frame's commands: a new occupant was never walked (`walk`
- * 0) and is used now when a request took it, at 0 — the first to go — when no cut asked for it; a
+ * them back, and sends them before the frame's commands: a new occupant is used now when a request
+ * took it, at 0 — the first to go — when no cut asked for it; a
  * row moved into a hole (`writers.ts`, `closeHoles`) counts as used now, so a move never shortens
  * its protection. Only the rows written are sent, each run of neighbours once and no row between:
  * the GPU's stamps on the others stand.
@@ -38,7 +37,6 @@ export function createRowUseWords() {
   const write = (row: number, use: number, page: number) => {
     const at = row * ROW_USE_WORDS
     words[at + ROW_USE] = use
-    words[at + ROW_WALK] = 0
     words[at + ROW_PAGE] = page
     dirty.mark(row)
   }

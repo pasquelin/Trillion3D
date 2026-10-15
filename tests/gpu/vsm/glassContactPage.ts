@@ -71,7 +71,7 @@ ${castText()}
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin,1.0),size);
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
  let d=stop-start;
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab);
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab,0xffffffffu);
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,

@@ -61,7 +61,7 @@ export interface CompilerEvent {
 /** How `prepare` compiles a model. */ export interface PrepareOptions {
   /** The address the model's files load from. */ resourceBaseUrl: string
   /** The compiler program to run. */ executable?: string
-  /** Threads the compiler may use. @defaultValue 2 */ threads?: number
+  /** Threads the compiler may use; every core of the machine when omitted. */ threads?: number
   /** Memory the compiler may use, in MB. @defaultValue 256 */ ramBudgetMb?: number
   /** How meshes are simplified. @defaultValue 'none' */ simplification?: Simplification
   /** Stops the job when aborted. */ signal?: AbortSignal

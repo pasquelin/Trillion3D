@@ -74,9 +74,14 @@ fn texelRadiance(r:Reflected)->vec3u{
 }
 fn texelHalf(x:f32)->u32{return lowHalf(pack2x16float(vec2f(min(x,HALF_MAX),0.0)));}
 fn texelHalfOf(w:u32)->f32{return unpack2x16float(lowHalf(w)).x;}
+/** A distance stored as a half (\`texelHalf\`): past \`HALF_MAX\`, the far one. */
+fn texelDistanceOf(w:u32)->f32{
+ let x=texelHalfOf(w);
+ return select(x,REFLECTION_FAR,x>=HALF_MAX);
+}
 fn freshPack(r:Reflected,hit:f32)->vec4u{return vec4u(texelRadiance(r),texelHalf(hit)|(1u<<16u));}
 fn freshValid(t:vec4u)->bool{return bitIsSet(t.w,16u);}
-fn freshHit(t:vec4u)->f32{return texelHalfOf(t.w);}
+fn freshHit(t:vec4u)->f32{return texelDistanceOf(t.w);}
 fn rayPack(d:vec3f)->u32{return pack2x16snorm(octEncode(d));}
 fn rayDirection(w:u32)->vec3f{return octDecode(unpack2x16snorm(w));}
 fn historyPack(r:Reflected,depth:f32,N:vec3f,count:u32)->vec4u{

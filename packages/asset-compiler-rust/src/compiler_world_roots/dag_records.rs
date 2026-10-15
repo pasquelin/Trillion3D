@@ -29,12 +29,10 @@ fn page_facts(r: &mut Records, page: Option<&Encoded>) -> Result<()> {
     ] {
         r.word(index(value)?);
     }
+    // The page's own `f32`, four bytes as the record lays it out (`CLUSTER`, `worldRootsTable.ts`).
     let error = header.quantization_error;
-    r.out.f64(if error.is_finite() {
-        f64::from(error)
-    } else {
-        0.0
-    });
+    r.out
+        .raw(&(if error.is_finite() { error } else { 0.0 }).to_le_bytes());
     Ok(())
 }
 

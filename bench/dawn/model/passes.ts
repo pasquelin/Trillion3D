@@ -13,6 +13,8 @@ import {
   REFLECTION_PASS,
   REFLECTION_RADIANCE_PASS,
   REFLECTION_TRACE_PASS,
+  REFLECTION_SCENE_PASS,
+  REFLECTION_DENOISE_PASS,
 } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
 import { passKey } from '../summary.ts'
 import * as K from './passConstants.ts'
@@ -138,26 +140,51 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: passKey(REFLECTION_TRACE_PASS),
-    formula: `P/4 half texels traced, P/4·reflecting·(${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads, ${K.HIT_TAPS} filtered taps), ${K.HALF_BYTES} B a half texel written; reused, P/4·reflecting·${K.SPATIAL_LOADS} loads; accumulated, P/4·reflecting·${K.TEMPORAL_LOADS} loads, ${K.HALF_BYTES} B written; P pixels upsampled, P·reflecting·${K.UPSAMPLE_LOADS} loads, ${K.TRACE_BYTES} B written — 16 iterations on average, 35 at p99`,
+    formula: `P flags classified; P·reflecting/${K.TRACE_SHARE} lobe rays marched on the screen (a pixel of each block), each ${K.TRACE_LOADS} + ${K.MARCH_ITERATIONS} iterations × ${K.MARCH_FETCHES} + ${K.HIT_LOADS} loads and ${K.HIT_TAPS} filtered taps, ${K.GRID_BYTES} + ${K.RAY_BYTES} B written — 16 iterations on average, 35 at p99`,
     work: (f) => ({
       texels:
         f.P +
-        (f.P / 4) *
-          f.reflecting *
-          (K.TRACE_LOADS +
-            K.MARCH_ITERATIONS * K.MARCH_FETCHES +
-            K.HIT_LOADS +
-            K.SPATIAL_LOADS +
-            K.TEMPORAL_LOADS) +
-        f.P * f.reflecting * K.UPSAMPLE_LOADS,
-      filtered: (f.P / 4) * f.reflecting * K.HIT_TAPS,
-      bytes: 3 * K.HALF_BYTES * (f.P / 4) + K.TRACE_BYTES * f.P * f.reflecting,
+        ((f.P * f.reflecting) / K.TRACE_SHARE) *
+          (K.TRACE_LOADS + K.MARCH_ITERATIONS * K.MARCH_FETCHES + K.HIT_LOADS),
+      filtered: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.HIT_TAPS,
+      bytes: ((K.GRID_BYTES + K.RAY_BYTES) * f.P * f.reflecting) / K.TRACE_SHARE,
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/frame.ts', 'encodeReflections'),
+      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
       K.engine('gpu/hiz/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
-      K.engine('reflections/traceHalf.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_SCENE_PASS),
+    formula: `at most P·reflecting/${K.TRACE_SHARE} rays the screen left, each ${K.SCENE_LOADS} loads and its ${K.GRID_BYTES} B entry read, ${K.GRID_BYTES} B written; the proxy walk unmodelled: a lower bound`,
+    work: (f) => ({
+      texels: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.SCENE_LOADS,
+      bytes: (2 * K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE,
+      passes: 1,
+    }),
+    sources: [
+      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('reflections/proxy.ts', 'REFLECTION_PROXY_WGSL'),
+      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_DENOISE_PASS),
+    formula: `P·reflecting/${K.TRACE_SHARE} grid texels reused (${K.SPATIAL_LOADS} loads) and accumulated (${K.TEMPORAL_LOADS} loads), ${K.GRID_BYTES} B written twice; P·reflecting pixels widened from the grid (${K.BILATERAL_LOADS} loads at most), ${K.TARGET_BYTES} B written`,
+    work: (f) => ({
+      texels:
+        ((f.P * f.reflecting) / K.TRACE_SHARE) * (K.SPATIAL_LOADS + K.TEMPORAL_LOADS) +
+        f.P * f.reflecting * K.BILATERAL_LOADS,
+      bytes:
+        (2 * K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE +
+        K.TARGET_BYTES * f.P * f.reflecting,
+      passes: 1,
+    }),
+    sources: [
+      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
     ],
   },
   {

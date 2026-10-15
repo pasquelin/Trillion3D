@@ -6,12 +6,12 @@ import { STRUCTURE_HEAD, STRUCTURE_TABLE } from '../../gpu/dag/structureTable.ts
 import { STRUCTURE_WORD } from '../../gpu/dag/frameTable.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { ROW_MAP_WGSL } from './rowMapWgsl.ts'
-import { ROW_USE, ROW_USE_WORDS, ROW_WALK } from './rowWords.ts'
+import { ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
 import { DAG_SEED_WGSL } from '../../gpu/dag/shader/seedWgsl.ts'
 
 /** Group-1 bindings of the rows' closure in the cut's program: the page→row map, the rows' use
- *  words, the group structures (`rowClosure.ts` binds them). */
-export const ROW_CLOSURE_BINDING = { rowMap: 0, rowUse: 1, structures: 2 } as const
+ *  words, the group structures, the packed pages' walk words (`rowClosure.ts` binds them). */
+export const ROW_CLOSURE_BINDING = { rowMap: 0, rowUse: 1, structures: 2, pageWalk: 3 } as const
 
 const B = ROW_CLOSURE_BINDING
 
@@ -27,9 +27,12 @@ const B = ROW_CLOSURE_BINDING
  * The walk is the CPU's `reach`, on the primitive's structure as the packing compiled it
  * (`../../gpu/dag/structureTable.ts`), its base in the placement's frame words: a group popped,
  * its members stamped, each output's owner pushed — or the output stamped when nothing replaces
- * it. A (placement, group) is walked once a frame: its GATE is the walk word of the first member
- * holding a row, raised to the seed's clock — a walk that finds it as new already stops, a walker
- * at least as new covering exactly what it would. The words are maxima: whatever thread walks, the
+ * it. A (placement, group) is walked once a frame: its GATE is the walk word of its first member
+ * page (`pageWalk`, a word a packed page, whether it holds a row or not), raised to the seed's clock —
+ * a walk that finds it as new already stops, a walker at least as new covering exactly what it
+ * would. So a walk visits each group of its placement once, however many paths reach it and
+ * however few of its pages are resident: never the paths of the structure, which grow with its
+ * depth. The words are maxima: whatever thread walks, the
  * same words. Its stack lies in workgroup memory, `ROW_STACK` a lane, the most any structure's walk
  * holds (`stackBound`); `ROW_LANES` lanes take the `WORKGROUP_THREADS` entries of a workgroup of
  * the list's dispatch, so a deep structure takes fewer lanes, never a stack cut short.
@@ -51,7 +54,8 @@ export const ROW_CLOSURE_WGSL = wgslBlock(
   ],
   `@group(1) @binding(${B.rowMap}) var<storage,read> rowMap:array<u32>;
 @group(1) @binding(${B.rowUse}) var<storage,read_write> rowUse:array<atomic<u32>>;
-${wgslConsts({ ROW_USE_WORDS, ROW_USE, ROW_WALK, STRUCTURE_HEAD, STRUCTURE_WORD })}
+@group(1) @binding(${B.pageWalk}) var<storage,read_write> pageWalk:array<atomic<u32>>;
+${wgslConsts({ ROW_USE_WORDS, ROW_USE, STRUCTURE_HEAD, STRUCTURE_WORD })}
 override ROW_LANES:u32=WORKGROUP_THREADS;
 override ROW_STACK:u32=1u;
 override ROW_STACK_WORDS:u32=WORKGROUP_THREADS;
@@ -72,15 +76,10 @@ fn rowClose(i:u32,w:u32,v:u32,lane:u32){
  loop{
   if(top==0u){break;}
   top--;let g=rowStack[base+top];
-  let end=structWord(memberAt+g+1u);
-  var m=structWord(memberAt+g);var gate=NO_INDEX;
-  for(;m<end;m++){gate=rowOfPage(pageBase+structWord(members+m));if(gate!=NO_INDEX){m++;break;}}
-  if(gate!=NO_INDEX){
-   if(atomicMax(&rowUse[ROW_USE_WORDS*gate+ROW_WALK],v)>=v){continue;}
-   atomicMax(&rowUse[ROW_USE_WORDS*gate+ROW_USE],v);
-  }
-  // The members before the gate hold no row.
-  for(;m<end;m++){rowStamp(pageBase+structWord(members+m),v);}
+  let start=structWord(memberAt+g);let end=structWord(memberAt+g+1u);
+  // The group's gate, its first member page's walk word: a walk at least as new passed it.
+  if(atomicMax(&pageWalk[pageBase+structWord(members+start)],v)>=v){continue;}
+  for(var m=start;m<end;m++){rowStamp(pageBase+structWord(members+m),v);}
   let last=structWord(outputAt+g+1u);
   for(var o=structWord(outputAt+g);o<last;o++){
    let output=structWord(outputs+o);let owner=structWord(owners+output);

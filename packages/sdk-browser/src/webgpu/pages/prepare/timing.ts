@@ -1,5 +1,5 @@
 import { createGpuTiming } from '../../../gpu/timing/timing.ts'
-import { addGpuPasses, bounceGpuMs, reflectionTraceGpuMs } from '../../../stage/mapping.ts'
+import { addGpuPasses, bounceGpuMs, reflectionSceneGpuMs } from '../../../stage/mapping.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
 
@@ -36,10 +36,10 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         sample.scaleSteered !== false,
         sample.pairs.invalid === 0,
       )
-      // The proxy rays' budget is a duration: it reads here the reflection trace's pass and the
+      // The proxy rays' budget is a duration: it reads here the reflection scene's pass and the
       // bounce stage, the per-pass profile's, and corrects the next images' units and batch.
       rt.bounce.budget.observe(
-        reflectionTraceGpuMs(timing.lastGpuPassMs),
+        reflectionSceneGpuMs(timing.lastGpuPassMs),
         bounceGpuMs(timing.lastGpuPassMs),
       )
       timing.lastGpuHostGapMs = sample.hostGapMs

@@ -32,8 +32,6 @@ pub const FORMAT_VERSION: u32 = ${FORMAT_VERSION};
 pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = ${CLUSTERED_BLEND_FORMAT_VERSION};
 /// The triangle budget of a compilation that names none.
 pub const DEFAULT_TRIANGLE_BUDGET: usize = ${compiler.DEFAULT_TRIANGLE_BUDGET};
-/// The threads of a compilation that names none.
-pub const DEFAULT_THREADS: usize = ${compiler.DEFAULT_THREADS};
 /// The memory, in MB, of a compilation that names none.
 pub const DEFAULT_RAM_BUDGET_MB: usize = ${compiler.DEFAULT_RAM_BUDGET_MB};
 /// The most threads one job may use.

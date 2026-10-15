@@ -13,6 +13,10 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { ROW_CLOSURE_BINDING, ROW_CLOSURE_STAGES } from './rowClosureWgsl.ts'
 import { startedComputeStages } from '../../gpu/core/computeStages.ts'
 import { GUARANTEED_WORKGROUP_BYTES } from '../../gpu/core/textureLimits.ts'
+import { sizedBuffer, type BufferMaker } from '../../gpu/core/sizedBuffer.ts'
+
+/** The packed pages' walk words: a cut's (`cutBuffer`). */
+const WALK_LABEL = 'Trillion3D DAG page walk'
 
 /** Words of workgroup memory every device holds (`GUARANTEED_WORKGROUP_BYTES`): the stacks of a
  *  workgroup's lanes. */
@@ -45,6 +49,8 @@ export function createRowClosure(
   dag: { layout: GPUBindGroupLayout; module: GPUShaderModule },
   /** Makes the structures' texture, in place of the one it outgrew: the cut's (`cutTexture`). */
   make: TextureMaker,
+  /** Makes the pages' walk words, in place of the buffer they outgrew: the cut's (`cutBuffer`). */
+  makeBuffer: BufferMaker,
 ) {
   const B = ROW_CLOSURE_BINDING
   const layout = device.createBindGroupLayout({
@@ -52,6 +58,7 @@ export function createRowClosure(
       computeBufferEntry(B.rowMap, 'read-only-storage'),
       computeBufferEntry(B.rowUse, 'storage'),
       computeTextureEntry(B.structures, 'uint', '2d-array'),
+      computeBufferEntry(B.pageWalk, 'storage'),
     ],
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [dag.layout, layout] })
@@ -72,6 +79,7 @@ export function createRowClosure(
     )
   })
   let structures: RecordTexture | undefined,
+    walk: GPUBuffer | undefined,
     sent = 0,
     group: GPUBindGroup | undefined
   const bound = createWebgpuBindIdentity()
@@ -93,17 +101,27 @@ export function createRowClosure(
   }
   return {
     /**
-     * The closure of this cut's seeds on `pass`, the cut's group set, its arguments `args`: true
-     * when it ran, false while its pipelines compile or its structures could not be held.
+     * The closure of this cut's seeds on `pass`, the cut's group set, its arguments `args`, over the
+     * packing's `pages` (a walk word each, `pageWalk`): true when it ran, false while its pipelines
+     * compile or its structures could not be held.
      */
-    encode(pass: GPUComputePassEncoder, args: GPUBuffer, rows: ClosureRows, table: StructureTable) {
+    encode(
+      pass: GPUComputePassEncoder,
+      args: GPUBuffer,
+      rows: ClosureRows,
+      table: StructureTable,
+      pages: number,
+    ) {
       const shape = closureShape(table.stackBound)
       if (!shape || !flush(table)) return false
       const stages = pipelines.of(shape.stack)
       if (!stages.ready) return false
+      const usage = GPUBufferUsage.STORAGE
+      walk = sizedBuffer(device, walk, Math.max(1, pages) * 4, usage, WALK_LABEL, makeBuffer)
       bound.next[0] = rows.map
       bound.next[1] = rows.use
       bound.next[2] = structures!.view
+      bound.next[3] = walk
       if (bound.moved() || !group)
         group = device.createBindGroup({
           layout,
@@ -111,6 +129,7 @@ export function createRowClosure(
             { binding: B.rowMap, resource: { buffer: rows.map } },
             { binding: B.rowUse, resource: { buffer: rows.use } },
             { binding: B.structures, resource: structures!.view },
+            { binding: B.pageWalk, resource: { buffer: walk } },
           ],
         })
       pass.setBindGroup(1, group)

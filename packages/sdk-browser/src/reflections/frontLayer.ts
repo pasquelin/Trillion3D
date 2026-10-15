@@ -41,7 +41,7 @@ import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
-import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
+import { createKernelTexture, createReflectionGrids, gridBytes, gridExtent } from './grids.ts'
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
 export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
@@ -168,7 +168,8 @@ export function createFrontLayer(
         if (n.texture !== normals) views.normals = (normals = n.texture).createView()
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
         bytes.targetBytes += n.bytes + t.bytes
-        if (!holds({ width, height }, grids.textures[0])) {
+        const [gw, gh] = gridExtent(width, height)
+        if (!holds({ width: gw, height: gh }, grids.textures[0])) {
           retire(device, grids)
           grids = createReflectionGrids(device, LABEL, full)
           bytes.targetBytes += gridBytes(width, height) - gridBytes(1, 1)

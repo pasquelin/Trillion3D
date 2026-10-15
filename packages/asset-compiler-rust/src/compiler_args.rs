@@ -5,6 +5,14 @@ use texture_formats::{
     TEXTURE_FORMAT_OPTION,
 };
 
+/// The threads of a job that names none: every core the machine offers, at most `MAX_THREADS`. A
+/// job's threads are a bound: it runs as many workers as its memory budget holds (`plan_buffers`).
+pub fn machine_threads() -> usize {
+    std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .min(MAX_THREADS)
+}
+
 mod texture_formats;
 
 /// Job fields the command line gives as numbers.
@@ -129,7 +137,8 @@ fn usage() -> String {
     )
 }
 
-/// The command line's job: its values in `JOB_FIELDS` order, read as a batch of one reads its job.
+/// The command line's job: its values in `JOB_FIELDS` order, read as a batch of one reads its job; an
+/// empty value names nothing, so the field takes its default as a batch job that leaves it out.
 pub fn parse_compiler_args(
     args: &[String],
     cancelled: Arc<AtomicBool>,
@@ -146,6 +155,7 @@ pub fn parse_compiler_args(
         .iter()
         .filter(|field| !left_out.contains(*field))
         .zip(&args)
+        .filter(|(_, raw)| !raw.is_empty())
         .map(|(field, raw)| {
             let value = match raw.parse::<u64>() {
                 Ok(n) if NUMBER_FIELDS.contains(field) => Value::from(n),
@@ -162,7 +172,7 @@ pub fn parse_compiler_args(
     }
     let defaults = JobDefaults {
         scope: SCOPES[0],
-        threads: DEFAULT_THREADS,
+        threads: machine_threads(),
         ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
     };
     job_options(&job, &defaults, cancelled)

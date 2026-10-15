@@ -9,7 +9,7 @@ import type { RadianceInputs } from './radianceBuild.ts'
 import { createReflectionGrids, gridBytes } from './grids.ts'
 import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
-import { REFLECTION_PASS, REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
+import { REFLECTION_PASS } from '../stage/passLabels.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
@@ -90,9 +90,8 @@ export function createScreenReflection(
     inputs: {} as TraceInputs,
     radianceInputs: {} as RadianceInputs,
     surroundings: createSurroundings(),
-    /** The Hi-Z nearest build's pass and the trace's, timed alone, each opened lazily. */
+    /** The Hi-Z nearest build's pass, timed alone, opened lazily. */
     depthPass: new LazyComputePass(REFLECTION_PASS),
-    tracePass: new LazyComputePass(REFLECTION_TRACE_PASS),
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()

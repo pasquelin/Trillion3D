@@ -93,7 +93,6 @@ export function encodeReflections(
   // the temporal accumulation is no move (`stageReflectionImage`): the reflections hold the phase they
   // froze on, as the history does.
   if (reflection.settle.frozen) return
-  const open = reflection.tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
@@ -107,9 +106,10 @@ export function encodeReflections(
     inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
-    const group = reflectionGroup(reflection, depth, lightView, reflectionProxy(rt)!)
+    inputs.proxy = reflectionProxy(rt)!
+    const group = reflectionGroup(reflection, depth, lightView)
     encodeReflectionTrace(
-      open.pass,
+      encoder,
       reflection,
       stages,
       inputs,
@@ -118,7 +118,6 @@ export function encodeReflections(
       !!reflection.frame.front,
     )
   }
-  reflection.tracePass.end()
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before

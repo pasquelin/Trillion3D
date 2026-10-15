@@ -8,7 +8,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { withoutComments } from '../../../math/src/wgsl/comments.fixture.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
-import { reflectedRadianceWgsl } from './wgsl.ts'
+import { reflectionStagesWgsl } from './wgsl.ts'
 
 type Cone = {
   reflectionConeTangent: (alpha: number) => number
@@ -78,7 +78,7 @@ test('the screen gives way to the environment over the last level below the pyra
 test('nothing a reflection reads turns with the frame: no seed, no frame rank, no history', () => {
   // The code, not the declarations nor the comments: the bounce grid it shares with the diffuse
   // declares the probe update's frame counters, which nothing here reads.
-  const text = withoutComments(wgslModule(reflectedRadianceWgsl(1))).replace(
+  const text = withoutComments(wgslModule(reflectionStagesWgsl(1))).replace(
     /struct \w+\{[^}]*\}/g,
     '',
   )

@@ -3,7 +3,6 @@ import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
 import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
-  DEFAULT_THREADS,
   MAX_THREADS,
   MIN_RAM_BUDGET_MB,
   SIMPLIFICATIONS,
@@ -34,11 +33,10 @@ const properties: Record<JobField, JsonSchemaProperty> = {
   },
   threads: {
     type: 'integer',
-    default: DEFAULT_THREADS,
     minimum: 1,
     maximum: MAX_THREADS,
     description:
-      'Number of parallel worker threads allocated to the native compiler (see default).',
+      'Number of parallel worker threads allocated to the native compiler. Omit to use every core of the machine.',
   },
   ramBudgetMb: {
     type: 'integer',

@@ -7,6 +7,8 @@ pub(super) struct BufferPlan {
     pub views: BTreeSet<usize>,
     pub view_map: BTreeMap<usize, usize>,
     pub estimated_working_bytes: usize,
+    /// The workers the job runs: its threads, as many as the budget holds beside the rest, one at least.
+    pub threads: usize,
     /// Consecutive ranges of `jobs` whose working sets fit the job's budget together.
     pub waves: Vec<std::ops::Range<usize>>,
 }
@@ -146,10 +148,7 @@ pub(super) fn plan_buffers(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let mut committed = source_len.saturating_mul(2).saturating_add(
-        o.threads
-            .saturating_mul(compiler_primitive::cost::WORKER_BYTES),
-    );
+    let mut committed = source_len.saturating_mul(2);
     for id in &views {
         committed = committed
             .checked_add(required_index(
@@ -177,6 +176,14 @@ pub(super) fn plan_buffers(
         .checked_add(bin.len())
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
+    // The job's threads are a bound: it runs as many workers as the budget holds beside the rest, one
+    // at least, so a thread count never refuses a job one worker would compile.
+    let worker = compiler_primitive::cost::WORKER_BYTES;
+    let threads = o
+        .threads
+        .min(o.ram_budget_bytes().saturating_sub(committed) / worker)
+        .max(1);
+    committed = committed.saturating_add(threads.saturating_mul(worker));
     if committed > o.ram_budget_bytes() {
         return Err(CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",
@@ -192,6 +199,7 @@ pub(super) fn plan_buffers(
         views,
         view_map,
         estimated_working_bytes: held.saturating_add(working.iter().copied().max().unwrap_or(0)),
+        threads,
         waves,
     })
 }

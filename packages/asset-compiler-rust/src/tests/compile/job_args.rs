@@ -11,7 +11,7 @@ fn parse(line: &[&str]) -> std::result::Result<Options, String> {
 fn read_job(job: &Value) -> std::result::Result<Options, String> {
     let defaults = JobDefaults {
         scope: SCOPES[1],
-        threads: DEFAULT_THREADS,
+        threads: machine_threads(),
         ram_budget_mb: DEFAULT_RAM_BUDGET_MB,
     };
     let flag = Arc::new(AtomicBool::new(false));
@@ -21,12 +21,16 @@ fn read_job(job: &Value) -> std::result::Result<Options, String> {
 #[test]
 fn parse_accepts_five_to_eight_args() {
     let five = parse(&["s", "c", "slice", "12", "/assets/"]).expect("five");
-    assert_eq!(five.threads, 2);
+    assert_eq!(five.threads, machine_threads());
     assert_eq!(five.ram_budget_mb, 256);
     assert_eq!(five.simplification, "none");
     let seven = parse(&["s", "c", "full", "12", "4", "128", "/a/"]).expect("seven");
     assert_eq!(seven.threads, 4);
     assert_eq!(seven.ram_budget_mb, 128);
+    // An empty value names nothing: the field takes its default, the others keep their places.
+    let unnamed = parse(&["s", "c", "full", "12", "", "128", "/a/"]).expect("unnamed threads");
+    assert_eq!(unnamed.threads, machine_threads());
+    assert_eq!(unnamed.ram_budget_mb, 128);
     let eight = parse(&["s", "c", "full", "12", "4", "128", "/a/", "qem-endpoints"]);
     assert_eq!(eight.expect("eight").simplification, "qem-endpoints");
     // A value out of its choices is refused by the one check of a job's values, whichever form

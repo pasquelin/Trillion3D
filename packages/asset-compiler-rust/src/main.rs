@@ -21,8 +21,8 @@ use std::{
     time::Instant,
 };
 use trillion3d_compiler::{
-    compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
-    COMPILER_VERSION, FORMAT_VERSION,
+    compile, implementation_hash, parse_compiler_args, plugins, shared_math::elapsed_ms,
+    CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
 };
 /// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
 #[global_allocator]
@@ -106,7 +106,7 @@ fn main() -> std::process::ExitCode {
         Some("--version") => {
             println!(
                 "{}",
-                json!({"compilerVersion":COMPILER_VERSION,"formatVersion":FORMAT_VERSION,"plugins":plugins::descriptor(),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH})
+                json!({"compilerVersion":COMPILER_VERSION,"formatVersion":FORMAT_VERSION,"implementationHash":implementation_hash(),"plugins":plugins::descriptor(),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH})
             );
             0
         }
