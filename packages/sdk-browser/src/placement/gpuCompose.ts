@@ -88,12 +88,13 @@ export function composeWebgpuPlacements(
   }
   linkRanks(rt, state, { slot, ranks, links: rooted, whole })
   const relinked = ranks.length > 0 || whole
-  settleSlot(rt, state, { slot, p, world, relinked })
+  const moved = settleSlot(rt, state, { slot, p, world, relinked })
   // Its readers' views read their rows composed: a move composes none until one is read.
   if (readers.length || whole)
     readThroughViews(state.readers, slot, viewsOf(), state, rt.layout.selectionRoots)
-  // Poses moved and no node entered or left: the frame hears it as any engine pose write.
-  rt.run.gate.engineMovedInPlace()
+  // Poses moved and no node entered or left: the frame hears it as any engine pose write. A still
+  // world sent again — every slot a frame sends (`partition/follow.ts`) — moves nothing.
+  if (moved || relinked || readers.length) rt.run.gate.engineMovedInPlace()
 }
 
 /** The roots and the blended items of a growth read views on their new rows (`growth.ts`): the

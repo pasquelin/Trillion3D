@@ -39,7 +39,8 @@ function moveGroups(rt: WebgpuPagesRuntime, state: ComposeState, slot: number) {
 
 /** The parent's world at `slot`, held, the slot's version drawn anew when it or a link moved; its
  *  move told to the shadow mobility — the rows pass stales the pages its roots' rows left and
- *  entered (`rowCastWgsl.ts`) — and the temporal pyramid. */
+ *  entered (`rowCastWgsl.ts`) — and the temporal pyramid. The one decision of whether a parent
+ *  moved, whoever sends its world: true when it did. */
 export function settleSlot(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -72,11 +73,12 @@ export function settleSlot(
   // every other slot, keep their composed worlds and every memo keyed by their stamps.
   if (moved || relinked || p === undefined) state.slotVersions[slot] = ++state.version
   if (turned) remakeBins(rt, state, slot)
-  if (!moved && !relinked) return
+  if (!moved && !relinked) return moved
   // The impostor cards of its roots are written again from the composed worlds they read, and so
   // are the corners of its blended roots' transparent entries, from the worlds the GPU composes.
   const ranks = slotRanks(state, slot)
   rt.gpu.impostors?.worldsMoved(ranks)
   for (const rank of ranks) poseEntries(rt, rt.layout.selectionRoots[rank])
   moveGroups(rt, state, slot)
+  return moved
 }
