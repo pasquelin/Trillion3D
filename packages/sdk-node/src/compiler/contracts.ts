@@ -45,6 +45,7 @@ export interface CompilerEvent {
   /** Shows one event. */ event(event: CompilerEvent): void
   /** Prints a note. */ note(text: string): void
   /** Prints a failure. */ fail(message: string): void
+  /** Warning-level messages counted so far: what `--strict` refuses. */ readonly warnings: number
 }
 
 /** How a terminal progress display looks. */ export interface TerminalProgressOptions {

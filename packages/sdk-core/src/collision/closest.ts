@@ -46,7 +46,7 @@ function projectionInside(
 
 /** The triangle's unnormalised normal, `(b - a) × (c - a)`, into `out`; returns its squared
  *  length (four times the squared area), zero for a degenerate triangle. */
-export function triangleNormal(out: Float64Array, v: ArrayLike<number>, at: number) {
+function triangleNormal(out: Float64Array, v: ArrayLike<number>, at: number) {
   triangleCross(out, 0, v, at, at + 3, at + 6)
   return lengthSqVector3(out)
 }

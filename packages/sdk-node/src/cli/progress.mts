@@ -162,6 +162,9 @@ export function createTerminalProgress({
     fail(message: string) {
       finish('✖', message)
     },
+    get warnings() {
+      return messages.warnings
+    },
   }
 }
 /** Batch companion for `prepareMany({onEvent})`: one line per job id, in arrival order. */

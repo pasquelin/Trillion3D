@@ -50,16 +50,17 @@ function namedCompiler(
   return variable ? { path: variable, from: 'environment' } : null
 }
 /**
- * Finds the native compiler program: the one asked for, else the one of the installed platform
- * package, else the one `TRILLION3D_COMPILER_BIN` names, else the one built in this checkout.
+ * Finds the native compiler program for `platform` (`currentCompilerExecutable`): the one asked
+ * for, else the one of the installed platform package, else the one `TRILLION3D_COMPILER_BIN`
+ * names, else the one built in this checkout — refused by name when stale or missing, never a path
+ * that cannot run.
  */
 export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
 ) {
-  const host = { ...HERE, platform }
-  return namedCompiler(explicit, environment, host)?.path ?? built(CRATE, platform)
+  return currentCompilerExecutable(explicit, environment, { platform })
 }
 const announced = new Set<string>()
 /**
