@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 /**
  * THE TWELVE UNIFORM WORDS OF THE EXPANSION KERNEL, written once.
  *
@@ -18,15 +19,14 @@ const UNI_FIELDS = [
   'orderBase',
   'runsBase',
 ] as const
-export const UNI_WORDS = 12
-export const EXPAND_UNI = Object.fromEntries(UNI_FIELDS.map((nom, rang) => [nom, rang])) as Record<
-  (typeof UNI_FIELDS)[number],
-  number
->
+/** The struct of these words, padding included, laid out by the one struct rule. */
+const UNI = fieldLayout('Uni', [
+  ...UNI_FIELDS.map((name) => [name, 'u32'] as const),
+  ['pad0', 'u32'],
+  ['pad1', 'u32'],
+  ['pad2', 'u32'],
+] as const)
+export const UNI_WORDS = UNI.words
+export const EXPAND_UNI = UNI.at
 /** WGSL declaration of these words, in the same order, padding included. */
-export const expandUniformWgsl = () =>
-  wgslBlock(
-    'expandUniformWgsl',
-    [],
-    `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`,
-  )
+export const expandUniformWgsl = () => wgslBlock('expandUniformWgsl', [], UNI.wgsl)

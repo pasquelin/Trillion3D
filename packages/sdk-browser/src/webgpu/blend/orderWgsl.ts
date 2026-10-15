@@ -6,6 +6,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -56,17 +57,14 @@ const ORDER_UNI_FIELDS = [
   'fresh',
   'last',
 ] as const
-export const ORDER_UNI = Object.fromEntries(
-  ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
-) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
+const ORDER_UNI_LAYOUT = fieldLayout(
+  'OrderUni',
+  ORDER_UNI_FIELDS.map((name) => [name, 'u32'] as const),
+)
+export const ORDER_UNI = ORDER_UNI_LAYOUT.at
 /** Words of one dispatch's uniform (`OrderUni`), at its dynamic offset: its fields, whole rows. */
-export const ORDER_UNI_WORDS = 4 * ceilDiv(ORDER_UNI_FIELDS.length, 4)
-const orderUniformWgsl = () =>
-  wgslBlock(
-    'orderUniformWgsl',
-    [],
-    `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`,
-  )
+export const ORDER_UNI_WORDS = 4 * ceilDiv(ORDER_UNI_LAYOUT.words, 4)
+const orderUniformWgsl = () => wgslBlock('orderUniformWgsl', [], ORDER_UNI_LAYOUT.wgsl)
 
 /** Group-0 binding of each buffer the order kernel reads, under its WGSL name. */
 export const ORDER_BINDING = {

@@ -21,8 +21,8 @@ import { CULL_MODES } from './planCull.ts'
  *  and of their composite over the frozen backdrop. */
 export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal
 
-/** The three pipelines a plan entry picks by rank (`plan.ts`): none, front, back. */
-export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline]
+/** The pipelines a plan entry picks by cull rank (`plan.ts`), one per `CULL_MODES`. */
+export type BlendPipelines = { readonly [K in keyof typeof CULL_MODES]: GPURenderPipeline }
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
  *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
@@ -122,12 +122,11 @@ export async function blendStagePipelines(
   depthWrite: boolean,
   mask?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
-  const [none, front, back] = await Promise.all(
+  return (await Promise.all(
     stageDescriptors(device, module, layout, fragment, depthWrite, mask).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
-  )
-  return [none, front, back]
+  )) as unknown as BlendPipelines
 }
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the

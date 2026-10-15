@@ -1,6 +1,6 @@
 import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
+import { drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
@@ -16,29 +16,28 @@ import {
   PLAN_VERTEX_CULL_BIT,
   planEntry,
 } from './planEntry.ts'
-import { CULL_RANK, modeBase, modeOf, planCull } from './planCull.ts'
+import { CULL_RANK, blendingOf, pipelineBase, planCull } from './planCull.ts'
 
 /** The cull ranks of a pass's pipelines (`CULL_RANK`): a plan entry picks them without a test, and
- *  the rank, plus its blend mode's base (`modeBase`), indexes the pipelines of the pass
+ *  the rank, plus its blend mode's base (`pipelineBase`), indexes the pipelines of the pass
  *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the normal mode's. */
-const { none: PIPELINE_NONE, front: PIPELINE_FRONT, back: PIPELINE_BACK } = CULL_RANK
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
 const planVertexCull = (entry: number) =>
-  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE
+  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : CULL_RANK.none
 /** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry)
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
 const firstPipeline = (surface: PageSurface, transmissive: boolean) =>
-  modeBase(BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)))
+  pipelineBase(drawnBlending(surface.blending, transmissive))
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
   // One determinant, taken once, picks both faces.
   const renverse = matrixWindingCw(item.matrix.elements)
-  const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
-    back = renverse ? PIPELINE_BACK : PIPELINE_FRONT
+  const front = renverse ? CULL_RANK.front : CULL_RANK.back,
+    back = renverse ? CULL_RANK.back : CULL_RANK.front
   // The record is read here, as its owner wrote it last: the plan is what must see a side
   // switched in place (see the room reserved above).
   const surface = item.surface
@@ -47,7 +46,7 @@ function sidesOf(item: BlendGpuItem) {
   if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front]
   if (side === 'front') return [base + front]
   if (side === 'back') return [base + back]
-  return [base + PIPELINE_NONE]
+  return [base + CULL_RANK.none]
 }
 
 /**
@@ -70,8 +69,9 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
       into = item.transmissive ? transmission : blend
     const sides = sidesOf(item),
       vertexCull = !!item.paged && sides.length === MAX_SIDES
-    filters ||= filtersDisplay(BLEND_MODES[modeOf(sides[0])])
-    modes.add(BLEND_MODES[modeOf(sides[0])])
+    const mode = blendingOf(sides[0])
+    filters ||= filtersDisplay(mode)
+    modes.add(mode)
     for (const side of sides) {
       into.push(planEntry(i, side, !!item.paged, vertexCull))
       if (item.paged) continue

@@ -1,5 +1,11 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK, PICK_SHIFT } from './feedback.ts'
+import {
+  FEEDBACK_EVERY,
+  FEEDBACK_STRIDE,
+  FEEDBACK_STRIDE_BITS,
+  FEEDBACK_STRIDE_MASK,
+  PICK_SHIFT,
+} from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
@@ -75,7 +81,7 @@ export const FEEDBACK_STRIDE_WGSL = wgslBlock(
   [],
   `fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
 fn feedbackStride(word:u32)->u32{return select(${FEEDBACK_STRIDE}u,1u,feedbackEvery(word));}
-fn feedbackOffset(word:u32)->vec2u{return select(vec2u(word&${FEEDBACK_STRIDE_MASK}u,(word>>2u)&${FEEDBACK_STRIDE_MASK}u),vec2u(0u),feedbackEvery(word));}`,
+fn feedbackOffset(word:u32)->vec2u{return select(vec2u(word&${FEEDBACK_STRIDE_MASK}u,(word>>${FEEDBACK_STRIDE_BITS}u)&${FEEDBACK_STRIDE_MASK}u),vec2u(0u),feedbackEvery(word));}`,
 )
 
 /**
