@@ -1,4 +1,5 @@
 import { fromUnorm8 } from '../../../../math/src/color/color.ts'
+import { hexOfBytes } from '../../../../math/src/scalar/hex.ts'
 
 /**
  * The clear colour, unpacked in one place.
@@ -22,4 +23,4 @@ export function clearValueOf(clearColor: number) {
 
 /** `#rrggbb` of three bytes: how a colour is written for a person to read. */
 export const rgbHex = (red: number, green: number, blue: number) =>
-  `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`
+  `#${hexOfBytes([red, green, blue])}`

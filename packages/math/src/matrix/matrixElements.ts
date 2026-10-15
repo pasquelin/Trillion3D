@@ -98,8 +98,9 @@ export function longestColumn(m: ArrayLike<number>, at = 0) {
   return longest
 }
 
-/** Whether `a` holds `b`'s values, as many: version lists and light reaches alike. */
-export function sameValues(a: ArrayLike<number>, b: ArrayLike<number>) {
+/** Whether `a` holds `b`'s values, as many, each `===`: version lists, light reaches and GPU
+ *  binding entries alike. */
+export function sameValues<T>(a: ArrayLike<T>, b: ArrayLike<T>) {
   if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
   return true

@@ -27,6 +27,10 @@ export function fromHalf(bits: number) {
   return f64[0]
 }
 
+/** The bits of the half float +∞: exponent all ones, no mantissa. A larger magnitude's sign is
+ *  ORed onto it. */
+export const HALF_INFINITY = 0x7c00
+
 /**
  * The nearest half float of `value`, its sixteen bits (IEEE 754 binary16, ties to even; NaN stays
  * a quiet NaN of the same sign): no allocation, a per-frame reader calls it. The float32 bits are
@@ -37,7 +41,7 @@ export function toHalf(value: number) {
   const bits = f32Bits(value),
     sign = (bits >>> 16) & 0x8000,
     magnitude = bits & 0x7fffffff
-  if (magnitude >= 0x47800000) return sign | (magnitude > 0x7f800000 ? 0x7e00 : 0x7c00)
+  if (magnitude >= 0x47800000) return sign | (magnitude > 0x7f800000 ? 0x7e00 : HALF_INFINITY)
   const exponent = magnitude >>> 23,
     normal = exponent > 112,
     shift = normal ? 13 : 126 - exponent

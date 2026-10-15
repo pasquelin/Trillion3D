@@ -50,33 +50,15 @@ export class Skeleton {
    */
   palette(meshWorld: ArrayLike<number>, out: Float32Array, at = 0) {
     const m = invertMatrix4(meshInverse, meshWorld)
-    // `meshInverse · joint` for its three rows only — the fourth is never read —, each term the
-    // expression `multiplyMatrix4` computes, rounded once into the palette.
-    const m11 = m[0],
-      m12 = m[4],
-      m13 = m[8],
-      m14 = m[12]
-    const m21 = m[1],
-      m22 = m[5],
-      m23 = m[9],
-      m24 = m[13]
-    const m31 = m[2],
-      m32 = m[6],
-      m33 = m[10],
-      m34 = m[14]
     for (let j = 0; j < this.bones.length; j++) {
       boneWorld.set(this.bones[j].matrixWorld.elements)
       multiplyMatrix4(joint, boneWorld, this.inverses[j])
+      // `meshInverse · joint`, its three upper rows written as the palette's rows, rounded once.
+      multiplyMatrix4(joint, m, joint)
       const base = at + j * PALETTE_FLOATS
-      for (let column = 0; column < 4; column++) {
-        const b1 = joint[column * 4],
-          b2 = joint[column * 4 + 1],
-          b3 = joint[column * 4 + 2],
-          b4 = joint[column * 4 + 3]
-        out[base + column] = m11 * b1 + m12 * b2 + m13 * b3 + m14 * b4
-        out[base + 4 + column] = m21 * b1 + m22 * b2 + m23 * b3 + m24 * b4
-        out[base + 8 + column] = m31 * b1 + m32 * b2 + m33 * b3 + m34 * b4
-      }
+      for (let row = 0; row < 3; row++)
+        for (let column = 0; column < 4; column++)
+          out[base + row * 4 + column] = joint[column * 4 + row]
     }
     return out
   }

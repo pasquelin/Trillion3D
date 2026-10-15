@@ -1,4 +1,5 @@
-import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
 import { GeometryBuilder } from './builder.ts'
 
 type V3 = [number, number, number]
@@ -20,16 +21,11 @@ export function points(p: number[], r: number) {
 
 /** One triangle with its own vertices, wound outward from the solid it closes. */
 function face(b: GeometryBuilder, [a, c, d]: V3[]) {
-  const n = normalOf(c.map((x, i) => x - a[i]) as V3, d.map((x, i) => x - a[i]) as V3)
+  // The unit vector along the face's edge cross product (`triangleCross`).
+  const n = triangleCross<V3>([0, 0, 0], 0, [...a, ...c, ...d], 0, 3, 6)
+  normalizeVector3(n)
   const first = b.vertex(a, n, [0, 0])
   b.vertex(c, n, [1, 0])
   b.vertex(d, n, [0, 1])
   b.triangle(first, first + 1, first + 2)
-}
-
-/** The unit vector along `a × b`. */
-const normalOf = (a: V3, b: V3): V3 => {
-  const out = crossVector3([0, 0, 0] as V3, a, b)
-  normalizeVector3(out)
-  return out
 }

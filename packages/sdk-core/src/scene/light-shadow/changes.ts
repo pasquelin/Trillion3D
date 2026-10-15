@@ -1,9 +1,21 @@
-import { boxEmpty, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxesOverlap, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { boxPointDistance } from '../../../../math/src/geometry/boxDistance.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts'
 
-/** The tested point, allocated once: `touches` is called per light and per box, every frame. */
-const point = new Float64Array(3)
+/** Two boxes in the six-value layout of the box helpers, allocated once: `touches` is called per
+ *  light and per box, every frame. */
+const boxA = new Float64Array(6),
+  boxB = new Float64Array(6)
+
+/** The box at `base` of the split minima and maxima, written into `into`. */
+function joined(into: Float64Array, min: ArrayLike<number>, max: ArrayLike<number>, base: number) {
+  for (let axis = 0; axis < 3; axis++) {
+    into[axis] = min[base + axis]
+    into[axis + 3] = max[base + axis]
+  }
+  return into
+}
 /** The read box, allocated once: the scheduler projects it view by view without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
@@ -115,9 +127,11 @@ export function createShadowChanges(capacity: number) {
     residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       const last = changes.count - 1,
         base = last * 3
-      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly
-      for (let axis = 0; overlaps && axis < 3; axis++)
-        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis]
+      const overlaps =
+        last >= 0 &&
+        detail[last] === 1 &&
+        moving[last] === +movingOnly &&
+        boxesOverlap(joined(boxA, min, max, base), 0, joined(boxB, lo, hi, 0), 0)
       if (overlaps) write(base, lo, hi, true)
       else add(lo, hi, movingOnly, true)
     },
@@ -140,17 +154,8 @@ export function createShadowChanges(capacity: number) {
      * so does a box that bounds nothing finite (`NaN`): nothing proves it out of reach.
      */
     touches(box: number, x: number, y: number, z: number, range: number) {
-      const base = box * 3
       if (!(range > 0)) return true
-      let squared = 0
-      point[0] = x
-      point[1] = y
-      point[2] = z
-      for (let axis = 0; axis < 3; axis++) {
-        const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0)
-        squared += gap * gap
-      }
-      return !(squared > range * range)
+      return !(boxPointDistance(joined(boxA, min, max, box * 3), 0, x, y, z) > range)
     },
     /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
      *  whether it is a change of detail alone. */
