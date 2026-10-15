@@ -63,12 +63,17 @@ test("a failed admission rolls back whole: its bytes, its surface and the engine
 test('disposal during admission never publishes a late surface and releases its borrowed map', async (t) => {
   const bitmap = bitmapFixture(t),
     { backend, released, resume } = pendingEngine()
-  const api = runtimeMaterials(() => {}, backend)
+  // The session's check, as `sessionState.ts` writes it: disposed in the call that drops these.
+  let disposed = false
+  const api = runtimeMaterials(() => {
+    if (disposed) throw new Error('MeasuredWorld disposed')
+  }, backend)
   const image = bitmap(),
     pending = api.createMaterial({ map: image })
   api.dispose()
+  disposed = true
   resume()
-  await assert.rejects(pending, /session closed/)
+  await assert.rejects(pending, /disposed/)
   assert.equal(api.created.size, 0)
   assert.equal(api.mapBytes(), 0)
   assert.equal(released.length, 1)

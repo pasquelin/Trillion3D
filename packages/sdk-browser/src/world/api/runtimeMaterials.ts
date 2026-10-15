@@ -59,15 +59,15 @@ export function runtimeMaterials(check: () => void, engine: Engine) {
   const created = new Map<string, Map<string, PageSurface>>()
   const releases = new Map<string, () => void>()
   const maps = runtimeMaps()
+  // `check` refuses a closed session: its state is disposed in the same call that drops these
+  // (`api.ts`, `lifecycle.ts`), so an admission that lands later is refused by it.
   let next = 0,
-    pending = 0,
-    disposed = false
+    pending = 0
   function createMaterial(props?: CreatedMaterial & { map?: undefined }): SceneMaterial
   function createMaterial(props: CreatedMaterial & { map: ImageBitmap }): Promise<SceneMaterial>
   function createMaterial(props: CreatedMaterial): SceneMaterial | Promise<SceneMaterial>
   function createMaterial(props: CreatedMaterial = {}): SceneMaterial | Promise<SceneMaterial> {
     check()
-    if (disposed) throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'session is disposed', {})
     refuseCeiling(created.size + pending)
     const id = `created-${next++}`
     validateCreated(id, props)
@@ -84,10 +84,6 @@ export function runtimeMaterials(check: () => void, engine: Engine) {
     const { release } = owned
     const publish = () => {
       check()
-      if (disposed)
-        throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'session closed during admission', {
-          id,
-        })
       created.set(id, variants)
       releases.set(id, release)
       return read(id, surface)
@@ -96,7 +92,6 @@ export function runtimeMaterials(check: () => void, engine: Engine) {
     pending++
     const start = () => {
       check()
-      if (disposed) throw new Error('Runtime material admission cancelled')
       return owned.admit()
     }
     return admit(start, publish, release).finally(() => pending--)
@@ -107,7 +102,6 @@ export function runtimeMaterials(check: () => void, engine: Engine) {
     mapBytes: () => maps.bytes,
     drop: (id: string) => (releases.get(id) ?? unknownMaterial(id))(),
     dispose() {
-      disposed = true
       for (const release of releases.values()) release()
     },
   }
