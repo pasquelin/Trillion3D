@@ -42,7 +42,7 @@ export function marcher(
         depth: plane[0],
         transparent,
         loads: run.counter.loads,
-        bound: run.screenMarchBudget(d, end, field.levels.level[0][3]),
+        bound: run.screenMarchBudget(d, end, run.levels),
       }
     },
   }

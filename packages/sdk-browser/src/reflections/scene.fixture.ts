@@ -11,6 +11,7 @@ import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
+import { radianceLevels } from '../scene/targetFormats.ts'
 
 type Seen = { color: number[]; confidence: number }
 /** A pixel's reflection lobe, as the shipped `reflectionLobeOf` returns it. */
@@ -34,7 +35,7 @@ export function viewOf(
     reflectionView: {
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
-      radiance: [size[0], size[1], Math.ceil(Math.log2(Math.max(size[0], size[1]))), 0],
+      radiance: [size[0], size[1], radianceLevels(size[0], size[1]) - 1, 0],
       slab: screenSlab([...m], size[1]),
       traced: [1, 0, 0, 0],
       front: [0, 0, 0, 0],
