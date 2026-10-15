@@ -21,7 +21,8 @@ export const octEncode = wgslFn(
   'octEncode',
   [octFold],
   `fn octEncode(n:vec3f)->vec2f{
- let p=n.xy/(abs(n.x)+abs(n.y)+abs(n.z));
+ let sum=abs(n.x)+abs(n.y)+abs(n.z);
+ let p=n.xy/select(sum,1.0,sum<=0.0);
  return select(octFold(p),p,n.z>=0.0);
 }`,
 )
@@ -40,7 +41,7 @@ export const octDecode = wgslFn(
  * swapped, or the upper hemi-octahedron, which first flattens a direction below the horizon onto
  * it. A direction with no part on the map's octahedron (zero, or straight down on the
  * hemi-octahedron) reads the zenith frame `(0, 0)`, as the compiler's `octahedral_encode` defines
- * it: never divided by its zero sum.
+ * it: a zero sum is replaced by 1, never divided by — in `octEncode` too. One return each.
  */
 export const octEncodeHemi = wgslFn(
   'octEncodeHemi',
@@ -49,8 +50,7 @@ export const octEncodeHemi = wgslFn(
  let upper=hemi==1.0;
  let v=select(d,vec3f(d.x,max(d.y,0.0),d.z),upper);
  let sum=abs(v.x)+abs(v.y)+abs(v.z);
- if(sum<=0.0){return vec2f(0.0);}
- let o=v/sum;
+ let o=v/select(sum,1.0,sum<=0.0);
  return select(octEncode(v.xzy),vec2f(o.x+o.z,o.z-o.x),upper);
 }`,
 )
@@ -62,7 +62,8 @@ export const octDecodeHemi = wgslFn(
  let hx=f.x-f.y;
  let hz=f.x+f.y-1.0;
  let hemiDir=normalize(vec3f(hx,1.0-abs(hx)-abs(hz),hz));
- return select(octDecode(f*2.0-1.0).xzy,hemiDir,hemi==1.0);
+ let full=octDecode(f*2.0-1.0);
+ return select(full.xzy,hemiDir,hemi==1.0);
 }`,
 )
 

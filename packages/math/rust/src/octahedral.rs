@@ -55,10 +55,12 @@ pub fn oct_decode(q: u32) -> [f32; 3] {
 }
 
 /// `v` on the octahedron, `(x, y) / (|x| + |y| + |z|)`, the lower half (`z < 0`) folded: the one
-/// map, `+Z` its pole. No zero or non-finite test: each caller has its own.
+/// map, `+Z` its pole. A zero sum is replaced by 1 (the zenith `(0, 0)` of a zero direction), as
+/// the shader's `octEncode` does.
 #[inline]
 fn project<T: Real + PartialOrd>([x, y, z]: [T; 3]) -> [T; 2] {
     let sum = x.abs() + y.abs() + z.abs();
+    let sum = if sum <= T::ZERO { T::ONE } else { sum };
     let p = [x / sum, y / sum];
     if z < T::ZERO {
         fold(p)
