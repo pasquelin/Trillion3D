@@ -2,6 +2,7 @@ import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_U32, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { additive2d, mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
@@ -40,9 +41,13 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  *   2πv, stretched by the lobe's widths along its axis and across (`reflectionSampleDirection`) —, the ray
  *   its mirror about it; one under the surface takes the centre. The split-sum weight the upsample applies
  *   assumes this very distribution of directions.
- * - CONE: each sampled ray keeps `REFLECTION_SAMPLE_CONE` of the lobe's width as its own cone, the
- *   sampling spreading the rest, √(1 − c²) of it: Gaussian-like widths add in quadrature, so the average
- *   reads the lobe's width, and each ray's footprint in the radiance pyramid and the probes is half as wide.
+ * - THIN RAYS: the direction is drawn from the whole lobe, and each ray is read through the cone of the
+ *   smoothest lobe the engine draws (`lobeAlpha(0)`, a mirror's: under a pixel over the whole march), so
+ *   the mean of the rays is the lobe's own. A wider cone with a narrower draw is not: GGX slopes have no
+ *   variance, widths do not add in quadrature, and a draw narrowed by √(1 − c²) takes near a quarter
+ *   of the tail's mass three widths out (c = ½: P(|s| > 3α) falls from 1/10 to 1/13) — the radiance a small bright body brings to the lobe's edge — while
+ *   a cone of c of the width only moves mass within it: the lobe's edge read too dark, its centre too
+ *   bright. The history's images and the neighbours' reuse are what average the noise.
  * - SEQUENCE: (u, v) from the plastic number's two-dimensional additive sequence over the image's turn
  *   (`ReflectionView.temporal.x`), shifted by a hash of the texel (`mixWord`) so neighbours differ: a
  *   low-discrepancy set within each texel's history, a turning one across the grid.
@@ -67,6 +72,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     mixWord,
     additive2d,
     tangentFallback,
+    LOBE_AXIS_WGSL,
     reflectionCentreRadiance,
   ],
   `const REFLECTION_MIRRORS=vec2f(-1.0);
@@ -91,8 +97,8 @@ fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)-
  let sampled=reflectionSampled(alpha);
  if(sampled==(u.x<0.0)){return vec3f(0.0);}
  if(!sampled){return reflectionCentreRadiance(P,N,V,alpha,lobe);}
- let spread=sqrt(1.0-REFLECTION_SAMPLE_CONE*REFLECTION_SAMPLE_CONE);
- let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha)*spread,u);
- return reflectedRadianceAlong(P,N,V,R,alpha*REFLECTION_SAMPLE_CONE,vec4f(lobe.xyz,lobe.w*REFLECTION_SAMPLE_CONE));
+ let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
+ let thin=lobeAlpha(0.0);
+ return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin));
 }`,
 )

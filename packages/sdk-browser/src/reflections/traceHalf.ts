@@ -65,8 +65,6 @@ import { reflectionShareWgsl } from './weight.ts'
  * - Its rough surfaces above a roughness threshold read its radiance cache without a ray. Ours has no
  *   such threshold: its cache holds radiance at a fine angular resolution, ours an order-2 field per
  *   probe, which would blur a glossy lobe; the field stands for a ray only where it holds the lobe.
- * - Its samples are thin rays; ours keep half the lobe's width as their cone (`REFLECTION_SAMPLE_CONE`),
- *   read pre-filtered in the radiance pyramid and the field: fewer samples reach the same lobe.
  * - Its scene trace reads a surface cache for the hit's lighting, kept from frame to frame. Ours lights
  *   the hit on the proxy this image (`rtRadiance`): nothing to age, nothing to restart when a lamp moves.
  * - Its temporal filter keeps a history of its own view; ours reprojects through the radiance pyramid's

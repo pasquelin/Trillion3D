@@ -41,10 +41,6 @@ export const REFLECTION_CONSTANTS = {
   /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
    *  a texel: a history further from their mean than this is pulled back to it. */
   REFLECTION_CLAMP: 1.25,
-  /** The share of a sampled lobe's width its ray keeps as its own cone (`sampleWgsl.ts`): the rest,
-   *  √(1 − ¼) of it, is spread by the sampled direction; widths add in quadrature, so the sampled
-   *  rays' average reads the whole lobe. */
-  REFLECTION_SAMPLE_CONE: 1 / 2,
 } as const
 
 /**
