@@ -10,7 +10,10 @@ import assert from 'node:assert/strict'
 import { computeOnDawn } from '../kit/computeRun.ts'
 import { blendTransmittanceWgsl } from '../../../packages/sdk-browser/src/gpu/shadow/transmittanceWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
-import { createMaterialTable } from '../../../packages/sdk-browser/src/webgpu/material/materialTable.ts'
+import {
+  createMaterialTable,
+  materialWord,
+} from '../../../packages/sdk-browser/src/webgpu/material/materialTable.ts'
 import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
 import { declareSurface } from '../../../packages/sdk-browser/src/page/surfaceRecord.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
@@ -55,7 +58,10 @@ const SHADER = wgslProgram(
 /** The glass's record, the table's first: rank 0, the word the page names. */
 function records(device: GPUDevice): GPUBindGroupEntry[] {
   const table = createMaterialTable()
-  assert.equal(table.word(GLASS, { mapLayer: new Map(), dataLayer: new Map() }), 0)
+  assert.equal(
+    materialWord(table.surface(GLASS, { mapLayer: new Map(), dataLayer: new Map() }).rank, false),
+    0,
+  )
   return [{ binding: VIS_BINDINGS.material, resource: table.viewFor(device) }]
 }
 

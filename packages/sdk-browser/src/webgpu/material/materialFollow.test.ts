@@ -3,7 +3,7 @@
 // record moved — a flag, a resolve class, a fact the frame derives from its rows' surfaces.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createMaterialTable } from './materialTable.ts'
+import { createMaterialTable, materialWord } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
@@ -29,7 +29,7 @@ function drawn() {
   const layers = { mapLayer: new Map<Texture, number>(), dataLayer: new Map<Texture, number>() }
   const surfaces = Array.from({ length: SURFACES }, () => surfaceOf(G.basicSurface()))
   const words = Array.from({ length: ROWS }, (_, row) =>
-    table.word(surfaces[row % SURFACES], layers),
+    materialWord(table.surface(surfaces[row % SURFACES], layers).rank, false),
   )
   assert.equal(table.follow(layers), false, 'nothing written since')
   table.viewFor(device)
@@ -52,7 +52,10 @@ test('a colour edit among 10⁴ rows writes one record of 160 bytes, and no row'
   assert.deepEqual([...floats.subarray(at, at + 3)], [0.25, 0.5, 0.75])
   // Every row still names the record it named.
   for (let row = 0; row < ROWS; row++)
-    assert.equal(table.word(surfaces[row % SURFACES], layers), words[row])
+    assert.equal(
+      materialWord(table.surface(surfaces[row % SURFACES], layers).rank, false),
+      words[row],
+    )
   const held = textureWrites.length
   table.viewFor(device)
   assert.equal(textureWrites.length, held, 'nothing more to send')
@@ -97,10 +100,10 @@ test('an atlas census rewrites every record a slot moved in, and moves the rows 
 test('a blended surface rewritten moves its items and casters: they read its values themselves', () => {
   const { table, layers } = drawn()
   const glass = { ...surfaceOf(G.basicSurface()), transparent: true, opacity: 0.5, version: 0 }
-  table.word(glass, layers)
+  table.surface(glass, layers)
   glass.opacity = 0.25
   glass.version = 1
-  table.word(glass, layers)
+  table.surface(glass, layers)
   assert.equal(table.follow(layers), true)
 })
 
@@ -112,7 +115,9 @@ test("a material's variants name its one record: an edit written to each writes 
     variants = new Map()
   const tinted = surfaceVariant(plain, variants, variant(true, false)),
     sheet = surfaceVariant(plain, variants, variant(false, true))
-  const words = [plain, tinted, sheet].map((surface) => table.word(surface, layers))
+  const words = [plain, tinted, sheet].map((surface) =>
+    materialWord(table.surface(surface, layers).rank, false),
+  )
   assert.deepEqual(words, [0, 0, 0], 'one record, its faces and colours its rows own')
   table.follow(layers)
   table.viewFor(device)
