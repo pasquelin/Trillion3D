@@ -1,7 +1,7 @@
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dollyDistance, moveLocal, orbitOrientation, panOffset, pixelWorldScale } from './math.ts'
+import { dollyDistance, moveLocal, orbitOrientation, panOffset, screenWorldLength } from './math.ts'
 import {
   fromSpherical,
   RADIUS_EPSILON,
@@ -94,7 +94,7 @@ test('a move along the camera axes follows what it faces', () => {
 })
 
 test('a pan pushes the camera against the drag, scaled by the distance it looks across', () => {
-  const scale = pixelWorldScale(10, 90, 400)
+  const scale = screenWorldLength({ fov: 90 }, 10, 1 / 400)
   assert.ok(Math.abs(scale - 20 / 400) < 1e-12)
   const offset = panOffset(new Float64Array(3), [0, 0, 0, 1], 8, 4, scale)
   near(offset, [-8 * scale, 4 * scale, 0], 'offset', 1e-15)

@@ -187,7 +187,6 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     canvas,
     options,
     loadedScene.framingLot,
-    inputs.placeCamera !== undefined,
   )
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)

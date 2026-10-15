@@ -56,6 +56,12 @@ export interface ControlCamera {
   fov: number
   /** Magnification, 1 when the host has none: a pan at zoom 2 moves half as far per pixel. */
   zoom?: number
+  /** `'orthographic'` for a camera that draws a box: a pan then moves by the box, whatever the
+   *  distance (`screenWorldLength`). */
+  projection?: string
+  /** An orthographic camera's box, top and bottom. */
+  top?: number
+  bottom?: number
   updateMatrixWorld(force?: boolean): void
 }
 

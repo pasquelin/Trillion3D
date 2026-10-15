@@ -1,7 +1,7 @@
 import { createChangeGate, createControlBase, type ControlBase } from './base.ts'
 import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
-import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
+import { dollyDistance, panOffset } from './math.ts'
 import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
@@ -121,7 +121,7 @@ export function panCenter(
   dx: number,
   dy: number,
 ) {
-  panOffset(pan, orientation, dx, dy, pixelWorldScale(distance, pose.fov(), height, pose.zoom()))
+  panOffset(pan, orientation, dx, dy, pose.worldLength(distance, 1 / Math.max(1, height)))
   for (let i = 0; i < 3; i++) center[i] += pan[i]
 }
 

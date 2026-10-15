@@ -1,14 +1,10 @@
 import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
-import { framingFromBounds } from '../../camera/framing.ts'
+import { frameBounds } from '../../camera/framing.ts'
 import { DEFAULT_FOV } from '../../engine/common.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 import { hostBox, hostFramingCamera, hostPoint } from '../../host/scene/graphObjects.ts'
-import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-
-/** Framing centre and radius: midpoint of the bounds and the half-diagonal, reread from a single sphere. */
-const framingSphere = new Float64Array(4)
 
 export function createExplorerCamera(
   source: Object3D,
@@ -16,36 +12,24 @@ export function createExplorerCamera(
   options: MeasuredWorldOptions,
   /** Framing-box buffer, reserved at load; without it, one is made for the framing. */
   lot?: BoxTransformLot | null,
-  /** The page poses the camera itself and the scene has no node to frame: a unit ball about the
-   *  origin stands for its bounds. */
-  placed = false,
 ) {
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
-  sphereFromBoundsBatch(framingSphere, flat, 1)
-  if (placed && !(framingSphere[3] > 0)) {
-    flat.set([-1, -1, -1, 1, 1, 1])
-    sphereFromBoundsBatch(framingSphere, flat, 1)
-  }
-  const radius = framingSphere[3]
-  const framing = framingFromBounds(radius, canvas.width / canvas.height)
+  // A scene with no node to frame — the page poses the camera itself — frames the unit box.
+  const framed = frameBounds(flat, canvas.width / canvas.height)
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its
   // API, and its controls want a target. The host objects are built at the boundary
   // (`../../host/scene/graphObjects.ts`); no computation is done there, everything comes from the core as numbers.
   const camera = hostFramingCamera(
     options.fov ?? DEFAULT_FOV,
     canvas.width / canvas.height,
-    framing.near,
-    framing.far,
+    framed.near,
+    framed.far,
   )
   const bounds = hostBox(flat)
-  const center = hostPoint(framingSphere[0], framingSphere[1], framingSphere[2])
-  camera.position.set(
-    framingSphere[0] + framing.offset[0],
-    framingSphere[1] + framing.offset[1],
-    framingSphere[2] + framing.offset[2],
-  )
+  const center = hostPoint(...framed.centre)
+  camera.position.set(...framed.position)
   camera.lookAt(center)
   camera.updateMatrixWorld()
-  return { bounds, center, radius, camera }
+  return { bounds, center, radius: framed.radius, camera }
 }

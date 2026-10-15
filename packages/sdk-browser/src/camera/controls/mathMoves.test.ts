@@ -16,7 +16,7 @@ import {
   assertSameFloat32,
   haltonSpan,
 } from '../../../../math/src/sequence/sweep.fixture.ts'
-import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
+import { dollyDistance, panOffset, screenWorldLength } from './math.ts'
 import { createPanZoomCameraControls } from './panZoomControls.ts'
 import { fixtureCamera, fixturePinch, fixtureSurface } from './controls.fixture.ts'
 import { NEW, OLD, quaternion, type Lengths } from './mathMoves.fixture.ts'
@@ -48,7 +48,7 @@ function pinch(L: Lengths, p: Pivot, ratio: number, dx: number, dy: number) {
     pan = new Float64Array(3)
   for (let k = 0; k < 3; k++) offset[k] = p.position[k] - p.center[k]
   const distance = L.l3(offset[0], offset[1], offset[2])
-  panOffset(pan, p.q, dx, dy, pixelWorldScale(distance, 50, 400, 1))
+  panOffset(pan, p.q, dx, dy, screenWorldLength({ fov: 50 }, distance, 1 / 400))
   for (let k = 0; k < 3; k++) p.center[k] += pan[k]
   apply(L, p, offset)
   for (let k = 0; k < 3; k++) offset[k] = p.position[k] - p.center[k]
