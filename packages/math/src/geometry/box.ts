@@ -1,5 +1,6 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { length3, transformPointRow } from '../vector/vector.ts'
+import { sameRange } from '../matrix/matrixElements.ts'
 
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
@@ -129,19 +130,12 @@ export function boxesOverlap(a: ArrayLike<number>, ao: number, b: ArrayLike<numb
 }
 
 /** True when boxes `a` at `ao` and `b` at `bo` hold the same six values, bit for bit. */
-export function boxEquals(a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) {
-  for (let v = 0; v < BOX_VALUES; v++) if (a[ao + v] !== b[bo + v]) return false
-  return true
-}
+export const boxEquals = (a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) =>
+  sameRange(a, b, BOX_VALUES, ao, bo)
 
-/** Expands the box to contain a point. */
+/** Expands the box to contain a point: the union with the box of that point alone. */
 export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: number, z: number) {
-  out[o] = Math.min(out[o], x)
-  out[o + 1] = Math.min(out[o + 1], y)
-  out[o + 2] = Math.min(out[o + 2], z)
-  out[o + 3] = Math.max(out[o + 3], x)
-  out[o + 4] = Math.max(out[o + 4], y)
-  out[o + 5] = Math.max(out[o + 5], z)
+  boxUnion(out, o, x, y, z, x, y, z)
 }
 
 /**
