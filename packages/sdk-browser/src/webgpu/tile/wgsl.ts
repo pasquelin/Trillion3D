@@ -7,14 +7,13 @@ import { TILE_SIZE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { PAGE_HEADER_WORDS, PAGE_SLOT_WORDS, PAGE_TRANSFORM_WORD } from './pageTable.ts'
 import { SAMPLING_WGSL } from './samplingWgsl.ts'
 import { POOL_PLACE_WGSL } from './poolPlaceWgsl.ts'
-import { atlasReadWgsl } from './atlasReadWgsl.ts'
-import { tileKindWgsl } from './kindWgsl.ts'
+import { atlasReadWgsl, type Footprint } from './atlasReadWgsl.ts'
 import {
   TILE_SLOT_WGSL,
   atlasLodWgsl,
   samplingFootprintWgsl,
 } from '../../texture/samplingFootprint.ts'
-import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { highHalf, lowHalf, mipSize2 } from '../../../../math/src/wgsl/integer.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 
@@ -120,32 +119,24 @@ export const TILE_POOL_WGSL = tilePoolWgsl('uni.mipBias')
  *  their card's own level (`cardReads.ts`). */
 export const SHADOW_TILE_POOL_WGSL = tilePoolWgsl('0.0')
 
-/** The read at a level of the finest footprint (`atlasSampleWgsl`): one tap of the level blend,
- *  under the finest fallback. */
-const finestAtWgsl = (k: string, pool: WgslDecl) =>
-  wgslFn(
-    `${k}SampleFinestAt`,
-    [pool, tileKindWgsl(k, pool)],
-    `fn ${k}SampleFinestAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,true);}`,
-  )
+/** The camera's footprint (anisotropic taps) and a shadow texel's (one tap at the isotropic level,
+ *  the finest fallback), which a reading pass gives the one atlas read (`atlasReadWgsl`). */
+const CAMERA_FOOTPRINT: Footprint = { anisotropic: true, finest: false }
+const SHADOW_FOOTPRINT: Footprint = { anisotropic: false, finest: true }
 
-/**
- * THE ONE SAMPLING OF AN ATLAS, its footprint the reading pass's: `${k}Sample(slot, uv, ddx, ddy,
- * sampled)` on the textures of `pool`, the public read over the atlas's own reads. The camera's
- * footprint takes the anisotropic taps its elongation asks (`${k}SampleAt`); the `finest` one — a
- * shadow texel's, which is not a view at a grazing angle — one tap at the isotropic level under the
- * finest fallback (`${k}SampleFinest`, `${k}SampleFinestAt`).
- */
-const atlasSampleWgsl = (k: string, pool: WgslDecl, finest = false) =>
-  finest
-    ? atlasReadWgsl(`${k}SampleFinest`, k, 'vec4f', false, { pool, level: finestAtWgsl(k, pool) })
-    : atlasReadWgsl(`${k}Sample`, k, 'vec4f', true, { pool, level: tileKindWgsl(k, pool) })
+/** THE ONE SAMPLING OF AN ATLAS on the textures of `pool`, its footprint the reading pass's, and
+ *  the name of its public read: `${k}Sample` for the camera's, `${k}SampleFinest` for a shadow
+ *  texel's, which is not a view at a grazing angle. */
+const atlasSampleWgsl = (k: string, pool: WgslDecl, finest = false) => {
+  const name = finest ? `${k}SampleFinest` : `${k}Sample`
+  return { name, decl: atlasReadWgsl(name, k, pool, finest ? SHADOW_FOOTPRINT : CAMERA_FOOTPRINT) }
+}
 
 /** Color-atlas sample: `colorSample(slot, uv, ddx, ddy, sampled)`, on the textures of `pool`. The
  *  colour atlas has no two-channel texture; its read is generated all the same, so the two
  *  atlases share one text. */
 export const colorSampleWgsl = (pool: WgslDecl) =>
-  wgslBlock('COLOR_SAMPLE_WGSL', [atlasSampleWgsl('color', pool)], '')
+  wgslBlock('COLOR_SAMPLE_WGSL', [atlasSampleWgsl('color', pool).decl], '')
 /** The colour sample of the camera's passes (`TILE_POOL_WGSL`). */
 export const COLOR_SAMPLE_WGSL = colorSampleWgsl(TILE_POOL_WGSL)
 
@@ -159,17 +150,19 @@ export const COLOR_SAMPLE_WGSL = colorSampleWgsl(TILE_POOL_WGSL)
  * fallback rule, which a shadow texel's footprint asks. On the textures of
  * `pool`, the camera's unless given.
  */
-export const maskAlphaWgsl = (finest: boolean, pool: WgslDecl = TILE_POOL_WGSL) =>
-  wgslBlock(
+export const maskAlphaWgsl = (finest: boolean, pool: WgslDecl = TILE_POOL_WGSL) => {
+  const read = atlasSampleWgsl('color', pool, finest)
+  return wgslBlock(
     `maskAlphaWgsl(${finest})`,
-    [atlasSampleWgsl('color', pool, finest)],
-    `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample${finest ? 'Finest' : ''}(slot,uv,ddx,ddy,sampled).w;}`,
+    [read.decl],
+    `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read.name}(slot,uv,ddx,ddy,sampled).w;}`,
   )
+}
 
 /** Data-atlas sample of the camera's passes: `dataSample(slot, uv, ddx, ddy, sampled)`. */
 export const DATA_SAMPLE_WGSL = wgslBlock(
   'DATA_SAMPLE_WGSL',
-  [atlasSampleWgsl('data', TILE_POOL_WGSL)],
+  [atlasSampleWgsl('data', TILE_POOL_WGSL).decl],
   '',
 )
 

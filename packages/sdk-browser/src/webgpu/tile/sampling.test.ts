@@ -10,8 +10,7 @@ import {
   SAMPLE_WRAP_SHIFT,
   samplingWords,
 } from '../../texture/sampling.ts'
-import { atlasReadWgsl } from './atlasReadWgsl.ts'
-import { tileKindWgsl } from './kindWgsl.ts'
+import { atlasReadWgsl, samplingReadWgsl } from './atlasReadWgsl.ts'
 import { TILE_POOL_WGSL, maskAlphaWgsl } from './wgsl.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
@@ -20,9 +19,9 @@ import { wgslConstants, functionsOf } from '../../texture/shaderRule.fixture.ts'
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 /** The colour's public read, on the camera's pool. */
-const SHADED = atlasReadWgsl('colorSample', 'color', 'vec4f', true, {
-  pool: TILE_POOL_WGSL,
-  level: tileKindWgsl('color', TILE_POOL_WGSL),
+const SHADED = atlasReadWgsl('colorSample', 'color', TILE_POOL_WGSL, {
+  anisotropic: true,
+  finest: false,
 }).text
 /** The footprint rule (`tileRead`) the camera's pool provides, with the pool's own text. */
 const FOOTPRINT = wgslSource(TILE_POOL_WGSL)
@@ -174,19 +173,17 @@ test('the affine part of the transform is carried, and flagged when it is not th
   assert.deepEqual([...new Float32Array(words.buffer, 4, 6)], [0, -2, 4, 0, 0.25, 0.5])
 })
 
-// #360, #361: a tap line that stays in one period, off its seams, is folded once and read one
-// level at a time — a table entry once per tile —, the two levels mixed once; a line that meets
-// a seam or leaves its period folds each tap alone, as a one-tap read does.
-test('an anisotropic line is folded once when it stays in its period', () => {
-  const shaded = SHADED
-  // The seam test reaches half a texel of the coarsest level read, whose seam is the widest.
+// #360, #361: an anisotropic read is one tap loop per level, each tap brought back by the
+// addressing, the four-texel mix only on a seam tap, the tile word cached along the line; the two
+// levels mixed once.
+test('an anisotropic read is one tap loop per level', () => {
+  const shaded = SHADED,
+    line = functionsOf(wgslSource(samplingReadWgsl('color', TILE_POOL_WGSL)), ['colorLine'])
+  assert.match(shaded, /return mix\(a,colorLine\(s,r,u32\(l0\)\+1u\),t\);/)
+  assert.doesNotMatch(shaded, /foldLine|line\.dir/)
   assert.match(
-    shaded,
-    /let line=foldLine\(r,s\.wrap,s\.size,levelSize\(s\.size,u32\(ceil\(r\.lod\)\)\)\);/,
+    line,
+    /if\(w\.couture&&!r\.nearest\)\{sum\+=colorLevel\(s,uv,level,false,false\);continue;\}/,
   )
-  assert.match(
-    shaded,
-    /if\(line\.dir\.x==0\.0\)\{[^}]*colorSampleAt\(s,r\.uv\+r\.axis\*tapOffset\(i,n\)/,
-  )
-  assert.match(shaded, /return mix\(a,colorLine\(s,line\.uv,step,n,u32\(l0\)\+1u,r\.nearest\),t\);/)
+  assert.match(line, /if\(e!=tile\)\{tile=e;word=colorPages\[base\+e\];\}/)
 })
