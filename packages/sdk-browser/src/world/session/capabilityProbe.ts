@@ -46,10 +46,11 @@ export async function probeExplorerCapabilities(session: ExplorerSession) {
     if (refusal) return refuse(refusal)
     capabilities = deviceCapabilities(gpuDevice)
   } else {
-    capabilities = await detectCapabilities({ gpu: options.gpu })
-    const granted = await grantedDevice(capabilities)
+    const offered = await detectCapabilities({ gpu: options.gpu })
+    const granted = await grantedDevice(offered)
     if (typeof granted === 'string') return refuse(granted)
     gpuDevice = granted
+    capabilities = deviceCapabilities(gpuDevice, offered.adapter)
   }
   diagnose('capability', 'WebGPU device granted', {
     kind: 'capability',
