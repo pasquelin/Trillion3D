@@ -77,7 +77,7 @@ test('only the trace casts the proxy’s rays: a forward program binds no proxy'
     'override REFLECTION_LAYER:u32;',
     'let fresh=traceTexel(id.xy,REFLECTION_LAYER);',
     'textureStore(historyOut,id.xy,temporalTexel(vec2i(id.xy),REFLECTION_LAYER));',
-    'reflectedAt(coord,reflectingPixelAt(1u,coord,flags))',
+    'reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags))',
   ])
     assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
   assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))
