@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_LAYER_WGSL, REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
@@ -39,7 +40,13 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  */
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   'REFLECTION_TEMPORAL_WGSL',
-  [REFLECTION_LAYER_WGSL, REFLECTION_SURFACES_WGSL, REFLECTION_TEXEL_WGSL, clipToFramebuffer],
+  [
+    REFLECTION_LAYER_WGSL,
+    REFLECTION_SURFACES_WGSL,
+    REFLECTION_TEXEL_WGSL,
+    clipToFramebuffer,
+    clampToExtent,
+  ],
   `@group(0) @binding(${B.temporalIn}) var temporalIn:texture_2d<u32>;
 @group(0) @binding(${B.historyIn}) var historyIn:texture_2d<u32>;
 @group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${HALF_FORMAT},write>;
@@ -64,9 +71,9 @@ fn temporalClamp(h:Reflected,at:vec2i)->Reflected{
  var mean=Reflected(vec3f(0.0),vec3f(0.0));
  var square=mean;
  var n=0.0;
- let last=vec2i(textureDimensions(temporalIn))-vec2i(1);
+ let size=vec2i(textureDimensions(temporalIn));
  for(var k=0;k<9;k++){
-  let tap=clamp(at+vec2i(k%3-1,k/3-1),vec2i(0),last);
+  let tap=clampToExtent(at+vec2i(k%3-1,k/3-1),size);
   let t=textureLoad(temporalIn,tap,0);
   if(!freshValid(t)){continue;}
   let r=texelReflected(t);

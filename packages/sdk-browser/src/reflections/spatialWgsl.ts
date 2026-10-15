@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_ANGLE } from '../../../math/src/wgsl/constants.ts'
 import { slabPerspective } from '../../../math/src/wgsl/projection.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
@@ -40,6 +41,7 @@ export const REFLECTION_SPATIAL_WGSL = wgslBlock(
     LOBE_AXIS_WGSL,
     slabPerspective,
     GOLDEN_ANGLE,
+    clampToExtent,
   ],
   `@group(0) @binding(${B.spatialIn}) var spatialIn:texture_2d<u32>;
 @group(0) @binding(${B.spatialOut}) var spatialOut:texture_storage_2d<${HALF_FORMAT},write>;
@@ -57,14 +59,14 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let alpha=lobeAlpha(own.rough);
  let hit=freshHit(centre);
  let depth=surfaceLinearDepth(P);
- let last=vec2i(textureDimensions(spatialIn))-vec2i(1);
+ let size=vec2i(textureDimensions(spatialIn));
  let turn=f32(reflectionView.temporal.x)*GOLDEN_ANGLE;
  var sum=texelReflected(centre);
  var total=1.0;
  for(var k=0u;k<REFLECTION_REUSE_TAPS;k++){
   let a=turn+f32(k)*GOLDEN_ANGLE;
   let reach=f32(radius)*sqrt((f32(k)+0.5)/f32(REFLECTION_REUSE_TAPS));
-  let tap=clamp(at+vec2i(round(reach*vec2f(cos(a),sin(a)))),vec2i(0),last);
+  let tap=clampToExtent(at+vec2i(round(reach*vec2f(cos(a),sin(a)))),size);
   if(all(tap==at)){continue;}
   let t=textureLoad(spatialIn,tap,0);
   if(!freshValid(t)){continue;}

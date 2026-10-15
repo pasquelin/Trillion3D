@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
-import { mixWord } from '../../../math/src/wgsl/sampling.ts'
+import { clampToExtent, mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { VIEW_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
@@ -89,7 +89,7 @@ fn radianceFill(lane:u32,wg:vec2u,bounds:vec2i){
  for(var cell=lane;cell<${TILE * TILE}u;cell+=${REFLECTION_SIDE * REFLECTION_SIDE}u){
   let at=vec2i(i32(cell%${TILE}u),i32(cell/${TILE}u));
   let q=origin+at;
-  let texel=radianceTent(clamp(q,vec2i(0),size-vec2i(1)),bounds);
+  let texel=radianceTent(clampToExtent(q,size),bounds);
   tile[cell]=texel;
   if(all(at>=vec2i(1))&&all(at<=vec2i(${2 * REFLECTION_SIDE}))&&all(q<size)){textureStore(coarser,q,texel);}
  }
@@ -173,5 +173,5 @@ fn radianceDown(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) li
  workgroupBarrier();
  radianceSum(lid.xy,wg.xy);
 }`,
-  [VIEW_WGSL, mixWord, GOLDEN_U32],
+  [VIEW_WGSL, mixWord, GOLDEN_U32, clampToExtent],
 )
