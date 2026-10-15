@@ -1,5 +1,6 @@
 import { createPivotControls, trackPivotGestures } from './pivot.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
+import { trackKeys } from './input.ts'
 
 /**
  * PLANAR PAN-ZOOM, the flat view: the camera never turns. Whatever direction it was pointing
@@ -32,11 +33,17 @@ export function createPanZoomCameraControls(
   const api = Object.assign(core.api, { keyPanPixels: 24 })
   trackPivotGestures(surface, core.base, core.panBy, core.panBy, core.dolly)
   // Keys are acted on as they arrive, never polled: a held arrow repeats through the
-  // platform's own auto-repeat, and a still view is never woken by a key nobody pressed.
-  core.base.listen<KeyboardEvent>(surface.ownerDocument, 'keydown', (event) => {
-    const step = ARROWS[event.code]
-    if (!step || event.ctrlKey || event.metaKey) return
-    core.panBy(-step[0] * api.keyPanPixels, -step[1] * api.keyPanPixels)
-  })
+  // platform's own auto-repeat, and a still view is never woken by a key nobody pressed. The one
+  // key tracker hears them (`trackKeys`): a key typed into a field is the field's.
+  trackKeys(
+    surface,
+    core.base,
+    () => {},
+    [Object.keys(ARROWS)],
+    (code) => {
+      const step = ARROWS[code]
+      if (step) core.panBy(-step[0] * api.keyPanPixels, -step[1] * api.keyPanPixels)
+    },
+  )
   return api
 }
