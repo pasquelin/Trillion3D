@@ -24,15 +24,18 @@ export const reachOf = (code: WgslSource) =>
   shaderRun<{ localLightReaches: Reaches }>(code, ['localLightReaches'], { ...F32_SCOPE })
     .localLightReaches
 
-/** Whether the lighting of `code` gives the light energy at P: a punctual light's attenuation
- *  (`directIncidence`), a rectangle's window (`rectView`), above zero. */
+/** Whether the lighting of `code` gives the light energy at P: its term's reach test
+ *  (`lightReaches`), then a punctual light's attenuation (`directIncidence`) or a rectangle's
+ *  window (`rectView`) above zero. */
 export function shadesOf(code: string) {
   const run = shaderRun<{
+    lightReaches: (light: object, P: V3) => boolean
     directIncidence: (light: object, P: V3) => number[]
     rectView: (light: object, P: V3) => { window: number }
   }>(
     code,
     [
+      'lightReaches',
       'directIncidence',
       'isSun',
       'isSunKind',
@@ -49,7 +52,8 @@ export function shadesOf(code: string) {
     },
   )
   return (light: SceneLight, r: LightRecord, P: V3) =>
-    light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0
+    run.lightReaches(r, P) &&
+    (light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0)
 }
 
 /** The projection's region test (`vsmLightParticipates`) on a surface that culls no back face,

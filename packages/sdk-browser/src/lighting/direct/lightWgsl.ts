@@ -8,33 +8,13 @@ import {
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
-
-/**
- * Whether a local light may light a point at `offset` from it (its centre minus the point): the one
- * test of where a light gives energy, read by the lighting (`directIncidence`, `rectView`) and by the
- * shadow passes at their own points — zero at or past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
- * `cosEdge` around `forward` (its fade), and on a rectangle's (`rect`) back, `forward` the direction
- * it emits along. No divide: the range on the squared distance, the cone against the distance
- * scaled by its cosine, tested only for a light that has one — `cosEdge` is −2 for any other, which
- * no cosine reaches. A point no comparison orders (NaN) is reached, left to the lighting.
- */
-export const localLightReaches = wgslFn(
-  'localLightReaches',
-  [],
-  `fn localLightReaches(offset:vec3f,range:f32,cosEdge:f32,forward:vec3f,rect:bool)->bool{
- let lengthSquared=dot(offset,offset);
- if(lengthSquared>=range*range){return false;}
- if(rect){return !(dot(offset,forward)>=0.0);}
- if(cosEdge<-1.0){return true;}
- return !(dot(-offset,forward)<=cosEdge*sqrt(lengthSquared));
-}`,
-)
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -46,7 +26,7 @@ export const localLightReaches = wgslFn(
 export const directLightWgsl = (slots?: number) =>
   wgslBlock(
     `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL, localLightReaches],
+    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind],
     `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
@@ -85,19 +65,21 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as
  *  the scene holds. */
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
-/** The type rank is a float in the buffer: a single place knows how to reread it (\`isKind\`), every
- *  kind's test its call (\`isRect\` too, \`rectLightWgsl.ts\`). */
-fn isKind(kind:f32,rank:f32)->bool{return abs(kind-rank)<0.5;}
+/** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */
 fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
 fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
-/** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
-fn rangeWindow(distance:f32,range:f32)->f32{
- let ratio=distance/range;
- return pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
+/** Whether the light may give \`P\` energy, the first statement of the one light term, before the
+ *  rest of its record is read: a sun always; a local light by \`localLightReaches\` — its sphere, and a
+ *  rectangle's face —, a spot's cone left to its fade. */
+fn lightReaches(light:DirectLight,P:vec3f)->bool{
+ if(isSun(light)){return true;}
+ let sphere=light.positionRange;
+ return localLightReaches(sphere.xyz-P,sphere.w,-2.0,light.directionCone.xyz,isRect(light));
 }
-/** Normalized direction toward the light and attenuation; w at zero when the point is out of
- *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
+/** Normalized direction toward the light and attenuation, of a light \`lightReaches\` let through
+ *  (its window is zero at and past its range anyway). A punctual light's: a rectangle has no one
+ *  direction (\`rectIrradiance\`). */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // A directional light has neither position nor range: the same irradiance at every point, never
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
@@ -105,7 +87,6 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
  let range=light.positionRange.w;
- if(!localLightReaches(offset,range,-2.0,vec3f(0.0),false)){return vec4f(0.0);}
  let distance=length(offset);
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.

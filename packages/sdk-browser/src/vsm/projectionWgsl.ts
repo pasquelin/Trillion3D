@@ -56,7 +56,7 @@ import { VSM_TRACE_LIGHT_WGSL } from './traceWgsl.ts'
 import { VSM_TRACE_COMMON_WGSL } from './traceCommonWgsl.ts'
 import { vsmReceiverTraceWgsl } from './receiverTraceWgsl.ts'
 import type { VsmLayout } from './layout.ts'
-import { localLightReaches } from '../lighting/direct/lightWgsl.ts'
+import { localLightReaches } from '../lighting/direct/lightReachWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */

@@ -1,6 +1,7 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
+import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -48,7 +49,7 @@ export const declaredLightWgsl = (
     `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
     pair ? [LIGHT_PAIR_WGSL] : [],
     surface
-      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
+      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${REACH(zero(pair))}${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
@@ -58,7 +59,7 @@ export const declaredLightWgsl = (
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
-      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${irradianceTerm(key.rectless)}
+      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
 }`,
   )
 }
@@ -66,47 +67,6 @@ export const declaredLightWgsl = (
 /** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, or a point's
  *  irradiance through the proxy. */
 export type LightTerm = 'surface' | 'irradiance'
-
-/** The light's incidence at \`P\`, and its exact zero out of its range or its cone. */
-const INCIDENCE = (zeroTerm: string) => `
- let incidence=directIncidence(light,P);
- if(incidence.w<=0.0){return ${zeroTerm};}`
-
-/**
- * A light's irradiance through the proxy, one rule for every kind: what it adds at the point — a
- * punctual light's cosine, a rectangle's form factor (\`rectIrradiance\`), its exact zero out of
- * range —, then, where it adds light and casts a shadow, one ray toward it through the resident
- * proxy, which keeps a closed door closed for the bounce as for the direct term. Every
- * shadow-casting light that adds light at the point is tested: one left untested would shine
- * through the wall. A sun's ray reaches \`reach\`, a lamp's the lamp, a rectangle's its centre. A
- * rectangle casts no shadow by its contract (\`validateRect\`, \`packages/sdk-core/src/scene/light/validate.ts\`),
- * in the direct term as here: its flag is never set, and the rule tests it as any light's.
- */
-const irradianceTerm = (rectless = false) => `
- var lit=vec3f(0.0);
- var toward=vec3f(0.0);${
-   rectless
-     ? PUNCTUAL_IRRADIANCE
-     : `
- if(isRect(light)){
-  lit=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;
-  toward=normalize(light.positionRange.xyz-P);
- }else{${PUNCTUAL_IRRADIANCE}
- }`
- }
- if(all(lit==vec3f(0.0))){return lit;}
- if(light.params.z>0.5){
-  let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-  if(rtBlocked(P+N*1e-3,toward,span)){return vec3f(0.0);}
- }
- return lit;`
-
-/** A punctual light's irradiance before its shadow: its incidence, then its cosine. */
-const PUNCTUAL_IRRADIANCE = `${INCIDENCE('vec3f(0.0)')}
- let cosine=dot(N,incidence.xyz);
- if(cosine<=0.0){return vec3f(0.0);}
- lit=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
- toward=incidence.xyz;`
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
@@ -153,10 +113,9 @@ const shadeStatement = (pair: boolean) => `
  * rank; a bounce point's irradiance (\`lightsIrradiance\`, \`term\` \`irradiance\`), every light of
  * the scene, which no list of the view's grid holds (its cells are the view's own).
  *
- * Every walk reads a listed light's record and shades it, the one loop: a light out of its range
- * gives its exact zero in its own term (\`directIncidence\`, \`rectView\`, \`localLightReaches\`) before
- * any shading, and an irradiance's before its shadow ray. A list holds the lights that reach its
- * cell, so a sphere test ahead of the record would mostly re-read what the term reads.
+ * Every walk hands a listed light to its term, whose first statement is the one reach test
+ * (\`REACH\`, \`lightReaches\`): a light out of reach costs its sphere's read and a compare, in every
+ * program, before any shading or shadow ray.
  */
 export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
   wgslBlock(

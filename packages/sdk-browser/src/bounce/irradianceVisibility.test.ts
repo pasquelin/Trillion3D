@@ -24,6 +24,7 @@ function lightLoop(rect: boolean) {
   }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
     directLights,
     isRect: () => rect,
+    lightReaches: () => true,
     isSun: () => false,
     isSunKind: () => false,
     // No world lists: every light, the loop's fallback (`bounceLightSlice`).
