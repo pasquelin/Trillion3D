@@ -22,6 +22,22 @@ export const rootSource = <T extends { drawSource?: { node?: Object3D } }>(
   root.placement?.rows.sources?.[root.placement.index] ??
   undefined
 
+/** Root `root` (rank `rank`) parked as the one rule says — its source hidden, or its row parked —,
+ *  `flip` hearing it when that flipped or when its shadow bit did (`cast`). Whether it flipped. */
+export function settleRoot<T>(
+  root: ClusterRoot<T>,
+  rank: number,
+  flip?: (rank: number, root: ClusterRoot<T>) => void,
+  cast = false,
+) {
+  const parked = !!root.hidden || rowParked(root.placement),
+    flipped = parked !== !!root.parked
+  if (!flipped && !cast) return false
+  root.parked = parked
+  flip?.(rank, root)
+  return flipped
+}
+
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 
@@ -86,12 +102,7 @@ export function followHostVisibility<
     roots,
     // A row root is hidden as its row is: its owner writes the row's flag (`followPlacementRows`).
     (root) => (root.placement ? undefined : rootSource(root)),
-    (root, rank) => {
-      const parked = !!root.hidden || rowParked(root.placement)
-      if (parked === !!root.parked) return
-      root.parked = parked
-      flip?.(rank, root)
-    },
+    (root, rank) => settleRoot(root, rank, flip),
     under?.roots,
   )
   const ranks = under?.roots.ranks,
