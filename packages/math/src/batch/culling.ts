@@ -1,5 +1,5 @@
-import { BOX_VALUES, boundsAreEmpty } from '../geometry/box.ts'
-import { length3 } from '../vector/vector.ts'
+import { BOX_VALUES } from '../geometry/box.ts'
+import { sphereFromBounds } from '../geometry/sphere.ts'
 import { SPHERE_VALUES } from './strides.ts'
 
 /** Whether the plane `a·x + b·y + c·z + d ≥ 0` leaves the box behind: its most forward corner,
@@ -87,34 +87,25 @@ export function frustumKeepsBoxBatch(
  * Computes bounding spheres for `n` boxes. `out` receives 4 floats per element
  * (centre x, y, z, radius).
  *
- * Repeats `sphereFromBounds`. Loops over `n` boxes.
+ * `sphereFromBounds` of each of the `n` boxes.
  */
 export function sphereFromBoundsBatch(
   out: Float64Array,
   boxes: ArrayLike<number>,
   n: number,
 ): void {
-  // `sphereFromBounds` written in the loop; the six bounds are read before the four writes, so
-  // `out` may be `boxes`.
+  // The six bounds are passed before the four writes, so `out` may be `boxes`.
   for (let i = 0; i < n; i++) {
-    const src = i * BOX_VALUES,
-      o = i * SPHERE_VALUES
-    const minX = boxes[src],
-      minY = boxes[src + 1],
-      minZ = boxes[src + 2],
-      maxX = boxes[src + 3],
-      maxY = boxes[src + 4],
-      maxZ = boxes[src + 5]
-    if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
-      out[o] = 0
-      out[o + 1] = 0
-      out[o + 2] = 0
-      out[o + 3] = -1
-      continue
-    }
-    out[o] = (minX + maxX) * 0.5
-    out[o + 1] = (minY + maxY) * 0.5
-    out[o + 2] = (minZ + maxZ) * 0.5
-    out[o + 3] = length3(maxX - minX, maxY - minY, maxZ - minZ) * 0.5
+    const src = i * BOX_VALUES
+    sphereFromBounds(
+      out,
+      i * SPHERE_VALUES,
+      boxes[src],
+      boxes[src + 1],
+      boxes[src + 2],
+      boxes[src + 3],
+      boxes[src + 4],
+      boxes[src + 5],
+    )
   }
 }
