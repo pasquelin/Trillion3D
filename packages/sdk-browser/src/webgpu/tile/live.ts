@@ -4,8 +4,6 @@ import type { TileTexture } from './tileTexture.ts'
 import { sourceSize } from '../../texture/pictureSize.ts'
 import { tailSlotOf, tileKeyOf } from './ids.ts'
 import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts'
-import type { TileScratch } from './scratch.ts'
-import type { Build } from './scratchBuilds.ts'
 
 /** True when a texture's source still has the size its tiles were laid out at; a cooked chain,
  *  read from the cache, always has. */
@@ -55,44 +53,5 @@ export function copyLiveTexture(
         layout.tail,
         layout.last,
       )
-  }
-}
-
-/** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
-export function liveScratches(device: GPUDevice, build: Build) {
-  const live = new Map<number, TileScratch>()
-  let bytes = 0
-  return {
-    get: (id: number) => live.get(id),
-    get bytes() {
-      return bytes
-    },
-    /** A new picture of host texture `slot` of `atlas`, its working texture `id` refilled — or
-     *  built, the texture turning live —: its turn, its mips and its copies one submit. Its turn
-     *  keeps its ring and words for the next picture (`TileScratch.rest`). */
-    refresh(atlas: WebgpuTileAtlas, slot: number, id: number) {
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
-      let scratch = live.get(id)
-      if (scratch) scratch.fill(encoder)
-      else {
-        live.set(id, (scratch = build(atlas, slot, encoder)))
-        bytes += scratch.bytes
-        scratch.reduce(encoder)
-      }
-      copyLiveTexture(encoder, atlas, slot, scratch.texture)
-      device.queue.submit([encoder.finish()])
-      scratch.rest()
-    },
-    release(id: number) {
-      const scratch = live.get(id)
-      if (!scratch) return
-      bytes -= scratch.bytes
-      scratch.destroy()
-      live.delete(id)
-    },
-    destroy() {
-      for (const scratch of live.values()) scratch.destroy()
-      live.clear()
-    },
   }
 }

@@ -4,8 +4,8 @@ import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { heldLevelsOf, type HeldLevels, type LevelFailed } from '../../texture/heldLevels.ts'
 import type { TileScratch } from './scratch.ts'
-import { buildHostScratch, createScratchBuilds, type Build } from './scratchBuilds.ts'
-import { copyLiveTexture, liveScratches, pictureFits } from './live.ts'
+import { buildHostScratch, createScratches, type Build } from './scratchBuilds.ts'
+import { copyLiveTexture, pictureFits } from './live.ts'
 import type { TileKey } from './pageTable.ts'
 import type { TileCounters } from './counters.ts'
 import { serveBaked, serveHost, type Served, type TileAsk } from './serveTile.ts'
@@ -23,24 +23,20 @@ type SourcesOptions = {
 /** The pass's encoder, opened at the first copy that needs it. */
 type OpenEncoder = () => GPUCommandEncoder
 
-/** What the sources hold: the held levels and who hears a read of theirs fail, the live working
- *  textures, those built off the frame. */
+/** What the sources hold: the held levels and who hears a read of theirs fail, and the working
+ *  textures, live or built off the frame (`createScratches`). */
 type Sources = {
   device: GPUDevice
   encoding: PoolEncoding
   levels: HeldLevels | undefined
   failed: LevelFailed
   build: Build
-  live: ReturnType<typeof liveScratches>
-  builds: ReturnType<typeof createScratchBuilds>
+  scratches: ReturnType<typeof createScratches>
 }
 
 /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
 const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
   slot * 2 + (atlas.kind === 'color' ? 0 : 1)
-
-/** The working texture held for `id`: live, or built off the frame. */
-const heldScratch = ({ live, builds }: Sources, id: number) => live.get(id) ?? builds.get(id)
 
 /** `use` on the working texture held, or on one built for it and freed after: never inside a
  *  pass — the textures built off the frame wait for the next pass. */
@@ -50,7 +46,7 @@ function withScratch(
   slot: number,
   use: (s: TileScratch) => void,
 ) {
-  const kept = heldScratch(sources, scratchId(atlas, slot)),
+  const kept = sources.scratches.get(scratchId(atlas, slot)),
     scratch = kept ?? sources.build(atlas, slot)
   try {
     use(scratch)
@@ -68,7 +64,7 @@ function serveTile(sources: Sources, ask: TileAsk, encoder: OpenEncoder): Served
     return serveBaked(sources, levels, source, ask)
   if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE')
   const id = scratchId(ask.atlas, ask.key.slot)
-  return serveHost(sources.builds, heldScratch(sources, id), id, ask, encoder)
+  return serveHost(sources.scratches, id, ask, encoder)
 }
 
 /** Queue of a host texture, copied from its working texture and submitted — at prepare, never
@@ -122,15 +118,10 @@ export function createTileSources(options: SourcesOptions) {
     )
   const build: Build = (atlas, slot, encoder) =>
     buildHostScratch(device, counters, atlas, slot, encoder)
-  const live = liveScratches(device, build),
-    builds = createScratchBuilds(device, build, options.onFailure)
-  const sources: Sources = { device, encoding, levels, failed, build, live, builds }
+  const scratches = createScratches(device, build, options.onFailure)
+  const sources: Sources = { device, encoding, levels, failed, build, scratches }
   return {
-    release(atlas: WebgpuTileAtlas, slot: number) {
-      const id = scratchId(atlas, slot)
-      builds.release(id)
-      live.release(id)
-    },
+    release: (atlas: WebgpuTileAtlas, slot: number) => scratches.release(scratchId(atlas, slot)),
     levels,
     /** Who hears a level read of theirs fail. */
     failed,
@@ -149,27 +140,26 @@ export function createTileSources(options: SourcesOptions) {
      */
     refresh(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false
-      live.refresh(atlas, slot, scratchId(atlas, slot))
+      scratches.refresh(atlas, slot, scratchId(atlas, slot), (encoder, texture) =>
+        copyLiveTexture(encoder, atlas, slot, texture),
+      )
       return true
     },
     reduce: (atlas: WebgpuTileAtlas, slot: number) => reduceHost(sources, atlas, slot),
     /** Bytes the live textures' working textures hold, mips included, beside the pool. */
     get liveBytes() {
-      return live.bytes
+      return scratches.liveBytes
     },
     /** End of pass: its copies submitted, its working textures freed — all but those built for
      *  tiles whose feedback, `frame`, has not come round since they were asked. */
     endPass(encoder?: GPUCommandEncoder, frame?: number) {
       if (encoder) device.queue.submit([encoder.finish()])
-      builds.drop(frame)
+      scratches.drop(frame)
     },
     get reading() {
-      return (levels?.inFlight ?? 0) > 0 || builds.building !== undefined
+      return (levels?.inFlight ?? 0) > 0 || scratches.building !== undefined
     },
-    settled: () => Promise.all([levels?.settled(), builds.building]).then(() => undefined),
-    destroy() {
-      builds.destroy()
-      live.destroy()
-    },
+    settled: () => Promise.all([levels?.settled(), scratches.building]).then(() => undefined),
+    destroy: () => scratches.destroy(),
   }
 }

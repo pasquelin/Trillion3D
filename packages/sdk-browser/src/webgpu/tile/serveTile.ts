@@ -5,8 +5,7 @@ import type { TextureLevelAddress } from '../../texture/levelReader.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import { writeTileFromBlocks } from './writeBlocks.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
-import type { TileScratch } from './scratch.ts'
-import type { createScratchBuilds } from './scratchBuilds.ts'
+import type { createScratches } from './scratchBuilds.ts'
 import type { TileKey } from './pageTable.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { copyTileFromTexture, tileRegion, writeTileFromBitmap } from './write.ts'
@@ -62,22 +61,22 @@ export function serveBaked(
   return 'served'
 }
 
-/** A host texture's tile, copied from its working texture `scratch` (`id`) in `encoder`: asked off
- *  the frame when none is held. */
+/** A host texture's tile, copied from its working texture (`id`) in `encoder`: asked off the frame
+ *  when none is held. */
 export function serveHost(
-  builds: ReturnType<typeof createScratchBuilds>,
-  scratch: TileScratch | undefined,
+  scratches: ReturnType<typeof createScratches>,
   id: number,
   { atlas, key, frame }: TileAsk,
   encoder: () => GPUCommandEncoder,
 ): Served {
+  const scratch = scratches.get(id)
   if (!scratch) {
-    builds.ask(id, frame, atlas, key.slot)
+    scratches.ask(id, frame, atlas, key.slot)
     return 'waiting'
   }
   const place = atlas.place(key)
   if (!place) return 'refused'
-  builds.read(id)
+  scratches.read(id)
   const { pool, region } = tileTarget(atlas, key)
   copyTileFromTexture(encoder(), pool, place, scratch.texture, key.level, region)
   return 'served'
