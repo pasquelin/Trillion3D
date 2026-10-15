@@ -14,9 +14,11 @@ import { reflectionBytes } from '../../../reflections/gpu.ts'
 import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
+import { texelBytesOf } from '../../../gpu/core/textureBytes.ts'
+import { DISPLAY_FORMAT } from '../../../scene/targetFormats.ts'
 
-/** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
-const DISPLAY_BYTES = 4
+/** Bytes per pixel of the display colour. */
+const DISPLAY_BYTES = texelBytesOf(DISPLAY_FORMAT)
 
 /**
  * Whether the scene has blends — water included —, which the front pass draws into the transparents'
