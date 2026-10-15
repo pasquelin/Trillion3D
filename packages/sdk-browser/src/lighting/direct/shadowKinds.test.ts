@@ -29,8 +29,8 @@ const parts = (source: string) => {
 test('each read of a variant is the full read with the other kind’s branch cut out', () => {
   for (const request of REQUESTS) {
     const full = parts(text(request))
-    assert.ok(full.sun.includes('vsmHandleFromIdDirectional(id)'), `${request}`)
-    assert.ok(!full.sun.includes('vsmHandleFromId(id)'), `${request}`)
+    assert.ok(full.sun.includes('vsmSampledLevel('), `${request}`)
+    assert.ok(!full.local.includes('vsmSampledLevel('), `${request}`)
     assert.ok(full.local.includes('vsmCubeFace'), `${request}`)
     for (const [kinds, keeps, cuts] of [
       [SUN, full.sun, full.local],
@@ -59,7 +59,7 @@ test('the resolve is compiled with the kinds its key names', () => {
       localless: !kinds.local,
       lobeless: true,
     })
-  const clipmap = /vsmHandleFromIdDirectional\(id\)/,
+  const clipmap = /vsmSampledLevel\(base,d2\)/,
     cube = /i32\(vsmCubeFace\(/
   assert.match(resolve(), clipmap)
   assert.match(resolve(), cube)

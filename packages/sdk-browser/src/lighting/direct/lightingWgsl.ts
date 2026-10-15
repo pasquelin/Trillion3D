@@ -12,6 +12,7 @@ import {
   type VsmConsumerBindings,
   type VsmTraceBindings,
   vsmBindingsLabel,
+  vsmTraceBindingsLabel,
 } from './shadowBindings.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
@@ -88,7 +89,7 @@ export const bindingsLabel = ({
   resolveTransmission,
   trace,
 }: LightingBindings) =>
-  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? Object.values(trace).join(' ') : null}`
+  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a

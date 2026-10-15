@@ -5,7 +5,7 @@ import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
-import { type ContractKey, variantLabel } from './contractCuts.ts'
+import { LOBELESS_KEY, type ContractKey, variantLabel } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
@@ -92,7 +92,7 @@ const DIRECT_SURFACE_WGSL = wgslBlock(
  */
 export const contractLightingProgram = (
   bounce: boolean,
-  key: Partial<ContractKey> = { lobeless: true },
+  key: Partial<ContractKey> = LOBELESS_KEY,
 ) =>
   wgslBlock(
     `contractLightingProgram(${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)})`,
