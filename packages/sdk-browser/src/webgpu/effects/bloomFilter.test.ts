@@ -4,13 +4,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   BLOOM_DOWN_TAPS,
-  BLOOM_UP_TAPS,
+  BLOOM_UP_ROW,
   bloomBlend,
   bloomLevelBytes,
   bloomLevelSizes,
+  type BloomTap,
 } from './bloomFilter.ts'
 import { cpuBloom, publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
+
+/** The tent the engine's row makes: its product with itself, offsets in texels. */
+const BLOOM_UP_TAPS: BloomTap[] = [-1, 0, 1].flatMap((y) =>
+  [-1, 0, 1].map((x): BloomTap => [x, y, BLOOM_UP_ROW[x + 1] * BLOOM_UP_ROW[y + 1]]),
+)
 
 test('the down and up taps are the 13-tap filter and 3×3 tent, each of weight 1', () => {
   assert.deepEqual(tapWords(BLOOM_DOWN_TAPS), tapWords(publishedDownTaps()))

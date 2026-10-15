@@ -1,4 +1,5 @@
-import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
+import { BLOOM_UP_ROW } from './bloomFilter.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -45,6 +46,18 @@ export function writeBloomSlot(
 /** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
 export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
 
+const [EDGE, MIDDLE] = BLOOM_UP_ROW
+/** The tent's nine weighted reads, `x` the pairs of one axis and `y` of the other (`tentAxis`), a
+ *  pair of weight zero read by none. */
+const TENT_READS = ['x', 'y', 'z']
+  .flatMap((j) =>
+    ['x', 'y', 'z'].map(
+      (i) =>
+        `if(x.weight.${i}>0.0&&y.weight.${j}>0.0){c+=fetchLevel(vec2f(x.at.${i},y.at.${j})*bloom.inTexel)*(x.weight.${i}*y.weight.${j});}`,
+    ),
+  )
+  .join('\n')
+
 /**
  * One bloom level as a program reads it, at the bindings of group `group`: the level, its bilinear
  * sampler and the uniform slot, `outTexel` the inverse size written, `inTexel` the inverse size
@@ -52,13 +65,19 @@ export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
  * bloom's last blend — `keep` of the image, `glow` of the first level's sum —, one text for the
  * bloom's own `composite` pass and for the composition that takes that pass over.
  *
- * `tent9` is the filter itself, nine bilinear taps spread by `radius`. At the default radius, 1,
- * `tent4` is the same kernel in four taps, exact in real arithmetic: a pixel `f` texels past texel
- * `i` of the level reads two per axis, of weights `(3−2f)/4` and `(1+2f)/4`, at `i + (1+2f)r` and
- * `i + 2 − (3−2f)r` texels, `r = ½ / ((3−2f)(1+2f))`; the weights are scaled by 4 per axis, the
- * product by `1/16`. A sampler holds a tap's weights to a few bits, so on a device the two differ
- * by at most 2 · 2^-bits times the largest step between neighbouring texels the taps read. The
- * derivation, its proof and that bound are `bloomTent.test.ts`'s.
+ * THE TENT, ONE RULE AT EVERY RADIUS. Per axis it is three bilinear taps at `t − r`, `t`, `t + r`
+ * texels of the level (`t` the pixel's position, texel `n`'s centre at `n`; `r` the radius) of
+ * weights `BLOOM_UP_ROW`: texel `n` takes `Σ_k w_k · max(0, 1 − |t + k·r − n|)` (`tentTexel`), the
+ * two axes multiplied. Two neighbouring texels of non-negative weights are one bilinear read at
+ * their weighted centre, so the axis is read in pairs: the pair from texel
+ * `n_p = max(floor(t − r) + 2p, floor(t + (p − 1)·r))`, `p = 0, 1, 2`. Below a radius of 2 the
+ * texels of weight run from `floor(t − r)` over at most six, three pairs from the first; from 2 on
+ * the three taps share no texel and each pair is a tap's own two; the `max` is the one of the two
+ * that holds, both equal at 2. A pair of weight zero is not read: up to a radius of 1 the texels of
+ * weight are four at most, and the tent costs four reads; past it, nine at most. The sampler clamps
+ * each texel's index, so the edges fold as the taps do. Exact in real arithmetic; the sampler holds
+ * a read's fraction to a few bits, which moves the result by at most `2^-bits` times the largest
+ * step between neighbouring texels read (`bloomTent.test.ts`).
  */
 export const bloomLevelWgsl = (group: number) =>
   wgslBlock(
@@ -70,17 +89,20 @@ ${BLOOM_UNIFORM.wgsl}
 @group(${group}) @binding(1) var linearClamp:sampler;
 @group(${group}) @binding(2) var<uniform> bloom:Bloom;
 fn fetchLevel(uv:vec2f)->vec4f{return textureSampleLevel(level,linearClamp,uv,0.0);}
-fn tent9(uv:vec2f)->vec4f{let stride=bloom.inTexel*bloom.radius;var c=vec4f(0.0);
-${bloomTapText(BLOOM_UP_TAPS, levelTap, 'vec2f')}
-return c;}
-fn tent4(uv:vec2f)->vec4f{
-let t=uv/bloom.inTexel-0.5;let i=floor(t);let f=t-i;
-let wa=3.0-2.0*f;let wb=1.0+2.0*f;let r=0.5/(wa*wb);
-let a=(i+wb*r)*bloom.inTexel;let b=(i+2.0-wa*r)*bloom.inTexel;
-return (fetchLevel(a)*(wa.x*wa.y)+fetchLevel(vec2f(b.x,a.y))*(wb.x*wa.y)
-+fetchLevel(vec2f(a.x,b.y))*(wa.x*wb.y)+fetchLevel(b)*(wb.x*wb.y))*0.0625;
+fn tentHat(x:vec3f)->vec3f{return max(vec3f(0.0),1.0-abs(x));}
+fn tentTexel(t:f32,r:f32,n:vec3f)->vec3f{return ${wgslF32(EDGE)}*(tentHat(t-r-n)+tentHat(t+r-n))+${wgslF32(MIDDLE)}*tentHat(t-n);}
+struct TentAxis{weight:vec3f,at:vec3f,}
+fn tentAxis(t:f32,r:f32)->TentAxis{
+let n=max(floor(t-r)+vec3f(0.0,2.0,4.0),floor(vec3f(t-r,t,t+r)));
+let near=tentTexel(t,r,n);let far=tentTexel(t,r,n+1.0);let weight=near+far;
+return TentAxis(weight,n+0.5+far/select(vec3f(1.0),weight,weight>vec3f(0.0)));
 }
-fn tent(uv:vec2f)->vec4f{if(bloom.radius!=1.0){return tent9(uv);}return tent4(uv);}
+fn tent(uv:vec2f)->vec4f{
+let t=uv/bloom.inTexel-0.5;let x=tentAxis(t.x,bloom.radius);let y=tentAxis(t.y,bloom.radius);
+var c=vec4f(0.0);
+${TENT_READS}
+return c;
+}
 fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`,
   )
 
