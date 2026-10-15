@@ -1,10 +1,10 @@
 import {
+  DEFORMATION_BINDING,
   DEFORMATION_COMPUTE_WGSL,
-  DEFORMATION_NORMALS,
   deformationBindings,
 } from './computeWgsl.ts'
 
-/** A binding of the stage: a buffer, or the normal atlas's view (`DEFORMATION_NORMALS`). */
+/** A binding of the stage: a buffer, or the normal atlas's view (`DEFORMATION_BINDING.normals`). */
 type DeformationResource = GPUBuffer | GPUTextureView
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
@@ -64,9 +64,9 @@ export async function createDeformationCompute(device: GPUDevice) {
           layout,
           entries: sequentialEntries(
             [...buffers, image.buffer].map((resource, at) =>
-              at === DEFORMATION_NORMALS
+              at === DEFORMATION_BINDING.normals
                 ? (resource as GPUTextureView)
-                : resource === image.buffer
+                : at === DEFORMATION_BINDING.image
                   ? image.entry(slot)
                   : { buffer: resource as GPUBuffer },
             ),
@@ -91,7 +91,9 @@ export async function createDeformationCompute(device: GPUDevice) {
       dispatchRows(pass, rows)
     }
     if (whole?.count) {
-      for (let i = 0; i < 5; i++) wholeBuffers[i] = i === 3 ? whole.table : buffers[i]
+      // The whole copies' set: the passes' resources, their rows the whole copies' table.
+      wholeBuffers.splice(0, wholeBuffers.length, ...buffers)
+      wholeBuffers[DEFORMATION_BINDING.pages] = whole.table
       pass.setBindGroup(0, bind(wholeBuffers, 1))
       dispatchRows(pass, whole.count)
     }
