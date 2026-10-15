@@ -139,7 +139,7 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
         }
         (None, None) => None,
         _ => {
-            world.refuse(world::TEXTURE_UNSUPPORTED);
+            world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
             None
         }
     };

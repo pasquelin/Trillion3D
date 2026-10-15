@@ -66,8 +66,6 @@ pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
 /// A colour transparency whose three channels differ: glTF has only one alpha, and it is their
 /// mean that is carried rather than a channel picked at random.
 pub(super) const TRANSPARENCY_COLOUR: &str = "ma-transparency-colour-unsupported";
-/// An emission beyond one, which `emissiveFactor` does not carry: it is clamped and counted.
-pub(super) const EMISSION_CLAMPED: &str = "ma-emission-clamped";
 /// A `bump2d` in height bump (`bumpInterp` 0): glTF carries no height map, and taking it for a
 /// normal map would light the surface from an image that does not say its orientation. The bump
 /// is counted, the surface stays without `normalTexture`.
@@ -81,12 +79,6 @@ pub(super) const TEXTURE_TRANSFORM: &str = "ma-texture-transform-unsupported";
 /// A `place2dTexture` that mirrors the texture (`mirrorU`, `mirrorV`): no glTF wrap mode does
 /// that folding.
 pub(super) const TEXTURE_MIRROR: &str = "ma-texture-mirror-unsupported";
-/// A texture whose file is missing, outside the source directory, or of a format the image
-/// registry does not read.
-pub(super) const TEXTURE_MISSING: &str = "ma-texture-missing";
-/// A texture this driver does not hang as-is: an input wired onto a computation, a metal or
-/// roughness map alone, or opacity coming from an image other than the base colour.
-pub(super) const TEXTURE_UNSUPPORTED: &str = "ma-texture-unsupported";
 
 /// Does the node carry the transform of a hierarchy branch? Only `transform` is read: a `joint`
 /// or an `ikHandle` carries other orientation attributes, which this driver does not read, and

@@ -1,6 +1,6 @@
 use super::*;
 use crate::gltf_codes::{UNSIGNED_INT, UNSIGNED_SHORT};
-use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
+use crate::plugins::scene::corners::{gltf_uv, Corners};
 
 pub(super) struct MeshOut {
     pub(super) mesh: Value,
@@ -87,7 +87,7 @@ pub(super) fn mesh_json(
             }
             corners.cut(cancelled, false)?;
         }
-        report.add_count(NGON_UNCUT, corners.uncut);
+        report.add_count(crate::plugins::scene::codes::NGON_UNCUT, corners.uncut);
         let out = corners.vertices;
         if out.indices.is_empty() {
             continue;

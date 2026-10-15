@@ -10,7 +10,7 @@
 //! a face corner becomes is read in `corner`.
 use super::*;
 use crate::import::Vertices;
-use crate::plugins::scene::corners::{Corners, NGON_UNCUT};
+use crate::plugins::scene::corners::Corners;
 
 /// A material part: its glTF material, and the faces it carries.
 struct Part {
@@ -129,7 +129,7 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
             break;
         }
         if out.uncut != uncut {
-            world.refuse(NGON_UNCUT);
+            world.refuse(crate::plugins::scene::codes::NGON_UNCUT);
         }
     }
     let out = out.vertices;

@@ -43,7 +43,7 @@ pub(super) fn connected(world: &mut World<'_>, node: usize, names: &[&str]) -> O
 pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
     let document = world.document;
     if document.nodes[node].kind != "file" {
-        world.refuse(report::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     let written = document.nodes[node]
@@ -61,7 +61,7 @@ fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
         .into_iter()
         .find_map(|path| crate::import::readable(images, &path).map(|mime| (path, mime)))
     else {
-        world.refuse(report::TEXTURE_MISSING);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
         world.scene.image_unreadable(written);
         return None;
     };

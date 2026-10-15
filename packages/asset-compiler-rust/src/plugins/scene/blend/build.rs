@@ -12,7 +12,7 @@
 use super::*;
 use crate::import::{primitive, Vertices};
 use crate::plugins::scene::cancel;
-use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
+use crate::plugins::scene::corners::{gltf_uv, Corners};
 
 /// A primitive under construction: the one corner builder, keyed by the vertex and the bits of
 /// the corner's normal and texture coordinate.
@@ -44,7 +44,7 @@ pub(super) fn mesh_json(
         let uncut = group.uncut;
         group.cut(cancelled, false).ok_or_else(cancel::refusal)?;
         if group.uncut != uncut {
-            out.scene.count(NGON_UNCUT, 1);
+            out.scene.count(crate::plugins::scene::codes::NGON_UNCUT, 1);
         }
     }
     let mut primitives = Vec::new();

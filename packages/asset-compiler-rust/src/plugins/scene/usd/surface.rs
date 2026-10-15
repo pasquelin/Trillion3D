@@ -7,7 +7,7 @@
 //! glTF's, at the top.
 use super::*;
 use crate::import::Vertices;
-use crate::plugins::scene::corners::{gltf_uv, Corners, NGON_UNCUT};
+use crate::plugins::scene::corners::{gltf_uv, Corners};
 
 /// Tables of a surface, read once for all its parts.
 pub(super) struct Surface {
@@ -94,7 +94,7 @@ impl Surface {
                 break;
             }
             if out.uncut != uncut {
-                world.refuse(NGON_UNCUT);
+                world.refuse(crate::plugins::scene::codes::NGON_UNCUT);
             }
         }
         let out = out.vertices;

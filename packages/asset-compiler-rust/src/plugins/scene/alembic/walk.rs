@@ -146,7 +146,7 @@ impl World<'_> {
             .add_count("alembic-degenerate-face", counted.degenerate);
         self.scene
             .report
-            .add_count(crate::plugins::scene::corners::NGON_UNCUT, counted.uncut);
+            .add_count(crate::plugins::scene::codes::NGON_UNCUT, counted.uncut);
         if parts.is_empty() {
             self.scene.tables.report.add("alembic-mesh-empty");
             return Ok(attached);

@@ -152,7 +152,7 @@ fn a_concave_polygon_keeps_its_own_area() {
     assert_eq!(
         out.scene
             .counts
-            .get(crate::plugins::scene::corners::NGON_UNCUT),
+            .get(crate::plugins::scene::codes::NGON_UNCUT),
         None
     );
     let primitive = &mesh["primitives"][0];

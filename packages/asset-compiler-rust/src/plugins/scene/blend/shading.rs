@@ -69,7 +69,9 @@ pub(super) fn emission(
             .collect(),
     };
     if scaled.iter().any(|part| *part > 1.0) {
-        out.scene.report.add("blend-emission-clamped");
+        out.scene
+            .report
+            .add(crate::plugins::scene::codes::EMISSION_CLAMPED);
     }
     if scaled.iter().any(|part| *part > 0.0) {
         gltf["emissiveFactor"] = json!(scaled

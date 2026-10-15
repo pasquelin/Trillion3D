@@ -50,7 +50,9 @@ impl Textures {
 
 fn resolve(guid: &str, scene: &mut SceneTables, project: &Project) -> Option<usize> {
     let Some(asset) = project.asset(guid) else {
-        scene.report.add("unity-texture-missing");
+        scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_MISSING);
         return None;
     };
     let name = asset.file_name()?.to_string_lossy().to_string();

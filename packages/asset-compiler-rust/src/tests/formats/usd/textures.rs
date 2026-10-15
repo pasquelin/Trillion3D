@@ -53,7 +53,7 @@ fn a_texture_of_a_referenced_layer_resolves_against_the_directory_of_that_layer(
         &["sous/textures/checker.png"],
     );
     assert_eq!(
-        unsupported(&run)["usd-texture-missing"],
+        unsupported(&run)["texture-missing"],
         Value::Null,
         "the referenced layer's texture is found"
     );

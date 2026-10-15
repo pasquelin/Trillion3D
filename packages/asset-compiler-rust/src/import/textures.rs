@@ -117,7 +117,7 @@ impl<'a> TextureTable<'a> {
         self.scene.report.add(if outside {
             "texture-outside-source"
         } else if Self::mime(Path::new(&name)).is_some() {
-            "texture-missing"
+            crate::plugins::scene::codes::TEXTURE_MISSING
         } else {
             "texture-format"
         });

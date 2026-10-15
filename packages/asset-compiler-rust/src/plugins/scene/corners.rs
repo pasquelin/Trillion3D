@@ -9,11 +9,6 @@ use crate::import::Vertices;
 use std::{hash::Hash, sync::atomic::AtomicBool};
 use trillion3d_page_codec::hash::{word_map, WordMap};
 
-/// A face whose ear cut had to be forced — a self-intersecting polygon, or one with no plane: it
-/// came out fanned from its first corner, which can fill it beyond its silhouette. One code for
-/// every driver, the format being the report's own.
-pub(crate) const NGON_UNCUT: &str = "ngon-untriangulable";
-
 /// glTF places the texture origin at the top left; every format this crate reads by faces places
 /// it at the bottom left. Only the second coordinate turns, and the round trip is exact.
 pub(crate) fn gltf_uv([u, v]: [f32; 2]) -> [f32; 2] {

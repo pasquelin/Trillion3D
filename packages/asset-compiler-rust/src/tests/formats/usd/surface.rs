@@ -74,7 +74,7 @@ fn what_gltf_has_no_place_for_in_a_preview_surface_is_counted_by_its_name() {
         json!({
             "usd-specular-workflow-unsupported": 1,
             "usd-clearcoat-unsupported": 1,
-            "usd-ior-unsupported": 1,
+            "ior-unsupported": 1,
             "usd-normal-value-unsupported": 1,
         }),
         "the report of what glTF does not carry has moved"

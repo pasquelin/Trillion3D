@@ -192,7 +192,7 @@ fn a_texture_whose_file_is_missing_is_counted_and_the_material_stays() {
         }
     }"#;
     let run = compile_layer("texture", &wrap("", body));
-    assert_eq!(unsupported(&run)["usd-texture-missing"], 1);
+    assert_eq!(unsupported(&run)["texture-missing"], 1);
     let (_, gltf) = run.prepared("usd");
     assert_eq!(gltf["materials"].as_array().map(Vec::len), Some(1));
     assert!(gltf.get("images").is_none(), "no image poured in");

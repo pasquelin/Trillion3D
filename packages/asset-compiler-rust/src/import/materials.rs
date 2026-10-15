@@ -66,7 +66,7 @@ fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &m
     }
     // glTF sets the index of refraction to 1.5 by default: another index is the only one lost.
     if pbr.specular_ior.has_value && (pbr.specular_ior.value_vec4.x - 1.5).abs() > 1e-6 {
-        report.add("material-specular-ior");
+        report.add(crate::plugins::scene::codes::IOR_UNSUPPORTED);
     }
     let ambient = &fbx.ambient_color;
     let ambient_elsewhere = ambient.texture.is_some()

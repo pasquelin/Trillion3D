@@ -50,8 +50,6 @@ pub(super) const XFORM_UNSUPPORTED: &str = "usd-xform-unsupported";
 pub(super) const XFORM_INVALID: &str = "usd-xform-invalid";
 /// A `Material` without a `UsdPreviewSurface` reachable from `outputs:surface`.
 pub(super) const SURFACE_UNSUPPORTED: &str = "usd-surface-unsupported";
-/// A texture whose file is missing, or outside the source directory.
-pub(super) const TEXTURE_MISSING: &str = "usd-texture-missing";
 /// An opacity carried by an image that the base colour does not carry: glTF reads alpha only in
 /// `baseColorTexture`, and two distinct images do not fold into it without recomposing a third.
 /// The material then keeps the written opacity, and nothing of the opacity image is poured.
@@ -77,14 +75,9 @@ pub(super) const TEXTURE_COLOUR_SPACE: &str = "usd-texture-colour-space-unsuppor
 pub(super) const SPECULAR_WORKFLOW: &str = "usd-specular-workflow-unsupported";
 /// A clearcoat (`clearcoat` non-zero, with its roughness): base glTF has no such layer.
 pub(super) const CLEARCOAT: &str = "usd-clearcoat-unsupported";
-/// An index of refraction other than the default: base glTF does not carry one.
-pub(super) const IOR: &str = "usd-ior-unsupported";
 /// A normal written as a value, with no texture to carry it: glTF has no per-material constant
 /// normal, and the surface keeps that of its geometry.
 pub(super) const NORMAL_VALUE: &str = "usd-normal-value-unsupported";
-/// A texture this driver cannot hang as-is: a UV set other than the one carried, a `<UDIM>`
-/// pattern, or a declared UV transform.
-pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
 
 /// What a walk has at hand: the scene under construction, the composed USD stage, and the root
 /// where image URIs resolve.
