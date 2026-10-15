@@ -26,7 +26,10 @@ pub fn declare_soft(d: &mut Deformation, g: &Value, mesh: usize, positions: &[f3
     }
     let every: Vec<u32> = (0..positions.len() as u32 / 3).collect();
     let (_, map, _) = crate::qem::welded_region(positions, &every);
-    if map.iter().any(|&v| v > 0xffff) {
+    if map
+        .iter()
+        .any(|&v| v > trillion3d_page_codec::deform::MAX_SKIN_JOINT)
+    {
         return Err(CompilerError::new(
             "SOFT_DEFORMATION",
             "A simulated primitive names more than 65,536 simulation vertices",

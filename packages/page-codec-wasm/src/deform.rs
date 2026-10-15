@@ -13,6 +13,9 @@ pub const FLAG_SKIN: u32 = 16;
 pub const FLAG_MORPH: u32 = 32;
 /// Widest joint field: a skin names at most 65,536 joints.
 pub const MAX_JOINT_BITS: u32 = 16;
+/// The largest joint index a skin may name: a page stores a joint in sixteen bits. The one bound
+/// of the encoder and of the run-time deformation reach.
+pub const MAX_SKIN_JOINT: u32 = u16::MAX as u32;
 /// Most morph targets a page carries: eight bits of word 23.
 pub const MAX_MORPH_TARGETS: usize = 255;
 /// Header words of one morph target: its first stream, then its position and normal records.
@@ -93,7 +96,7 @@ pub fn parse(flags: u32, packed: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)>
         && (skinned || skin == Skin::default())
         && (!skinned || (skin.influences > 0 && skin.influences <= 65536))
         && skin.bits <= MAX_JOINT_BITS
-        && u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff
+        && u64::from(skin.base) + (1u64 << skin.bits) - 1 <= u64::from(MAX_SKIN_JOINT)
         && morphed == (count > 0);
     if !sane {
         return None;

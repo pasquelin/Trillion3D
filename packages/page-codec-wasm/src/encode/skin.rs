@@ -1,6 +1,6 @@
 use super::{EncodeError, Result};
 use crate::bits::bits_for;
-use crate::deform::{Skin, MAX_JOINT_BITS};
+use crate::deform::{Skin, MAX_JOINT_BITS, MAX_SKIN_JOINT};
 
 pub(super) fn skin_fields(
     joints: &[u32],
@@ -13,7 +13,7 @@ pub(super) fn skin_fields(
     let used = original.iter().flat_map(|&v| joints[at(v)].iter().copied());
     let (base, top) = used.fold((u32::MAX, 0), |(lo, hi), j| (lo.min(j), hi.max(j)));
     let bits = bits_for(top - base);
-    if bits > MAX_JOINT_BITS || top > 0xffff {
+    if bits > MAX_JOINT_BITS || top > MAX_SKIN_JOINT {
         return Err(EncodeError::new(
             "PAGE_JOINT_RANGE",
             "A page names a joint past 65,535",

@@ -6,9 +6,6 @@
 use trillion3d_math::aabb::{centre, extend_aabb};
 use trillion3d_math::vecn::{length, sub};
 
-/// The largest joint index a skin may name: a page stores a joint in sixteen bits.
-pub const MAX_SKIN_JOINT: u32 = u16::MAX as u32;
-
 /// For each joint up to the highest weighted one, the ball `[x, y, z, radius]` around the box of
 /// the rest `positions` it moves with a positive weight; a joint that moves none gives zeros.
 /// `joints` and `weights` hold `influences` entries per vertex.

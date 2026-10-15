@@ -2,15 +2,16 @@
 //! byte offsets into `arena_alloc` reservations, like `wasm_encode.rs`. The answer is held for the
 //! loader (`held.rs`): the joint count is known only once measured.
 
+use crate::deform::MAX_SKIN_JOINT;
 use crate::held::hold;
-use crate::reach::{joint_balls, target_radius, MAX_SKIN_JOINT};
+use crate::reach::{joint_balls, target_radius};
 
 /// Measures the reach of `vertex_count` rest `positions` (× 3 floats) skinned by `joints` (words)
 /// and `weights` (floats), `influences` of each per vertex (0 offsets: no skin), and moved by
 /// `target_count` morph targets laid end to end at `targets` (`vertex_count` × 3 floats each).
 /// Writes the joint count at `meta` and holds the answer, eight bytes a value: each joint's ball
-/// `[x, y, z, radius]`, then each target's radius. 0 measured, 1 for a weighted joint past
-/// `MAX_SKIN_JOINT`.
+/// `[x, y, z, radius]`, then each target's radius. 0 measured, 1 for a joint past
+/// `MAX_SKIN_JOINT`, the encoder's bound.
 ///
 /// # Safety
 /// Every offset must lie in a live `arena_alloc` reservation of the size it states.
@@ -33,8 +34,8 @@ pub unsafe extern "C" fn deform_reach(
             let entries = vertex_count as usize * influences as usize;
             let joints = core::slice::from_raw_parts(joints as *const u32, entries);
             let weights = core::slice::from_raw_parts(weights as *const f32, entries);
-            let past = |(joint, weight): (&u32, &f32)| *weight > 0.0 && *joint > MAX_SKIN_JOINT;
-            if joints.iter().zip(weights).any(past) {
+            // The encoder's bound, on every joint a vertex names, weighted or not.
+            if joints.iter().any(|&joint| joint > MAX_SKIN_JOINT) {
                 return 1;
             }
             joint_balls(positions, joints, weights, influences as usize)
