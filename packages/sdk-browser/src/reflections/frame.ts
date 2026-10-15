@@ -1,37 +1,17 @@
-import { REFLECTION_PASS, REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
-import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import {
   directLightResources,
   wantsContractLighting,
 } from '../webgpu/pages/prepare/contractLight.ts'
-import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
 import { encodeReflectionTrace } from './halfEncode.ts'
-import type { ReflectionFrame } from './viewWrite.ts'
-import { createSurroundings } from '../lighting/toneUnmap.ts'
 import {
   environmentCurve,
   environmentExposure,
 } from '../../../sdk-core/src/scene/core/environment.ts'
-
-/** The depth pyramid's nearest layer's compute pass, and the trace's, each opened by its first
- *  dispatch: the trace and its upsample are timed alone (`reflectionTraceGpuMs`). */
-const reflectionPass = new LazyComputePass(REFLECTION_PASS)
-const tracePass = new LazyComputePass(REFLECTION_TRACE_PASS)
-
-/** What an image tells its reflection view, and what the trace reads: written in place, each image. */
-const frame: ReflectionFrame = {
-  viewProjection: viewProj,
-  size: [0, 0],
-  depthDrawn: false,
-}
-/** The radiance a ray that leaves the scene reaches, computed again when the background, the
- *  exposure or the curve moves. */
-const surroundings = createSurroundings()
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; `pose`, the camera's view-projection,
@@ -42,12 +22,13 @@ function writeFrame(
   traced: boolean,
   pose: ArrayLike<number>,
 ) {
-  const { gpu, run } = rt
+  const { gpu, run } = rt,
+    { frame } = reflection
   frame.size = gpu.targetSize
   frame.pose = pose
   frame.depthDrawn = run.depthDrawn
   const { environment } = rt.lights.store
-  frame.surroundings = surroundings(
+  frame.surroundings = reflection.surroundings(
     run.clearColor,
     environmentExposure(environment),
     environmentCurve(environment),
@@ -67,14 +48,16 @@ function writeFrame(
  */
 export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
-    hiz = vis.gpuHiz
+    hiz = vis.gpuHiz,
+    reflection = gpu.reflection
   if (!hiz) return
   // An image whose front pass drew none, a scene that lost its last transparent: the word down, so no
   // reader folds the last glass.
-  hiz.front(encoder, gpu.reflection?.front.drawn === frontStamp(run.frame))
-  if (!run.depthDrawn) return
-  hiz.encodeNearest(reflectionPass.begin(encoder))
-  reflectionPass.end()
+  hiz.front(encoder, reflection?.front.drawn === frontStamp(run.frame))
+  // The pass is the view's reflection's, made with the surfaces every lit image draws.
+  if (!run.depthDrawn || !reflection) return
+  hiz.encodeNearest(reflection.depthPass.begin(encoder))
+  reflection.depthPass.end()
 }
 
 /**
@@ -104,7 +87,7 @@ export function encodeReflections(
   // Every image whose radiance is built is staged, its move decided: the build reads that decision.
   writeFrame(rt, reflection, traced, cam.viewProjection)
   if (!hiz || !depth) return
-  const open = tracePass.begin(encoder)
+  const open = reflection.tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
@@ -132,10 +115,10 @@ export function encodeReflections(
       inputs,
       group,
       gpu.targetSize,
-      !!frame.front,
+      !!reflection.frame.front,
     )
   }
-  tracePass.end()
+  reflection.tracePass.end()
 }
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before
@@ -151,7 +134,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
   radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
   radianceInputs.hash = reflection.settle.hash
-  encodeImageRadiance(encoder, reflection, stages, radianceInputs, frame)
+  encodeImageRadiance(encoder, reflection, stages, radianceInputs, reflection.frame)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

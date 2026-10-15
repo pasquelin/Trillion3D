@@ -9,7 +9,11 @@ import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
 import { createTraceGroups, type TraceInputs } from './halfEncode.ts'
 import type { RadianceInputs } from './radianceBuild.ts'
 import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
-import { createReflectionViewWriter } from './viewWrite.ts'
+import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts'
+import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
+import { REFLECTION_PASS, REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
+import { createSurroundings } from '../lighting/toneUnmap.ts'
+import { viewProj } from '../webgpu/pages/helpers.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_FRONT_BINDING,
@@ -43,9 +47,8 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
  * A view's reflection at `width × height`: the target the upsample writes, the radiance pyramid of
  * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
  * hits with its view-projection), the half grids the trace and its accumulation write
- * (`halfTexture.ts`), the view uniform
- * and its writer. `blends`, whether the scene has any, sizes the transparents' front layer
- * (`createFrontLayer`).
+ * (`halfTexture.ts`), the view uniform and its writer, and what each image writes in place.
+ * `blends`, whether the scene has any, sizes the transparents' front layer (`createFrontLayer`).
  */
 export function createScreenReflection(
   device: GPUDevice,
@@ -89,16 +92,19 @@ export function createScreenReflection(
     /** The reflection group over the depth it was bound with (`GpuHiz.depth`), the lit image the
      *  pyramid holds as its level 0 and the lighting's view: two kept, the two HDR targets taking
      *  turns (`reflectionGroup`). */
-    group: {
-      identity: createWebgpuBindIdentity(2),
-      slots: [] as (GPUBindGroup | undefined)[],
-    },
+    group: { identity: createWebgpuBindIdentity(2), slots: [] as (GPUBindGroup | undefined)[] },
     /** The trace's and the upsample's bind groups, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
-    /** What the trace and the radiance build read, written in place each image (`frame.ts`). */
+    /** What the image tells its view, what the trace and the radiance build read, and the radiance
+     *  a ray leaving the scene reaches (`createSurroundings`): written in place each image. */
+    frame: { viewProjection: viewProj, size: [0, 0], depthDrawn: false } as ReflectionFrame,
     inputs: {} as TraceInputs,
     radianceInputs: {} as RadianceInputs,
+    surroundings: createSurroundings(),
+    /** The Hi-Z nearest build's pass and the trace's, timed alone, each opened lazily. */
+    depthPass: new LazyComputePass(REFLECTION_PASS),
+    tracePass: new LazyComputePass(REFLECTION_TRACE_PASS),
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()
