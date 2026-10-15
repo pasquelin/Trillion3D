@@ -8,10 +8,8 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { transparentCounts } from '../webgpu/pages/state/transparentCounts.ts'
 import { log } from '../diagnostic/log.ts'
 
-/** The frame audit, no per-frame trace, is a debug-mode tool (`debugMode`: a world's `debug`,
- *  `?profile`): no switch of its own. Read by `webgpu/pages/render/cpuSteps.ts` until it reads
- *  `debugMode` alone. */
-export const frameCostAuditEnabled = () => debugMode()
+// The frame audit, no per-frame trace, is a debug-mode tool (`debugMode`: a world's `debug`,
+// `?profile`): no switch of its own.
 
 /** Serialisation and the console stay outside the measured render call. */
 export function logFrameCostAudit(context: Record<string, unknown>) {
