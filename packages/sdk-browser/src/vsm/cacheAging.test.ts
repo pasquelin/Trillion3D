@@ -1,6 +1,6 @@
 // The cache over frames: the
 // pool pressure bias follows the pool's load, down fast past 85 %, up slowly after 10 calm
-// frames, within [0, 2]; a light's mobility factor falls over 10 frames; a light no
+// frames, within [0, 2]; a light no
 // longer seen goes after 10; the engine's placements follow the 100-frame static rule.
 import test from 'node:test'
 import assert from 'node:assert/strict'
