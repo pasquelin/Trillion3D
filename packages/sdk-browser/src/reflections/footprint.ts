@@ -19,7 +19,7 @@ import { reflectionBindingsWgsl } from './viewLayout.ts'
  * that pixel, its plane and half the hit's slab (`screenBack`).
  * `reflectionConeAt`: the cone of `lobe` at `distance` from its surface, a pixel `pixel` wide there —
  * its axes' diameters in pixels, at least one, and the pyramid level of the width a read spans, the
- * short axis's or the long axis's share of `REFLECTION_TAPS` taps.
+ * read tangent's (`reflectionReadTangent`) diameter, at least one pixel.
  * `reflectionDepthWeight`: 1 where the depth at `X` lies within the surface's thickness of its plane
  * carried to `X`, widened by the depth the plane spans from its pixel to `X`, falling smoothly to 0
  * two thicknesses farther. `reflectionLevelRead` reads one level at `uv`, weighted by the depth
@@ -40,7 +40,7 @@ fn reflectionConeAt(distance:f32,pixel:f32,lobe:ReflectionLobe)->ReflectionCone{
  let reach=2.0*distance/max(pixel,1e-30);
  let short=max(reach*lobe.tangents.x,1.0);
  let long=max(reach*lobe.tangents.y,short);
- return ReflectionCone(short,long,log2(max(short,long/REFLECTION_TAPS)));
+ return ReflectionCone(short,long,log2(max(reach*reflectionReadTangent(lobe),1.0)));
 }
 fn reflectionDepthWeight(X:vec2f,surface:ReflectionSurface)->f32{
  let z=hizFrontDepth(vec2i(floor(X)));
