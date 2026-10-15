@@ -3,8 +3,10 @@
 //! and scale it is made of. Two determinants round apart and keep apart: `determinant`, the
 //! triple product, and `determinant_by_first_row`, the cofactor expansion along the first row.
 
+use crate::acos::acos;
 use crate::matrix::MATRIX_VALUES;
 use crate::rotation::rotation_quaternion;
+use crate::trig::sin;
 use crate::vec3::{cross, divide};
 use crate::vecn::{dot, length};
 
@@ -46,6 +48,38 @@ pub fn longest_column(m: &[f64; MATRIX_VALUES]) -> f64 {
         .map(length)
         .into_iter()
         .fold(0.0f64, f64::max)
+}
+
+/// The largest singular value of the linear part, `maxStretch` of `packages/math/src/projection/
+/// projectionOracles.ts` term for term: the largest eigenvalue of `AᵀA` by the trigonometric
+/// solution of its cubic, its arc cosine `acos` and its cosine `sin(π/2 − θ)` fdlibm's, the same
+/// bits on every host. Exact for a rotation and a scale, never below the stretch under a shear:
+/// the one stretch every level of detail projects an error through. NaN for a non-finite part.
+pub fn max_stretch(m: &[f64; MATRIX_VALUES]) -> f64 {
+    let [c0, c1, c2] = linear_columns(m);
+    if [c0, c1, c2].iter().flatten().any(|v| !v.is_finite()) {
+        return f64::NAN;
+    }
+    let (m00, m11, m22) = (dot(c0, c0), dot(c1, c1), dot(c2, c2));
+    let (m01, m02, m12) = (dot(c0, c1), dot(c0, c2), dot(c1, c2));
+    let off = m01 * m01 + m02 * m02 + m12 * m12;
+    if off <= 0.0 {
+        return m00.max(m11).max(m22).max(0.0).sqrt();
+    }
+    let mean = (m00 + m11 + m22) / 3.0;
+    let (d0, d1, d2) = (m00 - mean, m11 - mean, m22 - mean);
+    let spread = ((d0 * d0 + d1 * d1 + d2 * d2 + 2.0 * off) / 6.0).sqrt();
+    if !(spread > 0.0) {
+        return mean.max(0.0).sqrt();
+    }
+    let (b00, b11, b22) = (d0 / spread, d1 / spread, d2 / spread);
+    let (b01, b02, b12) = (m01 / spread, m02 / spread, m12 / spread);
+    let det = b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02)
+        + b02 * (b01 * b12 - b11 * b02);
+    let angle = acos((det / 2.0).clamp(-1.0, 1.0)) / 3.0;
+    (mean + 2.0 * spread * sin(std::f64::consts::FRAC_PI_2 - angle))
+        .max(0.0)
+        .sqrt()
 }
 
 /// Cofactor of the linear part applied to a direction: `cof(A)·n` is `det(A) · A⁻ᵀn`, so it points

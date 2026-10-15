@@ -11,6 +11,7 @@ import { BLEND_SIN, holdTables, intervalOf, type HoldTable } from './poseHold.ts
 import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 import { objectEdits } from '../../scene/core/nodeEdits.ts'
 import { dotScalar3, dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 
 /** The most a held point may stray from where the true pose draws it, in pixels: under one
  *  pixel's half, it lands on the same pixel centre or the next. */
@@ -430,7 +431,8 @@ function pixelsOfDrift(hold: Hold, root: Object3D, view: HoldView) {
 
 /** `moved` metres, in the frame of `root`'s parent, as pixels at `view` (`screenErrorBound`, the
  *  cluster cut's certified bound): anywhere in the ball of `radius` about `root`'s origin as the
- *  last frame placed it, the parent stretching lengths by its largest axis. */
+ *  last frame placed it, the parent stretching lengths by its largest singular value (`maxStretch`,
+ *  the stretch the cut projects through). */
 function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView) {
   if (!(moved > 0)) return moved === 0 ? 0 : Number.MAX_VALUE
   const m = root.matrixWorld.elements
@@ -439,7 +441,7 @@ function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView)
     z = m[14] - view.eye[2],
     depth = dotVector3Xyz(view.forward, x, y, z),
     lateral = Math.sqrt(Math.max(0, dotScalar3(x, y, z, x, y, z) - depth * depth))
-  const stretch = root.parent ? root.parent.matrixWorld.getMaxScaleOnAxis() : 1
+  const stretch = root.parent ? maxStretch(root.parent.matrixWorld.elements) : 1
   const pixels = screenErrorBound(
     moved,
     stretch,

@@ -1,4 +1,5 @@
-import { linearStretchBound, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { linearPartIdentityDistanceSq } from '../../../../math/src/matrix/singular.ts'
 import type { Object3D } from '../object/object3d.ts'
@@ -114,12 +115,12 @@ export function paletteReach(
   return most
 }
 
-/** The most a joint's linear part stretches a vector, bounded by `√(‖L‖₁·‖L‖∞)` (one at rest,
- *  never below the true norm): how far a morph's displacement moves once
- *  the joints carry it. */
+/** The most a joint's linear part stretches a vector (`maxStretch`, its rows read as columns: a
+ *  matrix and its transpose share it), one at rest: how far a morph's displacement moves once the
+ *  joints carry it. */
 export function paletteStretch(palette: Float32Array, at: number, joints: number) {
   let most = 1
   for (let j = 0; j < joints; j++)
-    most = Math.max(most, linearStretchBound(palette, at + j * PALETTE_FLOATS))
+    most = Math.max(most, maxStretch(palette, at + j * PALETTE_FLOATS))
   return most
 }

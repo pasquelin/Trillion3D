@@ -9,8 +9,9 @@ import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
-import { length3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import type { XYZSink, XYZWLike, XYZWSink } from './likes.ts'
 
 const t = new Float64Array(3),
@@ -151,14 +152,10 @@ export class Matrix4 {
     this.elements[14] = z
     return this
   }
-  /** The biggest stretch along any axis: the longest of the three columns (`length3`). */
+  /** The most the matrix stretches a length (`maxStretch`): its largest axis scale, a shear's
+   *  stretch included, which a column's length falls short of. */
   getMaxScaleOnAxis() {
-    const e = this.elements
-    return Math.max(
-      length3(e[0], e[1], e[2]),
-      length3(e[4], e[5], e[6]),
-      length3(e[8], e[9], e[10]),
-    )
+    return maxStretch(this.elements)
   }
   /** Whether two matrices hold the same numbers. */ equals(m: { elements: ArrayLike<number> }) {
     return sameElements(this.elements, m.elements)

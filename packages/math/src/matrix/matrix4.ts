@@ -328,23 +328,3 @@ export function transposeMatrix4<T extends NumberSink>(out: T, m: ArrayLike<numb
   out[15] = m15
   return out
 }
-
-/**
- * A bound on how much the linear part (the upper 3×3) of the matrix at `at` stretches a vector:
- * `√(‖L‖₁ · ‖L‖∞)`, the largest absolute row sum times the largest absolute column sum, never below
- * the true norm. Read column-major, `rows` gathers `m[at + a]`, `m[at + a + 4]`, `m[at + a + 8]`
- * and `columns` `m[at + 4a]`… ; on a row-major 3×4 the two names swap and, the product commuting,
- * the bound is the same bits. The maxima start from 0.
- */
-export function linearStretchBound(m: ArrayLike<number>, at = 0) {
-  let rows = 0,
-    columns = 0
-  for (let a = 0; a < 3; a++) {
-    rows = Math.max(rows, Math.abs(m[at + a]) + Math.abs(m[at + a + 4]) + Math.abs(m[at + a + 8]))
-    columns = Math.max(
-      columns,
-      Math.abs(m[at + 4 * a]) + Math.abs(m[at + 4 * a + 1]) + Math.abs(m[at + 4 * a + 2]),
-    )
-  }
-  return Math.sqrt(rows * columns)
-}
