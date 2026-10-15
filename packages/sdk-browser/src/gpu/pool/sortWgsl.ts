@@ -51,12 +51,24 @@ fn poolSlotRank(j:u32)->u32{
  if(j>=poolSlotCount()){return POOL_RANKS;}
  return poolRank(poolSlotAge(j),poolSlotTier(j),poolInUse());
 }
+/** Scratch word of the ranks of slots \`j\` and its pair, behind the staged slots and the groups'
+ *  counts: two 16-bit ranks a word (\`POOL_RANKS\` fits). */
+fn poolRankWord(j:u32)->u32{return 2u*poolBurst()+2u*ceilDiv(poolSlotCount(),POOL_LANES)+j/2u;}
+/** Slot \`j\`'s rank as \`poolCount\` evaluated it, the one evaluation of a sort. */
+fn poolRankOf(j:u32)->u32{return (poolScratchLoad(poolRankWord(j))>>(16u*(j&1u)))&0xffffu;}
 @compute @workgroup_size(POOL_LANES)
 fn poolCount(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
- let rank=poolSlotRank(flatIndex(id,n,POOL_LANES));
+ let j=flatIndex(id,n,POOL_LANES);
+ let rank=poolSlotRank(j);
  if(rank<POOL_RANKS){atomicAdd(&poolLocal[rank],1u);}
+ poolChunk[lane]=rank;
  workgroupBarrier();
  for(var r=lane;r<POOL_RANKS;r+=POOL_LANES){let c=atomicLoad(&poolLocal[r]);if(c>0u){poolCountAdd(r,c);}}
+ // The group's ranks kept two to a word, each word written by one lane: the later stages read them.
+ if(lane<POOL_LANES/2u){
+  let first=j-lane+2u*lane;
+  poolScratchStore(poolRankWord(first),poolChunk[2u*lane]|(poolChunk[2u*lane+1u]<<16u));
+ }
 }
 /** The rank of place order \`d\`: the highest first. */
 fn poolRankAt(d:u32)->u32{return POOL_RANKS-1u-d;}

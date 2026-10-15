@@ -15,6 +15,9 @@ export const POOL_SORT_WORDS = POOL_SORT_TOTAL + 1
 export const POOL_LANES = 256
 
 /** The sort's scratch over at most `slots` slots and a burst of `burst`: a rank and a slot per
- *  slot staged — fewer than a burst —, then two counts per group of `POOL_LANES` slots. */
+ *  slot staged — fewer than a burst —, two counts per group of `POOL_LANES` slots, then each
+ *  slot's rank, two to a word, as the count evaluated it once (`poolRankOf`). */
 export const poolScratchWords = (slots: number, burst: number) =>
-  2 * burst + 2 * workgroupCount(slots, POOL_LANES)
+  2 * burst +
+  2 * workgroupCount(slots, POOL_LANES) +
+  workgroupCount(slots, POOL_LANES) * (POOL_LANES / 2)
