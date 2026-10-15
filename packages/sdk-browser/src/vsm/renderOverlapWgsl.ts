@@ -67,15 +67,5 @@ fn vsmRasterMarkBits(staticLayer:bool,staleAfter:bool)->u32{
  if(staleAfter){flags|=select(4u,8u,staticLayer);}
  return flags;
 }
-/** The shifted-to-clip matrix of a VSM view, from the stored shiftedToShadowUV
- *  (the clip-to-UV scale and bias inverted: x = 2u − w, y = w − 2v, z and w kept). */
-fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
- var m:mat4x4f;
- for(var k=0u;k<4u;k++){
-  let c=uv[k];
-  m[k]=vec4f(2.0*c.x-c.w,c.w-2.0*c.y,c.z,c.w);
- }
- return m;
-}
 `,
 )

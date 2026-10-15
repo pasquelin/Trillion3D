@@ -100,6 +100,16 @@ fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
  r.coarseDynamicCached=(r.flags&VSM_MAP_COARSE_KEEPS_DYNAMIC)!=0u;
  return r;
 }
+/** The shifted-to-clip matrix of a map, from its record's shiftedToMapUv
+ *  (the clip-to-UV scale and bias inverted: x = 2u − w, y = w − 2v, z and w kept). */
+fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
+ var m:mat4x4f;
+ for(var k=0u;k<4u;k++){
+  let c=uv[k];
+  m[k]=vec4f(2.0*c.x-c.w,c.w-2.0*c.y,c.z,c.w);
+ }
+ return m;
+}
 /** The difference of two high/low pairs, demoted to f32: the high parts subtract, the low parts are added. */
 fn vsmSubtractHighLow(aHigh:vec3f,aLow:vec3f,bHigh:vec3f,bLow:vec3f)->vec3f{
  let h=aHigh-bHigh;

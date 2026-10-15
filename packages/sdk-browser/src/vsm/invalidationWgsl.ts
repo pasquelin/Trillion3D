@@ -103,12 +103,10 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
- // Back to clip space: uvToClip · shiftedToShadowUV.
- let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
  // The box to clip space through its local-to-shifted, then the view's shifted-to-clip.
- let toClip=uvToClip*pd.shiftedToMapUv;
+ let toClip=vsmShiftedToClip(pd.shiftedToMapUv);
  let boxPoint=vsmBoxCullPoint(vec3f(0.0),inst.extent,isOrtho,nearClip);
  let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
   inst.extent,pd.lightViewToClip,isOrtho,nearClip);
