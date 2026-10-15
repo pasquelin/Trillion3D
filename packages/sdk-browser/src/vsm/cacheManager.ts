@@ -16,7 +16,6 @@ import {
   VSM_SUN_DEPTH_KEEP,
   VSM_PRESSURE_LOAD,
   VSM_PRESSURE_BIAS_MAX,
-  VSM_PRESSURE_BIAS_FLOOR,
   VSM_PRESSURE_CALM_FRAMES,
   VSM_LIGHT_KEEP_FRAMES,
   VSM_POOL_PAGES,
@@ -384,16 +383,22 @@ export class VsmCacheManager {
       currentAllocation <= Math.fround(VSM_PRESSURE_LOAD) &&
       (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
     ) {
-      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
+      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_FALL)
     } else if (currentAllocation > Math.fround(VSM_PRESSURE_LOAD)) {
       this.lastFrameOverBudget = frameStamp
-      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
+      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_RISE)
     }
-    const bias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
-    // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
-    this.pressureBias = bias < VSM_PRESSURE_BIAS_FLOOR ? 0 : bias
+    this.pressureBias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     return this.pressureBias
   }
+}
+
+/** `from` moved `share` of the way to `to`, in f32, or `to` itself once that step no longer moves
+ *  it: a geometric approach in f32 stalls where rounding returns the value it starts from (nine
+ *  tenths of k·2^-149 round back to it for k ≤ 4), so the bias reaches its target, 0 included. */
+function approach(from: number, to: number, share: number) {
+  const next = Math.fround(lerp(from, to, share))
+  return next === from ? to : next
 }
 
 /** Bytes the readback holds at most: `maxInFlight` copies of the 4-word message. */

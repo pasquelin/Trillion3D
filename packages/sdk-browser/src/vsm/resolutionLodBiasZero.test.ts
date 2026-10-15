@@ -1,11 +1,11 @@
-// The global resolution bias falls back to exactly 0 once the pool's fill does: under
-// `VSM_PRESSURE_BIAS_FLOOR` it is 0, where its f32 decay alone stops on a
-// subnormal for good. The floor moves no level: under 2^-54 a bias leaves every level the CPU's
-// local mip (f64) and the GPU's marking (f32) compute where it was, and the bound is tight.
+// The global resolution bias falls back to exactly 0 once the pool's fill does: its f32 decay
+// takes its target where a step no longer moves it (`approach`), where it would otherwise stop on
+// a subnormal for good. Under 2^-54 a bias leaves every level the CPU's local mip (f64) and the
+// GPU's marking (f32) compute where it was, and the bound is tight.
 import { f32Bits, fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VSM_PRESSURE_BIAS_FLOOR, vsmLocalMipLevel } from './constants.ts'
+import { vsmLocalMipLevel } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { lerp } from '../../../math/src/scalar/reals.ts'
 const F64 = new Float64Array(1),
@@ -15,7 +15,7 @@ const below = (x: number) => ((F64[0] = x), (B64[0] -= 1n), F64[0])
 /** The largest f32 under 2^-54: the largest bias the bound lets through. */
 const G = fromF32Bits(f32Bits(2 ** -54) - 1)
 
-test('after an overload the bias falls back to exactly 0, its last step at the floor or above', () => {
+test('after an overload the bias falls back to exactly 0, from where its f32 step stalls', () => {
   const cache = new VsmCacheManager()
   let bias = 0
   // No page free for 20 frames: up to the limit.
@@ -33,18 +33,13 @@ test('after an overload the bias falls back to exactly 0, its last step at the f
     bias = cache.readPoolFeedback(1024, bias)
   }
   assert.equal(bias, 0, `0 at frame ${frame}`)
-  assert.ok(frame < 500, `within ${frame} frames`)
-  assert.ok(last >= VSM_PRESSURE_BIAS_FLOOR, 'the last bias kept')
-  assert.ok(Math.fround(lerp(last, 0, 0.1)) < VSM_PRESSURE_BIAS_FLOOR, 'the next under it')
-  // Without the floor, nine tenths of 4·2^-149 round back to it: the decay alone stops there.
-  let alone = last
-  for (let k = 0; k < 2000; k++) alone = Math.fround(lerp(alone, 0, 0.1))
-  assert.equal(alone, 4 * 2 ** -149)
+  assert.ok(frame < 2000, `within ${frame} frames`)
+  // The last bias held is where nine tenths round back to it.
+  assert.equal(Math.fround(lerp(last, 0, 0.1)), last, 'the step stalls there')
   for (let n = 0; n < 100; n++) {
     cache.frameStamp = ++frame
     assert.equal(cache.readPoolFeedback(1024, 0), 0, 'and it stays there')
   }
-  assert.ok(VSM_PRESSURE_BIAS_FLOOR <= 2 ** -56, 'a quarter of the bound')
 })
 
 test('under 2^-54 the bias moves no level on the CPU: the local mip of every double below 1..23', () => {

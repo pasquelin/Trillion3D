@@ -297,15 +297,6 @@ export const VSM_PAGE_KEEP_FRAMES = 1000
 export const VSM_LIGHT_KEEP_FRAMES = 10
 export const VSM_STILL_FRAMES = 100
 export const VSM_PRESSURE_BIAS_MAX = 2
-/**
- * The global resolution bias under which it is 0: its decay toward 0 in f32 would otherwise stop
- * on a subnormal for good. A bias under 2^-54 moves no level: added to a level in f64
- * (`vsmLocalMipLevel` on the CPU) it rounds back to it, 2^-54 being half the step of the doubles
- * below 1; in f32 (the GPU's marking) a level keeps its floor up to 2^-25, and a sum lifted across
- * 0 is clamped there or lies below the first clipmap level (`resolutionLodBiasZero.test.ts`). The
- * floor is a quarter of that bound, for the feedback a few frames old the decay reads.
- */
-export const VSM_PRESSURE_BIAS_FLOOR = 2 ** -56
 export const VSM_PRESSURE_LOAD = 0.85
 export const VSM_PRESSURE_RISE = 0.5
 export const VSM_PRESSURE_FALL = 0.1
