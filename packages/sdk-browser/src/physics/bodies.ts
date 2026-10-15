@@ -79,24 +79,18 @@ export function createPhysicsBodies(
     const matter = physicsMatterOf(mesh.material)
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
     const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
+    const { position, quaternion } = pose
+    const layer =
+      p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving
     writer.add({
-      id,
-      motion: MOTION[p.type],
-      layer: p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving,
-      shape: shape.shape,
-      flags: flagsOf(mesh),
-      position: pose.position,
-      quaternion: pose.quaternion,
-      size: shape.size,
-      mass: p.mass ?? 0,
-      density: matter.density,
-      friction: p.friction ?? matter.friction,
-      restitution: p.restitution ?? matter.restitution,
-      gravityScale: p.gravityScale,
-      damping: [p.damping.linear, p.damping.angular],
-      vertices: shape.vertices,
-      indices: shape.indices,
-      parts: shape.parts,
+      ...{ id, motion: MOTION[p.type], layer, flags: flagsOf(mesh), position, quaternion },
+      ...{ shape: shape.shape, size: shape.size, mass: p.mass ?? 0, density: matter.density },
+      ...{
+        friction: p.friction ?? matter.friction,
+        restitution: p.restitution ?? matter.restitution,
+      },
+      ...{ gravityScale: p.gravityScale, damping: [p.damping.linear, p.damping.angular] },
+      ...{ vertices: shape.vertices, indices: shape.indices, parts: shape.parts },
     })
     hold(mesh, id & BODY_INDEX)
   }
