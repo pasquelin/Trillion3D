@@ -88,12 +88,8 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.gpuRaster = undefined
   dropGpuDraw(rt)
   dropGpuHiz(rt)
-  // The pool frees its buffers and its normal atlas; without one, the buffers alone.
-  if (vis.vertexPool) vis.vertexPool.destroy()
-  else {
-    vis.concatPos?.destroy()
-    vis.concatUv?.destroy()
-  }
+  // The pool frees its buffers and its normal atlas: the concatenated buffers only come with it.
+  vis.vertexPool?.destroy()
   vis.pageTable?.destroy()
   vis.materialTable.dispose()
   vis.shadeUniform?.destroy()
