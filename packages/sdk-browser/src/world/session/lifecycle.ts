@@ -63,7 +63,7 @@ function holdPages(
  *  held — its session's handle swept included —, every later call the same one. */
 function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session
-  const { state, profiler, ownedControls, streaming, streamer, engine } = inputs
+  const { state, profiler, ownedControls, streaming } = inputs
   let released: Promise<void> | void
   return () => {
     if (state.disposed) return released
@@ -80,16 +80,41 @@ function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
     })
     // A read cut short says why (#837), never "aborted without reason".
     streaming.backgroundFetchController?.abort(new DOMException('The session closed', 'AbortError'))
-    streamer.dispose()
-    releasePageWorkers()
-    releasePageIntegration()
-    released = engine.dispose()
-    releaseOwned(session, inputs)
-    diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope })
-    diagnosticChannel.flushSync()
-    diagnosticChannel.close()
+    released = releaseHeld(session, inputs, () =>
+      diagnose('dispose-complete', 'MeasuredWorld disposal completed', {
+        kind: 'lifecycle',
+        scope,
+      }),
+    )
     return released
   }
+}
+
+/**
+ * THE ONE RELEASE OF WHAT A SESSION HOLDS — by its disposal, or by an opening that failed with what
+ * it had made: its reads, the page workers and integration lane the opening configured, its
+ * engine, what it owns, then its channel, `done` heard just before it closes. It returns the
+ * engine's release.
+ */
+export function releaseHeld(
+  session: ExplorerSession,
+  held: {
+    streamer?: { dispose(): void }
+    engine?: { dispose(): Promise<void> | void }
+    source?: EngineContext['source']
+    gpuDevice?: GPUDevice
+  },
+  done?: () => void,
+) {
+  held.streamer?.dispose()
+  releasePageWorkers()
+  releasePageIntegration()
+  const released = held.engine?.dispose()
+  releaseOwned(session, held)
+  done?.()
+  session.diagnosticChannel.flushSync()
+  session.diagnosticChannel.close()
+  return released
 }
 
 /** The pages the view reads, made resident; `image: false` takes no picture of them.

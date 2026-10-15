@@ -3,7 +3,7 @@ import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitche
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts'
 import { interactiveOptions } from './interactiveOptions.ts'
 import { startInteractiveExplorer } from './interactive.ts'
-import { releaseOwned } from './lifecycle.ts'
+import { releaseHeld } from './lifecycle.ts'
 import { loadExplorerManifest } from './manifest.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 import { createExplorerSession, type ExplorerSession } from './session.ts'
@@ -90,7 +90,7 @@ function readManifest(opened: Opened, manifestUrl: string, source?: ExplorerSour
 }
 
 /** What an opening that failed releases: the runtime's disposal everything; before it exists,
- *  what the opening holds — the engine, the source and the device —, and its channel. */
+ *  what the opening holds (`releaseHeld`). */
 function failedOpening(
   session: ExplorerSession,
   resources: ExplorerResources,
@@ -98,11 +98,7 @@ function failedOpening(
 ) {
   if (runtime) return runtime.dispose()
   resources.opening?.abort()
-  resources.engine?.dispose()
-  resources.streamer?.dispose()
-  releaseOwned(session, resources)
-  session.diagnosticChannel.flushSync()
-  session.diagnosticChannel.close()
+  releaseHeld(session, resources)
 }
 
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
