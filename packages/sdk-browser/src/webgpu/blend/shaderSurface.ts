@@ -2,6 +2,7 @@ import {
   FLAG_DIAGNOSTIC_VIEW,
   FLAG_DOUBLE,
   FLAG_HAS_NORMAL,
+  FLAG_HAS_TANGENT,
   FLAG_LIT,
   FLAG_SAMPLED,
   FLAG_UNLIT_VIEW,
@@ -125,8 +126,8 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   // sign, as on the geometric normal above.
   let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);
   var T=-frame.T;var B=-frame.B;
-  if((flags&2048u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
-  if((flags&2u)!=0u&&(flags&16u)!=0u){T*=face;B*=face;}
+  if((flags&${FLAG_HAS_TANGENT}u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
+  if((flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u){T*=face;B*=face;}
   N=bendNormal(N,T,B,vec3f(mapN.x*in.pbr.z,mapN.y*in.pbr.w,mapN.z));
  }
  var emissive=in.emissive.xyz;
