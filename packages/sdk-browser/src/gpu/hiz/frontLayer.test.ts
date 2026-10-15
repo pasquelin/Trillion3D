@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuHiz } from './factory.ts'
-import { destroyRetired } from '../core/frameRetire.ts'
 import { level0LayerBytes, pyramidHeldBytes } from './pyramid.ts'
 import {
   HIZ_DEPTH_LAYERS,
@@ -17,35 +16,24 @@ import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 
 const LEVEL_0 = 'Trillion3D Hi-Z level 0'
 
-test('an opaque scene’s level 0 is one layer: the front layer is made at the first ask, the opaque depth copied once', async () => {
-  const { device, textures, textureCopies, destroyed } = fakeDevice()
+test('level 0 holds the front layer from its making: an ask makes, copies and binds nothing', async () => {
+  const { device, textures, textureCopies } = fakeDevice()
   const hiz = await createGpuHiz(device, 16, 8, 4)
   assert.ok(hiz)
   const level0s = () => textures.filter((texture) => texture.label === LEVEL_0)
-  const layers = (texture: GPUTexture) => texture.depthOrArrayLayers
-  const opaque = hiz.level0
-  assert.equal(layers(opaque), 1, 'no byte for transparents an opaque scene does not hold')
-  assert.equal(hiz.holdsFront, false)
+  const level0 = hiz.level0
+  assert.equal(level0.depthOrArrayLayers, HIZ_DEPTH_LAYERS, 'the opaque depth and the front depth')
   const depth = hiz.depth()
   const encoder = device.createCommandEncoder()
   const front = hiz.front(encoder, true)
   assert.ok(front)
-  assert.equal(level0s().length, 2)
-  assert.equal(layers(hiz.level0), 2, 'the opaque depth and the front depth')
-  assert.equal(hiz.holdsFront, true, 'the budget counts the layer it holds')
-  assert.deepEqual(
-    textureCopies.map(({ from, to, size }) => [from.texture, to.texture, size]),
-    [[opaque, hiz.level0, [16, 8, 1]]],
-    'the opaque depth this image drew carried into the new level 0',
-  )
-  assert.notEqual(hiz.depth(), depth, 'its readers bind the new level 0')
-  assert.equal(destroyed.includes(opaque), false, 'commands of this image may still name it')
-  destroyRetired(device)
-  assert.ok(destroyed.includes(opaque), 'retired after the frame')
-  assert.equal(hiz.front(encoder, true), front, 'asked again, nothing is made')
-  assert.equal(textureCopies.length, 1)
+  assert.equal(level0s().length, 1, 'nothing made at the ask')
+  assert.equal(hiz.level0, level0)
+  assert.equal(textureCopies.length, 0, 'nothing copied')
+  assert.equal(hiz.depth(), depth, 'its readers keep their group')
+  assert.equal(hiz.front(encoder, true), front, 'asked again, the same layer')
   assert.equal(hiz.resize(device, 32, 32), true)
-  assert.equal(layers(hiz.level0), 2, 'a pyramid made after holds it')
+  assert.equal(hiz.level0.depthOrArrayLayers, HIZ_DEPTH_LAYERS, 'a pyramid made after holds it')
   hiz.dispose()
 })
 
@@ -68,11 +56,10 @@ test('a scene whose transparents come and go keeps the front layer: its fold fol
     ).length
   assert.equal(word(), 1, 'the readers fold the layer this image writes')
   assert.equal(hiz.front(encoder, false), undefined, 'no front layer this image writes')
-  assert.equal(hiz.holdsFront, true, 'kept while the glass is away')
   assert.equal(word(), 0, 'the fold reads the opaque depth alone, never the last glass')
   assert.equal(hiz.level0, glass, 'level 0 kept: nothing made, copied or bound again')
   assert.equal(hiz.depth(), depth)
-  assert.equal(textureCopies.length, 1, 'the opaque depth was carried once, at the first ask')
+  assert.equal(textureCopies.length, 0, 'nothing carried: the layer was made with level 0')
   assert.equal(hiz.front(encoder, false), undefined)
   assert.equal(hiz.front(encoder, true), front, 'the glass back: the same layer')
   assert.equal(clears(), 0, 'the front depth clears the last glass, its one owner')

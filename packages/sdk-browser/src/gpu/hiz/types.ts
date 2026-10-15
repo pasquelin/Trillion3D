@@ -33,14 +33,10 @@ export type GpuHiz = {
   depth(): HizDepth | undefined
   /** Level 0's front layer, which the transparents' front pass writes (`reflections/frontLayer.ts`):
    *  zero where no transparent surface lies; none unless `wanted` — an image whose transparents'
-   *  fold writes it. Made in `encoder` at the first ask, then kept (`holdFrontLayer`): the readers
-   *  fold it by a frame word only while an image writes it, so no reader folds a layer this image
-   *  did not write; an opaque scene's level 0 is one layer. It changes identity on every target
-   *  resize. */
+   *  fold writes it. Made with level 0: the readers fold it by a frame word only while an image
+   *  writes it, so no reader folds a layer this image did not write. It changes identity on every
+   *  target resize. */
   front(encoder: GPUCommandEncoder, wanted: boolean): GPUTextureView | undefined
-  /** Whether level 0 holds the front layer: once an image asked it (`front`), this pyramid and
-   *  every one made after keep it, which the frame's budget counts. */
-  readonly holdsFront: boolean
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does

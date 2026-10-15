@@ -1,5 +1,4 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import { holdFrontLayer } from './level0.ts'
 import { HIZ_BUILD_FRONT_WORD, HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
 import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
@@ -36,8 +35,6 @@ export type HizState = HizPipelines & {
   idle: GPUBuffer
   buffers: GPUBuffer[]
   disposed: boolean
-  /** Whether an image asked level 0's front layer (`GpuHiz.front`): a pyramid made after holds it. */
-  front: boolean
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
   bindGroup: GPUBindGroup | undefined
@@ -173,22 +170,21 @@ export function hizResize(
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
     h.at?.destroy()
-    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots, h.front))
+    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.slots))
     return true
   } catch {
     return false
   }
 }
 
-/** The drawn pyramid's front layer (`GpuHiz.front`), folded exactly while `wanted`: made in
- *  `encoder` at the first ask, its level 0 published again, and every pyramid made after holds it;
- *  its front word sent when it moved. */
-export function hizFront(h: HizState, gpu: GpuHiz, encoder: GPUCommandEncoder, wanted: boolean) {
+/** The drawn pyramid's front layer (`GpuHiz.front`), folded exactly while `wanted`: its front
+ *  word sent when it moved, so an image that does not write it folds the opaque depth alone. */
+export function hizFront(h: HizState, wanted: boolean) {
   const { at } = h
   if (h.disposed || !at) return undefined
-  h.front ||= wanted
-  if (holdFrontLayer(h.device, h.level0Usage, at, encoder, wanted)) sendHizBuild(h, at)
-  gpu.level0 = at.level0
-  gpu.level0View = at.level0View
+  if (at.frontWritten !== wanted) {
+    at.frontWritten = wanted
+    sendHizBuild(h, at)
+  }
   return wanted ? at.frontView : undefined
 }

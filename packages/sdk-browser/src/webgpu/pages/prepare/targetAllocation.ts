@@ -69,9 +69,8 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
     reflectionBytes(width, height, sceneBlends(rt)) +
-    // The Hi-Z level 0's front layer, a scene's whose transparents write a front depth, kept once
-    // made (`GpuHiz.holdsFront`): a pyramid made after holds it.
-    (hiz && (sceneBlends(rt) || rt.vis.gpuHiz?.holdsFront) ? level0LayerBytes(width, height) : 0) +
+    // The Hi-Z level 0's front layer, made with every pyramid.
+    (hiz ? level0LayerBytes(width, height) : 0) +
     display * DISPLAY_BYTES
   )
 }

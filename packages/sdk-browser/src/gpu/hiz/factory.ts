@@ -37,7 +37,7 @@ export async function createGpuHiz(
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
     h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots, h.front))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -82,9 +82,9 @@ function hizState(
   return {
     ...pipelines,
     device,
-    // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own, and the
-    // front layer's making, which copies the opaque depth once (`holdFrontLayer`). The front layer
-    // is written by the transparents' fold, a storage texture, and cleared as an attachment.
+    // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own. The
+    // front layer is written by the transparents' fold, a storage texture, and cleared as an
+    // attachment.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |
@@ -102,7 +102,6 @@ function hizState(
     idle,
     buffers,
     disposed: false,
-    front: false,
     at: undefined,
     bindGroup: undefined,
     bounds: idle,
@@ -141,10 +140,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
-    front: (encoder, wanted) => hizFront(h, gpu, encoder, wanted),
-    get holdsFront() {
-      return h.front
-    },
+    front: (_encoder, wanted) => hizFront(h, wanted),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

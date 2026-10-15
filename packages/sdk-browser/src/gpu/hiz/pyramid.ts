@@ -7,7 +7,6 @@ import type { HizDepth, HizPyramid } from './types.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   HIZ_CULL_FARTHEST,
-  HIZ_DEPTH_LAYERS,
   HIZ_FORMAT,
   hizRoute,
   hizTextureBytes,
@@ -71,8 +70,8 @@ export function pyramidLayout(width: number, height: number, slots: UniformSlots
 }
 
 export type Pyramid = HizPyramid & {
-  /** Level 0: the opaque depth the image draws and, in a second layer once asked (`holdFrontLayer`),
-   *  the nearest transparent surface's, each a view of its own, and all in one (`depthView`). */
+  /** Level 0: the opaque depth the image draws and, in a second layer, the nearest transparent
+   *  surface's, each a view of its own, and all in one (`depthView`). */
   level0: GPUTexture
   level0View: GPUTextureView
   depthView: GPUTextureView
@@ -81,9 +80,8 @@ export type Pyramid = HizPyramid & {
   pyramid: GPUTexture
   pyramidView: GPUTextureView
   /** Level 0's front layer, which the transparents' front pass writes (`reflections/frontLayer.ts`): zero
-   *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. None until a
-   *  scene's transparents ask it, then kept (`holdFrontLayer`). */
-  frontView: GPUTextureView | undefined
+   *  where no transparent surface lies, whose fold is the opaque depth, bit for bit. */
+  frontView: GPUTextureView
   /** Whether this image's fold writes it: the frame word its readers fold it by (`HIZ_FOLD_WGSL`). */
   frontWritten: boolean
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
@@ -95,17 +93,16 @@ export type Pyramid = HizPyramid & {
   depth?: HizDepth
 }
 
-/** One view's pyramid at `width × height`: its level 0 — with the front layer when `front` — and its
- *  three layers of packed mips, its build's uniform words laid in `slots`. */
+/** One view's pyramid at `width × height`: its level 0 — with the front layer — and its three
+ *  layers of packed mips, its build's uniform words laid in `slots`. */
 export function allocPyramid(
   device: GPUDevice,
   usage: number,
   width: number,
   height: number,
   slots: UniformSlots,
-  front: boolean,
 ): Pyramid {
-  const level0 = level0Of(device, usage, width, height, front ? HIZ_DEPTH_LAYERS : 1)
+  const level0 = level0Of(device, usage, width, height)
   // `COPY_DST` and `COPY_SRC` serve only the proof tools, which lay a pyramid of their own and
   // reread it; no frame copies.
   const pyramid = device.createTexture({
