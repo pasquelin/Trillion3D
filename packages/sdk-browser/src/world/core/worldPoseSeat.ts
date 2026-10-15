@@ -2,6 +2,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Seat } from './worldBatches.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { touchRows, type PoseState } from './worldPoseState.ts'
+import { writePlacementRow } from '../../placement/rows.ts'
 
 /** A sprite's row, rewritten at every write (`spriteRow`). */
 const spriteScratch = new Float64Array(16)
@@ -35,8 +36,7 @@ export function writeSeat(state: PoseState, mesh: Mesh, seat: Seat, shown: boole
   const rows = seat.batch.rows
   if (!rows || seat.row < 0) return
   const world = mesh.matrixWorld.elements
-  rows.matrices.set(mesh.primitive === 'sprite' ? spriteRow(world) : world, seat.row * 16)
-  rows.live[seat.row] = shown ? 1 : 0
-  rows.shadowless[seat.row] = mesh.castShadow ? 0 : 1
+  const matrix = mesh.primitive === 'sprite' ? spriteRow(world) : world
+  writePlacementRow(rows, seat.row, matrix, shown, mesh.castShadow)
   touchRows(state, seat.batch, seat.row, seat.row)
 }
