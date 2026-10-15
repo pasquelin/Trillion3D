@@ -2,7 +2,7 @@ import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { FLAG_DIAGNOSTIC_VIEW, FLAG_LIT, FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../../reflections/constantsWgsl.ts'
@@ -13,24 +13,12 @@ import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 
-/** The surface-buffer model flag of a blend of item flags `flags` (`../../scene/surfaceModel.ts`): the
- *  physical one, the diffuse or the toon one, as its model lane says. The blend fragment's lighting and
- *  the front stage's test of a reflecting surface read it here. */
-export const blendSurfaceModel = wgslFn(
-  'blendSurfaceModel',
-  [],
-  `fn blendSurfaceModel(flags:u32)->u32{
- let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
- return select(select(${surfaceModel.MODEL_FLAG.physical}u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
-}`,
-)
-
 /** How far behind its surface a covering fragment writes its depth into the Hi-Z front layer: a ray leaving
  *  the surface never meets its own pixel's depth. */
 const FRONT_BEHIND = 1 - 1 / 1024
 
 /** Whether a blend of material `mat` reflects, the CPU's twin of `frontReflects`: lit, of the physical
- *  model (`blendSurfaceModel`) — what makes a front pass write the reflecting surface. */
+ *  model (`modelFlag`) — what makes a front pass write the reflecting surface. */
 export const blendReflects = (mat: Pick<VisMaterial, 'lit' | 'model'>) => {
   const model = (mat.model ?? 0) & surfaceModel.SURFACE_MODEL_MASK
   return (
@@ -69,7 +57,7 @@ export const frontStageWgsl = (outputs: FrontOutputs) => {
     `frontStageWgsl(${outputs})`,
     [
       blendSurfaceWgsl(lobes),
-      blendSurfaceModel,
+      surfaceModel.modelFlag,
       surfaceModel.surfaceReflects,
       LINE_DASH_WGSL,
       REFLECTION_CONSTANTS_WGSL,
@@ -80,7 +68,7 @@ const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};
 /** Whether a blend of item flags \`flags\` is lit by a lit view, of a model that reflects. */
 fn frontReflects(flags:u32)->bool{
  let lit=(flags&${FLAG_LIT}u)!=0u&&(flags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)==0u;
- return lit&&surfaceReflects(blendSurfaceModel(flags));
+ return lit&&surfaceReflects(modelFlag(flags));
 }
 @fragment fn fsFront(in:VSOut,@builtin(front_facing) front:bool)->FrontOut{
  let g=blendGrads(in);

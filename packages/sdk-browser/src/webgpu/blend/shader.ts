@@ -18,7 +18,6 @@ import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../../reflections/viewLayout.ts'
 import { f0Of } from '../../../../math/src/wgsl/lighting.ts'
 import { forwardReflectionWgsl } from '../../reflections/weight.ts'
-import { blendSurfaceModel } from './frontStageWgsl.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
@@ -73,7 +72,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
-      blendSurfaceModel,
+      surfaceModel.modelFlag,
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
       TRIANGLE_PALETTE_WGSL,
@@ -99,7 +98,7 @@ ${BLEND_DIAGNOSTIC}
  if(!unlit){
   if((flags&${itemFlags.FLAG_LIT}u)!=0u){
    let m=s.metal;
-   surfaceModel=blendSurfaceModel(flags);
+   surfaceModel=modelFlag(flags);
    thinSubsurface=s.subsurface;
    shadowCamera=uni.camPos.xyz;
    blendLobes(in,front,g,s,V,clamped);

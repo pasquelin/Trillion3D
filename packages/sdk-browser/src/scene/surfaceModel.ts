@@ -37,6 +37,17 @@ export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5 } as const
 export const AS_IS_FLAG = 3
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
 export const SURFACE_MODEL_MASK = 7
+/** The surface-buffer flag of a lit surface whose row or item flags `flags` carry its model lane
+ *  (`MODEL_SHIFT`): the physical one, the diffuse or the toon one, as the lane says. The one mapping
+ *  of the opaque shade, the blend fragment and the front stage. */
+export const modelFlag = wgslFn(
+  'modelFlag',
+  [],
+  `fn modelFlag(flags:u32)->u32{
+ let model=(flags>>${MODEL_SHIFT}u)&7u;
+ return select(select(${MODEL_FLAG.physical}u,${MODEL_FLAG.diffuse}u,model==${SURFACE_MODEL.diffuse}u),${MODEL_FLAG.toon}u,model==${SURFACE_MODEL.toon}u);
+}`,
+)
 /** Whether a surface of surface-buffer flags `flags` reflects: the physical model alone has a
  *  specular lobe, the one rule of the opaque trace (the flags it reads) and the forward programs
  *  (their `surfaceModel`, the flag itself). */

@@ -18,10 +18,10 @@ import { lecture, lectureDonnee, siCarte } from './maps.ts'
 import {
   AS_IS_FLAG,
   FOG_FREE_SURFACE_FLAG,
-  MODEL_FLAG,
   MODEL_SHIFT,
   NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
+  modelFlag,
 } from '../../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
@@ -159,9 +159,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
  if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
- var flag=select(1u,${MODEL_FLAG.physical}u,(page.flags&${FLAG_LIT}u)!=0u);
- if(flag==${MODEL_FLAG.physical}u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
- if(flag==${MODEL_FLAG.physical}u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
+ var flag=select(1u,modelFlag(page.flags),(page.flags&${FLAG_LIT}u)!=0u);
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  if(DOUBLE_SIDED&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
@@ -176,6 +174,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     [
       SHADE_ENTRY_WGSL,
       NORMAL_VIEW_COLOR_WGSL,
+      modelFlag,
       EMISSIVE_AO_FLAG_WGSL,
       SHADE_DECL_WGSL,
       ORM_LAW_WGSL,
