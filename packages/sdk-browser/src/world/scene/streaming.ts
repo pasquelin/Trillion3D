@@ -5,7 +5,7 @@ import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from '../render/sessionState.ts'
-import type { ExplorerSession } from '../session/session.ts'
+import { sayFatal, type ExplorerSession } from '../session/session.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 type Inputs = {
@@ -28,29 +28,11 @@ export function streamFailed(
   const { scope, emit, diagnose } = session
   const coverageReady = engine?.metrics().coverageReady
   const recovered = coverageReady === true
-  emit(
-    recovered
-      ? {
-          eventVersion: 1,
-          type: 'degraded',
-          audience: 'diagnostic',
-          recovered: true,
-          code: 'PAGE_STREAM_FAILED',
-          detail,
-        }
-      : {
-          eventVersion: 1,
-          type: 'fatal',
-          audience: 'blocking',
-          recovered: false,
-          code: 'PAGE_STREAM_FAILED',
-          detail,
-        },
-  )
-  diagnose(
-    'coverage-streaming-failed',
-    'Page load failed; the coarse cover already resident is kept if whole',
-    {
+  const code = 'PAGE_STREAM_FAILED'
+  const record = {
+    phase: 'coverage-streaming-failed',
+    message: 'Page load failed; the coarse cover already resident is kept if whole',
+    context: {
       kind: 'error',
       version: 1,
       error: detail,
@@ -59,7 +41,12 @@ export function streamFailed(
       recovered,
       scope,
     },
-  )
+  }
+  // A fatal is said by the one builder of a fatal (`sayFatal`); a recovered failure is a
+  // diagnostic event of its own type.
+  if (!recovered) return sayFatal(session, code, detail, record)
+  emit({ eventVersion: 1, type: 'degraded', audience: 'diagnostic', recovered, code, detail })
+  diagnose(record.phase, record.message, record.context)
 }
 
 /**
