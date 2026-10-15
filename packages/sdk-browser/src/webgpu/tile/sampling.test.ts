@@ -105,16 +105,25 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
 test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
   const shaded = SHADED,
     module = wgslModule(maskAlphaWgsl(true)),
-    // The shadow cutout's own functions: its read, its sampled read and its read at a level.
-    shadow = functionsOf(module, ['maskAlpha', 'maskAlphaSampled', 'maskAlphaAt'])
+    // The shadow cutout's footprint of the one sampling: its read, sampled read and read at a level.
+    shadow = functionsOf(module, [
+      'colorSampleFinest',
+      'colorSampleFinestSampled',
+      'colorSampleFinestAt',
+    ])
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/)
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/)
   assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/)
   assert.doesNotMatch(shadow, /taps/i)
-  assert.equal(
-    maskAlphaWgsl(false).text,
-    'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
-  )
+  assert.match(shadow, /colorBlend\(s,uv,lod,nearest,true\)/)
+  for (const [finest, read] of [
+    [false, 'colorSample'],
+    [true, 'colorSampleFinest'],
+  ] as const)
+    assert.equal(
+      maskAlphaWgsl(finest).text,
+      `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read}(slot,uv,ddx,ddy,sampled).w;}`,
+    )
 })
 
 /** The shader's own ratio, taps and level lines, run on the CPU — the taps, and how many levels
