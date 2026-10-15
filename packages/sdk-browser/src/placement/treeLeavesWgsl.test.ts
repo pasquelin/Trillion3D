@@ -39,7 +39,7 @@ test('every leaf the GPU writes is the CPU formula’s, word for word', () => {
     [
       ...DOUBLE_HELPERS,
       ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodesNode', 'nodesWord'],
-      ...['framesRow', 'framesWord', 'writeLeaf'],
+      ...['framesRow', 'framesWord', 'markReach', 'reachUnbounded', 'writeLeaf'],
     ],
     {
       nodes,

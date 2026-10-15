@@ -18,7 +18,7 @@
  */
 import { CARRIED_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
-import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
+import { markReachWgsl, reachUnboundedWgsl } from '../deformation/halfFloat.ts'
 import { nodeTableWgsl } from '../gpu/dag/nodeTable.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
@@ -47,7 +47,7 @@ fn writeLeaf(w:u32){
  // The reach its mark carries (its frame row's mark word), none past every finite one.
  let mark=framesWord(w,${MARK_WORD}u);
  var reach=vec2u(0u,0u);
- if((mark>>16u)<${REACH_UNBOUNDED}u){reach=fromF32(bitcast<u32>(unpack2x16float(mark).y));}
+ if(!reachUnbounded(mark)){reach=fromF32(bitcast<u32>(markReach(mark)));}
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
  for(var a=0u;a<3u;a++){
@@ -68,6 +68,8 @@ fn writeLeaf(w:u32){
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     fromF32,
+    markReachWgsl,
+    reachUnboundedWgsl,
     dAdd,
     dSub,
     CARRIED_BOX_WGSL,
