@@ -40,11 +40,10 @@ export function run(cases: SkyCase[]) {
           box: { low: [-1.5, 0, -6], high: [1.5, 2, -5.96] },
           color: [0.2, 0.3, 0.4],
           mirror: true,
+          rough,
         },
       ]
       const { frame, shown } = boxFrame(blocks, EYE, TARGET, WIDTH, HEIGHT)
-      for (let p = 0; p < WIDTH * HEIGHT; p++)
-        if (shown[p] >= 0 && Math.floor(shown[p] / 6) === 1) frame.normals[p * 4 + 3] = rough
       const environment =
         declared === undefined
           ? undefined

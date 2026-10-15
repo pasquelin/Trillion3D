@@ -78,11 +78,9 @@ export function roomFrame(
 ) {
   const faces = FACES.map((face, k) => (k === FAR ? { ...face, color: far } : face))
   const blocks: Block[] = faces.map(({ axis, side, color }) => ({ box: slab(axis, side), color }))
-  const patch = blocks.push({ box: PATCH, color: faces[2].color, mirror: true }) - 1
+  // The patch is a glossy metal of roughness `rough`.
+  const patch = blocks.push({ box: PATCH, color: faces[2].color, mirror: true, rough }) - 1
   const { frame, view, shown } = boxFrame(blocks, eye, target, width, height)
-  // The patch is a glossy metal: its roughness, in every pixel it shows.
-  for (let p = 0; p < width * height; p++)
-    if (shown[p] >= 0 && Math.floor(shown[p] / 6) === patch) frame.normals[p * 4 + 3] = rough
   const room: RigFrame = { ...frame, proxy: roomProxy(faces), background: 0xffffff }
   return { frame: room, view, shown, floor: patch }
 }

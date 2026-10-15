@@ -18,9 +18,9 @@ export const MIRROR = {
 /** The eye of the frame: at the origin, looking down -z, 60° vertically. */
 const eye = () => camera([0, 0, 0], [0, 0, -1], MIRROR.size, MIRROR.size, Math.PI / 3, MIRROR.near)
 
-/** The frame: its floor a polished metal, white and of metalness one, so that the share is the
- *  lobe's own weight. */
-export function mirrorScene(): RigFrame {
+/** The frame: its floor a metal of roughness `rough` (polished by default), white and of metalness
+ *  one, so that the share is the lobe's own weight. */
+export function mirrorScene(rough = 0): RigFrame {
   const { size, quad, floor } = MIRROR
   const view = eye()
   const frame = rigFrameOf([size, size], view.m, [0, 0, 0])
@@ -34,7 +34,7 @@ export function mirrorScene(): RigFrame {
       const onFloor = !onQuad && ray[1] < 0
       if (!onQuad && !onFloor) continue
       frame.depth[at] = view.depthOf(d, onQuad ? 6 / -d[2] : -1 / d[1])
-      paintPixel(frame, at, !onQuad, onQuad ? [0, 0, 1] : [0, 1, 0], onQuad ? quad : floor)
+      paintPixel(frame, at, !onQuad, onQuad ? [0, 0, 1] : [0, 1, 0], onQuad ? quad : floor, rough)
     }
   return frame
 }

@@ -14,8 +14,9 @@ import {
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
 
-/** A box of the frame: its geometry, its colour, and whether it is a mirror. */
-export type Block = { box: Box; color: V3; mirror?: boolean }
+/** A box of the frame: its geometry, its colour, and whether it is a mirror, of roughness `rough`
+ *  (zero by default). */
+export type Block = { box: Box; color: V3; mirror?: boolean; rough?: number }
 
 /** The vertical field of view a box frame is seen through by default. */
 export const BOX_FOV = 50 * DEG2RAD
@@ -40,7 +41,7 @@ export function boxFrame(
   for (let p = 0; p < pixels; p++) {
     if (shown[p] < 0) continue
     const block = blocks[Math.floor(shown[p] / 6)]
-    paintPixel(frame, p, !!block.mirror, faceNormal(shown[p] % 6), block.color)
+    paintPixel(frame, p, !!block.mirror, faceNormal(shown[p] % 6), block.color, block.rough)
   }
   return { frame, view: view as Camera, shown }
 }

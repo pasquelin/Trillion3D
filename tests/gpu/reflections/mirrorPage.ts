@@ -49,19 +49,18 @@ export type CoatReading = { bare: number[]; coated: number[]; size: number }
  *  clear coat of the strength `coat` on its own normal and as smooth as the floor of roughness
  *  allows, or bare. */
 export function roughFloor(coat: boolean, rough = ROUGH) {
-  const scene = mirrorScene()
+  const scene = mirrorScene(rough)
+  if (!coat) return scene
   const { size } = MIRROR
   const lobes = new Uint32Array(size * size * 4)
   for (let p = 0; p < size * size; p++) {
     if (scene.flags[p] !== MODEL_FLAG.physical) continue
-    scene.normals[p * 4 + 3] = rough
-    if (!coat) continue
     scene.flags[p] |= PHYSICAL_SURFACE_FLAG
     // No anisotropy; a coat of one on the normal (0, 1, 0), roughness zero: the words
     // `physicalTexel` writes — the octahedral map of +y is (0, 1), the unorm pair (0, 1).
     lobes.set([0, OCT_UP, COAT_ONE, 0], p * 4)
   }
-  if (coat) scene.lobes = lobes
+  scene.lobes = lobes
   return scene
 }
 

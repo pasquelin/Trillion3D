@@ -52,16 +52,18 @@ export function rigFrameOf(
 }
 
 /** Paints pixel `p` of `frame`, of normal `normal`, lit to `color`: a mirror — a physical surface,
- *  roughness zero, a white metal — or a diffuse surface of roughness one and albedo `color`. */
+ *  roughness `rough` (zero by default), a white metal — or a diffuse surface of roughness one and
+ *  albedo `color`. */
 export function paintPixel(
   frame: RigFrame,
   p: number,
   mirror: boolean,
   normal: readonly number[],
   color: readonly number[],
+  rough = 0,
 ) {
   frame.flags[p] = mirror ? MODEL_FLAG.physical : MODEL_FLAG.diffuse
-  frame.normals.set([...normal, mirror ? 0 : 1], p * 4)
+  frame.normals.set([...normal, mirror ? rough : 1], p * 4)
   frame.base.set(mirror ? [1, 1, 1, 1] : [...color, 0], p * 4)
   frame.radiance.set([...color, 1], p * 4)
 }
