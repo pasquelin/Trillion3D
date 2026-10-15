@@ -61,8 +61,6 @@ export type ThinReading = {
   /** Floor pixels whose mirror ray meets the crate, and of them those showing its colour. */
   crate: number
   crateCrate: number
-  /** The reflection of the pole's and the fence's pixels themselves: their colours, as seen. */
-  samples: Record<string, number[]>
 }
 
 export function run() {
@@ -75,7 +73,6 @@ export function run() {
       WIDTH,
       HEIGHT,
     )
-    const hue = hueOf
     const { exact, origins, mirrors, boxes } = exactRays(
       view,
       BLOCKS,
@@ -129,15 +126,15 @@ export function run() {
       if (exact[p] < -1 || !interior(exact, WIDTH, HEIGHT, p) || !answered(p)) continue
       if (exact[p] === WALL_AT && behindThin(p)) {
         result.behind++
-        if (hue(rgb(p), WALL.color) > 0.98) result.behindWall++
+        if (hueOf(rgb(p), WALL.color) > 0.98) result.behindWall++
       }
       if (exact[p] === WALL_AT) {
         result.wallAll++
-        if (hue(rgb(p), WALL.color) > 0.98) result.wallHue++
+        if (hueOf(rgb(p), WALL.color) > 0.98) result.wallHue++
       }
       if (exact[p] === CRATE_AT) {
         result.crate++
-        if (hue(rgb(p), CRATE.color) > 0.98) result.crateCrate++
+        if (hueOf(rgb(p), CRATE.color) > 0.98) result.crateCrate++
       }
     }
   })
