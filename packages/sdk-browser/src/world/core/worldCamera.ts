@@ -10,6 +10,7 @@ import { createCharacterCameraControls } from '../../camera/controls/characterCo
 import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts'
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts'
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts'
+import type { ControlCamera } from '../../camera/controls/types.ts'
 
 /**
  * The ways a page can steer the camera with the mouse and keyboard, or `'none'`. `'firstPerson'`
@@ -55,7 +56,7 @@ export const followPageCamera =
     copyWorldCamera(camera(), into, drawnAspect(canvas))
 
 /** The controller a world drives its camera with, `none` for a page that poses it itself. */
-export function worldControls(kind: WorldControls, camera: Camera, surface: HTMLElement) {
+export function worldControls(kind: WorldControls, camera: ControlCamera, surface: HTMLElement) {
   switch (kind) {
     case 'orbit':
       return createOrbitCameraControls(camera, surface)

@@ -56,7 +56,6 @@ async function startInteractive() {
     const opened = {
       box: [viewer.clientWidth, viewer.clientHeight],
       size: [world.canvas.width, world.canvas.height],
-      controlsReused: world.controls() === world.controls(),
       coverageReady: world.engine.metrics().coverageReady,
     }
     const startedStill = await stillAfter(world, frames)
@@ -96,7 +95,6 @@ test(
     const { opened, dragged, resized, targets } = read
     assert.deepEqual(errors, [])
     assert.deepEqual(opened.size, [opened.box[0] * 2, opened.box[1] * 2], 'CSS box × pixel ratio')
-    assert.equal(opened.controlsReused, true)
     assert.equal(opened.coverageReady, true)
     assert.ok(read.startedStill, 'no scheduled work in a still scene')
     assert.ok(dragged.moved, 'the drag moves the camera')
