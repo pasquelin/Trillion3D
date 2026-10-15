@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
 import { impostorCardCorners } from './card.fixture.ts'
-import { spriteAt } from '../visibility/shader/spriteWgsl.ts'
+import { spriteAt } from '../visibility/shader/spriteAt.fixture.ts'
 
 /** A projection whose image-plane axes are +x and +y: the corners then read off directly. */
 const toClip = new Float64Array([1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
