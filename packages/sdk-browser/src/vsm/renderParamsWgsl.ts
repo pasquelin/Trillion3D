@@ -35,7 +35,6 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['viewRow2', 'vec4f'],
   ['near', 'f32'],
   ['threshold', 'f32'],
-  ['smallCasterSq', 'f32'],
   ['rowCount', 'u32'],
   ['viewCount', 'u32'],
   ['chunk', 'u32'],
@@ -44,7 +43,6 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['chunkCount', 'u32'],
   ['cmdCapacity', 'u32'],
   ['pairCapacity', 'u32'],
-  ['pad', 'u32'],
 ] as const)
 const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_STRUCT_WGSL',
@@ -56,9 +54,8 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   [VSM_RENDER_PARAMS_STRUCT_WGSL],
   `
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
- *  corners, flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws), and the radius of
- *  its whole object (f32 bits, 0 when unknown: the row's sphere stands in). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,objectRadius:u32,pad1:u32,}
+ *  corners and flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws). */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 ${wgslConsts({

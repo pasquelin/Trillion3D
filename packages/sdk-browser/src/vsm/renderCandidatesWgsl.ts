@@ -57,9 +57,8 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
 fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
  return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||(page.flags&${FLAG_SPRITE}u)!=0u||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
 }
-/** Appends the row's candidate when the main view's level of detail, residency folded, selects it;
- *  \`objectKnown\` carries the radius of its whole object (0, the row's sphere standing in, else). */
-fn vsmRenderAppendCandidate(row:u32,page:PageInfo,objectKnown:bool){
+/** Appends the row's candidate when the main view's level of detail, residency folded, selects it. */
+fn vsmRenderAppendCandidate(row:u32,page:PageInfo){
  let lod=lods[row];
  let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
  let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
@@ -67,7 +66,7 @@ fn vsmRenderAppendCandidate(row:u32,page:PageInfo,objectKnown:bool){
  let s=spheres[row];
  let flags=vsmRenderCandidateFlags(mobility[row],page.deformOutput);
  let at=atomicAdd(&counts[0],1u);
- candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags,select(0u,bitcast<u32>(lod.radii.z),objectKnown),0u);
+ candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags);
 }`,
 )
 
@@ -80,7 +79,7 @@ export const vsmCandidatesKernel = (name: string, blend: boolean) => `
  let row=${blend ? 'frame.rowFirst+i' : 'i'};
  let page=pages[row];
  if(vsmRenderCasterSkipped(page,row,${blend})){return;}
- vsmRenderAppendCandidate(row,page,${!blend});
+ vsmRenderAppendCandidate(row,page);
 }
 `
 

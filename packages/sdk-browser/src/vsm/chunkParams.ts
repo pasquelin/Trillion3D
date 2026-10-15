@@ -27,11 +27,6 @@ export interface VsmRenderCamera {
   threshold: number
 }
 
-/** Declared: a caster whose radius is under a hundredth of its distance from the eye (0.57°, about
- *  5 pixels of radius in a 1 080-pixel, 90° view) is not drawn into an uncached map; squared, as
- *  the cull compares squares. Larger drops more small casters from fresh maps; 0 keeps them all. */
-const VSM_SMALL_CASTER_SQ = 0.01 * 0.01
-
 /** Bytes of the parameters a kernel binds from its chunk's slot (`VsmRenderParams`). */
 export const VSM_RENDER_PARAMS_BYTES = VSM_RENDER_PARAMS.words * 4
 /** The chunks' parameter slots on a device of `limits`, as many as a frame's chunks (`offset`
@@ -131,7 +126,6 @@ function vsmRenderParams(
     }
     f[o + at.near] = camera.near
     f[o + at.threshold] = camera.threshold
-    f[o + at.smallCasterSq] = VSM_SMALL_CASTER_SQ
     u[o + at.rowCount] = chunking.rowCount
     u[o + at.viewCount] = chunking.viewCount
     u[o + at.chunk] = c

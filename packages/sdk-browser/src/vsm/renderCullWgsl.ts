@@ -31,7 +31,7 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
  *   their world sphere (split double), corner count, cache-as-dynamic bit (engine mobility,
  *   `webgpu/shadow/mobility.ts`) and deforming bit (`vsmRenderCandidateFlags`).
  * - `vsmRenderCull` (per candidate × map view): the per-page draw commands:
- *   distance cull, static-layer test, small-caster test, frustum (the box frustum test with
+ *   distance cull, static-layer test, frustum (the box frustum test with
  *   the dynamic depth cull range), then per mip: screen rect, fine caster, stale rect
  *   clip, overlap with any valid page (page-mark pyramid + receiver cover), and one command (row,
  *   mip view, static, page rect, flag mask, dirty flags).
@@ -99,18 +99,9 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  // The receiver cover and the mark mask depend on the cache state.
  let useCover=pd.useCover&&!staticLayer;
  let markMask=select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer);
- // The small-caster cull on uncached maps, an
- // instance test: the whole object's radius, not the cluster's, so a small part of a large object
- // is never dropped alone. Its centre is not kept per row: the distance is the cluster's less the
- // object's radius, nearer than the object's centre can be — it never drops what the object's own test keeps.
- if(pd.uncached){
-  let objectRadius=bitcast<f32>(cand.objectRadius);
-  let d=(cand.c.xyz-params.eyeHigh)+(cand.l-params.eyeLow);
-  if(objectRadius>0.0){
-   let near=max(length(d)-objectRadius,0.0);
-   if(objectRadius*objectRadius<params.smallCasterSq*near*near){return;}
-  }else if(radius*radius<params.smallCasterSq*dot(d,d)){return;}
- }
+ // One caster rule for every map, cached or not: a caster's size is judged in the map's own
+ // pixels alone (\`vsmIsFineCaster\`, per mip below), never by its distance to the eye, which a
+ // cached page would hold from the frame it was drawn.
  // Frustum cull; non-static geometry also within the depth range (0, the largest float).
  let extent=vec3f(radius);
  let boxPoint=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
