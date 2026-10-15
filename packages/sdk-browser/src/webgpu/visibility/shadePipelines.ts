@@ -38,8 +38,6 @@ export function createWebgpuShadePipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
   emissiveAo = true,
-  /** What the frame's cache holds for the pixels to read (`./shadeCache.ts`); none, each composes. */
-  cached: Readonly<Record<string, number>> = {},
 ) {
   const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device)
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] })
@@ -58,8 +56,8 @@ export function createWebgpuShadePipelines(
     layer: boolean,
   ): GPURenderPipelineDescriptor => {
     const constants: Record<string, number> = single
-      ? { ...cached, CLASS_KEY: key, SINGLE_CLASS: 1 }
-      : { ...cached, CLASS_KEY: key }
+      ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
+      : { CLASS_KEY: key }
     if (!layer) constants.EMISSIVE_AO = 0
     return {
       layout: single ? layout : tileLayout,

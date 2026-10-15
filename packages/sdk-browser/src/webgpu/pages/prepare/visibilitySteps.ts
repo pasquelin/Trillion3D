@@ -147,7 +147,7 @@ export async function prepareShadeClasses(
 ) {
   const { vis, diag } = rt
   const classes = vis.shadeCensus!.keys
-  // The frame's cache first: its passes decide what the class pipelines read of it.
+  // The frame's cache first: the class pipelines' group binds its buffer.
   vis.shadeCache ??= await createShadeCache(gpuDevice)
   ;({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
@@ -161,7 +161,6 @@ export async function prepareShadeClasses(
     vis.writesFeedback,
     undefined,
     vis.writesEmissiveAo,
-    vis.shadeCache.constants,
   ))
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,

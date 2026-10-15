@@ -119,7 +119,6 @@ async function feedbackPipelines(
     feedback,
     vis.shadeBindGroupLayout,
     vis.writesEmissiveAo,
-    vis.shadeCache?.constants,
   )
   const blendMade =
     vis.blendPipelines &&

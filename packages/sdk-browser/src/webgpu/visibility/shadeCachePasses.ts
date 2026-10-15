@@ -6,9 +6,6 @@ import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeB
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
-/** The pipeline constant that turns the cache on in the shade and the triangles passes. */
-export const CACHED = { SHADE_CACHE: 1 }
-
 /** The passes' pipelines and layouts, for what the session caches; none on a device that refuses
  *  them. */
 export async function cachePasses(device: GPUDevice) {
@@ -44,9 +41,9 @@ export async function cachePasses(device: GPUDevice) {
         [rowsLayout],
         rowsModule,
         ['shade_clear', 'shade_marks', 'shade_rows'],
-        { ...CACHED, ...(span !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: span }) },
+        span !== DEFAULT_GROUP_WIDTH ? { GROUP_WIDTH: span } : undefined,
       ),
-      buildComputeStages(device, [trisLayout], trisModule, ['shade_tris'], CACHED),
+      buildComputeStages(device, [trisLayout], trisModule, ['shade_tris']),
     ])
     const work = device.createBuffer({
       label: 'Trillion3D material cache dispatch',

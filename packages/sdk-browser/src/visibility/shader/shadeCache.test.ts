@@ -24,7 +24,6 @@ const words: number[] = []
 const scope = {
   ...F32_SCOPE,
   ...wgslConstants(READ),
-  SHADE_CACHE: true,
   shadeCache: words,
   // WGSL's 3×3 by its columns, and its determinant, in binary32.
   mat3x3f: (...columns: V[]) => columns,

@@ -79,9 +79,7 @@ const LAYOUT_WGSL = wgslBlock(
 /** Plane A of row \`row\`'s marks, of \`rows\` laid; plane B follows it. */
 fn rowMarks(rows:u32,row:u32)->u32{return ROW_RECORDS+rows*ROW_RECORD_WORDS+row*ROW_MARK_WORDS;}
 /** The first word of the triangles, of \`rows\` laid. */
-fn cachedTriangles(rows:u32)->u32{return ROW_RECORDS+rows*(ROW_RECORD_WORDS+ROW_MARK_WORDS);}
-/** The passes ran this frame: the pixels read what they stored. */
-override SHADE_CACHE:bool=false;`,
+fn cachedTriangles(rows:u32)->u32{return ROW_RECORDS+rows*(ROW_RECORD_WORDS+ROW_MARK_WORDS);}`,
 )
 
 /** A row's frame and its composition, the one text the passes and the resolve compile. */
@@ -106,7 +104,7 @@ fn cacheVec3(at:u32)->vec3f{return bitcast<vec3f>(vec3u(shadeCache[at],shadeCach
 fn cacheVec4(at:u32)->vec4f{return bitcast<vec4f>(vec4u(shadeCache[at],shadeCache[at+1u],shadeCache[at+2u],shadeCache[at+3u]));}
 /** Row \`row\`'s frame: as the rows pass stored it, or composed here from \`world\`. */
 fn rowFrame(row:u32,world:mat4x4f)->RowFrame{
- if(!SHADE_CACHE||row>=shadeCache[SHADE_CACHE_ROWS]){return composeRowFrame(world);}
+ if(row>=shadeCache[SHADE_CACHE_ROWS]){return composeRowFrame(world);}
  let at=ROW_RECORDS+row*ROW_RECORD_WORDS;
  let adj=mat3x3f(cacheVec3(at),cacheVec3(at+3u),cacheVec3(at+6u));
  return RowFrame(InvT3(adj,bitcast<f32>(shadeCache[at+9u]),shadeCache[at+10u]!=0u),shadeCache[at+11u]!=0u);
@@ -114,7 +112,7 @@ fn rowFrame(row:u32,world:mat4x4f)->RowFrame{
 /** The slot of triangle \`tri\` of row \`row\`, \`NO_INDEX\` for one the cache does not hold. */
 fn cachedSlot(row:u32,tri:u32)->u32{
  let rows=shadeCache[SHADE_CACHE_ROWS];
- if(!SHADE_CACHE||row>=rows){return NO_INDEX;}
+ if(row>=rows){return NO_INDEX;}
  let word=shadeCache[rowMarks(rows,row)+PLANE_WORDS+bitWord(tri)];
  let bit=bitMask(tri);
  if((word&bit)==0u){return NO_INDEX;}
