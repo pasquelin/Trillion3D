@@ -13,7 +13,7 @@ import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 /** The names a wide tree's reader is written under: its two functions, the storage variable whose
  *  `boundsWord`, `childrenWord` and `words` hold the tree, the function reading a word as a float, and
  *  the one it writes reading three consecutive words as a vector (`vec`). */
-export type WideNodeNames = {
+type WideNodeNames = {
   box: string
   child: string
   source: string

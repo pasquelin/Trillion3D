@@ -113,4 +113,3 @@ export const halfLayouts = (device: GPUDevice) => {
     ]),
   }
 }
-export type HalfLayouts = ReturnType<typeof halfLayouts>

@@ -18,7 +18,7 @@ import {
  * Everything else — the slab tests, the nearest child first, the stack, the retest of a popped node
  * against the nearest hit — is written once.
  */
-export type WideTraversal = {
+type WideTraversal = {
   name: string
   /** Parameters after `limit`, with their leading comma. */
   params: string

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 
 /** A simulated atlas: its extent and its texels, row by row, layer by layer. */
-export type SimulatedAtlas = { width: number; height: number; layers: number; texels: number[][] }
+type SimulatedAtlas = { width: number; height: number; layers: number; texels: number[][] }
 
 /** An atlas of `extent` (width, height, layers), each texel `fill()`ed. */
 export const simulatedAtlas = (

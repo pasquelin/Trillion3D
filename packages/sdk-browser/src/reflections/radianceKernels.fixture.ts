@@ -23,7 +23,7 @@ export const fakePyramid = (levels: number, width: number, height: number, view:
 
 /** What a recorded build saw: the pipelines it set, the workgroups it dispatched and the entries
  *  of the groups it made, in order. */
-export type BuildRecord = {
+type BuildRecord = {
   pipelines: unknown[]
   dispatches: number[][]
   groups: GPUBindGroupEntry[][]

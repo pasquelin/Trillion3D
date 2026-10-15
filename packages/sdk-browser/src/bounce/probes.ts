@@ -20,7 +20,7 @@ import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 /** What the probes read of the scene's proxy (`gpu/dag/proxyInstances.ts`, through the selection): what its
  *  rays are traced through, when a placement wears a proxy, and the world boxes of the placements that do,
  *  which the occupancy map keeps. */
-export type ProbeScene = {
+type ProbeScene = {
   proxy(): ProxyResources | undefined
   boxes(): ProxyBoxes
 }

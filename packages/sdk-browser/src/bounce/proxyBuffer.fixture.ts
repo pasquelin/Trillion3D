@@ -11,7 +11,7 @@ import type { ArenaColumns } from './runtimeOracle.fixture.ts'
 import { f32Bits } from '../../../math/src/float/bits.ts'
 
 /** The header's fields, by name (`RUNTIME_HEADER`). */
-export type ProxyHeader = Record<keyof typeof RUNTIME_HEADER, number>
+type ProxyHeader = Record<keyof typeof RUNTIME_HEADER, number>
 
 /** The words of `values`, a float array, as they lie. */
 const wordsOf = (values: Float32Array) =>

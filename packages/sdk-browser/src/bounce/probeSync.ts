@@ -13,7 +13,7 @@ export const NO_PROXY_BOXES: ProxyBoxes = {
 }
 
 /** What a sync of the probes with the proxy's placements touches. */
-export type ProbeSyncParts = {
+type ProbeSyncParts = {
   boxes(): ProxyBoxes
   cascades: { replan(bounds: readonly number[]): boolean; invalidLevels: number }
   occupancy: { moved(boxes: ArrayLike<number>, rows: MovedRows): void }

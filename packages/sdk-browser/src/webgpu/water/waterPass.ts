@@ -43,7 +43,7 @@ export function waterWithoutFeedback(code: string, lobes: boolean) {
 
 /** What the pass is told of the lobes: the blend module that holds the lobed stage
  *  (`fsWaterLobed`), compiled on demand, and whether a transmissive surface carries a lobe now. */
-export type WaterLobes = { module: () => Promise<GPUShaderModule | undefined>; now: boolean }
+type WaterLobes = { module: () => Promise<GPUShaderModule | undefined>; now: boolean }
 
 /**
  * Builds the pass for a scene that carries a transmissive item. `module` and `layout` are the

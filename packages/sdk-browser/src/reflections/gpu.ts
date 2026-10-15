@@ -152,7 +152,7 @@ export function reflectionGroup(
 }
 
 /** What a frame holds that the reflection reads (`reflectionLightView`). */
-export type ReflectionHost = {
+type ReflectionHost = {
   gpu: {
     reflection?: ScreenReflection
     deferred?: { uniform: GPUBuffer }

@@ -7,7 +7,7 @@ import type { PageSurface } from '../../page/surface.ts'
 
 /** The targets of the front stage of `outputs`, in its outputs' order: the Hi-Z front layer, the surface
  *  flags, then the normal and roughness, then the lobes texel (`../../reflections/frontLayer.ts`). */
-export const frontStageTargets = (outputs: FrontOutputs): GPUColorTargetState[] => [
+const frontStageTargets = (outputs: FrontOutputs): GPUColorTargetState[] => [
   { format: FRONT_TARGET_FORMATS.front },
   { format: FRONT_TARGET_FORMATS.flags },
   ...(outputs > 0 ? [{ format: FRONT_TARGET_FORMATS.normals }] : []),
