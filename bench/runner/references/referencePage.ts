@@ -36,6 +36,7 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
     ...explorerPage.explorerOptions(options, factory),
     reference: true,
   })
+  explorer.setClearColor(explorerPage.BENCH_BACKGROUND)
   const reference = explorer.reference,
     captureReference = explorer.captureReference
   if (!reference || !captureReference) return { error: 'this dist has no reference mode' }

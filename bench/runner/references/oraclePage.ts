@@ -64,9 +64,9 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     maxResidentPages: options.maxPages,
     preload: 'visible',
     engine: factory,
-    clearColor: 0x000000,
     diagnosticDetail: 'summary',
   })
+  explorer.setClearColor(0x000000)
   for (const light of options.lights) explorer.addLight(light)
   explorer.setEnvironment({ exposure: options.exposure })
   explorer.setPose(options.pose)

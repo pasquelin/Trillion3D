@@ -5,6 +5,9 @@ import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/fac
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
 import type { MeasureViewOptions } from './measureOptions.ts'
 
+/** The bench's clear colour, `0xrrggbb`: each page writes it with `setClearColor` once opened. */
+export const BENCH_BACKGROUND = 0x2a303c
+
 /**
  * MeasuredWorld settings for a series: what the bench asked for, and nothing else. A missing
  * option leaves the engine its own default; none is invented here.
@@ -31,7 +34,6 @@ export function explorerOptions(
     texturePoolBytes: options.texturePoolBytes ?? undefined,
     preload: 'visible',
     engine: factory,
-    clearColor: 0x2a303c,
     // An engine DIAGNOSTIC variant, when the bench asks for one: it produces a different
     // image by construction, and the SDK refuses it outside the "trace" detail.
     diagnosticDetail: options.trace ? 'trace' : 'summary',

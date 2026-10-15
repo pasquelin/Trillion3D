@@ -30,9 +30,9 @@ async function walkTheTrajectory() {
     preload: 'visible',
     textureSource: 'cache',
     temporalAntialiasing: true,
-    clearColor: 0x2a303c,
     onDiagnostic: (event) => void events.push(event),
   })
+  world.setClearColor(0x2a303c)
   try {
     const readings = []
     for (let point = 0; point < POINTS; point++) {
