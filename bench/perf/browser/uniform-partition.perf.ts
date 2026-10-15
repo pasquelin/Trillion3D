@@ -80,9 +80,7 @@ const words = new Uint32Array(PARTITION_UNI.words),
 const measureUniform = await measure({
   name: 'partition uniform',
   fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
-  cas: [
-    { name: 'one frame', input: image(), size: 1 },
-  ],
+  cas: [{ name: 'one frame', input: image(), size: 1 }],
   calculation: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows)
     return words
