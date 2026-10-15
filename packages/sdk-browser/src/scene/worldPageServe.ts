@@ -7,7 +7,7 @@
 // A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots) is a `WGP3` geometry page:
 // its vertices in world space, with the normals, texture coordinates and colour of the objects it
 // stands for. The server is the ONE page source of the world (`PageSource`), read at a page's world
-// address (`worldRootsPageAddress`), in the shape the engine already uploads, binds and draws, no
+// address (`worldPageAddress`), in the shape the engine already uploads, binds and draws, no
 // second draw stack and no second BVH (rule 7): `read` gives the page's own bytes, which a WebGPU
 // page slot holds and its shaders decode in place, as any geometry page's. What stays resident is
 // the caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold) and the GPU
@@ -16,15 +16,13 @@
 import { firstTrue } from '../../../math/src/scalar/search.ts'
 import {
   firstPage,
+  worldPageAddress,
+  worldPageLocation,
   type WorldRoots,
   type WorldRootsCluster,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts'
-
-/** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
-export const worldRootsPageAddress = (url: string, bundle: number, offset: number) =>
-  `${url}#${bundle}:${offset}`
 
 /**
  * The world clusters of a table in the cook's rank, each the fields the cut projects, the primitive
@@ -65,23 +63,11 @@ export function worldRootPages(
       ...cut,
       lodError: cut.lodError + slack,
       parentError: root ? null : cut.parentError! + slack,
-      url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
+      url: bundle === null || offset === null ? '' : worldPageAddress(url, bundle, offset),
       ...(holder !== undefined && { holder }),
     }
   })
   return { roots, held, pages, origins, slack }
-}
-
-/** The bundle and the offset inside it that a world page address names, read off its last `#`
- *  and the `:` after it. */
-function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
-  const hash = address.lastIndexOf('#'),
-    colon = address.indexOf(':', hash)
-  const bundle = Number(address.slice(hash + 1, colon)),
-    offset = Number(address.slice(colon + 1))
-  if (hash < 0 || colon < 0 || !Number.isInteger(bundle) || !Number.isInteger(offset))
-    throw new Error(`WORLD_PAGE_ADDRESS: ${address}`)
-  return { bundle, offset }
 }
 
 /** The rank among bundle `bundle`'s pages of the one at `offset`, its records lying in binary
@@ -126,13 +112,12 @@ export function worldPageServer(
     const first = firstPage(table, bundle),
       others: string[] = []
     for (let k = 0; k < table.bundles[bundle].count; k++)
-      if (k !== rank)
-        others.push(worldRootsPageAddress(url, bundle, table.pages.at(first + k).offset))
+      if (k !== rank) others.push(worldPageAddress(url, bundle, table.pages.at(first + k).offset))
     if (others.length) landed?.(others)
   }
   /** The page at `address`, its bundle read at its asker's `priority`. */
   const serve = async (address: string, signal?: AbortSignal, priority?: number) => {
-    const { bundle, offset } = worldRootsPageLocation(address)
+    const { bundle, offset } = worldPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
     // A caller gone already joins nothing.
     signal?.throwIfAborted()

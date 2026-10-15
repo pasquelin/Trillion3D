@@ -7,14 +7,14 @@ import { worldPage } from './worldRootsPages.fixture.ts'
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 import { worldRootsBinSource, worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'
-import { worldRootsPageAddress } from './worldPageServe.ts'
+import { worldPageAddress } from '../../../sdk-core/src/manifest/worldRoots.ts'
 
 test('every page of the cooked world is served as its own bytes, in world space', async () => {
   const { table, source } = worldRootsPageFixtureSource()
   assert.equal(table.pages.count, 4)
   for (let at = 0; at < table.pages.count; at++) {
     const { bundle, offset } = table.pages.at(at)
-    const address = worldRootsPageAddress(table.payload.url, bundle, offset),
+    const address = worldPageAddress(table.payload.url, bundle, offset),
       page = await source.page(address),
       x = bundle // the fixture's page `bundle` is the triangle at x = bundle
     assert.deepEqual([...page.bytes], [...worldPage(x).bytes], `page ${bundle}: the cook's bytes`)
@@ -48,18 +48,18 @@ test('a bundle of several pages resolves the one its offset names', async () => 
   const { low, high, table, bin } = twoPageBundle(),
     { source, reads } = worldRootsBinSource(table, bin)
   const [atLow, atHigh] = await Promise.all([
-    source.page(worldRootsPageAddress('world-roots.bin', 0, 0)),
-    source.page(worldRootsPageAddress('world-roots.bin', 0, low.byteLength)),
+    source.page(worldPageAddress('world-roots.bin', 0, 0)),
+    source.page(worldPageAddress('world-roots.bin', 0, low.byteLength)),
   ])
   assert.deepEqual([...atLow.bytes], [...low])
   assert.deepEqual([...atHigh.bytes], [...high])
   assert.deepEqual(reads, [0], 'both pages from one read of their bundle')
-  await assert.rejects(source.page(worldRootsPageAddress('', 0, 4)), /WORLD_PAGE_MISSING/)
+  await assert.rejects(source.page(worldPageAddress('', 0, 4)), /WORLD_PAGE_MISSING/)
 })
 
 test('a shared bundle read serves every caller, one aborting; no bundle, no page', async () => {
   const { source, reads } = worldRootsPageFixtureSource(),
-    address = worldRootsPageAddress('world-roots.bin', 1, 0)
+    address = worldPageAddress('world-roots.bin', 1, 0)
   const [cancelled, kept, also] = await Promise.allSettled([
     source.page(address, AbortSignal.abort()),
     source.page(address),
@@ -70,7 +70,7 @@ test('a shared bundle read serves every caller, one aborting; no bundle, no page
   assert.equal(also.status, 'fulfilled', 'and so does the GPU slot read')
   assert.deepEqual(reads, [1], 'the three callers share one read of bundle 1')
   await assert.rejects(
-    source.page(worldRootsPageAddress('world-roots.bin', 99, 0)),
+    source.page(worldPageAddress('world-roots.bin', 99, 0)),
     /WORLD_PAGE_MISSING/,
   )
   assert.deepEqual(reads, [1], 'an unknown bundle reads nothing')
@@ -88,8 +88,8 @@ test('a bundle read lands its other pages, which a reader then joins: the bundle
     // The pool takes them now, while the read is shared (`takeLandedPages`).
     for (const address of addresses) joined.push(source.read(address))
   })
-  await source.read(worldRootsPageAddress('world-roots.bin', 0, 0))
-  assert.deepEqual(told, [worldRootsPageAddress('world-roots.bin', 0, low.byteLength)])
+  await source.read(worldPageAddress('world-roots.bin', 0, 0))
+  assert.deepEqual(told, [worldPageAddress('world-roots.bin', 0, low.byteLength)])
   assert.deepEqual([...(await joined[0])], [...high])
   assert.deepEqual(reads, [0], 'one read of the bundle for both pages')
 })

@@ -33,7 +33,7 @@ export type WorldRootsDagTable = {
   groups?: ClusterGroup[]
   culling?: CullingHierarchy
   /** The binary's resolved address, which every page address starts with: two worlds' pages never
-   *  share one (`worldRootsPageAddress`). */
+   *  share one (`worldPageAddress`). */
   url: string
   pinned: number
 }

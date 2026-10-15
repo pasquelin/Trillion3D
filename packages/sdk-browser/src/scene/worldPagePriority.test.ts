@@ -4,7 +4,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { createWorldBundles } from './worldBundles.ts'
-import { worldPageServer, worldRootsPageAddress } from './worldPageServe.ts'
+import { worldPageServer } from './worldPageServe.ts'
+import { worldPageAddress } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { PRIORITY_PREFETCH } from '../streaming/priority.ts'
 import type { PageQueue } from '../streaming/types.ts'
 
@@ -24,7 +25,7 @@ test("a world page's bundle is read at the priority its asker gave", async () =>
   bundles.bind(queue)
   const server = worldPageServer(table, 'world-roots.bin', bundles.pages)
   const page = await server.read(
-    worldRootsPageAddress('world-roots.bin', 2, 0),
+    worldPageAddress('world-roots.bin', 2, 0),
     undefined,
     PRIORITY_PREFETCH,
   )

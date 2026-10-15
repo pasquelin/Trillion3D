@@ -8,7 +8,7 @@ import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
 import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { worldPage } from './worldRootsPages.fixture.ts'
 import { worldRootsPageFixtureSource } from './worldPageServe.fixture.ts'
-import { worldRootsPageAddress } from './worldPageServe.ts'
+import { worldPageAddress } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 
 test('every page lands in a WebGPU page slot as cooked', async () => {
@@ -17,7 +17,7 @@ test('every page lands in a WebGPU page slot as cooked', async () => {
   assert.equal(table.pages.count, 4)
   for (let at = 0; at < table.pages.count; at++) {
     const { bundle, offset, bytes } = table.pages.at(at)
-    const address = worldRootsPageAddress(table.payload.url, bundle, offset),
+    const address = worldPageAddress(table.payload.url, bundle, offset),
       cooked = worldPage(bundle).bytes, // the fixture's page `bundle` is the triangle at x = bundle
       pageBytes = alignUp(bytes, 4)
     const gpu = fakeDevice({ limits: { maxBufferSize: 1024 } }),

@@ -6,12 +6,13 @@
  * (`../streaming/queueRanges.ts`). A bundle of no bytes is no page: its pages, none, are known
  * without a read.
  */
-import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import {
+  worldBundleAddress,
+  worldBundlePages,
+  type WorldRoots,
+} from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-
-/** The name of bundle `bundle` of the binary at `url` in the queue's catalogue. */
-const bundleUrl = (url: string, bundle: number) => `${url}#${bundle}`
 
 /** The pages of `table`'s bundles from `first`, ranges of its binary at `url`: their holders keep
  *  what they view of them, not the page cache. A bundle of no bytes is none. */
@@ -20,7 +21,8 @@ export function bundlePages(table: WorldRoots, url: string, first = 0) {
   for (let bundle = first; bundle < table.bundles.length; bundle++) {
     const { offset, bytes, sha256 } = table.bundles[bundle]
     const range = { file: url, offset }
-    if (bytes > 0) pages.push({ url: bundleUrl(url, bundle), bytes, sha256, range, kept: false })
+    if (bytes > 0)
+      pages.push({ url: worldBundleAddress(url, bundle), bytes, sha256, range, kept: false })
   }
   return pages
 }
@@ -49,6 +51,7 @@ export async function readBundle(
   priority: number,
 ) {
   const { bytes } = table.bundles[bundle]
-  const read = bytes > 0 ? await queue.readBytes(bundleUrl(url, bundle), signal, priority) : null
+  const read =
+    bytes > 0 ? await queue.readBytes(worldBundleAddress(url, bundle), signal, priority) : null
   return worldBundlePages(table, bundle, read ?? new Uint8Array(0))
 }

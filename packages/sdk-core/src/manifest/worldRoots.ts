@@ -14,6 +14,24 @@ export const WORLD_ROOTS_DAG = 'world-roots.dag'
 /** The binary the cook writes beside it, the one its `payload` names. */
 export const WORLD_ROOTS_BIN = 'world-roots.bin'
 
+/** The one address scheme of the world binary at `url`: bundle `bundle` is `url#bundle` — a page
+ *  of the session's queue —, the page at byte `offset` inside it `url#bundle:offset` — a page of
+ *  the engine's pool. */
+export const worldBundleAddress = (url: string, bundle: number) => `${url}#${bundle}`
+export const worldPageAddress = (url: string, bundle: number, offset: number) =>
+  `${worldBundleAddress(url, bundle)}:${offset}`
+/** The bundle and the offset a world page address names (`worldPageAddress`), read off its last
+ *  `#` and the `:` after it; `WORLD_PAGE_ADDRESS` for any other. */
+export function worldPageLocation(address: string): { bundle: number; offset: number } {
+  const hash = address.lastIndexOf('#'),
+    colon = address.indexOf(':', hash)
+  const bundle = Number(address.slice(hash + 1, colon)),
+    offset = Number(address.slice(colon + 1))
+  if (hash < 0 || colon < 0 || !Number.isInteger(bundle) || !Number.isInteger(offset))
+    throw new Error(`WORLD_PAGE_ADDRESS: ${address}`)
+  return { bundle, offset }
+}
+
 /** One bundle of `world-roots.bin`: its range in the binary, its digest, its page count and the
  *  bundles it needs. */
 export type WorldRootsBundle = {
