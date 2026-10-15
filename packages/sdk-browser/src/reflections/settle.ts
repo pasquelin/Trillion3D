@@ -4,7 +4,7 @@ import { RADIANCE_HASH_WORDS as H } from './radianceWgsl.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 const RADIANCE_HASH_BYTES = H.count * 4
-/** Bytes of the trace's word: whether the image sampled a lobe (`trace.ts`). */
+/** Bytes of the trace's word: whether the image traced a pixel (`tiles.ts`). */
 const SAMPLED_BYTES = 4
 /** Bytes of a sample: the hash, then the trace's word. */
 const SAMPLE_BYTES = RADIANCE_HASH_BYTES + SAMPLED_BYTES
@@ -63,10 +63,10 @@ const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 
  * The reflections' history (`temporalWgsl.ts`) freezes once the view has been quiet (`quiet`) for
  * `REFLECTION_STILL` images: from the image after (`frozen`) its radiance pyramid is no longer built,
  * so a still view reflects the same bits every image — never waiting on a lit image its own
- * reflections keep feeding, which a hash may never see repeat. An image whose trace sampled no lobe
- * (`sampled`, the trace's word, cleared at each image's staging and copied with the hash) has no
- * history to wait for: its mirrors are traced whole by their pixels, the same bits from the same lit
- * image, and the lit image alone decides (`final`).
+ * reflections keep feeding, which a hash may never see repeat. An image that traced no pixel
+ * (`sampled`, the trace's word, set by the tiles' classification, cleared at each image's staging and
+ * copied with the hash) has no history to wait for: nothing reflects, and the lit image alone decides
+ * (`final`).
  *
  * The view is settled once an image after the last one drawn for another reason — `busy` marks the
  * image about to be drawn for the lighting's, the cut's, the pages' own pending work — has the
@@ -89,11 +89,10 @@ export function createRadianceSettle(device: GPUDevice) {
   })
   let images = 0,
     busy = 0,
-    moved = 0,
     equal = 0,
     bare = 0
   // A sample's answer: its image's hash is the one before it's, where it was hashed; and its trace
-  // sampled no lobe.
+  // traced no pixel.
   const samples = createSampleRing(device, (tag, words) => {
     const hashed = tag % 2 === 1,
       image = (tag - (hashed ? 1 : 0)) / 2
@@ -106,7 +105,7 @@ export function createRadianceSettle(device: GPUDevice) {
   })
   return {
     hash,
-    /** The trace's word: set where the image sampled a lobe (`trace.ts`). */
+    /** The trace's word: set where the image traced a pixel (`tiles.ts`). */
     sampled,
     /** An image is staged: while samples are taken, its trace's word cleared before its commands. */
     stage() {
@@ -119,19 +118,11 @@ export function createRadianceSettle(device: GPUDevice) {
       images++
       if (!this.verified) samples.copy(encoder, hash, sampled, sampleTag(images, hashed))
     },
-    /** The image about to be drawn is drawn for another reason than the reflections'. */
+    /** The image about to be drawn is drawn for another reason than the reflections' — a move of the
+     *  camera, a light or a body of the scene, work landing —: its history restarts the still view's
+     *  count (`temporalWgsl.ts`, which holds every history to the fresh rays on every image). */
     busy() {
       busy = images + 1
-    },
-    /** The image about to be drawn is drawn for a move — the camera, a light, a body of the scene —:
-     *  busy, and its history clamped (`temporalWgsl.ts`). Work landing (pages, probes, shadows) only
-     *  keeps the view busy: its images accumulate unclamped. */
-    move() {
-      busy = moved = images + 1
-    },
-    /** Whether the image being drawn is drawn for a move. */
-    get moving() {
-      return moved === images + 1
     },
     /** The images drawn since the last busy one, the one being drawn counted: zero on an image drawn
      *  for a change — what the reflections' accumulation clamps on and freezes after
@@ -151,7 +142,7 @@ export function createRadianceSettle(device: GPUDevice) {
     },
     /** Whether a still view's reflections are final: an image was drawn frozen — its history, its
      *  pyramid and its view fixed, the next draws the same bits, whatever share of the lit image its
-     *  own reflections are —, or a verified image whose trace sampled no lobe: nothing accumulates. */
+     *  own reflections are —, or a verified image whose trace traced no pixel: nothing accumulates. */
     get final() {
       return this.quiet > REFLECTION_COUNTS.REFLECTION_STILL + 1 || bare > busy
     },

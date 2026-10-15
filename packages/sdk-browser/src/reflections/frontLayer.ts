@@ -14,7 +14,7 @@
  *
  * The nearest of the fragments that do either is kept (its depth, `depth`). The trace answers the
  * front surface as the opaque one (`trace.ts`), on its own grids (`grids`) and history; its
- * accumulation writes its radiance here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
+ * last pass (`bilateralWgsl.ts`) writes its radiance here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
  * is the front depth, in an image whose trace answered the front (`reflectionView.front.x`), reads its
  * reflection there, one load; any other — a surface behind the front one — reads the chain without
  * the proxy: the screen, the probes and the environment, never a ray.
@@ -31,8 +31,8 @@
  * a fragment: a deeper one, the screen march (`REFLECTION_MARCH_STEPS` iterations) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
- * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 52 more (normals, radiance, the grids,
- * `gridBytes`) once a transparent reflects, the lobes target's once one carries a lobe.
+ * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 52 more (normals, radiance, the grids and a
+ * word a tile, `gridBytes`) once a transparent reflects, the lobes target's once one carries a lobe.
  */
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
 import { SURFACE_FORMATS, holds } from '../scene/surfaceBuffer.ts'
@@ -92,8 +92,8 @@ export function createFrontLayer(
   blends: boolean,
 ) {
   const attached = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
-  const full: GPUExtent3D = [width, height],
-    one: GPUExtent3D = [1, 1]
+  const full: [number, number] = [width, height],
+    one: [number, number] = [1, 1]
   const make = (format: GPUTextureFormat, usage: number, size: GPUExtent3D) =>
     device.createTexture({ label: LABEL, size, format, usage })
   const depth = make(DEPTH_FORMAT, attached | GPUTextureUsage.COPY_DST, blends ? full : one),
@@ -169,7 +169,7 @@ export function createFrontLayer(
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
         bytes.targetBytes += n.bytes + t.bytes
         if (!holds({ width, height }, grids.textures[0])) {
-          for (const texture of grids.textures) retire(device, texture)
+          retire(device, grids)
           grids = createReflectionGrids(device, LABEL, full)
           bytes.targetBytes += gridBytes(width, height) - gridBytes(1, 1)
         }

@@ -6,7 +6,7 @@ import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
-import { createTraceGroups, type TraceInputs } from './traceEncode.ts'
+import { createTraceGroups, type TraceInputs } from './traceGroups.ts'
 import type { RadianceInputs } from './radianceBuild.ts'
 import { createReflectionGrids, gridBytes } from './grids.ts'
 import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts'
@@ -44,7 +44,7 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
 }
 
 /**
- * A view's reflection at `width × height`: the target the upsample writes, the radiance pyramid of
+ * A view's reflection at `width × height`: the target the last pass writes, the radiance pyramid of
  * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
  * hits with its view-projection), the grids the trace and its accumulation write
  * (`grids.ts`), the view uniform and its writer, and what each image writes in place.
@@ -93,7 +93,7 @@ export function createScreenReflection(
      *  pyramid holds as its level 0 and the lighting's view: two kept, the two HDR targets taking
      *  turns (`reflectionGroup`). */
     group: { identity: createWebgpuBindIdentity(2), slots: [] as (GPUBindGroup | undefined)[] },
-    /** The trace's and the upsample's bind groups, kept while their inputs stay
+    /** The trace's bind groups, every kernel's, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
     /** What the image tells its view, what the trace and the radiance build read, and the radiance

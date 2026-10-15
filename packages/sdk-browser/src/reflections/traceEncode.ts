@@ -1,180 +1,74 @@
-import { namedEntries } from '../gpu/core/computeBindings.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_GROUP } from './viewLayout.ts'
-import type { FrontLayer } from './frontLayer.ts'
-import { sceneBindEntries } from '../bounce/sceneBindings.ts'
-import { REFLECTION_TRACE_BINDINGS, TRACE_SCENE_BINDINGS, traceLayouts } from './traceBindings.ts'
-import type { ReflectionGrids } from './grids.ts'
+import { resetTileList } from './grids.ts'
+import { classifyGroups, classifyLayout } from './tiles.ts'
+import { traceLayouts } from './traceBindings.ts'
+import {
+  KERNELS,
+  traceGroups,
+  type TraceInputs,
+  type TraceLayouts,
+  type TraceResources,
+} from './traceGroups.ts'
 
-/** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
- *  resident proxy. */
-export type TraceInputs = {
-  base: GPUTextureView
-  flags: GPUTextureView
-  normals: GPUTextureView
-  lobes: GPUTextureView
-  lights: GPUBuffer
-  /** The light grid's buffer, whose world lists the proxy hits walk (`bounceLightSlice`). */
-  lightLists: GPUBuffer
-  bounceGrid: GPUBuffer
-  probes: GPUTextureView
-  /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
-  proxy: GPUBuffer
-  /** The culling's records, the worlds the proxy places its meshes by and its instances
-   *  (`gpu/dag/worldTable.ts`), or the stand-in. */
-  proxyWorlds: GPUTextureView
-  /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
-  proxyTree: GPUTextureView
-}
+/** The kernels' entries on their module, the opaque surface's then the front one's. */
+const ENTRIES = {
+  trace: ['traceSurface', 'traceSurface'],
+  spatial: ['spatialSurface', 'spatialSurface'],
+  temporal: ['temporalSurface', 'temporalSurface'],
+  bilateral: ['bilateralOpaque', 'bilateralFront'],
+} as const
 
-const KERNELS = ['trace', 'spatial', 'temporal'] as const
-type Kernel = (typeof KERNELS)[number]
-
-/** The reflections' kernels on their module (`REFLECTION_TRACE_SHADER`), each surface's, over the
- *  reflection group's layout `groupLayout` (`reflectionLayout`). */
+/** The reflections' kernels on their modules — the classification's (`REFLECTION_CLASSIFY_SHADER`)
+ *  and the trace's (`REFLECTION_TRACE_SHADER`) —, each surface's, the kernels over the reflection
+ *  group's layout `groupLayout` (`reflectionLayout`). */
 export async function createTraceStages(
   device: GPUDevice,
-  module: GPUShaderModule,
+  modules: { trace: GPUShaderModule; classify: GPUShaderModule },
   groupLayout: GPUBindGroupLayout,
 ) {
-  const layouts = traceLayouts(device)
-  const stage = (layout: GPUBindGroupLayout, entry: string, constants?: Record<string, number>) =>
-    buildComputeStages(device, [layout, groupLayout], module, [entry], constants).then(
-      (s) => s[entry],
-    )
+  const layouts: TraceLayouts = { ...traceLayouts(device), classify: classifyLayout(device) }
+  const kernelLayouts = (layer: number) =>
+    ({
+      trace: layouts.trace,
+      spatial: layouts.spatial,
+      temporal: layouts.temporal,
+      bilateral: layer === 0 ? layouts.bilateral : layouts.bilateralFront,
+    }) as const
   // The surface's layer, the pipeline's (`REFLECTION_LAYER_WGSL`): 0 the opaque, 1 the front.
-  const [opaque, front] = await Promise.all(
-    (['Opaque', 'Front'] as const).map(async (side, layer) => ({
-      trace: await stage(layouts.trace, 'traceSurface', { REFLECTION_LAYER: layer }),
-      spatial: await stage(layouts.spatial, 'spatialSurface', { REFLECTION_LAYER: layer }),
-      temporal: await stage(
-        side === 'Opaque' ? layouts.temporal : layouts.temporalFront,
-        `temporal${side}`,
+  const surface = async (layer: number) => {
+    const own = kernelLayouts(layer)
+    const built = await Promise.all(
+      KERNELS.map((kernel) =>
+        buildComputeStages(
+          device,
+          [own[kernel], groupLayout],
+          modules.trace,
+          [ENTRIES[kernel][layer]],
+          { REFLECTION_LAYER: layer },
+        ).then((s) => s[ENTRIES[kernel][layer]]),
       ),
-    })),
-  )
-  return { layouts, opaque, front }
+    )
+    return Object.fromEntries(KERNELS.map((kernel, at) => [kernel, built[at]])) as Record<
+      (typeof KERNELS)[number],
+      GPUComputePipeline
+    >
+  }
+  const [opaque, front, classify] = await Promise.all([
+    surface(0),
+    surface(1),
+    buildComputeStages(device, [layouts.classify], modules.classify, ['classifyTiles']),
+  ])
+  return { layouts, opaque, front, classify: classify.classifyTiles }
 }
 type TraceStages = Awaited<ReturnType<typeof createTraceStages>>
 
-/** Resources by their names in the table (`REFLECTION_TRACE_BINDINGS`). */
-type Named = Partial<Record<keyof typeof REFLECTION_TRACE_BINDINGS, GPUBindingResource>>
-
-/** A surface's groups, each kernel's for each parity of the history's turn about. */
-type SurfaceGroups = Record<Kernel, GPUBindGroup[]>
-
-/** A view's trace groups, none made yet, and the parity of its history's turn about. */
-export const createTraceGroups = () => ({
-  identity: createWebgpuBindIdentity(),
-  groups: undefined as { opaque: SurfaceGroups; front: SurfaceGroups } | undefined,
-  parity: 0,
-})
-
-/** What a view's trace holds: the target the opaque accumulation writes, the opaque surface's grids,
- *  the transparents' front layer, its groups, and the settle's word the trace sets (`settle.ts`). */
-type TraceResources = {
-  device: GPUDevice
-  targetView: GPUTextureView
-  grids: ReflectionGrids
-  front: Pick<FrontLayer, 'views' | 'grids'>
-  trace: ReturnType<typeof createTraceGroups>
-  settle: { sampled: GPUBuffer }
-}
-
-/** The groups of one surface — its targets `surface`, its grids `grids` —, for both parities; the
- *  trace's also set the settle's word `sampled`. */
-function surfaceGroups(
-  device: GPUDevice,
-  layouts: TraceStages['layouts'],
-  scene: Named,
-  proxy: GPUBindGroupEntry[],
-  sampled: GPUBindingResource,
-  surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
-  grids: ReflectionGrids,
-  temporal: { layout: GPUBindGroupLayout; out: Named },
-): SurfaceGroups {
-  // The flags the trace and the accumulations read (`traceLayouts`).
-  const { flags, normals, lobes } = surface
-  const group = (layout: GPUBindGroupLayout, named: Named, more: GPUBindGroupEntry[] = []) =>
-    device.createBindGroup({
-      layout,
-      entries: [...namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, ...named }), ...more],
-    })
-  return {
-    // The trace writes the grid that is not the history and the rays, the spatial reuse reads them
-    // into the scratch, the accumulation reads the scratch and the history into it again.
-    trace: [0, 1].map((p) =>
-      group(
-        layouts.trace,
-        { ...scene, flags, sampled, traceOut: grids.turn[p], raysOut: grids.rays },
-        proxy,
-      ),
-    ),
-    spatial: [0, 1].map((p) =>
-      group(layouts.spatial, {
-        spatialIn: grids.turn[p],
-        raysIn: grids.rays,
-        spatialOut: grids.scratch,
-      }),
-    ),
-    temporal: [0, 1].map((p) =>
-      group(temporal.layout, {
-        ...temporal.out,
-        flags,
-        temporalIn: grids.scratch,
-        historyIn: grids.turn[1 - p],
-        historyOut: grids.turn[p],
-      }),
-    ),
-  }
-}
-
-/** The bind groups of `reflection`'s trace over `inputs`, made again when a resource they name is
- *  not the one they were made over. */
-function traceGroups(reflection: TraceResources, stages: TraceStages, inputs: TraceInputs) {
-  const { device, targetView, grids, trace, front, settle } = reflection
-  const { next } = trace.identity
-  next.length = 0
-  next.push(stages, targetView, grids, front.grids, front.views.flags, front.views.normals)
-  next.push(front.views.lobes, front.views.traced, inputs.base, inputs.flags, inputs.normals)
-  next.push(inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid, inputs.probes)
-  next.push(inputs.proxy, inputs.proxyWorlds, inputs.proxyTree, settle.sampled)
-  if (!trace.identity.moved() && trace.groups) return trace.groups
-  const { layouts } = stages
-  // What a ray reads of the scene, the trace's.
-  const scene: Named = {
-    lights: { buffer: inputs.lights },
-    lightLists: { buffer: inputs.lightLists },
-    bounceGrid: { buffer: inputs.bounceGrid },
-    probes: inputs.probes,
-  }
-  const proxy = sceneBindEntries(TRACE_SCENE_BINDINGS, {
-    buffer: inputs.proxy,
-    worlds: inputs.proxyWorlds,
-    tree: inputs.proxyTree,
-  })
-  const sampled = { buffer: settle.sampled }
-  return (trace.groups = {
-    opaque: surfaceGroups(device, layouts, scene, proxy, sampled, inputs, grids, {
-      layout: layouts.temporal,
-      out: { lights: { buffer: inputs.lights }, base: inputs.base, target: targetView },
-    }),
-    front: surfaceGroups(device, layouts, scene, proxy, sampled, front.views, front.grids, {
-      layout: layouts.temporalFront,
-      out: { frontTarget: front.views.traced },
-    }),
-  })
-}
-
 /**
- * The reflections of the pixels of `size`, in the open compute `pass` (`trace.ts`): the opaque
- * surface's rays traced, reused across neighbours and accumulated into the reflection target; with
- * `front`, the image's front pass having written a reflecting surface, the front surface's the same
- * way. `depthGroup` is the reflection group over the depth pyramid. The history's parity turns every
- * call.
+ * The reflections of the pixels of `size`, in the open compute `pass` (`trace.ts`): for the opaque
+ * surface — and, with `front`, the image's front pass having written a reflecting surface, for the
+ * front one —, its tiles listed (`tiles.ts`), then its rays traced, reused across neighbours,
+ * accumulated and filtered into its answer, each kernel dispatched over the list, indirectly.
+ * `depthGroup` is the reflection group over the depth pyramid. The history's parity turns every call.
  */
 export function encodeReflectionTrace(
   pass: GPUComputePassEncoder,
@@ -185,14 +79,25 @@ export function encodeReflectionTrace(
   size: readonly [number, number],
   front: boolean,
 ) {
-  const groups = traceGroups(reflection, stages, inputs)
+  const groups = traceGroups(reflection, stages, stages.layouts, inputs)
   const parity = (reflection.trace.parity ^= 1)
-  pass.setBindGroup(REFLECTION_GROUP, depthGroup)
   const surface = (side: 'opaque' | 'front') => {
+    const { tiles, textures } = side === 'opaque' ? reflection.grids : reflection.front.grids
+    // The list's head set before the image's commands run (`writeBuffer` precedes the submit).
+    resetTileList(reflection.device, tiles)
+    pass.setPipeline(stages.classify)
+    pass.setBindGroup(0, groups[side].classify[parity])
+    // Over the grids' own tiles, which the list holds a word each: the view's, or fewer.
+    const [x, y] = classifyGroups([
+      Math.min(size[0], textures[0].width),
+      Math.min(size[1], textures[0].height),
+    ])
+    pass.dispatchWorkgroups(x, y)
     for (const kernel of KERNELS) {
       pass.setPipeline(stages[side][kernel])
       pass.setBindGroup(0, groups[side][kernel][parity])
-      pass.dispatchWorkgroups(ceilDiv(size[0], REFLECTION_SIDE), ceilDiv(size[1], REFLECTION_SIDE))
+      pass.setBindGroup(REFLECTION_GROUP, depthGroup)
+      pass.dispatchWorkgroupsIndirect(tiles, 0)
     }
   }
   surface('opaque')

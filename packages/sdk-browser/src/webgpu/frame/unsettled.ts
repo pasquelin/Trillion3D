@@ -83,23 +83,18 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
   return mask
 }
-/** The bits of a body of the scene that moves — its placement rewritten, its mesh deformed —, against
- *  the engine's own work landing: the reflections clamp their history on the first alone
- *  (`RadianceSettle.move`). */
-const MOVES = BIT.rowsDirty | BIT.deforming
 /**
  * Pending work that can change the frame. Read without allocation by hold and the barrier; the
  * hold names the `frame` it is about to draw, whose update then reuses what was read. The
  * reflections' own bit is the last: while anything else is pending the image about to be drawn is
  * drawn for it, and the reflections can settle only on images after it (`reflectionsSettled`,
- * `RadianceSettle`); a move clamps their history too.
+ * `RadianceSettle`).
  */
 export function unsettledMask(rt: WebgpuPagesRuntime, frame?: number) {
   const other = runMask(rt) | loadMask(rt) | historyMask(rt, frame),
     settle = rt.gpu.reflection?.settle,
     { reflection } = rt.gpu
-  if (other & MOVES) settle?.move()
-  else if (other) settle?.busy()
+  if (other) settle?.busy()
   return reflectionsSettled(reflection, !!rt.gpu.temporal?.frame.active)
     ? other
     : other | BIT.reflections

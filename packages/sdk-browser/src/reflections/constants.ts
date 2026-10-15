@@ -42,6 +42,16 @@ export const REFLECTION_CONSTANTS = {
   /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
    *  a texel: a history further from their mean than this is pulled back to it. */
   REFLECTION_CLAMP: 1.25,
+  /** The share of the visible normals' cap, nearest the horizon, a sampled ray is never drawn from
+   *  (`sampleWgsl.ts`): the grazing microfacets, whose rays leave nearly along the surface, are rarely
+   *  seen, dim and the noisiest of a lobe; a tenth of the cap's height left out removes their flicker
+   *  for a share of the lobe's energy under its noise. */
+  REFLECTION_TAIL_BIAS: 0.1,
+  /** The range of the denoiser's space (`texelWgsl.ts`), in the display's white (the view's exposure
+   *  applied): a radiance under it is averaged as itself, one past it weighs as about the range — ten,
+   *  so every highlight a display shows is averaged whole, and a firefly a thousand times brighter than
+   *  its neighbours weighs ten. */
+  REFLECTION_DENOISER_RANGE: 10,
   /** Where along a proxy ray cut short for the field (`reach.ts`) its answer starts fading into the
    *  field's, a share of its reach (`proxy.ts`): over the last quarter a body met weighs less and less,
    *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
@@ -59,12 +69,12 @@ export const REFLECTION_CONSTANTS = {
  * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
  */
 export const REFLECTION_COUNTS = {
-  /** The images a texel's history averages at most while anything changes (`temporalWgsl.ts`): three
-   *  turns of the 2×2 block's four picks, the window an exponential mean then keeps. */
+  /** The images a texel's history averages at most while anything changes (`temporalWgsl.ts`): a
+   *  dozen images of a ray and its reused neighbours each, about a hundred samples of a lobe, the window
+   *  an exponential mean then keeps; a history held far by the clamp counts for fewer. */
   REFLECTION_HISTORY: 12,
   /** The images a still view's history averages, and the count it freezes at (`temporalWgsl.ts`): the
-   *  temporal accumulation's own still average (`TAA_STILL_DRAWS`), sixteen turns of the block's
-   *  picks — a glossy lobe read by one sample a texel an image needs that many, with its neighbours',
+   *  temporal accumulation's own still average (`TAA_STILL_DRAWS`), sixteen images — a glossy lobe read by one sample a texel an image needs that many, with its neighbours',
    *  for its mean to fall within a quarter of the lobe's radiance where a bright body fills a tenth of
    *  it. Six bits of the history's word (its count less one). */
   REFLECTION_STILL: TAA_STILL_DRAWS,
@@ -83,8 +93,8 @@ export const REFLECTION_COUNTS = {
    *  their screen answer handed to the next stage. 128, four times the 99th percentile, keeps them: the
    *  cap bounds the tail alone, a ray past it costing 128 iterations, an eighth of the bound at 1080p. */
   REFLECTION_MARCH_STEPS: 128,
-  /** The share of a ray's budget (`RAY_WORK`, its lighting's shadow rays included) a reflection's proxy
-   *  ray walks on an image drawn for a move, one over this (`proxy.ts`): 512 / 8 = 64 units, the
+  /** The share of a ray's budget (`RAY_WORK`) a reflection's proxy
+   *  ray walks on an image drawn for a change, one over this (`proxy.ts`): 512 / 8 = 64 units, the
    *  placement tree walked nearest first (`treeWalkWgsl.ts`). That image is replaced by the next; a
    *  ray that spends its share is no answer, its share the field's. A still view's quiet images walk
    *  the whole budget: they are the images it holds, a ray exhausted there would darken the held
@@ -102,3 +112,10 @@ export const REFLECTION_SEQUENCE = 4096
 
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 export const REFLECTION_SIDE = 8
+
+/** The listed tiles a row of an indirect dispatch holds (`tiles.ts`): the list's tiles are dispatched
+ *  as rows of this many workgroups, so a view of any size stays within a dispatch's 65 535 workgroups a
+ *  dimension — 2²⁴ tiles —, a row's last workgroups past the count returning at once. */
+export const REFLECTION_TILE_ROW = 256
+/** Words of a tile list's head: the indirect dispatch's three — the row, the rows, one — and the count. */
+export const REFLECTION_TILE_HEAD = 4

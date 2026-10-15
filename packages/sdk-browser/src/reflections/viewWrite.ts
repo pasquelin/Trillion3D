@@ -20,8 +20,6 @@ export type ReflectionFrame = {
   /** The reflections' turn and the images drawn since the last change (`ReflectionView.temporal`). */
   turn?: number
   quiet?: number
-  /** Whether the image is drawn for a move (`RadianceSettle.moving`): the accumulation clamps on it. */
-  moving?: boolean
   /** Whether the image is drawn from where the held one was — its size and view-projection —,
    *  decided by its staging (`stageReflectionImage`), read by its radiance build. */
   still?: boolean
@@ -59,7 +57,6 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0
     temporal[1] = frame.quiet ?? 0
-    temporal[2] = frame.moving ? 1 : 0
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

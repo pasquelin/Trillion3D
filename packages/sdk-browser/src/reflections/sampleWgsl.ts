@@ -37,10 +37,12 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
  * engine draws, its draws all within a fraction of a degree of its centre — its sample is its centre
  * ray, with no rule of its own.
  *
- * - DIRECTION: the half-vector drawn by D(h)·(n·h) — the unit GGX slopes, r = √(u/(1 − u)) at the angle
- *   2πv, stretched by the lobe's widths along its axis and across (`reflectionSampleDirection`) —, the ray
- *   its mirror about it; one under the surface takes the centre. The split-sum weight the accumulation applies
- *   assumes this very distribution of directions.
+ * - DIRECTION: the half-vector drawn among the normals the eye sees (`reflectionSampleDirection`): the
+ *   view stretched by the lobe's widths along its axis and across, a direction drawn on the spherical cap
+ *   the visible normals cover — its height drawn over all but the `REFLECTION_TAIL_BIAS` of it nearest
+ *   the horizon, the grazing microfacets whose rays are the noisiest and dimmest —, unstretched; the ray
+ *   its mirror about it, pdf D(h)·G₁(v) / (4 n·v), which the reuse weighs by (`spatialWgsl.ts`). A ray
+ *   that would leave under the surface is folded back above it: never the lobe's centre, a spike.
  * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
  *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a
  *   narrower draw is not: GGX slopes have no variance, widths do not add in quadrature, and a draw
@@ -78,11 +80,14 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  if(dot(T,T)<1e-12){T=tangentFallback(N);}
  T=normalize(T);
  let B=cross(N,T);
- let r=sqrt(u.x/max(1.0-u.x,1e-6));
- let a=TWO_PI*u.y;
- let slope=r*vec2f(cos(a),sin(a))*widths;
- let L=reflect(-V,normalize(N+slope.x*T+slope.y*B));
- return select(reflect(-V,N),L,dot(L,N)>0.0);
+ let seen=normalize(vec3f(widths*vec2f(dot(V,T),dot(V,B)),max(dot(V,N),1e-4)));
+ let phi=TWO_PI*u.x;
+ let z=mix(1.0,-seen.z,u.y*(1.0-REFLECTION_TAIL_BIAS));
+ let sine=sqrt(clamp(1.0-z*z,0.0,1.0));
+ let cap=vec3f(sine*cos(phi),sine*sin(phi),z)+seen;
+ let h=normalize(vec3f(widths*cap.xy,max(cap.z,0.0)));
+ let L=reflect(-V,normalize(h.x*T+h.y*B+h.z*N));
+ return L-2.0*min(dot(L,N),0.0)*N;
 }
 fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);

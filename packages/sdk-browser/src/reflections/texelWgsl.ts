@@ -3,7 +3,7 @@ import { HALF_MAX } from '../../../math/src/wgsl/constants.ts'
 import { bitIsSet, lowHalf } from '../../../math/src/wgsl/integer.ts'
 import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
+import { REFLECTION_GROUP, reflectionBindingsWgsl, reflectionLightViewWgsl } from './viewLayout.ts'
 import { REFLECTED_WGSL } from './weight.ts'
 import { ndcToUvUnflipped, slabPerspective } from '../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../math/src/wgsl/reals.ts'
@@ -32,11 +32,15 @@ import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
  * pixels apart on the screen: one within the depth that surface spans across them — steeper as it turns
  * edge-on, `REFLECTION_GRAZING` at most —, nothing two such spans off, times the normals' agreement:
  * whole within a normal map's tilt (`REFLECTION_CREASE_NEAR`), nothing across a crease
- * (`REFLECTION_CREASE_FAR`). `reflectionBounds`: the radiance the fresh texels of `grid` around `at`
- * hold, its mean ± `REFLECTION_CLAMP` standard deviations, taken in a perceptual space — each channel
- * c as c / (1 + c), where a firefly's thousandfold radiance is no more than a bright one's —, and
- * `reflectionClamped` a radiance held within them: the one rule that holds a sample or a history to
- * its neighbourhood (`spatialWgsl.ts`, `temporalWgsl.ts`).
+ * (`REFLECTION_CREASE_FAR`).
+ *
+ * THE DENOISER'S SPACE: every mean of radiance — the reuse's, the accumulation's, the last pass's — is
+ * taken on `reflectionDenoised` radiance, c / (1 + L(c)·e / `REFLECTION_DENOISER_RANGE`), L the
+ * luminance and e the view's exposure, and turned back by `reflectionLinear`: under the range a radiance
+ * is itself, past it it weighs as the range, so one sample of a headlight in a lobe's tail is a bright
+ * sample, not a thousandfold one that lights a block. `reflectionBounds`: the denoised fresh texels of
+ * `grid` around `at` — a 5 × 5 window, its corners left out —, their mean ± `REFLECTION_CLAMP` standard
+ * deviations; `reflectionClamped` a denoised radiance held within them (`temporalWgsl.ts`).
  * `historyGather`: the four history texels of `grid` around `q` (pixel coordinates, texel centres on
  * the integers), bilinear, each weighed by the same-surface test, with their mean count — the one read
  * of a history, the accumulation's of the last image's grid.
@@ -56,6 +60,7 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
     clampToExtent,
     REFLECTION_CONSTANTS_WGSL,
     reflectionBindingsWgsl(REFLECTION_GROUP),
+    reflectionLightViewWgsl(REFLECTION_GROUP),
   ],
   `fn texelReflected(t:vec4u)->Reflected{
  let a=unpack2x16float(t.x);
@@ -95,33 +100,41 @@ fn reflectionSameSurface(depth:f32,N:vec3f,V:vec3f,other:f32,otherN:vec3f,pixels
  let near=1.0-smoothstep(span,2.0*span,abs(other-depth));
  return near*smoothstep(REFLECTION_CREASE_FAR,REFLECTION_CREASE_NEAR,dot(N,otherN));
 }
+fn reflectionLuma(c:vec3f)->f32{return dot(c,vec3f(0.2126,0.7152,0.0722));}
+fn reflectionToneScale()->f32{return view.lightParams.w/REFLECTION_DENOISER_RANGE;}
+fn reflectionDenoised(r:Reflected)->Reflected{
+ let k=reflectionToneScale();
+ return Reflected(r.base/(1.0+reflectionLuma(r.base)*k),r.coat/(1.0+reflectionLuma(r.coat)*k));
+}
+fn reflectionLinear(d:Reflected)->Reflected{
+ let k=reflectionToneScale();
+ return Reflected(d.base/max(1.0-reflectionLuma(d.base)*k,REFLECTION_EPSILON),
+  d.coat/max(1.0-reflectionLuma(d.coat)*k,REFLECTION_EPSILON));
+}
 struct ReflectedBounds{low:Reflected,high:Reflected,}
-fn reflectionPerceived(c:vec3f)->vec3f{return c/(vec3f(1.0)+c);}
-fn reflectionLinear(p:vec3f)->vec3f{let q=clamp(p,vec3f(0.0),vec3f(0.999));return q/(vec3f(1.0)-q);}
 fn reflectionBounds(grid:texture_2d<u32>,at:vec2i)->ReflectedBounds{
  var mean=Reflected(vec3f(0.0),vec3f(0.0));
  var square=mean;
  var n=0.0;
  let size=vec2i(textureDimensions(grid));
- for(var k=0;k<9;k++){
-  let t=textureLoad(grid,clampToExtent(at+vec2i(k%3-1,k/3-1),size),0);
+ for(var k=0;k<25;k++){
+  let o=vec2i(k%5-2,k/5-2);
+  if(abs(o.x)==2&&abs(o.y)==2){continue;}
+  let t=textureLoad(grid,clampToExtent(at+o,size),0);
   if(!freshValid(t)){continue;}
-  let r=texelReflected(t);
-  let b=reflectionPerceived(r.base);let c=reflectionPerceived(r.coat);
-  mean.base+=b;mean.coat+=c;
-  square.base+=b*b;square.coat+=c*c;
+  let d=reflectionDenoised(texelReflected(t));
+  mean.base+=d.base;mean.coat+=d.coat;
+  square.base+=d.base*d.base;square.coat+=d.coat*d.coat;
   n+=1.0;
  }
  let m=Reflected(mean.base/max(n,1.0),mean.coat/max(n,1.0));
  let s=Reflected(
   REFLECTION_CLAMP*sqrt(max(square.base/max(n,1.0)-m.base*m.base,vec3f(0.0))),
   REFLECTION_CLAMP*sqrt(max(square.coat/max(n,1.0)-m.coat*m.coat,vec3f(0.0))));
- return ReflectedBounds(
-  Reflected(reflectionLinear(m.base-s.base),reflectionLinear(m.coat-s.coat)),
-  Reflected(reflectionLinear(m.base+s.base),reflectionLinear(m.coat+s.coat)));
+ return ReflectedBounds(Reflected(m.base-s.base,m.coat-s.coat),Reflected(m.base+s.base,m.coat+s.coat));
 }
-fn reflectionClamped(r:Reflected,b:ReflectedBounds)->Reflected{
- return Reflected(clamp(r.base,b.low.base,b.high.base),clamp(r.coat,b.low.coat,b.high.coat));
+fn reflectionClamped(d:Reflected,b:ReflectedBounds)->Reflected{
+ return Reflected(clamp(d.base,b.low.base,b.high.base),clamp(d.coat,b.low.coat,b.high.coat));
 }
 struct HistoryGather{radiance:Reflected,weight:f32,count:f32,}
 fn historyGather(grid:texture_2d<u32>,q:vec2f,depth:f32,N:vec3f,V:vec3f,pixels:f32)->HistoryGather{
