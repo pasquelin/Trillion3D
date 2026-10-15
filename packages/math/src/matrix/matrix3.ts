@@ -1,4 +1,4 @@
-import type { NumberSink } from './matrix4.ts'
+import { linearPartDeterminant, type NumberSink } from './matrix4.ts'
 import { adjugateFactor } from './singular.ts'
 
 /**
@@ -36,7 +36,8 @@ export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>
   const t11 = n33 * n22 - n32 * n23,
     t12 = n32 * n13 - n33 * n12,
     t13 = n23 * n12 - n22 * n13
-  const det = n11 * t11 + n21 * t12 + n31 * t13
+  // `linearPartDeterminant`: its three products are these cofactors, the same bits.
+  const det = linearPartDeterminant(m)
   // The factor comes from the engine's single rule: `1 / det` if the matrix is regular — the
   // previous bits —, `1` if it is singular, and nothing at all if its scale is neither finite nor
   // strictly positive. The first three cofactors are already here — the determinant
