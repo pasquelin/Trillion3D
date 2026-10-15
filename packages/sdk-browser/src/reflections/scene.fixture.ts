@@ -78,6 +78,7 @@ export function reflectionRunner(
       end: number,
       thickness: number,
       slab: number[],
+      cap: number,
     ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
     screenMarchEnd: (o: number[], d: number[], size: number[]) => number
     screenMarchBudget: (d: number[], end: number, levels: number) => number
