@@ -1,6 +1,6 @@
 use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
-use crate::split::bisect_centres;
-use trillion3d_math::aabb::{aabb_of_f32, half_area};
+use crate::split::bisect_least_cost;
+use trillion3d_math::aabb::{aabb_of, aabb_of_f32, half_area};
 use trillion3d_math::scalar::mean;
 
 /// A binary node being built: its bounds, and either a triangle range or its
@@ -35,25 +35,34 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
     }))
 }
 
-/// Triangle centroids, the `mean` of the three corners axis by axis: what the median splits.
-fn centres(triangles: &[f32]) -> Vec<[f64; 3]> {
-    let centre = |t: &[f32; PROXY_TRIANGLE_FLOATS]| {
-        [0, 1, 2].map(|axis| mean([0, 3, 6].map(|corner| f64::from(t[corner + axis]))))
+/// Triangle centroids, the `mean` of the three corners axis by axis, and boxes: what the median
+/// splits, and what its cost weighs.
+type Boxed = (Vec<[f64; 3]>, Vec<([f64; 3], [f64; 3])>);
+fn boxed(triangles: &[f32]) -> Boxed {
+    let corners = |t: &[f32; PROXY_TRIANGLE_FLOATS]| {
+        [0, 3, 6].map(|corner| [0, 1, 2].map(|axis| f64::from(t[corner + axis])))
     };
-    (triangles.as_chunks::<PROXY_TRIANGLE_FLOATS>().0.iter())
-        .map(centre)
-        .collect()
+    let triangles = triangles.as_chunks::<PROXY_TRIANGLE_FLOATS>().0;
+    let centres = triangles
+        .iter()
+        .map(|t| {
+            let c = corners(t);
+            [0, 1, 2].map(|axis| mean(c.map(|p| p[axis])))
+        })
+        .collect();
+    let boxes = triangles.iter().map(|t| aabb_of(corners(t))).collect();
+    (centres, boxes)
 }
 
-/// Builds tree by the median split of every tree over boxed things (`split::bisect_centres`: the
-/// widest axis of the centroids, ties by rank), leaf at `PROXY_LEAF_TRIANGLES`.
+/// Builds tree by the median split of every tree over boxed things (`split::bisect_least_cost`:
+/// the axis of least cost over the triangles' boxes, ties by rank), leaf at `PROXY_LEAF_TRIANGLES`.
 ///
 /// Median gives balanced tree, depth logarithmic in triangle count:
 /// engine can announce known traversal bound before frame. A split separating
 /// nothing — all centroids coincident — splits into two equal parts rather than looping.
 fn split(
     triangles: &[f32],
-    centres: &[[f64; 3]],
+    boxed: &Boxed,
     order: &mut [usize],
     range: (usize, usize),
     nodes: &mut Vec<Node>,
@@ -70,12 +79,14 @@ fn split(
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
         return;
     }
-    bisect_centres(&mut order[range.0..range.1], centres);
-    let middle = range.0 + (range.1 - range.0) / 2;
+    let (centres, boxes) = boxed;
+    let half = (range.1 - range.0) / 2;
+    bisect_least_cost(&mut order[range.0..range.1], centres, |t| boxes[t], half);
+    let middle = range.0 + half;
     nodes[at].count = 0;
-    split(triangles, centres, order, (range.0, middle), nodes);
+    split(triangles, boxed, order, (range.0, middle), nodes);
     let right = nodes.len();
-    split(triangles, centres, order, (middle, range.1), nodes);
+    split(triangles, boxed, order, (middle, range.1), nodes);
     nodes[at].right = right;
 }
 
@@ -95,7 +106,7 @@ pub fn build_ordered(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<No
     let mut nodes: Vec<Node> = Vec::with_capacity(count * 2 / PROXY_LEAF_TRIANGLES + 2);
     split(
         triangles,
-        &centres(triangles),
+        &boxed(triangles),
         &mut order,
         (0, count),
         &mut nodes,

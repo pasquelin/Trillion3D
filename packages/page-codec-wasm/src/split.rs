@@ -1,9 +1,11 @@
-//! THE MEDIAN SPLIT of a group of ids by their centres, one for every tree built over boxed things:
-//! the culling hierarchy (`culling.rs`), the triangle clusters (`clusters/spatial.rs`), the proxy's
-//! BVH (`proxy/bvh.rs`) and the DAG's groups (`asset-compiler-rust/src/dag/groups.rs`).
+//! THE MEDIAN SPLIT of a group of ids by their centres, on the axis of least cost, one for every
+//! tree built over boxed things: the culling hierarchy (`culling.rs`), the triangle clusters
+//! (`clusters/spatial.rs`), the proxy's BVH (`proxy/bvh.rs`), the DAG's groups
+//! (`asset-compiler-rust/src/dag/groups.rs`) and the world's cells
+//! (`asset-compiler-rust/src/compiler_tables/partition/split.rs`).
 //! A split is a selection, linear in the group, never a sort; a caller that reads a half in order
 //! sorts it (`sort_along`). Ties break by identifier, so a tree is the same on every build.
-use trillion3d_math::aabb::{aabb_of, aabb_of_boxes, longest_axis};
+use trillion3d_math::aabb::aabb_of_boxes;
 use trillion3d_math::vecn::distance2;
 
 /// The order of two ids by their centres' coordinate on `axis` (`total_cmp`, so NaN has a place),
@@ -27,16 +29,6 @@ pub fn select_at(slice: &mut [usize], centres: &[[f64; 3]], axis: usize, at: usi
 /// Sorts `slice` in the order of `along` on `axis`.
 pub fn sort_along(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
     slice.sort_unstable_by(along(centres, axis));
-}
-
-/// Splits a group of ids in two spatial halves on the widest axis of their centres: the median
-/// falls on `slice.len() / 2` (`select_at`). Returns that axis; a caller that reads the halves
-/// in order sorts them on it (`sort_along`), which gives the order a full sort gives.
-pub fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) -> usize {
-    let (low, high) = aabb_of(slice.iter().map(|&id| centres[id]));
-    let axis = longest_axis(&low, &high);
-    select_at(slice, centres, axis, slice.len() / 2);
-    axis
 }
 
 /// Splits `slice` at rank `at` on the axis of the least cost, of the three: each side's count times

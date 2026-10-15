@@ -35,16 +35,10 @@ pub(super) fn coarsen(
             let _t = Timer::new(Phase::Adjacency);
             cluster_adjacency(&lists)
         };
-        let centres: Vec<[f64; 3]> = current
-            .iter()
-            .map(|&id| {
-                let s = dag[id].sphere;
-                [s[0], s[1], s[2]]
-            })
-            .collect();
+        let spheres: Vec<[f64; 4]> = current.iter().map(|&id| dag[id].sphere).collect();
         let groups = {
             let _t = Timer::new(Phase::Grouping);
-            group_clusters(&centres, &adjacency_by_slot, DAG_GROUP_MAX)
+            group_clusters(&spheres, &adjacency_by_slot, DAG_GROUP_MAX)
         };
         if groups.len() >= current.len() {
             break;
