@@ -1,5 +1,6 @@
 import { core } from '../../impostor/borrowed.ts'
-import { cardPassWgsl } from './cardWgsl.ts'
+import { CARD_SURFACE_FIELDS, cardPassWgsl } from './cardWgsl.ts'
+import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
@@ -33,9 +34,12 @@ async function makeCardPipelines(device: GPUDevice) {
     label: 'Trillion3D impostor identifiers',
     entries: [computeTextureEntry(0, 'uint', '2d', FRAGMENT)],
   })
-  const module = device.createShaderModule({
+  const code = cardPassWgsl(core.cardTileWgsl())
+  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code })
+  // The surface stage without the feedback target, derived from the one entry as every pass's is.
+  const free = device.createShaderModule({
     label: IMPOSTOR_PASS,
-    code: cardPassWgsl(core.cardTileWgsl()),
+    code: feedbackFreeEntry(code, 'card_fs', 'CardOut', CARD_SURFACE_FIELDS, 'in:CardVary', 'in'),
   })
   const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, tilesLayout] })
   const surfaceLayout = device.createPipelineLayout({
@@ -48,25 +52,21 @@ async function makeCardPipelines(device: GPUDevice) {
     targets: GPUColorTargetState[],
     pipelineLayout: GPUPipelineLayout,
     depthStencil?: GPUDepthStencilState,
+    from = module,
   ) =>
     core.buildRenderPipeline(device, {
       label,
       layout: pipelineLayout,
-      vertex: { module, entryPoint: 'card_vs' },
-      fragment: { module, entryPoint, targets },
+      vertex: { module: from, entryPoint: 'card_vs' },
+      fragment: { module: from, entryPoint, targets },
       // Four vertex invocations a card, its two triangles a strip (`card_vs`).
       primitive: { topology: 'triangle-strip', cullMode: 'none' },
       ...(depthStencil && { depthStencil }),
     })
   // Compiled together, off the thread (#1362).
   const [pipeline, fed, ids, hiz] = await Promise.all([
-    make(IMPOSTOR_PASS, 'card_fs', surfaces, surfaceLayout),
-    make(
-      IMPOSTOR_PASS,
-      'card_feedback_fs',
-      [...surfaces, { format: core.FEEDBACK_FORMAT }],
-      surfaceLayout,
-    ),
+    make(IMPOSTOR_PASS, 'card_fsWithoutFeedback', surfaces, surfaceLayout, undefined, free),
+    make(IMPOSTOR_PASS, 'card_fs', [...surfaces, { format: core.FEEDBACK_FORMAT }], surfaceLayout),
     make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_fs', [core.VIS_TARGETS[0]], layout, core.VIS_DEPTH),
     make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_hiz_fs', core.VIS_TARGETS, layout, core.VIS_DEPTH),
   ])

@@ -7,6 +7,7 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { requestLoopWgsl } from '../tile/requestWgsl.ts'
+import { fragmentMembers, type FragmentField } from '../../gpu/core/fragmentOutputs.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the camera's own, both
  *  at the eye, then the eye in two singles a component — the high words with the focal length's
@@ -14,6 +15,14 @@ import { requestLoopWgsl } from '../tile/requestWgsl.ts'
 export const CARD_VIEW_FLOATS = 40
 /** Maps a pixel may ask a tile of: colour and coverage, normal and depth, ORM. */
 const CARD_MAPS = 3
+/** The four opaque surfaces a card pixel writes, in their targets' order: what its surface stage
+ *  writes without the feedback target (`feedbackFreeEntry`, `pipelines.ts`). */
+export const CARD_SURFACE_FIELDS: readonly FragmentField[] = [
+  { name: 'baseMetal', wgsl: 'vec4f' },
+  { name: 'normalRough', wgsl: 'vec4f' },
+  { name: 'emissiveAo', wgsl: 'vec4f' },
+  { name: 'flags', wgsl: 'u32' },
+]
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2
 
@@ -34,8 +43,8 @@ const LIT_SURFACE_FLAG = 2
  * offset), into the depth and the pyramid's level 0, so a card occludes as its mesh. After the
  * material passes, `card_fs` writes its surface where the identifier kept is its own — an integer
  * the visibility stage wrote, which no rounding of a depth formula reaches —, so the lighting, the
- * shadows and every later pass read it as they read a cluster; `card_feedback_fs` beside it posts
- * the tile its pixel reads (`cardRequest`), when the frame's pipelines write the feedback.
+ * shadows and every later pass read it as they read a cluster, and posts the tile its pixel reads
+ * (`cardRequest`); its entry without the feedback target is derived (`feedbackFreeEntry`).
  */
 export const cardPassWgsl = (reads: WgslDecl) =>
   wgslProgram(
@@ -177,17 +186,11 @@ fn cardSurface(in:CardVary,px:CardPixel)->CardSurface{
  return CardSurface(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag);
 }
 fn cardKept(in:CardVary)->bool{return textureLoad(cardIds,vec2i(in.clip.xy),0).r==cardId(in.card);}
-struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32}
+struct CardOut{${fragmentMembers([...CARD_SURFACE_FIELDS, { name: 'feedback', wgsl: 'u32' }])}}
 @fragment fn card_fs(in:CardVary)->CardOut{
  if(!cardKept(in)){discard;}
- let s=cardSurface(in,cardPixel(in));
- return CardOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags);
-}
-struct CardFedOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) feedback:u32}
-@fragment fn card_feedback_fs(in:CardVary)->CardFedOut{
- if(!cardKept(in)){discard;}
  let px=cardPixel(in);let s=cardSurface(in,px);
- return CardFedOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags,cardRequest(px,in.clip.xy,in.weightsLod.w));
+ return CardOut(s.baseMetal,s.normalRough,s.emissiveAo,s.flags,cardRequest(px,in.clip.xy,in.weightsLod.w));
 }`,
     [impostorCardWgsl(reads), tangentImpostor, core.SPRITE_WGSL, worldMatrix3],
   )
