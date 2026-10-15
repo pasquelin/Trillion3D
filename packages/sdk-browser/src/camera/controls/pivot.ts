@@ -1,7 +1,7 @@
 import { createChangeGate, createControlBase, surfaceHeight, type ControlBase } from './base.ts'
 import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
-import { dollyDistance, panOffset } from './math.ts'
+import { dollyDistance, panOffset, WHEEL_STEP } from './math.ts'
 import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
@@ -181,5 +181,5 @@ export function trackPivotGestures(
 
 /** Notches a pinch is worth: fingers apart zoom in, exactly as a wheel turned backwards. */
 function pinchSteps(ratio: number) {
-  return ratio > 0 ? -Math.log(ratio) / Math.log(0.95) : 0
+  return ratio > 0 ? -Math.log(ratio) / Math.log(WHEEL_STEP) : 0
 }

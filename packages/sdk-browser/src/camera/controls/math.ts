@@ -91,9 +91,13 @@ export function panOffset(
 /** Scratch axis of the two helpers below; neither is reentrant. */
 const SCRATCH_AXIS = new Float64Array(3)
 
-/** Distance after `steps` notches of a wheel or a pinch; a notch is 5 % at speed one. */
+/** What one wheel notch leaves of the distance at speed one: 5 % nearer. A pinch counts in the
+ *  same notches (`pivot.ts`). */
+export const WHEEL_STEP = 0.95
+
+/** Distance after `steps` notches of a wheel or a pinch (`WHEEL_STEP`). */
 export function dollyDistance(distance: number, steps: number, speed: number) {
-  return distance * Math.pow(0.95, steps * speed)
+  return distance * Math.pow(WHEEL_STEP, steps * speed)
 }
 
 /**
