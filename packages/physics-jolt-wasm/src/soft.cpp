@@ -29,9 +29,6 @@ namespace {
 /// ten times the speed of its swing (`sqrt(2·g·size)`). Neither its weight nor what it meets drives
 /// its parts so fast apart: only its solver gone wrong does.
 constexpr float SOFT_FALL = 100;
-/// Standard gravity, m/s²: the least pull a soft body's bounds are reckoned with, so that one made
-/// afloat (or under a weaker pull) is still held to its size.
-constexpr float STANDARD_GRAVITY = 9.81f;
 /// The physics module's bound on a soft body's vertex speed, m/s (`SoftBodyCreationSettings::mMaxLinearVelocity`):
 /// one that declares no damping falls freely under it.
 constexpr float JOLT_FASTEST = 500;
@@ -135,7 +132,8 @@ float meanEdge(const SoftBodySharedSettings &shared) {
 }
 
 /// The pull a soft body's bounds are reckoned with, m/s²: the gravity times its scale, never less
-/// than Earth's.
+/// than Earth's (`STANDARD_GRAVITY`), so that one made afloat, or under a weaker pull, is still held
+/// to its size.
 float pullOf(const MotionProperties &motion) {
   return std::max(world().system->GetGravity().Length() * std::abs(motion.GetGravityFactor()), STANDARD_GRAVITY);
 }

@@ -23,8 +23,9 @@
 
 namespace trillion {
 
-/// Object layers: static geometry, moving bodies, decorative bodies (debris: they meet the static
-/// world only).
+/// Standard gravity, m/s²: what brakes and a soft body's least pull are sized on, whatever the world's.
+constexpr float STANDARD_GRAVITY = 9.80665f;
+/// Object layers: static geometry, moving bodies, decorative bodies (debris: meet statics only).
 enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
 
 struct Slot {
@@ -32,8 +33,7 @@ struct Slot {
   /** The engine id the page gave the body (slot and generation). */
   uint32_t engine = 0;
   uint32_t flags = 0;
-  /** The step whose pose buffer holds this body's record: one record per body and step. */
-  uint32_t sent = 0;
+  uint32_t sent = 0;  ///< The step whose pose buffer holds its record: one per body and step.
   /** In use; its shape refused (commands naming it skipped until the page removes it). */
   bool used = false, refused = false;
   /** Listed in `World::waiting`; a pose withheld (out of view), sent once it is seen again. */

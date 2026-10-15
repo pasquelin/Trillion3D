@@ -30,8 +30,6 @@ enum Kind : uint32_t { CAR, MOTORCYCLE, TRACKED };
 enum Role : uint32_t { STEERS = 1, DRIVEN = 2, HANDBRAKE = 4, SPROCKET = 8 };
 /// The engine's objects face −z, up +y: so do its vehicles, in their body's frame.
 const Vec3 FORWARD(0, 0, -1), UP(0, 1, 0), RIGHT(1, 0, 0);
-/// Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES), m/s².
-constexpr float STANDARD_GRAVITY = 9.80665f;
 /// Below this forward speed a vehicle stands still: the brake pedal then backs it up, and a
 /// tracked vehicle steered turns on the spot (m/s; 0.1 and 1).
 constexpr float STOPPED = 0.1f, PIVOT = 1.0f;
@@ -107,6 +105,7 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
   float frequency = f32(s + 24), damping = f32(s + 25), travel = f32(s + 26), antiRoll = f32(s + 27);
   float maxSteer = f32(s + 28), grip = f32(s + 30), finalDrive = f32(s + 23);
   float omega = 2 * JPH_PI * frequency, gravity = world().system->GetGravity().Length();
+  // Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES).
   float share = mass / float(count), lock = grip * share * STANDARD_GRAVITY;
   const Mat44 inverse = body.GetMotionProperties()->GetLocalSpaceInverseInertia();
   VehicleConstraintSettings settings;
