@@ -71,21 +71,34 @@ export function texelPieces(
   count: number,
   visit: PieceVisit,
 ) {
-  const width = layout.fields[field] << layout.rowShift,
-    start = fieldStart(layout, field),
-    rowMask = (1 << layout.layerShift) - 1
+  const width = layout.fields[field] << layout.rowShift
   for (let t = first, end = first + count; t < end;) {
-    const row = Math.floor(t / width),
-      column = t - row * width,
-      y = row & rowMask,
-      layer = row >> layout.layerShift
-    let texels = width,
+    const { x, y, layer, column } = placeTexel(layout, field, t)
+    let texels = Math.min(width - column, end - t),
       rows = 1
-    if (column || end - t < width) texels = Math.min(width - column, end - t)
-    else rows = Math.min(Math.floor((end - t) / width), rowMask + 1 - y)
-    visit(start + column, y, layer, texels, rows, t)
+    // A run of whole rows from a row's start goes as one piece, within a layer.
+    if (!column && end - t >= width) {
+      texels = width
+      rows = Math.min(Math.floor((end - t) / width), (1 << layout.layerShift) - y)
+    }
+    visit(x, y, layer, texels, rows, t)
     t += rows === 1 ? texels : rows * width
   }
+}
+
+/** Where `placeTexel` writes: one place, reused, no object a texel. */
+const placed = { x: 0, y: 0, layer: 0, column: 0 }
+
+/** Texel `t` of field `field`: its column in its field's line, and where it lies — the texture's
+ *  column, row and layer. The one address of a texel the host writes (`texelPieces`, `texelAt`). */
+function placeTexel(layout: RecordLayout, field: string, t: number) {
+  const width = layout.fields[field] << layout.rowShift,
+    row = Math.floor(t / width)
+  placed.column = t - row * width
+  placed.x = fieldStart(layout, field) + placed.column
+  placed.y = row & ((1 << layout.layerShift) - 1)
+  placed.layer = row >> layout.layerShift
+  return placed
 }
 
 /** The records an extent of `layout` holds (`recordExtent`): its rows' whole. */
@@ -95,15 +108,6 @@ export const heldRecords = (layout: RecordLayout, [, rows, layers]: [number, num
 /** Where texel `t` of field `field` lies — its column, row and layer —, and the texels of its
  *  field's line left in that row from it. */
 export function texelAt(layout: RecordLayout, field: string, t: number) {
-  const width = layout.fields[field] << layout.rowShift,
-    row = Math.floor(t / width),
-    column = t - row * width
-  return {
-    origin: [
-      fieldStart(layout, field) + column,
-      row & ((1 << layout.layerShift) - 1),
-      row >> layout.layerShift,
-    ],
-    left: width - column,
-  }
+  const { x, y, layer, column } = placeTexel(layout, field, t)
+  return { origin: [x, y, layer], left: (layout.fields[field] << layout.rowShift) - column }
 }
