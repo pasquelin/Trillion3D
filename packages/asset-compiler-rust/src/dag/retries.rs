@@ -6,6 +6,7 @@ use super::placed::Local;
 use super::quality::backlit_corners;
 use super::stopped::Stop;
 use super::{attributes, GroupReductionInput, Result};
+use trillion3d_math::triangle::longest_edge;
 
 /// Times group restarted with extra locks before declared lost.
 const BORDER_RETRIES: usize = 3;
@@ -60,7 +61,8 @@ pub(super) struct Reduction<'r, 'i, 'a> {
 }
 impl Reduction<'_, '_, '_> {
     /// Points each corner at its own face's normal copy (`attributes::own_normals`) and returns the
-    /// corners to lock, welded: those of faces lit from behind and those no copy turned its way.
+    /// corners to lock, welded: those of faces longer than the error lit from behind, and those no
+    /// copy turned its way.
     /// A pass without locks — a diagnosis rerun — retries nothing.
     fn faces(&mut self) -> Vec<u32> {
         let (input, local) = (self.input, &mut self.local);
@@ -78,8 +80,17 @@ impl Reduction<'_, '_, '_> {
         );
         let mut retry = Vec::new();
         if self.locked {
+            // A face no longer than the error is under a pixel wherever it is drawn: lit from
+            // behind or not, it asks for no lock. Without this exemption a group the seams freed
+            // stalled again on such faces.
+            let error = self.error;
+            let seen: Vec<u32> = (local.indices.as_chunks::<3>().0.iter())
+                .filter(|tri| longest_edge(positions, tri) > error)
+                .flatten()
+                .copied()
+                .collect();
             let bound = input.normal_bound;
-            retry = backlit_corners(&local.indices, positions, &normals, &local.weld, bound);
+            retry = backlit_corners(&seen, positions, &normals, &local.weld, bound);
             retry.extend(foreign);
         }
         local.normals = Some(normals);

@@ -18,7 +18,7 @@ pub(super) fn simplify(
     flags: &dyn Fn(u32) -> u8,
 ) -> crate::Result<Kept> {
     let region = solve::Region::of(positions, attributes, indices)?;
-    Ok(match region.solve(target, prune, flags) {
+    Ok(match region.solve(target, prune, true, flags) {
         Some(solved) => Kept {
             indices: (solved.indices.iter())
                 .map(|&i| region.remap[i as usize])

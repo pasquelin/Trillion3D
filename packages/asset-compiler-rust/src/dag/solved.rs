@@ -5,11 +5,12 @@
 //!
 //! **Seams held** (every group first): positions another group shares stay locked, texture seams
 //! are protected, the attributes weigh as the level weighs them (`DagAttributes::weighted`), and
-//! each surviving free vertex moves to the minimum of its quadric.
+//! each surviving vertex stays the source vertex it collapsed onto: no vertex is placed, so the
+//! level's arrays hold only source vertices and a page holds as many vertices as its cluster.
 //!
 //! **Seams freed** (a group the diagnosis names `seam-locked`, `diagnosis.rs`): its locks kept, its
 //! seams unprotected, each copy of a surviving position given a texture coordinate and a normal of
-//! its own. A texture set then weighs the surface length one unit of it spans in the group
+//! its own, at the minimum of its quadric (placed vertices). A texture set then weighs the surface length one unit of it spans in the group
 //! (`charts::densities`), the copies on the open border are welded (`charts::open_border_welded`),
 //! and a face across two texture islands is charged its longest edge (`charts::folded_span`).
 use super::border::required_locks;
@@ -49,10 +50,60 @@ pub(super) fn attempt(
     children: usize,
     child_error: f64,
 ) -> Result<std::result::Result<Solved, Stop>> {
+    let base = (input.positions.len() / 3) as u32;
+    reduced(
+        input,
+        live,
+        hold,
+        children,
+        |local, error, relocked, clusters| {
+            let placed = local.placed(input, base);
+            let (weld_seam, uv_sets) = local.measured(input, &placed);
+            let surface = measured::Surface {
+                positions: &local.positions,
+                weld: &local.weld,
+                weld_seam: &weld_seam,
+                extents: &local.extents,
+                uv_sets: uv_sets.iter().map(Vec::as_slice).collect(),
+            };
+            let error =
+                measured::step_error(&surface, local.source, &local.indices, error, child_error);
+            let global =
+                |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
+            Ok(Solved {
+                error,
+                clusters: clusters.into_iter().map(global).collect(),
+                placed,
+                relocked,
+            })
+        },
+    )
+}
+
+/// Whether the group `live` reduces under `hold` to fewer clusters than `children`: the
+/// diagnosis's yes or no, which stops at the cluster count and measures nothing.
+pub(super) fn advances(
+    input: &GroupReductionInput,
+    live: &[u32],
+    hold: Hold,
+    children: usize,
+) -> Result<bool> {
+    Ok(reduced(input, live, hold, children, |_, _, _, _| Ok(()))?.is_ok())
+}
+
+/// The one reduction up to its cluster count: simplify under `hold` with its lock retries,
+/// re-cluster, stop unless fewer clusters than `children`; then `finish` the region, its error so
+/// far, whether locks were added and its clusters (region numbering).
+fn reduced<T>(
+    input: &GroupReductionInput,
+    live: &[u32],
+    hold: Hold,
+    children: usize,
+    finish: impl FnOnce(Local<'_>, f64, bool, Vec<Vec<u32>>) -> Result<T>,
+) -> Result<std::result::Result<T, Stop>> {
     if live.len() / 3 < 2 {
         return Ok(Err(Stop::TooSmall));
     }
-    let base = (input.positions.len() / 3) as u32;
     let required = match hold.locked {
         true => required_locks(live, input.locks, input.weld),
         false => Vec::new(),
@@ -75,8 +126,10 @@ pub(super) fn attempt(
             let seam = hold.seams && input.seams.get(v as usize).copied().unwrap_or(false);
             flags(lock, seam)
         };
+        // Only a seam-freed group places vertices: its copies each solve their own attributes.
         // Pruning ignores locks: a retry, which added some, no longer prunes.
-        let Some(solved) = region.solve(live.len() / 6, extra.is_empty(), &flag) else {
+        let place = !hold.seams;
+        let Some(solved) = region.solve(live.len() / 6, extra.is_empty(), place, &flag) else {
             return Ok(Err(Stop::NoCollapse));
         };
         let error = solved.error_object.max(weld_error);
@@ -99,21 +152,5 @@ pub(super) fn attempt(
     if clusters.len() >= children {
         return Ok(Err(Stop::NoCollapse));
     }
-    let placed = local.placed(input, base);
-    let (weld_seam, uv_sets) = local.measured(input, &placed);
-    let surface = measured::Surface {
-        positions: &local.positions,
-        weld: &local.weld,
-        weld_seam: &weld_seam,
-        extents: &local.extents,
-        uv_sets: uv_sets.iter().map(Vec::as_slice).collect(),
-    };
-    let error = measured::step_error(&surface, local.source, &local.indices, error, child_error);
-    let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
-    Ok(Ok(Solved {
-        error,
-        clusters: clusters.into_iter().map(global).collect(),
-        placed,
-        relocked,
-    }))
+    finish(local, error, relocked, clusters).map(Ok)
 }

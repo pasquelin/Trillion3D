@@ -94,13 +94,17 @@ impl Region {
         })
     }
 
-    /// Simplifies the region towards `target_triangles` and solves what survives. `flags` answers
-    /// `VERTEX_LOCK` and `VERTEX_PROTECT` per source vertex; `prune` also removes the parts that
-    /// fall under the error, ignoring locks. `None` when no triangle went.
+    /// Simplifies the region towards `target_triangles` and, when `place`, keeps the solve of what
+    /// survives. `flags` answers `VERTEX_LOCK` and `VERTEX_PROTECT` per source vertex; `prune` also
+    /// removes the parts that fall under the error, ignoring locks. `None` when no triangle went.
+    /// The collapses and their error are the library's either way: `place` only decides whether a
+    /// surviving vertex takes its solved position (a placed vertex) or stays the source vertex it
+    /// collapsed onto.
     pub fn solve(
         &self,
         target_triangles: usize,
         prune: bool,
+        place: bool,
         flags: &dyn Fn(u32) -> u8,
     ) -> Option<SolvedRegion<'_>> {
         let current = self.compact.len() / 3;
@@ -145,11 +149,12 @@ impl Region {
             |a: &[f32], b: &[f32]| a.iter().zip(b).any(|(x, y)| x.to_bits() != y.to_bits());
         let moved: Vec<bool> = (0..n)
             .map(|i| {
-                differs(&frame[i * 3..i * 3 + 3], &self.frame[i * 3..i * 3 + 3])
-                    || differs(
-                        &weighed[i * stride..][..stride],
-                        &self.weighed[i * stride..][..stride],
-                    )
+                place && differs(&frame[i * 3..i * 3 + 3], &self.frame[i * 3..i * 3 + 3])
+                    || place
+                        && differs(
+                            &weighed[i * stride..][..stride],
+                            &self.weighed[i * stride..][..stride],
+                        )
             })
             .collect();
         let mut positions = self.source.clone();
