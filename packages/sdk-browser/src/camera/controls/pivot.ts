@@ -1,4 +1,4 @@
-import { createChangeGate, createControlBase, type ControlBase } from './base.ts'
+import { createChangeGate, createControlBase, surfaceHeight, type ControlBase } from './base.ts'
 import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
 import { dollyDistance, panOffset } from './math.ts'
@@ -45,7 +45,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
   const gate = createChangeGate(base, 10)
-  const height = () => surface.clientHeight || 1
+  const height = () => surfaceHeight(surface)
   const sample = () => {
     pose.readPosition(position)
     pose.readOrientation(orientation)

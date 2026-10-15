@@ -24,8 +24,7 @@ export interface ControlSettings {
   /** Flight and first person: world units per second at full stick; 1 by default. */
   movementSpeed: number
   /** Flight, first person and character: radians the view turns per pixel the pointer moves;
-   *  `null` (the default) keeps each one's own — 0.002 for a head, half a turn per canvas
-   *  height for flight. */
+   *  `null` (the default) is half a turn per canvas height (`trackLook`). */
   lookSpeed: number | null
   /** First person and character: lowest the head looks, in radians (0 is the horizon, negative down). */
   minPitch: number

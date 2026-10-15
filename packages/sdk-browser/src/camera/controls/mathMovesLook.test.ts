@@ -28,10 +28,13 @@ function readHead(L: Lengths, q: Float64Array): Head {
   return { yaw: Math.atan2(-f[0], -f[2]), pitch: Math.atan2(f[1], L.l2(f[0], f[2])) }
 }
 
+/** The default look on the tests' 400-pixel surface: half a turn per surface height. */
+const LOOK = Math.PI / 400
+
 /** `createHead`'s turn: the look of `(dx, dy)` pixels applied, the level orientation rebuilt. */
 function turnHead(head: Head, dx: number, dy: number) {
-  head.yaw -= dx * 0.002
-  head.pitch = clampCompare(head.pitch - dy * 0.002, HEAD_DEFAULTS.minPitch, HEAD_DEFAULTS.maxPitch)
+  head.yaw += -dx * LOOK
+  head.pitch = clampCompare(head.pitch + -dy * LOOK, HEAD_DEFAULTS.minPitch, HEAD_DEFAULTS.maxPitch)
   return orbitOrientation(new Float64Array(4), [0, head.yaw, HALF_PI + head.pitch])
 }
 
