@@ -105,8 +105,8 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.lightLists}) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<${HALF_FORMAT},write>;
-@group(0) @binding(${B.sampled}) var<storage,read_write> traceSampled:atomic<u32>;
-var<workgroup> groupSampled:atomic<u32>;
+@group(0) @binding(${B.sampled}) var<storage,read_write> traceSampled:u32;
+var<workgroup> groupSampled:u32;
 /** The fresh texel of block \`block\` on the surface \`layer\`: its sampled lobes' radiance, traced now at
  *  the first pixel that reflects through a sampled lobe in the image's turn of the block — the
  *  diagonal, then the other —, its rank in the block plus one; zero where none does. */
@@ -127,16 +127,18 @@ fn traceTexel(block:vec2u,layer:u32)->vec4u{
  return vec4u(0u);
 }
 /** One thread a texel; a workgroup that wrote a texel tells the settle the image sampled a lobe
- *  (\`traceSampled\`, \`settle.ts\`). */
+ *  (\`traceSampled\`, \`settle.ts\`): a flag, never a count — every thread that writes it writes one,
+ *  so whatever their order the word read after the barrier, and on the CPU after the image, is one;
+ *  no ray waits on another, and no counter is shared. */
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceSurface(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
  if(all(id.xy<textureDimensions(traceOut))){
   let fresh=traceTexel(id.xy,REFLECTION_LAYER);
   textureStore(traceOut,id.xy,fresh);
-  if(freshValid(fresh)){atomicStore(&groupSampled,1u);}
+  if(freshValid(fresh)){groupSampled=1u;}
  }
- workgroupBarrier();
- if(lane==0u&&atomicLoad(&groupSampled)!=0u){atomicStore(&traceSampled,1u);}
+ let sampled=workgroupUniformLoad(&groupSampled);
+ if(lane==0u&&sampled!=0u){traceSampled=1u;}
 }`,
   [
     directLightWgsl(),
