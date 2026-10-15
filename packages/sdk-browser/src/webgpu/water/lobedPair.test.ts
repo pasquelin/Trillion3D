@@ -35,12 +35,9 @@ const SINGLE = wgslModule(
 const K = wgslConstants(LOBED)
 const SHARED = [
   ...LIGHT_LOOP_SHARED,
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
   ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
-const LOBE = ['lobeLight', 'anisotropicLobe']
+const LOBE = ['anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
 
 /** A pixel's lobes as `setLobes` leaves them: a strength along a direction across `N`, a coat. */

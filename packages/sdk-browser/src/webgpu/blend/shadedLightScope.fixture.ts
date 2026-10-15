@@ -1,7 +1,29 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 
-/** The functions a light loop and its pair share, which a test of either runs beside it. */
-export const LIGHT_LOOP_SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
+/** The functions a light loop and its pair share, which a test of either runs beside it: the one
+ *  light term's reach, incidence and kind, the listed light, the thin back, the surface model and the
+ *  one surface light with its lobe hooks (the lobeless block's or the lobed one's). */
+export const LIGHT_LOOP_SHARED = [
+  'lightReaches',
+  'localLightReaches',
+  'directIncidence',
+  'rangeWindow',
+  'isKind',
+  'isSun',
+  'isSunKind',
+  'isSpot',
+  'isRect',
+  'listedLight',
+  'thinSurface',
+  'thinTransmission',
+  'modelLight',
+  'surfaceLight',
+  'lobeThrough',
+  'coatCosine',
+  'baseLobe',
+  'coatLobe',
+  'lobeView',
+]
 /** A light loop's sum, run as JavaScript: one colour. */
 export type Sum = (...args: unknown[]) => number[]
 /** A light loop's pair of sums, run as JavaScript: the lit colour and the specular one. */

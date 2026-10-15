@@ -23,6 +23,8 @@ import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
 const NAMES = [
+  'surfaceLight',
+  'lobeThrough',
   'coatCosine',
   'baseLobe',
   'coatLobe',

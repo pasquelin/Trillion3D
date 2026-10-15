@@ -30,18 +30,14 @@ const SINGLE = wgslModule(declaredLightingWgsl({ transmittance: 18 }), STANDARD_
 const K = wgslConstants(WATER)
 const SHADING = [
   'lobeSurface',
-  'surfaceLight',
   'standardLobe',
   'lobeSum',
   'fresnelSchlick',
   'ggxDistribution',
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
   // The maths library's, which the lobe calls.
-  'ndotvFloor',
+  'lambertAlbedoMul',
+  'ndotvClamped',
   'f0Of',
-  'lambertAlbedo',
 ]
 
 test('one walk of the lights gives the two sums of two walks, bit for bit', () => {

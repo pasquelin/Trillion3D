@@ -1,5 +1,6 @@
 import { LIGHT_KIND } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
+import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -7,6 +8,7 @@ import { ndotvClamped, splitSumTerm } from '../../../../math/src/wgsl/lighting.t
 import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
 import { faceNormal, vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
+import { isKind, rangeWindow } from './lightReachWgsl.ts'
 
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
@@ -34,7 +36,7 @@ import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
  */
 export const RECT_LIGHT_WGSL = wgslBlock(
   'RECT_LIGHT_WGSL',
-  [INVERSE_TWO_PI, PI, faceNormal],
+  [INVERSE_TWO_PI, PI, faceNormal, rangeWindow, isKind],
   `
 const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
 fn isRect(light:DirectLight)->bool{return isKind(light.params.x,KIND_RECT);}
@@ -77,15 +79,14 @@ fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
  if(!(ll>0.0)){return vec4f(0.0);}
  return vec4f(F*(sign(E)*inverseSqrt(ll)),abs(E));
 }
-/** The rectangle's corners relative to P, and its range window there; a zero window where it
- *  does not reach P — behind its face or beyond its range (\`localLightReaches\`, which every program
- *  holding this text holds through \`directLightWgsl\`). The centre is taken relative to P first: a corner then rounds at the
- *  light's distance, not at its world position's. */
+/** The rectangle's corners relative to P, and its range window there, of a rectangle the light term
+ *  let through (\`lightReaches\`: in range, P before its face). The centre is taken relative to P
+ *  first: a corner then rounds at the light's distance, not at its world position's. */
 struct RectView{a:vec3f,b:vec3f,c:vec3f,d:vec3f,window:f32,}
 fn rectView(light:DirectLight,P:vec3f)->RectView{
  let o=light.positionRange.xyz-P;let n=light.directionCone.xyz;
  let U=light.shape.xyz;let W=normalize(cross(U,n))*light.shape.w;
- let window=select(0.0,rangeWindow(length(o),light.positionRange.w),localLightReaches(o,light.positionRange.w,-2.0,n,true));
+ let window=rangeWindow(length(o),light.positionRange.w);
  return RectView(o-U-W,o+U-W,o+U+W,o-U+W,window);
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
@@ -118,11 +119,7 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
 fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLookup(rough,NdotV,1u));}`,
 )
 
-/** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
- *  included, its view \`r\` from the point (\`rectView\`): the diffuse of its exact irradiance, the specular of its fitted lobe (\`rectBase\`,
- *  stretched where the pixel's lobes skew it), under what a coat lets through, plus the coat's
- *  fitted lobe (\`rectCoat\`) — a lobeless program's hooks the plain lobe, one and zero
- *  (\`lobesWgsl.ts\`). Its view of the rectangle serves the coat and the base. */
+/** What a rectangle's shading reads: its fitted lobe (\`rectLtc\`) and the corners' move into it. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
   [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL],
@@ -143,22 +140,35 @@ fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  let m=ltcLookup(rough,NdotV,0u);
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
  return ltcSplitSum(f0,rough,NdotV)*lobe;
-}
+}`,
+)
+
+/** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
+ *  included, its view \`r\` from the point (\`rectView\`): on a diffuse or toon model, the model's
+ *  light of its exact irradiance, no lobe read; else the diffuse of that irradiance and the specular of
+ *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it), under what a coat lets
+ *  through, plus the coat's fitted lobe (\`rectCoat\`). The hooks are declared by the hook block that
+ *  lists this one (\`lobesWgsl.ts\`: the lobed one, or the lobeless one's plain lobe, one and zero). */
+export const RECT_SURFACE_LIGHT_WGSL = wgslBlock(
+  'RECT_SURFACE_LIGHT_WGSL',
+  [RECT_SHADING_WGSL, STANDARD_LIGHTING_WGSL, SURFACE_MODEL_LIGHT_WGSL],
+  `
 fn rectLight(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,ao:f32)->vec3f{
  let tint=light.colorIntensity.rgb;
- // The coat lights from its own normal, whatever the base's face: zero without lobes (\`rectCoat\`).
- let coat=rectCoat(r,V,light.colorIntensity.w)*tint;
  let incident=rectIrradianceOf(r,N);
- if(incident.w<=0.0){return coat;}
  let E=light.colorIntensity.w*incident.w;
- // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
- if(surfaceModel==${MODEL_FLAG.diffuse}u){return modelLight(rgb,metal,N,N,E,ao)*tint;}
- // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
- // bounded by π, as a lamp's energy is by its falloff.
- if(surfaceModel==${MODEL_FLAG.toon}u){
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
+  if(incident.w<=0.0){return vec3f(0.0);}
+  // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
+  if(surfaceModel==${MODEL_FLAG.diffuse}u){return modelLight(rgb,metal,N,N,E,ao)*tint;}
+  // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
+  // bounded by π, as a lamp's energy is by its falloff.
   let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint;
  }
+ // The coat lights from its own normal, whatever the base's face: zero without lobes (\`rectCoat\`).
+ let coat=rectCoat(r,V,light.colorIntensity.w)*tint;
+ if(incident.w<=0.0){return coat;}
  let specular=rectBase(r,N,V,s.f0,rough)*light.colorIntensity.w*r.window;
  return (s.diffuse*E+specular)*tint*lobeThrough()+coat;
 }`,

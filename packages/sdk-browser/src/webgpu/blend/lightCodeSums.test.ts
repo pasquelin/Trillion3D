@@ -15,7 +15,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
-import { randomLampScope } from './shadedLightScope.fixture.ts'
+import { LIGHT_LOOP_SHARED, randomLampScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -23,14 +23,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 const SHARED = [
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
+  ...LIGHT_LOOP_SHARED,
   ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 /** What the shadow read does for a light with no slot: no transmission, a factor of one. */

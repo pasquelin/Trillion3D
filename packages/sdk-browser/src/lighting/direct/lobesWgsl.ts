@@ -2,6 +2,8 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { SURFACE_LIGHT_WGSL } from '../standardLighting.ts'
+import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
 
 /**
@@ -28,7 +30,7 @@ import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/s
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, SURFACE_LIGHT_WGSL, RECT_SURFACE_LIGHT_WGSL],
   `
 struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
@@ -101,10 +103,10 @@ fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{
 /** A lobeless program's hooks of the one \`surfaceLight\` (\`LOBES_LIGHTING_WGSL\`'s): no lobe is ever
  *  set, so the base is the standard lobe, the coat lets it through whole, an exact one, and adds an
  *  exact zero — every term it weighs keeps its bits. What a program that lights a surface without
- *  a lobe lists beside \`STANDARD_LIGHTING_WGSL\`. */
+ *  a lobe lists: it brings \`surfaceLight\` (\`SURFACE_LIGHT_WGSL\`). */
 export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
-  [],
+  [SURFACE_LIGHT_WGSL],
   `fn lobeThrough()->f32{return 1.0;}
 fn lobeView(s:LobeSurface){}
 fn coatCosine(L:vec3f)->f32{return 0.0;}
@@ -115,7 +117,7 @@ fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return vec3f(0.0);}`,
 /** The same of the one \`rectLight\` (\`rectLightWgsl.ts\`): the plain fitted lobe and no coat. */
 export const LOBELESS_RECT_WGSL = wgslBlock(
   'LOBELESS_RECT_WGSL',
-  [],
+  [RECT_SURFACE_LIGHT_WGSL],
   `fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{return rectLtc(r,N,V,f0,rough);}
 fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{return vec3f(0.0);}`,
 )

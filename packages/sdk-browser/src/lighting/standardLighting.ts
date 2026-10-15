@@ -40,11 +40,8 @@ fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  *  What a pixel's lights share of its surface — its reflectance, its diffuse albedo, α², 1 − α²,
  *  N·V and the view's half of the visibility — is taken once a pixel (\`lobeSurface\`), before its
  *  light loop (\`sliceLighting\`), never once a light: the very operations in the very order, so
- *  every light's term keeps its bits. \`surfaceLight\` is one light on such a surface, the one
- *  light of every surface: its base lobe (\`baseLobe\`) under what a coat lets through
- *  (\`lobeThrough\`) plus the coat's own (\`coatLobe\`, past \`coatCosine\`) — a lobeless program's
- *  answers (\`direct/lobesWgsl.ts\`) the standard lobe, one and zero, which change no bit;
- *  \`standardLighting\` the same on a surface given whole. \`standardLobe\` is the light's term
+ *  every light's term keeps its bits; one light on such a surface is \`surfaceLight\`
+ *  (\`SURFACE_LIGHT_WGSL\`). \`standardLobe\` is the light's term
  *  past its direction \`L\`, the half-vector \`H\` and \`NdotL\` above zero: what a clear coat
  *  (\`direct/lobesWgsl.ts\`) runs on its own normal with the base's \`L\` and \`H\`. */
 export const STANDARD_LIGHTING_WGSL = wgslBlock(
@@ -61,22 +58,6 @@ fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
  s.f0=f0Of(rgb,metal);
  s.diffuse=lambertAlbedoMul(rgb,metal);
  return s;
-}
-fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- return surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,light);
-}
-fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- let L=normalize(light.xyz);
- let NdotL=max(dot(N,L),0.0);
- let coatNdotL=coatCosine(L);
- // Facing away from the base and the coat, every lobe is a finite number times direct = light.w·0:
- // a zero, which the light's sum keeps as it is. Returned before the half-vector, the distribution
- // and Fresnel are paid.
- if(NdotL==0.0&&coatNdotL==0.0){return vec3f(0.0);}
- let H=normalize(L+V);
- var base=vec3f(0.0);
- if(NdotL>0.0){base=baseLobe(s,N,V,L,H,NdotL,light.w);}
- return base*lobeThrough()+coatLobe(V,H,coatNdotL,light.w);
 }
 fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
  let direct=energy*NdotL;
@@ -96,6 +77,33 @@ fn lobeSum(s:LobeSurface,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
  let Vis=0.5/(gV+gL+1e-7);
  let F=fresnelSchlick(s.f0,VdotH);
  return s.diffuse*direct+D*Vis*F*direct;
+}`,
+)
+
+/** One light on a surface, the one light of every surface (\`surfaceLight\`), and the same on a
+ *  surface given whole (\`standardLighting\`): the standard block's lobe under the pixel's lobe hooks
+ *  — \`baseLobe\`, \`lobeThrough\`, \`coatLobe\`, \`coatCosine\` —, which the hook blocks that list
+ *  this one declare (\`direct/lobesWgsl.ts\`: the lobed one, and the lobeless one's standard lobe,
+ *  one and zero). */
+export const SURFACE_LIGHT_WGSL = wgslBlock(
+  'SURFACE_LIGHT_WGSL',
+  [STANDARD_LIGHTING_WGSL],
+  `
+fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
+ return surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,light);
+}
+fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
+ let L=normalize(light.xyz);
+ let NdotL=max(dot(N,L),0.0);
+ let coatNdotL=coatCosine(L);
+ // Facing away from the base and the coat, every lobe is a finite number times direct = light.w·0:
+ // a zero, which the light's sum keeps as it is. Returned before the half-vector, the distribution
+ // and Fresnel are paid.
+ if(NdotL==0.0&&coatNdotL==0.0){return vec3f(0.0);}
+ let H=normalize(L+V);
+ var base=vec3f(0.0);
+ if(NdotL>0.0){base=baseLobe(s,N,V,L,H,NdotL,light.w);}
+ return base*lobeThrough()+coatLobe(V,H,coatNdotL,light.w);
 }`,
 )
 
