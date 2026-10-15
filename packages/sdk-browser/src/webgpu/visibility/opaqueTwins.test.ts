@@ -38,7 +38,7 @@ test("an occluder's twin is itself but for the opaque fragment stage", async () 
   const { occluders, tested } = await build()
   for (const pipeline of occluders) {
     const twin = opaqueTwin(pipeline) as Made
-    assert.equal(twin.fragment!.entryPoint, 'vis_hiz_opaque_fs')
+    assert.deepEqual(twin.fragment, { ...pipeline.fragment!, constants: { MASKED: 0 } })
     assert.deepEqual({ ...twin, fragment: pipeline.fragment }, pipeline)
   }
   assert.ok(
@@ -93,11 +93,13 @@ async function drawn(rest: boolean, compacted = false) {
     },
   } as unknown as WebgpuPagesRuntime
   drawVis(rt, device, pass, rest, compacted)
-  return { set: set.map((pipeline) => pipeline.fragment!.entryPoint), offsets }
+  const stage = ({ fragment }: GPURenderPipelineDescriptor) =>
+    fragment!.constants?.MASKED === 0 ? 'unmasked' : fragment!.entryPoint
+  return { set: set.map(stage), offsets }
 }
 
 test('each half draws its opaque slots with the twin, then its cutout slots with the cut', async () => {
-  const [cut, opaque] = ['vis_hiz_fs', 'vis_hiz_opaque_fs']
+  const [cut, opaque] = ['vis_hiz_fs', 'unmasked']
   // Two layers: each its three opaque slots, then its three cutout ones, at their own offsets.
   const half = [0, 1, 2, 3, 4, 5],
     slots = [...half, ...half.map((s) => BASE_SLOTS + s)]

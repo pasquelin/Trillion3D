@@ -1,4 +1,4 @@
-// #831: a draw that holds no cutout row (`FLAG_MASK`) draws with `vis_hiz_opaque_fs`, which
+// #831: a draw that holds no cutout row (`FLAG_MASK`) draws `vis_hiz_fs` with `MASKED` false, which
 // neither reads the page nor discards: on Apple's tile GPUs, a fragment
 // stage that discards makes the hidden-surface removal flush and shade every layer it covers. The
 // shipped stages run in `shaderRun` over the quantized pages of `pointHeader.fixture.ts`, far from
@@ -19,17 +19,13 @@ import { VIS_SHADER } from './visWgsl.ts'
 import * as F from '../types.ts'
 import { cameraViewProj, pages, stages, VIS_VS_NAMES, VIS_VS_SCOPE } from './pointHeader.fixture.ts'
 
-test('the opaque stages are the cut ones without their page read and their discard', () => {
-  const bare = (name: string) => functionsOf(VIS_SHADER, [name]).replace(/\s+/g, '')
+test('the page read and the discard are the MASKED part of the stage alone', () => {
+  const stage = functionsOf(VIS_SHADER, ['vis_hiz_fs']).replace(/\s+/g, '')
   const cut = 'letgx=dpdx(in.tc.xy);letgy=dpdy(in.tc.xy);'
   const keep = 'if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}'
-  for (const [stage, opaque] of [['vis_hiz_fs', 'vis_hiz_opaque_fs']]) {
-    const kept = bare(stage)
-      .replace(cut + keep, '')
-      .replace(`fn${stage}(`, `fn${opaque}(`)
-    assert.equal(kept, bare(opaque), stage)
-    assert.ok(!bare(opaque).includes('pages[') && !bare(opaque).includes('discard'), opaque)
-  }
+  assert.ok(stage.includes(`if(MASKED){${cut}${keep}}`))
+  const unmasked = stage.replace(`if(MASKED){${cut}${keep}}`, '')
+  assert.ok(!unmasked.includes('pages[') && !unmasked.includes('discard'))
 })
 
 /** A discard, made a return the model sees: the only edit of the shipped text. */
@@ -66,16 +62,16 @@ const binOf = (row: Row) =>
 
 const uni = { viewProj: cameraViewProj(1), viewport: [1280, 720] }
 Object.assign(uni, { pixelRatio: 1, computeSpan: 0, indirect: 0, drawSlot: 0 })
-const run = stages(
-  CODE,
-  VIS_VS_NAMES.concat(['lineDash', 'maskKeep', 'vis_hiz_fs'], ['vis_hiz_opaque_fs']),
-  {
-    ...{ uni, instances: [], slotOffsets: [0], pages: table, DISCARD, ...VIS_VS_SCOPE },
-    ...{ dpdx: () => [0, 0], dpdy: () => [0, 0] },
-    // A checker of alpha 0 and 1 over the UV: half of a mapped cutout row's pixels are cut.
-    maskAlpha: (_map: number, uv: number[]) => (Math.floor(uv[0] * 6) + Math.floor(uv[1] * 6)) % 2,
-  },
-)
+const scope = {
+  ...{ uni, instances: [], slotOffsets: [0], pages: table, DISCARD, ...VIS_VS_SCOPE },
+  ...{ dpdx: () => [0, 0], dpdy: () => [0, 0] },
+  // A checker of alpha 0 and 1 over the UV: half of a mapped cutout row's pixels are cut.
+  maskAlpha: (_map: number, uv: number[]) => (Math.floor(uv[0] * 6) + Math.floor(uv[1] * 6)) % 2,
+}
+const names = VIS_VS_NAMES.concat(['lineDash', 'maskKeep', 'vis_hiz_fs'])
+const run = stages(CODE, names, { ...scope, MASKED: true })
+/** The same stage with its mask test compiled out: the opaque twins' (`VIS_UNMASKED`). */
+const unmasked = stages(CODE, names, { ...scope, MASKED: false })
 type Corner = { position: number[]; id: number; instance: number; tc: number[] }
 const corners = table.map((row, at) =>
   Array.from({ length: row.indexCount }, (_, v) => run.vis_vs(v, at) as Corner),
@@ -89,7 +85,6 @@ function raster(opaqueSlots: boolean) {
     depth = new Float32Array(W * H),
     hizDepth = new Float32Array(W * H)
   const seen = { ties: 0, discards: 0, opaque: 0, written: 0 }
-  const [cutFs, opaqueFs] = ['vis_hiz_fs', 'vis_hiz_opaque_fs']
   for (const bin of [0, 1, 2]) {
     const rows = table.flatMap((row, at) => (binOf(row) === bin ? [at] : []))
     const opaque = opaqueSlots && rows.every((at) => !(table[at].flags & F.FLAG_MASK))
@@ -117,9 +112,9 @@ function raster(opaqueSlots: boolean) {
               Math.fround((q[0] * v[0].tc[c] + q[1] * v[1].tc[c] + q[2] * v[2].tc[c]) / sum),
             )
             const input = { ...v[0], position: [i + 0.5, j + 0.5, z, 1], tc }
-            const out = (run[opaque ? opaqueFs : cutFs] as Fn)(input)
+            const out = ((opaque ? unmasked : run).vis_hiz_fs as Fn)(input)
             if (opaque) {
-              assert.deepStrictEqual(out, (run[cutFs] as Fn)(input), `row ${at}`)
+              assert.deepStrictEqual(out, (run.vis_hiz_fs as Fn)(input), `row ${at}`)
               seen.opaque++
             }
             if (out === DISCARD) {

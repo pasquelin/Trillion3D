@@ -17,9 +17,11 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
 
-/** The raster's fragment stage for a slot that holds no cutout row (`vis_hiz_opaque_fs` below):
- *  production's name, which every opaque twin draws with (`../../webgpu/visibility/pipelines.ts`). */
-export const VIS_OPAQUE_FRAGMENT = 'vis_hiz_opaque_fs'
+/** The raster's one fragment stage, and the override that compiles its mask test out for a slot
+ *  that holds no cutout row (`MASKED` false): the opaque twins' constants
+ *  (`../../webgpu/visibility/pipelines.ts`). */
+export const VIS_FRAGMENT = 'vis_hiz_fs'
+export const VIS_UNMASKED = { MASKED: 0 }
 
 /** The vertex stage of the hardware raster: `hiz` also drops a page whose slot the Hi-Z test rejected
  *  (`HIZ_REJECTED_WGSL`), before a vertex reads a word of it. */
@@ -85,16 +87,19 @@ fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape)
  return corners[vertexIndex%3u];
 }
 ${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
-@fragment fn vis_hiz_fs(in:VSOut)->VisHizOut{
+// A slot that holds no cutout row (no \`FLAG_MASK\`) is drawn with \`MASKED\` false: \`maskKeep\` keeps
+// every pixel of such a row, so the pipeline's constant removes the page read and the discard
+// before the stage is compiled, and a tile GPU's hidden-surface removal resolves its overdraw
+// before it runs (#831). One text, the mask test present only where a row can cut.
+override MASKED:bool=true;
+@fragment fn ${VIS_FRAGMENT}(in:VSOut)->VisHizOut{
  var out:VisHizOut;
- let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
- if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
+ if(MASKED){
+  let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
+  if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
+ }
  out.id=in.id;out.depth=in.position.z;return out;
 }
-// The stage above for a slot that holds no cutout row (no \`FLAG_MASK\`): \`maskKeep\` keeps every
-// pixel of such a row, so it writes the same words without reading its page or discarding, and a
-// tile GPU's hidden-surface removal resolves its overdraw before it runs (#831).
-@fragment fn ${VIS_OPAQUE_FRAGMENT}(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
 `,
     [
       PAGE_INFO_WGSL,

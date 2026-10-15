@@ -3,7 +3,7 @@ import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { validationScope } from '../../gpu/core/errorScope.ts'
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { variesVisibility, visVariantFragment } from '../../diagnostic/gpuGeometry.ts'
-import { VIS_OPAQUE_FRAGMENT } from '../../visibility/shader/visWgsl.ts'
+import { VIS_UNMASKED } from '../../visibility/shader/visWgsl.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
@@ -37,8 +37,8 @@ export const VIS_DEPTH: GPUDepthStencilState = {
 
 /**
  * Each occluder pipeline's twin for a draw that holds no cutout row: the same states, the same
- * vertex stage, the fragment stage `VIS_OPAQUE_FRAGMENT`, which neither reads the page nor
- * discards. Keyed by the pipeline itself, a twin follows its pipeline wherever it is replaced or
+ * vertex stage and fragment stage, its mask test compiled out (`VIS_UNMASKED`): it neither reads
+ * the page nor discards. Keyed by the pipeline itself, a twin follows its pipeline wherever it is replaced or
  * dropped. A tested pipeline (`vis_hiz_vs`) has none: the tested half draws with the occluders'
  * once compacted. Nor under a diagnostic variant of the raster stage, which imposes its one stage
  * on every draw.
@@ -52,7 +52,7 @@ type VisBuild = {
   layout: GPUPipelineLayout
   module: GPUShaderModule
   fragment: string
-  opaque: string | undefined
+  twins: boolean
 }
 function visBuild(
   device: GPUDevice,
@@ -65,7 +65,7 @@ function visBuild(
     ...{ device, module },
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     fragment: visVariantFragment(variant),
-    opaque: twins ? VIS_OPAQUE_FRAGMENT : undefined,
+    twins,
   }
 }
 /** The occluder (`rest` false) or tested pipeline of a face mode, and an occluder's twin. */
@@ -76,17 +76,21 @@ async function visPipeline(
   depthStencil = VIS_DEPTH,
 ) {
   const { device, layout, module } = build
-  const descriptor = (entryPoint: string): GPURenderPipelineDescriptor => ({
+  const descriptor = (constants?: Record<string, number>): GPURenderPipelineDescriptor => ({
     layout,
     vertex: { module, entryPoint: rest ? 'vis_hiz_vs' : 'vis_vs' },
-    fragment: { module, entryPoint, targets: VIS_TARGETS },
+    fragment: {
+      module,
+      entryPoint: build.fragment,
+      targets: VIS_TARGETS,
+      ...(constants && { constants }),
+    },
     primitive: { topology: 'triangle-list', cullMode, frontFace },
     depthStencil,
   })
-  const opaque = !rest && build.opaque
   const [pipeline, twin] = await Promise.all([
-    buildRenderPipeline(device, descriptor(build.fragment)),
-    opaque && buildRenderPipeline(device, descriptor(opaque)),
+    buildRenderPipeline(device, descriptor()),
+    !rest && build.twins && buildRenderPipeline(device, descriptor(VIS_UNMASKED)),
   ])
   if (twin) opaqueTwins.set(pipeline, twin)
   return pipeline
