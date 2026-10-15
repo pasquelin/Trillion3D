@@ -4,6 +4,7 @@
 import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
+import { lastFrameOf } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
@@ -21,14 +22,17 @@ export type FamilyReading = {
 
 type Canvas = HTMLCanvasElement & { readable: boolean }
 
-/** Frames drawn until the world holds three in a row, at most `limit`. */
+/** Frames drawn until the world holds three in a row, at most `limit`: each asked by the page
+ *  (`world.render`) and read on the frame the session last made (`lastFrameOf`), held or drawn — a
+ *  held frame asks its loop for none, and the hooks of `onFrame` run on drawn frames alone. */
 export async function hold(world: ReturnType<typeof familyWorld>['world'], limit = 400) {
   let held = 0,
     frames = 0
-  world.onFrame(({ metrics }) => {
-    held = metrics.frameHeld ? held + 1 : 0
-  })
-  for (; frames < limit && held < 3; frames++) await animationFrame()
+  for (; frames < limit && held < 3; frames++) {
+    await animationFrame()
+    world.render()
+    held = lastFrameOf(world)?.frameHeld ? held + 1 : 0
+  }
   return frames
 }
 
