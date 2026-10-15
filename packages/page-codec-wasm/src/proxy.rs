@@ -55,6 +55,10 @@ pub const PROXY_NODE_FLOATS: usize = 6;
 pub const PROXY_CHILDREN: usize = 4;
 /// Integers per child: two words of quantized box and count, then the link.
 pub const PROXY_CHILD_WORDS: usize = 3;
+/// Bit at which a child's second word holds its triangle count (eight bits).
+pub const PROXY_CHILD_COUNT_SHIFT: u32 = 16;
+/// Bit of a child's second word that marks it present.
+pub const PROXY_CHILD_VALID_BIT: u32 = 24;
 /// Integers per node: its four children concatenated.
 pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 

@@ -173,7 +173,7 @@ pub(super) fn encode_page(
         None => 0,
         Some(value) => {
             let layer = as_u32(integer(Some(value), "page.depthLayer")?, "page.depthLayer")?;
-            if layer > 15 {
+            if layer > crate::coplanar::COPLANAR_MAX_LAYER {
                 return Err(bad(format!("page.depthLayer {layer} exceeds four bits")));
             }
             layer

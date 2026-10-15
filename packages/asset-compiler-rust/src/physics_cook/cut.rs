@@ -76,7 +76,9 @@ pub(crate) fn store_shape(o: &Options, bytes: &[u8]) -> Result<Value> {
     if object_intact(&target, &digest)?.is_none() {
         store_object(&target, bytes)?;
     }
-    Ok(json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":bytes.len()}))
+    Ok(
+        json!({"url":crate::compiler_storage::object_url(&digest),"sha256":digest,"bytes":bytes.len()}),
+    )
 }
 
 /// One tile: its triangles gathered, their vertices compacted, cooked and stored.

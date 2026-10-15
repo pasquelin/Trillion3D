@@ -3,7 +3,7 @@ use crate::plugins::scene::SceneOutput;
 
 /// Can this driver reuse a converted scene folder as-is?
 fn reusable(directory: &Path, plugin: &dyn ScenePlugin) -> bool {
-    let Ok(bytes) = fs::read(directory.join("manifest.json")) else {
+    let Ok(bytes) = fs::read(directory.join(crate::MANIFEST_POINTER)) else {
         return false;
     };
     let Ok(existing) = serde_json::from_slice::<Value>(&bytes) else {

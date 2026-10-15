@@ -33,7 +33,8 @@ pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet};
 pub const DECISIONS_FILE: &str = "decoupes.json";
 /// The version of the cut-out answer sheet this runtime reads.
 pub const SHEET_VERSION: u64 = 1;
-/// Cutout threshold for reclassified material, glTF default.
+/// The alpha cutoff of a masked material that names none — glTF's default — and of a material
+/// a cutout reclassifies.
 pub(crate) const CUTOUT_ALPHA: f64 = 0.5;
 
 /// Read answers, indexed by image fingerprint. Missing sheet, or sheet where no one

@@ -77,7 +77,7 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
         _ => "OPAQUE",
     };
     let cutoff = match alpha_mode {
-        "MASK" => number_or(m.get("alphaCutoff"), 0.5),
+        "MASK" => number_or(m.get("alphaCutoff"), crate::cutout::CUTOUT_ALPHA),
         _ => 0.0,
     };
     let unlit = extension(m, "KHR_materials_unlit").is_some();

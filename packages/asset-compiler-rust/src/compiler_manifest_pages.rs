@@ -29,9 +29,9 @@ pub(crate) fn sidecar_file(sha256: &str) -> String {
 
 /// Where a manifest's per-page URLs point: the shared objects, by fingerprint.
 pub(crate) const TEMPLATES: Templates = Templates {
-    page: "../../objects/{sha}.bin",
-    geometry: "../../objects/{sha}.bin",
-    bundle: "../../objects/{sha}.bin",
+    page: crate::compiler_storage::OBJECT_URL,
+    geometry: crate::compiler_storage::OBJECT_URL,
+    bundle: crate::compiler_storage::OBJECT_URL,
 };
 
 /// The page of `primitives` under `top` and `previews`, without the run's report, naming its

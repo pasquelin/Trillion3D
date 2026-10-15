@@ -55,7 +55,7 @@ pub fn route(source: &Path) -> Result<Routed> {
         let plugin = claim(name, source).ok_or_else(|| unknown(name))?;
         return Ok(Routed::Driver(plugin, vec![source.to_path_buf()]));
     }
-    if source.join("manifest.json").exists() {
+    if source.join(crate::MANIFEST_POINTER).exists() {
         return Ok(Routed::Manifest);
     }
     if let Some(routed) = project(source)? {

@@ -72,7 +72,7 @@ pub(super) fn store_page(
 /// The `geometry` object of a page record: the packed page stored under `digest`.
 pub(crate) fn geometry_record(digest: &str, page: &encode::Encoded, indices: usize) -> Value {
     let header = &page.header;
-    json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
+    json!({"url":crate::compiler_storage::object_url(&digest),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
 }
 /// The manifest record of the page at culling `rank`: its index bytes stored under `digest` (their
 /// `length`) at `offset` in bundle `stream`, their bounds and normal cone, and its packed
@@ -89,7 +89,7 @@ pub(crate) fn page_record(
         true => value(cluster),
         false => Value::Null,
     };
-    json!({"id":rank,"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":length,
+    json!({"id":rank,"url":crate::compiler_storage::object_url(&digest),"sha256":digest,"bytes":length,
         "count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
         "cone":{"axis":[x,y,z],"angle":angle},"role":if cluster.level==0{"exact"}else{"coarse"},
         "geometry":geometry,"level":cluster.level,"lodError":cluster.lod_error,"sphere":cluster.sphere,

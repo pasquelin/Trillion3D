@@ -93,7 +93,7 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
         ),
         PreparedScene::InPlace(name) => load_model_file(&o.source, name, None, &budget),
         PreparedScene::Manifest | PreparedScene::Converted { .. } => {
-            let manifest_bytes = fs::read(o.source.join("manifest.json"))?;
+            let manifest_bytes = fs::read(o.source.join(crate::MANIFEST_POINTER))?;
             let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
             validate_manifest(&manifest)?;
             let gltf_file = manifest

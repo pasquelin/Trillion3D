@@ -113,7 +113,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
 
 /// Manifest a scene driver wrote beside its conversion.
 fn read_manifest(directory: &Path) -> Option<Value> {
-    let bytes = fs::read(directory.join("manifest.json")).ok()?;
+    let bytes = fs::read(directory.join(crate::MANIFEST_POINTER)).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 

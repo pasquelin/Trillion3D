@@ -73,7 +73,7 @@ pub(super) fn share_bootstrap_bundles(o: &Options, primitives: &mut [Value]) -> 
         {
             // A pinned bundle holds roots and depends on nothing: its empty list stays as it is.
             let entry = &mut primitives[primitive]["streams"]["pages"][bundle];
-            entry["url"] = json!(format!("../../objects/{}.bin", names[chunk]));
+            entry["url"] = json!(crate::compiler_storage::object_url(&names[chunk]));
             entry["sha256"] = json!(names[chunk]);
             entry["bytes"] = json!(payloads[chunk].len());
             entry["count"] = json!(clusters[chunk]);

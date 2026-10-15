@@ -11,7 +11,10 @@
 //! disappears from ray. Wide node weighs 18 words for 4 children where
 //! 4 binary nodes weighed 36.
 use super::bvh::Node;
-use super::{PROXY_CHILDREN, PROXY_CHILD_WORDS, PROXY_NODE_FLOATS};
+use super::{
+    PROXY_CHILDREN, PROXY_CHILD_COUNT_SHIFT, PROXY_CHILD_VALID_BIT, PROXY_CHILD_WORDS,
+    PROXY_NODE_FLOATS,
+};
 
 /// What wide node retains of child: box, and next read offset.
 struct Child {
@@ -77,7 +80,10 @@ fn pack(child: &Child, low: [f32; 3], high: [f32; 3]) -> [u32; PROXY_CHILD_WORDS
     }
     [
         quantised[0][0] | quantised[0][1] << 8 | quantised[0][2] << 16 | quantised[1][0] << 24,
-        quantised[1][1] | quantised[1][2] << 8 | child.count << 16 | 1 << 24,
+        quantised[1][1]
+            | quantised[1][2] << 8
+            | child.count << PROXY_CHILD_COUNT_SHIFT
+            | 1 << PROXY_CHILD_VALID_BIT,
         child.offset,
     ]
 }

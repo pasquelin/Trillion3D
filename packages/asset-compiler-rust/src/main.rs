@@ -51,7 +51,7 @@ fn error_value(error: &CompilerError) -> Value {
 fn pointer(result: &Value, cache: &Path) -> Value {
     let scope = result["scope"].as_str().unwrap_or("");
     let key = result["key"].as_str().unwrap_or("");
-    json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/clusters.json"),"pointer":cache.join("native").join(scope).join("manifest.json").to_string_lossy(),"cache":cache.to_string_lossy(),
+    json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/{}", trillion3d_compiler::MANIFEST_FILE),"pointer":cache.join("native").join(scope).join(trillion3d_compiler::MANIFEST_POINTER).to_string_lossy(),"cache":cache.to_string_lossy(),
   "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":result["metrics"],"reusedPages":result["reused"].is_null().then(||result["primitives"].as_array().map(|a|a.iter().filter_map(|p|p["reusedPages"].as_u64()).sum::<u64>())),
   "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]})
