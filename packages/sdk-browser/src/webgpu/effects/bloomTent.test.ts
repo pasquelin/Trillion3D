@@ -1,7 +1,6 @@
 // The bloom's tent (`tent`, `bloomLevel.ts`) is the 3×3 tent of nine bilinear taps spread by the
-// radius, each tap's own bilinear split: where the middle tap's two texels are its neighbours',
-// it folds into them, each read at its weighted centre. Four reads up to a radius of 1, nine at
-// most past it. The sampler clamps each texel's index, so the edges fold
+// radius: up to a radius of 1 the middle tap folds into its neighbours, four reads at tent4's
+// closed form with its 0.5 the level's `1.5 − radius`; past it the nine taps. The sampler clamps each texel's index, so the edges fold
 // alike.
 // Here the shipped text runs in doubles (`shaderRun`) against the CPU oracle's nine taps,
 // over every pair of sizes a bloom draws the tent between, edges and one-texel axes included, and
@@ -34,7 +33,7 @@ function tentsOver([w, h]: Size, radius: number, seed: number, weightBits?: numb
   }))
   const reads = { taps: 0 }
   const scope = {
-    bloom: { radius, inTexel: [1 / w, 1 / h] },
+    bloom: { radius, inTexel: [1 / w, 1 / h], fold: 1.5 - radius },
     level: 'level',
     linearClamp: 'sampler',
     textureSampleLevel: (_: string, __: string, uv: number[]) => {
@@ -42,11 +41,7 @@ function tentsOver([w, h]: Size, radius: number, seed: number, weightBits?: numb
       return channels.map((image) => bilinear(image, uv[0] * w, uv[1] * h, weightBits))
     },
   }
-  const tents = shaderRun<Record<'tent', Tent>>(
-    BLOOM_WGSL,
-    ['fetchLevel', 'tentAxis', 'tent'],
-    scope,
-  )
+  const tents = shaderRun<Record<'tent', Tent>>(BLOOM_WGSL, ['fetchLevel', 'tent'], scope)
   const published = (x: number, y: number) =>
     channels.map((image) => tapSum(image, x, y, UP, radius))
   return { ...tents, reads, published, channels }
@@ -117,7 +112,7 @@ test('every radius reads the tent, four reads up to 1, nine at most past it', ()
     ]) {
       reads.taps = 0
       const got = tent(uv)
-      assert.ok(reads.taps <= (radius <= 1 ? 4 : 9), `radius ${radius}: ${reads.taps} reads`)
+      assert.equal(reads.taps, radius <= 1 ? 4 : 9, `radius ${radius}`)
       published(uv[0] * 30, uv[1] * 17).forEach((want, c) =>
         assert.ok(Math.abs(got[c] - want) < 1e-12, `radius ${radius}: ${got[c]} ≠ ${want}`),
       )
@@ -167,18 +162,19 @@ test("the sampler's rounding of the read fractions moves the tent within a state
   }
 })
 
-test('the composition reads the level through the one tent, a folded middle tap unread', () => {
+test('the composition reads the level through the one tent, its fold a level scalar', () => {
   const texts = [
     BLOOM_WGSL,
     ...[CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS].flatMap(({ bloom }) => Object.values(bloom)),
   ]
   for (const source of texts) {
-    assert.equal(functionsOf(source, ['tent']).match(/c\+=fetchLevel\(/g)?.length, 9, 'nine slots')
+    const tent = functionsOf(source, ['tent'])
+    assert.match(tent, /if\(bloom\.radius>1\.0\)/, 'one branch, on the uniform radius')
+    assert.match(tent, /let s=bloom\.fold\/\(wa\*wb\);/, 'one reciprocal per axis')
     assert.equal(
-      functionsOf(source, ['tent']).match(/if\([xy]\.weight\.y>0\.0(&&y\.weight\.y>0\.0)?\)\{c\+=/g)
-        ?.length,
-      5,
-      'only the slots of a middle tap are gated',
+      tent.match(/fetchLevel\(/g)?.length,
+      13,
+      'four folded reads, nine past a radius of 1',
     )
     assert.match(
       functionsOf(source, ['fetchLevel']),
