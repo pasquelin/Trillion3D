@@ -159,8 +159,9 @@ function pageAwaiter(inputs: Inputs) {
     } finally {
       read.stop()
     }
-    state.loaded = streamer.stats().loaded
-    state.pageBytesRead = streamer.stats().bytesRead
+    const { loaded, bytesRead } = streamer.stats()
+    state.loaded = loaded
+    state.pageBytesRead = bytesRead
   }
 }
 
