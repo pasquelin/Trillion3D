@@ -64,7 +64,7 @@ fn temporalHistory(P:vec3f,N:vec3f,V:vec3f,aim:vec4f,offset:vec2f)->TemporalHist
  if(restart||surface.w<=0.0||aimed.w<=0.0){return held;}
  let at=clipToFramebuffer(aimed,size).xy+offset;
  let apart=distance(at,clipToFramebuffer(surface,size).xy);
- let g=historyGather(historyIn,at*0.5-vec2f(0.5),reflectionLinearDepth(surface),N,V,1.0+apart);
+ let g=historyGather(historyIn,halfPoint(at),reflectionLinearDepth(surface),N,V,1.0+apart);
  if(g.sharpWeight<REFLECTION_EPSILON){return held;}
  return TemporalHistory(
   Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight),g.count/g.sharpWeight);
@@ -108,7 +108,7 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  if(!reflectionSampled(lobeAlpha(own.rough))){
   aim=select(vec4f(P-V*hit,1.0),vec4f(-V,0.0),hit>=HALF_MAX);
  }
- let held=temporalHistory(P,N,V,aim,vec2f(at*2+vec2i(1))-vec2f(coord)-vec2f(0.5));
+ let held=temporalHistory(P,N,V,aim,halfCentre(at)-vec2f(coord)-vec2f(0.5));
  let full=u32(round(held.count));
  let depth=surfaceLinearDepth(P);
  var history=held.radiance;

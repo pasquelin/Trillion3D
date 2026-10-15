@@ -105,9 +105,9 @@ fn halfPick(block:vec2u,layer:u32)->u32{
  let turn=reflectionView.temporal.x;
  for(var k=0u;k<4u;k++){
   let rank=(4u-((turn+k)&3u))&3u;
-  let id=block*2u+vec2u(rank&1u,rank>>1u);
+  let id=halfPixel(vec2i(block),rank+1u);
   if(any(vec2f(id)>=view.viewport.xy)){continue;}
-  if(surfaceReflects(surfaceFlagsAt(vec2i(id)))){return rank+1u;}
+  if(surfaceReflects(surfaceFlagsAt(id))){return rank+1u;}
  }
  return 0u;
 }

@@ -97,10 +97,14 @@ fn historyNormal(t:vec4u)->vec3f{
  let e=vec2f(f32((t.w>>16u)&63u),f32((t.w>>22u)&63u))/63.0;
  return octDecode(e*2.0-vec2f(1.0));
 }
-/** The view's pixel of the half texel \`at\` that its \`pick\` names. */
+/** The view's pixel of the half texel \`at\` that its \`pick\` names; \`halfPoint\` maps a point of the
+ *  view's pixels to the half grid's (texel centres on the integers), \`halfCentre\` the half texel
+ *  \`at\`'s centre back to the view's pixels. */
 fn halfPixel(at:vec2i,pick:u32)->vec2i{
  return at*2+vec2i(i32((pick-1u)&1u),i32((pick-1u)>>1u));
 }
+fn halfPoint(pixel:vec2f)->vec2f{return pixel*0.5-vec2f(0.5);}
+fn halfCentre(at:vec2i)->vec2f{return vec2f(at*2+vec2i(1));}
 fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,slabPerspective(reflectionView.slab));}
 fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}
 fn reflectionDepthPixel(depth:f32)->f32{
