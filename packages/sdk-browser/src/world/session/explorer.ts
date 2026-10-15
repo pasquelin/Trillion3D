@@ -16,7 +16,7 @@ import {
 } from './prepare.ts'
 import { createSessionRuntime, type SessionRuntime } from '../render/sessionRuntime.ts'
 import { createExplorerApi } from '../api/api.ts'
-import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts'
+import { referenceOptions } from '../../frame/referenceMode.ts'
 import { referenceTilesCapture } from '../../frame/referenceTiles.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
 
@@ -57,12 +57,11 @@ function sessionApi(
   const invalidate = explorerSwitch(runtime.options, 'interactive')
     ? startInteractiveExplorer(explorer, runtime, original, opened, followCanvas)
     : () => {}
-  // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
+  // In reference mode the capture is the reference image itself: tile by tile at a heavy
+  // supersampling (`referenceTiles.ts`), box-filtered and assembled in linear light, refused
+  // while the shadows draw coarser than they ask. Outside it, the drawn frame.
   const shadowBias = () => runtime.engine.metrics().shadowResolutionBias
-  const capture = referenceCapture(explorer.capture, reference, shadowBias)
-  // The reference image itself, captured tile by tile at a heavy supersampling
-  // (`referenceTiles.ts`), box-filtered and assembled in linear light.
-  const captureReference = reference
+  const capture = reference
     ? referenceTilesCapture(
         (width, height) => explorer.captureView(width, height),
         (tile) => {
@@ -71,9 +70,9 @@ function sessionApi(
         reference.tiles,
         shadowBias,
       )
-    : null
+    : explorer.capture
   return Object.assign(explorer, {
-    ...{ invalidate, followCanvas, capture, reference, captureReference },
+    ...{ invalidate, followCanvas, capture, reference },
   })
 }
 
