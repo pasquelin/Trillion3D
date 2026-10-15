@@ -84,31 +84,19 @@ export function createTickResults(
     gather(count: number, stepped: boolean) {
       const words = jolt.poses(count),
         to = target()
-      // A step sends one record per body (`writePoses`), so a tick's first poses fill its slots in
-      // record order: one block copy, and only the slots are stamped.
-      if (poseCount === 0) {
-        to.set(words)
-        for (let r = 0; r < count; r++) {
-          const at = r * POSE_WORDS,
-            index = words[at] & BODY_INDEX
-          stamp[index] = tick
-          slotOf[index] = r
-          to[befores + at] = noBefore(words[at])
+      // A body's first record of the tick takes the next slot, one met again rewrites its own.
+      for (let r = 0; r < count; r++) {
+        const at = r * POSE_WORDS,
+          index = words[at] & BODY_INDEX,
+          met = stamp[index] === tick
+        if (!met) [stamp[index], slotOf[index]] = [tick, poseCount++]
+        const o = slotOf[index] * POSE_WORDS
+        if (met) rewriteRecord(to, o, to, befores + o, words, at, POSE_WORDS, stepped)
+        else {
+          to[befores + o] = noBefore(words[at])
+          for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k]
         }
-        poseCount = count
-      } else
-        for (let r = 0; r < count; r++) {
-          const at = r * POSE_WORDS,
-            index = words[at] & BODY_INDEX,
-            met = stamp[index] === tick
-          if (!met) [stamp[index], slotOf[index]] = [tick, poseCount++]
-          const o = slotOf[index] * POSE_WORDS
-          if (met) rewriteRecord(to, o, to, befores + o, words, at, POSE_WORDS, stepped)
-          else {
-            to[befores + o] = noBefore(words[at])
-            for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k]
-          }
-        }
+      }
       const fresh = jolt.events()
       to.set(fresh, events + eventCount * EVENT_WORDS)
       eventCount += fresh.length / EVENT_WORDS
