@@ -3,12 +3,7 @@ import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import {
-  f0Of,
-  lambertAlbedoMul,
-  ndotvClamped,
-  splitSumTerm,
-} from '../../../../math/src/wgsl/lighting.ts'
+import { ndotvClamped, splitSumTerm } from '../../../../math/src/wgsl/lighting.ts'
 import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
 import { faceNormal, vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
@@ -122,20 +117,14 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
 fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLookup(rough,NdotV,1u));}`,
 )
 
-/** The shading of a rectangle at a surface point, colour and intensity included: the diffuse of
- *  its exact irradiance, the specular of its fitted lobe. */
+/** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
+ *  included: the diffuse of its exact irradiance, the specular of its fitted lobe (\`rectBase\`,
+ *  stretched where the pixel's lobes skew it), under what a coat lets through, plus the coat's
+ *  fitted lobe (\`rectCoat\`) — a lobeless program's hooks the plain lobe, one and zero
+ *  (\`lobesWgsl.ts\`). Its view of the rectangle serves the coat and the base. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
-  [
-    RECT_LIGHT_WGSL,
-    PI,
-    f0Of,
-    lambertAlbedoMul,
-    ndotvClamped,
-    tangentSide,
-    vectorRejection,
-    LTC_WGSL,
-  ],
+  [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL],
   `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
@@ -154,12 +143,14 @@ fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
  return ltcSplitSum(f0,rough,NdotV)*lobe;
 }
-fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+fn rectLight(light:DirectLight,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let r=rectView(light,P);
- let incident=rectIrradianceOf(r,N);
- if(incident.w<=0.0){return vec3f(0.0);}
- let E=light.colorIntensity.w*incident.w;
  let tint=light.colorIntensity.rgb;
+ // The coat lights from its own normal, whatever the base's face: zero without lobes (\`rectCoat\`).
+ let coat=rectCoat(r,V,light.colorIntensity.w)*tint;
+ let incident=rectIrradianceOf(r,N);
+ if(incident.w<=0.0){return coat;}
+ let E=light.colorIntensity.w*incident.w;
  // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
  if(surfaceModel==${MODEL_FLAG.diffuse}u){return modelLight(rgb,metal,N,N,E,ao)*tint;}
  // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
@@ -168,7 +159,7 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
   let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint;
  }
- let specular=rectLtc(r,N,V,f0Of(rgb,metal),rough)*light.colorIntensity.w*r.window;
- return (lambertAlbedoMul(rgb,metal)*E+specular)*tint;
+ let specular=rectBase(r,N,V,s.f0,rough)*light.colorIntensity.w*r.window;
+ return (s.diffuse*E+specular)*tint*lobeThrough()+coat;
 }`,
 )

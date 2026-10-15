@@ -21,6 +21,7 @@ import { lambertAlbedoMul } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
+  LOBELESS_RECT_WGSL,
   LOBELESS_TARGET_WGSL,
   LOBES_LIGHTING_WGSL,
   LOBES_TARGET_WGSL,
@@ -101,7 +102,7 @@ export const lightingBase = (
     [
       SURFACE_MODEL_LIGHT_WGSL,
       RECT_SHADING_WGSL,
-      ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
+      ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL, LOBELESS_RECT_WGSL] : [LOBES_LIGHTING_WGSL]),
       INVERSE_PI,
       lambertAlbedoMul,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),

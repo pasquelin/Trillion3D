@@ -8,14 +8,15 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { LOBELESS_LIGHTING_WGSL } from './direct/lobesWgsl.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import { linearToSrgb8 } from '../../../math/src/color/color.ts'
 
-/** The standard lobe as a program holds it, its library declarations included. */
-const STANDARD_LIGHTING = wgslModule(STANDARD_LIGHTING_WGSL)
+/** The standard lobe as a program holds it, its library declarations and lobeless hooks included. */
+const STANDARD_LIGHTING = wgslModule(STANDARD_LIGHTING_WGSL, LOBELESS_LIGHTING_WGSL)
 
 type V3 = number[]
 type T3 = [number, number, number]
@@ -27,6 +28,10 @@ const { standardLighting } = shaderRun<{
     'standardLighting',
     'lobeSurface',
     'surfaceLight',
+    'lobeThrough',
+    'coatCosine',
+    'baseLobe',
+    'coatLobe',
     'standardLobe',
     'lobeSum',
     'ggxDistribution',
@@ -94,6 +99,14 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
       'standardLighting',
       'lobeSurface',
       'surfaceLight',
+      'lobeThrough',
+      'coatCosine',
+      'baseLobe',
+      'coatLobe',
+      'lobeThrough',
+      'coatCosine',
+      'baseLobe',
+      'coatLobe',
       'standardLobe',
       'lobeSum',
       'ggxDistribution',

@@ -33,7 +33,7 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
  * code of the loop: left out, every punctual light of the loop runs without the registers it holds.
  *
  * Without `lobeless`, the program of an image that holds an anisotropic or clear-coat surface
- * (`lobesWgsl.ts`): a light goes through `lobeLight` and `lobeRectLight`, which run the very same
+ * (`lobesWgsl.ts`): the same `surfaceLight` and `rectLight`, whose lobe hooks run the very same
  * terms on a pixel without lobes.
  *
  * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
@@ -44,13 +44,12 @@ export const declaredLightWgsl = (
   { pair = false, term = 'surface' }: { pair?: boolean; term?: LightTerm } = {},
 ) => {
   const shadowed = !key.unshadowed,
-    lobes = !key.lobeless,
     surface = term === 'surface'
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
     [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(key.rectless || !surface ? [] : [INVERSE_PI])],
     surface
-      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair, lobes)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
+      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
@@ -58,7 +57,7 @@ export const declaredLightWgsl = (
  var transmitted=vec3f(0.0);
  if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
- return ${terms(pair, (_rgb, _metal, shading) => `(${lobes ? 'lobeLight' : 'surfaceLight'}(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
+ return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
       : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${irradianceTerm(key.rectless)}
 }`,
@@ -130,11 +129,11 @@ const terms = (pair: boolean, of: (rgb: string, metal: string, shading: string) 
     : of('rgb', 'metal', 'shading')
 
 /** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. */
-const rectBranch = (pair: boolean, lobes: boolean) => `
+const rectBranch = (pair: boolean) => `
  if(isRect(light)){
   var transmitted=vec3f(0.0);
   if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*INVERSE_PI*light.colorIntensity.rgb*light.colorIntensity.w;}
-  return ${terms(pair, (rgb, metal, shading) => `${lobes ? 'lobeRectLight' : 'rectLight'}(light,${rgb},${metal},rough,N,V,P,ao${lobes ? `,${shading}.f0` : ''})+transmitted`)};
+  return ${terms(pair, (rgb, metal, shading) => `rectLight(light,${shading},${rgb},${metal},rough,N,V,P,ao)+transmitted`)};
  }`
 
 const shadeStatement = (pair: boolean) => `
