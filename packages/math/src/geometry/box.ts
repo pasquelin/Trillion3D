@@ -276,22 +276,6 @@ export function boxTransform(
     writeBounds(out, o, minX, minY, minZ, maxX, maxY, maxZ)
     return
   }
-  const m0 = m[0],
-    m1 = m[1],
-    m2 = m[2],
-    m3 = m[3],
-    m4 = m[4],
-    m5 = m[5],
-    m6 = m[6],
-    m7 = m[7],
-    m8 = m[8],
-    m9 = m[9],
-    m10 = m[10],
-    m11 = m[11],
-    m12 = m[12],
-    m13 = m[13],
-    m14 = m[14],
-    m15 = m[15]
   const affine = unitW(m, minX, minY, minZ, maxX, maxY, maxZ)
   // The bounds are held in locals, so `out` may be `box`: emptied, then grown corner by corner.
   boxEmpty(out, o)

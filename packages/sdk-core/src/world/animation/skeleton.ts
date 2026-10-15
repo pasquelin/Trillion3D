@@ -1,5 +1,6 @@
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import { transformDirectionRow } from '../../../../math/src/vector/vector.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { linearPartIdentityDistanceSq } from '../../../../math/src/matrix/singular.ts'
 import type { Object3D } from '../object/object3d.ts'
@@ -53,12 +54,17 @@ export class Skeleton {
     for (let j = 0; j < this.bones.length; j++) {
       boneWorld.set(this.bones[j].matrixWorld.elements)
       multiplyMatrix4(joint, boneWorld, this.inverses[j])
-      // `meshInverse · joint`, its three upper rows written as the palette's rows, rounded once.
-      multiplyMatrix4(joint, m, joint)
+      // `meshInverse · joint` for its three upper rows only — the fourth is never read —, each term
+      // `multiplyMatrix4`'s sum (`transformDirectionRow` of the column, plus its fourth product),
+      // rounded once into the palette.
       const base = at + j * PALETTE_FLOATS
-      for (let row = 0; row < 3; row++)
-        for (let column = 0; column < 4; column++)
-          out[base + row * 4 + column] = joint[column * 4 + row]
+      for (let column = 0; column < 4; column++) {
+        const c = column * 4,
+          b4 = joint[c + 3]
+        for (let row = 0; row < 3; row++)
+          out[base + row * 4 + column] =
+            transformDirectionRow(m, row, joint[c], joint[c + 1], joint[c + 2]) + m[12 + row] * b4
+      }
     }
     return out
   }
