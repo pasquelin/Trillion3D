@@ -49,6 +49,7 @@ test('a new light mix compiles off the frame while the twin projects; no frame s
         flags: view,
         mask: view,
         maskTiles: view,
+        receiver: view,
         width: 8,
         height: 8,
         camera,

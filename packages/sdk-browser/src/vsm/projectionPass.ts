@@ -112,9 +112,9 @@ interface VsmProjectionInputs {
    *  resolution draws below it, in their top-left) and its eighth. */
   mask: GPUTextureView
   maskTiles: GPUTextureView
-  /** The engine's shadow receiver target, the resolve's (`receiverTargetWgsl.ts`): given, each pixel
-   *  is projected from its point on the surface its vertex normals describe; absent, its triangle's. */
-  receiver?: GPUTextureView
+  /** The engine's shadow receiver target, the resolve's (`receiverTargetWgsl.ts`): each pixel is
+   *  projected from its point on the surface its vertex normals describe. */
+  receiver: GPUTextureView
 }
 
 /** What every light of the pass holds. */
@@ -324,7 +324,7 @@ function writeVsmProjectionView(
   return 4 * words
 }
 
-/** The projection's module and layouts for one layout, vote and receiver variant, and its
+/** The projection's module and layouts for one layout and vote variant, and its
  *  pipelines by their constants (`pipelineFor`): the variants share all but their pipeline; the
  *  groups are each set's (`VsmProjectionState`). */
 interface Pipelines {
@@ -332,7 +332,7 @@ interface Pipelines {
   layout: GPUPipelineLayout
   vsmLayout: GPUBindGroupLayout
   passLayout: GPUBindGroupLayout
-  receiverLayout: GPUBindGroupLayout | undefined
+  receiverLayout: GPUBindGroupLayout
   device: GPUDevice
   /** By 2 · VSM_PROJECTION_KINDS + VSM_PROJECTION_ONE_LIGHT, each compiled off the frame; the
    *  pipeline every pass can run (`TWIN`) the prepare step awaits (`vsmProjectionTwin`), every
@@ -480,18 +480,14 @@ function projectionPassLayout(device: GPUDevice) {
   })
 }
 
-/** What decides a projection's module and layouts: the pool's layout, the votes and the receiver. */
+/** What decides a projection's module and layouts: the pool's layout and the votes. */
 interface ProjectionVariant {
   layout: VsmLayout
   subgroups: boolean
-  receiver: boolean
 }
 
 /** The projection's module, layouts and pipelines for these variants. */
-function makePipelines(
-  device: GPUDevice,
-  { layout, subgroups, receiver }: ProjectionVariant,
-): Pipelines {
+function makePipelines(device: GPUDevice, { layout, subgroups }: ProjectionVariant): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, GPUShaderStage.COMPUTE),
@@ -499,18 +495,14 @@ function makePipelines(
   const passLayout = projectionPassLayout(device)
   const module = device.createShaderModule({
     label: `vsm.projection${subgroups ? '.subgroups' : ''}`,
-    code: vsmProjectionWgsl(layout, { subgroups, receiver }),
+    code: vsmProjectionWgsl(layout, { subgroups }),
   })
-  const receiverLayout = receiver
-    ? device.createBindGroupLayout({
-        label: 'vsm.projection.receiver',
-        entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.COMPUTE)],
-      })
-    : undefined
+  const receiverLayout = device.createBindGroupLayout({
+    label: 'vsm.projection.receiver',
+    entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.COMPUTE)],
+  })
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: receiverLayout
-      ? [vsmLayout, passLayout, receiverLayout]
-      : [vsmLayout, passLayout],
+    bindGroupLayouts: [vsmLayout, passLayout, receiverLayout],
   })
   return {
     device,
@@ -534,18 +526,14 @@ function makePipelines(
 const projections = oncePerDevice((device: GPUDevice) =>
   preparedPipelines(
     (variant: ProjectionVariant) => makePipelines(device, variant),
-    ({ layout, subgroups, receiver }) =>
-      `${subgroups}|${receiver}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
+    ({ layout, subgroups }) =>
+      `${subgroups}|${poolWindowSizes(layout).length}|${layout.poolRowShift}`,
   ),
 )
 
 /** The projection of `device` for these variants (`projections`). */
-const pipelinesFor = (
-  device: GPUDevice,
-  layout: VsmLayout,
-  subgroups: boolean,
-  receiver: boolean,
-) => projections(device).of({ layout, subgroups, receiver })
+const pipelinesFor = (device: GPUDevice, layout: VsmLayout, subgroups: boolean) =>
+  projections(device).of({ layout, subgroups })
 
 /** Group 0 of `p` over the tables of `res.current` (`vsmPerFrameSet`). */
 const tablesGroup = (res: VsmResources, p: Pipelines) =>
@@ -555,10 +543,10 @@ const tablesGroup = (res: VsmResources, p: Pipelines) =>
     entries: vsmBindGroupEntries(res, VSM_PROJECTION_VSM_SPECS),
   })
 
-/** The projection's twin for `layout` with the engine's receiver, at the votes `device` takes:
- *  prepared by the prepare step (`prepareVsmPipelines`). */
+/** The projection's twin for `layout`, at the votes `device` takes: prepared by the prepare step
+ *  (`prepareVsmPipelines`). */
 export const vsmProjectionTwin = (device: GPUDevice, layout: VsmLayout) =>
-  pipelinesFor(device, layout, vsmProjectionCanUseSubgroups(device), true).variants.of(TWIN)
+  pipelinesFor(device, layout, vsmProjectionCanUseSubgroups(device)).variants.of(TWIN)
 
 /**
  * The pipeline of `p` for a pass of `lights`: VSM_PROJECTION_ONE_LIGHT for one light, and
@@ -661,7 +649,7 @@ export function encodeVirtualShadowProjection(
   const { device, width, height } = inputs
   const state = vsmProjectionReserve(device, res)
   const subgroups = inputs.subgroups ?? vsmProjectionCanUseSubgroups(device)
-  const p = pipelinesFor(device, res.layout, subgroups, !!inputs.receiver)
+  const p = pipelinesFor(device, res.layout, subgroups)
 
   const bytes = writeVsmProjectionView(state.words, inputs, lights)
   device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
@@ -672,11 +660,10 @@ export function encodeVirtualShadowProjection(
   pass.setPipeline(pipelineFor(p, lights))
   pass.setBindGroup(0, vsmGroup)
   pass.setBindGroup(1, passGroup)
-  if (p.receiverLayout && inputs.receiver)
-    pass.setBindGroup(
-      VSM_PROJECTION_RECEIVER_GROUP,
-      receiverGroupFor(device, state, p.receiverLayout, inputs.receiver),
-    )
+  pass.setBindGroup(
+    VSM_PROJECTION_RECEIVER_GROUP,
+    receiverGroupFor(device, state, p.receiverLayout, inputs.receiver),
+  )
   pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
   pass.end()
 }

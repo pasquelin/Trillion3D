@@ -41,7 +41,8 @@ export interface VsmReceiverTraceHost {
 }
 
 /**
- * THE NORMAL BIAS OF A RECEIVER, the one reading of it: the projection's trace (below) and the
+ * THE BIASES OF A RECEIVER, the one reading of them — its normal bias length and the normal it
+ * follows (`vsmBiasNormal`): the projection's trace (below) and the
  * translucent casters' transmission read (`vsmReceiverFromEye`, `../lighting/direct/vsmConsumerWgsl.ts`)
  * push a receiver by the same length, so the mask and the transmission read one point. Its inverse
  * tangent is the projection's own (`halfFovTangents.z`, 1 under an orthographic view), its distance
@@ -61,6 +62,14 @@ fn vsmCameraDistance(v:vec3f)->f32{
  *  VSM_NORMAL_OFFSET_FLOOR). */
 fn vsmNormalOffset(fromEye:vec3f)->f32{
  return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.halfFovTangents.z);
+}
+/** The normal a receiver's biases follow (normal bias, receiver-plane depth slope): its triangle's
+ *  plane \`plane\` (the engine's shadow receiver, \`shadowReceiver\`) turned to the side the shading
+ *  normal \`n\` faces, or \`n\` where it has no plane (zero). The one rule of the projection and of
+ *  the lighting. */
+fn vsmBiasNormal(n:vec3f,plane:vec3f)->vec3f{
+ if(dot(plane,plane)==0.0){return n;}
+ return select(plane,-plane,dot(plane,n)<0.0);
 }
 `,
 )

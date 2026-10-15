@@ -316,7 +316,7 @@ fn vsmTileCandidate(k:u32,lightCount:u32){
 }
 `
 
-const entryWgsl = (subgroups: boolean, receiver: boolean) => /* wgsl */ `
+const entryWgsl = (subgroups: boolean) => /* wgsl */ `
 /** Set where the pass projects one light (\`encodeVirtualShadowProjection\`): its light loops then
  *  end after that light as the compiler knows, which keeps nothing of the pixel past its trace for a
  *  next one, and its one light is the tile's one candidate. The same light either way. */
@@ -335,36 +335,28 @@ fn vsmPixelOf(groupId:vec2u,groupIndex:u32)->VsmPixel{
  // The surface's texels are read at once; what they feed waits for \`info.valid\`. The depth is the
  // attachment's \`vsmSceneDepth\`, not level 0 of \`hizDepth\` (a colour target the visibility pass writes
  // beside it, which the screen ray alone marches): two resources, not proved to hold the same bits.
- let deviceZ=textureLoad(vsmSceneDepth,coord,0);${
-   receiver
-     ? `
+ let deviceZ=textureLoad(vsmSceneDepth,coord,0);
  // The receiver's texel too: its decode alone waits. In the rect \`coord\` is the pixel
  // \`shadowReceiver(svPosition.xy)\` reads.
- let receiverTexel=shadowReceiverTexel(vec2i(coord));`
-     : ''
- }
+ let receiverTexel=shadowReceiverTexel(vec2i(coord));
  p.info=vsmSurfaceOf(coord,p.inRect,textureLoad(vsmNormalRough,coord,0).xyz);
  if(!p.info.valid){return p;}
  p.sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ);
  let svPosition=vec4f(vec2f(p.pos)+0.5,deviceZ,1.0);
  p.shifted=vsmPixelToShifted(svPosition);
  p.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*p.sceneDepth)+vsmView.screenRayScale.zw).y;
- p.noise=vsmNoiseOne(vec2u(svPosition.xy),vsmView.frameIndex);${
-   receiver
-     ? `
+ p.noise=vsmNoiseOne(vec2u(svPosition.xy),vsmView.frameIndex);
  // The engine's shadow receiver, as every shadow map of the engine reads it: the pixel's point
  // on the Phong surface its vertex normals describe rather than its flat triangle
  // (\`shadowReceiver\`), and the biases on the triangle's plane — the depth the caster drew —
- // turned to the side the shading normal faces (\`shadowBiasNormal\`). A smooth
+ // turned to the side the shading normal faces (\`vsmBiasNormal\`). A smooth
  // normal over a coarse triangle otherwise under-biases one side of every edge, and a faceted
  // curved surface shadows itself, in facet-wide streaks, above its shading terminator. Only
  // where a light can shade the pixel: the background and a pixel no surface model lights pay no
  // triangle decode.
  let receiver=shadowReceiverOf(receiverTexel);
  p.shifted+=receiver.offset;
- if(dot(receiver.plane,receiver.plane)>0.0){p.info.biasNormal=select(receiver.plane,-receiver.plane,dot(receiver.plane,p.info.worldNormal)<0.0);}`
-     : ''
- }
+ p.info.biasNormal=vsmBiasNormal(p.info.worldNormal,receiver.plane);
  return p;
 }
 /** The lights among \`candidates\` whose region holds the pixel (\`vsmLightParticipates\`), 32 a word. */
@@ -452,12 +444,8 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
 `
 
 /** The whole module, for one layout (pool parts) and one vote variant. */
-export function vsmProjectionWgsl(
-  layout: VsmLayout,
-  options: { subgroups: boolean; receiver?: boolean },
-) {
-  const { subgroups } = options,
-    receiver = options.receiver ?? false
+export function vsmProjectionWgsl(layout: VsmLayout, options: { subgroups: boolean }) {
+  const { subgroups } = options
   // `enable` comes before every declaration, the library's included (`wgslProgram`).
   return wgslProgram(
     [
@@ -468,7 +456,7 @@ export function vsmProjectionWgsl(
       PIXEL_WGSL,
       traceWgsl(),
       tileBoundWgsl(subgroups),
-      entryWgsl(subgroups, receiver),
+      entryWgsl(subgroups),
     ].join('\n'),
     [
       VSM_CONSTANTS_WGSL,
@@ -494,7 +482,7 @@ export function vsmProjectionWgsl(
       isFiniteWord,
       lowBits,
       FLOAT32_MIN_NORMAL,
-      ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
+      receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0),
     ],
   )
 }
