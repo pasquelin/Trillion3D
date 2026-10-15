@@ -41,6 +41,12 @@ fn cellSlice(base:u32)->vec2u{
  if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
+}
+/** The rank of a slice's \`index\`th light: the list's word, or, from \`TILE_NO_SLICE\`, every light in
+ *  turn. */
+fn listedLight(slice:vec2u,index:u32)->u32{
+ if(slice.x==TILE_NO_SLICE){return index;}
+ return tileLights[slice.x+index];
 }`,
 )
 /**

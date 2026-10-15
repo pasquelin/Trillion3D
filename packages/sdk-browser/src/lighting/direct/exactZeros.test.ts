@@ -31,6 +31,7 @@ const UNDO = {
 }
 const NAMES = [
   'sliceLighting',
+  'listedLight',
   'declaredLight',
   'directIncidence',
   'rangeWindow',

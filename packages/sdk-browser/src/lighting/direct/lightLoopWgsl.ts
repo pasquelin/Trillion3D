@@ -196,8 +196,8 @@ fn ${head}{${start}
  return result;
 }`
 
-/** A listed light's rank: the list's word, or, from \`TILE_NO_SLICE\`, every light in turn. */
-const LISTED_PICK = 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'
+/** A listed light's rank (\`listedLight\`). */
+const LISTED_PICK = 'let light=listedLight(slice,index);'
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
 const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);

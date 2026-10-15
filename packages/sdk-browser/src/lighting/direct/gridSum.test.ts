@@ -38,6 +38,7 @@ const PROGRAMS = [false, true].flatMap((shadowed) =>
 )
 const NAMES = [
   'sliceLighting',
+  'listedLight',
   'declaredLight',
   'directIncidence',
   'rangeWindow',

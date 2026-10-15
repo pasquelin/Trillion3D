@@ -29,6 +29,7 @@ function lightLoop(rect: boolean) {
     // No world lists: every light, the loop's fallback (`bounceLightSlice`).
     TILE_NO_SLICE,
     bounceLightSlice: () => [0xffffffff, directLights.count],
+    listedLight: (_slice: number[], index: number) => index,
     tileLights: [],
     rectIrradiance: () => [0, 0, 0, 1],
     directIncidence: () => [0, 1, 0, 1],
