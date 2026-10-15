@@ -85,9 +85,12 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as
  *  the scene holds. */
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
-/** The type rank is a float in the buffer: a single place knows how to reread it. */
-fn isSunKind(kind:f32)->bool{return abs(kind-KIND_SUN)<0.5;}
+/** The type rank is a float in the buffer: a single place knows how to reread it (\`isKind\`), every
+ *  kind's test its call (\`isRect\` too, \`rectLightWgsl.ts\`). */
+fn isKind(kind:f32,rank:f32)->bool{return abs(kind-rank)<0.5;}
+fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
+fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
 /** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
 fn rangeWindow(distance:f32,range:f32)->f32{
  let ratio=distance/range;
@@ -107,7 +110,7 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.
  var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);
- if(abs(light.params.x-KIND_SPOT)<0.5){
+ if(isSpot(light)){
   let cosine=dot(-L,light.directionCone.xyz);
   let edge=light.directionCone.w;
   // A declared penumbra widens the fade inward to its inner cone; never narrower than the edge.

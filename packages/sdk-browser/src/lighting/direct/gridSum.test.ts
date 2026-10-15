@@ -43,6 +43,8 @@ const NAMES = [
   'rangeWindow',
   'isSun',
   'isSunKind',
+  'isKind',
+  'isSpot',
   'isRect',
 ]
 const K = wgslConstants(PROGRAMS[0])

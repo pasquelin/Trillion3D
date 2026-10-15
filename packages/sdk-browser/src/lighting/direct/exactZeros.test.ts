@@ -36,6 +36,8 @@ const NAMES = [
   'rangeWindow',
   'isSun',
   'isSunKind',
+  'isKind',
+  'isSpot',
   'isRect',
   'modelLight',
   'thinTransmission',

@@ -37,7 +37,7 @@ export const RECT_LIGHT_WGSL = wgslBlock(
   [INVERSE_TWO_PI, PI, faceNormal],
   `
 const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
-fn isRect(light:DirectLight)->bool{return abs(light.params.x-KIND_RECT)<0.5;}
+fn isRect(light:DirectLight)->bool{return isKind(light.params.x,KIND_RECT);}
 /** One edge's term of the vector form factor, seen from the point: the edge from p along e, of
  *  which the share \`part\` (whole: 1) lies above the horizon, \`along\` the dot of its ends there. */
 fn rectEdge(p:vec3f,e:vec3f,part:f32,along:f32)->vec3f{

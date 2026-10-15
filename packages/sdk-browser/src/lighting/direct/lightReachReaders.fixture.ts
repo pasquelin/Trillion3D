@@ -32,7 +32,17 @@ export function shadesOf(code: string) {
     rectView: (light: object, P: V3) => { window: number }
   }>(
     code,
-    ['directIncidence', 'isSun', 'isSunKind', 'rangeWindow', 'rectView', 'localLightReaches'],
+    [
+      'directIncidence',
+      'isSun',
+      'isSunKind',
+      'isKind',
+      'isSpot',
+      'isRect',
+      'rangeWindow',
+      'rectView',
+      'localLightReaches',
+    ],
     {
       ...F32_SCOPE,
       ...wgslConstants(code),
@@ -108,6 +118,7 @@ export function listsOf(bounce: string) {
       'lightRun',
       'isSun',
       'isSunKind',
+      'isKind',
     ],
     {
       ...F32_SCOPE,
