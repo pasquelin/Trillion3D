@@ -1,4 +1,5 @@
 import { createReadbackRing } from '../gpu/core/readbackRing.ts'
+import { REFLECTION_COUNTS } from './constants.ts'
 
 /** Bytes of the hash: the lit image's two words, then the image before it's. */
 const RADIANCE_HASH_BYTES = 16
@@ -53,8 +54,8 @@ const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 
  * some images later, and until then the view is unsettled. Only an image drawn from where the one
  * before it was is hashed (`radiance.ts`): a moving one is never the one a still view settles on.
  * The reflections' history (`temporalWgsl.ts`) freezes once the view has been quiet (`quiet`) for
- * `REFLECTION_HISTORY` images: from then on a still view reflects the same bits every image, and the
- * lit image is all that is waited for.
+ * `REFLECTION_HISTORY` images: from the image after (`frozen`) a still view reflects the same bits every
+ * image, and the lit image is all that is waited for.
  *
  * The view is settled once an image after the last one drawn for another reason — `busy` marks the
  * image about to be drawn for the lighting's, the cut's, the pages' own pending work — has the
@@ -97,6 +98,10 @@ export function createRadianceSettle(device: GPUDevice) {
      *  (`temporalWgsl.ts`). */
     get quiet() {
       return Math.max(0, images + 1 - busy)
+    },
+    /** Whether the last image drawn copied its history whole: the still view's reflections are frozen. */
+    get frozen() {
+      return this.quiet > REFLECTION_COUNTS.REFLECTION_HISTORY
     },
     /** Whether an image after the last busy one has the lit image of the one before it. */
     get verified() {

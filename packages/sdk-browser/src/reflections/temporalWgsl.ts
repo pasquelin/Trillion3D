@@ -23,15 +23,18 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
  *   held the same surface (`reflectionSameSurface`: its depth in that view and its normal, the texel
  *   carries both), the screen distance between the virtual and the surface's reprojection widening the
  *   depth test; none kept, no history. No history either on an image whose screen is not traced
- *   (`forgetReflectedImage`: the content joined).
+ *   (`forgetReflectedImage`: the content joined), nor on a still view's first quiet image
+ *   (`ReflectionView.temporal.y` one): a still view's history is its own images' alone.
  * - CLAMP: on an image drawn for a change (`ReflectionView.temporal.y` zero: the camera moved, a light
  *   changed, the scene did), the history is clamped to the fresh texels around it, mean ± `REFLECTION_CLAMP`
  *   standard deviations: a lamp that moved lights the history at once. On a quiet image it is not, so the
  *   picks of the 2×2 block (`traceHalf.ts`) average without bias.
  * - BLEND: the running mean of `count` images, `REFLECTION_HISTORY` at most, then an exponential mean of
- *   that window while anything moves. Once the view has been quiet for `REFLECTION_HISTORY` images, a
- *   texel whose history is full is copied as it is: a still view's reflections freeze, the same bits
- *   image after image, and the view settles (`settle.ts`). The reprojection aims at the texel's centre
+ *   that window while anything moves. A still view's quiet images restart it, each at the turn of its
+ *   rank (`stageReflectionImage`): once the view has been quiet for `REFLECTION_HISTORY` images, a texel
+ *   whose history is full holds the mean of those images' samples alone, and is copied as it is: a still
+ *   view's reflections freeze, the same bits image after image, the same whatever was drawn before them,
+ *   and the view settles (`settle.ts`). The reprojection aims at the texel's centre
  *   (the traced pixel's point moved by the pixels between them), so a still view reads its own texel.
  */
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
@@ -49,14 +52,16 @@ export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
 @group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${HALF_FORMAT},write>;
 /** The history of a texel whose surface lies at \`P\`, of normal \`N\`, seen from \`V\`, reprojected by \`aim\`
  *  (\`P\`, a virtual point or a direction), \`offset\` pixels from the texel's centre; its count, zero for
- *  none. The texel's centre moves as its traced point does, so a still view finds its own texel whole. */
+ *  none — on an untraced screen and on a still view's first quiet image. The texel's centre moves as its
+ *  traced point does, so a still view finds its own texel whole. */
 struct TemporalHistory{radiance:Reflected,count:f32,}
 fn temporalHistory(P:vec3f,N:vec3f,V:vec3f,aim:vec4f,offset:vec2f)->TemporalHistory{
  var held=TemporalHistory(Reflected(vec3f(0.0),vec3f(0.0)),0.0);
  let size=reflectionView.radiance.xy;
  let surface=reflectionView.radianceViewProj*vec4f(P,1.0);
  let aimed=reflectionView.radianceViewProj*aim;
- if(reflectionView.traced.x==0u||surface.w<=0.0||aimed.w<=0.0){return held;}
+ let restart=reflectionView.traced.x==0u||reflectionView.temporal.y==1u;
+ if(restart||surface.w<=0.0||aimed.w<=0.0){return held;}
  let at=clipToFramebuffer(aimed,size).xy+offset;
  let apart=distance(at,clipToFramebuffer(surface,size).xy);
  let g=historyGather(historyIn,at*0.5-vec2f(0.5),reflectionLinearDepth(surface),N,V,1.0+apart);
