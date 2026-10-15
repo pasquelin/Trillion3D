@@ -6,17 +6,11 @@ import assert from 'node:assert/strict'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { functionText } from './wgslBody.fixture.ts'
+import { functionBody } from './wgslBody.fixture.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 
 const I32_MIN = -(2 ** 31)
 const I32_MAX = 2 ** 31 - 1
-
-/** The WGSL body of a function, its header left out. */
-const bodyOf = (name: string) => {
-  const text = functionText(BOUNCE_GRID_WGSL, name)
-  return text.slice(text.indexOf('{') + 1)
-}
 
 /** A `let` initialiser of the sampling loop, as the shader writes it. */
 const initialiser = (body: string, name: string) => {
@@ -37,7 +31,7 @@ const scalar = (wgsl: string) =>
     .replace(/\bbounce\.counts\.x\b/g, 'S')
     .replace(/\blet /g, 'const ')
 
-const sample = bodyOf('sampleLevelField')
+const sample = functionBody(BOUNCE_GRID_WGSL, 'sampleLevelField')
 const slot = sample.match(/let probe=probeAddress\(level,(.+)\);/)
 assert.ok(slot, 'sampleLevelField reads its probe through probeAddress')
 
@@ -45,7 +39,7 @@ assert.ok(slot, 'sampleLevelField reads its probe through probeAddress')
 const shaderRemainder = new Function(
   `const u32=(x)=>x>>>0,i32=(x)=>x|0,select=(f,t,c)=>c?t:f;
    return (S,corner,offset)=>{
-    function probeWrap(cell){${scalar(bodyOf('probeWrap'))}}
+    function probeWrap(cell){${scalar(functionBody(BOUNCE_GRID_WGSL, 'probeWrap'))}}
     const wrappedCorner=${scalar(initialiser(sample, 'wrappedCorner'))};
     const wrapAt=${scalar(initialiser(sample, 'wrapAt'))};
     const next=${scalar(initialiser(sample, 'next'))};

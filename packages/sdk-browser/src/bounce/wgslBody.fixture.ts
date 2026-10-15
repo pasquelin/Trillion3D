@@ -16,3 +16,9 @@ export const functionText = (input: WgslSource, name: string) => {
   }
   assert.fail(`${name} is closed`)
 }
+
+/** The body of a WGSL function of `shader` (`functionText`), its header and opening brace left out. */
+export const functionBody = (input: WgslSource, name: string) => {
+  const text = functionText(input, name)
+  return text.slice(text.indexOf('{') + 1)
+}

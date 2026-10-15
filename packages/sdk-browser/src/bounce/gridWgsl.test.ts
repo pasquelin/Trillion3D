@@ -4,7 +4,7 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { functionText } from './wgslBody.fixture.ts'
+import { functionBody } from './wgslBody.fixture.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
@@ -71,9 +71,8 @@ test('a bounce probe is read in the band order the environment uses', () => {
     for (const [, k, term] of terms) sh[Number(k)] = new Function('d', `return ${term};`)(d)
     return sh
   }
-  const irradiance = functionText(BOUNCE_GRID_WGSL, 'shIrradiance')
   const bounce = channel(
-    irradiance.slice(irradiance.indexOf('{') + 1),
+    functionBody(BOUNCE_GRID_WGSL, 'shIrradiance'),
     /probeAt\(probe,(\d)u\)\.xyz/g,
     'n',
   )
