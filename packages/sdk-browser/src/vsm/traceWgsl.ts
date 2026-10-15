@@ -93,8 +93,8 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
  let axis=select(toLight/dist,light.direction,directional);
  var result=vsmEmptyTrace();
  var traced=participating;
- var map:VsmLightMap;
- if(traced){map=vsmLightMapAt(light,P);traced=map.valid;}
+ var lightMap:VsmLightMap;
+ if(traced){lightMap=vsmLightMapAt(light,P);traced=lightMap.valid;}
  var pInMap=vec3f(0.0);
  var basis:Frame3;
  var s=0.0;
@@ -112,7 +112,7 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
   if(!pixel.info.subsurface&&pixel.screenRayWorld>0.0){
    startOffset=vsmScreenRayCast(P,axis,pixel.screenRayWorld,pixel.screenRayWorld/vsmPixelWorldSize(pixel.sceneDepth,vsmView.viewToClip,vsmView.viewPixels.xy));
   }
-  let pd=vsmProjectionOf(map.handle);
+  let pd=vsmProjectionOf(lightMap.handle);
   pInMap=P+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmView.originShiftHigh,vsmView.originShiftLow);
   let viewPosition=transformPoint(vsmView.shiftedToView,P);
   eyeDistance=length(viewPosition);
@@ -156,8 +156,8 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
    let t0=min(startOffset,reach-1e-6*${VSM_UNIT_PER_CM});
    let rayStart=start+dir*t0;
    var depthBias=0.0;
-   if(biasCap>0.0){depthBias=min(biasCap,vsmTexelPlaneBias(map,rayStart,uvDepthSlope));}
-   var ray=vsmRayBegin(light,map,rayStart,start+dir*reach,depthBias);
+   if(biasCap>0.0){depthBias=min(biasCap,vsmTexelPlaneBias(lightMap,rayStart,uvDepthSlope));}
+   var ray=vsmRayBegin(light,lightMap,rayStart,start+dir*reach,depthBias);
    let jitter=vsmRayJitter(pixel.noise,i);
    // The projection proves its first ray alone (\`vsmRayMisses\`): a later one runs in a half where a
    // lane hit, whose march its lanes wait for, so a proof would save nothing.
