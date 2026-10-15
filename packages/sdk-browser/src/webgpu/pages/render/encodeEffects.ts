@@ -55,13 +55,18 @@ export function encodeEffects(
   if (!gpu.effects) return accumulated
   // After the resolve: at the display's size.
   const [width, height] = gpu.displaySize
-  // The composition blends the last bloom in once its programs are compiled: same image.
-  const fuse =
-    passes.at(-1)?.kind === 'bloom' &&
+  // The composition blends the chain's last bloom in: until its programs arrive, the image is
+  // drawn without the chain, as while the chain's own programs compile (`loading`).
+  const composes =
+    passes.at(-1)?.kind !== 'bloom' ||
     !!gpu.deferred?.composesBloom((error) =>
       rt.diag.diagnosticFailure('bloom-composition-unavailable', error),
     )
-  const output = gpu.effects.encode(encoder, passes, input, width, height, fuse)
+  if (!gpu.effects.ready(passes) || !composes) {
+    gpu.effectsRevision = COMPILING
+    return accumulated
+  }
+  const output = gpu.effects.encode(encoder, passes, input, width, height)
   if (gpu.effects.loading) gpu.effectsRevision = COMPILING
   run.gpuDrawCalls += gpu.effects.draws
   const bloom = gpu.effects.blend

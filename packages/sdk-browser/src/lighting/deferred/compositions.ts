@@ -66,7 +66,7 @@ export async function createCompositions(
     /** Each input's layout: the group a frame composes with is made on it. */
     layouts,
     /** True once the pipelines that blend a bloom in are compiled: the first call compiles them,
-     *  and `fail` hears why they cannot be. Until then the bloom draws its own blend. */
+     *  and `fail` hears why they cannot be. Until then the image is drawn without the chain. */
     composesBloom(fail: (error: unknown) => void) {
       blending ??= compileAll(true).then((pipelines) => void (blended = pipelines), fail)
       return !!blended

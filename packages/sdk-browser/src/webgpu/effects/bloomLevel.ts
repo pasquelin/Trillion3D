@@ -2,7 +2,6 @@ import { BLOOM_UP_ROW, bloomTapText, type BloomTap } from './bloomFilter.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW } from '../../../../math/src/wgsl/constants.ts'
 import {
   computeSamplerEntry,
   computeTextureEntry,
@@ -59,7 +58,8 @@ const TENT_TAPS = [-1, 0, 1].flatMap((y) =>
  * sampler and the uniform slot, `outTexel` the inverse size written, `inTexel` the inverse size
  * read. `tent` reads the level through the upsample filter (`bloomFilter.ts`); `blendLevel` is the
  * bloom's last blend — `keep` of the image, `glow` of the first level's sum —, one text for the
- * bloom's own `composite` pass and for the composition that takes that pass over.
+ * `composite` pass of a bloom another pass follows and for the composition, which blends the
+ * chain's last bloom (`BLOOM_COMPOSE_WGSL`).
  *
  * THE TENT: per axis three bilinear taps at `t − r`, `t`, `t + r` texels of the level of weights
  * `BLOOM_UP_ROW` = (¼, ½, ¼), the two axes multiplied. Up to a radius of 1 the middle tap's two
@@ -95,21 +95,12 @@ return (fetchLevel(a)*(wa.x*wa.y)+fetchLevel(vec2f(b.x,a.y))*(wb.x*wa.y)
 fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`,
   )
 
-/**
- * The last blend as the composition reads it, group 1 beside the composition's own: the
- * value `composite` stored in its `rgba16float` target, rounded as that target rounded it, so the
- * composed image is the one the target gave, with one full-screen pass and target fewer. A value
- * the half range holds is rounded by `quantizeToF16`, fed only finite halves since it is
- * indeterminate past them; one the target turned infinite or kept not a number (|v| from 65520 on,
- * ±Inf, NaN) leaves as that: `v` times the largest `f32`'s order overflows to its signed infinity,
- * and a NaN stays a NaN. Those edges hold on IEEE arithmetic, as the target's own store did: WGSL
- * lets a compiler assume no infinity nor NaN, and then neither path is defined.
- */
+/** The chain's last bloom blended in by the composition, group 1 beside its own: its one blend
+ *  (`blendLevel`), in f32 straight into the composed value — no target between them. */
 export const BLOOM_COMPOSE_WGSL = wgslBlock(
   'BLOOM_COMPOSE_WGSL',
-  [bloomLevelWgsl(1), FINITE_SENTINEL, HALF_MAX, HALF_OVERFLOW],
-  `fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(HALF_OVERFLOW);
-return select(v*FINITE_SENTINEL,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-HALF_MAX),vec4f(HALF_MAX))),held);}`,
+  [bloomLevelWgsl(1)],
+  `fn bloomed(image:vec4f,pixel:vec2f)->vec4f{return blendLevel(image,pixel);}`,
 )
 
 /** The layout of a level's group, one per device: the bloom's passes and the composition that
