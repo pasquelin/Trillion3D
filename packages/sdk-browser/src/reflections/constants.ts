@@ -80,8 +80,9 @@ export const REFLECTION_COUNTS = {
    *  ray that spends its share is no answer, its share the field's. A still view's quiet images walk
    *  the whole budget: they are the images it holds, a ray exhausted there would darken the held
    *  image, and their cost is bounded — `REFLECTION_STILL` + 1 images, then the view freezes and
-   *  traces nothing. Measured at 2056×1144 on the bench's open world: the trace 2.95 ms in orbit,
-   *  0 frozen. */
+   *  traces nothing. Measured at 2056×1144 on the bench's open world, M2 class: the trace 2.95 ms in
+   *  orbit (5.0 ms with the tree walked in index order, the walk 66 % of it), the walk 3.4·10⁹ units
+   *  a second; a still view frozen 0.48 ms, frames held, the trace 0. */
   REFLECTION_MOVING_SHARE: 8,
 } as const
 

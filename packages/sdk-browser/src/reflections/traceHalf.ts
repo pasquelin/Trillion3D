@@ -80,14 +80,13 @@ import { reflectionShareWgsl } from './weight.ts'
  *
  * COST. N pixels, G = N/4 half texels, F the front pixels that reflect, M the pixels with a mirror lobe:
  * - trace: per half texel at most 4 surface reads; per glossy texel and lobe (two with a coat) one ray:
- *   the screen march, `REFLECTION_MARCH_STEPS` = 128 iterations at most (16 on average, 35 at the 99th
- *   percentile, `budget.test.ts`), the footprint's ≤ 2·`REFLECTION_TAPS` reads; on a screen miss
- *   the proxy's walk, its hit's shadow rays included (`../bounce/runtimeLayout.ts`), ≤ `RAY_WORK` /
- *   `REFLECTION_MOVING_SHARE` = 64 units on an image drawn for a move, ≤ `RAY_WORK` = 512 on a still
- *   view's quiet images, which it holds, the placement tree walked nearest first
- *   (`../gpu/dag/treeWalkWgsl.ts`), over a ray no longer than `reflectionProxyReach`; then 8 probes
- *   a cascade, 4 cascades at most.
- * - spatial: per glossy texel `REFLECTION_REUSE_TAPS` = 8 neighbours, each a texel, a depth, a normal.
+ *   the screen march, `REFLECTION_MARCH_STEPS` iterations at most (its mean and tail measured there),
+ *   the footprint's ≤ 2·`REFLECTION_TAPS` reads; on a screen miss the proxy's walk, its hit's shadow
+ *   rays included (`../bounce/runtimeLayout.ts`), ≤ `RAY_WORK` / `REFLECTION_MOVING_SHARE` units on
+ *   an image drawn for a move, ≤ `RAY_WORK` on a still view's quiet images, which it holds, the
+ *   placement tree walked nearest first (`../gpu/dag/treeWalkWgsl.ts`), over a ray no longer than
+ *   `reflectionProxyReach`; then 8 probes a cascade, 4 cascades at most.
+ * - spatial: per glossy texel `REFLECTION_REUSE_TAPS` neighbours, each a texel, a depth, a normal.
  * - temporal: per texel its pixel's depth and normal, 4 history texels, 9 fresh ones on a moved image.
  * - upsample: per pixel 1 flag read; per reflecting one 4 history texels for its glossy lobes, and per
  *   mirror lobe one ray of the same chain: a mirror at the half grid would spread a reflected
@@ -95,18 +94,18 @@ import { reflectionShareWgsl } from './weight.ts'
  * - a frozen view — its pose, lights and content still, the temporal accumulation's jitter no move —
  *   dispatches nothing (`frame.ts`): a still view pays its quiet images' cost — the whole walk — for
  *   `REFLECTION_STILL` + 1 images, then none.
- * - worst case: per ray 128 iterations + 64 units (512 on a quiet image) + 32 probes, per half texel
- *   two rays (a coat), per pixel two (a mirror coat); the frame (G + M + F)·2 rays — bounded by the
- *   view's pixels, never by the scene, nor by its lights (a hit's shadow rays share its budget).
+ * - worst case: per ray `REFLECTION_MARCH_STEPS` iterations + `RAY_WORK` / `REFLECTION_MOVING_SHARE`
+ *   units (`RAY_WORK` on a quiet image) + 32 probes, per half texel two rays (a coat), per pixel two
+ *   (a mirror coat); the frame (G + M + F)·2 rays — bounded by the view's pixels, never by the
+ *   scene, nor by its lights (a hit's shadow rays share its budget).
  * - expected frame, R = G + M + F rays: t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + N · c_u, K̄ the mean
  *   march, r_m the iterations a second, p_miss the share of rays the screen leaves, W̄ their mean
- *   walk, r_w = 3.4·10⁹ units a second (the walk measured, M2 class), c_u the upsample's per pixel.
- *   Measured at 2056×1144 on the bench's open world, the tree walked nearest first: 2.95 ms in orbit
- *   (5.0 ms in index order, the walk 66 % of it); a still view frozen 0.48 ms, frames held. A still
- *   view's quiet images walk the whole budget, at most 8 times the moving walk for
- *   `REFLECTION_STILL` + 1 images, then nothing; the bench's cut points (`// @cut screen`, `proxy`,
- *   `wgsl.ts`; `pick`, here) split the march from the walk. The fresh rays stay one a texel: the history and the reuse let a ray serve many
- *   pixels and images.
+ *   walk, r_w the walk's units a second, c_u the upsample's per pixel; the frame and r_w measured at
+ *   `REFLECTION_MOVING_SHARE`. A still view's quiet images walk the whole budget, at most
+ *   `REFLECTION_MOVING_SHARE` times the moving walk for `REFLECTION_STILL` + 1 images, then nothing;
+ *   the bench's cut points (`// @cut screen`, `proxy`, `wgsl.ts`; `pick`, here) split the march from
+ *   the walk. The fresh rays stay one a texel: the history and the reuse let a ray serve many pixels
+ *   and images.
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
