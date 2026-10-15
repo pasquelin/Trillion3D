@@ -69,11 +69,10 @@ export async function buildComputeStages<E extends string>(
   /** Told of each pipeline as the device hands it back, with the ms since all were asked. */
   handed?: (entryPoint: E, ms: number) => void,
 ) {
-  const layout = device.createPipelineLayout({ bindGroupLayouts: layouts })
   const asked = cpuNow()
   const built = await Promise.all(
     entryPoints.map((entryPoint) =>
-      buildComputePipeline(device, computeStage(layout, module, entryPoint, constants)).then(
+      buildComputeStage(device, layouts, module, entryPoint, constants).then(
         (pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline),
       ),
     ),
