@@ -154,7 +154,7 @@ struct Importer<'a> {
 mod external;
 pub(crate) mod light;
 mod lighting;
-mod materials;
+pub(crate) mod materials;
 pub(crate) mod mesh;
 mod motion;
 pub(crate) mod opacity;

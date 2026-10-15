@@ -1,5 +1,10 @@
 use super::*;
 
+/// Metallic and roughness factors of a surface whose format declares none (an Alembic face set,
+/// an FBX map without a value), the one default every such driver writes: a dielectric — a
+/// format with no notion of metal describes none — at glTF's default roughness.
+pub(crate) const UNDECLARED_SURFACE: [f64; 2] = [0.0, 1.0];
+
 pub(super) fn map_value(map: &ufbx::MaterialMap, default: f64) -> f64 {
     if map.has_value {
         map.value_vec4.x
@@ -97,7 +102,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     };
     let opacity = read_opacity(material);
     let alpha = opacity.alpha;
-    let metallic = map_value(&pbr.metalness, 0.0).clamp(0.0, 1.0);
+    let metallic = map_value(&pbr.metalness, UNDECLARED_SURFACE[0]).clamp(0.0, 1.0);
     // The driver derives roughness from a specular exponent in C, and that arithmetic is not
     // bit-identical across platforms (the compiler fuses multiply-adds on some targets). glTF
     // factors are single-precision floats: rounding to f32 keeps the value the driver meant and
@@ -110,7 +115,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
             r
         })
     } else {
-        0.6
+        UNDECLARED_SURFACE[1]
     }
     .clamp(0.0, 1.0);
     let emission_factor = map_value(&pbr.emission_factor, 1.0);

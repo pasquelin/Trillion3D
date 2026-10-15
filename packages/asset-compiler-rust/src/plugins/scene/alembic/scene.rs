@@ -8,13 +8,11 @@
 use self::write::digest;
 use super::mesh::{FaceSet, Part};
 use super::*;
+use crate::import::materials::UNDECLARED_SURFACE;
 use crate::import::{primitive, Bin, Report};
 use std::collections::{BTreeMap, HashMap};
 
 mod write;
-
-/// Roughness factor of a material with no shading network: a diffuse surface, neither metal nor mirror.
-const NEUTRAL: [f64; 2] = [0.0, 1.0];
 
 /// The glTF tables being written.
 #[derive(Default)]
@@ -74,7 +72,7 @@ impl Scene {
         self.materials
             .push(json!({"name": name, "pbrMetallicRoughness": {
             "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
-            "metallicFactor": NEUTRAL[0], "roughnessFactor": NEUTRAL[1]}}));
+            "metallicFactor": UNDECLARED_SURFACE[0], "roughnessFactor": UNDECLARED_SURFACE[1]}}));
         let id = self.materials.len() - 1;
         self.material_ids.insert(name.to_string(), id);
         id
