@@ -48,6 +48,8 @@ mod wasm_decode;
 #[cfg(target_arch = "wasm32")]
 mod wasm_encode;
 #[cfg(target_arch = "wasm32")]
+mod wasm_grid;
+#[cfg(target_arch = "wasm32")]
 mod wasm_math;
 #[cfg(target_arch = "wasm32")]
 mod wasm_proxy;

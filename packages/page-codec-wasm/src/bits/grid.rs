@@ -97,6 +97,43 @@ pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
     }
 }
 
+/// The longest side of the box of `positions` (three floats a vertex): the extent a primitive's
+/// position grid is set by, measured the same way by both cuts.
+pub fn positions_extent(positions: &[f32]) -> f64 {
+    let b = crate::proxy::bvh::extent(positions);
+    trillion3d_math::aabb::longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]])
+}
+
+/// The widest range of either texture coordinate a page holds: over the corners of each of
+/// `ranges` (ranks into `corners`), or over every vertex of `uvs` when `ranges` is empty — a
+/// primitive whose DAG pages may hold it whole. The span `uv_grid_exponent` reads, measured the
+/// same way by both cuts.
+pub fn widest_uv_span(uvs: &[f32], corners: &[u32], ranges: &[[u32; 2]]) -> f64 {
+    let pairs = uvs.as_chunks::<2>().0;
+    let span = |vertices: &mut dyn Iterator<Item = usize>| {
+        let (mut low, mut high) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
+        for uv in vertices.filter_map(|v| pairs.get(v)) {
+            for axis in 0..2 {
+                low[axis] = low[axis].min(f64::from(uv[axis]));
+                high[axis] = high[axis].max(f64::from(uv[axis]));
+            }
+        }
+        (0..2)
+            .map(|axis| high[axis] - low[axis])
+            .fold(0.0, f64::max)
+    };
+    if ranges.is_empty() {
+        return span(&mut (0..pairs.len()));
+    }
+    ranges
+        .iter()
+        .map(|&[start, end]| {
+            let corners = corners.get(start as usize..end as usize).unwrap_or(&[]);
+            span(&mut corners.iter().map(|&v| v as usize))
+        })
+        .fold(0.0, f64::max)
+}
+
 #[cfg(test)]
 #[path = "grid_tests.rs"]
 mod tests;
