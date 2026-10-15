@@ -168,8 +168,8 @@ export function bindForwardReflection(pass: GPURenderPassEncoder, rt: Reflection
 
 /** The image the reflections last reflected shows a scene that is no more: content joined it. The
  *  next image traces nothing and builds the radiance from its own lit image, as a scene opened with
- *  that content draws its first, so the images that follow are the same bits as a fresh open's,
- *  whatever the scene was before — the series they converge to starts from the same image. */
+ *  that content draws its first, so the series of images that follows converges to the reflected
+ *  image a fresh open's does, whatever the scene was before. */
 export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
   if (!reflection) return
   // No image held: the next is drawn for a change (`stageReflectionImage`).
