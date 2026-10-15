@@ -17,7 +17,6 @@ const WORKERS = [
   'sdk-browser/src/page/work/pageWorker.js',
   'sdk-browser/src/page/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
-  'sdk-browser/src/animation/animationWorker.js',
 ]
 const MODULES = [
   'sdk-browser/src/wasm/kernels.wasm',

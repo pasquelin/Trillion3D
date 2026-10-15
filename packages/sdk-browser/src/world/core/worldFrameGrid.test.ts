@@ -112,7 +112,7 @@ test('a refresh change restarts the grid, and 10 000 frames never drift from the
       const refresh = sixty && f < 5000 + unknownBetween ? null : period * (1 + 1e-4 * noise())
       const seconds = frame(at, refresh)
       integrated += seconds
-      // A delta that repeats the last: what the animation worker samples ahead at.
+      // A delta that repeats the last: a frame on the display's grid.
       if (Object.is(seconds, previous)) snapped++
       previous = seconds
       // What the world integrated is the wall's time since the first frame, within the grid's

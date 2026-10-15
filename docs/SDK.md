@@ -512,8 +512,8 @@ A Node TypeScript host uses `"module": "NodeNext"`, `"moduleResolution": "NodeNe
 `"types": ["node"]`; NodeNext then selects the Node declarations from the same specifier.
 
 A page without a bundler imports `trillion3d/module`. A bundler takes `trillion3d` as the entry, the
-installed workers (`pageWorker.js`, `pageIntegrationWorker.js`, `physicsWorker.js`,
-`animationWorker.js`) as module-worker entries, and code splitting; copy each installed WebAssembly
+installed workers (`pageWorker.js`, `pageIntegrationWorker.js`, `physicsWorker.js`) as
+module-worker entries, and code splitting; copy each installed WebAssembly
 module (`kernels.wasm`, `joltPhysics.wasm`, `joltPhysicsThreads.wasm`) beside every chunk that
 names it, and serve that output with the compiled scene cache. `pnpm run proof:package -- --browser`
 is the repository's executable esbuild configuration (`-- --bundle` without a browser).
