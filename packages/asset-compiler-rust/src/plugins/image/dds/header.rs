@@ -134,7 +134,11 @@ fn chain_fits(
     available: usize,
 ) -> std::result::Result<(), &'static str> {
     let needed = (0..levels)
-        .map(|level| codec.level_bytes(mip_size(width, level), mip_size(height, level)))
+        .map(|level| {
+            codec
+                .layout()
+                .level_bytes(mip_size(width, level), mip_size(height, level))
+        })
         .fold(0u64, u64::saturating_add);
     if needed <= available as u64 {
         Ok(())

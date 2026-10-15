@@ -74,7 +74,7 @@ pub const TILE_BORDER: u32 = 4;
 /// Block columns — or rows — `[from, to)` of each tile's record along a side
 /// `texels` long: the tile and its gutter, clipped at the level's edge.
 fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
-    let side = super::blocks::BLOCK_SIDE;
+    let side = crate::plugins::image::blocks::BLOCK_SIDE;
     (0..texels.div_ceil(TILE_SIZE)).map(move |t| {
         let from = (t * TILE_SIZE).saturating_sub(TILE_BORDER) / side;
         let to = ((t + 1) * TILE_SIZE + TILE_BORDER)
@@ -89,7 +89,7 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
 /// them (`packages/sdk-browser/src/texture/tileRecords.ts`).
 pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
     let bytes = super::blocks::BLOCK_BYTES;
-    let row = super::blocks::blocks_of(width, height).0 as usize * bytes;
+    let row = crate::plugins::image::blocks::blocks_of(width, height).0 as usize * bytes;
     let mut out = Vec::with_capacity(blocks.len() * 9 / 8);
     for (y0, y1) in record_spans(height) {
         for (x0, x1) in record_spans(width) {

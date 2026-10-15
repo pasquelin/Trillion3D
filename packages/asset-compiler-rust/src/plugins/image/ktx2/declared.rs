@@ -31,7 +31,8 @@ pub(super) fn apply(
         return Vec::new();
     };
     if premultiplied {
-        straight(pixels);
+        let raw: &mut [u8] = pixels;
+        crate::plugins::image::straight::straight(raw);
     }
     let declared = keys::read(bytes);
     let mut notes = Vec::new();
@@ -47,24 +48,6 @@ pub(super) fn apply(
         notes.push(SWIZZLE_UNSUPPORTED);
     }
     notes
-}
-
-/// Components brought back to straight alpha, texel by texel and in place. An opaque alpha
-/// leaves the texel exactly as-is, and a null alpha divides nothing: under a null alpha there
-/// is no straight colour to recover. Division rounds to nearest and saturates at a full byte,
-/// because an encoder may have written a component above its alpha.
-fn straight(pixels: &mut image::RgbaImage) {
-    let raw: &mut [u8] = pixels;
-    for texel in raw.as_chunks_mut::<4>().0 {
-        let alpha = u32::from(texel[3]);
-        if alpha == 0 || alpha == u32::from(u8::MAX) {
-            continue;
-        }
-        for component in texel.iter_mut().take(3) {
-            let value = (u32::from(*component) * u32::from(u8::MAX) + alpha / 2) / alpha;
-            *component = value.min(u32::from(u8::MAX)) as u8;
-        }
-    }
 }
 
 /// Lines put back in contract order: the last one first.

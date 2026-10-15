@@ -14,7 +14,7 @@
 //! bytes each; a side that is not a multiple of four is padded by repeating its
 //! edge, and the padded blocks are part of the level's bytes — WebGPU copies
 //! whole blocks.
-use crate::plugins::image::blocks::surface_bytes;
+use crate::plugins::image::blocks::{blocks_of, surface_bytes};
 use rayon::prelude::*;
 
 mod astc;
@@ -113,14 +113,6 @@ impl Layout {
             _ => None,
         }
     }
-}
-
-/// Texels along a block's side.
-pub const BLOCK_SIDE: u32 = 4;
-
-/// Blocks across and down a `width` × `height` level.
-pub(super) fn blocks_of(width: u32, height: u32) -> (u32, u32) {
-    (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
 }
 
 /// Compressed bytes of a `width` × `height` level: the one 4 × 4 block surface count

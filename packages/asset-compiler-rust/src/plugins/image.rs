@@ -19,6 +19,7 @@ mod jpeg;
 mod ktx2;
 mod png;
 mod psd;
+mod straight;
 mod tga;
 mod tiff;
 mod webp;

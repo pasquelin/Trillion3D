@@ -40,7 +40,7 @@ pub(super) fn read_all(
     if data.len() != stride * height as usize * 4 {
         return Err(UNREADABLE);
     }
-    straight(&mut data);
+    crate::plugins::image::straight::straight(&mut data);
     Ok(ImageDecoded::new(
         DecodedImage::RgbaF32 {
             width,
@@ -49,19 +49,4 @@ pub(super) fn read_all(
         },
         Transfer::Linear,
     ))
-}
-
-/// Associated samples brought back to straight alpha, pixel by pixel and in place. An alpha of
-/// one leaves the pixel exactly as-is — the division is a no-op —, and a null or negative alpha
-/// divides nothing at all: that is the only value under which the straight colour does not exist.
-fn straight(data: &mut [f32]) {
-    for pixel in data.as_chunks_mut::<4>().0 {
-        let alpha = pixel[3];
-        if alpha <= 0.0 || alpha == 1.0 {
-            continue;
-        }
-        for component in pixel.iter_mut().take(3) {
-            *component /= alpha;
-        }
-    }
 }

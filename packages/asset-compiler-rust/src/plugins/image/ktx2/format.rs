@@ -14,7 +14,7 @@
 //! here. The external decoder brought them back to eight bits by truncation and read their
 //! index field backwards; the neighbouring module says which of the two defects does what.
 use super::eac;
-use crate::plugins::image::blocks::{rgba8_bytes, surface_bytes, BlockDecode};
+use crate::plugins::image::blocks::{BlockDecode, Layout, Order};
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{
     decode_astc, decode_bc1, decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5,
@@ -23,25 +23,6 @@ use texture2ddecoder::{
 
 /// `VK_FORMAT_UNDEFINED`: the container carries a Basis Universal payload.
 pub(super) const UNDEFINED: u32 = 0;
-
-/// How a level's bytes become pixels. This is a codec's only description: a level's weight
-/// and its reconstruction both derive from it.
-pub(super) enum Layout {
-    /// 4 × 4 texel blocks: a block's bytes and the decoder that expands them.
-    Blocks { bytes: usize, decode: BlockDecode },
-    /// Uncompressed, four bytes per texel, already in the contract's R, G, B, A order.
-    Rgba8,
-}
-
-impl Layout {
-    /// Bytes occupied by a level of this size.
-    pub(super) fn level_bytes(&self, width: u32, height: u32) -> u64 {
-        match self {
-            Layout::Blocks { bytes, .. } => surface_bytes(width, height, *bytes as u64),
-            Layout::Rgba8 => rgba8_bytes(width, height),
-        }
-    }
-}
 
 /// `vkFormat` values that the Vulkan registry names `_SRGB`. They carry exactly the same
 /// bytes as their `_UNORM` twins, which immediately follow or precede them in `layout` —
@@ -65,7 +46,7 @@ pub(super) fn layout(format: u32) -> Option<Layout> {
     let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
     Some(match format {
         // R8G8B8A8_UNORM, R8G8B8A8_SRGB
-        37 | 43 => Layout::Rgba8,
+        37 | 43 => Layout::Pixels(Order::Rgba),
         // BC1_RGB_UNORM_BLOCK, BC1_RGB_SRGB_BLOCK: the block's alpha bit only encodes a black,
         // the surface is opaque.
         131 | 132 => blocks(8, decode_bc1),

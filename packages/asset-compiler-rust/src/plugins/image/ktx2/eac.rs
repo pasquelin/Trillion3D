@@ -12,10 +12,11 @@
 //! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
 
 use crate::eac_modifiers::EAC_MODIFIERS;
+use crate::plugins::image::blocks::{blocks_of, BLOCK_SIDE};
 
 /// Bytes of a one-channel block, and the side of a block in texels.
 const BLOCK: usize = 8;
-const SIDE: usize = 4;
+const SIDE: usize = BLOCK_SIDE as usize;
 /// The index field occupies the forty-eight low bits of the block, three per texel, the first
 /// texel in the high bits: its shift is therefore 45.
 const TOP: u32 = 45;
@@ -59,7 +60,8 @@ fn planes(
     targets: &[usize],
 ) -> Result<(), &'static str> {
     let stride = BLOCK * targets.len();
-    let (columns, rows) = (width.div_ceil(SIDE), height.div_ceil(SIDE));
+    let (columns, rows) = blocks_of(width as u32, height as u32);
+    let (columns, rows) = (columns as usize, rows as usize);
     if level.len() < columns * rows * stride || image.len() < width * height {
         return Err(SHORT);
     }
