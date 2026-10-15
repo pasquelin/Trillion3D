@@ -181,7 +181,9 @@ test('a disposed session stops its page reads with a reason, never "aborted with
   const inputs = {
     ...{ check() {}, state: {}, profiler: stub, ownedControls: [] },
     ...{ streamer: stub, engine: { id: 'stub', dispose() {} }, source: undefined },
-    streaming: { backgroundFetchController: controller },
+    streaming: {
+      stop: () => controller.abort(new DOMException('The session closed', 'AbortError')),
+    },
   } as unknown as Inputs
   const channel = { flushSync() {}, close() {} }
   const session = { scope: 'slice', diagnosticChannel: channel, diagnose() {}, options: {} }

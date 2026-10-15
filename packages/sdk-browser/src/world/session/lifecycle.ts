@@ -79,7 +79,7 @@ function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
       }
     })
     // A read cut short says why (#837), never "aborted without reason".
-    streaming.backgroundFetchController?.abort(new DOMException('The session closed', 'AbortError'))
+    streaming.stop()
     released = releaseHeld(session, inputs, () =>
       diagnose('dispose-complete', 'MeasuredWorld disposal completed', {
         kind: 'lifecycle',
@@ -143,7 +143,7 @@ function pageAwaiter(inputs: Inputs) {
     const read = streamer.watch(() => report())
     try {
       check()
-      if (streaming.promise) await streaming.promise
+      await streaming.pending()
       const load = async (missing: string[]) => {
         holdPages(engine, streamer, missing, read.hold)
         // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
@@ -168,7 +168,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
   const { check, streaming, engine } = inputs
   const flush = async () => {
     check()
-    if (streaming.promise) await streaming.promise
+    await streaming.pending()
     await engine.flush()
     await session.diagnosticChannel.flush()
   }

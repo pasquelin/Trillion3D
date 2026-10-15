@@ -30,8 +30,8 @@ test('a page the server refuses for good is told to the host once: never again b
     ...{ streamer, engine, state: { disposed: false } },
     budget: { admits: () => true, spend() {}, remaining: () => Infinity } as never,
   })
-  streaming.startFetch(['gone.bin'])
-  await streaming.promise
+  streaming.ask(['gone.bin'])
+  await streaming.pending()
   assert.deepEqual(events, ['stalled'], 'the batch keeps its failure for its owner alone')
   assert.match(String(streaming.error), /PAGE_STREAM_FAILED/)
 })
