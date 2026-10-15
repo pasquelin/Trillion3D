@@ -3,14 +3,17 @@ import { BOUNCE_LIGHT_CELL_WGSL } from './lightCellWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 
-/** The radiance a surface of diffuse \`albedo\` returns from a point \`P\` of normal \`N\`: the lights' irradiance
- *  there — walking the lights of its cell (\`bounceLightSlice\`), shadows traced against the proxy — and the
- *  bounce the cascades hold, Lambert's. Every program that traces binds the light grid's buffer as \`tileLights\`. */
+/** The radiance a surface of diffuse \`albedo\` returns from a point \`P\` of normal \`N\`, Lambert's:
+ *  \`surfaceSeen\`, under the irradiance the cascades already hold there — a reflection's hit, read —;
+ *  \`surfaceLit\`, the lights' irradiance too — walking the lights of its cell (\`bounceLightSlice\`),
+ *  shadows traced against the proxy —, what a probe's ray brings back to build the cascades. Every
+ *  program that traces binds the light grid's buffer as \`tileLights\`. */
 export const SURFACE_RAY_WGSL = wgslBlock(
   'SURFACE_RAY_WGSL',
   [INVERSE_PI_BOUNCE, LIGHTS_IRRADIANCE_WGSL, BOUNCE_LIGHT_CELL_WGSL],
   `
+fn surfaceSeen(albedo:vec3f,P:vec3f,N:vec3f)->vec3f{return albedo*sampleBounce(P,N)*INVERSE_PI_BOUNCE;}
 fn surfaceLit(albedo:vec3f,P:vec3f,N:vec3f,reach:f32)->vec3f{
- return albedo*(lightsIrradiance(P,N,reach)+sampleBounce(P,N))*INVERSE_PI_BOUNCE;
+ return albedo*lightsIrradiance(P,N,reach)*INVERSE_PI_BOUNCE+surfaceSeen(albedo,P,N);
 }`,
 )

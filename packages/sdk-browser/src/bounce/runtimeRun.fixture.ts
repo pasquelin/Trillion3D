@@ -14,7 +14,8 @@ const FUNCTIONS = [
   'rtBegin',
   'rtRadiance',
   'rtSurfaceOf',
-  'rtShade',
+  'rtSeen',
+  'rtFacing',
   'rtScene',
   'rtEnter',
   'rtEntry',
@@ -79,6 +80,7 @@ export function runOver(w: ReturnType<typeof world>) {
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec3) => tint,
+    surfaceSeen: (tint: Vec3) => tint,
   })
   return {
     ...run,
