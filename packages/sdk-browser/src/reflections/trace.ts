@@ -98,7 +98,7 @@ fn traceTexel(coord:vec2i,layer:u32)->vec4u{
  let own=reflectingPixelAt(layer,coord,flags);
  // @cut pick -> vec4u(bitcast<u32>(own.P.x)) keep: ;
  let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(vec2u(coord),layer));
- textureStore(raysOut,coord,vec4u(rayPack(reflectionRay),0u,0u,0u));
+ textureStore(raysOut,coord,vec4u(rayPack(reflectionDirection),0u,0u,0u));
  return freshPack(traced,reflectionHit);
 }
 /** One thread a pixel; a workgroup that wrote a texel tells the settle the image sampled a lobe

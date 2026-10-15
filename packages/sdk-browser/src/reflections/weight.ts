@@ -58,7 +58,7 @@ ${
  * `setLobes` left — its direction and αt where the material is anisotropic, a round lobe elsewhere),
  * and, where the surface carries a clear coat, the coat's own dielectric lobe on its normal and
  * roughness, only where the coat is above zero; the reflection's hit is the nearer of its lobes'
- * (`reflectionHit`, `REFLECTION_FAR` where none traced), its direction the base lobe's (`reflectionRay`).
+ * (`reflectionHit`, `REFLECTION_FAR` where none traced), its direction the base lobe's (`reflectionDirection`).
  * Each lobe is one `reflectionLobeRadiance`.
  * With `scene`, the proxy's bindings — the reflections' trace alone —, the chain holds the proxy's
  * stage (`reflectedRadianceWgsl`) and every lobe is sampled by `u` (`sampleWgsl.ts`); without, every
@@ -84,11 +84,11 @@ fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
  var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
   let hit=reflectionHit;
-  let ray=reflectionRay;
+  let ray=reflectionDirection;
   let alpha=lobeAlpha(lobes.coatRough);
   traced.coat=reflectionLobeRadiance(P,lobes.coatN,V,alpha,vec4f(0.0,0.0,0.0,alpha),u.yx);
   reflectionHit=min(hit,reflectionHit);
-  reflectionRay=ray;
+  reflectionDirection=ray;
  }
  return traced;
 }`

@@ -109,7 +109,7 @@ const reflectionSeenWgsl = (group: number) =>
  * (`reflectionLobeOf`). It leaves in `reflectionHit` the distance of what answered the larger share
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
  * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`); and in
- * `reflectionRay` the direction it traced, which the reuse weighs the ray by.
+ * `reflectionDirection` the direction it traced, which the reuse weighs the ray by.
  * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
  * `width` is the α of the lobe the ray stands for — its own, or the whole lobe a thin sample of it is
  * drawn from (`sampleWgsl.ts`) —: how far the proxy's ray goes before the field holds that lobe
@@ -129,7 +129,7 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       LOBE_AXIS_WGSL,
     ],
     `var<private> reflectionHit:f32;
-var<private> reflectionRay:vec3f;
+var<private> reflectionDirection:vec3f;
 /** One stage of the chain: its answer's share of what is left added, \`reflectionHit\` its distance
  *  where it takes the larger share, what is left reduced. */
 fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<function,f32>){
@@ -142,7 +142,7 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,w
  var radiance=vec3f(0.0);
  var rest=1.0;
  reflectionHit=REFLECTION_FAR;
- reflectionRay=R;
+ reflectionDirection=R;
  let pixel=reflectionPixelAt(P);
  if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
   reflectionTake(reflectionSeen(P,N,ellipse,pixel),&radiance,&rest);
