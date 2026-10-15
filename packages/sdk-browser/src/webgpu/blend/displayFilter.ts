@@ -4,6 +4,7 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DISPLAY_FILTER_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
@@ -129,8 +130,9 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     /** Composes the target with the layers (`displayApply`). */
     apply: displayApply(device, program, drawn, share),
     dispose() {
-      for (const texture of textures) texture.destroy()
-      drawn.destroy()
+      // This image's commands may still name them: retired, destroyed after the frame's submit.
+      for (const texture of textures) retire(device, texture)
+      retire(device, drawn)
     },
   }
 }

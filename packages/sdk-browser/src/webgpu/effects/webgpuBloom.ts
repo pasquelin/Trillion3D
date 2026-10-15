@@ -1,6 +1,7 @@
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
 import { bloomBlend, bloomLevelSizes, bloomLevelsTexture } from './bloomFilter.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { createBloomPrograms } from './bloomPrograms.ts'
 import { BLOOM_UNIFORM_BYTES, writeBloomSlot } from './bloomLevel.ts'
 import { uniformSlots } from '../../residency/pools.ts'
@@ -73,8 +74,9 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   const descriptor = { label: BLOOM_PASS, colorAttachments: [attachment] }
   const release = () => {
     if (!passes) return // free already: nothing is allocated for it
-    texture?.destroy()
-    uniform?.destroy()
+    // This image's commands may still name them: retired, destroyed after the frame's submit.
+    if (texture) retire(device, texture)
+    if (uniform) retire(device, uniform)
     texture = uniform = blend = undefined
     attachment.view = undefined as unknown as GPUTextureView // holds no freed view
     full = [0, 0]

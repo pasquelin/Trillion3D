@@ -3,6 +3,7 @@
 import { workgroupCount } from '../../../../../../math/src/scalar/integers.ts'
 import { arrayView } from '../../../../gpu/core/textureViews.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
+import { retire } from '../../../../gpu/core/frameRetire.ts'
 import { madeTextureBytes, textureBytesOf } from '../../../../gpu/core/textureBytes.ts'
 import {
   VSM_PROJECTION_MASK_FORMAT,
@@ -95,8 +96,12 @@ export function ensureMask(
   exact = false,
 ): VsmMask {
   if (vsm.mask && maskKept(vsm, width, height, layers, exact)) return vsm.mask
-  destroyMask(vsm.mask)
-  // Never a destroyed mask left in place should the new one be refused (`ledgerTentative`).
+  // The mask replaced may be named by this image's commands: retired, destroyed after the submit.
+  if (vsm.mask) {
+    retire(device, vsm.mask.array)
+    retire(device, vsm.mask.tiles)
+  }
+  // Never a retired mask left in place should the new one be refused (`ledgerTentative`).
   vsm.mask = undefined
   return (vsm.mask = constructGpuResources(device, () => {
     const array = device.createTexture(maskDescriptor(width, height, layers))

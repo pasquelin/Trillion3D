@@ -1,5 +1,6 @@
 import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { retire } from '../gpu/core/frameRetire.ts'
 import { gradientOut } from './shadingHistoryWgsl.ts'
 import { computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
@@ -126,7 +127,8 @@ export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsage
     checkpoint: () => void (saved = history.written),
     replay: () => void (history.written = saved),
     drop() {
-      for (const texture of textures) texture.destroy()
+      // This image's commands may still name them: retired, destroyed after the frame's submit.
+      for (const texture of textures) retire(device, texture)
       textures.length = views.length = counted = 0
       history.written = false
     },

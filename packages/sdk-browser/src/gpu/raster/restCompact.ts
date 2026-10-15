@@ -111,17 +111,7 @@ function restCompactOps(c: RestState): GpuRestCompact {
     get work() {
       return c.work
     },
-    growWork(nextWords, restSlots, rows) {
-      const words = workWords(nextWords, restSlots, rows)
-      if (c.work && c.work.size >= words * 4) return undefined
-      const next = workBuffer(c.device, words)
-      return pendingBuffers(c.device, [next], () => {
-        const old = c.work
-        c.work = next
-        c.owned = [c.uniforms, c.tileArgs, next]
-        return [old]
-      })
-    },
+    growWork: (nextWords, restSlots, rows) => growWork(c, nextWords, restSlots, rows),
     rebind(next) {
       c.buffers = next
       c.copyWords = next.instances.size / 4
@@ -135,6 +125,20 @@ function restCompactOps(c: RestState): GpuRestCompact {
   }
 }
 
+/** The work buffer `rows` rows, `copyWords` words and `restSlots` slots need, made aside and put
+ *  in place by `commit`, the old one retired; nothing when the one held suffices. */
+function growWork(c: RestState, copyWords: number, restSlots: number, rows: number) {
+  const words = workWords(copyWords, restSlots, rows)
+  if (c.work && c.work.size >= words * 4) return undefined
+  const next = workBuffer(c.device, words)
+  return pendingBuffers(c.device, [next], () => {
+    const old = c.work
+    c.work = next
+    c.owned = [c.uniforms, c.tileArgs, next]
+    return [old]
+  })
+}
+
 function encodeRest(
   c: RestState,
   open: OpenPass,
@@ -145,13 +149,9 @@ function encodeRest(
   const { device, uniforms, uniData, buffers } = c
   if (c.disposed || restSlots < 1 || rows < 1) return false
   const tiles = ceilDiv(rows, WORKGROUP_THREADS)
-  const words = workWords(c.copyWords, restSlots, rows)
-  // The work buffer only grows: a frame with more rows or slots reallocates it once.
-  if (!c.work || c.work.size < words * 4) {
-    c.work?.destroy()
-    c.work = workBuffer(device, words)
-    c.owned = [uniforms, c.tileArgs, c.work]
-  }
+  // The work buffer only grows, by the one growth: the old one retired, never destroyed under
+  // this image's commands.
+  growWork(c, c.copyWords, restSlots, rows)?.commit()
   // What the group names, in its bindings' order: the list its group is made of.
   const { next } = c.bound
   next[0] = buffers.instances
@@ -159,7 +159,7 @@ function encodeRest(
   next[2] = buffers.slotOffsets
   next[3] = pages
   next[4] = buffers.flags
-  next[5] = c.work
+  next[5] = c.work!
   next[6] = uniforms
   if (c.bound.moved())
     c.bindGroup = device.createBindGroup({

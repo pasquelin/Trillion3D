@@ -2,6 +2,7 @@ import { CORNER_VALUES } from '../partition/contract.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
+import { retire } from './frameRetire.ts'
 import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
@@ -40,18 +41,10 @@ export async function createTransparentOcclusion(
 ) {
   if (entryCount < 1) return undefined
   const buffers = occlusionBuffers(device, entryCount)
-  const destroy = () => {
-    o.corners.destroy()
-    o.unculled.destroy()
-  }
   let o: Occlusion
   try {
     const made = await occlusionPipeline(device)
-    if (!made) {
-      buffers.corners.destroy()
-      buffers.unculled.destroy()
-      return undefined
-    }
+    if (!made) return freed(buffers)
     o = {
       ...{ device, entryCount, sources, ...buffers, ...made },
       ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
@@ -80,7 +73,9 @@ export async function createTransparentOcclusion(
        *  names no size. Returns whether they were — the corners and bits are then to be sent again. */
       grow(entries: number) {
         if (o.disposed || entries <= o.entryCount) return false
-        destroy()
+        // The old buffers may be named by this image's commands: retired, never destroyed now.
+        retire(device, o.corners)
+        retire(device, o.unculled)
         Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
         o.groups = workgroupCount(entries, WORKGROUP_THREADS)
         return true
@@ -93,17 +88,12 @@ export async function createTransparentOcclusion(
         encodeOcclusion(o, encoder, pyramidFresh),
       dispose() {
         o.disposed = true
-        destroy()
+        freed(o)
       },
     }
   } catch {
-    try {
-      buffers.corners.destroy()
-      buffers.unculled.destroy()
-    } catch {
-      /* A partial GPU setup must leak nothing. */
-    }
-    return undefined
+    // A partial GPU setup must leak nothing.
+    return freed(buffers)
   }
 }
 
@@ -121,6 +111,13 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
   groups: number
+}
+
+/** The test's own buffers freed at once: none was ever named by a submitted command. */
+function freed(buffers: { corners: GPUBuffer; unculled: GPUBuffer }) {
+  buffers.corners.destroy()
+  buffers.unculled.destroy()
+  return undefined
 }
 
 /** The world corners of each entry, and one bit per entry never culled. */

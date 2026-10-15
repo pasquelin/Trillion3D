@@ -2,6 +2,7 @@ import { SUBSURFACE_FORMAT, SUBSURFACE_TARGET } from './subsurface.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from './physicalLobes.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
+import { retire } from '../gpu/core/frameRetire.ts'
 import { RECEIVER_TARGET_FORMAT } from '../visibility/shader/receiverTargetWgsl.ts'
 import {
   SURFACE_FORMATS,
@@ -109,15 +110,10 @@ const HALF_ONE = 0x3c00
 type SurfaceParts = Pick<SurfaceBuffer, 'width' | 'height' | 'allocationBytes' | 'hasEmissiveAo'> &
   Record<OptionalTarget, GPUTexture> & {
     textures: GPUTexture[]
-    /** Textures the buffer frees with its own though none of its members names them. */
-    retired?: GPUTexture[]
   }
 
-/** Each record's retired textures, which a record made from it frees too (`partsOf`). */
-const retiredOf = new WeakMap<SurfaceBuffer, GPUTexture[]>()
-
 function assemble(parts: SurfaceParts): SurfaceBuffer {
-  const { textures, subsurface, receiver, lobes, retired = [] } = parts
+  const { textures, subsurface, receiver, lobes } = parts
   const views = textures.map((texture) => texture.createView())
   let disposed = false
   const record: SurfaceBuffer = {
@@ -143,11 +139,9 @@ function assemble(parts: SurfaceParts): SurfaceBuffer {
     dispose() {
       if (disposed) return
       disposed = true
-      for (const texture of [...textures, ...retired, subsurface, receiver, lobes])
-        texture.destroy()
+      for (const texture of [...textures, subsurface, receiver, lobes]) texture.destroy()
     },
   }
-  retiredOf.set(record, retired)
   return record
 }
 
@@ -155,19 +149,19 @@ function assemble(parts: SurfaceParts): SurfaceBuffer {
 const partsOf = (surfaces: SurfaceBuffer): SurfaceParts => ({
   ...surfaces,
   textures: [surfaces.baseMetal, surfaces.normalRough, surfaces.emissiveAo, surfaces.flags],
-  retired: retiredOf.get(surfaces),
 })
 
 /**
  * The same buffer with its emission-and-occlusion layer made, for an image whose surface came to
  * emit or occlude: a new record — its views, which every reader binds by, are new — on the same
- * targets, which it frees from now on, the stand-in too, which a pass already encoded may still
- * name. The record replaced is not disposed.
+ * targets, which it frees from now on. The stand-in replaced is retired, destroyed after the
+ * frame's submit (`../gpu/core/frameRetire.ts`): a pass already encoded may still name it. The
+ * record replaced is not disposed.
  */
 export function withEmissiveAo(device: GPUDevice, surfaces: SurfaceBuffer): SurfaceBuffer {
   const { width, height } = surfaces
   const layer = surfaceTarget(device, SURFACE_FORMATS[2], { width, height })
-  return assemble({
+  const made = assemble({
     ...partsOf(surfaces),
     allocationBytes:
       surfaces.allocationBytes -
@@ -175,8 +169,9 @@ export function withEmissiveAo(device: GPUDevice, surfaces: SurfaceBuffer): Surf
       emissiveAoBytes(width, height, true),
     textures: [surfaces.baseMetal, surfaces.normalRough, layer, surfaces.flags],
     hasEmissiveAo: true,
-    retired: [...(retiredOf.get(surfaces) ?? []), surfaces.emissiveAo],
   })
+  retire(device, surfaces.emissiveAo)
+  return made
 }
 
 /**

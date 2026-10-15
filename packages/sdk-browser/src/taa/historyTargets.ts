@@ -6,6 +6,7 @@ import {
   resolveTargetUsage,
 } from './resolve.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { retire } from '../gpu/core/frameRetire.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 
@@ -31,7 +32,8 @@ export function createTaaHistoryTargets(device: GPUDevice) {
       return textures.length ? targets.width * targets.height * TAA_HISTORY_BYTES_PER_PIXEL : 0
     },
     drop() {
-      for (const texture of textures) texture.destroy()
+      // This image's commands may still name them: retired, destroyed after the frame's submit.
+      for (const texture of textures) retire(device, texture)
       textures.length = 0
       targets.images.length = targets.geometry.length = targets.shading.length = 0
     },

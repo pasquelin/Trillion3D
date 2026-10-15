@@ -1,6 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts'
 import { ledgerReplacing } from '../core/deviceLedger.ts'
-import { pendingBuffers } from '../core/tableGrowth.ts'
+import { grownByCopy, pendingBuffers } from '../core/tableGrowth.ts'
 import { evictResident } from './commit.ts'
 import type { Eviction } from './eviction.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
@@ -193,11 +193,14 @@ function growHomes(context: GpuPageContext, slots: number, to: PageHomes, pageBy
     const next = ledgerReplacing(device, context.buffer.size, () =>
       createPageBuffer(device, pageBufferBytes(device, context.pageBytes, slots, to)),
     )
-    const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache growth' })
-    encoder.copyBufferToBuffer(context.buffer, 0, next, 0, context.buffer.size)
-    device.queue.submit([encoder.finish()])
-    context.buffer.destroy()
+    const held = context.buffer
     context.buffer = next
+    grownByCopy(
+      device,
+      [held],
+      (encoder) => encoder.copyBufferToBuffer(held, 0, next, 0, held.size),
+      'Trillion3D geometry page cache growth',
+    )
   }
   context.placement = homePlacement(to, to.homes.size - resident.size)
   context.slots = slots
