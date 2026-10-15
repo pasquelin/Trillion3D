@@ -58,19 +58,6 @@ pub(crate) fn twins() -> Vec<Twin> {
             compute: |v| f64s(&[mix(v[0].f64(), v[1].f64(), v[2].f64())]),
         },
         Twin {
-            file: "xorshift32",
-            name: "xorshift32",
-            about: "xorshiftRandom (math sequence/random.ts), xorshift32 (math/rust random.rs): one step of the 32-bit xorshift from a nonzero state",
-            inputs: "state: u32",
-            outputs: "1 u32",
-            ulps: 0,
-            cases: step_cases,
-            compute: |v| {
-                let mut state = v[0].u32();
-                vec![Value::U32(xorshift32(&mut state))]
-            },
-        },
-        Twin {
             file: "lcg32",
             name: "lcg32",
             about: "lcgRandom (math sequence/random.ts), lcg32 (math/rust random.rs): one step of the 32-bit congruential generator",
