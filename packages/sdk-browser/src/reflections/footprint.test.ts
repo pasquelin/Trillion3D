@@ -4,9 +4,6 @@
 // along the long axis of a stretched one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
@@ -103,11 +100,6 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
       },
     },
   )
-  const { reflectionConeTangent } = shaderRun<{ reflectionConeTangent: (a: number) => number }>(
-    wgslModule(REFLECTION_CONE_WGSL),
-    ['reflectionConeTangent'],
-    {},
-  )
   const hit: V3 = [0, 1, 0],
     R: V3 = [0, 0, 1],
     Q = view.project(hit).slice(0, 2),
@@ -125,7 +117,7 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
     return { mean: sum.color.map((v) => v / sum.weight), taps: [...read] }
   }
   const axis = (distance: number, alpha: number) =>
-    (2 * distance * reflectionConeTangent(alpha)) / pixel
+    (2 * distance * run.reflectionConeTangent(alpha)) / pixel
   // Round — its direction any —: one tap at Q, the level of the cone's diameter in pixels.
   const alpha = 0.04
   for (const lobe of [

@@ -14,8 +14,8 @@ import { DISPLAY_VALUE_WGSL } from '../lighting/toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb } from '../../../math/src/color/color.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
+import type { Lobe } from './scene.fixture.ts'
 
-type Lobe = { R: number[]; T: number[]; bands: number[]; widths: number[]; tangents: number[] }
 /** An order-2 field's radiance through a lobe, as the probes' field reads it (`lobeRadianceShader`
  *  over `REFLECTION_LOBE_WGSL`), here over the coefficients `environment`. */
 const FIELD_THROUGH_LOBE = wgslBlock(

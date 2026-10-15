@@ -13,7 +13,8 @@ import { rasterize, type Box, type Camera, type V3 } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../gpu/hiz/pyramidTexture.ts'
 
 type Seen = { color: number[]; confidence: number }
-type Lobe = { R: V3; T: V3; bands: number[]; widths: number[]; tangents: number[] }
+/** A pixel's reflection lobe, as the shipped `reflectionLobeOf` returns it. */
+export type Lobe = { R: V3; T: V3; bands: number[]; widths: number[]; tangents: number[] }
 type Cone = { short: number; long: number; level: number }
 /** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
  *  as the run reads them, every other field four numbers. */
@@ -83,6 +84,7 @@ export function reflectionRunner(
     screenMarchEnd: (o: number[], d: number[], size: number[]) => number
     screenMarchBudget: (d: number[], end: number, levels: number) => number
     reflectionConeAt: (distance: number, pixel: number, lobe: Lobe) => Cone
+    reflectionConeTangent: (alpha: number) => number
     reflectionFootprint: (
       Q: number[],
       hit: V3,
