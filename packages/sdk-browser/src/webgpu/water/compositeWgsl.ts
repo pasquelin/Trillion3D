@@ -21,14 +21,12 @@ import { waterQuadWgsl } from './quadWgsl.ts'
 import { BLEND_ITEM_WGSL } from '../blend/items.ts'
 import { VOLUME } from '../transparent/transmission.ts'
 
-/** Bindings of the composite: the deferred bounce layout as-is, on its numbers (`DEFERRED_BINDINGS`) —
- *  surfaces and depth, the view, the contract, the probe grid — then the transparents' front radiance, and what only water reads: the frozen backdrop, the
- *  opaque depth, the blend view uniform, the material volumes, the item records whose poses they
- *  name and the rectangle its quad covers. */
+/** Bindings the composite binds itself, on the deferred bounce layout's numbers (`DEFERRED_BINDINGS`;
+ *  its three surfaces come from the resolve's own layout) — the word and depth, the view, the
+ *  contract, the probe grid — then the transparents' front radiance, and what only water reads: the
+ *  frozen backdrop, the opaque depth, the blend view uniform, the material volumes, the item records
+ *  whose poses they name and the rectangle its quad covers. */
 export const WATER_BINDINGS = {
-  baseMetal: DEFERRED_BINDINGS.baseMetal,
-  normalRough: DEFERRED_BINDINGS.normalRough,
-  emissiveAo: DEFERRED_BINDINGS.emissiveAo,
   /** The water word the surface stage wrote (`surfaceWgsl.ts`), on the surface flags' number. */
   word: DEFERRED_BINDINGS.flags,
   depth: DEFERRED_BINDINGS.depth,
