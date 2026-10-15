@@ -1,5 +1,5 @@
 import { createControlBase } from './base.ts'
-import { ADVANCE_ARROW_KEYS, axisOf, STRAFE_ARROW_KEYS, trackKeys } from './input.ts'
+import { ADVANCE_ARROW_KEYS, axisOf, heldAny, STRAFE_ARROW_KEYS, trackKeys } from './input.ts'
 import { controlPose } from './pose.ts'
 import type { VehicleDriver, VehicleInput } from '../../../../sdk-core/src/physics/vehicle.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
@@ -58,8 +58,8 @@ export function createVehicleCameraControls(
     base,
     () => {
       // The pedals and the wheel the keys (`KeyboardEvent.code`) ask for.
-      input.throttle = ADVANCE_ARROW_KEYS[0].some((code) => keys.has(code)) ? 1 : 0
-      input.brake = ADVANCE_ARROW_KEYS[1].some((code) => keys.has(code)) ? 1 : 0
+      input.throttle = heldAny(keys, ADVANCE_ARROW_KEYS[0]) ? 1 : 0
+      input.brake = heldAny(keys, ADVANCE_ARROW_KEYS[1]) ? 1 : 0
       input.steer = axisOf(keys, ...STRAFE_ARROW_KEYS)
       input.handbrake = keys.has(HANDBRAKE)
       vehicle?.drive(input)

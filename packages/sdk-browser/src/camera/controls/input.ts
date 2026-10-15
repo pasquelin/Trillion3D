@@ -175,10 +175,9 @@ export function trackKeys(
   // A window that loses focus never sends the `keyup`: the key would stay held forever. Nor
   // does a paused controller hear it.
   const release = () => {
-    if (pressed.size) {
-      pressed.clear()
-      onChange()
-    }
+    if (!pressed.size) return
+    pressed.clear()
+    onChange()
   }
   base.listen<Event>(document.defaultView ?? document, 'blur', release)
   base.onPause(release)
@@ -203,9 +202,10 @@ export const ADVANCE_ARROW_KEYS: KeyAxis = [
     ['KeyA', 'ArrowLeft'],
   ]
 
+/** Whether a key of `group` is held. */
+export const heldAny = (pressed: Set<string>, group: readonly string[]) =>
+  group.some((code) => pressed.has(code))
+
 /** `+1` when the first group is held, `-1` for the second, `0` for both or neither. */
-export function axisOf(pressed: Set<string>, positive: string[], negative: string[]) {
-  const up = positive.some((code) => pressed.has(code)) ? 1 : 0
-  const down = negative.some((code) => pressed.has(code)) ? 1 : 0
-  return up - down
-}
+export const axisOf = (pressed: Set<string>, positive: string[], negative: string[]) =>
+  Number(heldAny(pressed, positive)) - Number(heldAny(pressed, negative))
