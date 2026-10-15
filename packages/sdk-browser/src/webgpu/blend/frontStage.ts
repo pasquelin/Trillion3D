@@ -1,18 +1,10 @@
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { FRONT_TARGET_FORMATS, type FrontOutputs } from '../../reflections/frontLayer.ts'
+import { FRONT_OUTPUTS, type FrontOutputs } from '../../reflections/frontLayer.ts'
+import { fragmentTargets } from '../../gpu/core/fragmentOutputs.ts'
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
 import { blendFrontShader, blendReflects } from './frontStageWgsl.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { PageSurface } from '../../page/surface.ts'
-
-/** The targets of the front stage of `outputs`, in its outputs' order: the Hi-Z front layer, the surface
- *  flags, then the normal and roughness, then the lobes texel (`../../reflections/frontLayer.ts`). */
-const frontStageTargets = (outputs: FrontOutputs): GPUColorTargetState[] => [
-  { format: FRONT_TARGET_FORMATS.front },
-  { format: FRONT_TARGET_FORMATS.flags },
-  ...(outputs > 0 ? [{ format: FRONT_TARGET_FORMATS.normals }] : []),
-  ...(outputs > 1 ? [{ format: FRONT_TARGET_FORMATS.lobes }] : []),
-]
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
  *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
@@ -42,7 +34,11 @@ export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout)
         label: 'Trillion3D front stage',
         code: blendFrontShader(outputs),
       })
-      const fragment = { module, entryPoint: 'fsFront', targets: frontStageTargets(outputs) }
+      const fragment = {
+        module,
+        entryPoint: 'fsFront',
+        targets: fragmentTargets(FRONT_OUTPUTS[outputs]),
+      }
       return (culls = stageDescriptors(
         device,
         module,

@@ -49,14 +49,22 @@ export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
 export const FRONT_TRACED_LAYOUT: { texture: GPUTextureBindingLayout } = {
   texture: { sampleType: 'uint' },
 }
-/** The formats of the front pass's targets: the Hi-Z front layer it writes the covering depth to, the
- *  surface buffer's flags and normals, and the lobes target's (`../scene/physicalLobes.ts`). */
-export const FRONT_TARGET_FORMATS = {
-  front: HIZ_LEVEL0_FORMAT,
-  flags: SURFACE_FORMATS[3],
-  normals: SURFACE_FORMATS[1],
-  lobes: PHYSICAL_LOBES_FORMAT,
+/** The front pass's outputs in their locations' order, each written from the `FrontOutputs` it names
+ *  on: the Hi-Z front layer's covering depth, the surface buffer's flags and normal, the lobes'. */
+const FRONT_OUTPUT = {
+  front: { wgsl: 'vec4f', format: HIZ_LEVEL0_FORMAT, from: 0 },
+  flags: { wgsl: 'u32', format: SURFACE_FORMATS[3], from: 0 },
+  normal: { wgsl: 'vec4f', format: SURFACE_FORMATS[1], from: 1 },
+  lobes: { wgsl: 'vec4u', format: PHYSICAL_LOBES_FORMAT, from: 2 },
 } as const
+/** What a front pass writes past the depth and the flags: nothing, the surface, or it and its lobes. */
+export type FrontOutputs = (typeof FRONT_OUTPUT)[keyof typeof FRONT_OUTPUT]['from']
+/** Each `FrontOutputs`' outputs in order: the stage's targets, `FrontOut` and attachments read them. */
+export const FRONT_OUTPUTS = ([0, 1, 2] as const).map((outputs) =>
+  Object.entries(FRONT_OUTPUT)
+    .filter(([, { from }]) => from <= outputs)
+    .map(([name, output]) => ({ name: name as keyof typeof FRONT_OUTPUT, ...output })),
+)
 const LABEL = 'Trillion3D reflection front layer'
 
 /** The traced radiance's texture at `size`: written by the upsample, read by the forward programs. */
@@ -68,18 +76,14 @@ const createFrontTraced = (device: GPUDevice, size: GPUExtent3D) =>
  *  texel. */
 export const frontLayerBytes = (width: number, height: number, blends: boolean) =>
   (blends ? width * height : 1) *
-    (texelBytesOf(DEPTH_FORMAT) + texelBytesOf(FRONT_TARGET_FORMATS.flags)) +
-  texelBytesOf(FRONT_TARGET_FORMATS.normals) +
+    (texelBytesOf(DEPTH_FORMAT) + texelBytesOf(FRONT_OUTPUT.flags.format)) +
+  texelBytesOf(FRONT_OUTPUT.normal.format) +
   halfBytes(1, 1) +
   texelBytesOf(FRONT_TRACED_FORMAT) +
   PHYSICAL_LOBES_TARGET.bytes(width, height, false)
 
 /** The stamp of the image `frame` (`run.frame`): what tells the front pass of this image. */
 export const frontStamp = (frame: number) => frame >>> 0 || 1
-
-/** What a front pass writes past the depth and the flags: nothing, the reflecting surface, or it and its
- *  lobes. */
-export type FrontOutputs = 0 | 1 | 2
 
 /** A view's front layer at `width × height`, `blends` sizing it (`frontLayer.ts`). */
 export function createFrontLayer(
@@ -95,9 +99,9 @@ export function createFrontLayer(
   const make = (format: GPUTextureFormat, usage: number, size: GPUExtent3D) =>
     device.createTexture({ label: LABEL, size, format, usage })
   const depth = make(DEPTH_FORMAT, attached | GPUTextureUsage.COPY_DST, blends ? full : one),
-    flags = make(FRONT_TARGET_FORMATS.flags, attached, blends ? full : one)
-  let normals = make(FRONT_TARGET_FORMATS.normals, attached, one),
-    lobes = make(FRONT_TARGET_FORMATS.lobes, attached, one),
+    flags = make(FRONT_OUTPUT.flags.format, attached, blends ? full : one)
+  let normals = make(FRONT_OUTPUT.normal.format, attached, one),
+    lobes = make(FRONT_OUTPUT.lobes.format, attached, one),
     traced = createFrontTraced(device, one),
     half = createHalfGrids(device, LABEL, one)
   const cleared = (): GPURenderPassColorAttachment => ({
@@ -113,12 +117,13 @@ export function createFrontLayer(
     lobes: lobes.createView(),
     traced: traced.createView(),
   }
-  const [hizFront, flagsOut, normalsOut, lobesOut] = [cleared(), cleared(), cleared(), cleared()]
-  flagsOut.view = views.flags
-  const colours: GPURenderPassColorAttachment[] = []
+  const out = { front: cleared(), flags: cleared(), normal: cleared(), lobes: cleared() }
+  out.flags.view = views.flags
+  /** Each `FrontOutputs`' attachments, in its outputs' order. */
+  const colours = FRONT_OUTPUTS.map((list) => list.map(({ name }) => out[name]))
   const pass: GPURenderPassDescriptor = {
     label: TRANSPARENT_FRONT_PASS,
-    colorAttachments: colours,
+    colorAttachments: colours[0],
     // The opaque depth copied in first (`encodeFrontPass`): a surface behind it is never the front.
     depthStencilAttachment: { view: views.depth, depthLoadOp: 'load', depthStoreOp: 'store' },
   }
@@ -156,12 +161,11 @@ export function createFrontLayer(
       bytes: { targetBytes: number },
     ) {
       this.drawn = stamp
-      hizFront.view = front
-      colours.length = 0
-      colours.push(hizFront, flagsOut)
+      out.front.view = front
+      pass.colorAttachments = colours[outputs]
       if (outputs > 0) {
         this.reflected = stamp
-        const n = grow(normals, () => make(FRONT_TARGET_FORMATS.normals, attached, full)),
+        const n = grow(normals, () => make(FRONT_OUTPUT.normal.format, attached, full)),
           t = grow(traced, () => createFrontTraced(device, full))
         if (n.texture !== normals) views.normals = (normals = n.texture).createView()
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
@@ -171,21 +175,19 @@ export function createFrontLayer(
           half = createHalfGrids(device, LABEL, [halfWidth, halfHeight])
           bytes.targetBytes += halfBytes(width, height) - halfBytes(1, 1)
         }
-        normalsOut.view = views.normals
-        colours.push(normalsOut)
+        out.normal.view = views.normals
       }
       if (outputs > 1) {
         const l = grow(
           lobes,
-          () => make(FRONT_TARGET_FORMATS.lobes, attached, full),
+          () => make(FRONT_OUTPUT.lobes.format, attached, full),
           // The lobes target's own accounting (`PHYSICAL_LOBES_TARGET`), as the surface buffer's.
           PHYSICAL_LOBES_TARGET.bytes(width, height, true) -
             PHYSICAL_LOBES_TARGET.bytes(width, height, false),
         )
         if (l.texture !== lobes) views.lobes = (lobes = l.texture).createView()
         bytes.targetBytes += l.bytes
-        lobesOut.view = views.lobes
-        colours.push(lobesOut)
+        out.lobes.view = views.lobes
       }
       return pass
     },
