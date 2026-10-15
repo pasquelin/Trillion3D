@@ -1,10 +1,10 @@
 use super::*;
 use trillion3d_math::triangle::edge_key;
-use trillion3d_page_codec::clusters::{spatial::spatial, Caps};
+use trillion3d_page_codec::clusters::{cluster, Caps};
 
 /// The clusters of `indices` over `positions`, at most `max_triangles` triangles and
 /// `DAG_CLUSTER_VERTICES` vertices each, by the one clusterer (`trillion3d_page_codec::clusters`,
-/// the spatial rule): the run-time cut's too. Each cluster's triangles keep their source order.
+/// free to reorder): the run-time cut's too. Each cluster's triangles keep their source order.
 pub fn cluster_triangles(
     positions: &[f32],
     indices: &[u32],
@@ -22,7 +22,7 @@ pub fn cluster_triangles(
         triangles: max_triangles,
         vertices: DAG_CLUSTER_VERTICES,
     };
-    let built = spatial(positions, indices, caps);
+    let built = cluster(positions, indices, caps, false);
     let mut start = 0;
     let clusters = built.ends.iter().map(|&end| {
         let cluster = built.indices[start..end].to_vec();
