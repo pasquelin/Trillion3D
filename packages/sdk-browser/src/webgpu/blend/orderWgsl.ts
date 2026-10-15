@@ -10,9 +10,9 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
  *
- * Each frame the CPU sends the eye, and the keys and order of the few own entries it orders itself
- * (`order.ts`); everything else is here. A workgroup loads a block of the pass's seeded entries with
- * their keys — computed in emulated doubles (`math/src/wgsl/double.ts`), so they are the CPU's to the bit —
+ * Each frame the CPU sends the eye, and the order of the few own entries it orders itself
+ * (`order.ts`); everything else is here, every key included. A workgroup loads a block of the
+ * pass's seeded entries with their keys — computed in emulated doubles (`math/src/wgsl/double.ts`), so they are the CPU's to the bit —
  * and sorts it in its memory; blocks are then merged by a bitonic network, one dispatch per step too
  * wide for a workgroup, the steps that fit finished in the workgroup again. The last dispatch writes
  * the sorted entries where the expansion kernel reads them and where each seed landed;
@@ -55,7 +55,6 @@ const ORDER_UNI_FIELDS = [
   'step',
   'fresh',
   'last',
-  'ownKeyBase',
 ] as const
 export const ORDER_UNI = Object.fromEntries(
   ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),

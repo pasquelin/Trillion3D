@@ -4,7 +4,7 @@ import { EXPAND_PASSES } from './planLayout.ts'
 
 /**
  * THE HEAD OF THE FRAME DATA, the words an image sends the transparent kernels before the own
- * entries' keys and seeds (`order.ts`): the eye (four doubles), the frustum planes brought to the
+ * entries' seeds and slots (`order.ts`): the eye (four doubles), the frustum planes brought to the
  * eye in single precision and their forward-corner words (`framePlanes.ts`, what the verdict tests
  * with), what the water rectangle projects with (`../water/frameWords.ts`: the jittered projection
  * and its inverse in single precision, the view in doubles, the near plane, the target's size and
@@ -31,10 +31,9 @@ export const PLANE_USABLE = 8
 /** The view's fourth row is `0, 0, 0, 1`: a corner's view depth is not divided. */
 export const VIEW_AFFINE = 1
 
-/** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
- *  the head, a key per item, a seed and a slot per entry of each pass (`order.ts`). */
-export const orderFrameWords = (items: number, entries: number) =>
-  FRAME_HEAD.words + 2 * items + 2 * EXPAND_PASSES * entries
+/** Words of the frame data a scene of `entries` entries a pass can send at most: the head, a seed
+ *  and a slot per entry of each pass (`order.ts`). */
+export const orderFrameWords = (entries: number) => FRAME_HEAD.words + 2 * EXPAND_PASSES * entries
 
 /** The head's layout and its doubles' read, as each kernel that binds `frame` names them. */
 export const FRAME_HEAD_WGSL = wgslBlock(

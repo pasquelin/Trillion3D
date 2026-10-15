@@ -60,11 +60,7 @@ export function expandBuffers(
     steps: make('Trillion3D blend order steps', slots.steps.bytes, uniform),
     keyed: make('Trillion3D blend key records', sizes.items * KEY_RECORD_WORDS * 4, storage),
     waterItems: make('Trillion3D water items', sizes.waters * WATER_ITEM_WORDS * 4, storage),
-    frame: make(
-      'Trillion3D blend order frame',
-      orderFrameWords(sizes.items, sizes.entries) * 4,
-      storage,
-    ),
+    frame: make('Trillion3D blend order frame', orderFrameWords(sizes.entries) * 4, storage),
     scratch: make('Trillion3D blend expand scratch', sizes.scratchWords * 4, work),
     sorted: make('Trillion3D blend order network', sortSize(sizes.entries) * 16, work),
     placed: make('Trillion3D blend order places', sizes.entries * 4, work),

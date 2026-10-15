@@ -1,28 +1,25 @@
 import { KEYED_WGSL } from './keyLayout.ts'
 import { FRAME_HEAD_WGSL } from './frameHead.ts'
 import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
-import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The paint order's keys and rule as the order kernel ranks its entries (`orderWgsl.ts`): an item's
  * key in emulated doubles, the CPU's to the bit, and which of two entries paints first. Declared
- * over the kernel's `keyed` and `frame` buffers and its `uni`, as `KEYED_WGSL` is.
+ * over the kernel's `keyed` and `frame` buffers, as `KEYED_WGSL` is.
  */
 export const ORDER_KEY_WGSL = wgslBlock(
   'ORDER_KEY_WGSL',
-  [dAdd, dSub, dMul, NO_INDEX, KEYED_WGSL, FRAME_HEAD_WGSL],
+  [dAdd, dSub, dMul, KEYED_WGSL, FRAME_HEAD_WGSL],
   `/** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
 fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
 /**
  * An item's key, as \`eyeKey\` computes it on the CPU (\`order.ts\`): the square of the distance from
- * the eye to its world box centre, its world origin without a box. An own item's key is the one the
- * CPU ordered it with.
+ * the eye to its world box centre, its world origin without a box: the CPU's to the bit, so an own
+ * item lands where the CPU ordered it.
  */
 fn itemKey(item:u32)->vec2u{
  let at=item*KEY_RECORD_WORDS;
- let own=keyed[at+KEY_OWN];
- if(own!=NO_INDEX){return frameDouble(uni.ownKeyBase+own*2u);}
  let ex=frameDouble(0u);
  let ey=frameDouble(2u);
  let ez=frameDouble(4u);

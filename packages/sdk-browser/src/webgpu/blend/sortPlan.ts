@@ -3,24 +3,18 @@ import { precedes } from './paintOrder.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 
 /**
- * FAR-TO-NEAR SORT OF SEEDS ON THE CPU, on the order the previous frame left (`order.ts`).
+ * FAR-TO-NEAR SORT OF SEEDS ON THE CPU (`order.ts`).
  *
  * The GPU sorts every entry of a pass (`orderWgsl.ts`); the CPU sorts only what it must encode by
  * itself — the own entries, each its own draw (`runs.ts`) — and the CPU model sorts the whole pass
  * (`expandCpu.fixture.ts`). It sorts seed indices: a seed's key is its item's, and the seed itself
  * breaks equal keys, as on the GPU.
  *
- * A camera that moves little leaves the list almost sorted: insertion takes it back in one walk
- * and a few shifts. A camera jump (a teleport, a cut, a respawn) makes insertion quadratic: past a
- * shift budget proportional to the list, the sort hands over to a STABLE merge sort. Both sort
- * under the same total order, so both reach the one sorted list — bit-identical.
- *
- * Keys are gathered once into a flat array aligned with the order and shifted with it: the inner
- * loop compares numbers in contiguous memory instead of following a seed to its item.
+ * One bottom-up merge sort under the total order `precedes`: `n·log₂n` comparisons whatever the
+ * previous frame left — a small step or a camera jump —, so the result is the one sorted list and
+ * its cost has one bound. Keys are gathered once into a flat array aligned with the order and moved
+ * with it: the merge compares numbers in contiguous memory instead of following a seed to its item.
  */
-const SHIFT_BUDGET_PER_ENTRY = 8,
-  SHIFT_BUDGET_FLOOR = 256
-
 let sortKeys = new Float64Array(0),
   mergeKeys = new Float64Array(0),
   mergeOrder = new Uint32Array(0)
@@ -76,25 +70,6 @@ export function sortSeedsFarToNear(order: Uint32Array, seeds: Uint32Array, keys:
   const n = order.length
   if (n < 2) return
   growSortScratch(n)
-  const sorted = sortKeys
-  for (let k = 0; k < n; k++) sorted[k] = keys[planItem(seeds[order[k]])]
-  let budget = SHIFT_BUDGET_PER_ENTRY * n + SHIFT_BUDGET_FLOOR
-  for (let i = 1; i < n; i++) {
-    const moved = order[i],
-      movedKey = sorted[i]
-    let j = i - 1
-    while (j >= 0 && precedes(sorted[j], order[j], movedKey, moved)) {
-      order[j + 1] = order[j]
-      sorted[j + 1] = sorted[j]
-      j--
-    }
-    // One question per entry, not one write per shift.
-    if (j + 1 === i) continue
-    order[j + 1] = moved
-    sorted[j + 1] = movedKey
-    budget -= i - j - 1
-    // `[0, i]` is sorted, the rest is the previous frame's: the stable merge of the whole is the
-    // same sorted list insertion would have reached.
-    if (budget < 0) return mergeSortSeeds(order, n)
-  }
+  for (let k = 0; k < n; k++) sortKeys[k] = keys[planItem(seeds[order[k]])]
+  mergeSortSeeds(order, n)
 }

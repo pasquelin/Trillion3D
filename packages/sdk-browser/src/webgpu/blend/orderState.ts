@@ -12,10 +12,8 @@ export const createBlendOrderState = () => ({
   seeds: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
   /** Pipeline of each pass's main class, -1 for a pass without one (`runs.ts`). */
   mainPipeline: [-1, -1],
-  /** The items that draw their own slots, and each item's rank among them, `NO_INDEX` for the
-   *  others (`runs.ts`). */
+  /** The items that draw their own slots (`runs.ts`): the CPU keys them each frame. */
   ownItems: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-  ownRanks: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   /** Each pass's own entries, seed indices in paint order: seeded in source order, reordered in
    *  place every frame (`order.ts`). */
   ownSeeds: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
@@ -35,9 +33,9 @@ export const createBlendOrderState = () => ({
   /** The order kernel's dispatches of each pass and their uniform words (`orderSteps.ts`). */
   orderSteps: [[], []] as OrderStep[][],
   orderStepWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-  /** Where the frame data holds the own keys and each pass's own seeds and slots, and its words;
+  /** Where the frame data holds each pass's own seeds and slots, and its words;
    *  the eye comes first (`order.ts`). Two views of one buffer, rewritten every frame. */
-  frameLayout: { ownKeys: 0, ownSeeds: [0, 0], ownSlots: [0, 0], words: 0 },
+  frameLayout: { ownSeeds: [0, 0], ownSlots: [0, 0], words: 0 },
   frameDoubles: new Float64Array(0) as Float64Array<ArrayBuffer>,
   frameWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   /** Key records of the items, two views of one buffer (`keyRecords.ts`). */

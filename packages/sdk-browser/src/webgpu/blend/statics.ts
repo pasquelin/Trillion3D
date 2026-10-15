@@ -94,8 +94,7 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   blendState.planRegions = planRegions(entries)
   blendState.runCount.fill(0)
   blendState.orderKeys = new Float64Array(Math.max(1, items.length))
-  blendState.ownRanks = new Uint32Array(items.length)
-  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(items.length, entries), 2))
+  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(entries), 2))
   blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer)
   blendState.orderStepWords = new Uint32Array(
     EXPAND_PASSES * orderStepCount(entries) * (blendState.uniformStride / 4),

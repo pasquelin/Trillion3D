@@ -31,7 +31,6 @@ type OrderPass = {
   region: { seeds: number; order: number; runs: number }
   ownSeedBase: number
   ownSlotBase: number
-  ownKeyBase: number
 }
 
 /**
@@ -57,7 +56,6 @@ export function planOrderSteps(pass: OrderPass, words: Uint32Array, first: numbe
     words[at + ORDER_UNI.ownSlotBase] = pass.ownSlotBase
     words[at + ORDER_UNI.ownCount] = pass.ownCount
     words[at + ORDER_UNI.gaps] = pass.main ? 1 : 0
-    words[at + ORDER_UNI.ownKeyBase] = pass.ownKeyBase
     for (const [name, value] of Object.entries(fields))
       words[at + ORDER_UNI[name as keyof typeof ORDER_UNI]] = value
     steps.push({

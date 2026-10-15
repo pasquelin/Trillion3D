@@ -17,7 +17,6 @@ import {
   planEntry,
 } from './planEntry.ts'
 import { planCull } from './planCull.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
  *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
@@ -99,9 +98,8 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
  * The own entries start in source order, the order the CPU then keeps sorting in place.
  */
 function splitBlendClasses(blendState: WebgpuBlendState) {
-  // An item the GPU keys itself has no own rank.
-  const ranks = blendState.ownRanks.fill(NO_INDEX),
-    owned: number[] = []
+  // The items whose keys the CPU takes each frame, to order their own entries.
+  const owned = new Set<number>()
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
     const seeds = blendState.seeds[pass],
       shared = new Array<number>(PLAN_PIPELINE_MASK + 1).fill(0)
@@ -115,7 +113,7 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
       if (planShared(entry) && planPipeline(entry) === main) continue
       own.push(seed)
       const item = planItem(entry)
-      if (ranks[item] === NO_INDEX) ranks[item] = owned.push(item) - 1
+      owned.add(item)
       if (own.length === 1 || planItem(seeds[own[own.length - 2]]) !== item) items++
     }
     blendState.mainPipeline[pass] = main
@@ -128,11 +126,10 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
   blendState.ownItems = Uint32Array.from(owned)
 }
 
-/** Where the frame data puts the own keys and seeds, and the order kernel's dispatches. */
+/** Where the frame data puts the own seeds and slots, and the order kernel's dispatches. */
 function planBlendOrder(blendState: WebgpuBlendState) {
   const layout = blendState.frameLayout
-  layout.ownKeys = FRAME_HEAD.words
-  let at = layout.ownKeys + 2 * blendState.ownItems.length
+  let at: number = FRAME_HEAD.words
   let step = 0
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
     layout.ownSeeds[pass] = at
@@ -148,7 +145,6 @@ function planBlendOrder(blendState: WebgpuBlendState) {
             region: blendState.planRegions[pass],
             ownSeedBase: layout.ownSeeds[pass],
             ownSlotBase: layout.ownSlots[pass],
-            ownKeyBase: layout.ownKeys,
           },
           blendState.orderStepWords,
           step,
