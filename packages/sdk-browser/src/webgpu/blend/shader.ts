@@ -8,7 +8,7 @@ import * as itemFlags from '../../visibility/types.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
+import { DISPLAY_MASK_GROUP, DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
 import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
@@ -70,7 +70,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
     [
       blendRequestWgsl(lobes),
       DISPLAY_ROUTE_WGSL,
-      displayMaskWgsl(2),
+      displayMaskWgsl(DISPLAY_MASK_GROUP),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
       surfaceModel.modelFlag,
       wireframeEdge,

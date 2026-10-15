@@ -50,6 +50,10 @@ fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32
 }`,
 )
 
+/** The mask's bind group in the blend runs and the water composite: after their group 0 and the
+ *  reflection group. */
+export const DISPLAY_MASK_GROUP = 2
+
 /** The mask, read at a fragment's pixel, in bind group `group`. */
 export const displayMaskWgsl = (group: number) =>
   wgslBlock(

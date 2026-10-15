@@ -86,7 +86,7 @@ export async function createWaterComposites(
           code: waterRoutedShader(key),
         }))
       : module
-    // The reflection's group (`REFLECTION_GROUP`), then the display mask's when routed.
+    // The reflection's group (`REFLECTION_GROUP`), then the display mask's (`DISPLAY_MASK_GROUP`) when routed.
     const reflection = reflectionLayout(device)
     const bindGroupLayouts = [layout, reflection, ...(filtered ? [displayMaskLayout(device)] : [])]
     return {

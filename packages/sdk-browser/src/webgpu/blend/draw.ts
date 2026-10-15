@@ -7,7 +7,7 @@ import type { BlendGpuItem } from './state.ts'
 import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { planItem, planPipeline } from './plan.ts'
-import { routedFilter, type DisplayFilter } from './displayFilter.ts'
+import { DISPLAY_MASK_GROUP, routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/contractLight.ts'
@@ -66,7 +66,7 @@ export function drawBlendRuns(
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!
   if (reflected) bindForwardReflection(pass, rt)
-  if (filter) pass.setBindGroup(2, filter.maskGroup)
+  if (filter) pass.setBindGroup(DISPLAY_MASK_GROUP, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
     pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))

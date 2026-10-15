@@ -11,7 +11,7 @@ import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { WaterSources } from './compositeGroup.ts'
 import { createWaterCompositeLayout, createWaterComposites } from './pipelines.ts'
-import { routedFilter } from '../blend/displayFilter.ts'
+import { DISPLAY_MASK_GROUP, routedFilter } from '../blend/displayFilter.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { createWaterPasses } from './passes.ts'
 import { createReach, type Reach } from '../blend/reach.ts'
@@ -135,7 +135,7 @@ function encodeWaterFrame(
   composite.setPipeline(frame.composites.pick(key, lobed).at(!!filter, !!share))
   composite.setBindGroup(0, group)
   bindForwardReflection(composite, rt)
-  if (filter) composite.setBindGroup(2, filter.maskGroup)
+  if (filter) composite.setBindGroup(DISPLAY_MASK_GROUP, filter.maskGroup)
   composite.drawIndirect(sources.verdict, VERDICT.quadArgs * 4)
   composite.end()
   return encoded
