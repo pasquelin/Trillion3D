@@ -5,13 +5,10 @@ import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import type { BlendHostScene } from '../../cluster/blendSceneRecord.ts'
 import { refreshBlendBounds } from './worlds.ts'
 import {
-  FLAG_BACK,
   FLAG_CLUSTER_PAGE,
-  FLAG_DOUBLE,
   FLAG_HAS_COLOR,
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
-  FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
 } from '../../visibility/types.ts'
@@ -113,20 +110,18 @@ function blendItemOf(
   }
 }
 
-/** The flags of a copy's item; a transmissive one's water rank `waterRank` rides above them: the
- *  surface stage writes it and the composite reads the item's volume at that rank. */
+/** The flags a copy's geometry decides for its item — its surface's are its record's, written with
+ *  it (`items.ts`); a transmissive one's water rank `waterRank` rides above them: the surface stage
+ *  writes it and the composite reads the item's volume at that rank. */
 function blendFlags(copy: BlendCopy, paged: boolean, fromPages: boolean, waterRank: number) {
   const mat = copy.surface,
     { attributes } = copy.geometry
   let flags = 0
-  if (mat.lit) flags |= FLAG_LIT
-  if (mat.side === 'double') flags |= FLAG_DOUBLE
   // Its own atlas may hold a second UV set alone (`buffers.ts`): the normals are the geometry's.
   if (attributes.normal) flags |= FLAG_HAS_NORMAL
   // A page stores no tangent: the fragment stage rebuilds the frame, as the opaque resolve does.
   if (attributes.tangent && !fromPages) flags |= FLAG_HAS_TANGENT
   if (mat.vertexColors && attributes.color) flags |= FLAG_HAS_COLOR
-  if (mat.side === 'back') flags |= FLAG_BACK
   if (paged) flags |= FLAG_PAGED
   if (fromPages) flags |= FLAG_CLUSTER_PAGE
   if (waterRank) flags |= FLAG_TRANSMISSIVE | (waterRank << WATER_RANK_SHIFT)
