@@ -55,19 +55,6 @@ function blendCopiesOf(
   }
 }
 
-/** Nothing replaces these: the coarsest complete cover, resident, the cut's fallback. A cover page
- *  already taken is not taken again, so the bootstrap holds each record once however many
- *  placements of its primitive the scene carries (#1235). */
-function coverBootstrap({ pages, shape }: Drawn, covered: Set<PageRec>, bootstrap: PageRec[]) {
-  for (const root of shape.structure?.roots ?? []) {
-    const cover = pages[root]
-    if (!covered.has(cover)) {
-      covered.add(cover)
-      bootstrap.push(cover)
-    }
-  }
-}
-
 /** One root per placement of a primitive drawn by pages: its world and box, the primitive's
  *  nodes, bounds and links shared by all. */
 function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<PageRec>[]) {
@@ -103,19 +90,18 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
   }
 }
 
-/** What a collection fills: the roots, the records, the forward copies and the cover's records. */
+/** What a collection fills: the roots, the records and the forward copies. The root cover is the
+ *  roots' own (`rootCoverage`, `selection.ts`). */
 export type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
   blendCopies: BlendCopy[]
-  bootstrap: PageRec[]
 }
 /** An empty collection. */
 export const collectedSink = (): Collected => ({
   roots: [],
   allPages: [],
   blendCopies: [],
-  bootstrap: [],
 })
 
 /**
@@ -139,7 +125,6 @@ export function createCollector(
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
-  const covered = new Set<PageRec>()
   /** The sources added, in order: those the open collected, then those that joined. */
   const sources: DrawSource[] = []
   let order = 0
@@ -169,7 +154,6 @@ export function createCollector(
     // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages)
     const drawn: Drawn = { source: draw, primitive, surface, pages, shape }
-    coverBootstrap(drawn, covered, into.bootstrap)
     rootsOf(drawn, placed, into.roots)
     order++
     return primitive
@@ -187,11 +171,11 @@ export function collectClusterPages(
 ) {
   const collector = createCollector(source, metadata, indices, options)
   const into = collectedSink()
-  const { roots, allPages, blendCopies, bootstrap } = into
+  const { roots, allPages, blendCopies } = into
   for (const draw of draws) collector.add(draw, into)
   const { worlds } = collector
   return {
-    ...{ roots, allPages, worlds, blendCopies, blendOf, wears, reassignBlend, bootstrap },
+    ...{ roots, allPages, worlds, blendCopies, blendOf, wears, reassignBlend },
     collector,
     requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),

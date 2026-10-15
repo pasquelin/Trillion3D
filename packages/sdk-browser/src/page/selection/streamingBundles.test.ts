@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { acceptPageArray, collectPendingUrls, indexPagesByUrl, pageRequestUrl } from './requests.ts'
 import { collectClusterPages } from './collect.ts'
+import { rootCoverage } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { withBundles } from './helpers.fixture.ts'
@@ -59,7 +60,7 @@ test('a streaming bundle is one request that makes every cluster it carries draw
 test('only the root bundle resident still covers the surface once', () => {
   const fixture = dagFixture()
   const bundled = withBundles(fixture)
-  const { roots, allPages, bootstrap } = collectClusterPages(
+  const { roots, allPages } = collectClusterPages(
     fixture.source,
     graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
@@ -67,7 +68,7 @@ test('only the root bundle resident still covers the surface once', () => {
     { allowMissing: true },
   )
   assert.deepEqual(
-    bootstrap.map((page) => pageRequestUrl(page)),
+    rootCoverage(roots).map((page) => pageRequestUrl(page)),
     ['bundle-roots'],
   )
   acceptPageArray(indexPagesByUrl(allPages).get('bundle-roots')!, bundled.roots)
