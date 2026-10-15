@@ -68,6 +68,17 @@ export const pageDeforms = (page: PageRec) =>
 export const rowsAnimate = (rows: { sourceModels?: ReadonlySet<object> } | undefined) =>
   [...(rows?.sourceModels ?? [])].some(animates)
 
+/** The vertices of a page, its results' length. */
+const pageVertices = (page: PageRec) =>
+  page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0
+
+/** Whether a root's pages get results (`assignDeformationOutputs`): one with vertices deforms by
+ *  itself, or the meshes owning the root's rows animate. */
+export const rootHasOutputs = (root: ClusterRoot<PageRec>) => {
+  const animate = rowsAnimate(root.placement?.rows)
+  return root.pages.some((page) => (animate || pageDeforms(page)) && pageVertices(page) > 0)
+}
+
 /**
  * The results of the deformation, in the float pool: one block of floats, eleven a vertex behind
  * two tags, for each page a placement deforms (`ClusterRoot.deformationOutputs`, by the page's
@@ -89,8 +100,7 @@ export function assignDeformationOutputs(roots: readonly ClusterRoot<PageRec>[])
       shared = new Map<HostAttributes, DeformationOutput>()
     let outputs: (DeformationOutput | undefined)[] | undefined
     root.pages.forEach((page, k) => {
-      if (!want[k] && !animate) return
-      const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0
+      const count = want[k] || animate ? pageVertices(page) : 0
       if (!count) return
       let output: DeformationOutput | undefined
       if (page.geometryPage) blocks.push((output = { from: 0, count }))

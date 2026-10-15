@@ -1,4 +1,4 @@
-import { createSessionDeformation } from './session.ts'
+import { createSessionDeformation, deformsAny } from './session.ts'
 import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geometryPrepare.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { families } from '../host/families.ts'
@@ -25,15 +25,11 @@ export async function loadDeformationCode(vis: WebgpuPagesRuntime['vis'], deform
   return vis.deformationCode
 }
 
-/** The stage's compute, made once for a session whose code is loaded and which has something to
- *  deform: a page's results, a whole copy, or `deforms` (a source about to join). */
-export async function prepareDeformationCompute(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  deforms = rt.setup.deformationBlocks.length > 0 || !!rt.vis.wholeDeformation,
-) {
+/** The stage's compute, made once for a session whose code is loaded: the code is loaded only for
+ *  work to deform (`deformsAny`). */
+export async function prepareDeformationCompute(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
-  if (deforms && vis.deformationCode)
+  if (vis.deformationCode)
     vis.deformationCompute ??= await vis.deformationCode.createDeformationCompute(device)
 }
 
@@ -53,14 +49,9 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
   // The results of every deformed page of every placement, in the float pool's tail.
   setup.deformationBlocks.length = 0
   setup.deformationBlocks.push(...assignDeformationOutputs(layout.selectionRoots))
-  vis.deformation = createSessionDeformation(
-    layout.selectionRoots,
-    setup.blendCopies.filter((copy) => !copy.userData.pagedBlend),
-  )
-  const code = await loadDeformationCode(
-    vis,
-    vis.deformation.any || setup.deformationBlocks.length > 0,
-  )
+  const copies = setup.blendCopies.filter((copy) => !copy.userData.pagedBlend)
+  vis.deformation = createSessionDeformation(layout.selectionRoots, copies)
+  const code = await loadDeformationCode(vis, deformsAny(layout.selectionRoots, copies))
   Object.assign(
     vis,
     prepareWebgpuGeometry(
