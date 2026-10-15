@@ -48,6 +48,7 @@ const NAMES = [
   'coatCosine',
   'baseLobe',
   'coatLobe',
+  'lobeView',
   // Every function of the standard lobe's text.
   ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]

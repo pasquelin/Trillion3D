@@ -2,12 +2,7 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import {
-  DIELECTRIC_F0,
-  fresnelScalar,
-  fresnelSchlick,
-  ndotvClamped,
-} from '../../../../math/src/wgsl/lighting.ts'
+import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
 
 /**
  * The lighting of the physical material's anisotropic and clear-coat lobes
@@ -33,9 +28,9 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, ndotvClamped],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick],
   `
-struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
+struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
 /** A pixel's lobes: its lobe axis \`axis\` at its width \`alpha\` (\`lobeAxis\`: the direction kept
  *  orthogonal to the normal the lighting reads and αt along it, or the round lobe), and what its
@@ -48,7 +43,7 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
  lobes.at=axis.w;lobes.ab=alpha;
  lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
- lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvClamped(N,V)));
+ lobes.view=vec2f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V));
  // Without a coat, its surface is never read (every coat term asks \`lobes.coat>0.0\`) and the base
  // goes through whole: 1-0*F is exactly 1.
  if(lobes.coat>0.0){
@@ -56,6 +51,9 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
   lobes.coatSurface=lobeSurface(vec3f(0.0),0.0,coatRough,coatN,V);
  }else{lobes.through=1.0;}
 }
+/** The view's length in the stretched frame, finished once a pixel on its surface's N·V
+ *  (\`lobeSurface\`), which the light loop hands it (\`sliceLighting\`): one N·V a pixel. */
+fn lobeView(s:LobeSurface){lobes.viewLength=length(vec3f(lobes.view,s.NdotV));}
 /** What the coat lets through of the base: one without lobes. */
 fn lobeThrough()->f32{return select(1.0,lobes.through,lobes.on);}
 /** The anisotropic lobe of one light past its direction \`L\`, half-vector \`H\` and \`NdotL\` above
@@ -108,6 +106,7 @@ export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
   [],
   `fn lobeThrough()->f32{return 1.0;}
+fn lobeView(s:LobeSurface){}
 fn coatCosine(L:vec3f)->f32{return 0.0;}
 fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return standardLobe(s,N,V,H,NdotL,energy);}
 fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return vec3f(0.0);}`,

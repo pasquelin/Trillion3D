@@ -167,7 +167,7 @@ export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
           `sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}`,
           `
  var result=${zero(pair)};
- let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
           'slice.y',
           LISTED_PICK,
           pair

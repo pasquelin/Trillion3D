@@ -90,6 +90,7 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       'coatCosine',
       'baseLobe',
       'coatLobe',
+      'lobeView',
       'standardLobe',
       'lobeSum',
       'fresnelSchlick',
