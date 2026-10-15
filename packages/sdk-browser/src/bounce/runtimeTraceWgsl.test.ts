@@ -6,7 +6,8 @@ import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { fieldRay, world } from './runtimeScene.fixture.ts'
 import type { Vec } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { runOver } from './runtimeRun.fixture.ts'
+import { along, runOver } from './runtimeRun.fixture.ts'
+import { RAY_WORK } from './runtimeLayout.ts'
 import { traceScene } from './runtimeSceneOracle.fixture.ts'
 
 for (const count of [5, 400]) {
@@ -63,4 +64,28 @@ test('blended copies, members after the placements, are met as the oracle meets 
     [...w.scene.instances.keys()].some((k) => k >= 70),
     'copies are members',
   )
+})
+
+test('a long ray across a dense field meets the near cube first, its budget never spent on far patches', () => {
+  // 256 cubes on one line, the ray coming down it from the far end: the tree's groups lie along the line
+  // in index order from its other end, so a walk in index order spends `RAY_WORK` on the farthest patch.
+  const w = world(256, 1, { places: along(256, 3) }),
+    run = runOver(w)
+  assert.ok(w.packed.placementTree, 'a tree')
+  const origin: Vec = [800, 0, 0],
+    direction: Vec = [-1, 0, 0]
+  const spent = { work: 0, tests: 0 }
+  const want = traceScene(w.scene, origin, direction, 1000, spent)
+  run.rtBegin()
+  const got = run.rtScene(origin, direction, 1000)
+  for (const [hit, work] of [
+    [want, spent.work],
+    [got, run.testWork()],
+  ] as const) {
+    assert.ok(work < RAY_WORK, `${work} units: never exhausted`)
+    assert.equal(hit.found, true)
+    assert.equal(hit.placement, 255, 'the nearest cube')
+    assert.ok(Math.abs(hit.distance - 31.5) < 1e-4, `${hit.distance}`)
+  }
+  assert.equal(run.testWork(), spent.work, 'the shipped walk and its twin spend alike')
 })

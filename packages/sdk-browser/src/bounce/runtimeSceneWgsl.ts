@@ -31,9 +31,8 @@ import { sceneKey, type SceneBindings } from './sceneBindings.ts'
  * `rtScene` answers the nearest hit, `rtBlocked` whether anything stands on a segment — a shadow does not need
  * the nearest, and returns at the first surface.
  *
- * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box tested at either level, every node
- * visited and every triangle spends from the same counters; a ray that spends them, or whose shadow
- * ray spends its own (`rtLost`), is exhausted and carries zero weight (`runtimeLayout.ts`).
+ * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box, node and triangle, its shadow rays' too, spends
+ * from the same counters; a ray that spends them is exhausted and carries zero weight (`runtimeLayout.ts`).
  */
 export const runtimeSceneWgsl = (scene: SceneBindings) =>
   wgslBlock(
@@ -74,8 +73,7 @@ var<private> rtAnyHit:bool;
 /** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
  *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
 var<private> rtLost:bool;
-/** The units the ray may spend, its lighting's shadow rays included: \`RT_WORK\`, or fewer where its
- *  caller asks (\`rtRadiance\`). */
+/** The units the ray may spend, its shadow rays' included: \`RT_WORK\`, or fewer (\`rtRadiance\`). */
 var<private> rtBudget:u32;
 /** A ray begins: nothing spent, nothing charged, nothing lost, the whole budget before it. */
 fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtBudget=RT_WORK;}
@@ -109,10 +107,9 @@ ${wideTraversal({
   answer: 'best',
   overflow: 'rtWork=rtBudget;',
 })}
-/** Placement \`w\`'s world, column-major: a placement's is the culling's, read in its record —
- *  its linear part (\`rtWorldsLinear\`) and the exact translation beside the matrix, rounded once to
- *  the single-precision value a host write holds (\`rtWorldsTranslation\`; the matrix's own is no
- *  cut's); a blended copy's, the proxy's own, past the placements. */
+/** Placement \`w\`'s world, column-major: the culling's, read in its record — its linear part and the exact
+ *  translation beside the matrix, rounded once to the f32 a host write holds (\`rtWorldsTranslation\`; the
+ *  matrix's own is no cut's) —; a blended copy's, the proxy's own, past the placements. */
 fn rtWorldOf(w:u32)->mat4x4f{
  if(w>=rtProxy.instances){
   let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
@@ -122,27 +119,30 @@ fn rtWorldOf(w:u32)->mat4x4f{
  let l=rtWorldsLinear(w);
  return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(rtWorldsTranslation(w),1.0));
 }
-/** The ray against placement \`w\`: its world box, the root of its cut's tree through the world, first —
- *  a ray that misses it is one unit spent — then the cut's tree with the ray taken to its space. */
-fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
- // Its instance, read once in its record: the root of its cut's tree, then its first triangle.
- let instance=rtWorldsInstance(w,0u);
- let node0=instance[RT_INSTANCE_NODE];
- if(node0==NO_INDEX){return best;}
+/** Where the ray enters placement \`w\`'s world box — the root of its cut's tree through its world —, past
+ *  \`limit\` where it meets none or the placement draws no proxy: what the tree's walk orders a group by. */
+fn rtEntry(w:u32,origin:vec3f,inverse:vec3f,limit:f32)->f32{
+ let node0=rtWorldsInstance(w,0u)[RT_INSTANCE_NODE];
+ if(node0==NO_INDEX){return limit+1.0;}
  let m=rtWorldOf(w);
- let linear=worldMatrix3(m);
  let local=rtBox(node0);
- let c=linear*((local.low+local.high)*0.5)+m[3].xyz;
+ let c=worldMatrix3(m)*((local.low+local.high)*0.5)+m[3].xyz;
  let extent=transformHalfExtent(m,(local.high-local.low)*0.5);
- if(rayBoxEntry(c-extent,c+extent,origin,inverse,best.distance)>best.distance){return best;}
- let placed=placementRay(linear,origin-m[3].xyz,direction);
+ return rayBoxEntry(c-extent,c+extent,origin,inverse,limit);
+}
+/** The ray against placement \`w\`: its world box first (\`rtEntry\`), then its cut's tree in its space. */
+fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
+ if(rtEntry(w,origin,inverse,best.distance)>best.distance){return best;}
+ let instance=rtWorldsInstance(w,0u);
+ let m=rtWorldOf(w);
+ let placed=placementRay(worldMatrix3(m),origin-m[3].xyz,direction);
  if(!placed.regular){return best;}
- let hit=rtTraceCut(placed.origin,placed.direction,best.distance,node0,instance[RT_INSTANCE_TRIANGLE],w);
+ let hit=rtTraceCut(placed.origin,placed.direction,best.distance,instance[RT_INSTANCE_NODE],instance[RT_INSTANCE_TRIANGLE],w);
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;
 }
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
- *  placement tree walked depth first, a child entered when its box is met, a group's members one by one.
+ *  placement tree walked front to back, a cell's children and a group's members nearest entry first.
  *  \`found\` is false past the budget, with the ray's counters spent: ask \`rtSpent\`. A packing with no
  *  tree holds a few placements, tried in turn. */
 fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
@@ -161,6 +161,7 @@ ${placementTreeWalk({
   root: 'rtProxy.treeRoot',
   table: 'rtTree',
   enter: 'best=rtEnter(w,origin,direction,inverse,best);if(rtAnyHit&&best.found){return best;}',
+  entry: 'rtEntry(w,origin,inverse,best.distance)',
   stop: 'if(rtSpent()){done=true;break;}',
   visit: 'rtWork+=1u;',
   steps: 'RT_TREE_STEPS',

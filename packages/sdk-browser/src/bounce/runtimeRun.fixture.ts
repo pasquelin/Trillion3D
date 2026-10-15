@@ -16,6 +16,7 @@ const FUNCTIONS = [
   'rtShade',
   'rtScene',
   'rtEnter',
+  'rtEntry',
   'placementRay',
   'rtTraceCut',
   'rtSpent',
