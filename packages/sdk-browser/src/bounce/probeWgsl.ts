@@ -46,6 +46,9 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(${PROBE_BINDINGS.lists}) var<storage,read> tileLights:array<u32>;
 /** The updates a probe's estimate averages (\`ACCUMULATION_WGSL\`): one over the stable blend. */
 const PROBE_SAMPLES:f32=${wgslF32(1 / BOUNCE_SETTINGS.blendStable)};
+/** The weight a probe whose estimate jumps keeps of its history: the law then takes the moving blend
+ *  of the fresh estimate, \`1/(held + 1)\`. */
+const PROBE_JUMP_HELD:f32=${wgslF32(1 / BOUNCE_SETTINGS.blendMoving - 1)};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
@@ -122,9 +125,9 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
  // The engine's one accumulation law (\`ACCUMULATION_WGSL\`): a stable probe follows a running
  // average of \`PROBE_SAMPLES\` updates, which smooths Monte-Carlo noise without freezing the frame;
- // a new probe, one that just changed cell (nothing held) or one whose estimate jumps restarts its
- // count and takes the fresh estimate whole.
- let restart=select(updates,0.0,change>MOVING_RESIDUAL);
+ // a new probe or one that just changed cell (nothing held) takes the fresh estimate whole; one whose
+ // estimate jumps restarts from the little it keeps (\`PROBE_JUMP_HELD\`), taking the moving blend.
+ let restart=select(updates,min(updates,PROBE_JUMP_HELD),change>MOVING_RESIDUAL);
  let blend=accumulationShare(restart,1.0,PROBE_SAMPLES);
  let count=accumulationCount(restart,1.0,PROBE_SAMPLES);
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.

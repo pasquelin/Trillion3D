@@ -15,7 +15,6 @@ const FUNCTIONS = [
   'rtRadiance',
   'rtLayers',
   'rtSurfaceOf',
-  'rtSeen',
   'rtFacing',
   'rtScene',
   'rtEnter',
@@ -42,7 +41,6 @@ const FUNCTIONS = [
   'rtTreeLow',
   'rtTreeHigh',
   'rtBlocked',
-  'rtLit',
   'rtProbeRay',
 ]
 /** The proxy's bindings the run declares. */
@@ -79,6 +77,7 @@ export function runOver(w: ReturnType<typeof world>) {
     rtBudget: RAY_WORK,
     rtAnyHit: false,
     rtLost: false,
+    rtStopped: 0,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec3) => tint,
     surfaceSeen: (tint: Vec3) => tint,
