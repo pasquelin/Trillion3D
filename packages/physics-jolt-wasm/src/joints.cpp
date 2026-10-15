@@ -78,10 +78,10 @@ void drive(Joint &joint, uint32_t mode, float target, float maxForce, uint32_t a
 /// body's frame — of several, the one in the lowest joint slot; null when none does.
 const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
   uint32_t first = UINT32_MAX;
-  for (uint32_t i : ends.at(slot, kind)) {
+  for (uint32_t i : ends.at(slot)) {
     ++linkVisits;
     const Joint &joint = joints[i];
-    if (i < first && joint.a == slot && joint.axisA.Dot(axis) > 0.999f) first = i;
+    if (joint.kind == kind && i < first && joint.a == slot && joint.axisA.Dot(axis) > 0.999f) first = i;
   }
   return first == UINT32_MAX ? nullptr : joints[first].constraint.GetPtr();
 }
@@ -103,8 +103,8 @@ void link(Joint &joint) {
 /// none keeps one gone. Other kinds hold no gear.
 void relinkGearsOn(const Joint &joint) {
   if (joint.kind != HINGE && joint.kind != SLIDER) return;
-  for (uint32_t kind : {GEAR, RACK_AND_PINION})
-    for (uint32_t i : ends.at(joint.a, kind)) link(joints[i]);
+  for (uint32_t i : ends.at(joint.a))
+    if (joints[i].kind == GEAR || joints[i].kind == RACK_AND_PINION) link(joints[i]);
 }
 
 /// Files the joint at `index` under its body ends, among the paths if it is one and among the
@@ -112,7 +112,7 @@ void relinkGearsOn(const Joint &joint) {
 void file(uint32_t index, bool in) {
   const Joint &joint = joints[index];
   for (uint32_t slot : {joint.a, joint.b})
-    if (slot != MISS) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
+    if (slot != MISS) in ? ends.add(slot, index) : ends.remove(slot, index);
   if (joint.kind == PATH) ends.mark(JointIndex::PATHS, index, in);
   if (joint.breakForce > 0 && std::isfinite(joint.breakForce)) ends.mark(JointIndex::BREAKABLE, index, in);
 }
@@ -177,11 +177,10 @@ uint32_t jointCommand(const uint32_t *w) {
 }
 
 void dropJoints(uint32_t index) {
-  for (uint32_t kind = FIXED; kind <= RACK_AND_PINION; kind++) {
-    // A copy: taking a joint out changes the list.
-    std::vector<uint32_t> held = ends.at(index, kind);
-    for (uint32_t i : held) take(i);
-  }
+  // A copy, since taking a joint out changes the list; in joint order, the same every run.
+  std::vector<uint32_t> held = ends.at(index);
+  std::sort(held.begin(), held.end());
+  for (uint32_t i : held) take(i);
 }
 
 void notePaths() {

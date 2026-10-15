@@ -102,10 +102,9 @@ struct World {
    *  and non-finite eyes. */
   double travel = 0;
   uint32_t viewEpoch = 1;
-  /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
+  /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told;
+   *  a soft body's with the step that last saw it touch (`softContacts.cpp`). */
   PairIndex pairs;
-  /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
-  std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
   /** This step's bodies (engine ids) whose shape was refused, whose pose or vertices went

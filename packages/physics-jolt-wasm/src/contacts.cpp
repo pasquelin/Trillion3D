@@ -63,7 +63,6 @@ void leaveAll(uint32_t engine) {
   for (uint64_t key : keys) {
     auto at = w.pairs.find(key);
     if (at->second.count & ENTERED) pushLeave(key);
-    w.softPairs.erase(key);
     w.pairs.erase(at);
   }
 }
@@ -168,15 +167,10 @@ void removed(World &w, const ContactRecord &r) {
 
 /// A soft body's touch: stamped with the step; the pair's first sends the enter.
 void soft(World &w, const ContactRecord &r) {
-  uint64_t key = pairKey(r.a, r.b);
-  auto [at, fresh] = w.softPairs.try_emplace(key, w.step);
-  if (!fresh) {
-    at->second = w.step;
-    return;
-  }
-  uint32_t &pair = w.pairs[key];
-  pair = 1;
-  if (pushEvent(EVENT_BEGIN, r.a, r.b, r.impulse, Vec3(r.point))) pair |= ENTERED;
+  uint32_t *pair = w.pairs.touchSoft(pairKey(r.a, r.b), w.step);
+  if (!pair) return;
+  *pair = 1;
+  if (pushEvent(EVENT_BEGIN, r.a, r.b, r.impulse, Vec3(r.point))) *pair |= ENTERED;
   else ++w.dropped;
 }
 

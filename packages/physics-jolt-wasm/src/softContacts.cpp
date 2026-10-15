@@ -70,7 +70,7 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
     if (t.engine == ~0u) continue;
     // The pairs are only read during the step: a touch the soft pairs already hold is stamped
     // again when the records are replayed (`replayContacts`), a new one sends its enter then.
-    if (world().softPairs.count(pairKey(ia, t.engine))) {
+    if (world().pairs.isSoft(pairKey(ia, t.engine))) {
       deferContact({ContactRecord::SOFT, ia, t.engine, 0.0f, Float3(0, 0, 0), 0});
       continue;
     }
@@ -106,19 +106,20 @@ void leaveSoft() {
     return bodies.IsActive(w.slots[engine & INDEX_MASK].id) ||
            std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end();
   };
-  for (auto at = w.softPairs.begin(); at != w.softPairs.end();) {
+  // A pair ended here, or in `leaveAll` when a body of it leaves, is unlisted: the last soft pair
+  // moves into its place.
+  const std::vector<uint64_t> &soft = w.pairs.softPairs();
+  for (size_t i = 0; i < soft.size();) {
+    uint64_t key = soft[i];
+    auto pair = w.pairs.find(key);
     // Touched this step, or both asleep through it: kept, as a rigid pair keeps its own. A body
     // that moved while the soft body slept left it: overlapping it, it would have woken it.
-    if (at->second == w.step || !(stepped(uint32_t(at->first)) || stepped(uint32_t(at->first >> 32)))) {
-      ++at;
+    if (pair->second.touched == w.step || !(stepped(uint32_t(key)) || stepped(uint32_t(key >> 32)))) {
+      ++i;
       continue;
     }
-    // Both maps hold a soft pair until it ends: here, or in `leaveAll` when a body of it leaves.
-    if (auto pair = w.pairs.find(at->first); pair != w.pairs.end()) {
-      if (pair->second.count & ENTERED) pushLeave(pair->first);
-      w.pairs.erase(pair);
-    }
-    at = w.softPairs.erase(at);
+    if (pair->second.count & ENTERED) pushLeave(key);
+    w.pairs.erase(pair);
   }
 }
 
