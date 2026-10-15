@@ -2,7 +2,7 @@
 // this bench: `toHex` has no engine caller (`sha256Hex` writes its own loop).
 import { frameStatistics } from '../../../packages/sdk-core/src/runtime/stats.ts'
 import { UNMEASURED } from '../../../packages/sdk-browser/src/world/diagnostic/metrics.ts'
-import { FrameProfile } from '../../../packages/sdk-browser/src/diagnostic/frameProfile.ts'
+import { EngineProfiler } from '../../../packages/sdk-browser/src/diagnostic/telemetry.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -13,16 +13,15 @@ const intervalles: number[] = []
 for (let i = 0; i < 2000; i++) intervalles.push(8 + alea() * 12)
 const resTelemetry = await measure({
   name: 'frame intervals',
-  fichier: 'packages/sdk-browser/src/diagnostic/frameProfile.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/telemetry.ts',
   cas: [
     { name: '2 000 frames', input: intervalles, size: 2000 },
     { name: 'no frames', input: [], size: 0 },
   ],
   calculation: (valeurs: number[]) => {
-    const profile = new FrameProfile(120)
-    let horloge = 0
-    // `record()` only stores the sample it is given: the engine's unmeasured one, shared.
-    for (const dt of valeurs) profile.record(UNMEASURED, (horloge += dt))
+    const profile = new EngineProfiler(120)
+    // `record()` files the display interval the refresh clock measured, on the unmeasured sample.
+    for (const dt of valeurs) profile.record({ ...UNMEASURED, rafIntervalMs: dt })
     return frameStatistics(profile.orderedIntervals())
   },
   expected: (valeurs: number[]) => frameStatistics(referenceIntervals(120, valeurs)),
