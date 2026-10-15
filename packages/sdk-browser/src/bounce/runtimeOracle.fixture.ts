@@ -22,6 +22,8 @@ export type Hit = { distance: number; placement: number; triangle: number; found
 /** The ray's spending (`rtWork`, `rtTests`). */
 export type Spent = { work: number; tests: number }
 export const spent = (s: Spent) => s.work >= RAY_WORK || s.tests >= RAY_TRIANGLES
+/** A ray's spending before it starts. */
+export const freshSpent = (): Spent => ({ work: 0, tests: 0 })
 
 export type Vec = [number, number, number]
 /** The answer of a ray that has met nothing before `limit`. */

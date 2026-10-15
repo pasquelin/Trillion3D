@@ -3,13 +3,11 @@ import assert from 'node:assert/strict'
 import { fieldRay, world } from './runtimeScene.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
-import type { Spent } from './runtimeOracle.fixture.ts'
+import { freshSpent, spent } from './runtimeOracle.fixture.ts'
 import { bruteForce, traceScene } from './runtimeSceneOracle.fixture.ts'
 
 /** `count` cubes turned and stretched, packed with the culling's tree (a tree from 65 placements on). */
 const scene = (count: number, seed: number) => world(count, seed).scene
-
-const fresh = (): Spent => ({ work: 0, tests: 0 })
 
 for (const count of [5, 64, 65, 400]) {
   test(`${count} placements: the two-level walk finds what every triangle finds`, () => {
@@ -19,15 +17,15 @@ for (const count of [5, 64, 65, 400]) {
     let hits = 0
     for (let ray = 0; ray < 300; ray++) {
       const { origin, direction } = fieldRay(random, count)
-      const spent = fresh()
-      const got = traceScene(world, origin, direction, 100, spent)
+      const cost = freshSpent()
+      const got = traceScene(world, origin, direction, 100, cost)
       const want = bruteForce(world, origin, direction, 100)
       // A ray that spent its budget answers nothing: that is the rule, not a miss.
-      if (spent.work >= RAY_WORK || spent.tests >= RAY_TRIANGLES) continue
+      if (spent(cost)) continue
       assert.equal(
         got.found,
         want.found,
-        `ray ${ray} got ${JSON.stringify(got)} want ${JSON.stringify(want)} spent ${JSON.stringify(spent)}`,
+        `ray ${ray} got ${JSON.stringify(got)} want ${JSON.stringify(want)} spent ${JSON.stringify(cost)}`,
       )
       if (want.found) {
         hits++
@@ -49,10 +47,10 @@ test('a ray never spends more than its budget, whatever it crosses', () => {
       random() * 0.1 - 0.05,
       random() - 0.5,
     ]
-    const spent = fresh()
-    traceScene(world, origin, direction, 1e6, spent)
+    const cost = freshSpent()
+    traceScene(world, origin, direction, 1e6, cost)
     // The last box or triangle test may end past the counter by what one node costs.
-    assert.ok(spent.work <= RAY_WORK + 64, `${spent.work} units`)
-    assert.ok(spent.tests <= RAY_TRIANGLES, `${spent.tests} triangles`)
+    assert.ok(cost.work <= RAY_WORK + 64, `${cost.work} units`)
+    assert.ok(cost.tests <= RAY_TRIANGLES, `${cost.tests} triangles`)
   }
 })

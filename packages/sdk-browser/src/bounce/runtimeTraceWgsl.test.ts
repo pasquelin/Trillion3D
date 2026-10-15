@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { fieldRay, world } from './runtimeScene.fixture.ts'
-import type { Vec } from './runtimeOracle.fixture.ts'
+import { freshSpent, type Vec } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { along, runOver } from './runtimeRun.fixture.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
@@ -18,7 +18,7 @@ for (const count of [5, 400]) {
     let hits = 0
     for (let ray = 0; ray < 120; ray++) {
       const { origin, direction } = fieldRay(random, count)
-      const spent = { work: 0, tests: 0 }
+      const spent = freshSpent()
       const want = traceScene(w.scene, origin, direction, 100, spent)
       run.rtBegin()
       const got = run.rtScene(origin, direction, 100)
@@ -47,7 +47,7 @@ test('blended copies, members after the placements, are met as the oracle meets 
   for (let ray = 0; ray < 150; ray++) {
     const origin: Vec = [random() * 16 - 2, 6, random() * 16]
     const direction: Vec = [random() - 0.5, -1, random() - 0.5]
-    const spent = { work: 0, tests: 0 }
+    const spent = freshSpent()
     const want = traceScene(w.scene, origin, direction, 100, spent)
     run.rtBegin()
     const got = run.rtScene(origin, direction, 100)
@@ -74,7 +74,7 @@ test('a long ray across a dense field meets the near cube first, its budget neve
   assert.ok(w.packed.placementTree, 'a tree')
   const origin: Vec = [800, 0, 0],
     direction: Vec = [-1, 0, 0]
-  const spent = { work: 0, tests: 0 }
+  const spent = freshSpent()
   const want = traceScene(w.scene, origin, direction, 1000, spent)
   run.rtBegin()
   const got = run.rtScene(origin, direction, 1000)
