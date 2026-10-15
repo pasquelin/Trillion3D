@@ -43,8 +43,8 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
 @group(0) @binding(${B.base}) var traceBase:texture_2d<f32>;
 @group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d<${HDR_FORMAT},write>;
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
-/** The radiance the surface \`layer\` reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
-fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
+/** The radiance a surface reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
+fn upsampled(coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
  let depth=surfaceLinearDepth(P);
  // A neighbour's centre lies within two pixels of the pixel's on each axis.
  let g=historyGatherNear(upsampleIn,halfPoint(vec2f(coord)+vec2f(0.5)),depth,N,V,2.0);
@@ -54,13 +54,13 @@ fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
  let n=max(g.nearWeight,1e-30);
  return Reflected(g.near.base/n,g.near.coat/n);
 }
-/** What the pixel \`own\` of the surface \`layer\` at \`coord\` reflects: its mirror lobes traced, its
+/** What the pixel \`own\` of a surface at \`coord\` reflects: its mirror lobes traced, its
  *  sampled ones upsampled from the half grid. */
-fn reflectedAt(layer:u32,coord:vec2i,own:ReflectingPixel)->Reflected{
+fn reflectedAt(coord:vec2i,own:ReflectingPixel)->Reflected{
  let sampled=reflectionSampledLobes(own.rough);
  var r=reflectionTrace(own.P,own.N,own.V,own.rough,REFLECTION_MIRRORS);
  if(any(sampled)){
-  let h=upsampled(layer,coord,own.P,own.N,own.V);
+  let h=upsampled(coord,own.P,own.N,own.V);
   r=Reflected(select(r.base,h.base,sampled.x),select(r.coat,h.coat,sampled.y));
  }
  return r;
@@ -73,7 +73,7 @@ fn upsampleOpaque(@builtin(global_invocation_id) id:vec3u){
  if(!surfaceReflects(flags)){return;}
  let own=reflectingPixelAt(0u,coord,flags);
  let base=textureLoad(traceBase,coord,0);
- let share=reflectionShare(reflectedAt(0u,coord,own),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
+ let share=reflectionShare(reflectedAt(coord,own),f0Of(base.rgb,base.a),own.rough,own.N,own.V);
  textureStore(reflectionOut,coord,vec4f(share,1.0));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
@@ -82,7 +82,7 @@ fn upsampleFront(@builtin(global_invocation_id) id:vec3u){
  let coord=vec2i(id.xy);
  let flags=surfaceFlagsAt(coord);
  if(!surfaceReflects(flags)){return;}
- let traced=reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags));
+ let traced=reflectedAt(coord,reflectingPixelAt(1u,coord,flags));
  textureStore(frontOut,coord,vec4u(frontPack(traced.base),frontPack(traced.coat),0u,0u));
 }`,
 )
