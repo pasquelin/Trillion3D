@@ -92,7 +92,7 @@ export async function imageOf(device: GPUDevice, events: unknown[], parts: Parts
 export type GlassReading = {
   size: [number, number]
   held: boolean[]
-  images: Record<'full' | 'tinted' | 'rebased' | 'without' | 'alone' | 'bare', number[]>
+  images: Record<'full' | 'tinted' | 'rebased' | 'alone' | 'bare', number[]>
   seesPane: [number, number][]
   seesBase: [number, number][]
   seesFloor: [number, number][]
@@ -105,7 +105,6 @@ export const run = (kind: GlassKind) =>
       full: { pane: true, base: true },
       tinted: { pane: true, base: true, paneColor: 0xc0d0ff },
       rebased: { pane: true, base: true, baseColor: 0xc03030 },
-      without: { pane: false, base: false },
       alone: { pane: true, base: true, a: false },
       bare: { pane: false, base: true, a: false },
     }

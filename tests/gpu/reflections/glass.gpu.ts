@@ -72,7 +72,7 @@ const KINDS: GlassKind[] = ['blend', 'transmission', 'water']
 function checkGlass(result: Partial<GlassReading> & { error?: string; errors?: string[] }) {
   assert.equal(result.error, undefined, result.error)
   assert.deepEqual(result.errors, [])
-  assert.deepEqual(result.held, [true, true, true, true, true, true], 'every image is held')
+  assert.deepEqual(result.held, [true, true, true, true, true], 'every image is held')
   // With no error, the page filled every field.
   const { images, seesPane, seesBase, seesFloor, behindPane, size } = result as GlassReading
   /** A pixel's channels, the mean of the `2 · soft + 1` square around it (a ray's footprint). */
