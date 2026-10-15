@@ -5,7 +5,7 @@ use bounds::point_sphere;
 use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{length, sub};
-use trillion3d_page_codec::min_ball::ball_of_balls;
+use trillion3d_page_codec::min_ball::{ball_of_balls, min_ball};
 
 /// Deterministic uniform draws in [-1, 1).
 fn draws(seed: u64) -> impl FnMut() -> f64 {
@@ -79,9 +79,9 @@ fn a_point_sphere_holds_every_vertex_and_is_never_larger_than_the_box_one() {
 }
 
 #[test]
-fn a_ball_of_balls_holds_every_ball_and_is_never_larger_than_the_merge() {
+fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
     let mut next = draws(0xba11);
-    assert_eq!(ball_of_balls(&[]), enclosing_sphere(&[]));
+    assert_eq!(ball_of_balls(&[]), [0.0; 4]);
     let one = [1.0, 2.0, 3.0, 0.5];
     assert_eq!(ball_of_balls(&[one, [9.0, 9.0, 9.0, -1.0]]), one);
     for case in 0..400 {
@@ -98,11 +98,23 @@ fn a_ball_of_balls_holds_every_ball_and_is_never_larger_than_the_merge() {
             })
             .collect();
         let (ball, merged) = (ball_of_balls(&spheres), enclosing_sphere(&spheres));
-        assert!(ball[3] <= merged[3], "case {case}");
-        // The merge falls back as it was, within its own rounding; a tightened ball holds exactly.
-        let slack = if ball == merged { 1e-12 } else { 0.0 };
+        // Never larger than the sequential merge, up to the containment margin.
+        assert!(ball[3] <= merged[3] + 1e-9, "case {case}");
         for &s in spheres.iter().filter(|s| s[3] >= 0.0) {
-            assert!(holds(ball, [s[0], s[1], s[2]], s[3], slack), "case {case}");
+            assert!(holds(ball, [s[0], s[1], s[2]], s[3], 0.0), "case {case}");
+        }
+        // Balls of radius zero are points: their ball is the points' smallest one.
+        if case % 5 == 0 {
+            let mut points: Vec<[f64; 3]> = spheres
+                .iter()
+                .filter(|s| s[3] >= 0.0)
+                .map(|s| [s[0], s[1], s[2]])
+                .collect();
+            let (_, radius) = min_ball(&mut points).expect("points");
+            assert!(
+                (ball[3] - radius).abs() <= 1e-9 * (1.0 + far),
+                "case {case}"
+            );
         }
     }
 }

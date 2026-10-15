@@ -66,7 +66,7 @@ fn traverse(
         .collect();
     let root = json!({
         "name": "usd-root",
-        "matrix": matrix::root(unit, layer::z_up(stage)),
+        "matrix": crate::plugins::scene::axes::root(unit, layer::z_up(stage)),
         "children": children,
     });
     world.scene.node(root);

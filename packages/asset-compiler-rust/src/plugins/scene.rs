@@ -14,6 +14,7 @@ use std::{
 
 mod alembic;
 mod archive;
+mod axes;
 mod blend;
 mod cancel;
 mod fbx;

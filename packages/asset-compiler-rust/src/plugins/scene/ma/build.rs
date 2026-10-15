@@ -80,7 +80,7 @@ pub(super) fn scene(
         "nodes":document.nodes.len(),"roots":children.len()}));
     world.scene.node(json!({
         "name": "ma-root",
-        "matrix": xform::root(document.meters_per_unit),
+        "matrix": crate::plugins::scene::axes::root(document.meters_per_unit, false),
         "children": children,
     }));
 }

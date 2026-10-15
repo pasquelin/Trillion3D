@@ -122,9 +122,3 @@ fn triple(node: &Node, names: [&str; 2], parts: [&str; 3], default: [f64; 3]) ->
     }
     out
 }
-
-/// Scene-root matrix: the file's unit into metres. Maya writes its scenes with axis `Y` up, like
-/// glTF: there is therefore no rotation to add.
-pub(super) fn root(meters_per_unit: f64) -> Mat4 {
-    scaling([meters_per_unit; 3])
-}

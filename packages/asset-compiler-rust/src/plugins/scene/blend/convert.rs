@@ -8,11 +8,6 @@
 use super::*;
 use crate::import::SceneTables;
 
-/// Axis conversion, column by column: x stays x, y becomes z, z becomes -y.
-const Z_UP_TO_Y_UP: [f32; 16] = [
-    1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-];
-
 /// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
@@ -39,7 +34,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         cancelled: request.cancelled,
     };
     scene.out.scene.nodes.push(json!({
-        "name": name_of(source), "matrix": Z_UP_TO_Y_UP, "children": [],
+        "name": name_of(source), "matrix": crate::plugins::scene::axes::root(1.0, true), "children": [],
     }));
     let scenes = file.of(*b"SC\0\0").count();
     if scenes > 1 {
