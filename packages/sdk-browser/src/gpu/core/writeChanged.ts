@@ -9,7 +9,7 @@
  * bytes a whole write would have left.
  */
 import { coalesceRanges, RESIDENCY_RULE, type RangeRule } from '../../webgpu/residency/ranges.ts'
-import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>()
@@ -46,10 +46,8 @@ function follow(held: Uint32Array, image: Uint32Array, k: number, count: number)
   if (held[k] === image[k]) return count
   held[k] = image[k]
   if (count === changed.length) {
-    const more = new Int32Array(2 * count)
-    more.set(changed)
-    changed = more
-    rule.steps = new Int32Array(2 * count)
+    changed = resized(changed, count + 1)
+    rule.steps = new Int32Array(changed.length)
   }
   changed[count] = k
   return count + 1
