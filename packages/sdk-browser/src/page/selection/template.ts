@@ -38,6 +38,8 @@ export type Template = {
     clusterId: string
   }>
   sourceOrder: number[]
+  /** How far the grid moved a position (`quantizationErrorOf`): every band and box grows by it. */
+  quantizationError: number
   complete: boolean
   shape: Shape | undefined
 }
@@ -91,6 +93,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         // The source rank of a cluster depends only on the primitive; only a transparent mesh
         // reads it, and it reads it identically under each of its instances.
         sourceOrder: primitive.pages.map((page, index) => page.start ?? index),
+        quantizationError,
         complete: primitive.pages.every(
           (page) => indices.has(page.url) || (page.role ?? 'exact') === 'coarse',
         ),
@@ -109,7 +112,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
           `Primitive ${primitive.mesh}/${primitive.primitive}: clusters without a DAG error band; recompile with ${DAG_ERROR_MODEL}`,
           { mesh: primitive.mesh, primitive: primitive.primitive, expected: DAG_ERROR_MODEL },
         )
-      const quantizationError = quantizationErrorOf(primitive)
+      const { quantizationError } = template
       const culling = cullingNodes(primitive.culling, template.pages.length, quantizationError)
       const shape: Shape = {
         structure: structureIndex(primitive.structure, primitive.pages.length, quantizationError),

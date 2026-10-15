@@ -1,6 +1,6 @@
-// The cone a page is culled by is computed once, at collection (`collectRecords.ts`): the one the
-// compiler cooked on a front-only surface, an open one on a surface seen from its back. No root
-// declares its cones any more: the cut reads `cone` on every page it keeps.
+// The cone a page is culled by is its leaf cone (`../cone/cone.ts`, `leafCone`): the one the
+// compiler cooked on a front-only surface, an open one on a surface seen from its back, the side
+// read live. No root declares its cones any more: the cut reads it on every page it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -8,7 +8,7 @@ import { collectClusterPages } from './collect.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { OPEN_CONE, type NormalCone } from '../cone/cone.ts'
+import { leafCone, OPEN_CONE, type NormalCone } from '../cone/cone.ts'
 import { graphDraws } from './drawSource.ts'
 import type { PageSurface } from '../surface.ts'
 
@@ -36,16 +36,16 @@ function collectedWith<T>(
 }
 
 const cones = (material: PageSurface) =>
-  collectedWith(material, ({ allPages }) => allPages.map((page) => page.cone))
+  collectedWith(material, ({ allPages }) => allPages.map(leafCone))
 const shown = (material: PageSurface) =>
   collectedWith(material, ({ roots }) =>
     selectVisiblePages(roots, engineCamera(camera()), {}).shown.map((page) => page.url),
   )
 
-test('collection keeps the cooked cone of a front-only surface and opens it on its back', () => {
+test('a page keeps the cooked cone of a front-only surface and opens it on its back', () => {
   const [near, far] = cones(G.basicSurface({ side: G.FRONT_SIDE }))
   assert.equal(near, COOKED)
-  assert.equal(far, undefined, 'a page cooked with no cone keeps none')
+  assert.equal(far, OPEN_CONE, 'a page cooked with no cone culls by none')
   for (const side of [G.DOUBLE_SIDE, G.BACK_SIDE])
     assert.equal(cones(G.basicSurface({ side }))[0], OPEN_CONE)
 })
