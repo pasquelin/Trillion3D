@@ -4,7 +4,7 @@
  */
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import type { UniformSlots } from '../residency/pools.ts'
+import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import {
   VSM_RENDER_CMD_BYTES,
   VSM_RENDER_PAIR_BYTES,
@@ -31,7 +31,7 @@ export function renderChunking(
   viewMips: number,
   rowCount: number,
 ) {
-  const maxBinding = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
+  const maxBinding = storageBufferCap(limits)
   const pairs = clampLowWins(
     Math.floor(maxBinding / VSM_RENDER_PAIR_BYTES),
     pages,
