@@ -1,6 +1,7 @@
 import type { BlendGpuItem } from './state.ts'
 import type { GeometryBlock, MaterialLayers } from '../row/pageRowMaterial.ts'
-import { FLAG_BACK, FLAG_DOUBLE, FLAG_LIT, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { rowFlags } from '../row/surfaceRow.ts'
+import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { HostAttributes } from '../../host/resources.ts'
@@ -51,10 +52,9 @@ type BlendAtlasTables = MaterialLayers & {
   geometryBlocks?: ReadonlyMap<HostAttributes, GeometryBlock>
 }
 
-/** The bits of an item's flags its surface decides, as its page rows have them: lit, its sides,
- *  and `FLAG_SAMPLED` where one of its maps — its lobes' too — takes its filter rule. Read from the
- *  material table's summary of the surface (`SurfaceSeen.flags`), kept as the surface is now. */
-const SURFACE_ITEM_BITS = FLAG_LIT | FLAG_DOUBLE | FLAG_BACK | FLAG_SAMPLED
+/** The flag bits below an item's water rank: a page row's flags of its surface and its geometry
+ *  (`rowFlags`), the bits above them — model, fog, sprite, line — being its record's to read. */
+const ROW_BITS = (1 << WATER_RANK_SHIFT) - 1
 
 /** Whether the floats `item` reads carry a second UV set where `vertUv1` finds it: its own normal
  *  atlas's tail (`buffers.ts`), or the float pool's for a pooled or a paged unquantized geometry. A
@@ -82,7 +82,8 @@ export function writeBlendItemRecord(
   ints[base + ITEM.vertexBase] = item.vertexBase ?? 0
   // What the table holds of its surface, written first where it moved: its record and summary.
   const seen = tables.materialTable.surface(mat, tables)
-  ints[base + ITEM.flags] = item.flags | (seen.flags & SURFACE_ITEM_BITS)
+  ints[base + ITEM.flags] =
+    item.flags | (rowFlags(seen.row, item.geometry, tables.textures).flags & ROW_BITS)
   // The deformation record of its placement (`PageInfo.deform`): a paged item reads the float
   // pool that holds it; an unpaged one reads buffers of its own, and none.
   ints[base + ITEM.deformInput] = item.deformInput ?? 0

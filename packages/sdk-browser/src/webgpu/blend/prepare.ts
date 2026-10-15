@@ -4,14 +4,8 @@ import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import type { BlendHostScene } from '../../cluster/blendSceneRecord.ts'
 import { refreshBlendBounds } from './worlds.ts'
-import {
-  FLAG_CLUSTER_PAGE,
-  FLAG_HAS_COLOR,
-  FLAG_HAS_NORMAL,
-  FLAG_HAS_TANGENT,
-  FLAG_PAGED,
-  FLAG_TRANSMISSIVE,
-} from '../../visibility/types.ts'
+import { FLAG_PAGED, FLAG_TRANSMISSIVE } from '../../visibility/types.ts'
+import { emptyGeometryBlock } from '../row/pageRowMaterial.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts'
@@ -105,28 +99,31 @@ function blendItemOf(
     sourceGeometry: copy.geometry,
     worldBox: blendWorldBox(copy, pooled),
     bounds: undefined as Float64Array | undefined,
-    flags: blendFlags(copy, paged, fromPages, transmits ? waterRank : 0),
+    geometry: blendGeometry(copy, fromPages),
+    flags: blendFlags(paged, transmits ? waterRank : 0),
     paged,
   }
 }
 
-/** The flags a copy's geometry decides for its item — its surface's are its record's, written with
- *  it (`items.ts`); a transmissive one's water rank `waterRank` rides above them: the surface stage
- *  writes it and the composite reads the item's volume at that rank. */
-function blendFlags(copy: BlendCopy, paged: boolean, fromPages: boolean, waterRank: number) {
-  const mat = copy.surface,
-    { attributes } = copy.geometry
-  let flags = 0
-  // Its own atlas may hold a second UV set alone (`buffers.ts`): the normals are the geometry's.
-  if (attributes.normal) flags |= FLAG_HAS_NORMAL
-  // A page stores no tangent: the fragment stage rebuilds the frame, as the opaque resolve does.
-  if (attributes.tangent && !fromPages) flags |= FLAG_HAS_TANGENT
-  if (mat.vertexColors && attributes.color) flags |= FLAG_HAS_COLOR
-  if (paged) flags |= FLAG_PAGED
-  if (fromPages) flags |= FLAG_CLUSTER_PAGE
-  if (waterRank) flags |= FLAG_TRANSMISSIVE | (waterRank << WATER_RANK_SHIFT)
-  return flags
+/** What a copy's geometry brings to its item's flags, as a page row's block (`GeometryBlock`): the
+ *  record writer derives them with the surface's by `rowFlags`, as a row does. A page stores no
+ *  tangent: the fragment stage rebuilds the frame, as the opaque resolve does. */
+const blendGeometry = (copy: BlendCopy, fromPages: boolean) => {
+  const { attributes } = copy.geometry
+  return {
+    ...emptyGeometryBlock(),
+    hasUv: !!attributes.uv,
+    hasNormal: !!attributes.normal,
+    hasTangent: !!attributes.tangent && !fromPages,
+    hasColor: !!attributes.color,
+    quantized: fromPages,
+  }
 }
+
+/** The flags the item alone decides: paged, and a transmissive one's water rank `waterRank` above
+ *  them — the surface stage writes it and the composite reads the item's volume at that rank. */
+const blendFlags = (paged: boolean, waterRank: number) =>
+  (paged ? FLAG_PAGED : 0) | (waterRank ? FLAG_TRANSMISSIVE | (waterRank << WATER_RANK_SHIFT) : 0)
 
 /**
  * No transform is baked here: the item carries the live world matrix of its source mesh, and its

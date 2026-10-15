@@ -5,7 +5,7 @@
 // fallbacks.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FLAG_CLUSTER_PAGE, FLAG_PAGED } from '../../visibility/types.ts'
+import { FLAG_PAGED } from '../../visibility/types.ts'
 import { refreshBlendPlan } from '../blend/plan.ts'
 import { buildBlendStatics } from '../blend/statics.ts'
 import { uniformStride } from '../../residency/pools.ts'
@@ -17,7 +17,8 @@ const full = [0, 0, ...SIZE]
 
 test('real collect and prepare: the kept surface crops the pass, as the CPU did', () => {
   const { state, item, camera } = scene()
-  assert.equal(item.flags & (FLAG_PAGED | FLAG_CLUSTER_PAGE), 0)
+  assert.equal(item.flags & FLAG_PAGED, 0)
+  assert.equal(item.geometry.quantized, false)
   const kept = frame(state, camera)
   assert.equal(kept.drawn, true)
   assert.ok(kept.rect[0] > 450 && kept.rect[2] < 830)
@@ -40,7 +41,7 @@ test('unknown, nonfinite, near-plane, paged, non-affine and distant water keep f
     if (kind === 'unknown') item.bounds = undefined
     if (kind === 'nonfinite') item.bounds![0] = NaN
     if (kind === 'near') elements[14] = 2.95
-    if (kind === 'quantized') item.flags |= FLAG_CLUSTER_PAGE
+    if (kind === 'quantized') item.geometry.quantized = true
     if (kind === 'skewed') elements[3] = 1e-3
     if (kind === 'thick') state.volumePacked[2] = Infinity
     if (kind === 'distant') {

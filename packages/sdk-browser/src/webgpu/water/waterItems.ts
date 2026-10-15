@@ -1,5 +1,4 @@
 import { readHostBox } from '../../host/world/bounds.ts'
-import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import { waterRankOf } from '../transparent/transmission.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
@@ -44,7 +43,7 @@ export function writeWaterItems(blendState: WebgpuBlendState) {
     if (item.deformLocal) packed.set(item.deformLocal, at / 2)
     else if (local) readHostBox(local, packed, at / 2)
     else packed.fill(0, at / 2, at / 2 + 6)
-    const own = !(item.flags & FLAG_CLUSTER_PAGE) && !item.surface.lineWidth && !item.surface.sprite
+    const own = !item.geometry.quantized && !item.surface.lineWidth && !item.surface.sprite
     words[at + WATER_ITEM_CROPS] = local && own ? 1 : 0
   }
   return words.subarray(0, count * WATER_ITEM_WORDS)
