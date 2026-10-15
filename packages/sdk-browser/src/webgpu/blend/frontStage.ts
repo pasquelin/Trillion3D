@@ -14,17 +14,14 @@ export const frontStageTargets = (outputs: FrontOutputs): GPUColorTargetState[] 
   ...(outputs > 1 ? [{ format: FRONT_TARGET_FORMATS.lobes }] : []),
 ]
 
-/** What a front pass writes (`FrontOutputs`) for transparents of which one `reflects`, one carrying a
- *  lobe where `lobed`: the frame's (`frontPass.ts`) and prepare's (`pipelines.ts`) one rule. */
-export const frontOutputsOf = (reflects: boolean, lobed: boolean): FrontOutputs =>
-  !reflects ? 0 : lobed ? 2 : 1
-
-/** What a front pass of `items` writes, as prepare sees them. */
-const frontStageOf = (items: readonly { surface: PageSurface }[]) =>
-  frontOutputsOf(
-    items.some((item) => blendReflects(item.surface)),
-    items.some((item) => hasPhysicalLobes(item.surface)),
-  )
+/** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
+ *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
+ *  prepare's compile (`prepareFrontStage`) and of the scene refresh the frame reads
+ *  (`blendState.frontOutputs`). */
+export function frontStageOf(items: readonly { surface: PageSurface }[]): FrontOutputs {
+  if (!items.some((item) => blendReflects(item.surface))) return 0
+  return items.some((item) => hasPhysicalLobes(item.surface)) ? 2 : 1
+}
 
 /**
  * The front stages of a device's blend layout, one set of three culls for each `FrontOutputs`, its

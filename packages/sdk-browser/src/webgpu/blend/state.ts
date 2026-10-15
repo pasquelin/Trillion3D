@@ -19,6 +19,7 @@ import { planState, planTotals } from './planState.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { FloatAtlas } from '../core/floatAtlas.ts'
 import type { NodeIndex } from '../pages/render/movedNode.ts'
+import type { FrontOutputs } from '../../reflections/frontLayer.ts'
 
 export type BlendGpuItem = {
   /** Whole-copy static inputs and computed outputs in the existing float pool. */
@@ -156,9 +157,10 @@ function waterState() {
      *  (`../water/lobedStage.ts`, `wantsPhysicalLobes`). Both set with the records. */
     lobed: false,
     waterLobed: false,
-    /** An item reflects (lit, of the physical model): the front pass writes the reflecting surface
-     *  the trace answers (`frontPass.ts`). Set with the records. */
-    reflects: false,
+    /** What the front pass writes (`frontStageOf`): the reflecting surface the trace answers once an
+     *  item reflects (lit, of the physical model), its lobes once one carries a lobe. Set with the
+     *  records. */
+    frontOutputs: 0 as FrontOutputs,
   }
 }
 

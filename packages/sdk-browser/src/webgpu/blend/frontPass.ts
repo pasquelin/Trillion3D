@@ -1,5 +1,4 @@
 import { frontStamp } from '../../reflections/frontLayer.ts'
-import { frontOutputsOf } from './frontStage.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { drawBlendRuns } from './draw.ts'
 
@@ -9,7 +8,7 @@ import { drawBlendRuns } from './draw.ts'
  * before the depth pyramid that folds it in and the trace that reads it: the opaque depth copied into the
  * layer's, then every transparent run of the image — the blends and the transmissive slice — drawn
  * through the front stage, on the blend group alone. It writes the covering depth into the Hi-Z front
- * layer, and, where a transparent of the scene reflects (`blendState.reflects`), the reflecting surface
+ * layer, and, where a transparent of the scene reflects (`blendState.frontOutputs`), the reflecting surface
  * too — with its lobes where one carries them —, the store's front cells held from then on
  * (`holdFront`). None without transparents or a depth pyramid; a stage still compiling is asked, off the
  * frame, the frames held until it lands.
@@ -30,7 +29,7 @@ export function encodeFrontPass(
     (!blendState.runCount[0] && !blendState.runCount[1])
   )
     return
-  const outputs = frontOutputsOf(blendState.reflects, blendState.lobed || blendState.waterLobed)
+  const outputs = blendState.frontOutputs
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
   const hizFront = hiz.front(encoder, true)
