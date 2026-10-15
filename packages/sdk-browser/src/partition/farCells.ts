@@ -10,11 +10,12 @@
  *
  * The super-roots' bound per cell comes from the world stream (`WorldRootsHold.stream`), opened
  * here on the first frame whose cut packs the world DAG: a load never reads the DAG file (#1232).
- * A far cell's bundles are held as a placed cell's are (`createCellHolds`), counted once per cell.
+ * A far cell is held in the partition's one registry (`createCellHolds`), its state far: demoted
+ * or promoted, it keeps its one hold.
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
-import { createCellHolds } from './cellHolds.ts'
-import { holdPriority, planCells, type SuperRootPlan } from './plan.ts'
+import type { createCellHolds } from './cellHolds.ts'
+import { planCells, type SuperRootPlan } from './plan.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
 /** The world bundles a cell holds, the stream its super-roots' bound is read from, and whether
@@ -25,10 +26,13 @@ type World = Pick<WorldRootsHold, 'hold' | 'release'> &
 /** The cells a partition places, by rank. */
 type Placed = ReadonlyMap<number, unknown>
 
-/** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
-export function createFarCells(world: World | undefined, placed: Placed) {
-  const far = new Set<number>()
-  const holds = createCellHolds(world)
+/** The far cells of a partition whose placed cells are `placed`, held in `holds`, its one
+ *  registry, on `world`. */
+export function createFarCells(
+  world: World | undefined,
+  placed: Placed,
+  holds: ReturnType<typeof createCellHolds>,
+) {
   /** The cells this frame's plan reaches, held or not: the cover forgets every other. */
   const reached = new Set<number>()
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
@@ -36,16 +40,17 @@ export function createFarCells(world: World | undefined, placed: Placed) {
     opening = false
   /** Placed or held far: every cell the plan holds. */
   const held = {
-    has: (cell: number) => placed.has(cell) || far.has(cell),
+    has: (cell: number) => placed.has(cell) || holds.far(cell),
     *keys() {
       yield* placed.keys()
-      yield* far
+      yield* holds.farCells()
     },
   }
   /** What the cover keeps: the cells the plan reaches or holds — made once. */
   const kept = { has: (cell: number) => reached.has(cell) || held.has(cell) }
-  /** `cell`'s far hold is let go, once placed or past the keep sphere; whether it had one. */
-  const release = (cell: number) => far.delete(cell) && (holds.release(cell), true)
+  /** `cell`'s far hold is let go, past the keep sphere or once no cut draws its super-roots;
+   *  whether it had one. */
+  const release = (cell: number) => holds.far(cell) && (holds.release(cell), true)
   /** The plan's reading of the super-roots from `eye` through the cut's `lens`, or none: no cut
    *  packs the world DAG, or its bound is not read yet (asked here, once; a refusal asks again). */
   const superRoots = (eye: ArrayLike<number>, lens?: SuperRootLens): SuperRootPlan | undefined => {
@@ -66,20 +71,20 @@ export function createFarCells(world: World | undefined, placed: Placed) {
     /**
      * The frame's plan (`planCells`) from `eye` (world space), in the cells' frame `local`, through
      * `lens` while the cut packs the world DAG: the cells found far are held by their super-roots,
-     * and those `demoted` give their objects back (`leave`) and are held far. Without `lens`, the
-     * plan of placed cells alone.
+     * and those `demoted` give their objects back (`park`) and are held far, their hold kept.
+     * Without `lens`, the plan of placed cells alone.
      */
     plan(
       index: Parameters<typeof planCells>[0],
       local: { eye: ArrayLike<number>; reach: number },
       eye: ArrayLike<number>,
       lens: SuperRootLens | undefined,
-      leave: (cell: number) => void,
+      park: (cell: number) => void,
     ) {
       const reading = superRoots(eye, lens)
-      // A cell placed since draws its objects; and a cut that no longer packs the world DAG draws
-      // no super-root: neither stays held far.
-      for (const cell of far) if (!reading || placed.has(cell)) release(cell)
+      // A cut that no longer packs the world DAG draws no super-root: no cell stays held far. A
+      // cell placed since holds as placed already (`createCellHolds`).
+      if (!reading) for (const cell of holds.farCells()) release(cell)
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)
       // What the cover counted of a cell past the plan's reach, and held by no plan, is forgotten.
       reached.clear()
@@ -88,22 +93,16 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       // A cell whose roots the cache has no room for is not held far: the plan holds no more.
       for (const cell of plan.far) {
         if (world?.cover && !world.cover.admits(cell)) continue
-        far.add(cell)
-        holds.hold(cell, holdPriority(index, local, cell))
+        holds.hold(cell, plan.priority.get(cell)!, true)
       }
-      // A demoted cell's far hold is taken before its placed hold goes: the world bundles both
-      // need stay held, never read again.
+      // A demoted cell keeps its one hold, its state far: the world bundles it needs stay held,
+      // never read again.
       for (const cell of plan.demoted) {
-        holds.hold(cell, holdPriority(index, local, cell))
-        leave(cell)
-        far.add(cell)
+        park(cell)
+        holds.hold(cell, plan.priority.get(cell)!, true)
       }
       return plan
     },
     release,
-    /** The cells held far now. */
-    cells: () => [...far],
-    /** What a frame waits on: the next far hold to land or fail, while one reads. */
-    reads: holds.reads,
   }
 }

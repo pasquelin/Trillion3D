@@ -7,6 +7,7 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createCellBoxes } from './boxes.ts'
 import { createCellIndex } from './cellIndex.ts'
 import { createFarCells } from './farCells.ts'
+import { createCellHolds } from './cellHolds.ts'
 import { openAll, paged } from './paged.fixture.ts'
 import { planCells } from './plan.ts'
 import { cellSuperRootError } from './superRoots.ts'
@@ -44,8 +45,9 @@ function partition(admits?: (cell: number) => boolean) {
       cells: 0,
     },
   }
-  const placed = new Map<number, unknown>()
-  return { index, world, placed, far: createFarCells(holder, placed) }
+  const placed = new Map<number, unknown>(),
+    holds = createCellHolds(holder)
+  return { index, world, placed, holds, far: createFarCells(holder, placed, holds) }
 }
 const local = { eye, reach }
 const left: number[] = []
@@ -60,7 +62,7 @@ test('while no cut packs the world DAG, the plan is the cells own and the DAG is
 })
 
 test('once the cut packs it, the cells its super-roots draw are held far, their bundles held', async () => {
-  const { index, world, placed, far } = partition()
+  const { index, world, placed, holds, far } = partition()
   // The first frame asks the bound once; until it lands, the plan is unchanged.
   const first = far.plan(index, local, eye, lens, leave)
   assert.deepEqual(first, planCells(index, eye, reach, placed))
@@ -77,16 +79,19 @@ test('once the cut packs it, the cells its super-roots draw are held far, their 
   assert.ok(needed.length > 0 && needed.length < xs.length, 'near cells need objects, far do not')
   assert.deepEqual(plan.visible, needed)
   await new Promise(setImmediate) // the holds land
-  // Placed since, a cell lets its far hold go; a cut that does not pack the world DAG lets all go.
+  // Placed since, a cell keeps its one hold, placed now; a cut that does not pack the world DAG lets
+  // every far one go.
   placed.set(needed[0], {})
+  holds.hold(needed[0])
   far.plan(index, local, eye, lens, leave)
-  assert.deepEqual(world.released, [needed[0]])
+  assert.deepEqual(world.released, [], 'promoted: its bundles stay held, never read again')
   far.plan(index, local, eye, undefined, leave)
-  assert.deepEqual(world.released.toSorted(), [0, 1, 2, 3])
+  const stillFar = [0, 1, 2, 3].filter((cell) => cell !== needed[0])
+  assert.deepEqual(world.released.toSorted(), stillFar)
 })
 
-test('a placed cell the cut no longer needs is demoted, its world bundles held before it leaves', async () => {
-  const { index, world, placed, far } = partition()
+test('a placed cell the cut no longer needs is demoted, its one hold kept', async () => {
+  const { index, world, placed, holds, far } = partition()
   // A target every cell's super-roots meet within the keep margin: a placed cell gives back its objects.
   const worst = Math.max(...xs.map((_, cell) => cellSuperRootError(bounds, cell, eye, lens)))
   const coarse = { ...lens, pixelError: 2 * worst }
@@ -95,17 +100,13 @@ test('a placed cell the cut no longer needs is demoted, its world bundles held b
   assert.deepEqual(far.plan(index, local, eye, coarse, leave).far, [0, 1, 2, 3])
   await new Promise(setImmediate) // the holds land
   placed.set(0, {})
+  holds.hold(0)
   const held = world.held.length
-  let holdsBeforeLeave = -1
-  const plan = far.plan(index, local, eye, coarse, (cell) => {
-    holdsBeforeLeave = world.held.length - held
-    placed.delete(cell)
-  })
+  const plan = far.plan(index, local, eye, coarse, (cell) => void placed.delete(cell))
   assert.deepEqual(plan.demoted, [0])
-  assert.deepEqual(world.held.slice(held), [0], 'the demoted cell is held far')
-  // Its far hold is taken before its placed hold goes: the bundles both need are never released,
-  // then read again.
-  assert.equal(holdsBeforeLeave, 1)
+  assert.ok(holds.far(0), 'the demoted cell is held far')
+  // Its one hold changes state alone: the bundles it needs are never released, then read again.
+  assert.deepEqual([world.held.length - held, world.released], [0, []])
 })
 
 test("the plan holds no far cell whose roots the cut's cache has no room for", async () => {
@@ -128,11 +129,12 @@ test('a far hold that fails is told to the frame as it settles, and never asked 
     release() {},
     stream: async () => ({ superRoots: bounds }) as never,
   }
-  const far = createFarCells(holder, placed)
+  const holds = createCellHolds(holder),
+    far = createFarCells(holder, placed, holds)
   far.plan(index, local, eye, lens, leave)
   await Promise.resolve()
   far.plan(index, local, eye, lens, leave)
-  const settling = far.reads()
+  const settling = holds.reads()
   assert.equal(settling.length, 1, 'the frame waits on the next far hold to settle')
   await Promise.all(settling)
   const asked = held

@@ -1,7 +1,9 @@
 /**
- * THE WORLD BUNDLES A PARTITION'S CELLS HOLD. A placed cell — or one held far by its super-roots
- * (`farCells.ts`) — holds the world bundles past the pinned top its objects' roots depend on
- * (`world`, `../scene/worldRoots.ts`), counted once per cell, until it is released. They are read
+ * THE WORLD BUNDLES A PARTITION'S CELLS HOLD, the one registry of its held cells. A placed cell —
+ * or one held far by its super-roots (`farCells.ts`) — holds the world bundles past the pinned top
+ * its objects' roots depend on (`world`, `../scene/worldRoots.ts`), counted once per cell, until it
+ * is released: a cell demoted to its super-roots, or promoted to its objects, keeps its one hold
+ * and changes its state alone, its bundles never released then read again. They are read
  * through the session's queue at the priority the cell is held with, and a cell that leaves while
  * its hold reads lets its reads go at once: those still queued are never fetched. A read that fails
  * and may pass waits its turn in the queue, the hold still on its way
@@ -38,29 +40,38 @@ function createLandings() {
   }
 }
 
-/** The holds of the cells placed on `world`, each kept until its cell is released; none without
- *  a world. A hold counts its bundles at once (`WorldRootsHold.hold`): its release lets them go at
- *  once too, and its reads still queued with them. */
+/** The holds of the cells held on `world`, placed or far, each kept until its cell is released;
+ *  none without a world. A hold counts its bundles at once (`WorldRootsHold.hold`): its release
+ *  lets them go at once too, and its reads still queued with them. */
 export function createCellHolds(world?: Holder) {
-  /** What lets each held cell's reads go. */
-  const holding = new Map<number, AbortController>(),
+  /** What lets each held cell's reads go, and whether it is held far, by its super-roots alone. */
+  const holding = new Map<number, { stop: AbortController; far: boolean }>(),
     landings = createLandings()
   return {
-    /** `cell` was placed: its bundles are held, and read at `priority` if they are not. */
-    hold(cell: number, priority = PRIORITY_VISIBLE) {
-      if (!world || holding.has(cell)) return
+    /** `cell` is held — `far`, by its super-roots alone, else placed —: its bundles are held, and
+     *  read at `priority` if they are not; a cell held already only takes its new state. */
+    hold(cell: number, priority = PRIORITY_VISIBLE, far = false) {
+      if (!world) return
+      const own = holding.get(cell)
+      if (own) return void (own.far = far)
       const stop = new AbortController()
-      holding.set(cell, stop)
+      holding.set(cell, { stop, far })
       landings.started()
       world.hold(cell, { signal: stop.signal, priority }).then(landings.settled, landings.settled)
     },
     /** `cell` left: its bundles are released, its reads still queued let go. */
     release(cell: number) {
-      const stop = holding.get(cell)
-      if (!stop) return
+      const own = holding.get(cell)
+      if (!own) return
       holding.delete(cell)
-      stop.abort()
+      own.stop.abort()
       world!.release(cell)
+    },
+    /** Whether `cell` is held far. */
+    far: (cell: number) => holding.get(cell)?.far === true,
+    /** The cells held far now. */
+    *farCells() {
+      for (const [cell, own] of holding) if (own.far) yield cell
     },
     /** What a frame waits on: the next hold to land or fail, while one reads. */
     reads: landings.asked,

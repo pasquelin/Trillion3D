@@ -27,7 +27,7 @@ import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
-import { holdPriority, inCellFrame, planCells } from './plan.ts'
+import { inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
@@ -36,10 +36,6 @@ import { createFarCells } from './farCells.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { StreamPage } from '../streaming/types.ts'
-
-/** Where a frame sees the cells from, in their frame, and whether the list it places is read
- *  ahead. */
-type Seen = { local: { eye: ArrayLike<number>; reach: number }; ahead: boolean }
 
 type Inputs = {
   partition: TablePartition
@@ -60,7 +56,7 @@ export function createPartitionCells(inputs: Inputs) {
   const frame: CellFrame = {}
   const rows = createCellPlacements(root, parents, meshes, frame)
   const { held, touched } = rows
-  const far = createFarCells(world, held)
+  const far = createFarCells(world, held, holds)
   /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
   let waiting = 0,
     sized = -1,
@@ -91,11 +87,9 @@ export function createPartitionCells(inputs: Inputs) {
     return true
   }
   const cellUrl = (cell: number) => index.cell(cell).url
-  /** Places `cell`, seen from `local` in a list read `ahead` or not, its holds read at the plan's
-   *  priority once its rows took it (`holdPriority`). */
-  const place = (cell: number, decoded: CellRows, { local, ahead }: Seen) =>
-    rows.place(cell, decoded, cellUrl(cell)) &&
-    (holds.hold(cell, holdPriority(index, local, cell, ahead)), true)
+  /** Places `cell`, its holds read at the plan's `priority` once its rows took it (`holdPriority`). */
+  const place = (cell: number, decoded: CellRows, priority: number) =>
+    rows.place(cell, decoded, cellUrl(cell)) && (holds.hold(cell, priority), true)
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
@@ -165,7 +159,7 @@ export function createPartitionCells(inputs: Inputs) {
         const rung = clamp(sized + 2, local.rung, RUNGS)
         if (!io.grow || !resize(rung, io.grow)) io.outgrown?.()
       }
-      const plan = far.plan(index, local, eye, io.lens, leave)
+      const plan = far.plan(index, local, eye, io.lens, rows.leave)
       plan.leave.forEach(leave)
       io.forget(index.forgotten())
       waiting = 0
@@ -180,7 +174,7 @@ export function createPartitionCells(inputs: Inputs) {
         later ||= !ahead && pages.some((page) => page.body)
         const list = ahead ? plan.ahead : plan.visible
         const placed = (cell: number, decoded: CellRows) =>
-          place(cell, decoded, { local, ahead }) || (waiting++, false)
+          place(cell, decoded, plan.priority.get(cell)!) || (waiting++, false)
         later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later
       }
       // What the plan no longer lists is dropped; its reads were let go by the one asker.
@@ -220,8 +214,7 @@ export function createPartitionCells(inputs: Inputs) {
       }
       plan.leave.forEach(leave)
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      const seen = { local, ahead: false }
-      plan.visible.forEach((cell, at) => place(cell, decoded[at], seen))
+      plan.visible.forEach((cell, at) => place(cell, decoded[at], plan.priority.get(cell)!))
       touched.clear()
       return bytes
     },
@@ -230,14 +223,14 @@ export function createPartitionCells(inputs: Inputs) {
      *  no longer asked, are let go by the asker); `update` is told the rows written. The cells
      *  place again at the next `frame`, were it followed anew. */
     close(io: { update(rows: PlacementRows, from: number, to: number): void }) {
-      for (const cell of far.cells()) far.release(cell)
+      for (const cell of holds.farCells()) far.release(cell)
       for (const cell of [...held.keys()]) leave(cell)
       pageDecodes.clear()
       decodes.clear()
       touched.flush(io.update)
     },
     /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
-    reads: () => [...holds.reads(), ...far.reads()],
+    reads: holds.reads,
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   }

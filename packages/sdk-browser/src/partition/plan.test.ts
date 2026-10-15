@@ -138,8 +138,7 @@ test('a cell is drawn by its super-roots until the cut needs its objects', () =>
 })
 
 test("a cell's holds read strictly after the view's own pages, nearer first, even at the eye", () => {
-  const at = (distance: number, ahead?: boolean) =>
-    holdPriority({ distance: () => distance }, { eye: [0, 0, 0], reach: 100 }, 0, ahead)
+  const at = (distance: number, ahead = distance > 100) => holdPriority(distance, 100, ahead)
   assert.ok(at(0) > PRIORITY_VISIBLE, 'a cell around the eye after the visible pages')
   assert.ok(at(0) < at(50) && at(50) < PRIORITY_VISIBLE + 1, 'nearer first, within the band')
   assert.ok(

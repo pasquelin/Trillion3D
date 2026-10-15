@@ -41,6 +41,8 @@ const inverse = new Float64Array(MATRIX_VALUES),
 /** How far past the reach, as a fraction of it, a read cell is kept: past `AHEAD`, so a cell read
  *  ahead is not dropped by the next step. */
 export const KEEP = 0.5
+/** The keep sphere's radius for a frame of `reach`: a held cell past it leaves. */
+export const keepRadius = (reach: number) => reach * (1 + KEEP)
 
 /** What the reach reads of a camera: the optics its projection is composed from. */
 export type PartitionOptics = Pick<
@@ -86,18 +88,12 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   return nearest
 }
 
-/** The read priority of what `cell` holds, seen from `local` (`cellHolds.ts`, `farCells.ts`):
+/** The read priority of what a cell at `distance` holds in a frame of `reach` (`cellHolds.ts`):
  *  strictly after the view's own pages, read at the band's own value, in the visible priority's
- *  band — the prefetch one's when `ahead`, by default past the reach —, nearer first within each. */
-export function holdPriority(
-  index: Pick<CellIndex, 'distance'>,
-  local: { eye: ArrayLike<number>; reach: number },
-  cell: number,
-  ahead?: boolean,
-) {
-  const distance = index.distance(cell, local.eye)
-  const band = (ahead ?? distance > local.reach) ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
-  return band + (1 + (distance / (distance + local.reach) || 0)) / 2
+ *  band — the prefetch one's when `ahead` —, nearer first within each. */
+export function holdPriority(distance: number, reach: number, ahead: boolean) {
+  const band = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
+  return band + (1 + (distance / (distance + reach) || 0)) / 2
 }
 
 /**
@@ -117,7 +113,8 @@ export type SuperRootPlan = {
  * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
  * index (`cellIndex.ts`); the held cells past `reach·(1 + KEEP)`, which leave; and the pages of the
  * index within those spheres not yet opened (`pages`), nearest first, the index closing those past
- * the keep sphere. `reach` is the frame camera's (`cellReach`).
+ * the keep sphere; and the hold priority of each cell it reads, holds far or demotes (`priority`,
+ * `holdPriority`), from the distance its walk found. `reach` is the frame camera's (`cellReach`).
  *
  * Given `superRoots`, `held` holds both kinds of cell and the near/far choice is the cut's: a cell
  * found is `far` — held, drawn by its super-roots, its objects unread — until its super-roots'
@@ -134,10 +131,11 @@ export function planCells(
   superRoots?: SuperRootPlan,
 ) {
   type Found<T> = { item: T; distance: number }
-  const cells: Found<number>[] = [],
+  const visible: Found<number>[] = [],
+    ahead: Found<number>[] = [],
     far: Found<number>[] = [],
     pages: Found<IndexPage>[] = []
-  const keep = reach * (1 + KEEP)
+  const keep = keepRadius(reach)
   const placed = superRoots?.placed ?? held
   /** `cell`'s super-roots' projected error over the target: the cut needs its objects past 1, and
    *  without super-roots always. */
@@ -153,28 +151,42 @@ export function planCells(
       if (superRoots && !held.has(item)) far.push({ item, distance })
       // Past the reach, or its objects wanted only within the prefetch margin: read ahead.
       const ratio = need(item)
-      if (distance <= reach && ratio > 1) cells.push({ item, distance })
-      else if (ratio * (1 + AHEAD) > 1) cells.push({ item, distance: reach + distance })
+      if (distance <= reach && ratio > 1) visible.push({ item, distance })
+      else if (ratio * (1 + AHEAD) > 1) ahead.push({ item, distance })
     },
     (item, distance) => void pages.push({ item, distance }),
   )
-  const leave: number[] = [],
-    demoted: number[] = []
-  for (const cell of held.keys())
-    if (index.distance(cell, eye) > keep) leave.push(cell)
-    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1) demoted.push(cell)
-  /** The items of `list` within the reach, or past it when `past`, nearest first. */
-  const nearest = <T>(list: Found<T>[], past: boolean) =>
+  const priority = new Map<number, number>()
+  /** The items of `list`, nearest first, each read `early` or not given its priority. */
+  const nearest = (list: Found<number>[], early?: boolean) =>
     list
+      .sort((a, b) => a.distance - b.distance)
+      .map(({ item, distance }) => {
+        priority.set(item, holdPriority(distance, reach, early ?? distance > reach))
+        return item
+      })
+  const leave: number[] = [],
+    demoted: Found<number>[] = []
+  for (const cell of held.keys()) {
+    const distance = index.distance(cell, eye)
+    if (distance > keep) leave.push(cell)
+    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1)
+      demoted.push({ item: cell, distance })
+  }
+  /** The pages within the reach, or past it when `past`, nearest first. */
+  const pagesNearest = (past: boolean) =>
+    pages
       .filter(({ distance }) => distance > reach === past)
       .sort((a, b) => a.distance - b.distance)
       .map(({ item }) => item)
+  // A cell found far and wanted for its objects is held far first: its far priority is the last.
   return {
-    visible: nearest(cells, false),
-    ahead: nearest(cells, true),
+    visible: nearest(visible, false),
+    ahead: nearest(ahead, true),
     leave,
-    far: far.sort((a, b) => a.distance - b.distance).map(({ item }) => item),
-    demoted,
-    pages: { visible: nearest(pages, false), ahead: nearest(pages, true) },
+    far: nearest(far),
+    demoted: nearest(demoted),
+    pages: { visible: pagesNearest(false), ahead: pagesNearest(true) },
+    priority,
   }
 }
