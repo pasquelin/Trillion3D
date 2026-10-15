@@ -87,39 +87,33 @@ fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}
 fn pageBaseOf(w:u32)->u32{return framesWord(w,${PAGE_BASE_WORD}u);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
 fn heldByOf(w:u32)->u32{return framesWord(w,${HELD_BY_WORD}u);}
-/** A range append, each entry tagged with the current view: the group count follows the
- *  opening of each slice of \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\`
- *  without a one-thread kernel pulling it afterwards (\`openSlice\`). \`stride\` words an entry,
- *  the page then — two words — its placement \`w\`; past the list's \`cap\` entries, nothing is
- *  written and it is said (\`dropWork\`). */
-fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32,stride:u32,cap:u32,w:u32){
+/** THE ONE LIST APPEND of the cut: \`count\` entries reserved at \`counter\`, \`stride\` words each at
+ *  \`base\` — the entry \`first + k\`, then the placement \`w\` reading it, then its cone word \`cone\`, as
+ *  many as the stride holds. Past the list's \`cap\` entries nothing is written and \`drop\` is said
+ *  (\`dropWork\`). The dispatch argument at \`groups\` follows the opening of each slice of
+ *  \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\` without a one-thread kernel
+ *  pulling it afterwards (\`openSlice\`); \`NO_INDEX\` for a list no kernel dispatches on. */
+fn listAppend(counter:u32,groups:u32,base:u32,stride:u32,cap:u32,drop:u32,first:u32,count:u32,w:u32,cone:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
-  if(at+k>=cap){dropWork(LIST_DROPPED);return;}
-  setFlag(base+stride*(at+k),packEntry(vi,first+k));
-  if(stride>1u){setFlag(base+stride*(at+k)+1u,w);}
-  if((at+k)%WORKGROUP_THREADS==0u){openSlice(groups,(at+k)/WORKGROUP_THREADS);}
+  let s=at+k;
+  if(s>=cap){dropWork(drop);return;}
+  setFlag(base+stride*s,first+k);
+  if(stride>1u){setFlag(base+stride*s+1u,w);}
+  if(stride>2u){setFlag(base+stride*s+2u,cone);}
+  if(groups!=NO_INDEX&&s%WORKGROUP_THREADS==0u){openSlice(groups,s/WORKGROUP_THREADS);}
  }
 }
-/** The same append on a descent queue, its group count opened as it fills: a level past the
- *  first is dispatched on what the level before it deposited (\`../encode.ts\`). Each entry is the
- *  node, then the placement \`w\` that reads it: a primitive's nodes are its placements' alike. */
+/** \`count\` nodes from \`first\` on descent queue \`dst\`, read by placement \`w\` — a primitive's nodes
+ *  are its placements' alike —, its group count opened as it fills: a level past the first is
+ *  dispatched on what the level before it deposited (\`../encode.ts\`). */
 fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
- let at=atomicAdd(&work[queueCounter(dst)],count);
- let base=queueBase(dst);
- for(var k=0u;k<count;k++){
-  if(at+k>=queueEntries()){dropWork(QUEUE_DROPPED);return;}
-  putEntry(base,at+k,packEntry(vi,first+k),w);
-  if((at+k)%WORKGROUP_THREADS==0u){openSlice(queueGroups(dst),(at+k)/WORKGROUP_THREADS);}
- }
+ listAppend(queueCounter(dst),queueGroups(dst),queueBase(dst),2u,queueEntries(),QUEUE_DROPPED,packEntry(vi,first),count,w,0u);
 }
 /** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
 fn putEntry(base:u32,s:u32,entry:u32,w:u32){setFlag(base+2u*s,entry);setFlag(base+2u*s+1u,w);}
-fn drawnAppend(page:u32){
- let at=atomicAdd(&work[writtenCounter()],1u);
- if(at>=views[0u].candCap){dropWork(LIST_DROPPED);return;}
- setFlag(writtenBase()+at,page);
-}
+/** Page \`page\` on the log the running cut writes (\`dagCommitMask\` makes it the drawn log). */
+fn drawnAppend(page:u32){listAppend(writtenCounter(),NO_INDEX,writtenBase(),1u,views[0u].candCap,LIST_DROPPED,page,1u,0u,0u);}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
  *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
@@ -176,7 +170,7 @@ fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
  *  placement's first —, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode,w:u32){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount,w);return;}
- spanAppend(candCounter(),candGroups(),candBase(),pageBaseOf(w)+node.firstPage,node.pageCount,2u,views[0u].candCap,w);
+ listAppend(candCounter(),candGroups(),candBase(),2u,views[0u].candCap,LIST_DROPPED,packEntry(vi,pageBaseOf(w)+node.firstPage),node.pageCount,w,0u);
 }
 /** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
  *  per slot, with one its few entries (\`rootSlots\`); queue 0 reused deeper (level 3, 6…) alike. */
