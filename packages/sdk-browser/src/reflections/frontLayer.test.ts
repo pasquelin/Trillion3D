@@ -7,7 +7,6 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
-import { TRACE_SCENE_BINDINGS } from './traceBindings.ts'
 import { REFLECTION_TRACE_SHADER } from './trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
@@ -65,11 +64,11 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
   assert.deepEqual(forward(texel, z, false)(z).base, [7, 7, 7])
 })
 
-test('only the trace casts the proxy’s rays: a forward program binds no proxy', () => {
+test('one chain: a forward program and the trace both walk the proxy and sample every lobe', () => {
   const forwardText = wgslModule(forwardReflectionWgsl(1, true, 24))
-  for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied'])
-    assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
-  assert.match(wgslModule(reflectedRadianceWgsl(1, TRACE_SCENE_BINDINGS)), /\breflectionProxied\b/)
+  for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied', 'reflectionSampleDirection'])
+    assert.match(forwardText, new RegExp(`\\b${name}\\b`), name)
+  assert.match(wgslModule(reflectedRadianceWgsl(1)), /\breflectionProxied\b/)
   // The front surface is traced, reused and accumulated as the opaque one, a pixel a thread of a listed
   // tile, by the same kernels on its own layer (the pipeline's, `createTraceStages`), and its last pass
   // writes its radiance where the forward fragments read it.

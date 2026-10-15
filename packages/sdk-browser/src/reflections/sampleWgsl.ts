@@ -1,4 +1,4 @@
-import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_U32, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { additive2d, mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { highHalf, lowHalf } from '../../../math/src/wgsl/integer.ts'
@@ -9,28 +9,9 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 
-/** One lobe of normal `N`, width `alpha` across and `lobe.w` along `lobe.xyz`, read along its centre,
- *  the mirror direction about `N` (`reflectedRadianceAlong`, which the program holds). */
-const reflectionCentreRadiance = wgslFn(
-  'reflectionCentreRadiance',
-  [],
-  `fn reflectionCentreRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f)->vec3f{
- return reflectedRadianceAlong(P,N,V,reflect(-V,N),alpha,lobe,min(alpha,lobe.w));
-}`,
-)
-
-/** Every lobe read along its centre (`reflectionLobeRadiance`): every program but the reflections'
- *  trace, `u` unread. */
-export const REFLECTION_CENTRE_WGSL = wgslBlock(
-  'REFLECTION_CENTRE_WGSL',
-  [reflectionCentreRadiance],
-  `fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- return reflectionCentreRadiance(P,N,V,alpha,lobe);
-}`,
-)
-
 /**
- * EVERY LOBE, SAMPLED (`reflectionLobeRadiance`, the reflections' trace's): every lobe, whatever its
+ * EVERY LOBE, SAMPLED (`reflectionLobeRadiance`, every program's — the trace's kernels and the forward
+ * fragments, `u` turning per pixel and per image in both, `reflectionSampleAt`): every lobe, whatever its
  * roughness, casts its ray in a direction drawn from its own GGX distribution, a new one every image,
  * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average
  * the whole lobe, its long tail included. A mirror is the limit: its widths at the smoothest lobe the

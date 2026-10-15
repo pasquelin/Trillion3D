@@ -3,7 +3,6 @@ import {
   computeStorageTextureEntry,
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
-import { sceneLayoutEntries, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { atlasEntry } from '../bounce/atlas.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
@@ -26,8 +25,8 @@ export const REFLECTION_LAYER_WGSL = wgslBlock(
  * their numbers here. A group serves one surface — the opaque one or the transparents' front one
  * (`frontLayer.ts`) — and one parity of the history's turn about (`traceGroups.ts`): its flags, normals
  * and lobes (its depth is the reflection group's), what a ray reads of the scene — the lights, the light
- * grid's world lists, the bounce cascades and their probes, the proxy's buffer, the culling's worlds and
- * its placement tree —, which the trace reads, the grids each kernel reads or writes (`grids.ts`), and the
+ * grid's world lists, the bounce cascades and their probes; the proxy is the reflection group's —, which
+ * the trace reads, the grids each kernel reads or writes (`grids.ts`), and the
  * tiles the classification listed (`tiles.ts`), which every kernel runs over. The opaque last pass
  * writes the reflection target the resolve reads, the front one the radiance the forward fragments read.
  */
@@ -39,9 +38,6 @@ export const REFLECTION_TRACE_BINDINGS = {
   lightLists: 4,
   bounceGrid: 5,
   probes: 6,
-  proxy: 7,
-  proxyWorlds: 8,
-  proxyTree: 9,
   traceOut: 10,
   raysOut: 11,
   spatialIn: 12,
@@ -59,14 +55,6 @@ export const REFLECTION_TRACE_BINDINGS = {
 
 const B = REFLECTION_TRACE_BINDINGS
 
-/** The proxy's bindings in the trace's group 0, the table's. */
-export const TRACE_SCENE_BINDINGS: SceneBindings = {
-  group: 0,
-  proxy: B.proxy,
-  worlds: B.proxyWorlds,
-  tree: B.proxyTree,
-}
-
 /** The surface every kernel reads — its normals and lobes — and the tiles it runs over. */
 const surface = () => [
   computeTextureEntry(B.normals, 'unfilterable-float'),
@@ -77,14 +65,13 @@ const surface = () => [
 /** The surface's flags, which every kernel but the spatial reuse reads (`surfaceFlagsAt`, its lobes). */
 const flags = () => computeTextureEntry(B.flags, 'uint')
 
-/** What a ray reads of the scene — the lights, the light grid's lists, the bounce cascades and their
- *  probes, the proxy and the culling's worlds and tree. */
+/** What a ray reads of the scene here — the lights, the light grid's lists, the bounce cascades and
+ *  their probes; the proxy is the reflection group's (`REFLECTION_SCENE_BINDINGS`). */
 const scene = () => [
   computeBufferEntry(B.lights, 'read-only-storage'),
   computeBufferEntry(B.lightLists, 'read-only-storage'),
   computeBufferEntry(B.bounceGrid, 'uniform'),
   atlasEntry(B.probes),
-  ...sceneLayoutEntries(TRACE_SCENE_BINDINGS),
 ]
 
 /** The layouts of each kernel's group 0: the trace, the spatial reuse, the temporal accumulation, and

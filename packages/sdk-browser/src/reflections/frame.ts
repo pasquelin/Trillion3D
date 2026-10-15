@@ -5,7 +5,8 @@ import {
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { frontStamp } from './frontLayer.ts'
-import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
+import type { ScreenReflection } from './gpu.ts'
+import { reflectionGroup, reflectionLightView, reflectionProxy } from './group.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
 import { encodeReflectionTrace } from './traceEncode.ts'
 import {
@@ -106,13 +107,7 @@ export function encodeReflections(
     inputs.lightLists = lights.tiles?.buffer ?? deferred.placeholders.tiles
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
-    // What a ray can meet of the scene, its blended copies taken before the cut (`dispatchCut`),
-    // else the empty stand-in.
-    const proxy = rt.run.gpuSelection?.proxy()
-    inputs.proxy = proxy?.buffer ?? deferred.placeholders.runtime
-    inputs.proxyWorlds = proxy?.worlds ?? deferred.placeholders.runtimeWorlds
-    inputs.proxyTree = proxy?.tree ?? deferred.placeholders.runtimeTree
-    const group = reflectionGroup(reflection, depth, lightView)
+    const group = reflectionGroup(reflection, depth, lightView, reflectionProxy(rt)!)
     encodeReflectionTrace(
       open.pass,
       reflection,

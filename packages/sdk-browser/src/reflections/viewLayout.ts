@@ -1,3 +1,4 @@
+import type { SceneBindings } from '../bounce/sceneBindings.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { hizDepthWgsl } from '../gpu/hiz/pyramidTexture.ts'
@@ -69,6 +70,15 @@ export const REFLECTION_IMAGE_BINDING = 9
 
 /** The binding of the transparents' front depth in the reflection group (`frontLayer.ts`). */
 export const REFLECTION_FRONT_BINDING = 10
+
+/** The proxy's three bindings in the reflection group (`proxy.ts`): every program that reads the
+ *  reflection chain walks the same proxy, the trace's kernels and the forward fragments alike. */
+export const REFLECTION_SCENE_BINDINGS: SceneBindings = {
+  group: REFLECTION_GROUP,
+  proxy: 11,
+  worlds: 12,
+  tree: 13,
+}
 
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the

@@ -2,7 +2,7 @@ import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
-import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
+import { runtimeProbeRayWgsl } from './probeRayWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -142,7 +142,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`,
   [
-    runtimeRadianceWgsl(PROBE_PROXY),
+    runtimeProbeRayWgsl(PROBE_PROXY),
     DIRECT_LIGHT_WGSL,
     bounceBindingsWgsl(0, PROBE_BINDINGS.grid, PROBE_BINDINGS.snapshot),
     BOUNCE_GRID_WGSL,

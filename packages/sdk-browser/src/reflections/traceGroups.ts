@@ -1,13 +1,12 @@
 import { namedEntries } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
-import { sceneBindEntries } from '../bounce/sceneBindings.ts'
 import type { FrontLayer } from './frontLayer.ts'
 import type { ReflectionGrids } from './grids.ts'
 import { CLASSIFY_BINDINGS } from './tiles.ts'
-import { REFLECTION_TRACE_BINDINGS, TRACE_SCENE_BINDINGS, traceLayouts } from './traceBindings.ts'
+import { REFLECTION_TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
 
-/** What the trace reads of the frame: its surface targets, the lights, the bounce cascades and the
- *  resident proxy. */
+/** What the trace reads of the frame: its surface targets, the lights and the bounce cascades; the
+ *  proxy is the reflection group's (`group.ts`). */
 export type TraceInputs = {
   base: GPUTextureView
   flags: GPUTextureView
@@ -18,13 +17,6 @@ export type TraceInputs = {
   lightLists: GPUBuffer
   bounceGrid: GPUBuffer
   probes: GPUTextureView
-  /** The proxy's buffers, or the empty one in each place (`gpu/dag/proxyInstances.ts`). */
-  proxy: GPUBuffer
-  /** The culling's records, the worlds the proxy places its meshes by and its instances
-   *  (`gpu/dag/worldTable.ts`), or the stand-in. */
-  proxyWorlds: GPUTextureView
-  /** The culling's placement tree the proxy's rays walk (`gpu/dag/treeTable.ts`), or the stand-in. */
-  proxyTree: GPUTextureView
 }
 
 /** The kernels a surface runs over its listed tiles, in their order (`trace.ts`). */
@@ -67,7 +59,6 @@ function surfaceGroups(
   device: GPUDevice,
   layouts: TraceLayouts,
   scene: Named,
-  proxy: GPUBindGroupEntry[],
   sampled: GPUBindingResource,
   surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
   grids: ReflectionGrids,
@@ -75,13 +66,10 @@ function surfaceGroups(
 ): SurfaceGroups {
   const { flags, normals, lobes } = surface
   const tiles = { buffer: grids.tiles }
-  const group = (layout: GPUBindGroupLayout, named: Named, more: GPUBindGroupEntry[] = []) =>
+  const group = (layout: GPUBindGroupLayout, named: Named) =>
     device.createBindGroup({
       layout,
-      entries: [
-        ...namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, tiles, ...named }),
-        ...more,
-      ],
+      entries: namedEntries(REFLECTION_TRACE_BINDINGS, { normals, lobes, tiles, ...named }),
     })
   const parities = (make: (p: number) => GPUBindGroup) => [make(0), make(1)]
   return {
@@ -102,11 +90,7 @@ function surfaceGroups(
       }),
     ),
     trace: parities((p) =>
-      group(
-        layouts.trace,
-        { ...scene, flags, traceOut: grids.turn[p], raysOut: grids.rays },
-        proxy,
-      ),
+      group(layouts.trace, { ...scene, flags, traceOut: grids.turn[p], raysOut: grids.rays }),
     ),
     spatial: parities((p) =>
       group(layouts.spatial, {
@@ -143,7 +127,7 @@ export function traceGroups(
   next.push(stages, targetView, grids, front.grids, front.views.flags, front.views.normals)
   next.push(front.views.lobes, front.views.traced, inputs.base, inputs.flags, inputs.normals)
   next.push(inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid, inputs.probes)
-  next.push(inputs.proxy, inputs.proxyWorlds, inputs.proxyTree, settle.sampled)
+  next.push(settle.sampled)
   if (!trace.identity.moved() && trace.groups) return trace.groups
   // What a ray reads of the scene, the trace's.
   const scene: Named = {
@@ -152,18 +136,13 @@ export function traceGroups(
     bounceGrid: { buffer: inputs.bounceGrid },
     probes: inputs.probes,
   }
-  const proxy = sceneBindEntries(TRACE_SCENE_BINDINGS, {
-    buffer: inputs.proxy,
-    worlds: inputs.proxyWorlds,
-    tree: inputs.proxyTree,
-  })
   const sampled = { buffer: settle.sampled }
   return (trace.groups = {
-    opaque: surfaceGroups(device, layouts, scene, proxy, sampled, inputs, grids, {
+    opaque: surfaceGroups(device, layouts, scene, sampled, inputs, grids, {
       layout: layouts.bilateral,
       out: { lights: { buffer: inputs.lights }, base: inputs.base, target: targetView },
     }),
-    front: surfaceGroups(device, layouts, scene, proxy, sampled, front.views, front.grids, {
+    front: surfaceGroups(device, layouts, scene, sampled, front.views, front.grids, {
       layout: layouts.bilateralFront,
       out: { frontTarget: front.views.traced },
     }),

@@ -1,4 +1,4 @@
-import { bindForwardReflection } from '../../reflections/gpu.ts'
+import { bindForwardReflection } from '../../reflections/group.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
 import { createBlendOverdraw } from './overdraw.ts'

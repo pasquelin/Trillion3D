@@ -10,9 +10,9 @@ import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedCo
 import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
 import {
   createScreenReflection,
-  reflectionGroup,
   reflectionsSettled,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
+import { reflectionGroup } from '../../../packages/sdk-browser/src/reflections/group.ts'
 import { createReflectionPipelines } from '../../../packages/sdk-browser/src/reflections/reflectionPipelines.ts'
 import { adoptRadianceImage } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
 import {
@@ -123,9 +123,10 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     lights,
     bounceGrid: standIns.bounceGrid,
     probes: standIns.probes,
-    ...rigProxy(device, standIns, frame.proxy?.faces),
     lightLists: standIns.tiles,
   }
+  const { proxy, proxyWorlds, proxyTree } = rigProxy(device, standIns, frame.proxy?.faces)
+  const scene = { buffer: proxy, worlds: proxyWorlds, tree: proxyTree }
   return {
     reflection,
     /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the pyramid of
@@ -138,7 +139,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       // the finished depth's farthest.
       hiz.encodePyramid({ pass })
       hiz.encodeNearest({ pass })
-      const group = reflectionGroup(reflection, depth, over.lightView)
+      const group = reflectionGroup(reflection, depth, over.lightView, scene)
       encodeReflectionTrace(pass, reflection, pipelines, inputs, group, frame.size, !!told.front)
       pass.end()
       if (radiance) {

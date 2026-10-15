@@ -10,9 +10,8 @@
  *   L = Cs·Ls + (1 − Cs)·(Cp·Lp + (1 − Cp)·(Cf·Lf + (1 − Cf)·Le))
  *
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
- * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees — in the
- *   trace alone, one ray a lobe of a reflecting pixel: a program without the proxy (`scene`
- *   absent, a transparent fragment behind the front surface) has no such stage, and its share goes on;
+ * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees, one ray a
+ *   lobe the screen left, in every program — the reflection group binds it (`REFLECTION_SCENE_BINDINGS`);
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
  *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
  *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes;
@@ -43,7 +42,6 @@ import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionRayWgsl } from './ray.ts'
 import { reflectionProxyWgsl } from './proxy.ts'
-import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
@@ -114,19 +112,17 @@ const reflectionSeenWgsl = (group: number) =>
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
  * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`); and in
  * `reflectionDirection` the direction it traced, which the reuse weighs the ray by.
- * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
  * `width` is the α of the lobe the ray stands for — its own, or the whole lobe a thin sample of it is
  * drawn from (`sampleWgsl.ts`) —: how far the proxy's ray goes before the field holds that lobe
- * (`reflectionProxyReach`). With `scene`, the proxy's bindings, the chain holds the proxy's stage;
- * without, it has none. The `// @cut` lines are the bench's cut points (`bench/dawn/shaderCuts.ts`):
+ * (`reflectionProxyReach`). The `// @cut` lines are the bench's cut points (`bench/dawn/shaderCuts.ts`):
  * comments, nothing the engine runs.
  */
-export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
+export const reflectedRadianceWgsl = (group: number) =>
   wgslBlock(
-    `reflectedRadianceWgsl(${group}, ${scene ? sceneKey(scene) : 'none'})`,
+    `reflectedRadianceWgsl(${group})`,
     [
       reflectionSeenWgsl(group),
-      ...(scene ? [reflectionProxyWgsl(group, scene)] : []),
+      reflectionProxyWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_ENVIRONMENT_WGSL,
       REFLECTION_PROBES_WGSL,
@@ -154,27 +150,20 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,w
  reflectionHit=REFLECTION_FAR;
  reflectionDirection=R;
  let pixel=reflectionPixelAt(P);
-${scene ? ' var bound=REFLECTION_FAR;\n' : ''} if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
+ var bound=REFLECTION_FAR;
+ if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
   var onScreen=reflectionSeen(P,N,ellipse,pixel,2.0*reflectionConeTangent(width));
-${
-  scene
-    ? `  // The proxy walks no further than the surface the screen met.
+  // The proxy walks no further than the surface the screen met.
   if(onScreen.confidence>0.0){bound=onScreen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+R*onScreen.distance);}
-`
-    : ''
-}  // Taken whole or not at all, as often as it is sure: the next stages answer a miss alone, never the
+  // Taken whole or not at all, as often as it is sure: the next stages answer a miss alone, never the
   // sliver a sure hit leaves.
   onScreen.confidence=select(0.0,1.0,reflectionDither(P,R)<onScreen.confidence);
   reflectionTake(onScreen,&radiance,&rest);
  }
  // @cut screen -> radiance+vec3f(rest) keep: ;
-${
-  scene
-    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width,bound),&radiance,&rest);}
+ if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width,bound),&radiance,&rest);}
  // @cut proxy -> radiance+vec3f(rest) keep: ;
-`
-    : ''
-} if(rest>REFLECTION_EPSILON){
+ if(rest>REFLECTION_EPSILON){
   let around=reflectionEnvironment();
   let gathered=reflectionProbesGathered(P,N,ellipse);
   let confidence=min(gathered.w,1.0);

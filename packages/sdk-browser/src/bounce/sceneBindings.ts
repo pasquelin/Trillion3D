@@ -1,4 +1,4 @@
-import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 
 /** The bindings of the proxy in a program that casts its rays, in one group: its own buffer
@@ -16,12 +16,15 @@ export type SceneBindings = {
 export const sceneKey = ({ group, proxy, worlds, tree }: SceneBindings) =>
   `${group}, ${proxy}, ${worlds}, ${tree}`
 
-/** The layout entries of the proxy's three bindings in `scene`: its buffer, read-only, and the
- *  culling's worlds and tree, read by `textureLoad`. */
-export const sceneLayoutEntries = ({ proxy, worlds, tree }: SceneBindings) => [
-  computeBufferEntry(proxy, 'read-only-storage'),
-  computeTextureEntry(worlds, 'uint', '2d-array'),
-  computeTextureEntry(tree, 'uint', '2d-array'),
+/** The layout entries of the proxy's three bindings in `scene`, seen by `visibility` (the compute
+ *  stage by default): its buffer, read-only, and the culling's worlds and tree, read by `textureLoad`. */
+export const sceneLayoutEntries = (
+  { proxy, worlds, tree }: SceneBindings,
+  visibility: number = COMPUTE,
+) => [
+  computeBufferEntry(proxy, 'read-only-storage', visibility),
+  computeTextureEntry(worlds, 'uint', '2d-array', visibility),
+  computeTextureEntry(tree, 'uint', '2d-array', visibility),
 ]
 
 /** The bind-group entries of `resources` at the proxy's three bindings in `scene`. */

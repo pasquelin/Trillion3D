@@ -1,7 +1,5 @@
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
-import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
-import { hizDepthBindEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
@@ -14,18 +12,8 @@ import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import { REFLECTION_PASS, REFLECTION_TRACE_PASS } from '../stage/passLabels.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 import { viewProj } from '../webgpu/pages/helpers.ts'
-import {
-  REFLECTION_DEPTH_BINDING,
-  REFLECTION_FRONT_BINDING,
-  REFLECTION_GROUP,
-  REFLECTION_IMAGE_BINDING,
-  REFLECTION_LIGHT_VIEW_BINDING,
-  REFLECTION_SAMPLER_BINDING,
-  REFLECTION_VIEW_BINDING,
-  REFLECTION_VIEW_BYTES,
-} from './viewLayout.ts'
+import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
-import { reflectionLayout } from './reflectionPipelines.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
@@ -116,61 +104,6 @@ export function createScreenReflection(
   }
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
-
-/** The reflection group of `reflection` over the depth pyramid `depth` (`GpuHiz.depth`), the lit
- *  image its pyramid holds now, its front layer's depth and the lighting's view `lightView`, made again when one of them is
- *  not the one it was made over: the two HDR targets taking turns find a group each. */
-export function reflectionGroup(
-  reflection: ScreenReflection,
-  depth: HizDepth,
-  lightView: GPUBuffer,
-) {
-  const image = reflection.radiance.image.texture,
-    { identity, slots } = reflection.group
-  identity.next[0] = depth
-  identity.next[1] = image
-  identity.next[2] = lightView
-  identity.next.length = 3
-  const moved = identity.moved()
-  const kept = slots[identity.slot]
-  if (kept && !moved) return kept
-  const { device } = reflection
-  return (slots[identity.slot] = device.createBindGroup({
-    label: 'Trillion3D reflection',
-    layout: reflectionLayout(device),
-    entries: [
-      { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
-      { binding: REFLECTION_SAMPLER_BINDING, resource: reflection.radiance.sampler },
-      ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
-      { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
-      // Every level of the pyramid: the lit image and its mips (`hdrTargetDescriptor`).
-      { binding: REFLECTION_IMAGE_BINDING, resource: image.createView() },
-      // The transparents' front depth, the front pass's depth itself (`frontLayer.ts`).
-      { binding: REFLECTION_FRONT_BINDING, resource: reflection.front.views.depth },
-    ],
-  }))
-}
-
-/** What a frame holds that the reflection reads (`reflectionLightView`). */
-type ReflectionHost = {
-  gpu: {
-    reflection?: ScreenReflection
-    deferred?: { uniform: GPUBuffer }
-  }
-  vis: { gpuHiz?: GpuHiz }
-}
-
-/** The reflection group's other resource: the lighting's view. Undefined while the lighting is not made. */
-export const reflectionLightView = ({ gpu }: ReflectionHost) => gpu.deferred?.uniform
-
-/** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection
- *  over its depth pyramid, both made with the frame's targets and the visibility programs. */
-export function bindForwardReflection(pass: GPURenderPassEncoder, rt: ReflectionHost) {
-  const depth = rt.vis.gpuHiz?.depth(),
-    lightView = reflectionLightView(rt)
-  if (rt.gpu.reflection && depth && lightView)
-    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, lightView))
-}
 
 /** The image the reflections last reflected shows a scene that is no more: content joined it. The
  *  next image traces nothing and builds the radiance from its own lit image, as a scene opened with

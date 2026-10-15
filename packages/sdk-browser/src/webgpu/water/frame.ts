@@ -1,4 +1,4 @@
-import { bindForwardReflection } from '../../reflections/gpu.ts'
+import { bindForwardReflection } from '../../reflections/group.ts'
 import { createWaterCopy } from './copy.ts'
 import { createWaterDepthRestore } from './depthRestore.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'

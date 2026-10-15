@@ -10,7 +10,6 @@ import {
   REFLECTION_LAYER_WGSL,
   REFLECTION_TILES_WGSL,
   REFLECTION_TRACE_BINDINGS as B,
-  TRACE_SCENE_BINDINGS,
 } from './traceBindings.ts'
 import { REFLECTION_GRID_FORMAT, REFLECTION_RAY_FORMAT } from './grids.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
@@ -109,7 +108,7 @@ fn traceSurface(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) 
     bounceBindingsWgsl(0, B.bounceGrid, B.probes),
     BOUNCE_GRID_WGSL,
     reflectionLightViewWgsl(REFLECTION_GROUP),
-    reflectionShareWgsl(REFLECTION_GROUP, true, TRACE_SCENE_BINDINGS),
+    reflectionShareWgsl(REFLECTION_GROUP, true),
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TILES_WGSL,
     REFLECTION_TEXEL_WGSL,

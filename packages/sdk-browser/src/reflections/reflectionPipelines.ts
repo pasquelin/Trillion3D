@@ -13,6 +13,7 @@ import {
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance.ts'
+import { sceneLayoutEntries } from '../bounce/sceneBindings.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { REFLECTION_TRACE_SHADER } from './trace.ts'
 import { REFLECTION_CLASSIFY_SHADER } from './tiles.ts'
@@ -23,6 +24,7 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
+  REFLECTION_SCENE_BINDINGS,
   REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
@@ -30,7 +32,7 @@ import {
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and
  *  the radiance pyramid, every level of it in one texture — the lit image itself at its level 0
- *  (`hdrTargetDescriptor`) —, read by compute and fragment stages. */
+ *  (`hdrTargetDescriptor`) —, the front depth and the proxy, read by compute and fragment stages. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -46,6 +48,8 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
       // The transparents' front depth, a depth texture read as the float it holds.
       computeTextureEntry(REFLECTION_FRONT_BINDING, 'unfilterable-float', '2d', visibility),
+      // The proxy every program that reads the chain walks (`proxy.ts`).
+      ...sceneLayoutEntries(REFLECTION_SCENE_BINDINGS, visibility),
     ],
   })
 })
