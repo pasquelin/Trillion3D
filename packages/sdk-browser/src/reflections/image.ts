@@ -37,16 +37,19 @@ export function stageReflectionImage(
   reflection.lightsSeen = lights
   const { REFLECTION_STILL, REFLECTION_SEQUENCE } = REFLECTION_COUNTS
   frame.moving = reflection.settle.moving
-  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_STILL)
+  frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_STILL + 1)
   if (frame.quiet === 0) reflection.turn = (reflection.turn + 1) % REFLECTION_SEQUENCE
   frame.turn = frame.quiet || reflection.turn
   reflection.writeView(frame, held, levels)
 }
 
 /** The radiance pyramid of the image's lit colour (`encodeRadiancePyramid`) of the staged `frame` —
- *  its size, its view-projection, whether it is still —, in a compute pass of its own in `encoder`, hashed where the image is still and
- *  the view not yet settled — a settled view samples no hash —, then counted by the settle
- *  (`RadianceSettle.image`). */
+ *  its size, its view-projection, whether it is still —, in a compute pass of its own in `encoder`,
+ *  hashed where the image is still and the view not yet settled — a settled view samples no hash —,
+ *  then counted by the settle (`RadianceSettle.image`). A frozen view (`RadianceSettle.frozen`) builds
+ *  none: its reflections keep reading the lit image they froze on, so the images after it are drawn
+ *  from inputs that no longer move — its history, its pyramid, its view — and repeat, bit for bit,
+ *  whatever share of the lit image their own reflections are. */
 export function encodeImageRadiance(
   encoder: GPUCommandEncoder,
   reflection: ScreenReflection,
@@ -54,6 +57,7 @@ export function encodeImageRadiance(
   inputs: RadianceInputs,
   frame: ReflectionFrame,
 ) {
+  if (reflection.settle.frozen) return reflection.settle.image(encoder, false)
   const pass = encoder.beginComputePass({ label: REFLECTION_RADIANCE_PASS })
   encodeRadiancePyramid(
     pass,

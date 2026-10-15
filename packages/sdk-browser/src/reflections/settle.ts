@@ -60,8 +60,9 @@ const sampleTag = (image: number, hashed: boolean) => 2 * image + (hashed ? 1 : 
  * some images later, and until then the view is unsettled. Only an image drawn from where the one
  * before it was is hashed (`radiance.ts`): a moving one is never the one a still view settles on.
  * The reflections' history (`temporalWgsl.ts`) freezes once the view has been quiet (`quiet`) for
- * `REFLECTION_STILL` images: from the image after (`frozen`) a still view reflects the same bits every
- * image, and the lit image is all that is waited for. An image whose trace sampled no lobe
+ * `REFLECTION_STILL` images: from the image after (`frozen`) its radiance pyramid is no longer built,
+ * so a still view reflects the same bits every image — never waiting on a lit image its own
+ * reflections keep feeding, which a hash may never see repeat. An image whose trace sampled no lobe
  * (`sampled`, the trace's word, cleared at each image's staging and copied with the hash) has no
  * history to wait for: its mirrors are traced whole by their pixels, the same bits from the same lit
  * image, and the lit image alone decides (`final`).
@@ -134,8 +135,9 @@ export function createRadianceSettle(device: GPUDevice) {
     get quiet() {
       return Math.max(0, images + 1 - busy)
     },
-    /** Whether the last image drawn was the still view's `REFLECTION_STILL`th quiet one or a later
-     *  one: its history is complete, and every image after copies it — the reflections are frozen. */
+    /** Whether the image being drawn comes after the still view's `REFLECTION_STILL`th quiet one: its
+     *  history is complete and copied, its radiance pyramid not built again — the reflections are
+     *  frozen, on inputs that no longer move. */
     get frozen() {
       return this.quiet > REFLECTION_COUNTS.REFLECTION_STILL
     },
@@ -143,10 +145,11 @@ export function createRadianceSettle(device: GPUDevice) {
     get verified() {
       return equal > busy
     },
-    /** Whether a still view's reflections are final: its history frozen and its lit image verified,
-     *  or a verified image whose trace sampled no lobe — nothing accumulates. */
+    /** Whether a still view's reflections are final: an image was drawn frozen — its history, its
+     *  pyramid and its view fixed, the next draws the same bits, whatever share of the lit image its
+     *  own reflections are —, or a verified image whose trace sampled no lobe: nothing accumulates. */
     get final() {
-      return this.frozen ? this.verified : bare > busy
+      return this.quiet > REFLECTION_COUNTS.REFLECTION_STILL + 1 || bare > busy
     },
     /** The image is submitted: its copies are mapped. */
     submitted: samples.submitted,

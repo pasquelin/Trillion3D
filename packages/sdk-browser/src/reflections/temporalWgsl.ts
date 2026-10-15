@@ -31,11 +31,11 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * - BLEND: the running mean of `count` images, `REFLECTION_HISTORY` at most, then an exponential mean of
  *   that window while anything changes. A still view's quiet images restart it, each at the turn of its
  *   rank (`stageReflectionImage`), and let it grow to `REFLECTION_STILL`: once the view has been quiet
- *   for that many images, a texel whose history is full holds the mean of those images' samples alone,
- *   and is copied as it is: a still view's reflections freeze, the same bits image after image, the same
- *   whatever was drawn before them, and the view settles (`settle.ts`). The reprojection aims at the
- *   texel's centre (the traced pixel's point moved by the pixels between them), so a still view reads
- *   its own texel.
+ *   for that many images, every texel holds the mean of those images' samples alone, and is copied as
+ *   it is from the next on (`ReflectionView.temporal.y` past `REFLECTION_STILL`): a still view's
+ *   reflections freeze, the same bits image after image, the same whatever was drawn before them, and
+ *   the view settles (`settle.ts`). The reprojection aims at the texel's centre (the traced pixel's
+ *   point moved by the pixels between them), so a still view reads its own texel.
  */
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   'REFLECTION_TEMPORAL_WGSL',
@@ -85,10 +85,7 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let fresh=textureLoad(temporalIn,at,0);
  if(!freshValid(fresh)){return vec4u(0u);}
  let quiet=reflectionView.temporal.y;
- if(quiet>=REFLECTION_STILL){
-  let kept=textureLoad(historyIn,at,0);
-  if(historyCount(kept)>=REFLECTION_STILL){return kept;}
- }
+ if(quiet>REFLECTION_STILL){return textureLoad(historyIn,at,0);}
  let coord=halfPixel(at,freshPick(fresh));
  let own=reflectingPixelAt(layer,coord,0u);
  let P=own.P;let N=own.N;let V=own.V;
