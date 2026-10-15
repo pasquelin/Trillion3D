@@ -18,7 +18,8 @@ import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import type { WorldRootsHold } from '../../scene/worldRoots.ts'
-import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
+import { graphSubtree, modelNode } from './modelNodes.ts'
+import { findNode } from '../../host/world/nameIndex.ts'
 
 /** A model's scene as its record shows it: the graph its loader built, without the world roots it
  *  opened, which the model keeps to itself for its world's sessions. */
@@ -63,7 +64,6 @@ export class LoadedModel extends Object3D {
   get lights(): Light[] {
     return this.children.filter((child) => (child as Light).isLight === true) as Light[]
   }
-
   /** The clips its source file plays, each track naming a node of the model: played by a mixer
    *  on the model (`animation.createMixer(model).clipAction(model.animations[0]).play()`). */
   get animations(): Clip[] {
@@ -106,7 +106,7 @@ export class LoadedModel extends Object3D {
    *  child — a light the file carried, a node a page placed. */
   override getObjectByName(name: string): Object3D | undefined {
     if (this.name === name) return this
-    const graph = findGraphNode(this.record.scene.source, name)
+    const graph = findNode(this.record.scene.source, name)
     return graph ? this.nodeOf(graph) : super.getObjectByName(name)
   }
   /** The scene node of source node `index` (`nodeOf`), the nodes below it and its radius
