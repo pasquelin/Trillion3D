@@ -38,8 +38,8 @@ export const PARTITION_UNI_WGSL = wgslBlock('PARTITION_UNI_WGSL', [], PARTITION_
  *  2. a box that touches or crosses the near plane — or whose denominator is not surely positive —
  *     carries the clip flag, and a box that carries it is never rejected;
  *  3. nearest depth RISES by each corner's slack, then by two integer ulps before the layer bias:
- *     engine depth being reversed, it is RAISING it that makes rejection safe, exactly as
- *     `hizNearestBound` guarantees in double precision.
+ *     engine depth being reversed, it is RAISING it that makes rejection safe (the double-
+ *     precision oracle of this bound lives with the tests, `hiz/nearestBound.fixture.ts`).
  */
 export const BOX_PROJECT_WGSL = wgslBlock(
   'BOX_PROJECT_WGSL',

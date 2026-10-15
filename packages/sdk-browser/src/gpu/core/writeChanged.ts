@@ -87,7 +87,7 @@ export function writeChanged(
 }
 
 /** How the changed words of uniform slots go up: in the coalescer's ranges, or as `ONE_WRITE`. */
-export type SlotWrites = 'ranges' | 'one'
+type SlotWrites = 'ranges' | 'one'
 
 /** Every changed word in one write, from the first to the last: the words between hold their
  *  value, so the buffer is the same; for slots a whole write once sent, never more writes. */

@@ -2,14 +2,14 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
-import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
+import { computeBufferEntry, computeTextureEntry, COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
 /** The passes' pipelines and layouts, for what the session caches; none on a device that refuses
  *  them. */
 export async function cachePasses(device: GPUDevice) {
-  const compute = GPUShaderStage.COMPUTE
+  const compute = COMPUTE
   const span = groupWidth(device.limits)
   return validated(device, async () => {
     const [rowsModule, trisModule] = await Promise.all([

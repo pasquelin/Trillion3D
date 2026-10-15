@@ -1,5 +1,5 @@
 /** An upload image's words from an offset to its end, read three ways. */
-export type WordViews = {
+type WordViews = {
   u: Uint32Array<ArrayBuffer>
   i: Int32Array<ArrayBuffer>
   f: Float32Array<ArrayBuffer>

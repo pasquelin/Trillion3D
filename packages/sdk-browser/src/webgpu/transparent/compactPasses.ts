@@ -4,7 +4,7 @@ import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
-import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 import { UNIFORM_WORDS, type CompactBuffers } from './compactBuffers.ts'
@@ -15,7 +15,7 @@ function compactLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     entries: [0, 1, 2, 3, 4, 5, 6, 7, 8].map((binding) => ({
       binding,
-      visibility: GPUShaderStage.COMPUTE,
+      visibility: COMPUTE,
       buffer:
         binding === 1
           ? { type: 'uniform' as const }

@@ -13,6 +13,7 @@ import {
   sequentialEntries,
   computeBufferEntry,
   computeTextureEntry,
+  COMPUTE,
 } from '../../gpu/core/computeBindings.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 
@@ -34,7 +35,7 @@ export function materialTileDrawLayout(device: GPUDevice) {
  *  a device that refuses them (`validated`). A shader that does not compile is
  *  a defect, thrown by name. */
 async function classifier(device: GPUDevice) {
-  const compute = GPUShaderStage.COMPUTE
+  const compute = COMPUTE
   return validated(device, async () => {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES')
     const layout = device.createBindGroupLayout({

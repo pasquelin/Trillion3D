@@ -51,8 +51,8 @@ export const SCREEN_SLACK_K = 4 * U
  * Engine depth is reverse-Z: a box is rejected only if its nearest bound is SMALLER than the
  * occluder, so a conservative bound is one that OVERSTATES what the cluster will write — the
  * opposite of the sense it had in forward-Z. Two ulps of margin: the first catches round-to-
- * nearest of the transport, the second is the one `hizNearestBound` already applies in double
- * precision. Single-precision multiplication is monotonic, so an input greater than or equal to
+ * nearest of the transport, the second is the one the double-precision oracle applies
+ * (`hiz/nearestBound.fixture.ts`, test code). Single-precision multiplication is monotonic, so an input greater than or equal to
  * the CPU's yields an output greater than or equal to the CPU's.
  */
 export const DEPTH_GROW = (1 + FLOAT32_STEP) * (1 + U)

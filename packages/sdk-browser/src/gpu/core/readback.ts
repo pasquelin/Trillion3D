@@ -1,5 +1,9 @@
 import { captureRead } from './heldReadback.ts'
 import { copyRowBytes } from './copyRowBytes.ts'
+import { texelBytesOf } from './textureBytes.ts'
+
+/** Bytes of a captured texel: an RGBA8 image's, as an `r32float` target's. */
+const CAPTURE_TEXEL_BYTES = texelBytesOf('rgba8unorm')
 
 /**
  * The readbacks the proof tools and an explicit capture do, and that no frame does.
@@ -40,7 +44,7 @@ export async function readGpuTextureR32F(
 }
 
 /** How `readGpuImage` reads: which level of the texture, and in which row order. */
-export interface ReadImageOptions {
+interface ReadImageOptions {
   /** The level copied, whose size `width` × `height` is (default 0). */
   mipLevel?: number
   /** Rows kept as WebGPU writes them, the top first, not flipped to the bottom-left convention. */
@@ -59,8 +63,8 @@ export async function readGpuImage(
   { mipLevel = 0, topDown = false }: ReadImageOptions = {},
 ) {
   signal?.throwIfAborted()
-  const bytesPerRow = copyRowBytes(width),
-    row = width * 4
+  const bytesPerRow = copyRowBytes(width, CAPTURE_TEXEL_BYTES),
+    row = width * CAPTURE_TEXEL_BYTES
   return captureRead(
     device,
     bytesPerRow * height,

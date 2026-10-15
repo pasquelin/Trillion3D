@@ -4,7 +4,7 @@ import { fieldStart, type RecordLayout } from './recordLayout.ts'
 /** How a program binds a record table (`recordTexture.ts`): sampled and read, written alone by a
  *  storage texture, or read and written by one (the WGSL feature
  *  `readonly_and_readwrite_storage_textures`). */
-export type RecordAccess = 'read' | 'write' | 'read_write'
+type RecordAccess = 'read' | 'write' | 'read_write'
 
 /** Where a program binds a record table, under which WGSL name, and how. */
 export type RecordBinding = { name: string; group: number; binding: number; access: RecordAccess }

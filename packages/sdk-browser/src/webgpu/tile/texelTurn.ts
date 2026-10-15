@@ -14,7 +14,7 @@ import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 import { TEXEL_TURN_PASS } from '../../stage/passLabels.ts'
 import { MIB } from '../../../../math/src/constants.ts'
-import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { sequentialEntries, computeBufferEntry, COMPUTE } from '../../gpu/core/computeBindings.ts'
 
 /**
  * RAW TEXELS TURNED ON THE GPU as their host texture asks (#362): rows reversed under `flipY` — the
@@ -34,7 +34,7 @@ const TURN_RING_BYTES = 32 * MIB
 /** The device's one turn program: its layout, and its pipeline compiled off the thread before the
  *  first picture turns (`prepareTexelTurn`), else at once where it is used. */
 const programOf = oncePerDevice((device: GPUDevice) => {
-  const visibility = GPUShaderStage.COMPUTE
+  const visibility = COMPUTE
   const layout = device.createBindGroupLayout({
     label: TEXEL_TURN_PASS,
     entries: [

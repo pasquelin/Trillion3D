@@ -18,7 +18,7 @@ export type TransparentOcclusion = NonNullable<
 
 /** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built and its
  *  levels uniform, the uniform the partition wrote for it, and the compact's verdict buffer. */
-export type TransparentOcclusionSources = {
+type TransparentOcclusionSources = {
   pyramid: () => GPUTextureView | undefined
   levels: GPUBuffer
   uniforms: GPUBuffer
