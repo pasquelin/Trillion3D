@@ -1,17 +1,8 @@
 // Oracle of the partition uniform, rewritten from the contract: a double becomes a high f32
 // plus a remainder f32; an anchored matrix keeps its three columns and sees its translation
-// recomputed at the anchor; missing Hi-Z levels default to offset 0 and width 1. The layout
-// comes from the contract, so the oracle does not drift in silence.
-import {
-  UNIFORM_U32,
-  UNI_ANCHOR,
-  UNI_ANCHOR_LOW,
-  UNI_LEVELS,
-  UNI_SCALARS,
-  UNI_VIEW,
-  UNI_VIEW_PROJ,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
-import { HIZ_MAX_LEVELS } from '../../../packages/sdk-browser/src/gpu/hiz/uniforms.ts'
+// recomputed at the anchor. The layout comes from the contract's one table (`PARTITION_UNI`), so
+// the oracle does not drift in silence; the pyramid's mips are the Hi-Z levels uniform's.
+import { PARTITION_UNI } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 
 export function referenceSplitDouble(out: Float32Array, top: number, bas: number, value: number) {
@@ -32,30 +23,20 @@ function ancree(elements: ArrayLike<number>, anchor: readonly number[]) {
 }
 
 export function referencePartitionUniform(frame: PartitionFrame, rows: number) {
-  const f32 = new Float32Array(UNIFORM_U32),
+  const at = PARTITION_UNI.at
+  const f32 = new Float32Array(PARTITION_UNI.words),
     u32 = new Uint32Array(f32.buffer)
-  f32.set(ancree(frame.view, frame.anchor), UNI_VIEW)
-  f32.set(ancree(frame.viewProj, frame.anchor), UNI_VIEW_PROJ)
+  f32.set(ancree(frame.view, frame.anchor), at.view)
+  f32.set(ancree(frame.viewProj, frame.anchor), at.viewProj)
   for (let i = 0; i < 3; i++)
-    referenceSplitDouble(f32, UNI_ANCHOR + i, UNI_ANCHOR_LOW + i, frame.anchor[i])
-  f32[UNI_ANCHOR + 3] = frame.near
-  f32[UNI_ANCHOR_LOW + 3] = 0
-  u32.set(
-    [
-      rows,
-      frame.width,
-      frame.height,
-      Math.min(frame.levels.length, HIZ_MAX_LEVELS),
-      frame.layerTop,
-      frame.hasRest ? 1 : 0,
-      frame.viewMoved ? 1 : 0,
-    ],
-    UNI_SCALARS,
-  )
-  for (let level = 0; level < HIZ_MAX_LEVELS; level++) {
-    const mip = frame.levels[level]
-    u32[UNI_LEVELS + level] = mip ? mip.offset : 0
-    u32[UNI_LEVELS + HIZ_MAX_LEVELS + level] = mip ? mip.width : 1
-  }
+    referenceSplitDouble(f32, at.anchorHigh + i, at.anchorLow + i, frame.anchor[i])
+  f32[at.near] = frame.near
+  u32[at.rows] = rows
+  u32[at.width] = frame.width
+  u32[at.height] = frame.height
+  u32[at.layerTop] = frame.layerTop
+  u32[at.hasRest] = frame.hasRest ? 1 : 0
+  u32[at.viewMoved] = frame.viewMoved ? 1 : 0
+  u32[at.counting] = frame.counting ? 1 : 0
   return u32
 }

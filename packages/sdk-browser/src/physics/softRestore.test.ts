@@ -32,13 +32,16 @@ async function blown(pressure: number) {
 }
 
 /** The diagonal of the bounds of `vertices`. */
-function diagonal(vertices: Float32Array) {
+function diagonal(vertices: ArrayLike<number>) {
   const [lo, hi] = [
     [Infinity, Infinity, Infinity],
     [-Infinity, -Infinity, -Infinity],
   ]
-  vertices.forEach(
-    (x, i) => ((lo[i % 3] = Math.min(lo[i % 3], x)), (hi[i % 3] = Math.max(hi[i % 3], x))),
+  Array.prototype.forEach.call(
+    vertices,
+    (x: number, i: number) => (
+      (lo[i % 3] = Math.min(lo[i % 3], x)), (hi[i % 3] = Math.max(hi[i % 3], x))
+    ),
   )
   return Math.hypot(...hi.map((h, k) => h - lo[k]))
 }

@@ -7,7 +7,7 @@
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { add, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
-import { rayRectangle, raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
+import { rayRectangle, raySphere } from './rayShapes.ts'
 import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 

@@ -2,7 +2,8 @@
 // turn its quad toward the image, and every raster that draws a sprite reads that one text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SPRITE_WGSL, spriteAt } from './spriteWgsl.ts'
+import { SPRITE_WGSL } from './spriteWgsl.ts'
+import { spriteAt } from './spriteAt.fixture.ts'
 import { runShaderText } from './shaderText.fixture.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'

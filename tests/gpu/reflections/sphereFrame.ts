@@ -8,7 +8,7 @@ import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixt
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { reflect, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
-import { raySphere } from '../../../packages/math/src/geometry/rayShapes.ts'
+import { raySphere } from './rayShapes.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
 
 export const SPHERES = {

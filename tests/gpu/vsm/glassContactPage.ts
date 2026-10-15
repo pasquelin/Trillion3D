@@ -85,9 +85,7 @@ export async function testGlassContact(): Promise<GlassContact> {
   // The pane's depth lies where the engine's lies: level 0's front layer, which the Hi-Z folds in.
   const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT)
   // A scene with transparents asks the front layer (`GpuHiz.front`): an opaque one holds none.
-  const making = device.createCommandEncoder()
-  hiz.front(making, true)
-  device.queue.submit([making.finish()])
+  hiz.front(true)
   const pyramid = hiz.swap(undefined) as Pyramid
   hiz.swap(pyramid)
   const depth = hiz.depth()

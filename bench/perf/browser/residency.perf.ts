@@ -2,7 +2,7 @@
 import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts'
 import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { residentBase, residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -24,7 +24,7 @@ for (let image = 0; image < 8; image++) {
 const conesReference = new Float32Array(PAGES * CONE_FLOATS)
 for (let j = 0; j < PAGES * CONE_FLOATS; j++) conesReference[j] = alea()
 
-const base = residentBase(PAGES),
+const base = 0,
   bits = new Uint32Array(base + residentWords(PAGES)),
   motsTouches = new Int32Array(residentWords(PAGES))
 for (let j = 0; j < PAGES; j++)

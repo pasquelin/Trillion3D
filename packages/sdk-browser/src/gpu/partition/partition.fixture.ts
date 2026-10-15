@@ -14,7 +14,6 @@ export const frame = (rows: number): PartitionFrame => ({
   rows,
   width: 8,
   height: 8,
-  levels: [{ offset: 0, width: 8 }],
   layerTop: 0,
   hasRest: true,
   viewMoved: false,

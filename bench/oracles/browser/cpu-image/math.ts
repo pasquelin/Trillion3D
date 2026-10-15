@@ -1,7 +1,7 @@
 import type { HostAttribute } from '../../../../packages/sdk-browser/src/host/resources.ts'
 import { srgbToLinear } from '../../../../packages/math/src/color/color.ts'
 import type { Texture } from '../../../../packages/sdk-core/src/texture/contract.ts'
-import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/mapTexel.fixture.ts'
 import { signedArea, type Projected } from './projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 

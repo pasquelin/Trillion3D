@@ -68,7 +68,7 @@ export function reflectionRunner(
   const run = shaderRun<{
     reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => Lobe
     reflectionPixelAt: (P: Vec3) => number
-    reflectionSeen: (P: Vec3, N: Vec3, lobe: Lobe, pixel: number) => Seen
+    reflectionSeen: (P: Vec3, N: Vec3, lobe: Lobe, pixel: number, spread: number) => Seen
     reflectionRay: (
       P: Vec3,
       N: Vec3,
@@ -82,6 +82,7 @@ export function reflectionRunner(
       thickness: number,
       slab: number[],
       cap: number,
+      spread: number,
     ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
     screenMarchEnd: (o: number[], d: number[], size: number[]) => number
     screenMarchBudget: (d: number[], end: number, levels: number) => number

@@ -10,7 +10,7 @@ import { HIZ_SLOT_WORDS } from '../../../packages/sdk-browser/src/gpu/hiz/unifor
 import {
   STATE_WORDS,
   ST_TESTED,
-  TESTED_U32,
+  TESTED_BOX,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -48,7 +48,7 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   const pyramid = laidPyramid(device, sample.packed)
   const uniform = buffer(UNIFORM_BYTES, GPUBufferUsage.UNIFORM)
   const bounds = buffer(
-    TABLE_ROWS * TESTED_U32 * 4,
+    TABLE_ROWS * TESTED_BOX.words * 4,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   )
   const pages = buffer(TABLE_ROWS * PAGE_INFO_STRIDE, GPUBufferUsage.STORAGE)
@@ -81,10 +81,10 @@ export async function testTestedArgs(counts: number[]): Promise<TestedArgsRun> {
   }
   const hiz: TestedArgsRun['hiz'] = []
   for (const tested of counts) {
-    const boxes = new ArrayBuffer(TABLE_ROWS * TESTED_U32 * 4),
+    const boxes = new ArrayBuffer(TABLE_ROWS * TESTED_BOX.words * 4),
       words = new Uint32Array(boxes)
     for (let i = 0; i < tested; i++) {
-      const at = i * TESTED_U32
+      const at = i * TESTED_BOX.words
       new Int32Array(boxes).set(sample.rectangle, at)
       new Float32Array(boxes)[at + 4] = BOX_NEAREST
       words[at + 5] = i << 1

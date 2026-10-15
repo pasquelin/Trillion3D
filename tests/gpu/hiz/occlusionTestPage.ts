@@ -1,5 +1,5 @@
 // The engine's Hi-Z test kernel (`testHiz`, `gpu/hiz/testWgsl.ts`) on the machine's device: one
-// dispatch per case, the box laid out as the partition packs it (`Bounds`, `TESTED_U32` words),
+// dispatch per case, the box laid out as the partition packs it (`Bounds`, `TESTED_BOX.words` words),
 // the verdict read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { HIZ_SHADER } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
@@ -11,7 +11,7 @@ import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/t
 import {
   STATE_WORDS,
   ST_TESTED,
-  TESTED_U32,
+  TESTED_BOX,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -43,7 +43,7 @@ export async function testOcclusion(cases: OcclusionCase[]) {
   // A zero block: counters off (`uni.counting`), and nothing else the test reads.
   const uniform = device.createBuffer({ size: UNIFORM_BYTES, usage: GPUBufferUsage.UNIFORM })
   const bounds = device.createBuffer({
-    size: TESTED_U32 * 4,
+    size: TESTED_BOX.words * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   const flags = device.createBuffer({
@@ -62,7 +62,7 @@ export async function testOcclusion(cases: OcclusionCase[]) {
   })
   const verdicts = []
   for (const sample of cases) {
-    const box = new ArrayBuffer(TESTED_U32 * 4),
+    const box = new ArrayBuffer(TESTED_BOX.words * 4),
       words = new Uint32Array(box)
     new Int32Array(box).set(sample.rectangle)
     new Float32Array(box)[NEAREST] = BOX_NEAREST

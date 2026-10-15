@@ -6,20 +6,13 @@ import {
   EVICTION_BURST,
   evictionWord,
   SELECTION_HEADER_WORDS,
-  levelCountsWord,
 } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import {
   sortStaged,
   stagedPage,
-  stagedRank,
   stagedRequest,
 } from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
-import {
-  ADMISSION_BUCKETS,
-  ADMISSION_ERROR_BITS,
-  REQUEST_AHEAD,
-} from '../../../packages/sdk-browser/src/gpu/dag/request.ts'
 import { words } from './fakeBuffers.ts'
 import { DAG_SLOT, boundListCap } from './fakeDag.ts'
 import {
@@ -76,8 +69,4 @@ export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>,
     stagedRequest(ints[at + 2 * s], ints[at + 2 * s + 1]),
   )
   ints.set(sortStaged(staged).map(stagedPage), SELECTION_HEADER_WORDS)
-  // Each admission bucket's count of the camera's requests (`levelCountsWord`).
-  const counts = new Uint32Array(ADMISSION_BUCKETS)
-  for (const word of staged) counts[(stagedRank(word) - REQUEST_AHEAD) >> ADMISSION_ERROR_BITS]++
-  ints.set(counts, levelCountsWord(listCap))
 }

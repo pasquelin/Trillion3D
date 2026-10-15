@@ -63,8 +63,6 @@ const FIELDS = [
   ['cameraStretch', 'f', 1],
   ['listCap', 'u', 1],
   ['perspective', 'f', 1],
-  ['viewCount', 'u', 1],
-  ['viewCapacity', 'u', 1],
   ['queueCap', 'u', 1],
   ['ahead', 'u', 1],
   ['worldRoot', 'u', 1],
@@ -111,8 +109,6 @@ export function referenceViewBlocks(
     cameraStretch: [Math.fround(u.cameraStretch ?? 1)],
     listCap: [listCap],
     perspective: [Math.fround(u.perspective ?? 1)],
-    viewCount: [1],
-    viewCapacity: [1],
     queueCap: [packed.nodeCount],
     // No world DAG packed: its placement names none.
     worldRoot: [0xffffffff],

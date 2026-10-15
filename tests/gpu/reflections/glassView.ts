@@ -3,7 +3,7 @@
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { reflect, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
-import { rayRectangle } from '../../../packages/math/src/geometry/rayShapes.ts'
+import { rayRectangle } from './rayShapes.ts'
 
 export const WIDTH = 256,
   HEIGHT = 192

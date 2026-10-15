@@ -28,10 +28,7 @@ export async function openGpuDevice(
 ) {
   const adapter = await navigator.gpu?.requestAdapter()
   if (!adapter) return null
-  const device = await requestExplorerDevice(
-    adapter,
-    off.length ? `?trillion3dGpuFeaturesOff=${off.join(',')}` : undefined,
-  )
+  const device = await requestExplorerDevice(adapter, off)
   const held = device.limits as unknown as Record<string, number>
   // A `min…` limit is an alignment: the device holds it when its own is no larger.
   const lacking = [

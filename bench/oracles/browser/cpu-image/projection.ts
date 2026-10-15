@@ -8,7 +8,7 @@ import {
 } from '../../../../packages/math/src/vector/vector.ts'
 import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import type { MatrixElements } from '../../../../packages/sdk-browser/src/host/matrixElements.ts'
-import { spriteAt } from '../../../../packages/sdk-browser/src/visibility/shader/spriteWgsl.ts'
+import { spriteAt } from '../../../../packages/sdk-browser/src/visibility/shader/spriteAt.fixture.ts'
 import type { VisMaterial } from '../../../../packages/sdk-browser/src/visibility/materialType.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'

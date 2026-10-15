@@ -8,7 +8,7 @@
 // Written here rather than in a test: `normalTransform.test.ts` (lighting),
 // `packages/sdk-browser/src/gpu/dag/inverseTranspose.test.ts` (selection) and the GPU proof all read
 // the same arithmetic, instead of each holding a copy.
-import { SINGULAR_DETERMINANT } from '../../../packages/math/src/matrix/singular.ts'
+import { DIVISOR_FLOOR } from '../../../packages/math/src/matrix/singular.ts'
 import type { Vec3, Mat3 } from '../kit/vecTypes.ts'
 import { cross, dot } from './f32Vec3.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
@@ -111,7 +111,7 @@ export function inverseTransposeShipped(m: Mat3, v: Vec3): Vec3 {
   const n = m.map((column) => divide(column, t))
   const det = dot(n[0], cross(n[1], n[2]))
   const adjugate = adjugateTimes(n, v)
-  if (!(Math.abs(det) > SINGULAR_DETERMINANT)) return adjugate
+  if (!(Math.abs(det) > DIVISOR_FLOOR)) return adjugate
   return divide(adjugate, Math.fround(det * t))
 }
 

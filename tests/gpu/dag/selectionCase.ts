@@ -28,7 +28,6 @@ import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTabl
 import {
   childBase,
   savedJournalWord,
-  residentBase,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
@@ -75,7 +74,7 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: nu
   const { buffer, byteOffset, length } = packed.pageCones
   const cold = new Uint32Array(buffer, byteOffset, length).slice()
   const sets = [
-    [readiness.isReady, residentBase(packed.pageCount)],
+    [readiness.isReady, 0],
     [readiness.isChildReady, childBase(packed.pageCount)],
   ] as const
   for (const [ready, base] of sets) {

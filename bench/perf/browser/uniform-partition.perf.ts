@@ -1,6 +1,6 @@
 // the partition-pass uniform, packed every frame: the two anchored matrices, the
-// split-double anchor, and the sixteen Hi-Z pyramid levels, bit-exact against the oracle.
-import { UNIFORM_U32 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+// split-double anchor and the scalars, bit-exact against the oracle.
+import { PARTITION_UNI } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { writeSplitDouble } from '../../../packages/math/src/float/splitDouble.ts'
 import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
 import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
@@ -60,7 +60,7 @@ const measureSplit = await measure({
   options: { tours: 100 },
 })
 
-const image = (levels: number): PartitionFrame => ({
+const image = (): PartitionFrame => ({
   view: matrice(),
   viewProj: matrice(),
   anchor: [double(), double(), double()],
@@ -68,25 +68,20 @@ const image = (levels: number): PartitionFrame => ({
   rows: 20000,
   width: 800,
   height: 600,
-  levels: Array.from({ length: levels }, (_, i) => ({
-    offset: i * 1024,
-    width: Math.max(1, Math.floor(alea() * 1024)),
-  })),
   layerTop: 0,
   hasRest: true,
   viewMoved: false,
   counting: false,
 })
 
-const words = new Uint32Array(UNIFORM_U32),
+const words = new Uint32Array(PARTITION_UNI.words),
   floats = new Float32Array(words.buffer)
 
 const measureUniform = await measure({
   name: 'partition uniform',
   fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
   cas: [
-    { name: '12 Hi-Z levels', input: image(12), size: 1 },
-    { name: '0 levels', input: image(0), size: 1 },
+    { name: 'one frame', input: image(), size: 1 },
   ],
   calculation: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows)
