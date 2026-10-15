@@ -4,7 +4,7 @@ import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
 import { createWaveHeld, wavesChanged, writeWaves, type WaveHeld } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
-import { createSkinPalettes, differs } from './skinPalettes.ts'
+import { createSkinPalettes } from './skinPalettes.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import {
   KIND_MORPH,
@@ -208,8 +208,8 @@ function writeRecord(
     kinds |= KIND_SKIN
   }
   if (shape.targets && mesh.morphTargetInfluences) {
+    // A weight that moved is `stale`'s already (`staleOnce`): no second compare.
     const morphed = writeMorphs(r, entry, weights, cold)
-    moved ||= differs(block, weights, weights + shape.targets, shape.targets)
     most += morphed * (kinds & KIND_SKIN ? paletteStretch(block, palette, shape.joints) : 1)
     kinds |= KIND_MORPH
   }
