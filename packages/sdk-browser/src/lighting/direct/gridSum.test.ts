@@ -36,20 +36,7 @@ const PROGRAMS = [false, true].flatMap((shadowed) =>
     ),
   ),
 )
-const NAMES = [
-  'sliceLighting',
-  'listedLight',
-  'lightReaches',
-  'localLightReaches',
-  'declaredLight',
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isKind',
-  'isSpot',
-  'isRect',
-]
+const NAMES = ['sliceLighting']
 const K = wgslConstants(PROGRAMS[0])
 
 /** A lamp's record as the contract writes it: a point, or a spot looking down. */
@@ -84,27 +71,7 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       // A lamp with no shadow slot: the shipped read answers one (`shadowFactor`).
       shadowFactor: () => 1,
     }
-    const names = [
-      ...NAMES,
-      'lobeSurface',
-      'surfaceLight',
-      'lobeThrough',
-      'coatCosine',
-      'baseLobe',
-      'coatLobe',
-      'lobeView',
-      'standardLobe',
-      'lobeSum',
-      'fresnelSchlick',
-      'ggxDistribution',
-      'modelLight',
-      'thinTransmission',
-      'thinSurface',
-      // The maths library's, which the lobe and the lamp's diffuse call.
-      'ndotvClamped',
-      'f0Of',
-      'lambertAlbedoMul',
-    ]
+    const names = NAMES
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope)
     const at = (slice: number[]) => sliceLighting([0.8, 0.7, 0.6], 0.2, 0.5, N, V, P, 1, slice)
     return { cell: at([2, listed.length]), every: at([K.TILE_NO_SLICE, lamps.length]), listed }

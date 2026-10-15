@@ -119,7 +119,10 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
 fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLookup(rough,NdotV,1u));}`,
 )
 
-/** What a rectangle's shading reads: its fitted lobe (\`rectLtc\`) and the corners' move into it. */
+/** What a rectangle's shading reads: its fitted lobe (\`rectLtc\`) and the corners' move into it. The
+ *  lobe's frame at a normal, view and roughness (\`RectFrame\`: the frame, M⁻¹ and the split-sum
+ *  texel, two table lookups) is the pixel's, not the light's: taken once a pixel, on the first
+ *  rectangle that lights it (\`pixelRectFrame\`), and read by every other. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
   [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL],
@@ -129,17 +132,29 @@ fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
  let x=dot(q,T1);let z=dot(q,N);
  return vec3f(m.x*x+m.y*z,dot(q,T2),m.z*x+m.w*z);
 }
-/** The rectangle's fitted specular lobe at the normal \`N\`, of reflectance \`f0\`, per unit
- *  radiance and before its range window: the polygon of its view \`r\` moved by M⁻¹ in the frame of
- *  the normal and the view, integrated, weighed by the lobe's magnitude and Fresnel share. */
-fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
+struct RectFrame{T1:vec3f,T2:vec3f,N:vec3f,m:vec4f,split:vec4f,}
+/** The fitted lobe's frame at the normal \`N\`, view \`V\` and roughness \`rough\`. */
+fn rectFrameOf(N:vec3f,V:vec3f,rough:f32)->RectFrame{
  let NdotV=ndotvClamped(N,V);
  let side=vectorRejection(V,N);
  let other=tangentSide(N);
- let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
- let m=ltcLookup(rough,NdotV,0u);
- let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
- return ltcSplitSum(f0,rough,NdotV)*lobe;
+ let T1=normalize(select(side,other,dot(side,side)<1e-10));
+ return RectFrame(T1,cross(N,T1),N,ltcLookup(rough,NdotV,0u),ltcLookup(rough,NdotV,1u));
+}
+var<private> rectFrameHeld:bool=false;
+var<private> rectFrameKept:RectFrame;
+/** The pixel's base frame, taken on its first rectangle: every rectangle of a pixel reads its
+ *  surface's normal, view and roughness, so one frame serves them all. */
+fn pixelRectFrame(N:vec3f,V:vec3f,rough:f32)->RectFrame{
+ if(!rectFrameHeld){rectFrameKept=rectFrameOf(N,V,rough);rectFrameHeld=true;}
+ return rectFrameKept;
+}
+/** The rectangle's fitted specular lobe in the frame \`f\`, of reflectance \`f0\`, per unit radiance
+ *  and before its range window: the polygon of its view \`r\` moved by M⁻¹, integrated, weighed by
+ *  the lobe's magnitude and Fresnel share. */
+fn rectLtc(r:RectView,f:RectFrame,f0:vec3f)->vec3f{
+ let lobe=polygonFormFactor(ltcCorner(r.a,f.T1,f.T2,f.N,f.m),ltcCorner(r.b,f.T1,f.T2,f.N,f.m),ltcCorner(r.c,f.T1,f.T2,f.N,f.m),ltcCorner(r.d,f.T1,f.T2,f.N,f.m),vec3f(0.0,0.0,1.0)).w;
+ return splitSumTerm(f0,f.split)*lobe;
 }`,
 )
 

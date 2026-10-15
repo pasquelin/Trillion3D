@@ -22,15 +22,7 @@ import { unitF32 } from '../../../../math/src/vector/unitF32.fixture.ts'
 import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
-const NAMES = [
-  'surfaceLight',
-  'lobeThrough',
-  'coatCosine',
-  'baseLobe',
-  'coatLobe',
-  'anisotropicLobe',
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
+const NAMES = ['lobeSurface', 'surfaceLight']
 const shipped = wgslModule(STANDARD_LIGHTING_WGSL, LOBES_LIGHTING_WGSL)
 /** The order it replaced: the half-vector and the coat's facing first, whatever faces. */
 const before = shipped.replace(

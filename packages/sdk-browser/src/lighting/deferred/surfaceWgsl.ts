@@ -41,10 +41,9 @@ const SHADOW_SETUP_WGSL = wgslBlock(
 const SURFACE_TERMS = {
   bounce: {
     bounce: 'bounceLighting(base.rgb,base.a,N,P,emissive.a)',
-    thin: 'thinBounce(N,P,emissive.a)+',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
   },
-  direct: { bounce: 'vec3f(0.0)', thin: '', diagnostic: '' },
+  direct: { bounce: 'vec3f(0.0)', diagnostic: '' },
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
@@ -53,7 +52,7 @@ const SURFACE_TERMS = {
  *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
  *  multiplication by one, which changes no bit. */
 export const contractSurfaceBody = (bounce: boolean) => {
-  const { bounce: bounced, thin, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
+  const { bounce: bounced, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
     [
@@ -81,8 +80,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  ${readLobesStatement(PHYSICAL_SURFACE_FLAG)}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,cell);
- var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb);
- if(thinSurface()){rgb+=${thin}environmentLighting(thinSubsurface,0.0,-N,emissive.a);}${CAMERA_FOG}
+ var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb,N,P,emissive.a);${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

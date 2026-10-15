@@ -1,11 +1,14 @@
 // The statements the one light term (`lightLoopWgsl.ts`, `declaredLightWgsl`) is written with.
 
-/** The light term's first statement: its exact zero where the light cannot reach \`P\`
- *  (\`lightReaches\`), read on its sphere before the rest of its record — every program, one test. */
+/** The light term's first statement: its exact zero where light \`rank\` cannot reach \`P\`
+ *  (\`lightReaches\`, on its kind and sphere), and only then its whole record — every program, one
+ *  test. */
 export const REACH = (zeroTerm: string) => `
- if(!lightReaches(light,P)){return ${zeroTerm};}`
+ if(!lightReaches(rank,P)){return ${zeroTerm};}
+ let light=directLights.items[rank];`
 
-/** The light's incidence at \`P\`, and its exact zero out of its spot's cone. */
+/** The light's incidence at \`P\`, its unit direction and attenuation, and its exact zero where the
+ *  attenuation is (a spot's fade at its edge). */
 export const INCIDENCE = (zeroTerm: string) => `
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return ${zeroTerm};}`

@@ -25,35 +25,26 @@ export const reachOf = (code: WgslSource) =>
     .localLightReaches
 
 /** Whether the lighting of `code` gives the light energy at P: its term's reach test
- *  (`lightReaches`), then a punctual light's attenuation (`directIncidence`) or a rectangle's
+ *  (`lightReaches`, on the light's rank in the buffer), then a punctual light's attenuation (`directIncidence`) or a rectangle's
  *  window (`rectView`) above zero. */
 export function shadesOf(code: string) {
+  const directLights = { items: [] as object[] }
   const run = shaderRun<{
-    lightReaches: (light: object, P: V3) => boolean
+    lightReaches: (rank: number, P: V3) => boolean
     directIncidence: (light: object, P: V3) => number[]
     rectView: (light: object, P: V3) => { window: number }
-  }>(
-    code,
-    [
-      'lightReaches',
-      'directIncidence',
-      'isSun',
-      'isSunKind',
-      'isKind',
-      'isSpot',
-      'isRect',
-      'rangeWindow',
-      'rectView',
-      'localLightReaches',
-    ],
-    {
-      ...F32_SCOPE,
-      ...wgslConstants(code),
-    },
-  )
-  return (light: SceneLight, r: LightRecord, P: V3) =>
-    run.lightReaches(r, P) &&
-    (light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0)
+  }>(code, ['lightReaches', 'directIncidence', 'rectView'], {
+    ...F32_SCOPE,
+    ...wgslConstants(code),
+    directLights,
+  })
+  return (light: SceneLight, r: LightRecord, P: V3) => {
+    directLights.items[0] = r
+    return (
+      run.lightReaches(0, P) &&
+      (light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0)
+    )
+  }
 }
 
 /** The projection's region test (`vsmLightParticipates`) on a surface that culls no back face,

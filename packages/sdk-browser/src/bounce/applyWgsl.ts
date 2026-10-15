@@ -1,6 +1,6 @@
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
-import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
+import { lambertDiffuse } from '../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
@@ -20,15 +20,11 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(
     `bounceApplyWgsl(${grid}, ${probes})`,
-    [lambertAlbedoMul, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
+    [lambertDiffuse, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
     `
-/** Diffuse radiance a pixel returns of the bounced \`irradiance\` at it. */
-fn bounceDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
- return lambertAlbedoMul(rgb,metal)*irradiance*ao;
-}
 /** Diffuse radiance a pixel returns from light that bounced before reaching it. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
- return bounceDiffuse(rgb,metal,sampleBounce(P,N),ao);
+ return lambertDiffuse(rgb,metal,sampleBounce(P,N),ao);
 }`,
   )
 }

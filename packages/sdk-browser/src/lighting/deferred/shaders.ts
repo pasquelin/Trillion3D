@@ -67,16 +67,14 @@ const contractSurface = (bounce: boolean) => [WORLD_AT_WGSL, contractSurfaceBody
 const BOUNCE_SURFACE_WGSL = wgslBlock(
   'BOUNCE_SURFACE_WGSL',
   [BOUNCE_APPLY_WGSL, FULLSCREEN_VERTEX, ...contractSurface(true)],
-  `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
- if(!thinSurface()){return vec3f(0.0);}
- return bounceLighting(thinSubsurface,0.0,-N,P,ao);
-}`,
+  '',
 )
-/** The direct program's surface. */
+/** The direct program's surface: no bounce, which a thin surface's back samples as zero
+ *  (\`thinBack\`). */
 const DIRECT_SURFACE_WGSL = wgslBlock(
   'DIRECT_SURFACE_WGSL',
   [FULLSCREEN_VERTEX, ...contractSurface(false)],
-  '',
+  'fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}',
 )
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is

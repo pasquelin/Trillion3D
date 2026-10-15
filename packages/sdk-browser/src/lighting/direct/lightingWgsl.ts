@@ -2,7 +2,6 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
@@ -18,13 +17,14 @@ import { directShadowWgsl } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
-import { lambertAlbedoMul } from '../../../../math/src/wgsl/lighting.ts'
+import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
   LOBELESS_RECT_WGSL,
   LOBELESS_TARGET_WGSL,
   LOBES_LIGHTING_WGSL,
+  LOBES_RECT_WGSL,
   LOBES_TARGET_WGSL,
 } from './lobesWgsl.ts'
 
@@ -107,10 +107,10 @@ export const lightingBase = (
     `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
-      RECT_SHADING_WGSL,
-      ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL, LOBELESS_RECT_WGSL] : [LOBES_LIGHTING_WGSL]),
-      INVERSE_PI,
-      lambertAlbedoMul,
+      ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
+      // A rectless program compiles no rectangle shading at all.
+      ...(key.rectless ? [] : [key.lobeless ? LOBELESS_RECT_WGSL : LOBES_RECT_WGSL]),
+      lambertDiffuse,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
       directShadowWgsl(bindings.transmittance, {
         resolveTransmission: bindings.resolveTransmission ?? null,
@@ -127,23 +127,28 @@ export const lightingBase = (
 var<private> thinSubsurface:vec3f=vec3f(0.0);
 /** Whether the surface is thin and two-sided, the one test every term of its back reads. */
 fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}
-/** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
- * A Lambert lobe on the back side: the light that reaches the surface from behind, as the two-sided foliage contract asks. */
-fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*INVERSE_PI;}
-/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
+/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`):
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+fn environmentIrradiance(N:vec3f)->vec3f{
  let e=directLights.environment;
- let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
- return lambertAlbedoMul(rgb,metal)*max(E,vec3f(0.0))*ao;
+ return max(${irradianceShader((k) => `e[${k}].rgb`, 'N')},vec3f(0.0));
+}
+/** The environment's diffuse light on a surface (\`lambertDiffuse\`). */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{return lambertDiffuse(rgb,metal,environmentIrradiance(N),ao);}
+/** A thin two-sided surface's back, the one sum of it: the bounce and the environment lit from
+ *  \`-N\` on its subsurface colour (\`lambertDiffuse\`); a pass with no bounce samples none
+ *  (its \`sampleBounce\` answers zero). Zero on any other surface. */
+fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
+ if(!thinSurface()){return vec3f(0.0);}
+ return lambertDiffuse(thinSubsurface,0.0,sampleBounce(P,-N)+environmentIrradiance(-N),ao);
 }
 /** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
  *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
- *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order. A pass
- *  with no bounce gives zero. A thin two-sided surface adds its back, \`bounce+environment\` lit
- *  from \`-N\`, after. */
-fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f)->vec3f{
- return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive;
+ *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order, then a
+ *  thin two-sided surface's back (\`thinBack\`) at the point \`P\` of normal \`N\`. A pass with no
+ *  bounce gives zero. */
+fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f,N:vec3f,P:vec3f,ao:f32)->vec3f{
+ return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive+thinBack(N,P,ao);
 }
 `,
   )

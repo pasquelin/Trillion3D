@@ -37,6 +37,15 @@ export const lambertAlbedoMul = wgslFn(
   'fn lambertAlbedoMul(rgb:vec3f,metal:f32)->vec3f{return rgb*(1.0-metal)*INVERSE_PI;}',
 )
 
+/** The radiance a Lambert surface returns of an `irradiance`, occluded by `ao`: the one diffuse of
+ *  every irradiance — a light's, the environment's, the bounce's, a thin surface's back, a proxy
+ *  hit's. */
+export const lambertDiffuse = wgslFn(
+  'lambertDiffuse',
+  [lambertAlbedoMul],
+  'fn lambertDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{return lambertAlbedoMul(rgb,metal)*irradiance*ao;}',
+)
+
 export const splitSumTerm = wgslFn(
   'splitSumTerm',
   [],

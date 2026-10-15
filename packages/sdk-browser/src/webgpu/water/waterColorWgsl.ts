@@ -59,7 +59,7 @@ export const WATER_COLOR_WGSL = wgslBlock(
   // the volume's reflectance for the specular share, as the Fresnel term above is. The front's
   // radiance where the water is the front surface and faces the eye with its own normal (\`Nv\` is it).
   let traced=forwardTrace(P,Nv,V,rough,vec4f(pixel.xy,fragZ,1.0),dot(normal.xyz,V)>0.0);
-  if(t<1.0){lit=litSurface(declared.lit,bounceLighting(base.rgb,metal,Nv,P,ao),environmentLighting(base.rgb,metal,Nv,ao),reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V),emissiveAo.rgb);}
+  if(t<1.0){lit=litSurface(declared.lit,bounceLighting(base.rgb,metal,Nv,P,ao),environmentLighting(base.rgb,metal,Nv,ao),reflectionShare(traced,f0Of(base.rgb,metal),rough,Nv,V),emissiveAo.rgb,Nv,P,ao);}
   // The specular of the declared lights on a null albedo: the diffuse lobe cancels, the specular
   // lobe stays.
   specular=declared.specular+reflectionShare(traced,vec3f(vol.f0),rough,Nv,V);

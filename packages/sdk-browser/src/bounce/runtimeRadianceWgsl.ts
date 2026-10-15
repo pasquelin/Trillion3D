@@ -2,7 +2,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock, wgslStruct } from '../../../math/src/wgsl/decl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
-import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
@@ -43,8 +43,7 @@ export const runtimeRadianceWgsl = (scene: SceneBindings) =>
       RADIANCE_ANSWER,
       runtimeSceneWgsl(scene),
       SURFACE_RAY_WGSL,
-      inverseTranspose3,
-      unitOrZero,
+      NORMAL_TRANSFORM_WGSL,
       faceNormal,
       worldMatrix3,
     ],
@@ -74,7 +73,7 @@ fn rtSurfaceOf(index:u32)->RtSurface{
  *  the hit placement's world, which the caller read once. */
 fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  let n=faceNormal(rtVertex(hit.triangle,0u),rtVertex(hit.triangle,1u),rtVertex(hit.triangle,2u));
- let N=unitOrZero(inverseTranspose3(world,n));
+ let N=linearNormal(world,n);
  return select(N,-N,dot(N,direction)>0.0);
 }
 /**
@@ -82,7 +81,7 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * the ones behind it while the surfaces met let light through (a blended one's opacity), up to
  * \`RT_LAYERS\`. The answer is the radiance of the light they hold and \`confidence\` the share of the ray
  * they answer; the rest goes on to the next stage, \`distance\` the first surface's, \`reach\` where
- * none. \`rtStopped\` keeps the share the surfaces physically stop. A deformed placement is traced at
+ * none, beside the share the surfaces physically stop (\`RtWalk.stopped\`). A deformed placement is traced at
  * its rest shape, whose reach (\`marked\`) its footprint may not cover: \`tangent\`, the width the ray's
  * lobe covers at a metre, against that reach takes CONFIDENCE from the hit (\`known\`), never opacity —
  * an opaque mesh stops the ray whatever its deformation. A hit's radiance: on the first surface of a
@@ -92,11 +91,10 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * evaluated and no shadow ray cast. Exhausted — its \`budget\` of units spent, \`RT_WORK\` at most — is
  * no answer at all, confidence zero (\`runtimeLayout.ts\`).
  */
-var<private> rtStopped:f32;
-fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bool)->RadianceAnswer{
+struct RtWalk{answer:RadianceAnswer,stopped:f32,}
+fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bool)->RtWalk{
  rtBegin();
  rtBudget=min(budget,RT_WORK);
- rtStopped=0.0;
  var first=reach;
  var color=vec3f(0.0);
  var answered=0.0;
@@ -105,7 +103,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
   let hit=rtScene(start,direction,left);
-  if(rtSpent()){return RadianceAnswer(vec3f(0.0),0.0,first);}
+  if(rtSpent()){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0);}
   if(!hit.found){break;}
   if(layer==0u){first=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
@@ -128,22 +126,21 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
   left-=travelled;
   if(through<RT_THROUGH_FLOOR||left<=0.0){break;}
  }
- rtStopped=1.0-through;
- return RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first);
+ return RtWalk(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through);
 }
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
- return rtLayers(origin,direction,reach,tangent,budget,false);
+ return rtLayers(origin,direction,reach,tangent,budget,false).answer;
 }
 /** The light a probe's ray brings back (\`rtLayers\`, lit): from \`origin\` along \`direction\`, \`reach\`
  *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
- *  they stop (\`rtStopped\`), and the distance to the first, \`reach\` where it meets nothing. An
+ *  they stop, and the distance to the first, \`reach\` where it meets nothing. An
  *  exhausted ray, or one whose shadow rays spent its budget, carries zero weight
  *  (\`runtimeLayout.ts\`): its distance is then negative, and the probe leaves it out of its estimate. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- let answer=rtLayers(origin,direction,reach,0.0,RT_WORK,true);
+ let walk=rtLayers(origin,direction,reach,0.0,RT_WORK,true);
  if(rtSpent()||rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
- return vec4f(answer.color*rtStopped,answer.distance);
+ return vec4f(walk.answer.color*walk.stopped,walk.answer.distance);
 }
 `,
   )

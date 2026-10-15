@@ -34,13 +34,13 @@ function lighting(
   const term = '(surfaceLight(shading,N,V,'
   if (!per) return shipped
   if (lobes || shipped.split(term).length !== 2) throw new Error('PER_LIGHT_TERM_UNMATCHED')
-  return shipped.replace(term, '(standardLighting(rgb,metal,rough,N,V,')
+  return shipped.replace(term, '(surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,')
 }
 
 /** With `lobes`, the program with the anisotropic and clear-coat lobes (`lobesWgsl.ts`) and its two
  *  entries that set a sample's lobes by hand (`LOBE_ENTRIES_WGSL`). With `perLight`, the program
  *  without them whose lights each take what the pixel's lights share of its surface again
- *  (`standardLighting`), as before it was taken once a pixel (`lobeSurface`). */
+ *  (`lobeSurface` inside the light's term), as before it was taken once a pixel. */
 export const resolveHarness = (
   narrow: boolean,
   shadowed = true,

@@ -53,8 +53,10 @@ fn probed(N:vec3f)->vec3f{return ${substitution};}
  let N=probed(xformNormal(c.world,c.normal.xyz));
  let V=vec3f(0.0,0.0,1.0);
  let rgb=vec3f(0.8,0.7,0.6);
- let lit=standardLighting(rgb,c.material.x,c.material.y,N,V,c.light);
- let truth=standardLighting(rgb,c.material.x,c.material.y,unitOrZero(c.truth.xyz),V,c.light);
+ let L=vec4f(normalize(c.light.xyz),c.light.w);
+ let lit=surfaceLight(lobeSurface(rgb,c.material.x,c.material.y,N,V),N,V,L);
+ let T=unitOrZero(c.truth.xyz);
+ let truth=surfaceLight(lobeSurface(rgb,c.material.x,c.material.y,T,V),T,V,L);
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(truth,0.0);

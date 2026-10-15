@@ -13,19 +13,13 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
-import { LIGHT_LOOP_SHARED, randomLampScope } from './shadedLightScope.fixture.ts'
+import { randomLampScope } from './shadedLightScope.fixture.ts'
 import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
-const SHARED = [
-  ...LIGHT_LOOP_SHARED,
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
 /** What the shadow read does for a light with no slot: no transmission, a factor of one. */
 const NO_SLOT =
   /fn shadowFactor\([^)]*\)->f32\{\n shadowTransmission=vec3f\(1\.0\);\n if\(slice<0\)\{return 1\.0;\}/
@@ -84,10 +78,7 @@ test('each forward variant sums what the program with every code path sums, bit 
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
         const sum = (text: string, slice: number[]) =>
           flat(
-            shaderRun<Record<string, Sum>>(text, [...pass.loop, ...SHARED], scope)[pass.loop[0]](
-              ...surface,
-              slice,
-            ),
+            shaderRun<Record<string, Sum>>(text, pass.loop, scope)[pass.loop[0]](...surface, slice),
           )
         for (const slice of [
           [2, scope.tileLights.length - 2],

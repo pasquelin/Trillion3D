@@ -12,7 +12,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
- *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
+ *  its list holds a shadow slot, the cell's one fact the resolve reads before its lights —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
 
@@ -36,7 +36,7 @@ const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
  *  every light of the scene (\`cellSlice\`). */
 const GRID_SLICES:u32=${LIGHT_SETTINGS.gridSlices}u;
 const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
-/** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
+/** The lights of a narrow scene (the length its light array is compiled at). */
 ${wgslConsts({
   TILE_LIGHTS: LIGHT_SETTINGS.tileLights,
   TILE_STRIDE: TILE_STRIDE_WORDS,
@@ -69,17 +69,23 @@ struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f
 fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
 fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
-/** Whether the light may give \`P\` energy, the first statement of the one light term, before the
- *  rest of its record is read: a sun always; a local light by \`localLightReaches\` — its sphere, and a
- *  rectangle's face —, a spot's cone left to its fade. */
-fn lightReaches(light:DirectLight,P:vec3f)->bool{
- if(isSun(light)){return true;}
- let sphere=light.positionRange;
- return localLightReaches(sphere.xyz-P,sphere.w,-2.0,light.directionCone.xyz,isRect(light));
+/** Whether light \`rank\` may give \`P\` energy: the first statement of the one light term, which
+ *  reads the light's kind and sphere alone, and its direction and cone only for a spot or a
+ *  rectangle, before the rest of its record. A sun always; a local light by \`localLightReaches\`,
+ *  the shadows' test too — its sphere, a spot's real cone, a rectangle's face. */
+fn lightReaches(rank:u32,P:vec3f)->bool{
+ let kind=directLights.items[rank].params.x;
+ if(isSunKind(kind)){return true;}
+ let sphere=directLights.items[rank].positionRange;
+ let spot=isKind(kind,KIND_SPOT);let rect=isKind(kind,KIND_RECT);
+ var cone=vec4f(0.0,0.0,0.0,-2.0);
+ if(spot||rect){cone=directLights.items[rank].directionCone;cone.w=select(-2.0,cone.w,spot);}
+ return localLightReaches(sphere.xyz-P,sphere.w,cone.w,cone.xyz,rect);
 }
-/** Normalized direction toward the light and attenuation, of a light \`lightReaches\` let through
- *  (its window is zero at and past its range anyway). A punctual light's: a rectangle has no one
- *  direction (\`rectIrradiance\`). */
+/** Unit direction toward the light and attenuation, of a light \`lightReaches\` let through (its
+ *  window is zero at and past its range, its fade outside its cone). A punctual light's: a
+ *  rectangle has no one direction (\`rectIrradiance\`). The direction is unit as it comes — the
+ *  sun's by its contract, a lamp's by its distance —: no term normalises it again. */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // A directional light has neither position nor range: the same irradiance at every point, never
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.

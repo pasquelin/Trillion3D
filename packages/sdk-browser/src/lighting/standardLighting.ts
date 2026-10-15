@@ -80,8 +80,8 @@ fn lobeSum(s:LobeSurface,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
 }`,
 )
 
-/** One light on a surface, the one light of every surface (\`surfaceLight\`), and the same on a
- *  surface given whole (\`standardLighting\`): the standard block's lobe under the pixel's lobe hooks
+/** One light on a surface, the one light of every surface (\`surfaceLight\`), its direction \`light.xyz\`
+ *  unit as every caller hands it (\`directIncidence\`): the standard block's lobe under the pixel's lobe hooks
  *  — \`baseLobe\`, \`lobeThrough\`, \`coatLobe\`, \`coatCosine\` —, which the hook blocks that list
  *  this one declare (\`direct/lobesWgsl.ts\`: the lobed one, and the lobeless one's standard lobe,
  *  one and zero). */
@@ -89,11 +89,8 @@ export const SURFACE_LIGHT_WGSL = wgslBlock(
   'SURFACE_LIGHT_WGSL',
   [STANDARD_LIGHTING_WGSL],
   `
-fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- return surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,light);
-}
 fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- let L=normalize(light.xyz);
+ let L=light.xyz;
  let NdotL=max(dot(N,L),0.0);
  let coatNdotL=coatCosine(L);
  // Facing away from the base and the coat, every lobe is a finite number times direct = light.w·0:
@@ -120,7 +117,7 @@ export const NORMAL_TRANSFORM_WGSL = wgslBlock(
   'NORMAL_TRANSFORM_WGSL',
   [worldMatrix3, inverseTranspose3, unitOrZero],
   `
-fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return unitOrZero(inverseTranspose3(worldMatrix3(world),n));
-}`,
+fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{return linearNormal(worldMatrix3(world),n);}
+/** The same under a pose's linear part \`m\`, which a caller holding it hands as it is. */
+fn linearNormal(m:mat3x3f,n:vec3f)->vec3f{return unitOrZero(inverseTranspose3(m,n));}`,
 )

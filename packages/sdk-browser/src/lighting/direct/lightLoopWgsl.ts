@@ -1,4 +1,5 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
@@ -47,19 +48,19 @@ export const declaredLightWgsl = (
     surface = term === 'surface'
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
-    pair ? [LIGHT_PAIR_WGSL] : [],
+    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(surface ? [lambertDiffuse] : [])],
     surface
-      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${REACH(zero(pair))}${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
+      ? `fn declaredLight${pair ? 'Pair' : ''}(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${REACH(zero(pair))}${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
- // the light's sum as it is (\`exactZeros.test.ts\`).
+ // the light's sum as it is (\`exactZeros.test.ts\`). Its back takes the light's cosine from behind.
  var transmitted=vec3f(0.0);
- if(thinSurface()){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
+ if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(max(-dot(N,incidence.xyz),0.0)*energy),1.0);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
-      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
+      : `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
 }`,
   )
 }
@@ -88,78 +89,60 @@ const terms = (pair: boolean, of: (rgb: string, metal: string, shading: string) 
     : of('rgb', 'metal', 'shading')
 
 /** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. Its
- *  view from the point serves its front and, on a thin surface, its back (\`thinTransmission\` of
- *  the back's irradiance, as a punctual light's). */
+ *  view from the point serves its front and, on a thin surface, its back (the Lambert diffuse of the
+ *  back's irradiance, as a punctual light's). */
 const rectBranch = (pair: boolean) => `
  if(isRect(light)){
   let r=rectView(light,P);
   var transmitted=vec3f(0.0);
-  if(thinSurface()){transmitted=thinSubsurface*thinTransmission(-rectIrradianceOf(r,-N).w,light.colorIntensity.w)*light.colorIntensity.rgb;}
+  if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(rectIrradianceOf(r,-N).w*light.colorIntensity.w),1.0)*light.colorIntensity.rgb;}
   return ${terms(pair, (rgb, metal, shading) => `rectLight(light,r,${shading},${rgb},${metal},rough,N,V,ao)+transmitted`)};
  }`
 
 const shadeStatement = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
- // trace is skipped (\`shadowFactor\`). Toon bands light it.
- let toward=normalize(incidence.xyz);
- let back=thinSurface()&&dot(N,incidence.xyz)<0.0;
- let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ // trace is skipped (\`shadowFactor\`). Toon bands light it. The direction is unit as it comes.
+ let cosine=dot(N,incidence.xyz);
+ let back=thinSurface()&&cosine<0.0;
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||cosine>0.0;
  let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
  if(shade<=0.0){return ${zero(pair)};}`
 
 /**
  * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`), the lights of a
- * cell's list (\`cellSlice\`) — or, from \`TILE_NO_SLICE\`, every light of the scene — in increasing
- * rank; a bounce point's irradiance (\`lightsIrradiance\`, \`term\` \`irradiance\`), every light of
- * the scene, which no list of the view's grid holds (its cells are the view's own).
- *
- * Every walk hands a listed light to its term, whose first statement is the one reach test
- * (\`REACH\`, \`lightReaches\`): a light out of reach costs its sphere's read and a compare, in every
- * program, before any shading or shadow ray.
+ * cell's list (\`cellSlice\`, \`listedLight\`) in increasing rank; a bounce point's irradiance
+ * (\`lightsIrradiance\`, \`term\` \`irradiance\`), the lights of its cell of the world grid
+ * (\`bounceLightSlice\`). Every walk hands the light's RANK to its term, whose first statement is the
+ * one reach test (\`REACH\`, \`lightReaches\`) on the light's kind and sphere: a light out of reach
+ * costs those words and a compare, in every program, before the rest of its record is read.
  */
 export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
   wgslBlock(
     `sliceLightingWgsl(${pair}, ${term})`,
     [],
     term === 'surface'
-      ? lightLoop(
-          `sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}`,
-          `
+      ? `
+fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}{
  var result=${zero(pair)};
- let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
-          'slice.y',
-          LISTED_PICK,
-          pair
-            ? PAIR_SUM
-            : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);',
-        )
-      : lightLoop(
-          'lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f',
-          `
- let slice=bounceLightSlice(P);
- var result=vec3f(0.0);`,
-          'slice.y',
-          LISTED_PICK,
-          'result+=declaredIrradiance(directLights.items[light],P,N,reach);',
-        ),
-  )
-
-/** The loop's text: \`head\` its signature, \`start\` its result and what its lights share, \`count\`
- *  its lights, \`pick\` the rank a light is read at, \`sum\` what a light adds. */
-const lightLoop = (head: string, start: string, count: string, pick: string, sum: string) => `
-fn ${head}{${start}
- for(var index=0u;index<${count};index++){
-  ${pick}
-  ${sum}
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}
+ for(var index=0u;index<slice.y;index++){
+  ${pair ? PAIR_SUM : 'result+=declaredLight(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);'}
  }
  return result;
 }`
-
-/** A listed light's rank (\`listedLight\`). */
-const LISTED_PICK = 'let light=listedLight(slice,index);'
+      : `
+fn lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
+ let slice=bounceLightSlice(P);
+ var result=vec3f(0.0);
+ for(var index=0u;index<slice.y;index++){
+  result+=declaredIrradiance(listedLight(slice,index),P,N,reach);
+ }
+ return result;
+}`,
+  )
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
-const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
+const PAIR_SUM = `let term=declaredLightPair(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
 
 /**

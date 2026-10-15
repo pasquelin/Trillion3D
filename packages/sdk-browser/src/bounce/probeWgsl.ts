@@ -126,8 +126,10 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // The engine's one accumulation law (\`ACCUMULATION_WGSL\`): a stable probe follows a running
  // average of \`PROBE_SAMPLES\` updates, which smooths Monte-Carlo noise without freezing the frame;
  // a new probe or one that just changed cell (nothing held) takes the fresh estimate whole; one whose
- // estimate jumps restarts from the little it keeps (\`PROBE_JUMP_HELD\`), taking the moving blend.
- let restart=select(updates,min(updates,PROBE_JUMP_HELD),change>MOVING_RESIDUAL);
+ // estimate jumps keeps less of its history the more it jumps — a continuous weight, from all of it
+ // at the residual to the little a jump keeps (\`PROBE_JUMP_HELD\`, the moving blend) at twice it.
+ let jump=saturate(change/MOVING_RESIDUAL-1.0);
+ let restart=mix(updates,min(updates,PROBE_JUMP_HELD),jump);
  let blend=accumulationShare(restart,1.0,PROBE_SAMPLES);
  let count=accumulationCount(restart,1.0,PROBE_SAMPLES);
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
