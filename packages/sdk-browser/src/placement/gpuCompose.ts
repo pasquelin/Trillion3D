@@ -72,7 +72,7 @@ export function composeWebgpuPlacements(
   const p = state.parentIds.get(parent)
   if (p === undefined && !links.length) return
   const { ranks, rooted, readers } = linkedRanks(rt, links)
-  const slot = takeSlot(state, parent, p, world)
+  const slot = takeSlot(state, parent, p)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt.blendState.blendGpu))
   if (whole) {

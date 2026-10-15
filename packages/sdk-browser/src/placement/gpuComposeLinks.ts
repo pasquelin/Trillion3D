@@ -63,20 +63,13 @@ export function linkedRanks(rt: WebgpuPagesRuntime, links: readonly PlacementLin
   return { ranks, rooted, readers }
 }
 
-/** The parent's slot: its own, or a new one at `world`, every per-slot table grown to hold it. */
-export function takeSlot(
-  state: ComposeState,
-  parent: object,
-  p: number | undefined,
-  world: ArrayLike<number>,
-) {
+/** The parent's slot: its own, or a new one, every per-slot table grown to hold it. */
+export function takeSlot(state: ComposeState, parent: object, p: number | undefined) {
   const slot = p ?? state.freeSlots.pop() ?? state.slots++
   if (p !== undefined) return slot
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
   state.worlds = resized(state.worlds, state.slots * MATRIX_VALUES)
-  state.previous = resized(state.previous, state.slots * MATRIX_VALUES)
-  state.previous.set(world, slot * MATRIX_VALUES)
   return slot
 }
 

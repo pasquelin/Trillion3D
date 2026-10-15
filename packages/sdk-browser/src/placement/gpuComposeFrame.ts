@@ -33,22 +33,13 @@ export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice)
   composeKernels.motion(device).ask()
 }
 
-/** Slot `p`'s world packed in doubles; whether it moved since the last frame. */
-function packParent(state: ComposeState, p: number) {
-  const at = p * MATRIX_VALUES,
-    { worlds, previous } = state
-  packDoubles(state.packed, p * PACKED_MATRIX_WORDS, worlds, at, MATRIX_VALUES)
-  for (let k = at; k < at + MATRIX_VALUES; k++)
-    if (previous[k] !== worlds[k]) {
-      state.moving = true
-      previous[k] = worlds[k]
-    }
-}
+/** Slot `p`'s world packed in doubles. */
+const packParent = (state: ComposeState, p: number) =>
+  packDoubles(state.packed, p * PACKED_MATRIX_WORDS, state.worlds, p * MATRIX_VALUES, MATRIX_VALUES)
 
 /** The parents' worlds set since they last went up, packed and sent in runs — every one into a
- *  buffer made anew (`whole`) —; notes whether one moved since the last frame. */
+ *  buffer made anew (`whole`). */
 function writeParents(device: GPUDevice, gpu: ComposeGpu, state: ComposeState, whole: boolean) {
-  state.moving = false
   const count = state.slots,
     moved = state.parentsMoved
   if (!whole && !moved.count) return
@@ -119,6 +110,9 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   )
   const made = gpu.parents !== held
   writeParents(device, gpu, state, made)
+  // Whether a parent moved, as its settle found it (`settleSlot`): the frame takes it.
+  state.moving = state.movedSince
+  state.movedSince = false
   if (state.moving || linked || seeded || made) state.composedAt++
   return gpu
 }

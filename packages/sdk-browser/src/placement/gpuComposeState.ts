@@ -79,8 +79,6 @@ export function createComposeState(roots: number) {
     slots: 0,
     /** Each parent's world as last sent, in double. */
     worlds: new Float64Array(MATRIX_VALUES),
-    /** Each parent's world at the last drawn frame, in double. */
-    previous: new Float64Array(MATRIX_VALUES),
     packed: new Uint32Array(PACKED_MATRIX_WORDS),
     /** Roots linked since the last frame, with the world their motion starts from. */
     seeds: new Map<number, Float32Array<ArrayBuffer>>(),
@@ -91,7 +89,9 @@ export function createComposeState(roots: number) {
     motionBound: undefined as GPUBuffer | undefined,
     /** The frame whose parents the GPU holds. */
     frame: -1,
-    /** A parent moved since the last drawn frame: the temporal pass reads the motion. */
+    /** A parent moved since the frame last sent the parents (`settleSlot`), and what the frame
+     *  took of it: a parent moved since the last drawn frame, the temporal pass reads the motion. */
+    movedSince: false,
     moving: false,
     gpu: undefined as ComposeGpu | undefined,
   }

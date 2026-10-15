@@ -61,6 +61,7 @@ export function settleSlot(
   // (`mobility.moveLead`), from the world it held; a turn of its winding, their bins.
   let turned = false
   if (moved) {
+    state.movedSince = true
     const held = state.worlds.subarray(slot * MATRIX_VALUES, slot * MATRIX_VALUES + MATRIX_VALUES)
     rt.lights.mobility.moveLead(slot, state.ranksOf[slot], held, world)
     turned = matrixWindingCw(held) !== matrixWindingCw(world)
