@@ -59,19 +59,23 @@ fn bounceLevelLow(level:u32)->vec3f{
 /**
  * Where a level reads a surface at \`P\` of normal \`N\`: the point pushed off it by the normal bias
  * (\`biased\`), in the level's cells half a cell back (\`local\`, a probe's centre on an integer), the
- * first of the eight probes around it (\`corner\`), and whether the level holds all eight
- * (\`holds\`): a partial answer would make a seam. The one rule of the level that answers a point:
- * the field reads by it (\`probeFieldWgsl\`), the reflections' proxy ray is cut by it (\`reach.ts\`).
+ * first of the eight probes around it (\`corner\`), whether the level holds all eight (\`holds\`): a
+ * partial answer would make a seam —, and its share of the answer (\`fade\`): one a cell inside the
+ * level's edge, falling to nothing at it, the next level answering the rest, so that no level's edge
+ * is a line in the image. The one rule of the levels that answer a point: the field reads by it
+ * (\`probeFieldWgsl\`), the reflections' proxy ray is cut by it (\`reach.ts\`).
  */
-struct BounceRead{biased:vec3f,local:vec3f,corner:vec3i,holds:bool,}
+struct BounceRead{biased:vec3f,local:vec3f,corner:vec3i,holds:bool,fade:f32,}
 fn bounceRead(level:u32,P:vec3f,N:vec3f)->BounceRead{
  let spacing=bounce.levels[level].spacing;
  let base=vec3i(bounce.levels[level].base);
  let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
  let local=biased/spacing-vec3f(0.5);
  let corner=vec3i(floor(local));
+ let last=vec3f(base+vec3i(i32(bounce.counts.x)-1));
  let holds=all(corner>=base)&&all(corner+vec3i(1)<base+vec3i(i32(bounce.counts.x)));
- return BounceRead(biased,local,corner,holds);
+ let inside=min(local-vec3f(base),last-local);
+ return BounceRead(biased,local,corner,holds,clamp(min(inside.x,min(inside.y,inside.z)),0.0,1.0));
 }
 /** World position of a cell: the global lattice, independent of the camera and of the level. */
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
@@ -113,16 +117,18 @@ export const bounceBindingsWgsl = (group: number, grid: number, probes: number) 
   )
 
 /**
- * A field of the cascades, written once for every field they hold: `name` at a point is the finest
- * level that can answer, from tightest to widest — exactly zero when none can, since a leak would
- * be light without a source —, and a level's answer (`level`) the eight probes around the point,
+ * A field of the cascades, written once for every field they hold: `name` at a point is the levels
+ * that can answer, from tightest to widest, each taking its share (`BounceRead.fade`) of what the
+ * finer ones left — exactly zero when none can, since a leak would be light without a source —, and
+ * a level's answer (`level`) the eight probes around the point,
  * weighed, each evaluated by `value` (a shader expression of `probe`, `N` and the `params` the
  * field takes beyond the point `P` and its normal `N`). A level answers a point or nothing, when
  * it does not reach it: eight probes, three weights — the cell's trilinear, the back of the
  * surface (a probe behind it knows nothing of it) and measured visibility, which closes leaks
  * through walls; a probe that does not carry the requested cell, was never updated, or is buried
- * in a surface, weighs nothing. `${name}Gathered` is the finest level's answer with the weight it
- * gathered, in `w` and at most one, zero when none answers; `name` is its mean.
+ * in a surface, weighs nothing. A level whose probes all weigh nothing leaves its share to the next.
+ * `${name}Gathered` is the levels' answer with the share they hold in `w`, at most one, zero when none
+ * answers — the reflections' confidence in the field; `name` is its mean.
  */
 export const probeFieldWgsl = (name: string, level: string, params: string, value: string) => {
   const args = params.replace(/:[^,]+/g, '')
@@ -162,16 +168,24 @@ export const probeFieldWgsl = (name: string, level: string, params: string, valu
   sum+=${value}*weight;
   total+=weight;
  }
- return vec4f(sum,total);
+ if(total<=1e-5){return vec4f(0.0);}
+ return vec4f(sum,total)*(read.fade/total);
 }
 fn ${name}Gathered(P:vec3f,N:vec3f${params})->vec4f{
  if(bounce.counts.w==0u){return vec4f(0.0);}
+ var sum=vec3f(0.0);
+ var rest=1.0;
  for(var level=0u;level<CASCADE_LEVELS;level++){
-  if(level>=bounce.counts.y){break;}
+  if(level>=bounce.counts.y||rest<=1e-5){break;}
   let gathered=${level}(level,P,N${args});
-  if(gathered.w>1e-5){return vec4f(perspectiveDivide(gathered),gathered.w);}
+  if(gathered.w<=0.0){continue;}
+  let take=rest*gathered.w;
+  sum+=take*perspectiveDivide(gathered);
+  rest-=take;
  }
- return vec4f(0.0);
+ let held=1.0-rest;
+ if(held<=0.0){return vec4f(0.0);}
+ return vec4f(sum/held,held);
 }
 fn ${name}(P:vec3f,N:vec3f${params})->vec3f{return ${name}Gathered(P,N${args}).xyz;}`,
   )
