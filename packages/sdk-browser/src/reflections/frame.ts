@@ -87,9 +87,11 @@ export function encodeReflections(
   // Every image whose radiance is built is staged, its move decided: the build reads that decision.
   writeFrame(rt, reflection, traced, cam.viewProjection)
   if (!hiz || !depth) return
-  // A frozen view without temporal accumulation is drawn from what no longer moves — its history,
-  // its pyramid, its pixels —: the targets the last image wrote are this one's, and nothing is traced.
-  if (reflection.settle.frozen && !rt.gpu.temporal?.frame.active) return
+  // A frozen view is drawn from what no longer moves — its pose, its lights, its content, its history,
+  // its pyramid —: the targets the last image wrote are this one's, and nothing is traced. A jitter of
+  // the temporal accumulation is no move (`stageReflectionImage`): the reflections hold the phase they
+  // froze on, as the history does.
+  if (reflection.settle.frozen) return
   const open = reflection.tracePass.begin(encoder)
   if (traced) {
     const views = surfaces.views()

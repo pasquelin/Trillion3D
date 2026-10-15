@@ -66,12 +66,12 @@ export const REFLECTION_COUNTS = {
    *  answers nearly every ray, and the rest — rays grazing a surface across the image — go to the
    *  proxy, a bounded worst case of 48 iterations a ray. */
   REFLECTION_MARCH_STEPS: 48,
-  /** The share of a ray's budget (`RAY_WORK`, its lighting's shadow rays included) a proxy ray of an
-   *  image drawn for a change walks, one over this (`proxy.ts`): that image is replaced by the next,
-   *  and a still view's quiet images, which the view holds, walk it whole. 512 / 8 = 64 units: a
-   *  descent of the placement tree and one cut's leaf; a ray that spends them is no answer, its share
-   *  the field's. */
-  REFLECTION_MOVING_SHARE: 8,
+  /** The share of a ray's budget (`RAY_WORK`, its lighting's shadow rays included) a reflection's proxy
+   *  ray walks, one over this (`proxy.ts`), on every image alike: a still view's history averages
+   *  `REFLECTION_STILL` images of one ray a texel, so a still image needs no more a ray than a moving
+   *  one. 512 / 8 = 64 units: the placement tree walked nearest first (`treeWalkWgsl.ts`) to the
+   *  nearest surfaces and one cut's leaf; a ray that spends them is no answer, its share the field's. */
+  REFLECTION_WALK_SHARE: 8,
   /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
   REFLECTION_SEQUENCE: 4096,
 } as const

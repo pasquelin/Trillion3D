@@ -82,27 +82,31 @@ import { reflectionShareWgsl } from './weight.ts'
  * - trace: per half texel at most 4 surface reads; per glossy texel and lobe (two with a coat) one ray:
  *   the screen march, `REFLECTION_MARCH_STEPS` = 48 iterations at most (16 on average, 35 at the 99th
  *   percentile, `budget.test.ts`), the footprint's ≤ 2·`REFLECTION_TAPS` reads; on a screen miss
- *   the proxy's walk, its hit's shadow rays included (`../bounce/runtimeLayout.ts`), ≤ `RAY_WORK` =
- *   512 units on a still view's quiet images and ≤ 512 / `REFLECTION_MOVING_SHARE` = 64 on an image
- *   drawn for a change, over a ray no longer than `reflectionProxyReach`; then 8 probes a cascade, 4
- *   cascades at most.
+ *   the proxy's walk, its hit's shadow rays included (`../bounce/runtimeLayout.ts`), ≤ `RAY_WORK` /
+ *   `REFLECTION_WALK_SHARE` = 64 units on every image, the placement tree walked nearest first
+ *   (`../gpu/dag/treeWalkWgsl.ts`), over a ray no longer than `reflectionProxyReach`; then 8 probes
+ *   a cascade, 4 cascades at most.
  * - spatial: per glossy texel `REFLECTION_REUSE_TAPS` = 8 neighbours, each a texel, a depth, a normal.
  * - temporal: per texel its pixel's depth and normal, 4 history texels, 9 fresh ones on a moved image.
  * - upsample: per pixel 1 flag read; per reflecting one 4 history texels for its glossy lobes, and per
  *   mirror lobe one ray of the same chain: a mirror at the half grid would spread a reflected
  *   silhouette over two more pixels (`sphere-staircase.gpu.ts`), an image loss.
- * - a frozen still view without temporal accumulation dispatches nothing (`frame.ts`).
- * - worst case: per ray 48 iterations + 512 units + 32 probes, per half texel two rays (a coat),
- *   per pixel two (a mirror coat); the frame (G + M + F)·2 rays — bounded by the view's pixels, never
- *   by the scene, nor by its lights (a hit's shadow rays share its budget).
+ * - a frozen view — its pose, lights and content still, the temporal accumulation's jitter no move —
+ *   dispatches nothing (`frame.ts`): a still view pays a moving image's cost for its
+ *   `REFLECTION_STILL` + 1 quiet images, then none.
+ * - worst case: per ray 48 iterations + 64 units + 32 probes, per half texel two rays (a coat), per
+ *   pixel two (a mirror coat); the frame (G + M + F)·2 rays — bounded by the view's pixels, never by
+ *   the scene, nor by its lights (a hit's shadow rays share its budget).
  * - expected frame, R = G + M + F rays: t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + N · c_u, K̄ the mean
  *   march, r_m the iterations a second, p_miss the share of rays the screen leaves, W̄ their mean
  *   walk, r_w = 3.4·10⁹ units a second (the walk measured, M2 class), c_u the upsample's per pixel.
- *   At 2056×1144 (N = 2 352 064, G = 588 016) with R ≈ 10⁶ moving rays: the march 10⁶ · 16 / r_m,
- *   about 1 ms at r_m ≈ 1.6·10¹⁰; the walk 10⁶ · p_miss · W̄ / 3.4·10⁹, 0.6 ms at p_miss·W̄ = 2
- *   units a ray, 5.6 ms at 0.3 · 64. The walk is the term to watch: the bench's cut points
- *   (`// @cut screen`, `proxy`, `wgsl.ts`) split the two. The fresh rays stay one a texel: the history
- *   and the reuse let a ray serve many pixels and images.
+ *   Measured at 2056×1144 on the bench's open world (orbit, 64 units a walk, the tree in index
+ *   order): 5.0 ms, of which the march 2.0 ms and the walk 66 %, about 3 ms — p_miss · W̄ near 10
+ *   units a ray over about 10⁶ rays. Expected now: the march 2.0 ms; the walk, its budget spent on the
+ *   nearest surfaces first, fewer rays exhausted on far patches, under its 3 ms, which the bench's cut
+ *   points (`// @cut screen`, `proxy`, `wgsl.ts`; `pick`, here) measure; a still view the same until it
+ *   freezes, then 0. The fresh rays stay one a texel: the history and the reuse let a ray serve many
+ *   pixels and images.
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
