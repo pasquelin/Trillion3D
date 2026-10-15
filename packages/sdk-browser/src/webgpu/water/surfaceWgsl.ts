@@ -4,29 +4,18 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
 import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
-
-/** The values of the surface stage, in their targets' order: the surface buffer, then, with
- *  `lobed`, the lobes target. The virtual-texture feedback follows them (`waterSurfaceTargets`). */
-export const waterOutFields = (lobed: boolean): [string, string][] => [
-  ...['baseMetal', 'normalRough', 'emissiveAo', 'word'].map((name): [string, string] => [
-    name,
-    'vec4f',
-  ]),
-  ...(lobed ? [['lobes', 'vec4u'] as [string, string]] : []),
-]
+import { waterSurfaceOutputs } from './surfaceTargets.ts'
+import { fragmentMembersWgsl, fragmentZeroWgsl } from '../../gpu/core/fragmentOutputs.ts'
 
 /** One entry of the stage: `fsWater`, or with `lobed` `fsWaterLobed`, which reads the item's
  *  record before its material (`blendPhysicalBegin`) and stores the fragment's lobes. */
 function waterEntry(lobed: boolean) {
   const name = lobed ? 'WaterLobed' : 'Water',
-    fields = [...waterOutFields(lobed), ['request', 'u32']]
-  const zero = fields.map(([, type]) =>
-    type === 'u32' ? '0u' : `${type}(0${type.endsWith('u') ? 'u' : '.0'})`,
-  )
-  return `struct ${name}Out{${fields.map(([field, type], at) => `@location(${at}) ${field}:${type},`).join('')}}
+    fields = waterSurfaceOutputs(true, lobed)
+  return `struct ${name}Out{${fragmentMembersWgsl(fields)}}
 @fragment fn fs${name}(in:VSOut,@builtin(front_facing) front:bool)->${name}Out{
  let g=blendGrads(in);let base=blendBase(in,g);
- if(!blendKeeps(in,base,front)){discard;return ${name}Out(${zero});}
+ if(!blendKeeps(in,base,front)){discard;return ${name}Out(${fragmentZeroWgsl(fields)});}
  ${lobed ? 'blendPhysicalBegin(in,g);' : ''}
  let s=blendSurface(in,front,g,base);
  return ${name}Out(vec4f(s.rgb,s.metal),vec4f(s.N,s.rough),vec4f(s.emissive,s.ao),waterSurfaceWord(in,s),${lobed ? 'blendLobedTexel(in,front,g,s).texel,' : ''}s.request);

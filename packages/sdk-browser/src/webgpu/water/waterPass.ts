@@ -6,7 +6,7 @@ import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { createWaterFrame, type WaterFrame } from './frame.ts'
 import { createWaterSurfacePipelines } from './pipelines.ts'
 import { createLobedWaterStage, type LobedWaterStage } from './lobedStage.ts'
-import { waterOutFields } from './surfaceWgsl.ts'
+import { waterSurfaceOutputs } from './surfaceTargets.ts'
 import { createWaterRect, type WaterRect } from './rect.ts'
 import type { Reach } from '../blend/reach.ts'
 import type { ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
@@ -32,7 +32,7 @@ export function waterWithoutFeedback(code: string, lobes: boolean) {
       from,
       `fs${name}`,
       `${name}Out`,
-      waterOutFields(lobed),
+      waterSurfaceOutputs(false, lobed),
       input,
       'in,front',
     )

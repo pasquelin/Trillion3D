@@ -7,11 +7,7 @@ import { feedbackFreeEntry } from './feedbackAbWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { blendShader } from '../blend/shader.ts'
 
-const SURFACE = [
-  ['baseMetal', 'vec4f'],
-  ['normalRough', 'vec4f'],
-  ['emissiveAo', 'vec4f'],
-] as const
+const SURFACE = ['baseMetal', 'normalRough', 'emissiveAo'].map((name) => ({ name, wgsl: 'vec4f' }))
 const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const
 
 // A device refuses a module naming what it does not declare: each target-free entry calls the
@@ -21,19 +17,25 @@ test('target-free opaque, transparent and water entries declare every name they 
     SHADE_SHADER,
     'shade_fs',
     'SurfaceOut',
-    [...SURFACE, ['flags', 'u32']],
+    [...SURFACE, { name: 'flags', wgsl: 'u32' }],
     '@builtin(position) pos:vec4f',
     'pos',
   )
   assert.deepEqual(unresolvedNames(shade), [])
   let blend = blendShader({}, { stage: waterSurfaceWgsl(true) })
   for (const entry of ['fs', 'fsFiltered'])
-    blend = feedbackFreeEntry(blend, entry, 'BlendOut', [['color', 'vec4f']], ...FRAGMENT_IN)
+    blend = feedbackFreeEntry(
+      blend,
+      entry,
+      'BlendOut',
+      [{ name: 'color', wgsl: 'vec4f' }],
+      ...FRAGMENT_IN,
+    )
   blend = feedbackFreeEntry(
     blend,
     'fsWater',
     'WaterOut',
-    [...SURFACE, ['word', 'vec4f']],
+    [...SURFACE, { name: 'word', wgsl: 'vec4f' }],
     ...FRAGMENT_IN,
   )
   assert.deepEqual(unresolvedNames(blend), [])
