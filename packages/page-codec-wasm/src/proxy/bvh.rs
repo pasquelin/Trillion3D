@@ -1,26 +1,22 @@
-use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
+//! THE PROXY BVH, built 4-wide directly: every node splits its triangles by two levels of the median
+//! split of every tree over boxed things (`split::bisect_least_cost`), into two to four children,
+//! down to leaves of `PROXY_LEAF_TRIANGLES`. Nodes are numbered in preorder, each with the rank
+//! past its subtree: the GPU's quantized wide records (`wide::encode`) and the CPU tracer's
+//! stackless skip list (`flatten`) are two writings of this one tree.
+use super::{PROXY_CHILDREN, PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
 use crate::split::bisect_least_cost;
-use trillion3d_math::aabb::{aabb_of, aabb_of_f32, half_area};
+use trillion3d_math::aabb::{aabb_of, aabb_of_f32};
 use trillion3d_math::scalar::mean;
 
-/// A binary node being built: its bounds, and either a triangle range or its
-/// right child — left child is always next node.
+/// A node: its bounds, and either a triangle range (a leaf) or its children's ranks; `escape` is
+/// the rank past its subtree in preorder.
 pub struct Node {
     pub low: [f32; 3],
     pub high: [f32; 3],
     pub first: usize,
     pub count: usize,
-    pub right: usize,
-}
-impl Node {
-    pub fn leaf(&self) -> bool {
-        self.count > 0
-    }
-    /// Box area, up to a factor of two (`half_area`): decides which child opens first
-    /// when a wide node seeks to fill itself.
-    pub fn area(&self) -> f32 {
-        half_area(self.low, self.high)
-    }
+    pub children: Vec<usize>,
+    pub escape: usize,
 }
 
 /// Bounds of a triangle range, read once per node.
@@ -54,19 +50,36 @@ fn boxed(triangles: &[f32]) -> Boxed {
     (centres, boxes)
 }
 
-/// Builds tree by the median split of every tree over boxed things (`split::bisect_least_cost`:
-/// the axis of least cost over the triangles' boxes, ties by rank), leaf at `PROXY_LEAF_TRIANGLES`.
-///
-/// Median gives balanced tree, depth logarithmic in triangle count:
-/// engine can announce known traversal bound before frame. A split separating
-/// nothing — all centroids coincident — splits into two equal parts rather than looping.
+/// The parts a node of `range` splits into: its two halves at the median on the axis of least
+/// cost, each halved again the same way when it still holds more than a leaf. Balanced: depth
+/// logarithmic in the triangle count, a traversal bound the engine announces before the frame;
+/// coincident centroids still split into equal parts rather than looping.
+fn parts(boxed: &Boxed, order: &mut [usize], range: (usize, usize)) -> Vec<(usize, usize)> {
+    let (centres, boxes) = boxed;
+    let halve = |order: &mut [usize], (from, to): (usize, usize)| {
+        let half = (to - from) / 2;
+        bisect_least_cost(&mut order[from..to], centres, |t| boxes[t], half);
+        [(from, from + half), (from + half, to)]
+    };
+    let mut out = Vec::with_capacity(PROXY_CHILDREN);
+    for part in halve(order, range) {
+        if part.1 - part.0 > PROXY_LEAF_TRIANGLES {
+            out.extend(halve(order, part));
+        } else {
+            out.push(part);
+        }
+    }
+    out
+}
+
+/// The subtree of `range`, in preorder from `nodes.len()`; returns its root's rank.
 fn split(
     triangles: &[f32],
     boxed: &Boxed,
     order: &mut [usize],
     range: (usize, usize),
     nodes: &mut Vec<Node>,
-) {
+) -> usize {
     let (low, high) = bounds_of(triangles, order, range);
     let at = nodes.len();
     nodes.push(Node {
@@ -74,24 +87,21 @@ fn split(
         high,
         first: range.0,
         count: range.1 - range.0,
-        right: 0,
+        children: Vec::new(),
+        escape: 0,
     });
-    if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
-        return;
+    if range.1 - range.0 > PROXY_LEAF_TRIANGLES {
+        nodes[at].count = 0;
+        for part in parts(boxed, order, range) {
+            let child = split(triangles, boxed, order, part, nodes);
+            nodes[at].children.push(child);
+        }
     }
-    let (centres, boxes) = boxed;
-    let half = (range.1 - range.0) / 2;
-    bisect_least_cost(&mut order[range.0..range.1], centres, |t| boxes[t], half);
-    let middle = range.0 + half;
-    nodes[at].count = 0;
-    split(triangles, boxed, order, (range.0, middle), nodes);
-    let right = nodes.len();
-    split(triangles, boxed, order, (middle, range.1), nodes);
-    nodes[at].right = right;
+    nodes[at].escape = nodes.len();
+    at
 }
 
-/// Builds binary tree and reorders triangles and albedos so each leaf
-/// names contiguous range. `wide::collapse` extracts cache wide nodes from it.
+/// Builds the tree and reorders triangles and albedos so each leaf names a contiguous range.
 pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
     build_ordered(triangles, albedo).0
 }
@@ -135,24 +145,16 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
     out
 }
 
-/// Binary tree flattened into subtree skips: six bound numbers and three integers per
-/// node — skip, first triangle, triangle count. Used for CPU oracle traces,
-/// where stackless traversal beats wide nodes; proxy cache itself carries the wide form from `wide::collapse`.
+/// The tree as subtree skips, the CPU tracer's stackless walk: six bound numbers and three
+/// integers per node in preorder — the rank past its subtree, first triangle, triangle count. A hit
+/// node steps to the next rank, a missed one or a finished leaf to its skip.
 pub fn flatten(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
-    let mut escape = vec![0u32; nodes.len()];
-    for at in (0..nodes.len()).rev() {
-        escape[at] = if nodes[at].leaf() {
-            at as u32 + 1
-        } else {
-            escape[nodes[at].right]
-        };
-    }
     let mut bounds = Vec::with_capacity(nodes.len() * 6);
     let mut links = Vec::with_capacity(nodes.len() * 3);
-    for (at, node) in nodes.iter().enumerate() {
+    for node in nodes {
         bounds.extend_from_slice(&node.low);
         bounds.extend_from_slice(&node.high);
-        links.push(escape[at]);
+        links.push(node.escape as u32);
         links.push(node.first as u32);
         links.push(node.count as u32);
     }

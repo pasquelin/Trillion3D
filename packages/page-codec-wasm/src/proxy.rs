@@ -1,7 +1,7 @@
 //! The resident proxy's builder, shared by the native compiler and the browser's one WebAssembly
 //! module: the layout numbers of its columns and the three steps that turn placed triangles into
-//! them — grid snapping (`simplify.rs`), the binary BVH (`bvh.rs`) and its 4-wide collapse
-//! (`wide.rs`). The compiler places a scene's triangles in world space and calls them
+//! them — grid snapping (`simplify.rs`), the 4-wide BVH (`bvh.rs`) and its quantized
+//! records (`wide.rs`). The compiler places a scene's triangles in world space and calls them
 //! (`asset-compiler-rust/src/proxy.rs`); the run-time cut calls them on a cut's own triangles. The constants
 //! below are printed into the TypeScript readers (`scripts/generate-shared-rules.ts`).
 
@@ -21,12 +21,12 @@ pub struct Built {
 
 /// THE PROXY BUILDER, one for the compiler's meshes and the browser's cuts: snaps `triangles` to the
 /// grid `cell` (`simplify::plan_cell` chose it), dropping what has no area and what repeats, builds
-/// the BVH, reorders the triangles and `albedo` into its leaves' order, and collapses it to the wide
-/// node columns.
+/// the BVH, reorders the triangles and `albedo` into its leaves' order, and writes its wide node
+/// columns.
 pub fn build_columns(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, cell: f64) -> Built {
     let kept = simplify::simplify_sources(triangles, albedo, cell);
     let (tree, order) = bvh::build_ordered(triangles, albedo);
-    let (node_bounds, node_children) = wide::collapse(&tree);
+    let (node_bounds, node_children) = wide::encode(&tree);
     Built {
         node_bounds,
         node_children,
