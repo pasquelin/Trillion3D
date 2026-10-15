@@ -1,8 +1,8 @@
-import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 // What the reflection proofs share when they audit a frame of boxes (`boxFrame.ts`) against the
 // exact mirror rays of one mirror block: each mirror pixel's exact ray and first hit, which of
 // them the screen can answer, which lie off every silhouette, and how much of a colour a pixel
 // shows.
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import {
   castBoxes,

@@ -1,9 +1,9 @@
-import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 // A still frame of lit boxes seen by a reversed infinite perspective (`boxes.fixture.ts`), laid in
 // the engine's own inputs (`rig.ts`): the depth the boxes rasterize to, a surface flag and a normal
 // at every pixel, the colour of the box it shows as its base and as its lit radiance. A mirror box
 // is a polished metal (white, metalness one, roughness zero) that reflects; every other box is
 // diffuse and reflects nothing.
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import {
   camera,
   faceNormal,

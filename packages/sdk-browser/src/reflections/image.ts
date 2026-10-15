@@ -1,14 +1,13 @@
+/**
+ * THE BOOKKEEPING OF A REFLECTED IMAGE, the engine's (`frame.ts`) and every proof's alike: what the
+ * image tells its view, then the radiance of its lit image and the settle's count of it.
+ */
 import { REFLECTION_RADIANCE_PASS } from '../stage/passLabels.ts'
 import { REFLECTION_COUNTS, REFLECTION_SEQUENCE } from './constants.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { drawnFromHeld, type RadianceStages } from './radiance.ts'
 import { encodeRadiancePyramid, type RadianceInputs } from './radianceBuild.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
-
-/**
- * THE BOOKKEEPING OF A REFLECTED IMAGE, the engine's (`frame.ts`) and every proof's alike: what the
- * image tells its view, then the radiance of its lit image and the settle's count of it.
- */
 
 /**
  * Stages the reflection view of the image `frame` describes (`ScreenReflection.writeView`), under

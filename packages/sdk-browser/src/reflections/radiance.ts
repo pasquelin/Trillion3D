@@ -1,3 +1,8 @@
+/**
+ * THE RADIANCE PYRAMID OF A VIEW (`radianceWgsl.ts`): its kernels' layouts, what it holds, its
+ * bytes, and the turn its two HDR targets take (`adoptRadianceImage`); its build is
+ * `radianceBuild.ts`.
+ */
 import {
   computeBufferEntry,
   computeSamplerEntry,
@@ -15,12 +20,6 @@ import {
   hdrTargetShape,
   radianceLevels,
 } from '../scene/targetFormats.ts'
-
-/**
- * THE RADIANCE PYRAMID OF A VIEW (`radianceWgsl.ts`): its kernels' layouts, what it holds, its
- * bytes, and the turn its two HDR targets take (`adoptRadianceImage`); its build is
- * `radianceBuild.ts`.
- */
 
 /** The radiance pyramid's three layouts (`RADIANCE_SHADER`): a level read through its sampler, the
  *  two levels a dispatch writes, and for the first the image before it (its level 0, which a still

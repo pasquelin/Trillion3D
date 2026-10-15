@@ -1,3 +1,5 @@
+// What the water-pass tests share: a scene of three transparent copies, one of which transmits,
+// prepared and planned as `prepareBlendResources` does, and the frame targets of a replay.
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { Scene } from '../../world/core/scene.ts'
@@ -19,8 +21,6 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 import { verdictWords } from '../blend/verdictLayout.ts'
 
-// What the water-pass tests share: a scene of three transparent copies, one of which transmits,
-// prepared and planned as `prepareBlendResources` does, and the frame targets of a replay.
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer
 
 /** A device that records every pipeline and group it builds; `pipelines` names the render

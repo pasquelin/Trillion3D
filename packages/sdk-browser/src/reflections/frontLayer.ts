@@ -1,12 +1,3 @@
-import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
-import { SURFACE_FORMATS, holds } from '../scene/surfaceBuffer.ts'
-import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalLobes.ts'
-import { texelBytesOf } from '../gpu/core/textureBytes.ts'
-import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
-import { retire } from '../gpu/core/frameRetire.ts'
-import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
-import { createHalfGrids, createKernelTexture, halfBytes, halfExtent } from './halfTexture.ts'
-
 /**
  * THE TRANSPARENTS' FRONT LAYER, the one producer of what the reflections know of the transparents.
  * Each pixel has two surfaces a ray or a reflection meets: the opaque one, and the nearest
@@ -43,6 +34,14 @@ import { createHalfGrids, createKernelTexture, halfBytes, halfExtent } from './h
  * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 12 more (normals, radiance, the three half
  * grids' 16 bytes a 2×2 block) once a transparent reflects, the lobes target's once one carries a lobe.
  */
+import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
+import { SURFACE_FORMATS, holds } from '../scene/surfaceBuffer.ts'
+import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalLobes.ts'
+import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
+import { retire } from '../gpu/core/frameRetire.ts'
+import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
+import { createHalfGrids, createKernelTexture, halfBytes, halfExtent } from './halfTexture.ts'
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
 export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'

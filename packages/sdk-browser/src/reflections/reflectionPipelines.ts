@@ -1,3 +1,5 @@
+/** THE REFLECTIONS' KERNELS AND THEIR GROUP'S LAYOUT, once a device: what every view's reflection
+ *  (`gpu.ts`) and the forward programs that read it bind. */
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { validated } from '../gpu/core/errorScope.ts'
 import { shaderFailed } from '../gpu/core/shaderModule.ts'
@@ -23,9 +25,6 @@ import {
   REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
-
-/** THE REFLECTIONS' KERNELS AND THEIR GROUP'S LAYOUT, once a device: what every view's reflection
- *  (`gpu.ts`) and the forward programs that read it bind. */
 
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and

@@ -1,9 +1,9 @@
-import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 // Thin surfaces before a lit wall, on a mirror floor (`boxFrame.ts`, `rig.ts`): a pole one pixel
 // wide, a fence four, and a box deeper than the thickness the march assumes. A floor pixel whose
 // exact mirror ray meets the wall, and whose path on the screen crosses the pole's or the fence's
 // pixels from behind them, must show the wall: the ray passes behind a surface thinner than its
 // slab. One whose exact ray meets the box must show the box: the box, deeper than the slab, stops it.
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { camera, castBoxes } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'

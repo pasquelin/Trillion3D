@@ -1,16 +1,3 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
-import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
-import { reflectionFootprintWgsl } from './footprint.ts'
-import { reflectionRayWgsl } from './ray.ts'
-import { reflectionProxyWgsl } from './proxy.ts'
-import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
-import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
-import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
-import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
-
 /**
  * THE REFLECTION: ONE SYSTEM FOR EVERY SURFACE. What a surface reflects along its mirror direction
  * `R` is one function, `reflectedRadianceAlong`, every program shares — the opaque surfaces in one
@@ -46,6 +33,18 @@ import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
  * - this file: `reflectionSeen`, the screen's answer along the lobe's centre, and
  *   `reflectedRadianceAlong`, the chain.
  */
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
+import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
+import { reflectionFootprintWgsl } from './footprint.ts'
+import { reflectionRayWgsl } from './ray.ts'
+import { reflectionProxyWgsl } from './proxy.ts'
+import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
+import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
+import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
+import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
 
 /** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)

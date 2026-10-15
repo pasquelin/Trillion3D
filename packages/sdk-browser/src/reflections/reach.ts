@@ -1,8 +1,3 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { BOUNCE_GRID_HEAD_WGSL } from '../bounce/gridWgsl.ts'
-import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-
 /**
  * HOW FAR A REFLECTION RAY OF THE PROXY GOES: as far as the eye can tell its answer from the next
  * stage's, never a count of metres. The stage after the proxy is the bounce probes' field
@@ -38,6 +33,10 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
  * rough far surface walks `t_eye` metres or none, a mirror walks to the scene's edge, and every ray
  * stays under `RAY_WORK` units whatever its length (`../bounce/runtimeLayout.ts`).
  */
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { BOUNCE_GRID_HEAD_WGSL } from '../bounce/gridWgsl.ts'
+import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
 /** The band-3 attenuation of the round GGX lobe of width `alpha`: its density over z = N·L is
  *  z/(1 + k + (k − 1)z)², k = α² (`reflectionBands`), and a₃ = E[P₃(z)], P₃ = (5z³ − 3z)/2, by
