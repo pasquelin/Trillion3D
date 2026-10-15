@@ -32,15 +32,30 @@ export const REFLECTION_CONSTANTS = {
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */
   REFLECTION_FAR: 2 ** 23,
-  /** The same-surface test's normals (`reflectionSameSurface`): a texel weighs (N·Nₜ)^this, 0.79 at
-   *  10° apart, a tenth at 30°, nothing across a crease. */
-  REFLECTION_NORMAL_POWER: 16,
+  /** The same-surface test's normals (`reflectionSameSurface`): two normals within this angle's cosine
+   *  are one surface, whole. A normal map tilts a pixel's normal from its neighbours' by up to about
+   *  20° on a bumpy road: a test that weighed it down (a power of N·Nₜ) let one texel of four answer
+   *  the pixel, and showed the half grid's blocks. Cos 25°. */
+  REFLECTION_CREASE_NEAR: Math.cos(25 * DEG2RAD),
+  /** The same-surface test's crease: normals this far apart and more (cos 50°) are two surfaces — a
+   *  modelled body's edge is 45° or more —, the weight falling smoothly from `REFLECTION_CREASE_NEAR`. */
+  REFLECTION_CREASE_FAR: Math.cos(50 * DEG2RAD),
   /** The least N·V the same-surface test (`reflectionSameSurface`) divides by: a surface seen this
    *  close to edge-on spans ⌈1/8⌉ = eight pixels' depth across a pixel, a steeper one no more. */
   REFLECTION_GRAZING: 1 / 8,
   /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
    *  a texel: a history further from their mean than this is pulled back to it. */
   REFLECTION_CLAMP: 1.25,
+  /** How much farther a ray is shared on an image drawn while anything changes (`spatialWgsl.ts`):
+   *  its history holds `REFLECTION_HISTORY` images, not `REFLECTION_STILL` — a sixth —, and sharing
+   *  over twice the reach, four times the neighbours a disc holds, gives back most of that count; the
+   *  reflection's edges soften by the lobe's own width, which a moving image shows for one image. */
+  REFLECTION_SHORT_REACH: 2,
+  /** Where along a proxy ray cut short for the field (`reach.ts`) its answer starts fading into the
+   *  field's, a share of its reach (`proxy.ts`): over the last quarter a body met weighs less and less,
+   *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
+   *  distance — shows no seam between the two sources. */
+  REFLECTION_REACH_FADE: 3 / 4,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair

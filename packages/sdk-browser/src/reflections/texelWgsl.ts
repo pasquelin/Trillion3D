@@ -54,7 +54,11 @@ const historyGatherFn = (name: string, near: boolean) =>
  * footprint spans at it (`ReflectionView.slab`). `reflectionSameSurface`: how surely a texel of depth
  * `other` and normal `otherN` lies on the surface of depth `depth`, normal `N`, seen from `V`, `pixels`
  * pixels apart on the screen: one within the depth that surface spans across them — steeper as it turns
- * edge-on, `REFLECTION_GRAZING` at most —, nothing two such spans off, times the normals' agreement.
+ * edge-on, `REFLECTION_GRAZING` at most —, nothing two such spans off, times the normals' agreement:
+ * whole within a normal map's tilt (`REFLECTION_CREASE_NEAR`), nothing across a crease
+ * (`REFLECTION_CREASE_FAR`). `reflectionRobustWeight`: the weight of a radiance in a mean that no
+ * single bright sample may dominate, 1 / (1 + its luminance) — a firefly of luminance L counts as one
+ * unit, not L (`temporalWgsl.ts`, `spatialWgsl.ts`).
  * `historyGather`: the four history texels of `grid` around `q` (half-grid coordinates, texel centres
  * on the integers), bilinear, those that hold a history (`near`), and those weighed by the same-surface
  * test too (`sharp`), with their mean count — the one read of a history, the accumulation's of the
@@ -121,7 +125,10 @@ fn reflectionSameSurface(depth:f32,N:vec3f,V:vec3f,other:f32,otherN:vec3f,pixels
  let c=max(dot(N,V),REFLECTION_GRAZING);
  let span=max(pixels,1.0)*reflectionDepthPixel(depth)*(1.0+sqrt(1.0-c*c)/c);
  let near=1.0-smoothstep(span,2.0*span,abs(other-depth));
- return near*pow(max(dot(N,otherN),0.0),REFLECTION_NORMAL_POWER);
+ return near*smoothstep(REFLECTION_CREASE_FAR,REFLECTION_CREASE_NEAR,dot(N,otherN));
+}
+fn reflectionRobustWeight(r:Reflected)->f32{
+ return 1.0/(1.0+dot(r.base+r.coat,vec3f(0.2126,0.7152,0.0722)));
 }
 struct HistoryGather{sharp:Reflected,sharpWeight:f32,near:Reflected,nearWeight:f32,count:f32,}
 ${historyGatherFn('historyGather', false)}

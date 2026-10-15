@@ -28,7 +28,10 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * texel's lobe while that parting stays within the lobe's width: `n ≤ t·tan θ / (w + t·a)`, at the
  * nearer of the two rays' hits. A reflection that meets something close is sharp, and its rays are
  * shared over a pixel or none; one that meets the far scene is as wide as its lobe's angle, and shares
- * over `REFLECTION_REUSE_RADIUS` texels. The trace sizes the disc by its own hit (`traceHalf.ts`); each
+ * over `REFLECTION_REUSE_RADIUS` texels. While anything changes the history holds a dozen images, not
+ * `REFLECTION_STILL`: the reach is `REFLECTION_SHORT_REACH` times longer and each ray weighs by its
+ * robust weight (`reflectionRobustWeight`), so one bright sample never lights a texel's block alone;
+ * a still view's images share at the lobe's own reach, plainly, their mean the lobe's. The trace sizes the disc by its own hit (`traceHalf.ts`); each
  * neighbour is kept within the reach of the nearer hit.
  */
 export const REFLECTION_SPATIAL_WGSL = wgslBlock(
@@ -47,22 +50,27 @@ export const REFLECTION_SPATIAL_WGSL = wgslBlock(
 @group(0) @binding(${B.spatialOut}) var spatialOut:texture_storage_2d<${HALF_FORMAT},write>;
 fn reflectionReuseReach(P:vec3f,alpha:f32,hit:f32)->f32{
  let angle=select(0.0,reflectionView.slab.x,slabPerspective(reflectionView.slab));
- return hit*reflectionConeTangent(alpha)/(reflectionPixelAt(P)+hit*angle);
+ let short=select(1.0,REFLECTION_SHORT_REACH,reflectionView.temporal.y==0u);
+ return short*hit*reflectionConeTangent(alpha)/(reflectionPixelAt(P)+hit*angle);
 }
 fn spatialTexel(at:vec2i,layer:u32)->vec4u{
  let centre=textureLoad(spatialIn,at,0);
  let radius=freshRadius(centre);
  if(!freshValid(centre)||radius==0u){return centre;}
  let coord=halfPixel(at,freshPick(centre));
- let own=reflectingPixelAt(layer,coord,0u);
- let P=own.P;let N=own.N;let V=own.V;
- let alpha=lobeAlpha(own.rough);
+ let pixel=reflectingPixelAt(layer,coord,0u);
+ let P=pixel.P;let N=pixel.N;let V=pixel.V;
+ let alpha=lobeAlpha(pixel.rough);
  let hit=freshHit(centre);
  let depth=surfaceLinearDepth(P);
  let size=vec2i(textureDimensions(spatialIn));
  let turn=f32(reflectionView.temporal.x)*GOLDEN_ANGLE;
- var sum=texelReflected(centre);
- var total=1.0;
+ // While anything changes, each ray weighs by its robust weight (\`reflectionRobustWeight\`).
+ let robust=reflectionView.temporal.y==0u;
+ let own=texelReflected(centre);
+ let first=select(1.0,reflectionRobustWeight(own),robust);
+ var sum=Reflected(first*own.base,first*own.coat);
+ var total=first;
  for(var k=0u;k<REFLECTION_REUSE_TAPS;k++){
   let a=turn+f32(k)*GOLDEN_ANGLE;
   let reach=f32(radius)*sqrt((f32(k)+0.5)/f32(REFLECTION_REUSE_TAPS));
@@ -74,9 +82,10 @@ fn spatialTexel(at:vec2i,layer:u32)->vec4u{
   let apart=distance(vec2f(s),vec2f(coord));
   if(apart>reflectionReuseReach(P,alpha,min(hit,freshHit(t)))){continue;}
   let other=surfaceLinearDepth(surfacePointAt(layer,s));
-  let w=reflectionSameSurface(depth,N,V,other,normalize(surfaceNormalAt(s).xyz),apart);
-  if(w<=0.0){continue;}
   let r=texelReflected(t);
+  let w=reflectionSameSurface(depth,N,V,other,normalize(surfaceNormalAt(s).xyz),apart)
+   *select(1.0,reflectionRobustWeight(r),robust);
+  if(w<=0.0){continue;}
   sum.base+=w*r.base;sum.coat+=w*r.coat;
   total+=w;
  }

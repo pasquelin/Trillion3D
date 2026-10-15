@@ -30,7 +30,11 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  *   its own noise, and a clamp to it would darken every lobe that meets a small bright body — so the
  *   images the engine draws while its own work lands (pages, probes, shadows) accumulate without bias.
  * - BLEND: the running mean of `count` images, `REFLECTION_HISTORY` at most, then an exponential mean of
- *   that window while anything changes. A still view's quiet images restart it, each at the turn of its
+ *   that window while anything changes, each image weighed there by its robust weight
+ *   (`reflectionRobustWeight`): one bright sample of a texel's ray — a headlight caught by the lobe's
+ *   tail — would light the texel's four pixels for a dozen images, a square the window shows and never
+ *   averages away while the view moves; weighed, it counts as one unit. The still view's own images
+ *   are averaged plainly: their mean is the lobe's, unbiased. A still view's quiet images restart it, each at the turn of its
  *   rank (`stageReflectionImage`), and let it grow to `REFLECTION_STILL`: once the view has been quiet
  *   for that many images, every texel holds the mean of those images' samples alone, and is copied as
  *   it is from the next on (`ReflectionView.temporal.y` past `REFLECTION_STILL`): a still view's
@@ -103,7 +107,12 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  var history=held.radiance;
  if(reflectionView.temporal.z!=0u&&full>0u){history=temporalClamp(history,at);}
  let count=min(full+1u,select(REFLECTION_HISTORY,REFLECTION_STILL,quiet>0u));
- let share=1.0/f32(count);
+ var share=1.0/f32(count);
+ // While anything changes the mean weighs each image by its robust weight: a firefly is one unit.
+ if(quiet==0u){
+  let w=share*reflectionRobustWeight(now);
+  share=w/(w+(1.0-share)*reflectionRobustWeight(history));
+ }
  let blended=Reflected(mix(history.base,now.base,share),mix(history.coat,now.coat,share));
  return historyPack(blended,depth,N,count);
 }
