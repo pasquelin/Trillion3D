@@ -21,18 +21,3 @@ fn two_apart_spheres_meet_in_the_one_through_their_far_points() {
         [1.0, 1.0, 1.0, 2.0]
     );
 }
-
-#[test]
-fn the_enclosing_sphere_holds_every_input_and_none_gives_the_zero_sphere() {
-    assert_eq!(enclosing_sphere(&[]), [0.0; 4]);
-    let spheres = [
-        [0.0, 0.0, 0.0, 1.0],
-        [3.0, 1.0, -2.0, 0.5],
-        [-1.0, 4.0, 0.0, 2.0],
-    ];
-    let all = enclosing_sphere(&spheres);
-    for s in spheres {
-        let d = length(sub([s[0], s[1], s[2]], [all[0], all[1], all[2]]));
-        assert!(d + s[3] <= all[3] * (1.0 + 1e-12));
-    }
-}

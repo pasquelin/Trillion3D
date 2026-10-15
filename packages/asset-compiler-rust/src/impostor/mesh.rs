@@ -3,11 +3,11 @@
 //! material, texture coordinates and vertex normals. The alpha-aware hit filter lives here:
 //! a hit on a cut texel lets the ray through, as the engine's mask discards it.
 use super::surface::Surface;
-use crate::dag::bounds::point_sphere;
 use crate::proxy::tracer::{normal_of, trace_where, World};
 use trillion3d_math::triangle::barycentric_weights;
 use trillion3d_math::vec3::normalized_or;
 use trillion3d_math::vecn::{dot, scale, weighted_sum};
+use trillion3d_page_codec::min_ball::point_sphere;
 use trillion3d_page_codec::proxy::bvh;
 
 /// Texture coordinate sets a triangle carries: a texture naming a higher set reads the last.

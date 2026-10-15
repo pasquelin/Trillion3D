@@ -3,10 +3,10 @@
 //! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
 //! takes the ball of the unit face normals; it is the one smallest-ball solver, for points and for
 //! the ball of balls a DAG group and a culling node (`culling.rs`) enclose their children's with
-//! (`ball_of_balls`), its support sets solved by `through`.
-use through::through;
+//! (`ball_of_balls`), exact by pivoting on its support (`through::basis`).
+use through::{basis, radius_for};
 use trillion3d_math::random::xorshift64;
-use trillion3d_math::vec3::cross;
+use trillion3d_math::vec3::{cross, point};
 use trillion3d_math::vecn::{add, dot, length, scale, sub};
 
 mod through;
@@ -127,23 +127,42 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
     Some(ball.0)
 }
 
+/// The smallest sphere of `indices`' vertices (`min_ball`), the one sphere a level-0 cluster is
+/// projected with: its radius re-measured in float64 from the final centre, so every vertex is
+/// inside by construction, not by the solver. No vertex, or one that is not a number, gives the
+/// zero sphere.
+pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
+    let mut ids = indices.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    // `min_ball` reorders the points; the radius re-measured below does not depend on their order.
+    let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| point(positions, v)).collect();
+    let Some((c, _)) = min_ball(&mut points) else {
+        return [0.0; 4];
+    };
+    let radius = points
+        .iter()
+        .map(|&p| length(sub(p, c)))
+        .fold(0.0, f64::max);
+    if c.iter().all(|v| v.is_finite()) && radius.is_finite() {
+        [c[0], c[1], c[2], radius]
+    } else {
+        [0.0; 4]
+    }
+}
+
 /// Relative margin the ball of balls is inflated by, of its coordinates' magnitude: containment
 /// then survives the float64 rounding of any re-check (8.5e-14 m outside without it at 1 km).
 const CONTAINMENT_MARGIN: f64 = 1e-12;
 
-/// The radius a sphere centred on `c` needs to enclose every sphere of `spheres`.
-fn radius_for(c: [f64; 3], spheres: &[[f64; 4]]) -> f64 {
-    spheres
-        .iter()
-        .map(|s| length(sub([s[0], s[1], s[2]], c)) + s[3])
-        .fold(0.0, f64::max)
-}
-
-/// The smallest sphere enclosing `spheres` (those of negative radius are absent), by the same
-/// randomised incremental construction as `min_ball`, each support set solved by `through`. Its
-/// radius is then re-measured as `max |c_i - C| + r_i` from the final centre — the rule the
-/// runtime's containment proof reads —, so every sphere is inside by construction, not by the
-/// solver, and raised by `CONTAINMENT_MARGIN`. No sphere gives the zero sphere; one, itself.
+/// The smallest sphere enclosing `spheres` (those of negative radius are absent), exactly, by
+/// pivoting: the support of the current ball (at most four spheres) takes in the first sphere it
+/// does not hold, and `basis` gives the smallest ball of that support and the newcomer. Each pivot
+/// grows the ball, so it stops, at a ball the smallest of its support that holds every sphere:
+/// the smallest ball of all. Never larger than any other enclosing sphere. Its radius is then
+/// re-measured from the final centre — the rule the runtime's containment proof reads —, so every
+/// sphere is inside by construction, and raised by `CONTAINMENT_MARGIN`. No sphere gives the zero
+/// sphere; one, itself.
 pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
     let mut live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
     match live.len() {
@@ -152,34 +171,19 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
         _ => {}
     }
     shuffle(&mut live);
-    let s = &live;
     let holds = |ball: &[f64; 4], b: &[f64; 4]| {
         let d = sub([b[0], b[1], b[2]], [ball[0], ball[1], ball[2]]);
         length(d) + b[3] <= ball[3] * (1.0 + SLACK) + 1e-300
     };
-    let mut ball = s[0];
-    for i in 1..s.len() {
-        if holds(&ball, &s[i]) {
-            continue;
-        }
-        ball = s[i];
-        for j in 0..i {
-            if holds(&ball, &s[j]) {
-                continue;
-            }
-            ball = through(&[s[i], s[j]]);
-            for k in 0..j {
-                if holds(&ball, &s[k]) {
-                    continue;
-                }
-                ball = through(&[s[i], s[j], s[k]]);
-                for l in 0..k {
-                    if !holds(&ball, &s[l]) {
-                        ball = through(&[s[i], s[j], s[k], s[l]]);
-                    }
-                }
-            }
-        }
+    let (mut support, mut ball) = (vec![live[0]], live[0]);
+    // In exact arithmetic every pivot grows the ball; the bound only guards against rounding
+    // cycling between equal balls, whose re-measured radius below holds every sphere anyway.
+    for _ in 0..4 * live.len() + 64 {
+        let Some(outside) = live.iter().find(|b| !holds(&ball, b)) else {
+            break;
+        };
+        support.push(*outside);
+        (support, ball) = basis(&support);
     }
     let c = [ball[0], ball[1], ball[2]];
     let r = radius_for(c, &live);

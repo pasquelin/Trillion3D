@@ -6,7 +6,13 @@
 //! equation `j` leaves one linear equation per other ball, `Σ λ_m 2 u_m·u_j = |u_j|² - r_j² + r_0²
 //! + 2R (r_j - r_0)`: `λ` is affine in `R`, and equation 0 then reads `|x_0 + R x_1|² = (R - r_0)²`,
 //! a quadratic in `R`. Its least root no smaller than any radius is the ball; a degenerate set (a
-//! singular system, no such root) takes the widest ball of its subsets, as for points.
+//! singular system, no such root) has none — a smaller subset of it is then the support.
+//!
+//! `basis` is the pivot of the ball of balls: the smallest ball of at most five balls, exactly.
+//! The smallest ball of a set has a support of at most four affinely independent balls, all
+//! touching it, so its centre is that of `through` some subset; every other subset's centre needs
+//! at least that radius to hold the set (`radius_for`). The least of those radii over the subsets
+//! is therefore the smallest ball.
 use trillion3d_math::vecn::{add, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
@@ -16,23 +22,48 @@ fn centre(s: &Sphere) -> [f64; 3] {
     [s[0], s[1], s[2]]
 }
 
-/// The smallest ball touching `balls` (one to four) from inside.
-pub(super) fn through(balls: &[Sphere]) -> Sphere {
+/// The smallest ball touching `balls` (one to four) from inside; `None` for a degenerate set.
+fn through(balls: &[Sphere]) -> Option<Sphere> {
     match balls.len() {
-        0 => [0.0; 4],
-        1 => balls[0],
-        2 => pair(&balls[0], &balls[1]),
-        n => tangent(balls).unwrap_or_else(|| {
-            (0..n)
-                .map(|skip| {
-                    let rest: Vec<Sphere> =
-                        (0..n).filter(|&k| k != skip).map(|k| balls[k]).collect();
-                    through(&rest)
-                })
-                .max_by(|x, y| x[3].total_cmp(&y[3]))
-                .unwrap_or([0.0; 4])
-        }),
+        0 => None,
+        1 => Some(balls[0]),
+        2 => Some(pair(&balls[0], &balls[1])),
+        _ => tangent(balls),
     }
+}
+
+/// The radius a ball centred on `c` needs to hold every ball of `balls`.
+pub(super) fn radius_for(c: [f64; 3], balls: &[Sphere]) -> f64 {
+    balls
+        .iter()
+        .map(|s| length(sub(centre(s), c)) + s[3])
+        .fold(0.0, f64::max)
+}
+
+/// The smallest ball holding `set` (one to five balls) and its support: over every subset of at
+/// most four, the centre `through` gives, the one needing the least radius to hold the set.
+pub(super) fn basis(set: &[Sphere]) -> (Vec<Sphere>, Sphere) {
+    let n = set.len();
+    let mut best: Option<(Vec<Sphere>, Sphere)> = None;
+    for mask in 1u32..(1 << n) {
+        if mask.count_ones() > 4 {
+            continue;
+        }
+        let subset: Vec<Sphere> = (0..n)
+            .filter(|k| mask >> k & 1 == 1)
+            .map(|k| set[k])
+            .collect();
+        let Some(ball) = through(&subset) else {
+            continue;
+        };
+        let c = centre(&ball);
+        let r = radius_for(c, set);
+        if best.as_ref().is_none_or(|(_, b)| r < b[3]) {
+            best = Some((subset, [c[0], c[1], c[2], r]));
+        }
+    }
+    // A single ball is always a subset, so some centre always exists.
+    best.unwrap_or_else(|| (vec![set[0]], set[0]))
 }
 
 /// The smallest ball holding `a` and `b`: the larger when it holds the other, otherwise the ball on

@@ -9,12 +9,12 @@ use super::cooked_scene::{cook_fixture, cook_scene, CookedScene, ENGINE_SCENES};
 use super::silhouette::{page_cuts, page_indices};
 use super::*;
 use crate::compiler_primitive_warn::root_cover_triangles;
-use crate::dag::bounds::point_sphere;
 use crate::dag::clusters::weld_positions;
 use crate::dag::vanished::{extent, parts};
 use crate::physics_cook::hausdorff::reference::one_sided_distance;
 use crate::tests::thin_shapes::ThinShapes;
 use std::collections::HashSet;
+use trillion3d_page_codec::min_ball::point_sphere;
 
 /// The root cover's defects against the source it was cooked from, one line each: a root page with
 /// a face farther from the source than twice its error — the error is the simplifier's, a distance

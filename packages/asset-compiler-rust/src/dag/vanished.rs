@@ -14,10 +14,10 @@
 //! and half the rest on the next, all at the same 0.4 m: its coarsest level kept 1.8 % of its area
 //! on a log house. Measured to the surface kept, a roof of parts keeps a cover
 //! within its error.
-use super::bounds::point_sphere;
 use crate::join::Join;
 use std::collections::BTreeMap;
 use trillion3d_page_codec::hash::WordMap;
+use trillion3d_page_codec::min_ball::point_sphere;
 
 /// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
 /// its triangles: one root per part.

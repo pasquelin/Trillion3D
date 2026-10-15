@@ -1,10 +1,10 @@
-//! Projection spheres (`bounds::point_sphere`, `ball_of_balls`): their edge cases, then whole DAGs
+//! Projection spheres (`min_ball::point_sphere`, `ball_of_balls`): their edge cases, then whole DAGs
 //! of smooth meshes.
+use super::part18::{box_centred, merged};
 use super::*;
-use bounds::point_sphere;
-use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{length, sub};
+use trillion3d_page_codec::min_ball::point_sphere;
 use trillion3d_page_codec::min_ball::{ball_of_balls, min_ball};
 
 /// Deterministic uniform draws in [-1, 1).
@@ -109,9 +109,11 @@ fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
                 [next() + far, next() * 2.0 - far, next() * 0.1, r]
             })
             .collect();
-        let (ball, merged) = (ball_of_balls(&spheres), enclosing_sphere(&spheres));
-        // Never larger than the sequential merge, up to the containment margin.
+        let (ball, merged) = (ball_of_balls(&spheres), merged(&spheres));
+        // Never larger than the sequential merge nor the box-centred sphere it replaced, up to the
+        // containment margin.
         assert!(ball[3] <= merged[3] + 1e-9, "case {case}");
+        assert!(ball[3] <= box_centred(&spheres) + 1e-9, "case {case}");
         for &s in spheres.iter().filter(|s| s[3] >= 0.0) {
             assert!(holds(ball, [s[0], s[1], s[2]], s[3], 0.0), "case {case}");
         }
