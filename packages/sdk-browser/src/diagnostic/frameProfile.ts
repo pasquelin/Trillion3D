@@ -4,9 +4,14 @@ import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
-import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
+import { FALLBACK_REFRESH_MS, SECOND_MS } from '../frame/scaleTargets.ts'
+import { DEFAULT_PAGE_WORKERS } from '../engine/common.ts'
 
-/** The first limit the frame hits: stutters, main thread past a 60 Hz frame, submit, streaming. */
+/** Judged on the slowest display the engine draws for (60 Hz): submit chokes past half its frame. */
+const FRAME_RATE = Math.round(SECOND_MS / FALLBACK_REFRESH_MS),
+  SUBMIT_MS = FALLBACK_REFRESH_MS / 2
+
+/** The first limit the frame hits: stutters, main thread, submit, pages past the fetch workers. */
 function diagnoseBottleneck(
   stutters: number,
   cpuFrameMs: number,
@@ -23,17 +28,17 @@ function diagnoseBottleneck(
       bottleneck: 'cpu_bound',
       bottleneckMessage: `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`,
     }
-  if (cpuSubmitMs != null && cpuSubmitMs > 8)
+  if (cpuSubmitMs != null && cpuSubmitMs > SUBMIT_MS)
     return {
       bottleneck: 'gpu_submit_bound',
       bottleneckMessage: `⚠️ WebGPU submit choke (${cpuSubmitMs.toFixed(1)} ms)`,
     }
-  if (pagesLoading > 20)
+  if (pagesLoading > DEFAULT_PAGE_WORKERS)
     return {
       bottleneck: 'streaming_bound',
       bottleneckMessage: `⚠️ Network / streaming choke (${pagesLoading} pages in flight)`,
     }
-  return { bottleneck: 'healthy', bottleneckMessage: '✅ Smooth pipeline (60+ FPS optimal)' }
+  return { bottleneck: 'healthy', bottleneckMessage: `✅ Smooth pipeline (${FRAME_RATE}+ FPS)` }
 }
 
 /** The triangle block of the report: source, selected and submitted counts and the culled share. */
@@ -123,7 +128,6 @@ export class FrameProfile {
     const cpuSubmitMs = m?.cpuSubmitMs ?? null
     const stutters = stats.stutters ?? 0
     const pagesLoading = m?.pagesLoading ?? 0
-
     const { bottleneck, bottleneckMessage } = diagnoseBottleneck(
       stutters,
       cpuFrameMs,
