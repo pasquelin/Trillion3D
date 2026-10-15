@@ -13,10 +13,9 @@ import { length2 } from '../../../../math/src/vector/vector.ts'
  * between them and the pixel motion of their midpoint — which is how a touch surface zooms
  * and pans at once. Nothing is polled: a controller that receives no event does no work.
  *
- * TOUCH. A touch screen scrolls the page on one finger and zooms it on two unless the surface
- * claims the gesture with `touch-action: none`; the browser otherwise cancels the pointer
- * stream mid-drag and no pinch ever reaches a controller. `dispose()` puts the value the host
- * had written back, and gives up every capture still held, so the page is left as it was.
+ * TOUCH. The surface claims the gesture with `touch-action: none`, else the browser scrolls and
+ * cancels the pointer stream mid-drag; `dispose()` puts the host's value back and gives up every
+ * capture still held.
  */
 export interface DragHandlers {
   /** One pointer moved by `(dx, dy)` pixels, `button` being the one that started the drag. */
