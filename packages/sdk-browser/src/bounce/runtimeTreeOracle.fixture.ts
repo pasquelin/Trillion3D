@@ -11,7 +11,7 @@ import {
   NODE_MIN,
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP, type PlacementTree } from '../gpu/dag/placementTree.ts'
-import { RAY_WORK } from './runtimeLayout.ts'
+import { RAY_TREE_STEPS, RAY_WORK } from './runtimeLayout.ts'
 import { TREE_DEPTH, WALK_LIST } from '../gpu/dag/treeWalkWgsl.ts'
 import { boxEntry, spent, type Hit, type Spent } from './runtimeOracle.fixture.ts'
 import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
@@ -43,10 +43,9 @@ export function walkTree(
   }
   const levels: Level[] = [{ node: 0, held: [], taken: 0, more: true }]
   const word = (n: number, k: number) => nodes[n * DAG_NODE_FLOATS + k]
-  const steps = 2 * RAY_WORK
   let done = false,
     step = 0
-  walk: while (step < steps) {
+  walk: while (step < RAY_TREE_STEPS) {
     if (spent(s)) {
       done = true
       break
@@ -68,7 +67,7 @@ export function walkTree(
       const held: [number, number][] = []
       let over = false
       for (let k = 0; k < count; k++) {
-        if (step >= steps) break walk
+        if (step >= RAY_TREE_STEPS) break walk
         if (spent(s)) {
           done = true
           break walk
@@ -96,7 +95,7 @@ export function walkTree(
         while (j > 0 && e < held[j - 1][1]) j--
         held.splice(j, 0, [k, e])
       }
-      if (step >= steps) break
+      if (step >= RAY_TREE_STEPS) break
       top.held = held
       top.taken = 0
       top.more = over

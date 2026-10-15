@@ -78,6 +78,9 @@ export const SURFACE_BLENDED = 1
  * (`rtProbeRay`, `probeWgsl.ts`).
  */
 export const RAY_WORK = 512
+/** The steps a ray's walk of the placement tree takes at most (`placementTreeWalk`), twice its
+ *  units: the one bound the shipped walk and its CPU twin read. */
+export const RAY_TREE_STEPS = 2 * RAY_WORK
 export const RAY_TRIANGLES = 128
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
