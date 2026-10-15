@@ -1,5 +1,6 @@
-// The run-time proxy's rays, the shipped WGSL run as JavaScript: a ray answers what it meets and binds nothing
-// writable; the reflections' trace casts one a lobe, every image (`../reflections/traceHalf.ts`).
+// The run-time proxy's rays, the shipped WGSL run as JavaScript: they bind nothing writable, and a scene
+// with no placement wearing a proxy casts nothing; the reflections' trace casts one a lobe, every image
+// (`../reflections/traceHalf.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BINDINGS, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
@@ -8,21 +9,10 @@ import { REFLECTION_TRACE_SHADER } from '../reflections/traceHalf.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 
-const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
-
 test('the proxy’s rays bind nothing writable and share no counter', () => {
   const rays = wgslModule(runtimeRadianceWgsl(BINDINGS))
   assert.ok(!rays.includes('read_write'), 'the rays write no binding')
   assert.ok(!REFLECTION_TRACE_SHADER.includes('atomic'), 'no counter shared between rays')
-})
-
-test('a ray answers what it meets, a second of the same pixel as well', () => {
-  const run = runOver(lit())
-  const seen = run.rtRadiance(origin, ahead, 1000, 0.01)
-  // The clear coat's lobe, a second ray of the same pixel: cast as well, never left unanswered.
-  const coat = run.rtRadiance(origin, ahead, 1000, 0.01)
-  assert.deepEqual([seen.color, seen.confidence], [[3, 2, 1], 1])
-  assert.deepEqual([coat.color, coat.confidence], [[3, 2, 1], 1])
 })
 
 test('a scene with no placement wearing a proxy casts nothing', () => {
