@@ -144,11 +144,13 @@ uint32_t runBuoyancy(const uint32_t *w) {
     }
     if (!body || submerged <= 0 || total <= 0) continue;
     centre /= submerged;
-    // The pieces' volumes are the body's, each measured with its own part under water: one sum,
-    // never scaled to another measure of the same volume. Jolt's buoyancy factor is the fluid's
-    // density over the body's: `density` is the water's.
-    float factor = density * total * body->GetMotionProperties()->GetInverseMass();
-    body->ApplyBuoyancyImpulse(total, submerged, centre, factor, linearDrag, angularDrag, current,
+    // The pieces' volumes add up to the shape's, but for their rounding: Jolt's buoyancy takes
+    // the shape's own.
+    float volume = body->GetShape()->GetVolume();
+    submerged *= volume / total;
+    // Jolt's buoyancy factor is the fluid's density over the body's: `density` is the water's.
+    float factor = density * volume * body->GetMotionProperties()->GetInverseMass();
+    body->ApplyBuoyancyImpulse(volume, submerged, centre, factor, linearDrag, angularDrag, current,
                                gravity, world.fixedStep);
   }
   return BUOYANCY_WORDS + count * PLANE_WORDS;
