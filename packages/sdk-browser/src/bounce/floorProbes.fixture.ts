@@ -35,6 +35,8 @@ export async function floorProbes(tiled = false) {
     scene,
     () => lights,
     createProxyBudget(1000),
+    // The deferred placeholders' empty lists, as the engine passes them.
+    gpu.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
     tiles && (() => tiles),
   )
   return { gpu, lights, tiles, probes, encoder: gpu.device.createCommandEncoder() }

@@ -57,6 +57,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
   else if (!context.readSceneProxy)
     bounce.reason = 'the cache carries no resident proxy; recompile it with this compiler'
   else if (!lights.buffer) bounce.reason = 'the declared-light buffer is unavailable'
+  else if (!rt.gpu.deferred) bounce.reason = 'the deferred lighting is unavailable'
   if (bounce.reason) {
     publish(rt)
     return
@@ -77,6 +78,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         },
         () => lights.buffer!,
         bounce.budget,
+        rt.gpu.deferred!.placeholders.tiles,
         () => lights.tiles,
       )
     })

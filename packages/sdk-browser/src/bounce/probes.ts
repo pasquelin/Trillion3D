@@ -37,6 +37,9 @@ export async function createGpuBounceProbes(
   lights: () => GPUBuffer,
   /** The proxy rays' one budget (`createProxyBudget`), whose probe fraction sizes each batch. */
   budget: ProxyBudget,
+  /** The empty light lists bound where no grid holds them (`DeferredPlaceholders.tiles`): no point
+   *  reads it (`setLightLists`). */
+  noLists: GPUBuffer,
   /** The light grid, whose buffer holds the world grid's lists beside the view's. */
   tiles: () => GpuLightTiles | undefined = () => undefined,
 ) {
@@ -63,8 +66,6 @@ export async function createGpuBounceProbes(
   let pipeline: GPUComputePipeline
   let follow: SnapshotFollow
   const lists = worldLightLists(tiles, lights, uniform)
-  // The lists' stand-in where no grid holds them: no point reads it (`setLightLists`).
-  const noLists = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   const layout = probeLayout(device)
   const bind = probeBinder(device, layout, {
     grid: uniform.buffer,
@@ -80,7 +81,6 @@ export async function createGpuBounceProbes(
     })
     follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView)
   } catch (error) {
-    noLists.destroy()
     release()
     throw error
   }
@@ -177,7 +177,6 @@ export async function createGpuBounceProbes(
       return true
     },
     dispose() {
-      noLists.destroy()
       release()
     },
   }
