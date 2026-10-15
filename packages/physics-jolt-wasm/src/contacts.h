@@ -56,6 +56,10 @@ constexpr uint32_t MANIFOLD_POINTS = 4;
 /// (`softContacts.cpp`): one point, whose impulse is `max(0, v) / k`.
 float normalImpulse(uint32_t count, const float target[MANIFOLD_POINTS],
                     const float k[MANIFOLD_POINTS][MANIFOLD_POINTS]);
+/// The normal impulse of every point of a rigid pair's `manifold` (`normalImpulse`), each bounced
+/// back at the pair's restitution past Jolt's restitution speed.
+float manifoldImpulse(const JPH::Body &a, const JPH::Body &b, const JPH::ContactManifold &manifold,
+                      const JPH::ContactSettings &settings);
 /// The approach speed along the normal the solver takes out of a contact: all of `speed`, and
 /// `restitution` times more when it comes faster than `threshold` (it bounces back).
 inline float bounced(float speed, float restitution, float threshold) {
