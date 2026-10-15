@@ -7,38 +7,46 @@ import { destroyRetired } from '../core/frameRetire.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
-test('the page pool shrinks while keeping its pages: copy, move, eviction of the last ones', async () => {
+test('the page pool shrinks while keeping its pages: a page keeps its place, the others move, the last ones leave', async () => {
   const { device: gpu, copies, destroyed } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 6 },
   )
-  // Six pages, one per slot: a..f. Slots are taken from the top (5, 4, …).
+  // Six pages, one grain each, from the pool's first byte: a..f at 0, 8, …, 40.
   for (const key of ['a', 'b', 'c', 'd', 'e', 'f']) await cache.load(key)
-  cache.pin('a') // slot 5, the highest: it keeps a place before any unpinned page
+  cache.pin('a') // a keeps a place before any unpinned page
   const keys: string[] = [],
     slots: number[] = []
   cache.drainResidencyChanges(keys, slots)
   keys.length = slots.length = 0
   const before = cache.buffer
   const evicted = await cache.resize(3)
-  // Three places for six pages: a (pinned) first, then the most recent — f, e. Slots 0 and 1
-  // survive with f and e; a takes slot 2, which d leaves free; b, c and d are evicted.
+  // Three places for six pages: a (pinned) first, then the most recent — f, e. a keeps 0, f takes
+  // the first free grain (8), e the next (16); b, c and d are evicted.
   assert.equal(cache.stats().slots, 3)
   assert.equal(cache.stats().allocatedBytes, 24)
   assert.notEqual(cache.buffer, before)
   assert.equal(destroyed.length, 0, 'the old buffer lives until the frame is submitted')
   destroyRetired(gpu)
   assert.equal(destroyed.length, 1, 'the old buffer is destroyed after it')
-  assert.equal(copies[0].size, 24, 'the common prefix is copied in one go')
+  assert.deepEqual(
+    copies.map(({ fromOffset, toOffset, size }) => [fromOffset, toOffset, size]),
+    [
+      [0, 0, 8],
+      [32, 16, 8],
+      [40, 8, 8],
+    ],
+    'each kept page copied once, in the order of its old place',
+  )
   assert.deepEqual(evicted.sort(), ['b', 'c', 'd'])
-  assert.ok(cache.get('e') && cache.get('f'))
-  assert.equal(cache.get('a')!.slot, 2, 'moved into the slot the evicted page left')
+  assert.equal(cache.get('a')!.offset, 0, 'the pinned page keeps its place')
+  assert.deepEqual([cache.get('f')!.offset, cache.get('e')!.offset], [8, 16])
   assert.equal(cache.get('d'), undefined)
   cache.drainResidencyChanges(keys, slots)
-  assert.deepEqual(keys, ['d', 'c', 'b', 'a'], 'evictions, then the move')
-  assert.deepEqual(slots, [-1, -1, -1, 4], 'word offset of slot 2')
+  assert.deepEqual(keys, ['b', 'c', 'd', 'e', 'f'], 'evictions, then the moves')
+  assert.deepEqual(slots, [-1, -1, -1, 4, 2], 'word offsets of the new places')
 })
 
 test('the root cover keeps its place before every pinned page, and no covering page is evicted', async () => {
@@ -57,27 +65,28 @@ test('the root cover keeps its place before every pinned page, and no covering p
   assert.ok(cache.get('c'), 'and the most recent pinned page with it')
 })
 
-test('a page outside the pool is moved into a free slot rather than evicted, and the log says so', async () => {
+test('a page past the smaller pool is moved into a free grain rather than evicted, and the log says so', async () => {
   const { device: gpu, copies } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 4 },
   )
-  await cache.load('a') // slot 3
+  for (const key of ['a', 'b', 'c', 'd']) await cache.load(key) // d at 24
+  for (const key of ['a', 'b', 'c']) cache.unload(key)
   const evicted = await cache.resize(2)
   assert.deepEqual(evicted, [])
-  assert.equal(cache.get('a')!.slot, 0, 'moved into the lowest free slot')
+  assert.equal(cache.get('d')!.offset, 0, 'moved into the first free grain')
   assert.equal(copies.at(-1)!.toOffset, 0)
   assert.equal(copies.at(-1)!.fromOffset, 24)
   const keys: string[] = [],
     slots: number[] = []
   cache.drainResidencyChanges(keys, slots)
-  assert.deepEqual([keys.at(-1), slots.at(-1)], ['a', 0])
-  // The pool grows again: nothing moves, the new slots are free.
+  assert.deepEqual([keys.at(-1), slots.at(-1)], ['d', 0])
+  // The pool grows again: nothing moves, the new grains are free.
   await cache.resize(4)
   await cache.load('b')
-  assert.equal(cache.get('b')!.slot, 3)
+  assert.equal(cache.get('b')!.offset, 8)
 })
 
 test('a covering page is kept through pins and unpins, and a pinned one counts once', async () => {

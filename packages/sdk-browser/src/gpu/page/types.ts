@@ -8,8 +8,6 @@ import type { ResidencyLog } from './residencyLog.ts'
 export interface ResidentPage {
   /** Its key. */
   key: string
-  /** Its slot in the pool: its home's rank when the pool holds the whole catalogue (`homes.ts`). */
-  slot: number
   /** Its byte offset. */
   offset: number
   /** Its size. */
@@ -21,7 +19,7 @@ export type GpuPageContext = {
   device: GPUDevice
   pageBytes: number
   slots: number
-  /** Each page's own place, taken when `slots` hold the whole catalogue (`homes.ts`). */
+  /** Each page's width and home (`homes.ts`): the allocator's (`placement.ts`). */
   homes?: PageHomes
   buffer: GPUBuffer
   resident: Map<string, ResidentPage>
@@ -40,10 +38,9 @@ export type GpuPageContext = {
     /** A load was refused for lack of a place since the host last asked (`takeRefused`). */
     refused: boolean
   }
-  /** Which unpinned page gives its slot back, in fixed slots (`eviction.ts`). */
+  /** Which unpinned pages give their bytes back to an arrival (`eviction.ts`). */
   eviction: Eviction
-  /** Where an arrival lands: its home, a free slot or a victim's, and the slots free
-   *  (`placement.ts`). */
+  /** Where an arrival lands: the pool's one allocator (`placement.ts`). */
   placement: Placement
   /** The changes the host has not drained yet (`residencyLog.ts`). */
   changes: ResidencyLog

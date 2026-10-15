@@ -30,7 +30,7 @@ export function checkRoom(context: GpuPageContext, key: string, bytes: Uint8Arra
  *  pinned or the published order is spent. A `prefetch` takes the place of an old page alone
  *  (`eviction.ts`): it never evicts one a view used of late. */
 export function placeOf(context: GpuPageContext, key: string, bytes: number, prefetch: boolean) {
-  const place = context.placement.slotFor(key, bytes, prefetch)
+  const place = context.placement.place(key, bytes, prefetch)
   if (typeof place === 'string') throw refusal(context, key, place)
   for (const victim of place.victims) evictResident(context, victim, 'capacity')
   return place

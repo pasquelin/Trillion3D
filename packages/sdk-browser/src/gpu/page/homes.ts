@@ -16,13 +16,13 @@ export type PageHomes = {
 }
 
 /**
- * The pool's layout when the whole catalogue fits: each page at its own width — its bytes padded
- * to a word, raised to the end of its own deformation tails, which stay at their offset
- * (`../../deformation/outputs.ts`) — one after the other in the catalogue's order, where a
- * fixed slot gives every page the width of the widest. Every reader reaches a page through its
+ * Each page's own width — its bytes padded to a word, raised to the end of its own deformation
+ * tails, which stay at their offset (`../../deformation/outputs.ts`) — and its home, one after the
+ * other in the catalogue's order: the width the pool's allocator gives the page, and its place
+ * while the pool holds the catalogue's bytes (`placement.ts`). Every reader reaches a page through its
  * offset (`../../webgpu/residency/residencyFollow.ts`); a decode that reads a word past a page's end
  * keeps none of its bits (`homesDecode.test.ts`), so what lies after a page, a neighbour or
- * nothing, changes no value. `undefined` for a catalogue of no bytes: fixed slots hold it.
+ * nothing, changes no value. `undefined` for a catalogue of no bytes: grains of the widest hold it.
  */
 export function pageHomes(widths: ReadonlyMap<string, number>): PageHomes | undefined {
   const homes: PageHomes = { homes: new Map<string, PageHome>(), bytes: 0 }
@@ -48,8 +48,3 @@ export function extendHomes(homes: PageHomes, widths: ReadonlyMap<string, number
     homes.bytes += width
   }
 }
-
-/** The homes a pool of `slots` places its pages in: those of the whole catalogue when it holds
- *  it, none — fixed slots — otherwise. */
-export const heldHomes = (homes: PageHomes | undefined, slots: number) =>
-  homes && slots >= homes.homes.size ? homes : undefined

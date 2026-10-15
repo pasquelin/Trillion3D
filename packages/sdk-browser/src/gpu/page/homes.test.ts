@@ -6,7 +6,7 @@ import { pageHomes } from './homes.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
-/** Three pages of their own sizes, the widest slot 40 bytes: 37 bytes padded to 40. */
+/** Three pages of their own sizes, the widest 40 bytes: 37 bytes padded to 40. */
 const BYTES: Record<string, number> = { a: 10, b: 37, c: 8 }
 const WIDTHS = new Map([
   ['a', 12],
@@ -35,14 +35,18 @@ test('homes lie one after the other: disjoint, word-aligned, inside the bytes th
     [0, 1, 2],
   )
   assert.throws(() => pageHomes(new Map([['odd', 6]])), /INVALID_PAGE_HOME/)
-  assert.equal(pageHomes(new Map()), undefined, 'no bytes, no homes: a fixed slot holds them')
+  assert.equal(
+    pageHomes(new Map()),
+    undefined,
+    'no bytes, no homes: grains of the widest hold them',
+  )
 })
 
 test('a pool holding the whole catalogue writes each page at its home and holds their bytes alone', async () => {
   const { device, writes, buffers } = fakeDevice({ limits: LIMITS })
   const homes = pageHomes(WIDTHS)!
   const cache = createGpuPageCache(device, source, { pageBytes: 40, slots: 3, homes })
-  assert.equal(buffers.at(-1)!.size, 60, 'the homes, not three slots of 40')
+  assert.equal(buffers.at(-1)!.size, 60, 'the homes, not three of the widest')
   assert.equal(cache.stats().allocatedBytes, 60)
   await cache.load('c')
   await cache.load('b')
@@ -78,59 +82,53 @@ test('a page wider than its home is refused: it would write over its neighbour',
   await assert.rejects(cache.load('a'), /PAGE_SIZE_MISMATCH/)
 })
 
-test('a pool that comes to hold the catalogue moves each page home, and leaves it slot by slot', async () => {
+test('a pool that comes to hold the catalogue moves each page home, and leaves it grain by grain', async () => {
   const { device, copies, buffers } = fakeDevice({ limits: LIMITS })
-  const homes = pageHomes(WIDTHS)!
+  // A hundred bytes of homes: more than two of the widest page hold.
+  const homes = pageHomes(new Map([...WIDTHS, ['d', 40]]))!
   const cache = createGpuPageCache(device, source, { pageBytes: 40, slots: 2, homes })
-  assert.equal(cache.stats().allocatedBytes, 80, 'two slots of the widest page')
-  await cache.load('a') // slot 1
-  await cache.load('b') // slot 0
+  assert.equal(cache.stats().allocatedBytes, 80, 'two of the widest page')
+  await cache.load('a') // its home's 12 bytes in a grain of 20, at 0
+  await cache.load('b') // a grain of 40, at 40
   drained(cache)
-  // Fixed slots to homes: each page with all its slot, which holds its tails, to its home.
+  // Grains to homes: each page's bytes, its tails with them, to its home.
   assert.deepEqual(await cache.resize(3), [])
-  assert.equal(buffers.at(-1)!.size, 60)
+  assert.equal(buffers.at(-1)!.size, 100)
   assert.deepEqual(
     copies.map(({ fromOffset, toOffset, size }) => [fromOffset, toOffset, size]),
     [
-      [40, 0, 12],
-      [0, 12, 40],
+      [0, 0, 12],
+      [40, 12, 40],
     ],
-    "no common prefix: each page's own span, its home's width",
+    "each page's own span at its home's width; a page already home keeps its place",
   )
-  assert.deepEqual(
-    drained(cache),
-    [
-      ['a', 0],
-      ['b', 3],
-    ],
-    'both arrive at their home, word offsets',
-  )
+  assert.deepEqual(drained(cache), [['b', 3]], 'the page that moved, word offset of its home')
   await cache.load('c')
   assert.deepEqual(drained(cache), [['c', 13]], 'an arrival takes its home')
-  // A larger pool still holds the catalogue: nothing moves, no buffer is made.
+  // A larger budget still holds the catalogue in the same bytes: nothing moves, no buffer is made.
   const made = buffers.length
   assert.deepEqual(await cache.resize(5), [])
   assert.equal(buffers.length, made)
-  // Homes to two fixed slots: every page is displaced, the least recent leaves.
+  // Homes to two of the widest: every page to an aligned grain, which their bytes all fit.
   copies.length = 0
-  assert.deepEqual(await cache.resize(2), ['a'])
+  assert.deepEqual(await cache.resize(2), [])
   assert.equal(cache.stats().allocatedBytes, 80)
   assert.deepEqual(
     copies.map(({ fromOffset, toOffset, size }) => [fromOffset, toOffset, size]),
     [
-      [52, 0, 8],
+      [0, 0, 12],
       [12, 40, 40],
+      [52, 20, 8],
     ],
-    'the most recent first, each from its home into the lowest free slot',
+    'a keeps its place, b and c each to the first grain that holds it',
   )
   assert.deepEqual(drained(cache), [
-    ['a', -1],
-    ['c', 0],
     ['b', 10],
+    ['c', 5],
   ])
   giveUp(cache, 'b')
-  await cache.load('a')
-  assert.ok(cache.get('a') && !cache.get('b'), 'fixed slots evict what the order gives up again')
+  await cache.load('d')
+  assert.ok(cache.get('d') && !cache.get('b'), 'grains evict what the order gives up again')
 })
 
 test('pages joining a pool that holds the catalogue take homes behind the others, every page where it was', async () => {
@@ -152,7 +150,7 @@ test('pages joining a pool that holds the catalogue take homes behind the others
   })
   assert.deepEqual(evicted, [])
   assert.equal(buffers.at(-1)!.size, 84, 'the homes of the three, then of the two')
-  assert.equal(copies.at(-1)!.size, 60, 'the pages held are copied as they lie')
+  assert.equal(copies.at(-1)!.size, 48, 'the pages held are copied as they lie, in one run')
   assert.deepEqual(
     [cache.get('c')!.offset, cache.get('b')!.offset],
     [52, 12],
@@ -165,7 +163,7 @@ test('pages joining a pool that holds the catalogue take homes behind the others
   assert.equal(cache.stats().slots, 5)
 })
 
-test('a slot made wider by the pages that joined takes every page to its place in the wider slots', async () => {
+test('a widest page made wider by the pages that joined takes every page to an aligned grain of it', async () => {
   const { device, copies } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(device, source, { pageBytes: 12, slots: 2 })
   BYTES.a = 12
@@ -178,7 +176,7 @@ test('a slot made wider by the pages that joined takes every page to its place i
   assert.deepEqual(evicted, [])
   assert.equal(cache.stats().allocatedBytes, 80)
   for (const key of ['a', 'c'])
-    assert.equal(cache.get(key)!.offset, cache.get(key)!.slot * 40, `${key} at its wider slot`)
+    assert.equal(cache.get(key)!.offset % 20, 0, `${key} at a grain of the wider widest page`)
   assert.equal(copies.length, 2, 'one copy a page')
   assert.deepEqual(
     drained(cache).map(([key]) => key),

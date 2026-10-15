@@ -5,9 +5,9 @@ import { createGpuPageLoader } from './load.ts'
 import { createGpuPagePins } from './gpuPagePins.ts'
 import { createPageBuffer, pageBufferBytes } from './resize.ts'
 import { disposePageCache, pageCacheStats, resizeBehind, unloadPage } from './cacheOps.ts'
-import { heldHomes, type PageHomes } from './homes.ts'
+import type { PageHomes } from './homes.ts'
 import { createEviction, type EvictionOrder } from './eviction.ts'
-import { homePlacement, slotPlacement, wholeSlots } from './placement.ts'
+import { createPlacement } from './placement.ts'
 import { createResidencyLog } from './residencyLog.ts'
 import type { ResidentPage, GpuPageContext } from './types.ts'
 /** How a GPU page cache is sized and where it reports (`createGpuPageCache`). */
@@ -16,7 +16,7 @@ export type GpuPageCacheOptions = {
   pageBytes: number
   /** How many slots the pool holds. */
   slots: number
-  /** Each page's own place, taken while `slots` hold the whole catalogue (`homes.ts`). */
+  /** Each page's width and home, taken while the pool holds the catalogue's bytes (`homes.ts`). */
   homes?: PageHomes
   /** The root cover's addresses: a resize keeps them before any other page. */
   cover?: ReadonlySet<string>
@@ -136,16 +136,14 @@ function pageContext(device: GPUDevice, source: PageSource, options: GpuPageCach
     signal?.throwIfAborted()
   }
   const resident = new Map<string, ResidentPage>()
-  const ownHomes = heldHomes(homes, slots)
   const eviction = createEviction(resident)
-  const placement = ownHomes
-    ? homePlacement(ownHomes, ownHomes.homes.size)
-    : slotPlacement(
-        pageBytes,
-        wholeSlots(Array.from({ length: slots }, (_, slot) => slot)),
-        eviction,
-        resident,
-      )
+  const placement = createPlacement({
+    bytes: allocatedBytes,
+    widest: pageBytes,
+    homes,
+    eviction,
+    resident,
+  })
   const context: GpuPageContext = {
     device,
     pageBytes,
