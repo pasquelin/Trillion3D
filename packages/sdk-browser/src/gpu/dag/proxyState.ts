@@ -6,7 +6,7 @@
  */
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { SQRT3, NO_INDEX } from '../../../../math/src/constants.ts'
-import { longestColumn } from '../../../../math/src/matrix/matrixElements.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { createProxyBoxes } from './proxyBoxes.ts'
 import { createProxyArena } from './proxyArena.ts'
 import { createProxyColumns } from './proxyColumns.ts'
@@ -119,7 +119,7 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
    *  grid's at the pose's scale, at least the error a compiled mesh's manifest certifies. */
   function noteError(cut: RuntimeCutProxy, m: ArrayLike<number>, at: number) {
     const world = Math.max(
-      cut.cellMetres * CELL_ERROR_FACTOR * longestColumn(m, at),
+      cut.cellMetres * CELL_ERROR_FACTOR * maxStretch(m, at),
       cut.errorMetres ?? 0,
     )
     if (world > held.error) {

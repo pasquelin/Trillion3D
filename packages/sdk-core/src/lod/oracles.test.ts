@@ -73,15 +73,15 @@ test('a cluster error projects as the certified screen bound of its sphere', () 
   assert.ok(px(0.5, { radius: 2 }) > px(0.5))
 })
 
-test('maxStretch rejects non-finite matrix elements', () => {
+test('maxStretch refuses non-finite matrix elements with NaN, never a throw', () => {
   const withNaN = [NaN, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0]
-  assert.throws(() => maxStretch(withNaN), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withNaN)))
 
   const withInfinityPos = [1, 0, 0, 0, Infinity, 0, 0, 0, 1, 0, 0]
-  assert.throws(() => maxStretch(withInfinityPos), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withInfinityPos)))
 
   const withInfinityNeg = [1, 0, 0, 0, 1, 0, 0, 0, -Infinity, 0, 0]
-  assert.throws(() => maxStretch(withInfinityNeg), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withInfinityNeg)))
 })
 
 test('maxStretch accepts all finite matrix elements and returns finite positive stretch', () => {

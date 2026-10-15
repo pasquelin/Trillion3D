@@ -6,7 +6,7 @@
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
 use crate::proxy::placement::place;
-use trillion3d_math::linear::{cofactor_direction, determinant, longest_column};
+use trillion3d_math::linear::{cofactor_direction, determinant, max_stretch};
 use trillion3d_math::matrix::transform_point;
 use trillion3d_math::vec3::unit;
 use trillion3d_page_codec::encode::Attribute;
@@ -82,7 +82,7 @@ pub(super) fn gather(
         let mirrored = determinant(&placed.matrix) < 0.0;
         place(&placed.cover.positions, &placed.matrix, &mut positions);
         place_attributes(placed.cover, &placed.matrix, mirrored, &mut carried);
-        let scale = longest_column(&placed.matrix);
+        let scale = max_stretch(&placed.matrix);
         let (mut indices, mut error, mut spheres) = (Vec::new(), 0.0f64, Vec::new());
         for root in &placed.cover.clusters {
             for &[a, b, c] in root.indices.as_chunks::<3>().0 {

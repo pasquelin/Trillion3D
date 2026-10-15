@@ -27,16 +27,22 @@ fn uniform_scale_is_the_cube_root_of_the_volume() {
 }
 
 #[test]
-fn longest_column_is_the_root_of_each_column_s_squares() {
+fn max_stretch_is_the_largest_singular_value_never_a_column_under_a_shear() {
     let mut state = 7u64;
     for _ in 0..1000 {
         let m = draw_matrix(&mut state);
-        let by_hand = (0..3)
+        // Never below a column's length, the stretch of a unit axis.
+        let column = (0..3)
             .map(|c| (m[c * 4].powi(2) + m[c * 4 + 1].powi(2) + m[c * 4 + 2].powi(2)).sqrt())
             .fold(0.0f64, f64::max);
-        assert_eq!(longest_column(&m).to_bits(), by_hand.to_bits());
+        assert!(max_stretch(&m) >= column * (1.0 - 1e-12));
     }
-    assert_eq!(longest_column(&scaling([1.0, -3.0, 2.0])), 3.0);
+    assert_eq!(max_stretch(&scaling([1.0, -3.0, 2.0])), 3.0);
+    // [[1, 3], [0, 1]]: (3 + √13) / 2, above its longest column √10.
+    let mut shear = IDENTITY;
+    shear[4] = 3.0;
+    assert!((max_stretch(&shear) - (3.0 + 13f64.sqrt()) / 2.0).abs() < 1e-12);
+    assert!(max_stretch(&[f64::NAN; 16]).is_nan());
 }
 
 #[test]

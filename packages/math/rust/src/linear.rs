@@ -1,5 +1,5 @@
 //! The linear part of a column-major 4×4 matrix in `f64`: its columns, its determinant, the
-//! lengths of its columns, the cofactor that carries plane normals, and the translation, rotation
+//! stretch, the cofactor that carries plane normals, and the translation, rotation
 //! and scale it is made of. Two determinants round apart and keep apart: `determinant`, the
 //! triple product, and `determinant_by_first_row`, the cofactor expansion along the first row.
 
@@ -40,20 +40,10 @@ pub fn uniform_scale(m: &[f64; MATRIX_VALUES]) -> f64 {
     determinant(m).abs().cbrt()
 }
 
-/// The longest of the three columns (`vecn::length` each), from `0.0` by `f64::max` in column
-/// order: a NaN length is passed over.
-#[inline]
-pub fn longest_column(m: &[f64; MATRIX_VALUES]) -> f64 {
-    linear_columns(m)
-        .map(length)
-        .into_iter()
-        .fold(0.0f64, f64::max)
-}
-
 /// The largest singular value of the linear part, `maxStretch` of `packages/math/src/projection/
 /// projectionOracles.ts` term for term: the largest eigenvalue of `AᵀA` by the trigonometric
 /// solution of its cubic, its arc cosine `acos` and its cosine `sin(π/2 − θ)` fdlibm's, the same
-/// bits on every host. Exact for a rotation and a scale, never below the stretch under a shear:
+/// bits on every host (the TS form's `Math.cos` may differ in the last bits). Exact for a rotation and a scale, never below the stretch under a shear:
 /// the one stretch every level of detail projects an error through. NaN for a non-finite part.
 pub fn max_stretch(m: &[f64; MATRIX_VALUES]) -> f64 {
     let [c0, c1, c2] = linear_columns(m);

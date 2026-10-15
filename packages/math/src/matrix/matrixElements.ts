@@ -1,5 +1,4 @@
 import { FLOAT32_STEP } from '../constants.ts'
-import { length3 } from '../vector/vector.ts'
 
 /** Whether the `count` numbers `a` holds from `aAt` are those `b` holds from `bAt`, each `!==`:
  *  `-0` matches `0` and a `NaN` never matches. The one equality loop of numbers. */
@@ -101,19 +100,6 @@ export function poseHoldsBox(
     reach = Math.max(reach, far)
   }
   return moved < FLOAT32_STEP * reach
-}
-
-/** The longest of the three columns of the linear part of the column-major matrix `m` holds from
- *  `at`, from zero by the larger in column order, a NaN length passed over, as the Rust core's
- *  `linear::longest_column` takes it: the most a unit length along the matrix's own axes stretches. */
-export function longestColumn(m: ArrayLike<number>, at = 0) {
-  let longest = 0
-  for (let column = 0; column < 3; column++) {
-    const o = at + column * 4,
-      length = length3(m[o], m[o + 1], m[o + 2])
-    if (length > longest) longest = length
-  }
-  return longest
 }
 
 /** Whether `a` holds `b`'s values, as many, each `===`: version lists, light reaches and GPU
