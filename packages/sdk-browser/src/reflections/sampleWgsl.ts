@@ -1,6 +1,7 @@
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_U32, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { additive2d, mixWord } from '../../../math/src/wgsl/sampling.ts'
+import { highHalf, lowHalf } from '../../../math/src/wgsl/integer.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
@@ -72,6 +73,8 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     TWO_PI,
     mixWord,
     additive2d,
+    lowHalf,
+    highHalf,
     tangentFallback,
     vectorRejection,
     LOBE_AXIS_WGSL,
@@ -81,7 +84,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
 fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
 fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
- let shift=vec2f(f32(seed&0xffffu),f32(seed>>16u))/65536.0;
+ let shift=vec2f(f32(lowHalf(seed)),f32(highHalf(seed)))/65536.0;
  return additive2d(shift,reflectionView.temporal.x);
 }
 fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->vec3f{

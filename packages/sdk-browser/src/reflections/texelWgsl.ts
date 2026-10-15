@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { HALF_MAX } from '../../../math/src/wgsl/constants.ts'
+import { bitIsSet, lowHalf } from '../../../math/src/wgsl/integer.ts'
 import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
@@ -63,6 +64,8 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
   [
     REFLECTED_WGSL,
     HALF_MAX,
+    lowHalf,
+    bitIsSet,
     slabPerspective,
     octEncode,
     octDecode,
@@ -79,12 +82,12 @@ fn texelRadiance(r:Reflected)->vec3u{
  let c=min(r.coat,vec3f(HALF_MAX));
  return vec3u(pack2x16float(b.xy),pack2x16float(vec2f(b.z,c.x)),pack2x16float(c.yz));
 }
-fn texelHalf(x:f32)->u32{return pack2x16float(vec2f(min(x,HALF_MAX),0.0))&0xffffu;}
-fn texelHalfOf(w:u32)->f32{return unpack2x16float(w&0xffffu).x;}
+fn texelHalf(x:f32)->u32{return lowHalf(pack2x16float(vec2f(min(x,HALF_MAX),0.0)));}
+fn texelHalfOf(w:u32)->f32{return unpack2x16float(lowHalf(w)).x;}
 fn freshPack(r:Reflected,hit:f32,pick:u32,radius:u32)->vec4u{
  return vec4u(texelRadiance(r),texelHalf(hit)|((pick-1u)<<16u)|(radius<<18u)|(1u<<20u));
 }
-fn freshValid(t:vec4u)->bool{return (t.w&(1u<<20u))!=0u;}
+fn freshValid(t:vec4u)->bool{return bitIsSet(t.w,20u);}
 fn freshPick(t:vec4u)->u32{return ((t.w>>16u)&3u)+1u;}
 fn freshRadius(t:vec4u)->u32{return (t.w>>18u)&3u;}
 fn freshHit(t:vec4u)->f32{return texelHalfOf(t.w);}
@@ -92,7 +95,7 @@ fn historyPack(r:Reflected,depth:f32,N:vec3f,count:u32)->vec4u{
  let e=vec2u(round((octEncode(N)*0.5+vec2f(0.5))*31.0));
  return vec4u(texelRadiance(r),texelHalf(depth)|(e.x<<16u)|(e.y<<21u)|((count-1u)<<26u));
 }
-fn historyCount(t:vec4u)->u32{return select(0u,(t.w>>26u)+1u,(t.w&0xffffu)!=0u);}
+fn historyCount(t:vec4u)->u32{return select(0u,(t.w>>26u)+1u,lowHalf(t.w)!=0u);}
 fn historyDepth(t:vec4u)->f32{return texelHalfOf(t.w);}
 fn historyNormal(t:vec4u)->vec3f{
  let e=vec2f(f32((t.w>>16u)&31u),f32((t.w>>21u)&31u))/31.0;
