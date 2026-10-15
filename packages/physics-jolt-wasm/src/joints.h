@@ -8,6 +8,10 @@
 #include <Jolt/Physics/Constraints/MotorSettings.h>
 #include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 
+namespace JPH {
+class PathConstraint;
+}
+
 #include "layout.h"
 
 #include <cstdint>
@@ -54,11 +58,9 @@ void linkGear(JPH::Constraint *constraint, uint32_t kind, const JPH::Constraint 
 /// The impulse a joint gave its bodies in the last step: linear (N·s), angular for a gear or a
 /// rack (N·m·s), the pull its break force is measured against.
 float jointPull(JPH::Constraint *constraint, uint32_t kind);
-/// Where a path joint's body stands along its path now: Jolt's fraction of the closest point.
-float pathFraction(const JPH::Constraint *constraint);
-/// After a step, turns the velocity of a path joint's body from the path's tangent at `before`
-/// (its fraction when the step began) to the tangent where it now stands, its speed kept
-/// (`pathCarry.cpp`): a frictionless path does no work.
-void carryAlongPath(JPH::Constraint *constraint, float before);
+/// The path joint the world holds for Jolt's `made` path (`keptPath.cpp`): its bend does no work.
+JPH::Ref<JPH::TwoBodyConstraint> keptPath(JPH::TwoBodyConstraint *made, const JPH::TwoBodyConstraintSettings &settings);
+/// Jolt's path joint a `keptPath` solves by, for its motor and its pull.
+JPH::PathConstraint &pathOf(JPH::Constraint *constraint);
 
 }  // namespace trillion

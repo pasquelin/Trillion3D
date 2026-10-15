@@ -166,10 +166,6 @@ void writeCharacter();
 uint32_t jointCommand(const uint32_t *w);
 /// Takes out the joints of the body in slot `index`, before the body is removed.
 void dropJoints(uint32_t index);
-/// Before a step, notes where each path joint's body stands along its path; after it, turns the
-/// body's velocity along the path's bend, its speed kept (`pathCarry.cpp`).
-void notePaths();
-void carryPaths();
 /// After a step of `dt` seconds, takes out the joints pulled past their break force.
 void breakJoints(float dt);
 

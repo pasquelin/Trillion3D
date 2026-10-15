@@ -60,7 +60,7 @@ endif ()
 if (NOT EMSCRIPTEN)
   # The native bench (`bench/native.cpp`), for comparison with the web module; never shipped.
   add_executable(joltBench bench/native.cpp src/world.cpp src/contacts.cpp src/contactImpulse.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-    src/buoyancy.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp
+    src/buoyancy.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/keptPath.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
   target_compile_options(joltBench PRIVATE -O3)
@@ -68,7 +68,7 @@ if (NOT EMSCRIPTEN)
 endif ()
 
 add_executable(${NAME} src/world.cpp src/contacts.cpp src/contactImpulse.cpp src/commands.cpp src/shapes.cpp src/report.cpp src/restore.cpp src/character.cpp
-  src/buoyancy.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/pathCarry.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp ${SOURCES} ${PROFILE_SOURCES})
+  src/buoyancy.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/keptPath.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp ${SOURCES} ${PROFILE_SOURCES})
 target_link_libraries(${NAME} PRIVATE Jolt)
 set_target_properties(${NAME} PROPERTIES SUFFIX ".wasm")
 target_compile_options(${NAME} PRIVATE -O3 -msimd128)

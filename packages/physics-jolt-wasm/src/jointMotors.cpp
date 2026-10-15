@@ -75,7 +75,7 @@ bool driveMotor(Constraint *constraint, uint32_t kind, EMotorState state, float 
       return true;
     }
     case PATH: {
-      auto *joint = static_cast<PathConstraint *>(constraint);
+      PathConstraint *joint = &pathOf(constraint);
       joint->GetPositionMotorSettings().SetForceLimit(limit);
       joint->SetPositionMotorState(state);
       if (state == EMotorState::Velocity) joint->SetTargetVelocity(target);
@@ -118,7 +118,7 @@ float jointPull(Constraint *c, uint32_t kind) {
     case SWING_TWIST: return static_cast<SwingTwistConstraint *>(c)->GetTotalLambdaPosition().Length();
     case SIX_DOF: return static_cast<SixDOFConstraint *>(c)->GetTotalLambdaPosition().Length();
     case PATH: {
-      auto *path = static_cast<PathConstraint *>(c);
+      PathConstraint *path = &pathOf(c);
       return path->GetTotalLambdaPosition().Length() + std::abs(path->GetTotalLambdaPositionLimits());
     }
     case PULLEY: return std::abs(static_cast<PulleyConstraint *>(c)->GetTotalLambdaPosition());

@@ -26,25 +26,22 @@ struct Joint {
   Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
   /** A gear's or a rack and pinion's body order and phase correction. */
   GearOrder order;
-  /** A path's fraction where its body stood when the step began (`carryAlongPath`). */
-  float along = 0;
-  /** Its position in the lists of its ends' slots (`a`, `b`), and in the PATHS and BREAKABLE
-   *  lists: each is taken out where it stands (`SlotLists::removeAt`). */
-  uint32_t at[2] = {0, 0}, listed[2] = {0, 0};
+  /** Its position in the lists of its ends' slots (`a`, `b`), and in the BREAKABLE list: each is
+   *  taken out where it stands (`SlotLists::removeAt`). */
+  uint32_t at[2] = {0, 0}, listed = 0;
 };
 
 std::vector<Joint> joints;
 /** Each joint under its body ends' slots (the world's none), by index, in no order: what `link`
  *  and `dropJoints` walk — a body's few joints, filtered by kind. */
 SlotLists<uint32_t> ends;
-/** Every path and every breakable joint, the step's path carry and breaking walk (`lists.at`). */
-enum List : uint32_t { PATHS, BREAKABLE };
-SlotLists<uint32_t> lists;
+/** Every breakable joint, the step's breaking walk (one list, its key 0). */
+SlotLists<uint32_t> breakable;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
-/** The joints `link`, the step's path carry and its breaking have visited since the module
- *  started: diagnostics read by the tests only (`jolt_*_visits`), counted, never timed. */
-uint32_t linkVisits = 0, pathVisits = 0, breakVisits = 0;
+/** The joints `link` and the step's breaking have visited since the module started:
+ *  diagnostics read by the tests only (`jolt_*_visits`), counted, never timed. */
+uint32_t linkVisits = 0, breakVisits = 0;
 
 /// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
 /// body's frame — of several, the one in the lowest joint slot; null when none does.
@@ -92,9 +89,8 @@ void file(uint32_t index, bool in) {
   for (uint32_t side : {0u, 1u})
     if (uint32_t slot = side ? joint.b : joint.a; slot != MISS)
       list(ends, slot, joint.at[side], [=](Joint &o) -> uint32_t & { return o.at[o.a == slot ? 0 : 1]; });
-  for (uint32_t kind : {PATHS, BREAKABLE})
-    if (kind == PATHS ? joint.kind == PATH : joint.breakForce > 0 && std::isfinite(joint.breakForce))
-      list(lists, kind, joint.listed[kind], [=](Joint &o) -> uint32_t & { return o.listed[kind]; });
+  if (joint.breakForce > 0 && std::isfinite(joint.breakForce))
+    list(breakable, 0, joint.listed, [](Joint &o) -> uint32_t & { return o.listed; });
 }
 
 /// Takes out the joint at `index`, if any, and relinks the gears it held.
@@ -126,6 +122,7 @@ void add(const uint32_t *w) {
   Joint &joint = joints[index];
   joint.order = order;
   joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
+  if (kind == PATH) joint.constraint = keptPath(joint.constraint, *settings);
   joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
   joint.axisA = f2.axis, joint.axisB = f1.axis;
   joint.a = w[3] == MISS ? MISS : w[3] & INDEX_MASK;
@@ -163,23 +160,13 @@ void dropJoints(uint32_t index) {
   for (uint32_t i : held) take(i);
 }
 
-void notePaths() {
-  for (uint32_t i : lists.at(PATHS)) joints[i].along = pathFraction(joints[i].constraint);
-}
-
-void carryPaths() {
-  pathVisits += uint32_t(lists.at(PATHS).size());
-  for (uint32_t i : lists.at(PATHS)) carryAlongPath(joints[i].constraint, joints[i].along);
-}
-
 void breakJoints(float dt) {
   broken.clear();
   if (dt <= 0) return;
-  const std::vector<uint32_t> &breakable = lists.at(BREAKABLE);
-  breakVisits += uint32_t(breakable.size());
+  breakVisits += uint32_t(breakable.at(0).size());
   // Taking a joint out changes the list: the broken are found first, then taken in slot order.
   std::vector<uint32_t> gone;
-  for (uint32_t i : breakable)
+  for (uint32_t i : breakable.at(0))
     if (jointPull(joints[i].constraint, joints[i].kind) > joints[i].breakForce * dt) gone.push_back(i);
   std::sort(gone.begin(), gone.end());
   for (uint32_t i : gone) broken.push_back(joints[i].id), take(i);
@@ -192,9 +179,8 @@ extern "C" {
 /// The joints the last step broke: their count, then each joint id.
 uint32_t jolt_broken_count() { return uint32_t(trillion::broken.size()); }
 uint32_t jolt_broken(uint32_t i) { return trillion::broken[i]; }
-/// The joints the gear linking, the path carry and the breaking have visited: the tests' measures.
+/// The joints the gear linking and the breaking have visited: the tests' measures.
 uint32_t jolt_link_visits() { return trillion::linkVisits; }
-uint32_t jolt_path_visits() { return trillion::pathVisits; }
 uint32_t jolt_break_visits() { return trillion::breakVisits; }
 
 }  // extern "C"
