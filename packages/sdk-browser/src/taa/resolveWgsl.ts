@@ -25,9 +25,11 @@ const LANCZOS2_WGSL = wgslBlock(
 }`,
 )
 
-/** The 2×2 render texels nearest the display pixel, the box the Lanczos sum is clamped to: read
- *  again after the 3×3 — the cache's texels —, in its row order, so its box holds no registers
- *  through the loop and the loop tests no texel against it. */
+/** The 2×2 render texels whose samples bracket the display pixel, the box the Lanczos sum is
+ *  clamped to — their samples sit at the texels moved by the jitter, so the pair is taken at the
+ *  point less that move (`low`): at the display's size, where the point falls on a texel centre,
+ *  the box still holds the texels on both sides of it. Read again after the 3×3 — the cache's
+ *  texels —, in its row order, so its box holds no registers through the loop. */
 const ringStatement = (read: TexelReads) => ` for(var j=0;j<4;j++){
   let ring=${read.color('clampToExtent(low+vec2i(j&1,j>>1),size)')};
   ringLo=min(ringLo,ring);ringHi=max(ringHi,ring);
@@ -45,30 +47,27 @@ const stillTapsStatement = (
 `
 
 /**
- * Temporal resolve of a frame drawn below the display (depth dilation, Lanczos-2 reconstruction and a
- * YCoCg history box, folded into the one pass): it runs per DISPLAY pixel, history at display size, the current image, depth, identifiers
- * and flags at render size (`view.render`). The display pixel's place in the render grid is
- * `r = uv · render − 0.5`, texel centres at integers. Over the 3×3 render texels around it:
+ * The temporal resolve, the one program of every render scale — a frame drawn at the display's
+ * size is the ratio one of it (depth dilation, Lanczos-2 reconstruction and a YCoCg history box,
+ * folded into the one pass): it runs per DISPLAY pixel, history at display size, the current image,
+ * depth, identifiers and flags at render size (`view.render`). The display pixel's place in the
+ * render grid is `r = uv · render − 0.5`, texel centres at integers. Over the 3×3 render texels
+ * around it:
  * - depth dilation: the nearest surface (reversed depth: the greatest) gives the depth and the
  *   texel whose identifier reprojects, so a moving edge carries its own motion;
  * - the current sample: each texel weighed by Lanczos-2 of the distance from where this frame
- *   sampled it — its centre moved by the jitter, in render pixels, `weights.ts`'s convention — to
- *   `r`, then clamped to the 2×2 nearest texels, since Lanczos's negative lobes ring;
- * - the YCoCg box history is clamped to, as at native size.
+ *   sampled it — its centre moved by the jitter, in render pixels — to `r`, then clamped to the 2×2
+ *   texels whose samples bracket it, since Lanczos's negative lobes ring;
+ * - the YCoCg box history is clamped to.
  * Reprojection starts from the unjittered display-pixel centre at the dilated depth; the history
- * blend is the native resolve's (`taaHistoryBlend`), its `reach` the Lanczos-2 weight of the
- * nearest sample, its distance in display pixels, and the tag written the dilated texel's.
- * The as-is share and the display layers (`layers.ts`) follow the colour's weights. A still image
- * weighs each sample by the Blackman-Harris window of one DISPLAY pixel instead, and averages its
- * images by those weights (`stillAverage`, `historyWgsl.ts`): the phases then rebuild the display size's
- * detail, where a render-pixel kernel would soften it.
+ * blend is `taaHistoryBlend`, its `reach` the Lanczos-2 weight of the nearest sample, its distance in
+ * display pixels, and the tag written the dilated texel's. The as-is share and the display layers
+ * (`layers.ts`) follow the colour's weights. A still image weighs each sample by the Blackman-Harris
+ * window of one DISPLAY pixel instead, evaluated here (`BLACKMAN_HARRIS_WGSL`), and averages its
+ * images by those weights (`stillAverage`, `historyWgsl.ts`): the phases then rebuild the display
+ * size's detail, where a render-pixel kernel would soften it.
  */
-export const taaUpscaleShader = (
-  asIs: boolean,
-  blended = false,
-  filtered = false,
-  reactive = true,
-) => {
+export const taaResolveShader = (asIs: boolean, blended = false, filtered = false) => {
   const share = shareText(asIs),
     read = texelReads(blended)
   return wgslProgram(
@@ -76,9 +75,9 @@ export const taaUpscaleShader = (
  let coord=vec2i(pixel.xy);
  let r=pixel.xy*view.viewport.zw*view.render.xy-0.5;
  let base=vec2i(floor(r+0.5));
- let low=vec2i(floor(r));
  let size=vec2i(view.render.xy);let last=size-vec2i(1);
  let sampled=vec2f(-view.jitter.x,view.jitter.y)-r;
+ let low=vec2i(floor(-sampled));
  let nearest=closestSurface(clampToExtent(base,size),last);
  let nearDepth=nearest.depth;let depthSlack=nearest.slope;
  var sum=vec4f(0.0);var total=0.0;var closest=2.0;var blur=vec3f(0.0);
@@ -102,9 +101,9 @@ ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerText(fi
  let reach=saturate(lanczos2(closest*toDisplay));
  let nearId=nearest.id;let nearPage=pageOf(nearId);let geometry=vec2u(nearPage.identity,bitcast<u32>(nearDepth));
 ${MEASURES}
- if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
+ if(view.params.y==0.0){return ${taaOut(asIs, filtered)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,nearId);let previous=previousProjected(before);
-${taaHistoryBlend(asIs, filtered, true, 'nearPage', reactive)}
+${taaHistoryBlend(asIs, filtered)}
 }`,
     [taaPrelude(asIs, blended, filtered), LANCZOS2_WGSL, BLACKMAN_HARRIS_WGSL],
   )

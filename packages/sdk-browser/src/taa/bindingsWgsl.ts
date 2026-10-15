@@ -63,15 +63,14 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
   })
 }
 
-/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order: two matrices, two quadruplets, the nine
- *  weights in three, then the render grid, the jitter, the eye, the scene's exposure, the
- *  camera's parallax and the flicker rates. */
+/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order: two matrices, two quadruplets, then the
+ *  render grid, the jitter, the eye, the scene's exposure, the camera's parallax and the flicker
+ *  rates. */
 export const TAA_VIEW = fieldLayout('TaaView', [
   ['prevViewProj', 'mat4x4f'],
   ['invViewProj', 'mat4x4f'],
   ['viewport', 'vec4f'],
   ['params', 'vec4f'],
-  ['weights', 'array<vec4f,3>'],
   ['render', 'vec4f'],
   ['jitter', 'vec4f'],
   ['eye', 'vec4f'],
@@ -87,11 +86,10 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  * the sample, a position relative to the eye; the previous one takes it as-is — the same
  * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
  * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
- * 1/height) of the display, which the history has; `params` = (current-frame share, history
- * valid, a placement moved, the layers' history is the last image's); `weights` = the nine
- * weights of the current-frame filter at native size, neighbour by neighbour (`weights.ts`);
- * `render` = the same four of the grid the frame was drawn in, and `jitter` its offset in render
- * pixels (`upscaleWgsl.ts`), then whether the image moves and the image's rank among eight, which
+ * 1/height) of the display, which the history has; `params` = (unread, history valid, a placement
+ * moved, the layers' history is the last image's); `render` = the same four of the grid the frame
+ * was drawn in, and `jitter` its offset in render pixels (`resolveWgsl.ts`), then whether the image
+ * moves and the image's rank among eight, which
  * dithers the history texel read (`historyWgsl.ts`); `eye` the eye in the world, and in `w` whether
  * a GPU deformation moved this frame (`deformWgsl.ts`); `tsr.x` the exposure composition
  * applies, which the history's luma is measured in (`shadingHistoryWgsl.ts`); `parallax` the last

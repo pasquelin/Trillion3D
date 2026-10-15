@@ -17,8 +17,6 @@ export interface TaaInputs {
   /** The reactive value the blends, particles and water wrote, in its green channel
    *  (`../lighting/deferred/asIsShare.ts`); absent, none is (a 1×1 zero is bound). */
   reactive?: GPUTextureView
-  /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
-  upscale?: boolean
   /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers
   /** The page pool and the float pool — positions, texture coordinates — a deformed pixel's

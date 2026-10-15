@@ -1,12 +1,10 @@
-// The upscaling resolve (`upscaleWgsl.ts`), or the native one (`shaderWgsl.ts`), run in JavaScript
+// The temporal resolve (`resolveWgsl.ts`), one program for every render scale, run in JavaScript
 // over a small frame: its render inputs as functions of the texel, its history as one of the point
-// read.
+// read. A frame drawn at the display's size is its ratio one.
 import { f32Bits } from '../../../math/src/float/bits.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
-import { taaUpscaleShader } from './upscaleWgsl.ts'
-import { taaShader } from './shaderWgsl.ts'
-import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts'
+import { taaResolveShader } from './resolveWgsl.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   moireStored,
@@ -42,8 +40,6 @@ export interface UpscaleFrame {
   layerHistory?: (uv: number[]) => number[]
   /** The image moves (`view.jitter.z`): the history is read and blended as in motion. */
   moving?: boolean
-  /** The current image's share (`view.params.x`): 0.25 when absent. */
-  share?: number
   /** The reactive value the blends and particles wrote, per texel. */
   reactive?: (x: number, y: number) => number
   /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`). */
@@ -78,14 +74,11 @@ interface Resolved {
   fetches: number
 }
 
-/** The resolve of `frame`, per display pixel; `asIs`, `blended` and `filtered` pick the variant,
- *  `native` the resolve at the render size, which weighs its 3×3 by the jitter's table
- *  (`weights.ts`). */
+/** The resolve of `frame`, per display pixel; `asIs`, `blended` and `filtered` pick the variant. */
 export function upscaleRun(
   frame: UpscaleFrame,
   asIs = false,
   filtered = false,
-  native = false,
   { blended = asIs } = {},
 ) {
   const [w, h] = frame.render,
@@ -100,8 +93,7 @@ export function upscaleRun(
       return read(x, y)
     }
   const history = (uv: number[]) => (reads.push(uv), frame.history!(uv))
-  const jitter = frame.jitter ?? [0, 0],
-    weights = taaWeights(jitter[0], jitter[1], new Float32Array(TAA_WEIGHTS), 0)
+  const jitter = frame.jitter ?? [0, 0]
   // Unwritten, the layers' history must not show: not a number, were it read.
   const layerHistory = frame.layerHistory ?? (() => [NaN, NaN, NaN, NaN])
   const depth = texel(frame.depth ?? (() => 0))
@@ -124,17 +116,11 @@ export function upscaleRun(
       prevViewProj: frame.prevViewProj ?? IDENTITY,
       invViewProj: IDENTITY,
       viewport: [W, H, 1 / W, 1 / H],
-      params: [
-        frame.share ?? 0.25,
-        frame.history ? 1 : 0,
-        frame.motion ? 1 : 0,
-        frame.layerHistory ? 1 : 0,
-      ],
+      params: [0, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
       render: [w, h, 1 / w, 1 / h],
       jitter: [...jitter, frame.moving ? 1 : 0, 0],
       eye: [0, 0, 0, 0],
       tsr: [1, 0, 0, 0],
-      weights: [0, 4, 8].map((at) => [...weights.subarray(at, at + 4)]),
       ...stillViewFields(W),
     },
     current: texel(frame.color),
@@ -168,9 +154,7 @@ export function upscaleRun(
   }
   /** The blurred luma the pixel resolved is measuring: what a history of its own holds. */
   const owner = { blurred: 0 }
-  // Without a reactive value, the resolve that reads none (`resolve.ts`, `unreactive`).
-  const make = native ? taaShader : taaUpscaleShader
-  const shader = make(asIs, blended, filtered, !!frame.reactive)
+  const shader = taaResolveShader(asIs, blended, filtered)
   const resolve = pixelResolves(shader, scope, {
     before: (x, y) => void ((reads.length = 0), (owner.blurred = blurredAt(x, y))),
     after: (out) => ({ ...(out as Omit<Resolved, 'reads' | 'fetches'>), reads: reads.slice() }),
@@ -178,9 +162,9 @@ export function upscaleRun(
   /** The blurred luma of display pixel `(x, y)`'s 3×3, in the measurement curve (`BLUR_TAP`,
    *  `shadingLuma`, exposure one): its own history's, by default. */
   const blurredAt = (x: number, y: number) => {
-    const base = native
-      ? [x, y]
-      : [((x + 0.5) * w) / W - 0.5, ((y + 0.5) * h) / H - 0.5].map((r) => Math.floor(r + 0.5))
+    const base = [((x + 0.5) * w) / W - 0.5, ((y + 0.5) * h) / H - 0.5].map((r) =>
+      Math.floor(r + 0.5),
+    )
     let blur = 0
     for (let dy = -1; dy <= 1; dy++)
       for (let dx = -1; dx <= 1; dx++) {

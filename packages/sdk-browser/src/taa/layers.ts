@@ -46,13 +46,12 @@ export const layerText = (filtered: boolean, part: keyof typeof PARTS) =>
 
 /** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
  *  in a resolve without it (`asIs` false), and written beside the flicker gradient
- *  (`shadingHistoryWgsl.ts`, in eight bits, `gradientOut`), the weight its average holds where
- *  the still image is drawn below the display, `count` (`stillWeightOut`, with `still`), and the
- *  history count; then the pixel's geometry (`historyWgsl.ts`) and its flicker measure, `moire`. */
-export const taaOut = (asIs: boolean, filtered: boolean, mixed = false, still = false) => {
+ *  (`shadingHistoryWgsl.ts`, in eight bits, `gradientOut`), the weight its still average holds,
+ *  `count` (`stillWeightOut`), and the history count; then the pixel's geometry (`historyWgsl.ts`)
+ *  and its flicker measure, `moire`. */
+export const taaOut = (asIs: boolean, filtered: boolean, mixed = false) => {
   const mix = (now: string, kept: string) => (mixed ? `(${now}*wc+${kept}*wh)/(wc+wh)` : now)
-  const held = still ? stillWeightOut('count') : '0.0'
-  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},${held},historyCount/16.0),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
+  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},${stillWeightOut('count')},historyCount/16.0),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
 }
 
 /**

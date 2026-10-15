@@ -169,16 +169,11 @@ test('an as-is share whose box is one value reads no share history but a still w
     [true, 0.25, 0.25],
   ] as const
   for (const [blended, flag, share] of cases)
-    for (const [native, moving] of [
-      [true, false],
-      [true, true],
-      [false, true],
-    ]) {
-      const size = native ? 6 : 4
+    for (const size of [6, 4]) {
       const frame: UpscaleFrame = {
         render: [size, size],
         display: [6, 6],
-        moving,
+        moving: true,
         color,
         history: color,
         tags,
@@ -187,8 +182,7 @@ test('an as-is share whose box is one value reads no share history but a still w
         historyGeometry: () => [1, 0.4],
         flag: () => flag,
       }
-      const resolved = upscaleRun(frame, true, false, native, { blended })(2, 3)
-      // Within the uniform's 32-bit weights, whose sum is 1 to 1e-8.
-      assert.ok(Math.abs(resolved.share - share) < 1e-6, `${blended} ${native} ${moving}`)
+      const resolved = upscaleRun(frame, true, false, { blended })(2, 3)
+      assert.ok(Math.abs(resolved.share - share) < 1e-6, `${blended} ${size}`)
     }
 })

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './deferred/shaders.ts'
-import { taaShader } from '../taa/shaderWgsl.ts'
+import { taaResolveShader } from '../taa/resolveWgsl.ts'
 import { BLEND_MODES } from '../scene/materialBlending.ts'
 import { written, type Rgba } from '../webgpu/blend/blendModel.fixture.ts'
 import {
@@ -171,7 +171,10 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
     assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`)
   }
   // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
-  const [readWgsl] = capture(taaShader(true, true), /let asIs=(textureLoad\(flags,at,0\)\.r);/)
+  const [readWgsl] = capture(
+    taaResolveShader(true, true),
+    /let asIs=(textureLoad\(flags,at,0\)\.r);/,
+  )
   const read = runLines<(flags: number, at: number) => number>('', 'flags:u32,at:vec2i', readWgsl, {
     textureLoad,
   })

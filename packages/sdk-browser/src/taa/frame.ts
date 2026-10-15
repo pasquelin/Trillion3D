@@ -41,7 +41,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   } else {
     // A still image is drawn at the controller's scale like a moving one, the frame's budget, in
     // targets made at the bounds' maximum (`allocated`): the resolve rebuilds the display's detail
-    // from its jitter phases (`upscaleWgsl.ts`), averaged uniformly over their whole cycles before
+    // from its jitter phases (`resolveWgsl.ts`), averaged uniformly over their whole cycles before
     // the hold (`taaSettled`). The average is of one drawn size, its phases and jitter grid: the
     // controller changing it, which still images only lower, restarts it at the new one.
     const scale = rt.scale.wanted(),
@@ -103,8 +103,8 @@ export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, o
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
- * jitter, keeps the unjittered view-projection; `asIs` false reads no flags, and a frame
- * drawn below the display is reconstructed to it. `share`, seeded when blends or particles draw,
+ * jitter, keeps the unjittered view-projection; `asIs` false reads no flags; the image is
+ * reconstructed to the display from whatever size it was drawn at. `share`, seeded when blends or particles draw,
  * holds the as-is share and the reactive value the blends, particles and water wrote
  * (`../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history.
  */
@@ -146,7 +146,6 @@ export function encodeTaaPass(
     !!vis.deformationCompute,
     rt.lights.store?.environment,
   )
-  inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1]
   inputs.current = current
   inputs.depth = gpu.depthView
   inputs.ids = vis.visView
