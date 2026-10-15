@@ -4,7 +4,6 @@ import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
-import { SHARED_EXPONENT_WGSL } from './sharedExponentWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit, Vec } from './runtimeOracle.fixture.ts'
 
@@ -12,8 +11,6 @@ import type { Hit, Vec } from './runtimeOracle.fixture.ts'
 const FUNCTIONS = [
   'rtBegin',
   'rtRadiance',
-  'rtPackShared',
-  'rtUnpackShared',
   'rtSurfaceOf',
   'rtShade',
   'rtScene',
@@ -54,7 +51,7 @@ fn testTests()->u32{return rtTests;}
 /** The shipped program over `w`. */
 export function runOver(w: ReturnType<typeof world>) {
   const { header } = w
-  const text = wgslModule(runtimeRadianceWgsl(BINDINGS), SHARED_EXPONENT_WGSL) + HELPERS
+  const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
   return shaderRun<{
     rtScene: (o: Vec, d: Vec, limit: number) => Hit
     rtRadiance: (
@@ -63,8 +60,6 @@ export function runOver(w: ReturnType<typeof world>) {
       reach: number,
       tangent: number,
     ) => { color: Vec; confidence: number; distance: number }
-    rtPackShared: (c: Vec) => number
-    rtUnpackShared: (word: number) => Vec
     testWork: () => number
     testTests: () => number
     rtBegin: () => void

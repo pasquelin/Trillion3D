@@ -9,7 +9,7 @@ import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { REFLECTION_CENTRE_WGSL, REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { sceneKey, type SceneBindings } from '../bounce/sceneBindings.ts'
-import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
+import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { reflectionFrontWgsl } from './viewLayout.ts'
 import { TRANSPARENT_DEPTH_LAYER, depthLayerUnits } from '../../../sdk-core/src/lod/depthLayer.ts'
@@ -119,7 +119,7 @@ export const forwardReflectionWgsl = (group: number, lobes: boolean, traced: num
       reflectionShareWgsl(group, lobes),
       reflectionFrontWgsl(group),
       surfaceReflects,
-      SHARED_EXPONENT_WGSL,
+      FRONT_PACK_WGSL,
     ],
     `@group(0) @binding(${traced}) var frontTraced:texture_2d<u32>;
 const FRONT_DEPTH_MATCH:f32=${wgslF32(FRONT_DEPTH_MATCH)};
@@ -129,7 +129,7 @@ fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Re
  let at=vec2i(position.xy);
  if(front&&reflectionFrontTraced()&&abs(reflectionFrontDepth(at)-position.z)<=position.z*FRONT_DEPTH_MATCH){
   let t=textureLoad(frontTraced,at,0);
-  return Reflected(rtUnpackShared(t.x),rtUnpackShared(t.y));
+  return Reflected(frontUnpack(t.x),frontUnpack(t.y));
  }
  return reflectionTrace(P,N,V,rough,vec2f(0.0));
 }

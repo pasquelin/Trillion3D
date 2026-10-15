@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
-import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
+import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
@@ -35,7 +35,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
     REFLECTION_TEXEL_WGSL,
     reflectionShareWgsl(REFLECTION_GROUP, true, TRACE_SCENE_BINDINGS),
     reflectionWeighWgsl(true),
-    SHARED_EXPONENT_WGSL,
+    FRONT_PACK_WGSL,
     surfaceReflects,
     f0Of,
   ],
@@ -83,6 +83,6 @@ fn upsampleFront(@builtin(global_invocation_id) id:vec3u){
  let flags=surfaceFlagsAt(coord);
  if(!surfaceReflects(flags)){return;}
  let traced=reflectedAt(1u,coord,reflectingPixelAt(1u,coord,flags));
- textureStore(frontOut,coord,vec4u(rtPackShared(traced.base),rtPackShared(traced.coat),0u,0u));
+ textureStore(frontOut,coord,vec4u(frontPack(traced.base),frontPack(traced.coat),0u,0u));
 }`,
 )

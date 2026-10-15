@@ -5,17 +5,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { along, runOver } from '../bounce/runtimeRun.fixture.ts'
-import { world } from '../bounce/runtimeScene.fixture.ts'
 import type { Vec } from '../bounce/runtimeOracle.fixture.ts'
 import { forwardReflectionWgsl } from './weight.ts'
 import { reflectedRadianceWgsl } from './wgsl.ts'
 import { TRACE_SCENE_BINDINGS } from './halfBindings.ts'
 import { REFLECTION_TRACE_SHADER } from './traceHalf.ts'
+import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 
-/** A cube ahead of the origin emitting `emission`. */
-const glow = (emission: Vec) =>
-  world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, ...emission, 0]] })
+/** The upsample's packer of a front texel's word (`frontPack`). */
+const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec) => number }>(
+  wgslModule(FRONT_PACK_WGSL),
+  ['frontPack'],
+  {},
+)
 
 type Reflected = { base: Vec; coat: Vec }
 
@@ -35,7 +37,7 @@ function forward(texel: number[], depth: number, answered = true) {
     ) => Reflected
   }>(
     wgslModule(forwardReflectionWgsl(1, false, 24)),
-    ['forwardTrace', 'rtUnpackShared', 'reflectionFrontTraced', 'reflectionFrontDepth'],
+    ['forwardTrace', 'frontUnpack', 'reflectionFrontTraced', 'reflectionFrontDepth'],
     {
       frontTraced: { load: () => texel },
       reflectionFront: { load: () => [depth, 0, 0, 0] },
@@ -48,7 +50,6 @@ function forward(texel: number[], depth: number, answered = true) {
 }
 
 test('a fragment at the front depth reads the trace’s radiance; any other, the chain', () => {
-  const pack = runOver(glow([0, 0, 0])).rtPackShared
   const z = 0.25
   const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), 0, 0]
   const read = forward(texel, z)
