@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { doubleReadWgsl } from './frameHead.ts'
+import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleWords.ts'
 
 /**
  * AN ITEM'S KEY RECORD (`keyRecords.ts`), which the order, the frustum verdict and the water

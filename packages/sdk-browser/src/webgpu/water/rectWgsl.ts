@@ -1,7 +1,7 @@
 import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { dDiv, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
-import { dIsNan, dIsZero, dNan } from '../../../../math/src/wgsl/doubleWords.ts'
+import { dIsNan, dIsZero, dNan, doubleReadWgsl } from '../../../../math/src/wgsl/doubleWords.ts'
 import { dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
 import { dFromU32, dIsFinite, dToU32 } from '../../../../math/src/wgsl/doubleRound.ts'
 import { fromF32 } from '../../../../math/src/wgsl/f32.ts'
@@ -73,6 +73,7 @@ export const WATER_RECT_SHADER = wgslProgram(
   `@group(0) @binding(${WATER_RECT_BINDING.frame}) var<storage,read> frame:array<u32>;
 @group(0) @binding(${WATER_RECT_BINDING.keyed}) var<storage,read> keyed:array<u32>;
 @group(0) @binding(${WATER_RECT_BINDING.waterItems}) var<storage,read> waterItems:array<u32>;
+${doubleReadWgsl('waterItemDouble', 'waterItems')}
 @group(0) @binding(${WATER_RECT_BINDING.items}) var<storage,read> items:array<u32>;
 @group(0) @binding(${WATER_RECT_BINDING.volumes}) var<storage,read> volumes:array<u32>;
 @group(0) @binding(${WATER_RECT_BINDING.verdict}) var<storage,read_write> verdict:array<atomic<u32>>;
@@ -113,7 +114,7 @@ fn includeWaterItem(rank:u32){
  var pose:array<vec2u,16>;
  for(var k=0u;k<16u;k++){pose[k]=fromF32(items[item*${BLEND_ITEM_WORDS}u+${BLEND_ITEM_WORLD}u+k]);}
  var local:array<vec2u,6>;
- for(var k=0u;k<6u;k++){local[k]=vec2u(waterItems[base+2u*k+1u],waterItems[base+2u*k]);}
+ for(var k=0u;k<6u;k++){local[k]=waterItemDouble(base+2u*k);}
  var world=local;
  world[0]=dNan();
  if(waterCrops(rank,item,pose)){world=dEncloseTransform(dWidenBox(local,D_ZERO),pose).box;}

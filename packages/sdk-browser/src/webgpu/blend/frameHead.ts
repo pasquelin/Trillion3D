@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
+import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleWords.ts'
 
 /**
  * THE HEAD OF THE FRAME DATA, the words an image sends the transparent kernels before the own
@@ -34,12 +35,6 @@ export const VIEW_AFFINE = 1
 /** Words of the frame data a scene of `entries` entries a pass can send at most: the head, a seed
  *  and a slot per entry of each pass (`order.ts`). */
 export const orderFrameWords = (entries: number) => FRAME_HEAD.words + 2 * EXPAND_PASSES * entries
-
-/** The read `name(at)` of the double at word `at` of the `u32` array `array`, as the emulated
- *  doubles hold it (`math/src/wgsl/double.ts`: high word, low word): the frame's and the key
- *  records' one text. */
-export const doubleReadWgsl = (name: string, array: string) =>
-  `fn ${name}(at:u32)->vec2u{return vec2u(${array}[at+1u],${array}[at]);}`
 
 /** The head's layout and its doubles' read, as each kernel that binds `frame` names them. */
 export const FRAME_HEAD_WGSL = wgslBlock(
