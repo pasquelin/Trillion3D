@@ -9,13 +9,12 @@
  * cells to the streamer's catalogue, a cell puts each node on a row of its mesh at the world matrix
  * the engine composes for a child of its core parent, casting as its host mesh says
  * (`placements.ts`, `follow.ts`), holding the world bundles its roots need (`cellHolds.ts`). A
- * cell past its reach parks its rows and releases its bundles; a page past it
- * with no cell placed is closed and its files leave the catalogue; a moved parent, or a host mesh's
- * `castShadow` changed, rewrites its rows.
- * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
- * node when no owner can reopen the session), then reads the pages on its way and the cells it
- * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
- * place, else tells the owner (`outgrown`) and the cells past the rows wait (`placement/growth.ts`).
+ * cell past its reach parks its rows and releases its bundles; a page past it with no cell placed
+ * is closed and its files leave the catalogue; a moved parent, or a host mesh's `castShadow`
+ * changed, rewrites its rows. `prime`, before the first frame, sizes the rows for the first
+ * camera's view (`sizing.ts`; every node when no owner can reopen the session), then runs the
+ * frame to completion (#575). A reach past those rows, or a parent shrunk or stretched unevenly,
+ * grows them in place, else tells the owner (`outgrown`) and the cells past the rows wait.
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
@@ -27,7 +26,7 @@ import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
-import { inCellFrame, planCells } from './plan.ts'
+import { inCellFrame } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
@@ -184,8 +183,9 @@ export function createPartitionCells(inputs: Inputs) {
       return later
     },
     /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
-     *  frame asked (every node unless `owned`), then reads the pages of the index on its way and
-     *  places the cells within its reach; the bytes read. */
+     *  frame asked (every node unless `owned`), then runs `frame` to completion on an unbounded
+     *  budget, what it asks within reach read through `io.read` — a failure throws, the open
+     *  fails —, nothing ahead; the bytes read. */
     async prime(
       eye: ArrayLike<number>,
       reach: number,
@@ -195,26 +195,32 @@ export function createPartitionCells(inputs: Inputs) {
         decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
         decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
         admit(pages: readonly StreamPage[]): void
+        forget(urls: readonly string[]): void
       },
       owned: boolean,
     ) {
       const local = view(eye, reach)
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS)
       let bytes = 0
-      const read = async <T>(url: string, decode: (got: Uint8Array, url: string) => Promise<T>) => {
-        const got = await io.read(url)
-        bytes += got.byteLength
-        return decode(got, url)
+      const landed = new Map<string, Uint8Array>(),
+        reads: Promise<void>[] = []
+      const read = (url: string) =>
+        io.read(url).then((got) => void ((bytes += got.byteLength), landed.set(url, got)))
+      const port = {
+        ...io,
+        bytes: (url: string) => landed.get(url),
+        failed: () => false,
+        request(urls: readonly string[], ahead: boolean) {
+          if (!ahead) for (const url of urls) if (!landed.has(url)) reads.push(read(url))
+        },
+        update() {},
       }
-      let plan = planCells(index, local.eye, local.reach, held)
-      for (let unread = plan.pages.visible; unread.length; unread = plan.pages.visible) {
-        const bodies = await Promise.all(unread.map((p) => read(p.slot.url, io.decodePage)))
-        unread.forEach((page, at) => io.admit(index.open(page, bodies[at])))
-        plan = planCells(index, local.eye, local.reach, held)
+      for (;;) {
+        const later = partitionCells.frame(eye, reach, port, { admits: () => true, spend() {} })
+        const waits = [...reads.splice(0), ...partitionCells.decodes()]
+        if (!later && !waits.length) break
+        await Promise.all(waits)
       }
-      plan.leave.forEach(leave)
-      const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      plan.visible.forEach((cell, at) => place(cell, decoded[at], plan.priority.get(cell)!))
       touched.clear()
       return bytes
     },

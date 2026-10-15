@@ -58,8 +58,9 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
 
 /**
  * Sizes the rows for `camera`'s view — for every node when no owner can open the session again
- * (`owned` false) —, then reads the pages of the index on its way and places the cells it reaches,
- * each through the streamer at the head of its queue and the page worker pool; the bytes read.
+ * (`owned` false) —, then runs each partition's frame to completion (`PartitionCells.prime`), its
+ * reads through the streamer at the head of its queue, its decodes on the page worker pool; the
+ * bytes read.
  */
 export async function primePartitions(
   partitions: readonly PartitionCells[],
@@ -74,6 +75,7 @@ export async function primePartitions(
     decode: decodeCell,
     decodePage,
     admit: streamer.admit,
+    forget: streamer.forget,
   }
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, io, owned)))
   return bytes.reduce((sum, value) => sum + value, 0)

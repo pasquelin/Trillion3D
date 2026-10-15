@@ -95,6 +95,7 @@ export const opened = (
       decode: decodeHere,
       decodePage: async (read, url) => readCellPage(read, url),
       admit() {},
+      forget() {},
     },
     owned,
   )

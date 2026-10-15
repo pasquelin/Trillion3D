@@ -33,6 +33,7 @@ function primeThroughCatalogue(cells: PartitionCells, bytes: (url: string) => Ui
       decode: decodeHere,
       decodePage: async (read, url) => readCellPage(read, url),
       admit: (pages) => pages.forEach((page) => catalogue.add(page.url)),
+      forget() {},
     },
     true,
   )
