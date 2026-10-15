@@ -38,16 +38,6 @@ constexpr float JOLT_FASTEST = 500;
 /// Declared: a soft body's vertices keep this far from what they collide with, m (the module's
 /// `mVertexRadius`): a centimetre of thickness, so a cloth laid on a surface rests on it, not in it.
 constexpr float SOFT_VERTEX_RADIUS = 0.01f;
-/// Declared: no dihedral bend is stiffer than Jolt's solver resolves: its compliance is at least this
-/// share of the solver's own over the four vertices it bends at rest, `h²·Σ wᵢ|∇Cᵢ|²` for a substep
-/// `h`, so it corrects at most five sixths of the angle it is off within a substep. A stiffer one
-/// overshoots: under a load in the cloth's own plane its triangles fold through each other and its
-/// bends throw them out of it every substep — the cooked flag's 0.001 rad/(N·m) on vertices of
-/// 0.7 g flapped at 10 to 25 m/s, then ran away. Floored, that flag's bends give at least 1.5 to
-/// 16 rad/(N·m) (squares of 6 cm, at 60 Hz) and it comes to rest; a cloth clamped along an edge and
-/// bent stiff still stands out (its tip 0.28 m down over 0.8 m, 0.22 unfloored). A softer bend is
-/// kept as declared.
-constexpr float SOFT_BEND_FLOOR = 0.2f;
 /// Declared: a soft body diverged when its vertices go apart at `SOFT_APART` times the speed of its
 /// swing `SOFT_HELD` seconds without a break — the spread of their velocities: a body falling whole
 /// is never one, nor one whose solver only jitters —, or when its bounds spread past `SOFT_SPREAD`
@@ -135,26 +125,6 @@ AABox restBounds(const SoftBodySharedSettings &shared, Quat turn) {
   AABox rest;
   for (const SoftBodySharedSettings::Vertex &v : shared.mVertices) rest.Encapsulate(turn * Vec3(v.mPosition));
   return rest;
-}
-
-/// Floors each dihedral bend of `shared` at the stiffest Jolt's solver resolves over a substep of
-/// `h` seconds (`SOFT_BEND_FLOOR`).
-void floorBends(SoftBodySharedSettings &shared, float h) {
-  for (SoftBodySharedSettings::DihedralBend &b : shared.mDihedralBendConstraints) {
-    const auto at = [&](int k) { return Vec3(shared.mVertices[b.mVertex[k]].mPosition); };
-    const Vec3 x0 = at(0), x1 = at(1), x2 = at(2), x3 = at(3), e = x1 - x0;
-    const float length = e.Length();
-    Vec3 n1 = (x2 - x0).Cross(x2 - x1), n2 = (x3 - x1).Cross(x3 - x0);
-    if (length < 1e-6f || n1.LengthSq() * n2.LengthSq() < 1e-24f) continue;
-    // Its gradient as Jolt takes it (`SoftBodyMotionProperties::ApplyDihedralBendConstraints`).
-    n1 /= n1.LengthSq();
-    n2 /= n2.LengthSq();
-    const Vec3 d0 = ((x2 - x1).Dot(e) * n1 + (x3 - x1).Dot(e) * n2) / length, d2 = length * n1, d3 = length * n2;
-    const Vec3 gradient[4] = {d0, -d0 - d2 - d3, d2, d3};
-    float own = 0;
-    for (int k = 0; k < 4; ++k) own += shared.mVertices[b.mVertex[k]].mInvMass * gradient[k].LengthSq();
-    b.mCompliance = std::max(b.mCompliance, SOFT_BEND_FLOOR * own * h * h);
-  }
 }
 
 /// The mean rest length of the edges of `shared`, m (0 with none).
