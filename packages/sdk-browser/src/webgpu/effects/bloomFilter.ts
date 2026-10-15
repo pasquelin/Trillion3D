@@ -9,6 +9,7 @@
 
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
+import { mipSize } from '../../../../math/src/scalar/integers.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
@@ -44,12 +45,9 @@ export const BLOOM_UP_ROW = [1 / 4, 2 / 4, 1 / 4] as const
 /** Size of each level for an image, the first half the image. */
 export function bloomLevelSizes(width: number, height: number) {
   const sizes: [number, number][] = []
-  for (let level = 1; level <= BLOOM_LEVELS; level++) {
-    const w = Math.floor(width / 2 ** level),
-      h = Math.floor(height / 2 ** level)
-    if (w < 1 || h < 1) break
-    sizes.push([w, h])
-  }
+  // A level exists while both halvings leave a texel; its size is the mip chain's (`mipSize`).
+  for (let level = 1; level <= BLOOM_LEVELS && width >>> level && height >>> level; level++)
+    sizes.push([mipSize(width, level), mipSize(height, level)])
   return sizes
 }
 
