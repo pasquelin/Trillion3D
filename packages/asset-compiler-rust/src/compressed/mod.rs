@@ -11,12 +11,7 @@ pub(crate) struct Budget<'a> {
 }
 impl Budget<'_> {
     pub fn admit(&self, bytes: usize) -> Result<()> {
-        if self.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new(
-                crate::CANCELLED,
-                "Compilation cancelled",
-            ));
-        }
+        crate::plugins::scene::cancel::check(self.cancelled)?;
         if bytes > self.limit {
             return Err(CompilerError::new(
                 "RAM_ADMISSION_BUDGET_EXCEEDED",

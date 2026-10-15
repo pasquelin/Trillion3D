@@ -110,10 +110,7 @@ pub struct Options {
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
-    if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new(CANCELLED, "Compilation cancelled"));
-    }
-    Ok(())
+    plugins::scene::cancel::check(&o.cancelled)
 }
 fn implementation_hash() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/implementation_hash.txt"))

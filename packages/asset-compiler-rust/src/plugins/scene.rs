@@ -16,7 +16,7 @@ mod alembic;
 mod archive;
 mod axes;
 mod blend;
-mod cancel;
+pub(crate) mod cancel;
 pub(crate) mod corners;
 mod fbx;
 mod gltf;

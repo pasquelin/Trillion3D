@@ -8,7 +8,6 @@
 //! sequence — extract, mark, route. A second container therefore only adds its reading.
 use super::*;
 use crate::{hash, is_safe_source_name, CompilerError};
-use std::sync::atomic::Ordering;
 
 mod container;
 #[cfg(test)]
@@ -109,13 +108,7 @@ pub(super) fn only_input<'a>(
 
 /// Cancellation, to check at each entry: an archive of ten thousand files stops on request.
 pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
-    if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new(
-            crate::CANCELLED,
-            "Compilation cancelled",
-        ));
-    }
-    Ok(())
+    super::cancel::check(request.cancelled)
 }
 
 /// The refusal of an archive its reader does not open: truncated, corrupted, or compressed by a
