@@ -10,7 +10,7 @@ import {
   type V3,
 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
-import { secondImage } from './rigImage.ts'
+import { settledImage } from './rigImage.ts'
 import { pointOnScreen, rgbAt } from './rigFrame.ts'
 
 /** The share of `color` a pixel's colour `v` holds: 1 for the same hue, 0 under a faint pixel. */
@@ -92,7 +92,7 @@ export async function renderBlocks(
   height: number,
 ) {
   const { frame, view, shown } = boxFrame(blocks, eye, target, width, height)
-  const words = await secondImage(device, frame)
+  const words = await settledImage(device, frame)
   const rgb = (p: number) => rgbAt(words, p)
   return { frame, view, shown, rgb }
 }

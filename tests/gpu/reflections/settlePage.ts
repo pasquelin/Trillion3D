@@ -1,13 +1,14 @@
 // The reflections of a still view settle only on a lit image that no longer changes. A mirror floor
 // and an emissive quad (`mirrorScene.ts`, `rig.ts`) are drawn, image after image, until the view
-// is settled (`reflectionsSettled`): the images drawn, as a frame loop draws them while anything is
-// unsettled, and the reflection target the last of them leaves. Then the quad's light changes with
-// the camera still, and the loop runs again to the next settled view. A view that never saw the
-// first light and starts on the second is the cold converged image: the held one is it, to the bit.
+// is settled (`reflectionsSettled`: the history frozen, the lit image final, `rigImage.ts`): the images
+// drawn, as a frame loop draws them while anything is unsettled, and the reflection target the last
+// of them leaves. Then the quad's light changes with the camera still, and the loop runs again to the
+// next settled view. A view that never saw the first light and starts on the second is the cold
+// converged image: the held one is it, to the bit — a still view's history is its own images' alone.
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { animationFrame } from '../kit/frame.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { openRig } from './rig.ts'
+import { untilSettled } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: the images each loop drew and the target it held, as raw half words. */
@@ -16,6 +17,8 @@ export type SettleReading = {
   /** The target of the first image drawn after the change: the lit image it reflects is the old one. */
   lagging: number[]
   changed: { images: number; target: number[] }
+  /** The target of one image more, drawn on the settled view. */
+  again: number[]
   cold: { images: number; target: number[] }
 }
 
@@ -30,19 +33,6 @@ function frameLitBy(scale: number) {
   return scene
 }
 
-/** Images drawn until the view is settled, a frame loop's: one in each animation frame of the
- *  page, the hash of the lit image coming back some frames later. */
-async function untilSettled(rig: Awaited<ReturnType<typeof openRig>>, limit = 60) {
-  let images = 0
-  while (!rig.settled() && images < limit) {
-    rig.image()
-    images++
-    await animationFrame()
-  }
-  if (!rig.settled()) throw new Error(`the view never settled in ${limit} images`)
-  return images
-}
-
 export function run() {
   return runOnDevice<SettleReading>(async (device, _events, result) => {
     const rig = await openRig(device, frameLitBy(1))
@@ -55,6 +45,8 @@ export function run() {
     result.lagging = Array.from(await rig.read())
     result.changed = { images: 1 + (await untilSettled(rig)), target: [] }
     result.changed.target = Array.from(await rig.read())
+    rig.image()
+    result.again = Array.from(await rig.read())
     rig.dispose()
     const cold = await openRig(device, frameLitBy(2))
     const images = await untilSettled(cold)

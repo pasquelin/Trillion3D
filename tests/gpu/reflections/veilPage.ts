@@ -9,7 +9,7 @@ import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
-import { secondImage } from './rigImage.ts'
+import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'
 
 const WIDTH = 320,
@@ -35,7 +35,7 @@ export function run(cases: VeilCase[]) {
       const a = yaw * DEG2RAD
       const target: V3 = [EYE[0] + Math.sin(a) * 10, EYE[1] - drop, EYE[2] - Math.cos(a) * 10]
       const { frame, shown, floor } = roomFrame(EYE, target, WIDTH, HEIGHT, rough, far)
-      const words = await secondImage(device, frame)
+      const words = await settledImage(device, frame)
       // The patch's top, its mirror: the film's two-millimetre edge shows a pixel of side now and then.
       const onFloor = (p: number) =>
         shown[p] >= 0 && Math.floor(shown[p] / 6) === floor && shown[p] % 6 === TOP

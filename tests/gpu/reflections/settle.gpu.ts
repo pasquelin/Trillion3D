@@ -1,8 +1,8 @@
 // A view that stands still is held only when its reflections are final (`reflectionsSettled`,
 // `reflections/settle.ts`): the light changes with the camera still, the image drawn for the change
-// reflects the lit image before it, and the view is not settled until a lit image repeats. The image
-// it then holds is the cold converged image — the one a view that never saw the first light
-// converges to — to the bit (`settlePage.ts`).
+// reflects the lit image before it, and the view is not settled until its reflections' history is
+// frozen and a lit image repeats. The image it then holds repeats, and is the cold converged image —
+// the one a view that never saw the first light converges to — to the bit (`settlePage.ts`).
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/settle.gpu.ts
 import test from 'node:test'
@@ -18,12 +18,13 @@ test('a light changed with the camera still holds the cold converged image, bit 
   const result = await runOnDawn(page.run, undefined)
   assert.equal(result.error, undefined, result.error)
   assert.deepEqual(result.errors, [])
-  const { first, lagging, changed, cold } = result
+  const { first, lagging, changed, again, cold } = result
   console.log(
     JSON.stringify({ first: first!.images, changed: changed!.images, cold: cold!.images }),
   )
   assert.ok(changed!.images >= 2, `settled after ${changed!.images} images drawn for the change`)
   assert.notDeepEqual(changed!.target, first!.target, 'the held image shows the new light')
   assert.notDeepEqual(lagging, cold!.target, 'the image drawn for the change reflects the old one')
+  assert.deepEqual(again, changed!.target, 'the held image repeats, bit for bit')
   assert.deepEqual(changed!.target, cold!.target, 'the held image is the cold converged one')
 })

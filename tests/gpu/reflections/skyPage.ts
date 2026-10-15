@@ -10,7 +10,7 @@ import {
 import { faceIndex, type V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
-import { secondImage } from './rigImage.ts'
+import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
 
@@ -49,7 +49,7 @@ export function run(cases: SkyCase[]) {
         declared === undefined
           ? undefined
           : addUniformIrradiance(emptyIrradiance(), [declared, declared, declared])
-      const words = await secondImage(device, {
+      const words = await settledImage(device, {
         ...frame,
         background: sky ?? RASTER_BACKGROUND,
         environment,

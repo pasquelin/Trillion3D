@@ -1,16 +1,16 @@
 // The engine side of the reflection proof: a synthetic still frame — a mirror floor and an emissive
 // quad standing on it, seen by an infinite reversed perspective (`mirrorScene.ts`) — laid in the
-// engine's own inputs and run through its kernels as an image runs them (`rig.ts`). Twice: two
-// consecutive still images, whose reflection targets are read back to the bit.
+// engine's own inputs and run through its kernels as an image runs them (`rig.ts`) until the view is
+// settled (`rigImage.ts`), then three images more, whose reflection targets are read back to the bit.
 import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { openRig } from './rig.ts'
-import { secondImage } from './rigImage.ts'
+import { settledImage, untilSettled } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
-/** What the proof reads: per reflective family, three consecutive still images' reflection
- *  targets, as raw half-float words. */
+/** What the proof reads: per reflective family, the reflection targets of the three images drawn
+ *  after the view settled, as raw half-float words. */
 export type MirrorReading = { families: Record<string, number[][]>; size: number }
 
 /** The reflective families the rig draws, by name: the mirror floor, rough floors, a coated one. */
@@ -26,9 +26,9 @@ export function run() {
     result.families = {}
     for (const [name, made] of Object.entries(FAMILIES)) {
       const rig = await openRig(device, made())
-      // The first image has no radiance pyramid yet: the environment alone; the next three reflect
-      // the lit image, the HDR targets taking turns between them.
-      rig.image()
+      // The view settles — its history frozen, its lit image final —; the next three images, the
+      // HDR targets taking turns between them, hold it.
+      await untilSettled(rig)
       const targets: number[][] = []
       for (let k = 0; k < 3; k++) {
         rig.image()
@@ -75,7 +75,7 @@ export function runCoat() {
   return runOnDevice<CoatReading>(async (device, _events, result) => {
     const { size } = MIRROR
     for (const coat of [false, true]) {
-      result[coat ? 'coated' : 'bare'] = Array.from(await secondImage(device, roughFloor(coat)))
+      result[coat ? 'coated' : 'bare'] = Array.from(await settledImage(device, roughFloor(coat)))
     }
     result.size = size
   })
