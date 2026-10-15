@@ -7,9 +7,15 @@ import { createSimulatedIds } from './simulatedIds.ts'
 import type { Model, Placed } from './tilePlace.ts'
 
 /** Who holds a body slot: a page's mesh with the `physics` it was made with, a soft one at its
- *  world `scale`; a cooked tile of a model; a cooked soft body of one; or a body one declares. */
+ *  world `scale`, a dynamic one with the reach its tiles are loaded around (`reachOf`); a cooked
+ *  tile of a model; a cooked soft body of one; or a body one declares. */
 export type SlotOwner =
-  | { mesh: Bodied; physics: ObjectPhysics; scale?: readonly [number, number, number] }
+  | {
+      mesh: Bodied
+      physics: ObjectPhysics
+      scale?: readonly [number, number, number]
+      reach?: number
+    }
   | { model: Model; tile: Placed }
   | { model: Model; soft: CookedMade }
   | { model: Model; body: CookedMadeBody }

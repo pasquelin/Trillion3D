@@ -16,7 +16,7 @@ import { poseRecord } from './worker.fixture.ts'
  *  front alone. */
 const moversIn = (bodies: ReturnType<typeof modelStreamer>['bodies']) => {
   const out = [9, 9, 9, 9, 9, 9, 9, 9]
-  return out.slice(0, moversOf(bodies.meshes, bodies.nested, bodies.state.velocity, out))
+  return out.slice(0, moversOf(bodies.slots, bodies.state.velocity, out))
 }
 /** Node 0's dynamic crate, two metres up, and node 1 kinematic, each placed by its own tile. */
 const crate = {

@@ -66,7 +66,7 @@ export class TileSchedule {
     range: number,
   ) {
     const bodies = this.parts.bodies
-    this.moving = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity, this.movers)
+    this.moving = moversOf(bodies.slots, bodies.state.velocity, this.movers)
     this.pass++
     this.wants = this.tileCount = 0
     for (const opening of openings.values()) this.collect(opening, eye, range)

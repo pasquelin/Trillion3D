@@ -7,7 +7,7 @@ import { resolveShape } from '../../../sdk-core/src/physics/shape.ts'
 import { TRIANGLE_BYTES, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { worldPoseOf } from './bodyFrame.ts'
+import { reachOf, worldPoseOf } from './bodyFrame.ts'
 import { hasBody, type Bodied } from './bodied.ts'
 import { addSoftBody, fits } from './softBodies.ts'
 import { createBodyLedger } from './bodyLedger.ts'
@@ -71,6 +71,7 @@ export function createPhysicsBodies(
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
       return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh), step))
     }
+    if (p.type === 'dynamic') owner.reach = reachOf(mesh, size)
     const matter = physicsMatterOf(mesh.material)
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
     const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
