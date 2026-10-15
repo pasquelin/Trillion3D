@@ -32,7 +32,8 @@ export const ndcToPixel = wgslFn(
   'fn ndcToPixel(ndc:vec2f,size:vec2f)->vec2f{return vec2f((ndc.x*0.5+0.5)*size.x,(0.5-ndc.y*0.5)*size.y);}',
 )
 
-/** The pixel of the clip point `clip` (`ndcToPixel`), its depth beside. */
+/** The pixel of the clip point `clip` (`ndcToPixel`), its depth beside; on the CPU,
+ *  `clipToPixel` (`../projection/clip.ts`). */
 export const clipToFramebuffer = wgslFn(
   'clipToFramebuffer',
   [perspectiveDivide, ndcToPixel],

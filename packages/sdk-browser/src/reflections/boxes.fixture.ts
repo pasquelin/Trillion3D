@@ -5,6 +5,7 @@ import { cross, subtract, unit } from '../../../math/src/vector/vectorTuple.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { perspectiveProjection, perspectiveSlope } from '../../../math/src/projection/camera.ts'
+import { clipToPixel } from '../../../math/src/projection/clip.ts'
 import { RAD2DEG } from '../../../math/src/constants.ts'
 import { slabCut } from '../../../math/src/geometry/slab.ts'
 
@@ -64,12 +65,7 @@ export function camera(
   const m = multiplyMatrix4(new Float64Array(16), projection, view)
   const project = (p: V3) => {
     const c = transformHomogeneousPoint([0, 0, 0, 0], m, p[0], p[1], p[2])
-    return [
-      ((c[0] / c[3]) * 0.5 + 0.5) * width,
-      (-(c[1] / c[3]) * 0.5 + 0.5) * height,
-      c[2] / c[3],
-      c[3],
-    ]
+    return [...clipToPixel(c, width, height), c[3]]
   }
   const ray = (x: number, y: number): V3 => {
     const nx = (x / width) * 2 - 1,

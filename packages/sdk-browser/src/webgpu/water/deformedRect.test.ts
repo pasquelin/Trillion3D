@@ -14,15 +14,13 @@ import {
   transformAffinePoint,
   transformHomogeneousPoint,
 } from '../../../../math/src/vector/vector.ts'
+import { clipToPixel } from '../../../../math/src/projection/clip.ts'
 
 /** The pixel of local point `p` of a copy posed by `m`, under `camera`. */
 function pixelOf(camera: EngineCamera, m: ArrayLike<number>, p: number[]) {
   const [x, y, z] = transformAffinePoint([0, 0, 0], m, p[0], p[1], p[2])
   const clip = transformHomogeneousPoint([0, 0, 0, 0], camera.viewProjection, x, y, z)
-  return [
-    ((clip[0] / clip[3]) * 0.5 + 0.5) * SIZE[0],
-    (1 - ((clip[1] / clip[3]) * 0.5 + 0.5)) * SIZE[1],
-  ]
+  return clipToPixel(clip, SIZE[0], SIZE[1]).slice(0, 2)
 }
 
 const inside = (rect: number[], [x, y]: number[]) =>
