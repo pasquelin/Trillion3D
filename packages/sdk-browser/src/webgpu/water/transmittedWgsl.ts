@@ -1,7 +1,7 @@
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { VOLUME_LAW_WGSL, volumeWorldPath } from '../transparent/volumeLaw.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ndcToPixel, perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
+import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
 /**
  * What the water composite reads through its surface (`compositeWgsl.ts`): the frozen backdrop at
  * the exit of the refracted ray, attenuated over the path the ray travels in the volume. The host
@@ -9,14 +9,13 @@ import { ndcToPixel, perspectiveDivide } from '../../../../math/src/wgsl/project
  */
 export const WATER_TRANSMITTED_WGSL = wgslBlock(
   'WATER_TRANSMITTED_WGSL',
-  [ndcToPixel, perspectiveDivide, WORLD_AT_WGSL, VOLUME_LAW_WGSL, volumeWorldPath],
+  [clipToFramebuffer, WORLD_AT_WGSL, VOLUME_LAW_WGSL, volumeWorldPath],
   `// Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{
  let clipPos=uni.viewProj*vec4f(P+dir*dist,1.0);
  if(clipPos.w<=0.0){return straight;}
- let ndc=perspectiveDivide(clipPos).xy;
- return vec2i(clamp(ndcToPixel(ndc,size),vec2f(0.0),size-vec2f(1.0)));
+ return vec2i(clamp(clipToFramebuffer(clipPos,size).xy,vec2f(0.0),size-vec2f(1.0)));
 }
 // Distance from P to the backdrop at a pixel, or the world thickness when nothing was drawn.
 fn backdropDistance(P:vec3f,pixel:vec2i,thickness:f32)->f32{
