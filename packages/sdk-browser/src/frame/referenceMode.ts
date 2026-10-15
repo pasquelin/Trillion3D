@@ -1,6 +1,6 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../engine/common.ts'
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, pixelRatioOf } from '../engine/common.ts'
 import {
   assertFullShadowPool,
   referenceTilePlan,
@@ -54,7 +54,7 @@ export function referenceOptions(options: MeasuredWorldOptions): {
   const tiles = referenceTilePlan(
     options.width ?? DEFAULT_WIDTH,
     options.height ?? DEFAULT_HEIGHT,
-    options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
+    pixelRatioOf(options),
   )
   return {
     options: {
