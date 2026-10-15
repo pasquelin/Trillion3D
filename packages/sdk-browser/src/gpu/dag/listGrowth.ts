@@ -10,11 +10,10 @@ import {
   residentReadbackBytes,
 } from './layout.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
-import { readoutRow } from './bufferTable.ts'
+import { pastBinding, readoutRow } from './bufferTable.ts'
 import { admitBeside } from './cutBuffers.ts'
 import type { DagResources } from './resources.ts'
 import { newRegions } from './swap.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
 import { HELD_BY_WORD } from './frameTable.ts'
 import { viewWord } from './viewLayout.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts'
@@ -56,8 +55,8 @@ export async function growDagList(
   disposed: () => boolean,
   heldSlots = resources.heldSlots,
 ) {
-  const bytes = readoutRow(listCap, regions, heldSlots).size
-  if (bytes > storageBufferCap(resources.device.limits)) return false
+  if (pastBinding(resources.device.limits, { out: readoutRow(listCap, regions, heldSlots) }))
+    return false
   // What the readout replaces leaves the share: the new one is made within what remains.
   const replaced = [resources.output, ...resources.ranks]
   // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).

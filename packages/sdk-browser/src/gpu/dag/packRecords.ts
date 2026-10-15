@@ -104,25 +104,28 @@ export function createRecordTable() {
       coldBits: new Uint32Array(cold.buffer, 0, n * COLD_WORDS),
     }
   }
+  /** The first record of an earlier block of `shape` holding these words exactly, or -1. */
+  const match = (shape: object, { hotBits, coldBits }: ReturnType<typeof written>) => {
+    for (const block of byShape.get(shape) ?? [])
+      if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
+    return -1
+  }
   return {
     get count() {
       return count
     },
     /** The first record of an earlier placement whose written words are these pages' exactly, or
      *  -1: nothing is added. */
-    find(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) {
-      const { hotBits, coldBits } = written(pages, owner, nodeBase)
-      for (const block of byShape.get(shape) ?? [])
-        if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
-      return -1
-    },
+    find: (pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) =>
+      match(shape, written(pages, owner, nodeBase)),
     /** First record of this placement's pages, shared or new. */
     place(pages: DagRoot['pages'], shape: object, owner: Uint32Array, nodeBase: number) {
       const n = pages.length
-      const { hotBits, coldBits } = written(pages, owner, nodeBase)
-      const known = byShape.get(shape)
-      for (const block of known ?? [])
-        if (sameValues(block.hot, hotBits) && sameValues(block.cold, coldBits)) return block.base
+      const words = written(pages, owner, nodeBase),
+        found = match(shape, words)
+      if (found >= 0) return found
+      const { hotBits, coldBits } = words,
+        known = byShape.get(shape)
       const block = { hot: hotBits.slice(), cold: coldBits.slice(), base: count }
       count += n
       blocks.push(block)
