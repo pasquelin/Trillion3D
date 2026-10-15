@@ -526,7 +526,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
   let hasMargin=VSM_MARK_MARGIN>0.0;
   let marginOffset=VSM_MARK_MARGIN*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
-  // The lighting's one rule of a missing list (`cellSlice`): every light, as the resolve walks.
+  // The lighting's one rule of a missing list (\`cellSlice\`): every light, as the resolve walks.
   let slice=cellSlice(pixelCell(vec2f(localPosition)+0.5,deviceZ));
   for(var index=0u;index<slice.y;index++){
    let lightIndex=listedLight(slice,index);
