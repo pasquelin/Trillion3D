@@ -65,12 +65,9 @@ impl Importer<'_> {
             kind,
             colour: [light.color.x, light.color.y, light.color.z],
             intensity: light.intensity * crate::compiler_lights::fbx_intensity_scale(kind),
-            cone: (kind == "spot").then(|| {
-                (
-                    light.inner_angle.to_radians(),
-                    light.outer_angle.to_radians().max(0.001),
-                )
-            }),
+            // The outer half-angle travels as written: `compiler_lights` clamps every cone once.
+            cone: (kind == "spot")
+                .then(|| (light.inner_angle.to_radians(), light.outer_angle.to_radians())),
             casts_shadow: Some(light.cast_shadows),
             emitter_radius: None,
         };

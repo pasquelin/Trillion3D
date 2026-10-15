@@ -45,5 +45,5 @@ pub(super) fn cone_of(light: &Value) -> f64 {
     if !outer.is_finite() {
         return QUARTER_PI;
     }
-    outer.clamp(1e-3, std::f64::consts::FRAC_PI_2 - 1e-3)
+    outer.clamp(SPOT_CONE_MIN, SPOT_CONE_MAX)
 }
