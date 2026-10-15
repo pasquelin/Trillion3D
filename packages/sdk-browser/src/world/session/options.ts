@@ -58,12 +58,6 @@ export interface MeasuredWorldOptions {
   pageCache?: import('../../streaming/pageCache.ts').PageCache
   pixelError?: number
   lodAdaptive?: boolean
-  /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
-  clearColor?: number
-  /** The host's clear colour now, `0xRRGGBB`, `undefined` for none (the default clears): what a
-   *  diagnostic compares the pixels with once a background changed in place, `clearColor` being
-   *  only the one the session opened on. */
-  currentClearColor?: () => number | undefined
   /** Bounded diagnostics emitted by a backend and owned by the host report. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */

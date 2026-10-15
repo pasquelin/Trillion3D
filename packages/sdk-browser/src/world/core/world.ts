@@ -141,8 +141,6 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         ...switches.held,
         ...sessionPools(pools),
-        clearColor: scene.background?.getHex(), // read at opening; a change is written in place
-        currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => (parts.step(), runtime.beforeFrame()),
         onFrame: (metrics) => {
           frames.dispatch(metrics)
