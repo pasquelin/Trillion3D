@@ -7,6 +7,7 @@ import {
 } from '../../../sdk-core/src/physics/layout.ts'
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
+import { sameRange } from '../../../math/src/matrix/matrixElements.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Bodied } from './bodied.ts'
 import type { NodeMove } from './cookedBodies.ts'
@@ -72,11 +73,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
     q: number,
     floats: Float32Array,
     at: number,
-  ) => {
-    for (let k = 0; k < 3; k++) if (places[p + k] !== floats[at + 1 + k]) return false
-    for (let k = 0; k < 4; k++) if (turns[q + k] !== floats[at + 4 + k]) return false
-    return true
-  }
+  ) => sameRange(places, floats, 3, p, at + 1) && sameRange(turns, floats, 4, q, at + 4)
   /** Copies the pose slot `index` is drawn at into `into`, 7 numbers a slot. */
   const drawnInto = (into: Float32Array, index: number) => {
     copyPose(into, index * 7, position, index * 3)

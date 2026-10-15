@@ -29,8 +29,8 @@ export interface CharacterReport {
 }
 
 /**
- * THE CHARACTER IN THE PHYSICS WORKER. Each fixed step, the drive shared with the triangle
- * backend (`sdk-core/src/collision/characterDrive.ts`) turns the page's last input into the
+ * THE CHARACTER IN THE PHYSICS WORKER. Each fixed step, the drive
+ * (`sdk-core/src/collision/characterDrive.ts`) turns the page's last input into the
  * velocity of the step — the speed gathered, the jump, the arc of gravity in closed form, sent as
  * the step's mean velocity so a jump reaches the same apex — and the module's virtual character moves
  * the capsule by it (`physics-jolt-wasm/src/character.cpp`). The state it hands back decides the

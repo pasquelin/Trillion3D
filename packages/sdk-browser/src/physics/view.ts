@@ -2,6 +2,7 @@ import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { normalizeVector3 } from '../../../math/src/vector/vector.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 
 /**
@@ -29,9 +30,7 @@ export function createPhysicsView() {
         ? Math.atan(perspectiveDiagonalSlope(camera.fov, camera.aspect))
         : 0
     now[7] = range ?? camera.far
-    let same = true
-    for (let k = 0; k < 8; k++) same &&= now[k] === last[k]
-    if (same) return now[7]
+    if (sameValues(now, last)) return now[7]
     last.set(now)
     writer.view(now.subarray(0, 3), now.subarray(3, 6), now[6], now[7])
     return now[7]
