@@ -1,5 +1,6 @@
 // World creation, collision layers, and the exported entry points.
 #include "binding.h"
+#include "restore.h"
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemSingleThreaded.h>
@@ -169,6 +170,7 @@ uint32_t jolt_step(uint32_t commandWords, float dt) {
   w.dt = dt;
   ++w.step;
   trillion::sendOwedLeaves();
+  trillion::prunePrimitives();
   if (!trillion::runCommands(w.buffers[0], commandWords)) return 0xFFFFFFFFu;
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();

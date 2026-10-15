@@ -44,6 +44,12 @@ RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   return shape;
 }
 
+void prunePrimitives() {
+  auto &cache = world().primitives;
+  for (auto at = cache.begin(); at != cache.end();)
+    at = at->second->GetRefCount() == 1 ? cache.erase(at) : std::next(at);
+}
+
 namespace {
 
 RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices, uint32_t indices) {
