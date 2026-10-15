@@ -19,7 +19,7 @@ import { landRowBins } from '../../../packages/sdk-browser/src/vsm/rowBinsRecord
 import { ROW_BINS_WGSL } from '../../../packages/sdk-browser/src/vsm/rowBinsWgsl.ts'
 import {
   createVsmRowBound,
-  vsmBoundChunk,
+  vsmChunkRows,
   type VsmBoundLight,
 } from '../../../packages/sdk-browser/src/vsm/rowPageBound.ts'
 import {
@@ -50,7 +50,6 @@ function lowSun(cache: ReturnType<typeof localAt>['cache'], eye: number[]): VsmB
     kind: 'directional',
     firstId: 0,
     count: clipmap.levels.length,
-    shouldRender: true,
     clipmap,
   }
 }
@@ -73,7 +72,7 @@ function move(rows: SceneRows, step: number[]) {
 function shortfalls(
   rows: SceneRows,
   lights: VsmBoundLight[],
-  chunk: ReturnType<typeof vsmBoundChunk>,
+  chunk: ReturnType<typeof vsmChunkRows>,
 ) {
   if (!chunk) return -1
   const pairs = new Float64Array(N),
@@ -112,7 +111,7 @@ export async function runRowBins() {
   // The placements went 1.5 m a frame before: the moving rows are binned that far grown.
   for (let f = 0; f < 10; f++) commitMotion(rows.spheres.motion, 0, 1.5)
   const bound = createVsmRowBound()
-  vsmBoundChunk(bound, rows.spheres, range, lights, worst)
+  vsmChunkRows(bound, rows.spheres, range, lights, worst)
   const request = rowBinsRequest(bound.bins, onBuffers(rows), range, lights)!
   const { tag, params } = request,
     bytes = tag.words * 4
@@ -150,7 +149,7 @@ export async function runRowBins() {
     [-45, 0, 30],
   ]) {
     move(rows, step)
-    short.push(shortfalls(rows, lights, vsmBoundChunk(bound, rows.spheres, range, lights, worst)))
+    short.push(shortfalls(rows, lights, vsmChunkRows(bound, rows.spheres, range, lights, worst)))
   }
   return {
     adapter: court,

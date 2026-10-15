@@ -78,7 +78,7 @@ function header(projection: Float64Array, width: number, height: number) {
   encodeVirtualShadowProjection(
     encoder,
     res,
-    { ...inputs, maskTiles: texture, width, height, frameIndex: 0, camera },
+    { ...inputs, maskTiles: texture, receiver: texture, width, height, frameIndex: 0, camera },
     [],
   )
   const bytes = writes.find(

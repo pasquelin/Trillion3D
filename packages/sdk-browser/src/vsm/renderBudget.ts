@@ -11,7 +11,7 @@ import {
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
 import { createVsmRowBound, type VsmChunk, type VsmWorst } from './rowPageBound.ts'
-import { answerUnbound } from './rowBoundMeasure.ts'
+import { answerUnbound } from './rowBoundFit.ts'
 import { vsmDrawFloorBytes } from './chunkLists.ts'
 import { vsmListSizing, vsmSizingFor } from './chunkSizing.ts'
 import { vsmChunkParamSlots } from './chunkParams.ts'

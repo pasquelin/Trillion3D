@@ -1,10 +1,10 @@
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_TABLE_ORIGIN_WGSL,
 } from './pageTableWgsl.ts'

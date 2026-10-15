@@ -77,13 +77,13 @@ export function bindLight(
   next[3] = vsm.pageTable
   next[4] = mask
   next[5] = probes
-  for (let i = 0; i < receiver.length; i++) next[6 + i] = receiver[i]
-  next[6 + receiver.length] = vsm.projectionData
-  next[7 + receiver.length] = vsm.uniforms
-  next[8 + receiver.length] = vsmTransmission
-  next[9 + receiver.length] = maskTiles
-  next[10 + receiver.length] = reflection
-  next[11 + receiver.length] = vsm.view
+  next[6] = receiver
+  next[7] = vsm.projectionData
+  next[8] = vsm.uniforms
+  next[9] = vsmTransmission
+  next[10] = maskTiles
+  next[11] = reflection
+  next[12] = vsm.view
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]

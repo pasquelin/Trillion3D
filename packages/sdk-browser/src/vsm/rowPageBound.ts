@@ -32,13 +32,8 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { RowMotion } from '../gpu/shadow/rowMotion.ts'
 import { VSM_MIPS } from './constants.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
-import {
-  answer,
-  answerUnbound,
-  createScratch,
-  type BoundFrame,
-  type Scratch,
-} from './rowBoundMeasure.ts'
+import { answer, createScratch, type BoundFrame, type Scratch } from './rowBoundMeasure.ts'
+import { answerUnbound } from './rowBoundFit.ts'
 import { lampKeysOf } from './rowBinsKeys.ts'
 import { boundLights } from './rowBinsParams.ts'
 import { frameSuns, sameSuns } from './rowBinsSuns.ts'

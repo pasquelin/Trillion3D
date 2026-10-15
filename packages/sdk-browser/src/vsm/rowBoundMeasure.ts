@@ -4,7 +4,6 @@
  * their edges, the rows it cannot place at the worst case, and the most rows whose bound holds
  * within `cap`. The answer is held while nothing it reads moved: a still frame measures nothing.
  */
-import { lastTrue } from '../../../math/src/scalar/search.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
 import { VSM_MIPS } from './constants.ts'
@@ -12,6 +11,7 @@ import { BIN_SPAN, MEET_EDGES, PAIR_EDGES, ROOM, SIDE } from './rowBins.ts'
 import type { RowBinsLanded } from './rowBinsRecord.ts'
 import { Ascending, Heaviest, sunWeights, Unplaced, type Top } from './rowBoundWeights.ts'
 import type { VsmChunk, VsmRowBound, VsmWorst } from './rowPageBound.ts'
+import { fit } from './rowBoundFit.ts'
 
 /** What a frame adds to the histogram: pairs and commands every row makes beside the bins (the
  *  single-page maps', the full maps' the bins do not hold), whether the joint bins hold the full
@@ -138,42 +138,6 @@ function measure(
     (Math.min(pairs.top(k), k * worst.pages) > worst.cap ||
       Math.min(meets.top(k), k * worst.cmdsPerRow) > worst.cap)
   return { chunk, hopeless }
-}
-
-/** The most rows ≥ `worst.rows` whose bound holds within `cap`: the tops of `sc` (the bins'), the
- *  rows no bin places counted at the worst case — every page, every command — and `frame`'s own. */
-function fit(sc: Scratch, worst: VsmWorst, candidates: number, frame: BoundFrame) {
-  const [placePairs, placeCmds] = sc.unplaced
-  placePairs.rows = placeCmds.rows = frame.unplaced
-  placePairs.weight = worst.pages
-  placeCmds.weight = worst.cmdsPerRow
-  sc.tops.push(placePairs, placeCmds)
-  Object.assign(sc, {
-    perPairs: frame.pairs,
-    perCmds: frame.cmds,
-    mostPairs: worst.pages,
-    mostCmds: worst.cmdsPerRow,
-  })
-  const { chunk } = sc
-  chunk.rows = lastTrue(
-    worst.rows,
-    Math.max(worst.rows, candidates),
-    (mid) => chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap,
-  )
-  return chunk
-}
-
-/** What a frame no histogram speaks for adds: nothing beside its rows, every one unplaced. */
-const unbound: BoundFrame = { pairs: 0, cmds: 0, lamps: false, unplaced: 0, carried: false }
-
-/** The chunk of `candidates` rows no histogram places (none landed, other rows, a sun turned):
- *  the same fit, every row at the worst case. Its answer is the scratch's: no held one stands. */
-export function answerUnbound(bound: VsmRowBound, worst: VsmWorst, candidates: number) {
-  const sc = bound.scratch
-  bound.held = undefined
-  sc.tops.length = 0
-  unbound.unplaced = candidates
-  return fit(sc, worst, candidates, unbound)
 }
 
 const numbers: number[] = []

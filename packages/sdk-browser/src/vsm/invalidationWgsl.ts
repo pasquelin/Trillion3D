@@ -1,3 +1,4 @@
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Cache invalidation shaders (step 7): the load-balanced instance-page invalidation, with the
@@ -14,12 +15,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  */
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import {
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_MARKS_GATHER_WGSL,
-  VSM_TABLE_ORIGIN_WGSL,
-} from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'

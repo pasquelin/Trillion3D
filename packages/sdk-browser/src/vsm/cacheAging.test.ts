@@ -60,8 +60,9 @@ test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes'
   let next = 9000
   const ids = {
     mapCount: 9000,
-    allocateUnreferenced: (_single: boolean, count: number) => ((next += count), next - count),
+    allocateUnreferenced: (count: number) => ((next += count), next - count),
     writeNextMap: () => {},
+    fits: () => true,
   }
   cache.frameStamp = VSM_LIGHT_KEEP_FRAMES
   cache.carryUnseenLights(ids)

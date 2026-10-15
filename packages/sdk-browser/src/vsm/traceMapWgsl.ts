@@ -6,13 +6,10 @@
  * the bias that keeps a ray off it and the depth a unit of distance takes. One reading for every
  * light: the maps differ in their addressing alone.
  */
+import { vsmProjectionSampleWgsl } from './projectionSampleWgsl.ts'
 import { VSM_UNIT_PER_CM } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from './pageTableWgsl.ts'
-import {
-  VSM_PROJECTION_DATA_READ_WGSL,
-  VSM_PROJECTION_DATA_WGSL,
-  vsmProjectionSampleWgsl,
-} from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'

@@ -1,3 +1,4 @@
+import { vsmProjectionSampleWgsl } from '../../vsm/projectionSampleWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
 import {
@@ -9,7 +10,6 @@ import {
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
-  vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionReadWgsl.ts'
 import { VSM_NORMAL_OFFSET_WGSL } from '../../vsm/receiverTraceWgsl.ts'

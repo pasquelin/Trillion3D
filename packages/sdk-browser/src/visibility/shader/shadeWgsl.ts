@@ -121,8 +121,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   let side=select(1.0,-1.0,(page.flags&${FLAG_BACK}u)!=0u);
   // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
-  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): the arithmetic the
-  // readers that decode the triangle themselves share (\`receiverOffsetWgsl.ts\`).
+  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`), which every shadow
+  // read takes (\`receiverOffsetWgsl.ts\`).
   if(HAS_VERTEX_NORMAL&&(page.flags&${FLAG_SPRITE | FLAG_LINE}u)==0u){
    let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
    rcvOffset=receiver.offset;

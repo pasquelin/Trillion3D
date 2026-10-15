@@ -5,7 +5,7 @@
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { createVsmRowBound, vsmChunkRows, type VsmWorst } from './rowPageBound.ts'
-import { answerUnbound } from './rowBoundMeasure.ts'
+import { answerUnbound } from './rowBoundFit.ts'
 import { vsmChunkRowsWithin, vsmDrawFloorBytes } from './chunkLists.ts'
 import { vsmListSizing, vsmSizingFor, type VsmListSizes, type VsmWithin } from './chunkSizing.ts'
 import { vsmChunkParamSlots, type VsmRenderChunking } from './chunkParams.ts'

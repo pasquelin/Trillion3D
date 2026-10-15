@@ -128,8 +128,7 @@ fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
 )
 
 /** The page geometry without its surface attributes: corners, positions and the deformed tail,
- *  which read \`indices\` and \`positions\` alone — what the shadow receiver offset decodes with
- *  (\`receiverOffsetWgsl.ts\`), so its passes bind no \`uvs\`. */
+ *  which read \`indices\` and \`positions\` alone. */
 export const PAGE_POINTS_WGSL = wgslBlock(
   'PAGE_POINTS_WGSL',
   [clusterDecodeWgsl('indices'), PAGE_VERTEX_WGSL, PAGE_POINT_WGSL],

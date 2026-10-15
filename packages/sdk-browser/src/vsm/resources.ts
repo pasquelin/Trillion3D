@@ -16,6 +16,7 @@
  * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: blended
  * surfaces, water) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
  */
+import { vsmProjectionSampleWgsl } from './projectionSampleWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'

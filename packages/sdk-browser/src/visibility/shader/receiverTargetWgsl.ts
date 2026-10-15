@@ -6,9 +6,9 @@ import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * THE SHADOW RECEIVER TARGET: the resolve, which has the pixel's triangle decoded already, writes
- * its receiver once (`shadowReceiver`, `receiverOffsetWgsl.ts`: the Phong offset and the
- * triangle's plane), and the virtual shadow maps' projection reads it back here instead of
- * decoding the triangle again from the visibility buffer for every pixel.
+ * its receiver once (`shadowReceiverOfTriangle`, `receiverOffsetWgsl.ts`: the Phong offset and the
+ * triangle's plane), and every shadow read — the virtual shadow maps' projection, the deferred
+ * lighting — reads it back here, never decoding the triangle again.
  *
  * One texel a pixel, `rg32uint` (8 bytes), 64 bits: the plane in octahedral form (two 10-bit
  * halves, ≤ 4.2e-3 rad); the offset in a shared exponent (5 bits, 2^-26 to 2^4 m) and three signed
@@ -43,14 +43,14 @@ fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
   )
 
 /** A pixel's shadow receiver: its shading-point offset and its triangle's plane. The one structure
- *  of every writer (`receiverOffsetWgsl.ts`) and reader (`receiverTargetReadWgsl`). */
+ *  of its writer (`receiverOffsetWgsl.ts`) and its reader (`receiverTargetReadWgsl`). */
 export const SHADOW_RECEIVER_STRUCT_WGSL = wgslBlock(
   'SHADOW_RECEIVER_STRUCT_WGSL',
   [],
   'struct ShadowReceiver{offset:vec3f,plane:vec3f,}',
 )
 
-/** The reader's `shadowReceiver(pixel)`, the decode's own result (`receiverOffsetWgsl.ts`): the
+/** The reader's `shadowReceiver(pixel)`, the resolve's result (`receiverOffsetWgsl.ts`): the
  *  pixel's texel (`shadowReceiverTexel`) decoded (`shadowReceiverOf`), each for a reader that loads
  *  the texel ahead of its decode. */
 export const receiverTargetReadWgsl = (group: number, binding: number) =>

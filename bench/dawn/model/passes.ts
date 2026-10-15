@@ -8,10 +8,7 @@
 // walks. Pure.
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import {
-  VSM_TRACE_RAYS_SUN,
-  VSM_TRACE_STEPS_SUN,
-} from '../../../packages/sdk-browser/src/vsm/constants.ts'
+import { VSM_TRACE_RAYS, VSM_TRACE_STEPS } from '../../../packages/sdk-browser/src/vsm/constants.ts'
 import {
   REFLECTION_PASS,
   REFLECTION_RADIANCE_PASS,
@@ -98,10 +95,10 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: 'vsm.projection',
-    formula: `P·cover·(${K.PROJECTION_BYTES} B + ${K.SCREEN_RAY} fetches) + P·cover·reach·L·(1 ray of ${VSM_TRACE_STEPS_SUN + 1} samples × ${K.SAMPLE_FETCHES} fetches) at least; up to ${VSM_TRACE_RAYS_SUN} rays; 4 B a pixel a layer of ${K.LIGHTS_A_LAYER} lights`,
+    formula: `P·cover·(${K.PROJECTION_BYTES} B + ${K.SCREEN_RAY} fetches) + P·cover·reach·L·(1 ray of ${VSM_TRACE_STEPS + 1} samples × ${K.SAMPLE_FETCHES} fetches) at least; up to ${VSM_TRACE_RAYS} rays; 4 B a pixel a layer of ${K.LIGHTS_A_LAYER} lights`,
     work: (f) => {
       const lit = f.P * f.cover
-      const samples = lit * f.reach * f.L * (VSM_TRACE_STEPS_SUN + 1) * K.SAMPLE_FETCHES
+      const samples = lit * f.reach * f.L * (VSM_TRACE_STEPS + 1) * K.SAMPLE_FETCHES
       return {
         texels: lit * K.SCREEN_RAY + samples,
         bytes: lit * K.PROJECTION_BYTES + 4 * f.P * ceilDiv(f.L, K.LIGHTS_A_LAYER),
@@ -109,8 +106,8 @@ export const PASSES: K.PassModel[] = [
       }
     },
     sources: [
-      K.engine('vsm/constants.ts', 'VSM_TRACE_STEPS_SUN'),
-      K.engine('vsm/constants.ts', 'VSM_TRACE_RAYS_SUN'),
+      K.engine('vsm/constants.ts', 'VSM_TRACE_STEPS'),
+      K.engine('vsm/constants.ts', 'VSM_TRACE_RAYS'),
       K.engine('vsm/projectionWgsl.ts', 'vsmProjectionTiles'),
     ],
   },

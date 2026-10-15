@@ -8,7 +8,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { commitMotion } from '../gpu/shadow/rowMotion.ts'
 import { createVsmRowBound, vsmChunkRows, type VsmRowBound } from './rowPageBound.ts'
-import { vsmChunkRows } from './chunkKernels.ts'
 import {
   bruteForce,
   emptyRowSpheres,

@@ -1,13 +1,9 @@
+import { VSM_COVER_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import {
-  VSM_COVER_GATHER_WGSL,
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_TABLE_ORIGIN_WGSL,
-} from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 
 /** The page-overlap and static-caching pieces the command cull reads (`renderCullWgsl.ts`): its
  *  host declares the stale rects it clips to (`vsmStaleRects`, `VSM_RENDER_CULL_SPECS`). */

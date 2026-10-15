@@ -1,10 +1,10 @@
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { rectCell } from '../../../math/src/wgsl/integer.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_TABLE_ORIGIN_WGSL,
 } from './pageTableWgsl.ts'

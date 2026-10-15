@@ -1,12 +1,11 @@
-// A made-up sun world for the first ray's proof (`vsmSunRayMisses`): `pageWorld.fixture.ts`'s
+// A made-up sun world for the rays' miss proof (`vsmRayMisses`): `pageWorld.fixture.ts`'s
 // page table (pages mapped, unmapped, or falling back 1-3 levels, mapped there or not) and
 // projection records, over a pool of shapes rather than noise — each physical page a sloped ground
 // with raised boxes, depths on a grid of 2^-10 so a reference depth often meets one exactly, and a
 // few words no depth is: -0, NaN, +inf. The tile depths are each 8×8 tile's greatest word whose float
-// is not below 0 or NaN, as `vsmTileDepthsBuild` writes them (`projectionEarlyOut.test.ts`).
+// is not below 0 or NaN, as `vsmTileDepthsBuild` writes them (`tileDepth.test.ts`).
 import { f32Bits } from '../../../math/src/float/bits.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { CODE, PAGE_FUNCTIONS, keyedRandom, vsmWorld, type Ptr } from './pageWorld.fixture.ts'
+import { keyedRandom, vsmWorld } from './pageWorld.fixture.ts'
 import { VSM_PAGE_TEXELS, VSM_TILE_DEPTHS_PER_PAGE } from './constants.ts'
 
 /** The words no depth is, one texel in 200 each. */
@@ -40,7 +39,7 @@ function poolWord(seed: number, x: number, y: number) {
 const tileDepthWord = (w: number) => (w > 0x7f800000 ? 0 : w)
 
 /** World `seed`: its scope, its tiles' depths (read lazily), and the words read. */
-export function earlyOutWorld(seed: number) {
+export function tileWorld(seed: number) {
   const world = vsmWorld(seed),
     tiles = new Map<number, number>(),
     side = Math.sqrt(VSM_TILE_DEPTHS_PER_PAGE),
@@ -69,24 +68,3 @@ export function earlyOutWorld(seed: number) {
   }
   return { scope, reads, tileDepth }
 }
-
-/** The march, the first ray's proof and what they read, by name. */
-export const RAY_FUNCTIONS = [
-  'vsmSunRayMisses',
-  'vsmMarchSun',
-  'vsmSunRayStep',
-  'vsmSunRayUvz',
-  'vsmMarchTimeLine',
-  'vsmMarchTime',
-  'vsmEmptyStep',
-  'vsmTileDepthIndex',
-  'vsmPoolIndexOf',
-  ...PAGE_FUNCTIONS,
-]
-export type RayState = Record<string, unknown>
-type RayPtr = Ptr<RayState>
-export interface RayRun {
-  vsmSunRayMisses: (p: RayPtr, steps: number, offset: number) => boolean
-  vsmMarchSun: (p: RayPtr, s: number, o: number, e: boolean) => { hitFound: boolean }
-}
-export const rayRun = (scope: object) => shaderRun<RayRun>(CODE, RAY_FUNCTIONS, scope)

@@ -86,14 +86,16 @@ function setupLocalLights(
   localViews.length = 0
   // Nearest the eye first: past the map slots, the farthest lights go (`allocateLightIds`).
   nearFirst.length = 0
-  for (const { light } of casting)
-    if ((light.kind === 'point' || light.kind === 'spot') && light.position && light.range)
-      nearFirst.push(light)
+  for (const { light } of casting) nearFirst.push(light)
   const eye = camera.eye
-  const distanceSq = (l: SceneLight) =>
-    (l.position![0] - eye[0]) ** 2 + (l.position![1] - eye[1]) ** 2 + (l.position![2] - eye[2]) ** 2
+  const distanceSq = (l: SceneLight) => {
+    const p = l.position ?? eye
+    return (p[0] - eye[0]) ** 2 + (p[1] - eye[1]) ** 2 + (p[2] - eye[2]) ** 2
+  }
   nearFirst.sort((a, b) => distanceSq(a) - distanceSq(b))
   for (const light of nearFirst) {
+    if ((light.kind !== 'point' && light.kind !== 'spot') || !light.position || !light.range)
+      continue
     if (!localViews.length) localViews.push(vsmLocalViewData(camera, viewport))
     const input = localInput
     input.id = light.id

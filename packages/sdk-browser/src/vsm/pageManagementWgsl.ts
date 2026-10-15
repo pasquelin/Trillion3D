@@ -6,16 +6,12 @@
  * storage buffer (`vsmPageMarkIndex(t, m)`, `vsmCoverIndex(t, m)`), so one atomic binding
  * covers mip 0 (read) and the hierarchy (atomicOr).
  */
+import { VSM_COVER_GATHER_WGSL } from './pageGatherWgsl.ts'
 import type { VsmBindingSpec } from './resources.ts'
 import { type VsmPmKernel, vsmPmKernel } from './physicalPagesWgsl.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import {
-  VSM_COVER_GATHER_WGSL,
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_TABLE_ORIGIN_WGSL,
-} from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'

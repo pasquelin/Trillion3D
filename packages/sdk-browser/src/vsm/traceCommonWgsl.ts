@@ -100,7 +100,7 @@ fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u);}
  * - At the adaptive count, a half all of whose lanes' rays hit so far (an umbra) stops. It is
  *   asked there alone: a half it does not stop holds a lane that missed, which votes no at every
  *   later ray (`missCount` never falls) and so is never stopped; a later vote could stop no lane
- *   (`projectionUmbraVote.test.ts`).
+ *   (the umbra vote).
  * The group leaves the loop where both halves stopped (`vsmGroupVoted`): every lane idle, the
  * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
  * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
