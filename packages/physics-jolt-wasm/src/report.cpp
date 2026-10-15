@@ -114,8 +114,11 @@ uint32_t writePoses() {
     slot.waiting = true;
     w.waiting.push_back(index);
   };
+  // Fed by the activity Jolt reports — its active bodies, and those it put to sleep this step —,
+  // a body's one rest gate (`Slot::rests`): written while it moves and once as it falls asleep.
   auto emit = [&](uint32_t index, const Body &body, bool asleep) {
     Slot &slot = w.slots[index];
+    if (slot.rests(!asleep, 1)) return;
     // Awake is not frozen, even when a contact woke a frozen body.
     if (!asleep) slot.frozen = false;
     Placement at = place(w, slot, body);

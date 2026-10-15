@@ -45,8 +45,8 @@ struct Slot {
   bool soft = false;
   /** Its place in `soft.cpp`'s list, kept in step with it: a teleport finds it without a scan. */
   uint32_t softAt = 0;
-  /** Writes since it rested: a soft body's vertices, a vehicle's state, go while it moves and
-   *  `writes` times at rest; `rests` says when to skip. */
+  /** Writes since it rested: a body's pose, a soft body's vertices, a vehicle's state go while
+   *  it moves and `writes` times at rest; `rests` says when to skip. */
   uint32_t restWrites = 0;
   bool rests(bool active, uint32_t writes) {
     return active ? (restWrites = 0, false) : restWrites >= writes || (++restWrites, false);
