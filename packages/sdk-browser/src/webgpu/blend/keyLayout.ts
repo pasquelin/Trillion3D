@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleWords.ts'
+import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleRead.ts'
 import { doubleWords, fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /**

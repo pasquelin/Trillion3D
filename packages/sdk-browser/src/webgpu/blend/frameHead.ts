@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
-import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleWords.ts'
+import { doubleReadWgsl } from '../../../../math/src/wgsl/doubleRead.ts'
 import { doubleWords, fieldLayout, u32Words } from '../../gpu/core/fieldLayout.ts'
 
 /**
