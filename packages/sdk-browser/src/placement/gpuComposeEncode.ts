@@ -44,8 +44,8 @@ function encodeComposedWorlds(
   const bound = composeGroup(device, held, pipeline)
   if (state.composedAt === state.ranAt.worlds && !bound) return false
   state.ranAt.worlds = state.composedAt
-  // A table made anew holds no composed world: the rows pass derives every row of them again.
-  state.ranAt.rows = bound ? -1 : state.ranAt.rows
+  // A group bound anew writes the worlds its inputs held, the same: the rows pass derives every row
+  // again only when the worlds' table itself is another (`partsMoved`, `rowWordsGpu.ts`).
   dispatchListed(rt, open, pipeline, held, listed)
   return true
 }
