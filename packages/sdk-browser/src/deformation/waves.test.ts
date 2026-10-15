@@ -38,7 +38,7 @@ test('the drawn surface stands within a centimetre of the physics surface, now a
     surface.setTime(time)
     for (let x = -40; x <= 40; x += 3.7)
       for (let z = -25; z <= 25; z += 2.9) {
-        const d = deformWaves(at, 3, [x, 0, z], previous, false)
+        const d = deformWaves(at, 3, [x, 0, z], previous).p
         surface.point(x, z, expected)
         worst = Math.max(
           worst,
@@ -70,7 +70,7 @@ test('a sheared placement reaches its crest over its least singular value, past 
   const deformWaves = waveShader(frame.block)
   let farthest = 0
   for (let x = -8; x <= 8; x += 0.05) {
-    const d = deformWaves(at, 1, [x * c, (x * c) / 4, 0], false, false)
+    const d = deformWaves(at, 1, [x * c, (x * c) / 4, 0], false).p
     // The inverse of the matrix above, applied to the world displacement.
     farthest = Math.max(
       farthest,

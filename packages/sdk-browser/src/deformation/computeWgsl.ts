@@ -36,16 +36,17 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   // A whole copy keeps no tags; a page's results and a float page's block do.
   let tagged=!deformWholeCopy(page);
   let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*11u;
-  var before=deformPoint(page,h,v,p,true);
+  var before=deformVertex(page,h,v,p,n,true).p;
   if(tagged&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(at-2u)==deformTagOf(page.selectionIndex+1u)){
    let last=deformTag(at-1u);
    if(last==deformTagOf(image.x-1u)){before=pageDeformed(page,v,0u);}
    if(last==deformTagOf(image.x)){before=pageDeformed(page,v,3u);}
   }
   if(tagged){storeTag(at-2u,page.selectionIndex+1u);storeTag(at-1u,image.x);}
-  storeDeformed(at,deformPoint(page,h,v,p,false));
+  let now=deformVertex(page,h,v,p,n,false);
+  storeDeformed(at,now.p);
   storeDeformed(at+3u,before);
-  storeDeformed(at+6u,deformNormal(page,h,v,n));
+  storeDeformed(at+6u,now.n);
  }
 }`,
   [

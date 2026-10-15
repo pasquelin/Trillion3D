@@ -40,8 +40,10 @@ function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Ar
       pageRestPosition: (page: Page, _h: unknown, v: number) =>
         [0, 1, 2].map((c) => positions[(page.vertexBase + v) * 3 + c]),
       vertN: (base: number, v: number) => [0, 1, 2].map((c) => normals[(base + v) * 3 + c]),
-      deformPoint: (_p: Page, _h: unknown, _v: number, rest: number[]) => rest,
-      deformNormal: (_p: Page, _h: unknown, _v: number, rest: number[]) => rest,
+      deformVertex: (_p: Page, _h: unknown, _v: number, rest: number[], normal: number[]) => ({
+        p: rest,
+        n: normal,
+      }),
       clusterPointHeader: () => assert.fail('a float page reads no cluster header'),
       clusterNormal: () => assert.fail('a float page reads no cluster normal'),
     },
