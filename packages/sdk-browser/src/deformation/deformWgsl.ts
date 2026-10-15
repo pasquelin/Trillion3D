@@ -1,7 +1,16 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
 import { DEFORM_SOURCE_IN_POOL } from '../visibility/types.ts'
-import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
+import {
+  KIND_MORPH,
+  KIND_SKIN,
+  KIND_WAVE,
+  KIND_SOFT,
+  RECORD_HEAD,
+  RECORD_WORD,
+  WAVE_FLOATS,
+  WORLD_BLOCK,
+} from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
@@ -40,12 +49,13 @@ fn ${prefix}Joint(at:u32,j:u32,count:u32)->mat3x4f{
 }
 fn ${prefix}At(r:u32,previous:bool)->DeformAt{
  var a:DeformAt;
- a.kinds=${prefix}Word(r+select(0u,1u,previous));a.joints=${prefix}Word(r+2u);a.targets=${prefix}Word(r+3u);a.waves=${prefix}Word(r+4u);
+ a.kinds=${prefix}Word(r+select(${RECORD_WORD.kinds}u,${RECORD_WORD.previousKinds}u,previous));
+ a.joints=${prefix}Word(r+${RECORD_WORD.joints}u);a.targets=${prefix}Word(r+${RECORD_WORD.targets}u);a.waves=${prefix}Word(r+${RECORD_WORD.waves}u);
  a.palette=r+${RECORD_HEAD}u+select(0u,a.joints*${PALETTE_FLOATS}u,previous);
  a.weights=r+${RECORD_HEAD}u+2u*a.joints*${PALETTE_FLOATS}u;
- a.world=a.weights+2u*a.targets;a.wave=a.world+64u;
- a.soft=${prefix}Word(r+5u);a.simulation=a.world+select(0u,64u,a.waves>0u)+2u*a.waves*${WAVE_FLOATS}u;
- a.world+=select(0u,32u,previous);
+ a.world=a.weights+2u*a.targets;a.wave=a.world+${WORLD_BLOCK.floats}u;
+ a.soft=${prefix}Word(r+${RECORD_WORD.soft}u);a.simulation=a.world+select(0u,${WORLD_BLOCK.floats}u,a.waves>0u)+2u*a.waves*${WAVE_FLOATS}u;
+ a.world+=select(0u,${WORLD_BLOCK.previous}u,previous);
  a.weights+=select(0u,a.targets,previous);
  return a;
 }`
@@ -181,7 +191,7 @@ fn deformVertex(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,normal:vec3f
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let m=deformMatrix(a.world);let world=transformPoint(m,p);
   let w=deformWaves(a.wave,a.waves,world,previous);
-  p=transformPoint(deformMatrix(a.world+16u),world+w.p);n=transpose(worldMatrix3(m))*w.n;
+  p=transformPoint(deformMatrix(a.world+${WORLD_BLOCK.inverse}u),world+w.p);n=transpose(worldMatrix3(m))*w.n;
  }
  return DeformedVertex(p,normalize(n));
 }`,

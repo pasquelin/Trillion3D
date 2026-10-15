@@ -14,12 +14,33 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { WAVE_FIELDS } from '../../../sdk-core/src/fluids/waves.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 
 export const KIND_SKIN = 1,
   KIND_MORPH = 2,
   KIND_WAVE = 4,
   KIND_SOFT = 8
 export const RECORD_HEAD = 8
+/** Words of the head: this frame's sources and the last one's (`KIND_*`), the joint, target, wave
+ *  and soft counts, in this order, and the version of the soft source written. */
+export const RECORD_WORD = {
+  kinds: 0,
+  previousKinds: 1,
+  joints: 2,
+  targets: 3,
+  waves: 4,
+  soft: 5,
+  softVersion: 6,
+} as const
+/** Floats of the world block, from `world`: this frame's matrix, its inverse, then the last
+ *  frame's two (`previous`), sixteen each. */
+export const WORLD_BLOCK = {
+  inverse: MATRIX_VALUES,
+  previous: 2 * MATRIX_VALUES,
+  floats: 4 * MATRIX_VALUES,
+} as const
+/** Floats of a soft source's node: its point this frame, the last one, at rest, its normal. */
+export const SOFT_FLOATS = 4 * 3
 /** Floats of one wave: its `WAVE_FIELDS`, padded to a multiple of four. */
 export const WAVE_FLOATS = alignUp(WAVE_FIELDS.length, 4)
 
@@ -31,7 +52,7 @@ export function recordLayout({ joints, targets, waves, soft = 0 }: RecordShape) 
   const palette = RECORD_HEAD,
     weights = palette + 2 * joints * PALETTE_FLOATS,
     world = weights + 2 * targets,
-    wave = world + (waves ? 64 : 0)
+    wave = world + (waves ? WORLD_BLOCK.floats : 0)
   const simulation = wave + 2 * waves * WAVE_FLOATS
-  return { palette, weights, world, wave, simulation, floats: simulation + soft * 12 }
+  return { palette, weights, world, wave, simulation, floats: simulation + soft * SOFT_FLOATS }
 }

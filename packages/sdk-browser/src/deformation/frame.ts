@@ -13,6 +13,7 @@ import {
   KIND_WAVE,
   KIND_SOFT,
   recordLayout,
+  RECORD_WORD,
   type RecordShape,
 } from './layout.ts'
 
@@ -109,10 +110,8 @@ function appendRecords(r: Records, entries: readonly (Deformed | null)[]) {
   entries.forEach((entry, k) => {
     if (!entry) return
     const at = r.bases[first + k] - 1
-    r.words[at + 2] = entry.shape.joints
-    r.words[at + 3] = entry.shape.targets
-    r.words[at + 4] = entry.shape.waves
-    r.words[at + 5] = entry.shape.soft ?? 0
+    const { joints, targets, waves, soft = 0 } = entry.shape
+    r.words.set([joints, targets, waves, soft], at + RECORD_WORD.joints)
   })
   entries.forEach((entry, k) => {
     r.placed.push(entry)
@@ -132,9 +131,10 @@ function stale(
   entry: Deformed,
 ) {
   const layout = layouts[i]!,
-    at = bases[i] - 1
+    at = bases[i] - 1,
+    soft = entry.mesh.softSource
   if (owners[i] !== entry.mesh.sourceIdentity) return true
-  if (entry.mesh.softSource && entry.mesh.softSource.version !== words[at + 6]) return true
+  if (soft && soft.version !== words[at + RECORD_WORD.softVersion]) return true
   const weights = entry.mesh.morphTargetInfluences
   for (let t = 0; weights && t < entry.shape.targets; t++)
     if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true
@@ -176,8 +176,8 @@ function writeSoft(
   soft: SoftSource,
   cold: boolean,
 ) {
-  writeSoftSource(block, from, soft, cold || words[at + 6] === 0)
-  words[at + 6] = soft.version
+  writeSoftSource(block, from, soft, cold || words[at + RECORD_WORD.softVersion] === 0)
+  words[at + RECORD_WORD.softVersion] = soft.version
   return soft.reach
 }
 
@@ -199,7 +199,7 @@ function writeRecord(
     weights = at + layout.weights
   r.skins.keep(i, palette, joints)
   block.copyWithin(weights + shape.targets, weights, weights + shape.targets)
-  words[at + 1] = words[at]
+  words[at + RECORD_WORD.previousKinds] = words[at]
   let kinds = 0,
     most = 0,
     moved = !cold && staleOnce(r, i, entry)
@@ -223,8 +223,8 @@ function writeRecord(
   }
   if (kinds && skipped(i, most)) kinds = most = 0
   words[at] = kinds
-  if (cold) words[at + 1] = kinds
-  r.moving[i] = moved || words[at] !== words[at + 1] ? 1 : 0
+  if (cold) words[at + RECORD_WORD.previousKinds] = kinds
+  r.moving[i] = moved || kinds !== words[at + RECORD_WORD.previousKinds] ? 1 : 0
   r.dirty[i] = cold || r.moving[i] ? 1 : 0
   return most
 }

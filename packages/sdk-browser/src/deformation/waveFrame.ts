@@ -1,7 +1,7 @@
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import type { Deformed } from './frame.ts'
 import { WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/waves.ts'
-import { WAVE_FLOATS } from './layout.ts'
+import { WAVE_FLOATS, WORLD_BLOCK } from './layout.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 import { leastStretchOf } from '../partition/boxes.ts'
 
@@ -47,7 +47,7 @@ export function wavesChanged(
   if (!model || !entry.shape.waves) return false
   if (
     !sameMatrixFloat32(block, entry.world.elements, world) ||
-    !sameMatrixFloat32(block, heldInverse(held, entry.world.elements), world + 16)
+    !sameMatrixFloat32(block, heldInverse(held, entry.world.elements), world + WORLD_BLOCK.inverse)
   )
     return true
   for (let w = 0; w < entry.shape.waves; w++)
@@ -68,12 +68,12 @@ export function writeWaves(
   held: WaveHeld,
 ) {
   const model = entry.mesh.waves!.waveModel
-  block.copyWithin(world + 32, world, world + 32)
+  block.copyWithin(world + WORLD_BLOCK.previous, world, world + WORLD_BLOCK.previous)
   const size = entry.shape.waves * WAVE_FLOATS
   block.copyWithin(wave + size, wave, wave + size)
   const elements = entry.world.elements
   block.set(elements, world)
-  block.set(heldInverse(held, elements), world + 16)
+  block.set(heldInverse(held, elements), world + WORLD_BLOCK.inverse)
   let crest = 0
   for (let w = 0; w < entry.shape.waves; w++) {
     const at = wave + w * WAVE_FLOATS,
@@ -82,7 +82,7 @@ export function writeWaves(
     if (present) crest += model.amplitude[w] + model.lateral[w]
   }
   if (first) {
-    block.copyWithin(world + 32, world, world + 32)
+    block.copyWithin(world + WORLD_BLOCK.previous, world, world + WORLD_BLOCK.previous)
     block.copyWithin(wave + size, wave, wave + size)
   }
   // The waves move a vertex by at most `crest` in the world, and the inverse carries a world
