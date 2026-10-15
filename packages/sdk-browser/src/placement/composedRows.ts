@@ -41,7 +41,8 @@ export function sendList(
   return held
 }
 
-/** Whether `row` is a caster row the table holds: a drawn row, or a blended caster's. */
+/** Whether `row` is a caster row the table holds: a drawn row, or a blended caster's — the one
+ *  guard of a row the rows list and a root's walk (`rootRows`) name. */
 const casterRow = (rows: WebgpuPagesRuntime['layout']['rows'], row: number) =>
   row < rows.rowCount || (row >= rows.blendFirst && row < rows.casterSlots)
 
@@ -96,7 +97,7 @@ export function rootRows(rt: WebgpuPagesRuntime, rank: number, visit: (row: numb
     const index = base + page,
       transparent = !!root.pages[page].transparent
     const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-    if (row < 0 || row >= rows.casterSlots) continue
+    if (row < 0 || !casterRow(rows, row)) continue
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
     visit(row)
   }
