@@ -1,46 +1,66 @@
 import { FLOAT32_STEP } from '../constants.ts'
 import { length3 } from '../vector/vector.ts'
 
+/** Whether the `count` numbers `a` holds from `aAt` are those `b` holds from `bAt`, each `!==`:
+ *  `-0` matches `0` and a `NaN` never matches. The one equality loop of numbers. */
+export function sameRange<T>(a: ArrayLike<T>, b: ArrayLike<T>, count: number, aAt = 0, bAt = 0) {
+  for (let i = 0; i < count; i++) if (a[aAt + i] !== b[bAt + i]) return false
+  return true
+}
+
+/** `sameRange` against float32 numbers: `held`'s are `now`'s rounded to float32,
+ *  `held[heldAt + i] === Math.fround(now[nowAt + i])`. */
+export function sameRangeFloat32(
+  held: ArrayLike<number>,
+  now: ArrayLike<number>,
+  count: number,
+  heldAt = 0,
+  nowAt = 0,
+) {
+  for (let i = 0; i < count; i++) if (held[heldAt + i] !== Math.fround(now[nowAt + i])) return false
+  return true
+}
+
 /**
- * Matrix sixteen floats, compared or copied: knowing if view moved, or if requested
- * pose is the one node already holds. Every caller wrote its own loop; they all read
- * the same arithmetic, float by float without tolerance.
+ * Matrix sixteen floats, compared: knowing if view moved, or if requested pose is the one node
+ * already holds (`sameRange` of sixteen), float by float without tolerance.
  */
-export function sameElements(
+export const sameElements = (
   held: ArrayLike<number>,
   now: ArrayLike<number>,
   heldAt = 0,
   nowAt = 0,
-) {
-  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== now[nowAt + i]) return false
-  return true
-}
+) => sameRange(held, now, 16, heldAt, nowAt)
 
 /** The indices of a column-major matrix's linear part, its upper-left 3×3: what a stretch, a
  *  radius or an inverse without translation reads of it. */
 export const LINEAR_PART = [0, 1, 2, 4, 5, 6, 8, 9, 10] as const
 
 /** True when the linear part of the matrix `now` holds from `nowAt` is the one `held` holds from
- *  `heldAt`, each number at its own index (`LINEAR_PART`), float for float: a pose that moved
- *  without turning or scaling. */
-export function sameLinearPart(
+ *  `heldAt`, each number at its own index (`LINEAR_PART`): its three columns, `sameRange` each. A
+ *  pose that moved without turning or scaling. */
+export const sameLinearPart = (
   held: ArrayLike<number>,
   now: ArrayLike<number>,
   heldAt = 0,
   nowAt = 0,
-) {
-  for (const k of LINEAR_PART) if (held[heldAt + k] !== now[nowAt + k]) return false
-  return true
-}
+) =>
+  sameRange(held, now, 3, heldAt, nowAt) &&
+  sameRange(held, now, 3, heldAt + 4, nowAt + 4) &&
+  sameRange(held, now, 3, heldAt + 8, nowAt + 8)
 
 /** `sameLinearPart` against float32 numbers: `held`'s are `now`'s rounded to float32. */
-export function sameLinearPartFloat32(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
-  for (const k of LINEAR_PART) if (held[heldAt + k] !== Math.fround(now[k])) return false
-  return true
-}
+export const sameLinearPartFloat32 = (
+  held: ArrayLike<number>,
+  now: ArrayLike<number>,
+  heldAt = 0,
+) =>
+  sameRangeFloat32(held, now, 3, heldAt) &&
+  sameRangeFloat32(held, now, 3, heldAt + 4, 4) &&
+  sameRangeFloat32(held, now, 3, heldAt + 8, 8)
 
 /** True when the sixteen numbers of `now` are `held`'s, sign of zero and `NaN` included:
- *  `Object.is`, not `sameElements`' `!==`, which merges `-0` with `0` — two translations a zero's
+ *  `Object.is`, not `sameRange`'s `!==`, which merges `-0` with `0` — two translations a zero's
  *  sign tells apart compose differently, and a `NaN` left in place is no change. */
 export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) {
   for (let i = 0; i < 16; i++) if (!Object.is(held[i], now[i])) return false
@@ -48,12 +68,10 @@ export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) 
 }
 
 /** True when the sixteen float32 numbers `held` holds from `heldAt` are those of `now` rounded to
- *  float32, `held[heldAt + i] === Math.fround(now[i])`: whether a double matrix still says what a
- *  GPU buffer already holds. By value: `-0` matches `0`, and a `NaN` never matches. */
-export function sameMatrixFloat32(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
-  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== Math.fround(now[i])) return false
-  return true
-}
+ *  float32 (`sameRangeFloat32` of sixteen): whether a double matrix still says what a GPU buffer
+ *  already holds. */
+export const sameMatrixFloat32 = (held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) =>
+  sameRangeFloat32(held, now, 16, heldAt)
 
 /**
  * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at
@@ -100,8 +118,5 @@ export function longestColumn(m: ArrayLike<number>, at = 0) {
 
 /** Whether `a` holds `b`'s values, as many, each `===`: version lists, light reaches and GPU
  *  binding entries alike. */
-export function sameValues<T>(a: ArrayLike<T>, b: ArrayLike<T>) {
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
-  return true
-}
+export const sameValues = <T>(a: ArrayLike<T>, b: ArrayLike<T>) =>
+  a.length === b.length && sameRange(a, b, a.length)
