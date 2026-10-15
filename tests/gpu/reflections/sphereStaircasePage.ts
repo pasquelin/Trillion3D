@@ -7,7 +7,7 @@ import { sphereFrame } from './sphereFrame.ts'
 import { settledImage } from './rigImage.ts'
 
 /** The reflection target's raw half-float words. */
-export type SphereReading = { words: number[] }
+type SphereReading = { words: number[] }
 
 export function run() {
   return runOnDevice<SphereReading>(async (device, _events, result) => {

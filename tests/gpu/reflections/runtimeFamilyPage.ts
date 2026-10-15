@@ -12,7 +12,7 @@ import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/texture
 import { familyWorld } from './runtimeFamilyWorld.ts'
 import { rgbAt } from './rigFrame.ts'
 
-export type FamilyReading = {
+type FamilyReading = {
   width: number
   height: number
   /** The reflection target's RGB at each grid pixel, row by row, `GRID` pixels apart from the middle of a cell. */
@@ -26,7 +26,7 @@ type Canvas = HTMLCanvasElement & { readable: boolean }
 /** Frames drawn until the world holds three in a row, at most `limit`: each asked by the page
  *  (`world.render`) and read on the frame the session last made (`lastFrameOf`), held or drawn — a
  *  held frame asks its loop for none, and the hooks of `onFrame` run on drawn frames alone. */
-export async function hold(world: ReturnType<typeof familyWorld>['world'], limit = 400) {
+async function hold(world: ReturnType<typeof familyWorld>['world'], limit = 400) {
   let held = 0,
     frames = 0
   for (; frames < limit && held < 3; frames++) {

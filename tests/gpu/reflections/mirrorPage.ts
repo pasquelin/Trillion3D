@@ -11,7 +11,7 @@ import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel
 
 /** What the proof reads: per reflective family, the reflection targets of the three images drawn
  *  after the view settled, as raw half-float words. */
-export type MirrorReading = { families: Record<string, number[][]>; size: number }
+type MirrorReading = { families: Record<string, number[][]>; size: number }
 
 /** The reflective families the rig draws, by name: the mirror floor, rough floors, a coated one. */
 const FAMILIES = {
@@ -43,12 +43,12 @@ export function run() {
 
 /** What the coat proof reads: the reflection target of a rough metal floor, bare and under a clear
  *  coat, as raw half-float words. */
-export type CoatReading = { bare: number[]; coated: number[]; size: number }
+type CoatReading = { bare: number[]; coated: number[]; size: number }
 
 /** The floor of the scene turned into a metal of roughness `rough` (`ROUGH` by default), under a
  *  clear coat of the strength `coat` on its own normal and as smooth as the floor of roughness
  *  allows, or bare. */
-export function roughFloor(coat: boolean, rough = ROUGH) {
+function roughFloor(coat: boolean, rough = ROUGH) {
   const scene = mirrorScene(rough)
   if (!coat) return scene
   const { size } = MIRROR

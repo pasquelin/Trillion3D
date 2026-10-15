@@ -28,7 +28,7 @@ export type SkyCase = { sky?: number; declared?: number; rough: number }
 
 /** What the proof reads per case: the pane's smallest and largest reflected value, in its pixels,
  *  and how many. */
-export type SkyReading = { poses: { minimum: number; maximum: number; pixels: number }[] }
+type SkyReading = { poses: { minimum: number; maximum: number; pixels: number }[] }
 
 export function run(cases: SkyCase[]) {
   return runOnDevice<SkyReading>(async (device, _events, result) => {

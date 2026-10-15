@@ -24,7 +24,7 @@ export type VeilCase = { yaw: number; drop: number; rough: number; far?: V3 }
 
 /** What the proof reads, per view: the smallest and the largest reflected value, the largest change
  *  from a floor pixel to its neighbour on the right or below, and the pixels reflected. */
-export type VeilReading = {
+type VeilReading = {
   poses: { minimum: number; maximum: number; step: number; pixels: number }[]
 }
 

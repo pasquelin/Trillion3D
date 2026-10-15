@@ -12,7 +12,7 @@ import { untilSettled } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
 /** What the proof reads: the images each loop drew and the target it held, as raw half words. */
-export type SettleReading = {
+type SettleReading = {
   first: { images: number; target: number[] }
   /** The target of the first image drawn after the change: the lit image it reflects is the old one. */
   lagging: number[]

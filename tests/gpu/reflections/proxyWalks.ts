@@ -36,7 +36,7 @@ export const NEW_WALK = wgslProgram(KERNEL, [
 ])
 
 /** What a walk binds: the proxy's buffer and the record tables. */
-export type WalkInputs = {
+type WalkInputs = {
   proxy: GPUBuffer
   worlds?: GPUTextureView
   tree?: GPUTextureView

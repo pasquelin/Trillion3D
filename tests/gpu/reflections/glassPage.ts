@@ -82,7 +82,7 @@ function cameraOf() {
 }
 
 /** The held image of `parts`: RGBA bytes, the top row first. */
-export async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
+async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind: GlassKind) {
   const camera = cameraOf()
   const { backend, release } = await sunlitEngine(scene(parts, kind), device, events, {
     viewport: [WIDTH, HEIGHT],

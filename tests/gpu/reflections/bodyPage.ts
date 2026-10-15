@@ -31,7 +31,7 @@ const BODY: Block[] = [
 const BLOCKS = [WALL, FLOOR, ...BODY]
 const [WALL_AT, , BODY_AT] = BLOCKS.keys()
 
-export type BodyReading = {
+type BodyReading = {
   /** Wall pixels whose exact mirror ray meets the body in the open, and of them those showing its
    *  colour. */
   body: number

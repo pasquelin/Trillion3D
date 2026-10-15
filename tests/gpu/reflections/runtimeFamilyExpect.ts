@@ -41,7 +41,7 @@ function splitSum(f0: number, rough: number, nov: number) {
   return f0 * (-1.04 * a004 + r[2]) + 1.04 * a004 + r[3]
 }
 
-export type Decided = {
+type Decided = {
   index: number
   expected: Rgb
   at: [number, number]

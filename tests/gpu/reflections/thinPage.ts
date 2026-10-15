@@ -50,7 +50,7 @@ const [FLOOR_AT, WALL_AT, CRATE_AT] = BLOCKS.keys()
 const isThin = (block: number) => block >= CRATE_AT + 1
 
 /** The share of the pixels a count holds. */
-export type ThinReading = {
+type ThinReading = {
   /** Floor pixels whose mirror ray meets the wall in the open, and of them those showing it. */
   wallAll: number
   wallHue: number

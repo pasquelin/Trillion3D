@@ -8,7 +8,7 @@ import { openRig } from './rig.ts'
 import { HALF_NAN, paintPixel, rigFrameOf } from './rigFrame.ts'
 
 /** What the proof reads: per size, the pixels the trace left as it found them. */
-export type CoverageReading = { sizes: { size: number[]; unwritten: number }[] }
+type CoverageReading = { sizes: { size: number[]; unwritten: number }[] }
 
 /** A wall facing the eye at a depth of 0.3 of its near plane, lit: every pixel a mirror. */
 function wall(width: number, height: number) {
