@@ -62,16 +62,21 @@ export const REFLECTION_COUNTS = {
   REFLECTION_REUSE_TAPS: 8,
   /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`): the march's own
    *  bound grows with the screen distance, to 1091 at 1080p, while a mirror ray of floors and waves
-   *  seen from 0.5° to 89° takes 16 on average and 35 at the 99th percentile (`budget.test.ts`): 48
-   *  answers nearly every ray, and the rest — rays grazing a surface across the image — go to the
-   *  proxy, a bounded worst case of 48 iterations a ray. */
-  REFLECTION_MARCH_STEPS: 48,
+   *  seen from 0.5° to 89° takes 16 on average and 35 at the 99th percentile (`budget.test.ts`). A ray
+   *  that passes behind thin surfaces — poles, fences, a pane's edge — descends to the pixel and climbs
+   *  again at each, a dozen iterations apiece: 48 cut such rays short (`thin.gpu.ts`, `glass.gpu.ts`),
+   *  their screen answer handed to the next stage. 128, four times the 99th percentile, keeps them: the
+   *  cap bounds the tail alone, a ray past it costing 128 iterations, an eighth of the bound at 1080p. */
+  REFLECTION_MARCH_STEPS: 128,
   /** The share of a ray's budget (`RAY_WORK`, its lighting's shadow rays included) a reflection's proxy
-   *  ray walks, one over this (`proxy.ts`), on every image alike: a still view's history averages
-   *  `REFLECTION_STILL` images of one ray a texel, so a still image needs no more a ray than a moving
-   *  one. 512 / 8 = 64 units: the placement tree walked nearest first (`treeWalkWgsl.ts`) to the
-   *  nearest surfaces and one cut's leaf; a ray that spends them is no answer, its share the field's. */
-  REFLECTION_WALK_SHARE: 8,
+   *  ray walks on an image drawn for a move, one over this (`proxy.ts`): 512 / 8 = 64 units, the
+   *  placement tree walked nearest first (`treeWalkWgsl.ts`). That image is replaced by the next; a
+   *  ray that spends its share is no answer, its share the field's. A still view's quiet images walk
+   *  the whole budget: they are the images it holds, a ray exhausted there would darken the held
+   *  image, and their cost is bounded — `REFLECTION_STILL` + 1 images, then the view freezes and
+   *  traces nothing. Measured at 2056×1144 on the bench's open world: the trace 2.95 ms in orbit,
+   *  0 frozen. */
+  REFLECTION_MOVING_SHARE: 8,
   /** The period of the per-image sample sequence (`sampleWgsl.ts`): its index stays exact in an `f32`. */
   REFLECTION_SEQUENCE: 4096,
 } as const

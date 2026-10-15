@@ -33,7 +33,10 @@ export const reflectionProxyWgsl = (group: number, scene: SceneBindings) =>
  let lift=rtProxy.error;
  if(reach<=lift){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  let tangent=reflectionReadTangent(lobe);
- var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent,RT_WORK/REFLECTION_WALK_SHARE);
+ // A still view's quiet images walk the whole budget: they are the ones it holds, and it freezes after
+ // them. An image drawn for a move is replaced by the next: its rays walk an eighth of it.
+ let budget=select(RT_WORK/REFLECTION_MOVING_SHARE,RT_WORK,reflectionView.temporal.y>0u);
+ var seen=rtRadiance(P+N*lift,lobe.R,reach-lift,tangent,budget);
  seen.distance+=lift;
  return seen;
 }`,
