@@ -1,8 +1,7 @@
 import type { BlendGpuItem } from './state.ts'
 import type { GeometryBlock, MaterialLayers } from '../row/pageRowMaterial.ts'
-import { emptySurfaceRow, rowFlags, surfaceRow } from '../row/surfaceRow.ts'
 import { FLAG_BACK, FLAG_DOUBLE, FLAG_LIT, FLAG_SAMPLED } from '../../visibility/types.ts'
-import type { MaterialTable } from '../material/materialTable.ts'
+import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
@@ -48,16 +47,14 @@ export const BLEND_ITEM_WORLD = ITEM.world
  *  pool's blocks, which say whether a pooled geometry carries a second UV set. */
 type BlendAtlasTables = MaterialLayers & {
   deformation?: Pick<SessionDeformation, 'wordOfWorld'>
-  materialTable?: Pick<MaterialTable, 'word'>
+  materialTable: Pick<MaterialTable, 'surface'>
   geometryBlocks?: ReadonlyMap<HostAttributes, GeometryBlock>
 }
 
-/** The bits of an item's flags its surface decides, as its page rows have them (`rowFlags`): lit,
- *  its sides, and `FLAG_SAMPLED` where one of its maps — its lobes' too — takes its filter rule.
- *  Read at each record write, so a surface edited in place is read as it is now. */
+/** The bits of an item's flags its surface decides, as its page rows have them: lit, its sides,
+ *  and `FLAG_SAMPLED` where one of its maps — its lobes' too — takes its filter rule. Read from the
+ *  material table's summary of the surface (`SurfaceSeen.flags`), kept as the surface is now. */
 const SURFACE_ITEM_BITS = FLAG_LIT | FLAG_DOUBLE | FLAG_BACK | FLAG_SAMPLED
-/** What a surface brings to its rows, refilled at each record write (`surfaceRow`). */
-const scratchRow = emptySurfaceRow()
 
 /** Whether the floats `item` reads carry a second UV set where `vertUv1` finds it: its own normal
  *  atlas's tail (`buffers.ts`), or the float pool's for a pooled or a paged unquantized geometry. A
@@ -83,10 +80,9 @@ export function writeBlendItemRecord(
   // carries only what belongs to the item — its indices, first vertex, flags.
   ints[base + ITEM.indexCount] = item.count
   ints[base + ITEM.vertexBase] = item.vertexBase ?? 0
-  ints[base + ITEM.flags] =
-    item.flags |
-    (rowFlags(surfaceRow(mat, tables, scratchRow), undefined, tables.textures).flags &
-      SURFACE_ITEM_BITS)
+  // What the table holds of its surface, written first where it moved: its record and summary.
+  const seen = tables.materialTable.surface(mat, tables)
+  ints[base + ITEM.flags] = item.flags | (seen.flags & SURFACE_ITEM_BITS)
   // The deformation record of its placement (`PageInfo.deform`): a paged item reads the float
   // pool that holds it; an unpaged one reads buffers of its own, and none.
   ints[base + ITEM.deformInput] = item.deformInput ?? 0
@@ -94,8 +90,7 @@ export function writeBlendItemRecord(
   ints[base + ITEM.deform] =
     item.paged || item.deformOutput ? (tables.deformation?.wordOfWorld(item.matrix) ?? 0) : 0
   // Its surface's record (`../material/materialTable.ts`), the opaque rows' table.
-  ints[base + ITEM.material] =
-    tables.materialTable?.word(mat, tables, floatSecondUv(item, tables.geometryBlocks)) ?? 0
+  ints[base + ITEM.material] = materialWord(seen.rank, floatSecondUv(item, tables.geometryBlocks))
   return lobed
 }
 

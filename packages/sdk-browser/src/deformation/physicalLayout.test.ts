@@ -72,7 +72,12 @@ test("a transparent item's deformation words are its own, its neighbour's untouc
       deformInput: 456,
       deformOutput: 789,
     },
-    { mapLayer: new Map(), dataLayer: new Map(), deformation: { wordOfWorld: () => 123 } },
+    {
+      mapLayer: new Map(),
+      dataLayer: new Map(),
+      deformation: { wordOfWorld: () => 123 },
+      materialTable: createMaterialTable(),
+    },
   )
   const base = BLEND_ITEM_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
