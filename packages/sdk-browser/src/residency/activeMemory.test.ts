@@ -88,7 +88,12 @@ test('full 4K reservations expose the concrete tail-fixture shortfall instead of
           ...full,
           frameTargets,
         }),
-      new RegExp(`UNDER_MINIMUM: available=${DEFAULT_GPU_BUDGET - fixed}, required=${required}$`),
+      // Under the fixed shares the total is refused by them; past them, by the pools' floors.
+      DEFAULT_GPU_BUDGET < fixed
+        ? /GPU_BUDGET_UNDER_SHADOW_POOL/
+        : new RegExp(
+            `UNDER_MINIMUM: available=${DEFAULT_GPU_BUDGET - fixed}, required=${required}$`,
+          ),
     )
   }
 })
