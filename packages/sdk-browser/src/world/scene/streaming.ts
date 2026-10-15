@@ -1,6 +1,6 @@
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-import { ARRIVAL_QUEUE_BATCH } from '../../engine/common.ts'
+import { ARRIVAL_QUEUE_BATCH, ARRIVAL_QUEUE_BYTES } from '../../engine/common.ts'
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { Engine } from '../../engine/types.ts'
@@ -100,9 +100,9 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     reads: Promise<void>[] = []
   // Arrivals are stacked and drained, bounded, at the head of `render()`, before the next
   // frame's selection. The ceiling is TIME, the frame's one integration budget (`frameBudget`);
-  // 512 KiB of index and 64 pages double it, never replace it: a packet's cluster count is
-  // unknown in advance, so no byte count bounds the duration.
-  const arrivals = createArrivalQueue(512 * 1024, 64, budget)
+  // the byte and page ceilings double it, never replace it: a packet's cluster count is unknown in
+  // advance, so no byte count bounds the duration.
+  const arrivals = createArrivalQueue(ARRIVAL_QUEUE_BYTES, ARRIVAL_QUEUE_BATCH, budget)
   const queueCached = cachedQueue(streamer, arrivals, engine)
   const asks = createViewAsks(streamer)
   // Each page is queued the moment IT lands, while the others still travel (#982). A failure

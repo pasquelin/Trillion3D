@@ -16,8 +16,11 @@ export const DEFAULT_FOV = 55,
   DEFAULT_PAGE_WORKERS = 32,
   /** Addresses a frame issues at most, taken from the head of the priority-ordered list. */
   PAGE_REQUEST_BATCH = 256,
-  /** Cache pages a frame queues at most in the arrival queue. */
+  /** Cache pages a frame queues at most in the arrival queue, and pages its drain delivers at most. */
   ARRIVAL_QUEUE_BATCH = 64,
+  /** Index bytes the arrival queue's drain delivers at most a frame: a double of the frame's one
+   *  time budget, never its replacement (a packet's cluster count is unknown in advance). */
+  ARRIVAL_QUEUE_BYTES = 512 * 1024,
   /**
    * The main thread's share of a frame, in milliseconds: ONE CLOCK its streaming stages spend in
    * priority order — the arrived pages integrated, the row records and texture tiles, then the
