@@ -7,8 +7,14 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rootOfPacked } from '../page/selection/placements.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-/** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
-export const DEFORM_VERTEX_WORDS = 11
+/** The words a vertex's results start with: its owner's tag, then its image's; a block's address
+ *  lies past the first vertex's (a whole copy keeps none, its words reserved all the same). */
+export const DEFORM_TAG_WORDS = 2
+/** Where each result of a vertex lies from its address, three floats each: its current position,
+ *  its previous one, its current normal — what the stage writes and the page passes read. */
+export const DEFORMED_FIELD = { position: 0, previous: 3, normal: 6 } as const
+/** Words per vertex: the tags, then the three results. */
+export const DEFORM_VERTEX_WORDS = DEFORM_TAG_WORDS + 3 * 3
 
 /** The word a row or a transparent span carries to name the results of a page and a placement
  *  (`ClusterRoot.deformationOutputs`): their first float plus one, in the float pool, zero for none.

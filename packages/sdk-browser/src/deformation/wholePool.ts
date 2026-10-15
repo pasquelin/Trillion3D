@@ -4,7 +4,7 @@ import { ROW_WORDS, DEFORM_SOURCE_IN_POOL, FLAG_DYNAMIC } from '../visibility/ty
 import type { BlendGpuItem } from '../webgpu/blend/state.ts'
 import type { SessionDeformation } from './session.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
-import { DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
+import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
 import type { GeometryBlock } from '../webgpu/row/pageRowMaterial.ts'
 import type { DeformationOutput } from '../page/selection/types.ts'
 import type { HostAttributes } from '../host/resources.ts'
@@ -42,12 +42,12 @@ export function wholeDeformationPool(
   }
   const output = new Map<BlendGpuItem, number>()
   for (const item of placed) {
-    output.set(item, floats + 2)
+    output.set(item, floats + DEFORM_TAG_WORDS)
     floats += (item.sourceGeometry.attributes.position?.count ?? 0) * DEFORM_VERTEX_WORDS
   }
   let rows = placed.length
   const blocks = pooled.map((block) => {
-    const at = floats + 2
+    const at = floats + DEFORM_TAG_WORDS
     floats += block.count * DEFORM_VERTEX_WORDS
     // A page's own results are deformed by its own row; a float geometry's block by rows of this table.
     if (block.pool) rows += ceilDiv(block.count, WORKGROUP_THREADS)

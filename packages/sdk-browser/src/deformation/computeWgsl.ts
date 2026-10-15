@@ -6,6 +6,7 @@ import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pag
 export const DEFORMATION_NORMALS = 2
 import { DEFORM_ADDRESS, FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
+import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS, DEFORMED_FIELD } from './outputs.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 
 /** One invocation per vertex, one group per resident placement; its results lie in the float pool. */
@@ -35,18 +36,19 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   else{n=vertN(page.vertexBase,v);}
   // A whole copy keeps no tags; a page's results and a float page's block do.
   let tagged=!deformWholeCopy(page);
-  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*11u;
+  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*${DEFORM_VERTEX_WORDS}u;
+  let tags=at-${DEFORM_TAG_WORDS}u;
   var before=deformVertex(page,h,v,p,n,true).p;
-  if(tagged&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(at-2u)==deformTagOf(page.selectionIndex+1u)){
-   let last=deformTag(at-1u);
-   if(last==deformTagOf(image.x-1u)){before=pageDeformed(page,v,0u);}
-   if(last==deformTagOf(image.x)){before=pageDeformed(page,v,3u);}
+  if(tagged&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(tags)==deformTagOf(page.selectionIndex+1u)){
+   let last=deformTag(tags+1u);
+   if(last==deformTagOf(image.x-1u)){before=pageDeformed(page,v,${DEFORMED_FIELD.position}u);}
+   if(last==deformTagOf(image.x)){before=pageDeformed(page,v,${DEFORMED_FIELD.previous}u);}
   }
-  if(tagged){storeTag(at-2u,page.selectionIndex+1u);storeTag(at-1u,image.x);}
+  if(tagged){storeTag(tags,page.selectionIndex+1u);storeTag(tags+1u,image.x);}
   let now=deformVertex(page,h,v,p,n,false);
-  storeDeformed(at,now.p);
-  storeDeformed(at+3u,before);
-  storeDeformed(at+6u,now.n);
+  storeDeformed(at+${DEFORMED_FIELD.position}u,now.p);
+  storeDeformed(at+${DEFORMED_FIELD.previous}u,before);
+  storeDeformed(at+${DEFORMED_FIELD.normal}u,now.n);
  }
 }`,
   [
