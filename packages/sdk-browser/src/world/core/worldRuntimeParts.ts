@@ -17,8 +17,6 @@ import { noticeRefused } from '../diagnostic/worldNotices.ts'
  *  the next frame or opening owes the scene. */
 export type WorldRuntimeState = {
   explorer: MeasuredWorld | null
-  resolving: Promise<void> | null
-  structureChanged: boolean
   seatWanted: boolean
   lightsChanged: boolean
   disposed: boolean
@@ -38,6 +36,8 @@ export type WorldRuntimeParts = {
   led: boolean
   placeCamera: ReturnType<typeof followPageCamera>
   moveNamed: ReturnType<typeof namedMove>
+  /** The scene's resolutions, one pass at a time (`worldRuntime.ts`). */
+  resolves: ReturnType<typeof createRequestLoop>
   invalidate: () => void
 }
 
@@ -55,7 +55,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
     // place, closed for a lost device or an option, is closed at once.
     if (!state.explorer) {
       await inputs.ready().catch(() => {})
-      while (state.resolving && !state.disposed) await state.resolving
+      while (parts.resolves.running && !state.disposed) await parts.resolves.running
       if (state.disposed) return
     }
     state.closed = 'its session is opening'

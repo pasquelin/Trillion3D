@@ -36,8 +36,6 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   )
   const state: WorldRuntimeState = {
     explorer: null,
-    resolving: null,
-    structureChanged: false,
     seatWanted: false,
     lightsChanged: true,
     disposed: false,
@@ -51,11 +49,14 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   const led = inputs.options().interactive === false
   const parts: WorldRuntimeParts = {
     ...{ inputs, state, contents, lights, background, track, led, placeCamera, moveNamed },
+    // The scene's resolutions: one pass at a time, a burst one pass (`worldResolution`).
+    resolves: createRequestLoop(() => resolution()),
     invalidate,
   }
   const reopens = createRequestLoop(worldOpening(parts))
   const apply = worldApply(parts, reopens)
-  const schedule = worldResolve(parts, reopens, apply)
+  const resolution = worldResolution(parts, reopens, apply)
+  const schedule = () => parts.resolves.request()
   const frame = worldFrame(parts, apply)
   // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
@@ -68,17 +69,19 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   return runtimeHandle(parts, reopens, frame, relight)
 }
 
-/** Changes before the grant or during a resolution fold into the next; a throw ends the burst. */
-function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: () => void) {
+/** A pass of the scene's resolution, once the device is granted: what changed is resolved, and
+ *  again while some is stale; a change made meanwhile asks the next pass; a throw ends the pass. */
+function worldResolution(parts: WorldRuntimeParts, reopens: WorldReopens, apply: () => void) {
   const { inputs, state, contents, invalidate } = parts
-  const resolve = async () => {
+  return async () => {
+    await inputs.ready().catch(() => {})
     try {
-      while ((state.structureChanged || contents.staleCount) && !state.disposed) {
-        state.structureChanged = false
+      while (!state.disposed) {
         if (await contents.resolve()) state.lightsChanged = true
         state.seatWanted = true
         if (!state.explorer && !reopens.running) apply()
         invalidate()
+        if (!contents.staleCount) break
       }
     } catch (error) {
       state.closed = 'the scene could not be resolved'
@@ -86,11 +89,6 @@ function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: ()
       if (!state.disposed)
         inputs.diagnostic.failed(new Error('World scene resolution failed', { cause: error }))
     }
-    state.resolving = null
-  }
-  return () => {
-    state.structureChanged = true
-    state.resolving ??= inputs.ready().then(resolve, resolve)
   }
 }
 
@@ -154,15 +152,18 @@ function runtimeHandle(
     },
     /** Settles once the session reflects every change made so far. */
     async settled() {
-      while (state.resolving || reopens.running || contents.joining)
-        await (state.resolving ?? reopens.running ?? contents.joining)
+      const { resolves } = parts
+      while (resolves.running || reopens.running || contents.joining)
+        await (resolves.running ?? reopens.running ?? contents.joining)
       await state.explorer?.familiesPending() // a family on its way: a change not drawn yet
     },
     /** A frame, `ahead` stepping first: drawn now, or once the world can (`worldAskedFrame.ts`). */
     render: askedFrame({
       // The session opening, or the families the frame draws with on their way (`familyUse.ts`).
       waits: () =>
-        state.explorer ? state.explorer.familiesPending() : (state.resolving ?? reopens.running),
+        state.explorer
+          ? state.explorer.familiesPending()
+          : (parts.resolves.running ?? reopens.running),
       draw,
       closed: () => state.disposed,
       // Drawn past the page's call: said, and reported as an uncaught error is (`interactive.ts`).
