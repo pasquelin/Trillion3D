@@ -107,18 +107,11 @@ pub fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
 }
 /// Canonical vertex per (position, every texture coordinate): copies that differ only by their
 /// normal or their colour are one point, those on a texture seam of any set stay two. It names
-/// the seams a reduction protects and the normal copies a coarse corner picks from. The key
-/// allocates nothing: three position words, then two per set of the two a page can carry.
+/// the seams a reduction protects and the normal copies a coarse corner picks from. The key is the
+/// one vertex key (`attributes::key`) over the texture sets.
 pub fn weld_positions_and_uv(positions: &[f32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u32> {
     weld_by(positions.len() / 3, indices, |id| {
-        let mut key = [0u32; 7];
-        key[..3].copy_from_slice(&position_key(positions, id));
-        for (set, uvs) in uv_sets.iter().enumerate() {
-            let i = id as usize * 2;
-            key[3 + 2 * set] = normalized_bits(uvs[i]);
-            key[4 + 2 * set] = normalized_bits(uvs[i + 1]);
-        }
-        key
+        super::attributes::key(positions, id as usize, uv_sets.iter().map(|uvs| (*uvs, 2)))
     })
 }
 pub(super) fn weld_by<K: std::hash::Hash + Eq>(
