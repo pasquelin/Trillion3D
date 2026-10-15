@@ -21,22 +21,30 @@ export type ResizeWiring = {
 const hidden = (canvas: HTMLCanvasElement, original: MeasuredWorldOptions) =>
   (!original.width && canvas.clientWidth < 1) || (!original.height && canvas.clientHeight < 1)
 
-/** The drawing buffer follows the canvas's CSS box and the display's pixel ratio: `resize` reads
- *  them once, `watch` listens to the box, the window and the ratio, `dispose` stops listening. A
- *  listener's failure stops the loop (`fail`). */
-export function interactiveResize(wiring: ResizeWiring) {
-  const { original, runtime, explorer, view, scheduler, fail } = wiring,
-    { canvas, options, state } = runtime
-  let observer: ResizeObserver | undefined, media: MediaQueryList | undefined
-  const resize = () => {
-    if (state.disposed || hidden(canvas, original)) return
+/**
+ * THE ONE FOLLOWER OF THE CANVAS'S SIZE, whoever leads the frames: it measures the CSS box and the
+ * display's ratio (`interactiveSize`) and, when they changed since its last measure, brings the
+ * drawing buffer — and the camera's aspect — to them; true when it did. The session's own loop
+ * calls it from its listeners (`interactiveResize`), a world its page leads before each frame it
+ * draws. A size set by hand (`resize`) holds until the box itself changes.
+ */
+export function canvasFollower(
+  runtime: Pick<SessionRuntime, 'canvas' | 'options' | 'state'>,
+  explorer: Pick<ReturnType<typeof createExplorerApi>, 'resize'>,
+  original: MeasuredWorldOptions,
+) {
+  const { canvas, options, state } = runtime
+  let last = { width: options.width, height: options.height, pixelRatio: options.pixelRatio }
+  return () => {
+    if (state.disposed || hidden(canvas, original)) return false
     const size = interactiveSize(canvas, original)
     if (
-      size.width === options.width &&
-      size.height === options.height &&
-      size.pixelRatio === options.pixelRatio
+      size.width === last.width &&
+      size.height === last.height &&
+      size.pixelRatio === last.pixelRatio
     )
-      return
+      return false
+    last = size
     Object.assign(options, size)
     explorer.resize(size.width, size.height)
     if (
@@ -47,7 +55,19 @@ export function interactiveResize(wiring: ResizeWiring) {
         'INVALID_CANVAS_LAYOUT',
         'Set canvas CSS width and height independently of its drawing buffer',
       )
-    scheduler.invalidate()
+    return true
+  }
+}
+
+/** The session's own loop follows the canvas (`follow`): `resize` follows it once, `watch`
+ *  listens to the box, the window and the ratio, `dispose` stops listening. A listener's failure
+ *  stops the loop (`fail`). */
+export function interactiveResize(wiring: ResizeWiring, follow: () => boolean) {
+  const { original, runtime, view, scheduler, fail } = wiring,
+    { canvas } = runtime
+  let observer: ResizeObserver | undefined, media: MediaQueryList | undefined
+  const resize = () => {
+    if (follow()) scheduler.invalidate()
   }
   const resizeSafely = () => {
     try {

@@ -5,7 +5,7 @@ import type { createWorldContents } from './worldContents.ts'
 import type { createWorldLights } from './worldLights.ts'
 import type { createWorldBackground } from './worldBackground.ts'
 import type { worldReopens } from './worldReopen.ts'
-import type { createCanvasFit, followPageCamera } from './worldCamera.ts'
+import type { followPageCamera } from './worldCamera.ts'
 import type { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts'
@@ -33,7 +33,8 @@ export type WorldRuntimeParts = {
   lights: ReturnType<typeof createWorldLights>
   background: ReturnType<typeof createWorldBackground>
   track: ReturnType<typeof worldReopens>
-  fit: ReturnType<typeof createCanvasFit>
+  /** The page leads the frames: the world follows the canvas's size before each. */
+  led: boolean
   placeCamera: ReturnType<typeof followPageCamera>
   moveNamed: ReturnType<typeof namedMove>
   invalidate: () => void
@@ -44,7 +45,7 @@ export type WorldReopens = ReturnType<typeof createRequestLoop>
 
 /** One opening: the session in place closed, the next one opened on what the scene holds. */
 export function worldOpening(parts: WorldRuntimeParts) {
-  const { inputs, state, contents, lights, track, fit, placeCamera, moveNamed } = parts
+  const { inputs, state, contents, lights, track, placeCamera, moveNamed } = parts
   const { canvas, open = openMeasuredWorld } = inputs
   return async () => {
     if (state.disposed) return
@@ -65,7 +66,6 @@ export function worldOpening(parts: WorldRuntimeParts) {
     track.closing(state.explorer)
     state.explorer?.dispose()
     state.explorer = null
-    fit.reset()
     plan.release()
     lights.reset()
     state.lightsChanged = true

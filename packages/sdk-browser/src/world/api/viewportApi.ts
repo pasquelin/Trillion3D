@@ -6,6 +6,21 @@ import type { Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import { hostPoint } from '../../host/scene/graphObjects.ts'
 
+/** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
+export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height)
+
+/** Sizes the canvas's drawing buffer to a CSS box at the host's ratio (`devicePixels`): at opening
+ *  and at every resize, one truncation. */
+export function sizeDrawingBuffer(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+  pixelRatio: number | undefined,
+) {
+  canvas.width = devicePixels(width, pixelRatio)
+  canvas.height = devicePixels(height, pixelRatio)
+}
+
 type Inputs = {
   check: () => void
   engine: Engine
@@ -44,11 +59,10 @@ export function createExplorerViewportApi(inputs: Inputs) {
     resize(width: number, height: number) {
       check()
       if (!isImageSize(width, height)) throw new Error('Invalid viewport size')
-      canvas.width = devicePixels(width, options.pixelRatio)
-      canvas.height = devicePixels(height, options.pixelRatio)
+      sizeDrawingBuffer(canvas, width, height, options.pixelRatio)
       // Sizing a canvas blanks it, to the same size too: the engine's image is to be presented.
       engine.canvasResized()
-      camera.aspect = width / height
+      camera.aspect = drawnAspect(canvas)
       camera.updateProjectionMatrix()
       viewport[0] = canvas.width
       viewport[1] = canvas.height

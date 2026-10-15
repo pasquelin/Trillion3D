@@ -5,7 +5,7 @@ import { createWorldLink } from './worldLink.ts'
 import { createWorldBackground } from './worldBackground.ts'
 import { watchFirstFrame } from '../session/openWatch.ts'
 import { worldReopens } from './worldReopen.ts'
-import { createCanvasFit, followPageCamera } from './worldCamera.ts'
+import { followPageCamera } from './worldCamera.ts'
 import { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { askedFrame } from './worldAskedFrame.ts'
@@ -41,9 +41,10 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   // A move by name through the session (#972), and the one the world offers its page.
   const moveNamed = namedMove(scene, contents.poses, invalidate)
   const relight = () => ((state.lightsChanged = true), invalidate())
-  const fit = createCanvasFit(canvas, inputs.options().interactive === false)
+  // A world its page leads follows its canvas before each frame; a session's own loop, itself.
+  const led = inputs.options().interactive === false
   const parts: WorldRuntimeParts = {
-    ...{ inputs, state, contents, lights, background, track, fit, placeCamera, moveNamed },
+    ...{ inputs, state, contents, lights, background, track, led, placeCamera, moveNamed },
     invalidate,
   }
   const reopens = createRequestLoop(worldOpening(parts))
@@ -90,11 +91,11 @@ function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: ()
 /** Before a frame, every change applied and the canvas and camera followed; and the frame
  *  `render` draws: `ahead` steps, every change since the last frame is applied. */
 function worldFrame(parts: WorldRuntimeParts, apply: () => void) {
-  const { inputs, state, contents, track, fit, placeCamera } = parts
+  const { inputs, state, contents, track, led, placeCamera } = parts
   const beforeFrame = () => {
     apply()
     if (!state.explorer) return
-    fit.apply(state.explorer)
+    if (led) state.explorer.followCanvas()
     placeCamera(state.explorer.camera)
   }
   const draw = (ahead?: () => void) => {

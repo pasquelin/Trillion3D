@@ -3,6 +3,7 @@ import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitche
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts'
 import { interactiveOptions } from './interactiveOptions.ts'
 import { startInteractiveExplorer } from './interactive.ts'
+import { canvasFollower } from './interactiveResize.ts'
 import { releaseHeld } from './lifecycle.ts'
 import { loadExplorerManifest } from './manifest.ts'
 import type { MeasuredWorldOptions } from './options.ts'
@@ -54,10 +55,12 @@ function sessionApi(
     preparationMs: msSince(inputs.preparationStart),
     moveNamed: source?.moveNamed,
   })
-  // A change asks the session's own loop for a frame; without one, the page draws (`render`)
-  // and a change asks nothing.
+  // The canvas's size, followed by the session's own loop from its listeners, or before each
+  // frame by a page that leads (`canvasFollower`). A change asks the session's own loop for a
+  // frame; without one, the page draws (`render`) and a change asks nothing.
+  const followCanvas = canvasFollower(runtime, explorer, original)
   const invalidate = explorerSwitch(runtime.options, 'interactive')
-    ? startInteractiveExplorer(explorer, runtime, original, opened)
+    ? startInteractiveExplorer(explorer, runtime, original, opened, followCanvas)
     : () => {}
   // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
   const shadowBias = () => runtime.engine.metrics().shadowResolutionBias
@@ -74,7 +77,9 @@ function sessionApi(
         shadowBias,
       )
     : null
-  return Object.assign(explorer, { invalidate, capture, reference, captureReference })
+  return Object.assign(explorer, {
+    ...{ invalidate, followCanvas, capture, reference, captureReference },
+  })
 }
 
 /** The manifest the session opens on: the one handed in, or the one `manifestUrl` points at. */

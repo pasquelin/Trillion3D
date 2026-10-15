@@ -3,6 +3,7 @@ import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import { frameBounds } from '../../camera/framing.ts'
 import { DEFAULT_FOV } from '../../engine/common.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
+import { drawnAspect } from '../api/viewportApi.ts'
 import { hostBox, hostFramingCamera, hostPoint } from '../../host/scene/graphObjects.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -16,13 +17,13 @@ export function createExplorerCamera(
   const flat = emptyWorldBox()
   hostWorldBounds(source, flat, lot)
   // A scene with no node to frame — the page poses the camera itself — frames the unit box.
-  const framed = frameBounds(flat, canvas.width / canvas.height)
+  const framed = frameBounds(flat, drawnAspect(canvas))
   // The box and the centre go back to the host — `explorer.bounds` and `explorer.center` are its
   // API, and its controls want a target. The host objects are built at the boundary
   // (`../../host/scene/graphObjects.ts`); no computation is done there, everything comes from the core as numbers.
   const camera = hostFramingCamera(
     options.fov ?? DEFAULT_FOV,
-    canvas.width / canvas.height,
+    drawnAspect(canvas),
     framed.near,
     framed.far,
   )

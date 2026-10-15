@@ -3,7 +3,7 @@ import type { MeasuredWorldOptions } from './options.ts'
 import type { createExplorerApi } from '../api/api.ts'
 import type { SessionRuntime } from '../render/sessionRuntime.ts'
 import type { ExplorerEmitters } from './session.ts'
-import { interactiveResize, type ResizeWiring } from './interactiveResize.ts'
+import { canvasFollower, interactiveResize, type ResizeWiring } from './interactiveResize.ts'
 
 type Explorer = ReturnType<typeof createExplorerApi>
 
@@ -88,6 +88,7 @@ export function startInteractiveExplorer(
   runtime: SessionRuntime,
   original: MeasuredWorldOptions,
   events: ExplorerEmitters,
+  follow = canvasFollower(runtime, explorer, original),
 ) {
   const { canvas, options, ownedControls } = runtime
   const view = canvas.ownerDocument.defaultView!
@@ -97,7 +98,7 @@ export function startInteractiveExplorer(
   const loop: LoopWiring = { original, runtime, explorer, view, fail }
   const scheduler = loopScheduler(loop, captures, events)
   const invalidate = scheduler.invalidate
-  const resizing = interactiveResize({ ...loop, scheduler })
+  const resizing = interactiveResize({ ...loop, scheduler }, follow)
   const abort = () => explorer.dispose()
   ownedControls.push({
     dispose() {
