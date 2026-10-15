@@ -127,8 +127,8 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);
   var T=-frame.T;var B=-frame.B;
   if((flags&${FLAG_HAS_TANGENT}u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
-  if((flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u){T*=face;B*=face;}
-  N=bendNormal(N,T,B,vec3f(mapN.x*in.pbr.z,mapN.y*in.pbr.w,mapN.z));
+  let flip=select(1.0,face,(flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u);
+  N=bendNormal(N,T,B,flip,vec3f(mapN.x*in.pbr.z,mapN.y*in.pbr.w,mapN.z));
  }
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,${uv},gradX,gradY,sampled).rgb;}

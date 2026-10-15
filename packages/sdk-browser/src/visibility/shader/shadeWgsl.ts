@@ -149,8 +149,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,t.uvb-t.uva,t.uvc-t.uva);
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
-   if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
-   N=bendNormal(N,T,B,mapN);
+   N=bendNormal(N,T,B,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL),mapN);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
