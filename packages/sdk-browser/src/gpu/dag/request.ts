@@ -58,7 +58,7 @@ export const ADMISSION_LEVEL_MAX = (1 << ADMISSION_LEVEL_BITS) - 1,
   ADMISSION_ERROR_MAX = (1 << ADMISSION_ERROR_BITS) - 1
 /** The minimum capacity's bit of an admission priority, above every level. */
 export const ADMISSION_FLOOR = 1 << (ADMISSION_LEVEL_BITS + ADMISSION_ERROR_BITS)
-/** An admission priority's level and floor bit, its error step dropped: what the readback counts
- *  the camera's requests by (`readoutWords.ts`, `levelCountsWord`), the floor's 32 levels above
- *  the others'. */
+/** An admission priority's level and floor bit, its error step dropped: the rank the host's
+ *  upload queue files a page at (`../../webgpu/residency/rankedQueue.ts`), the floor's 32 levels
+ *  above the others'. */
 export const ADMISSION_BUCKETS = 2 << ADMISSION_LEVEL_BITS

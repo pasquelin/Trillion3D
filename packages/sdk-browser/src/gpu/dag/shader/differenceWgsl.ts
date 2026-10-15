@@ -1,5 +1,4 @@
 import { EVICTION_BURST } from '../readoutWords.ts'
-import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { OPEN_SLOT_WORDS } from '../heldOpen.ts'
@@ -53,11 +52,8 @@ const keptProbe = (step: string) =>
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
   [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, mixWord, halfLoadSlots, NO_INDEX],
-  `/** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
- *  burst (\`levelCountsWord\`). */
-fn levelCountAt(b:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+b;}
-/** Word \`k\` of the difference in \`out.pages\`, behind the level counts (\`differenceWord\`). */
-fn differenceAt(k:u32)->u32{return levelCountAt(${ADMISSION_BUCKETS}u+k);}
+  `/** Word \`k\` of the difference in \`out.pages\`, behind the eviction burst (\`differenceWord\`). */
+fn differenceAt(k:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+k;}
 /** List \`l\`'s difference (0 the camera's requests, 1 the drawn pages): the rank each of its pages
  *  held in the kept list. */
 fn fromAt(l:u32,s:u32)->u32{return differenceAt(l*views[0u].listCap+s);}

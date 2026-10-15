@@ -11,7 +11,6 @@ import { readDagSlot } from './readbackSlot.ts'
 import { createReadbackRing, unlessRefused } from '../core/readbackRing.ts'
 import { behind } from '../core/behind.ts'
 import { widerFlagShape } from './flagSections.ts'
-import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** What a copy was cut under, taken when it is copied: the readback's cut is made of it, and the
@@ -75,7 +74,7 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
     resources.device,
     {
       label: 'Trillion3D DAG aside readback',
-      bytes: listWords(0) * 8 + ADMISSION_BUCKETS * 4,
+      bytes: listWords(0) * 8,
       count: DAG_READBACK_SLOTS,
       chain(read, copy) {
         // A mapping cut short by `dispose` or refused: the next copy tries again. Any other error
@@ -112,11 +111,10 @@ function readAsideSlot(
   const { parsed, demand, grown, grownFlags, moved, retried } = readDagSlot(
     range,
     {
-      bytes: drawn * 8 + ADMISSION_BUCKETS * 4,
+      bytes: drawn * 8,
       drawnWordOffset: drawn,
       listCap,
       scratch,
-      levelsWord: 2 * drawn,
     },
     {
       limits: resources.device.limits,

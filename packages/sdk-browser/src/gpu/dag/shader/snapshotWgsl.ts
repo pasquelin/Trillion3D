@@ -1,10 +1,4 @@
-import {
-  ADMISSION_BUCKETS,
-  ADMISSION_ERROR_BITS,
-  REQUEST_AHEAD,
-  REQUEST_PRIORITY_MAX,
-  REQUEST_STAGED_WORDS,
-} from '../request.ts'
+import { REQUEST_PRIORITY_MAX, REQUEST_STAGED_WORDS } from '../request.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../../core/laneScanWgsl.ts'
 import { ROW_BURST, SELECTION_HEADER_WORDS } from '../readoutWords.ts'
