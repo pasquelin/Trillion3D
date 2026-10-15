@@ -1,7 +1,7 @@
 // An interactive session on Dawn: opened on a canvas by its id, it sizes its drawing buffer from
 // the canvas's CSS box and the device pixel ratio, draws on the WebGPU page raster, settles, and
-// then schedules no frame at all; a drag moves the camera and it settles again; a new pixel ratio
-// resizes it; once disposed, a resize schedules nothing. Then the targets and the job and abort
+// then schedules no frame at all; a drag on the orbit a world mounts (its change asks a frame)
+// moves the camera and it settles again; a new pixel ratio resizes it; once disposed, a resize schedules nothing. Then the targets and the job and abort
 // paths (`sessionTargets.ts`). A box hidden or sized by its own drawing buffer needs a layout the
 // bench's page does not compute (`world/session/interactive.ts` reads `clientWidth`).
 import test from 'node:test'
@@ -10,6 +10,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import { createOrbitCameraControls } from '../../../packages/sdk-browser/src/camera/controls/orbitControls.ts'
 import { drag } from '../camera/cameraGestures.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { measurementSdk, proofCanvas, threeStackCache } from '../kit/renderHarness.ts'
@@ -59,12 +60,17 @@ async function startInteractive() {
       coverageReady: world.engine.metrics().coverageReady,
     }
     const startedStill = await stillAfter(world, frames)
+    const orbit = createOrbitCameraControls(world.camera, viewer)
+    orbit.target.set(...world.homePose().target)
+    orbit.update()
+    orbit.addEventListener('change', world.invalidate)
     const home = eye(world)
     drag(viewer, [230, 100], 60, 25)
     const dragged = {
       moved: eye(world).some((v, i) => v !== home[i]),
       still: await stillAfter(world, frames),
     }
+    orbit.dispose()
     globalThis.devicePixelRatio = 1
     window.dispatchEvent(new Event('resize'))
     const resized = {
