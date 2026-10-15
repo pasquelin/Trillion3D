@@ -8,7 +8,7 @@ import {
   fresnelScalar,
   fresnelSchlick,
   lambertAlbedoMul,
-  ndotvFloor,
+  ndotvClamped,
 } from '../../../../math/src/wgsl/lighting.ts'
 
 /**
@@ -35,7 +35,7 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvClamped],
   `
 struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
@@ -50,7 +50,7 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
  lobes.at=axis.w;lobes.ab=alpha;
  lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
- lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvFloor(N,V)));
+ lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvClamped(N,V)));
  // Without a coat, its surface is never read (every coat term asks \`lobes.coat>0.0\`) and the base
  // goes through whole: 1-0*F is exactly 1.
  if(lobes.coat>0.0){

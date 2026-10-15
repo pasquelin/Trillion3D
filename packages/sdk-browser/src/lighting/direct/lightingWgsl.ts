@@ -17,6 +17,7 @@ import { directShadowWgsl } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
+import { lambertAlbedoMul } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
@@ -102,6 +103,7 @@ export const lightingBase = (
       RECT_SHADING_WGSL,
       ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
       INVERSE_PI,
+      lambertAlbedoMul,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
       directShadowWgsl(bindings.transmittance, {
         resolveTransmission: bindings.resolveTransmission ?? null,
@@ -124,7 +126,7 @@ fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*I
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let e=directLights.environment;
  let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
- return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*INVERSE_PI;
+ return lambertAlbedoMul(rgb,metal)*max(E,vec3f(0.0))*ao;
 }
 /** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
  *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat

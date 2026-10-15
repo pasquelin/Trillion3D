@@ -32,9 +32,9 @@ const { standardLighting } = shaderRun<{
     'ggxDistribution',
     'fresnelScalar',
     'fresnelSchlick',
-    'ndotvFloor',
+    'ndotvClamped',
     'f0Of',
-    'lambertAlbedo',
+    'lambertAlbedoMul',
   ],
   F32_SCOPE,
 )
@@ -99,9 +99,9 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
       'ggxDistribution',
       'fresnelScalar',
       'fresnelSchlick',
-      'ndotvFloor',
+      'ndotvClamped',
       'f0Of',
-      'lambertAlbedo',
+      'lambertAlbedoMul',
     ],
     F32_SCOPE,
   ).standardLighting

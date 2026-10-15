@@ -1,6 +1,6 @@
 import { DEFERRED_BINDINGS } from '../lighting/deferred/bindings.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
-import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
+import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
@@ -8,8 +8,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * the blend pass read the same probes, with the same law, from two different binding layouts.
  * One implementation, never two.
  *
- * Interpolated probe irradiance multiplies the pixel's diffuse albedo, divided by π: that is
- * the same Lambert law as the direct term, with the same function. The term is
+ * Interpolated probe irradiance multiplies the pixel's diffuse albedo, times 1/π: that is
+ * the same Lambert law as the direct term, with the same function (`lambertAlbedoMul`). The term is
  * strictly additive to the direct — emission, direct and indirect are partitioned — and it
  * is exactly zero where no probe sees the point, which forbids a leak through a wall.
  *
@@ -20,11 +20,11 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(
     `bounceApplyWgsl(${grid}, ${probes})`,
-    [INVERSE_PI_BOUNCE, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
+    [lambertAlbedoMul, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
     `
 /** Diffuse radiance a pixel returns of the bounced \`irradiance\` at it. */
 fn bounceDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
- return rgb*(1.0-metal)*INVERSE_PI_BOUNCE*irradiance*ao;
+ return lambertAlbedoMul(rgb,metal)*irradiance*ao;
 }
 /** Diffuse radiance a pixel returns from light that bounced before reaching it. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{

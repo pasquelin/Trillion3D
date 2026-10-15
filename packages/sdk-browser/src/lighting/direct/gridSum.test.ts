@@ -90,9 +90,8 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       'modelLight',
       'thinTransmission',
       // The maths library's, which the lobe and the lamp's diffuse call.
-      'ndotvFloor',
+      'ndotvClamped',
       'f0Of',
-      'lambertAlbedo',
       'lambertAlbedoMul',
     ]
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope)
