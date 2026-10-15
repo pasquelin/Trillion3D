@@ -1,5 +1,5 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE_MASK, PICK_SHIFT } from './feedback.ts'
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK, PICK_SHIFT } from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
@@ -64,6 +64,21 @@ const tileRequestIndexWgsl = (k: string) =>
   )
 
 /**
+ * THE ONE STRIDE RULE of the feedback: the pixels that speak an image are one per square of
+ * `feedbackStride(word)` pixels, at `feedbackOffset(word)` in it — `FEEDBACK_STRIDE` squares at the
+ * image's phase, or squares of one pixel, every pixel, during a convergence (`FEEDBACK_EVERY`).
+ * The request reads it (`feedbackPhase`), the reduction walks it (`reduceWgsl.ts`) and the CPU
+ * sizes the reduction by it (`feedbackStrideOf`).
+ */
+export const FEEDBACK_STRIDE_WGSL = wgslBlock(
+  'FEEDBACK_STRIDE_WGSL',
+  [],
+  `fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
+fn feedbackStride(word:u32)->u32{return select(${FEEDBACK_STRIDE}u,1u,feedbackEvery(word));}
+fn feedbackOffset(word:u32)->vec2u{return select(vec2u(word&${FEEDBACK_STRIDE_MASK}u,(word>>2u)&${FEEDBACK_STRIDE_MASK}u),vec2u(0u),feedbackEvery(word));}`,
+)
+
+/**
  * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
  * asks for tiles shares. An ordinary image names ONE pick (`requestPick`), its position shifted by
  * the image's pick turn. A convergence image (`feedbackEvery`) runs through all of a pixel's picks
@@ -80,14 +95,11 @@ const tileRequestIndexWgsl = (k: string) =>
  */
 export const FEEDBACK_RULE_WGSL = wgslBlock(
   'FEEDBACK_RULE_WGSL',
-  [],
+  [FEEDBACK_STRIDE_WGSL],
   `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
-fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
 fn feedbackMissing(p:vec2f,word:u32)->bool{return feedbackEvery(word)&&((u32(p.y)+word)&1u)==0u;}
-fn feedbackPhase(p:vec2f,word:u32)->bool{
- if(feedbackEvery(word)){return true;}
- return ((u32(p.x)&${FEEDBACK_STRIDE_MASK}u)|((u32(p.y)&${FEEDBACK_STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
-}
+/** The pixel speaks this image: it is its square's speaking pixel (\`feedbackStride\`). */
+fn feedbackPhase(p:vec2f,word:u32)->bool{return all((vec2u(p)&vec2u(feedbackStride(word)-1u))==feedbackOffset(word));}
 struct RequestPick{sel:u32,next:bool,along:u32,}
 fn pickOf(px:u32,choices:u32)->RequestPick{
  return RequestPick(px%choices,((px/choices)&${PICK_BLENDS - 1}u)==1u,(px/choices/${PICK_BLENDS}u)%${PICK_TAPS}u);
