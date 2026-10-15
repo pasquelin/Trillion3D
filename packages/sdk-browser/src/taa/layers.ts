@@ -73,3 +73,69 @@ export const historyWeightMax = (render: number, display: number) =>
  *  back by `historyWeightIn`. */
 const historyWeightOut = (count: string) => `sqrt(saturate(${count}/view.params.x))`
 export const historyWeightIn = (stored: string) => `${stored}*${stored}*view.params.x`
+
+/** The layers' four textures in a `filtered` resolve's layout, read by the fragment stage. */
+export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>
+  filtered
+    ? Object.values(LAYER_BINDINGS).map((binding) =>
+        computeTextureEntry(binding, 'float', '2d', GPUShaderStage.FRAGMENT),
+      )
+    : []
+
+/**
+ * The layers' two history pairs, in ping-pong with the colour's: made by the first image that
+ * resolves them, dropped with the display filter (`../webgpu/pages/render/encodeDisplayFilter.ts`)
+ * or the colour's targets, so a scene without a filtering blend keeps no byte of them. An image
+ * that resolves none keeps them for the next. `usage` is theirs (`resolveTargetUsage`).
+ */
+export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsageFlags) {
+  const textures: GPUTexture[] = [],
+    views: DisplayLayers[] = []
+  let saved = false,
+    counted = 0
+  const history = {
+    /** The target read next holds the last image's layers: what `params.w` tells the resolve. */
+    written: false,
+    get bytes() {
+      return textures.reduce(
+        (sum, texture) => sum + texture.width * texture.height * texelBytesOf(FILTER_FORMAT),
+        0,
+      )
+    },
+    /** The bytes made since last asked: what the frame's target bytes add. */
+    uncounted: () => -counted + (counted = history.bytes),
+    /** Made, at the history's size, for the first image that resolves `filter`. */
+    follow(filter: DisplayLayers | undefined, width: number, height: number) {
+      const layer = (label: string) => {
+        const texture = device.createTexture({
+          label: `Trillion3D TAA display ${label}`,
+          size: { width, height },
+          format: FILTER_FORMAT,
+          usage,
+        })
+        textures.push(texture)
+        return texture.createView()
+      }
+      for (let i = views.length; filter && i < HISTORY_PAIRS; i++)
+        views.push([layer(`tint ${i}`), layer(`added value ${i}`)])
+    },
+    /** The bindings of the group that reads history `rank`: none without layers. */
+    entries: (filter: DisplayLayers | undefined, rank: number): GPUBindGroupEntry[] =>
+      (filter ? LAYERS : []).flatMap(([, now, past], i) => [
+        { binding: LAYER_BINDINGS[now], resource: filter![i] },
+        { binding: LAYER_BINDINGS[past], resource: views[rank][i] },
+      ]),
+    /** The targets history `rank` is written through, when the image resolves layers. */
+    target: (rank: number): DisplayLayers | undefined => views[rank],
+    /** A convergence image replays the history the image it remakes read (`checkpoint`). */
+    checkpoint: () => void (saved = history.written),
+    replay: () => void (history.written = saved),
+    drop() {
+      // This image's commands may still name them: retired, destroyed after the frame's submit.
+      for (const texture of textures) retire(device, texture)
+      textures.length = views.length = counted = 0
+      history.written = false
+    },
+  }
+  return history
+}
