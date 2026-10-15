@@ -12,10 +12,6 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number> = {
   pixelError: LOD_QUALITY.source.pixelError,
   antialiasing: true, // `WorldOptions.temporalAntialiasing`'s default
   bounce: false, // `world.bounce`'s default
-  dynamicShadows: true,
-  glass: true,
-  particles: true,
-  postProcessing: true,
   maxAnisotropy: MAX_ANISOTROPY,
   shadowPages: vsm.VSM_POOL_PAGES,
 }
@@ -38,10 +34,10 @@ test('every default lies within its own bounds', () => {
   }
 })
 
-test('only the pages and the dynamic shadows drop the cache', () => {
+test('only the shadow pages drop the cache', () => {
   const dropping = Object.entries(WORLD_SETTINGS)
     .filter(([, entry]) => entry.invalidates === 'shadowCache')
     .map(([name]) => name)
     .sort()
-  assert.deepEqual(dropping, ['dynamicShadows', 'shadowPages'])
+  assert.deepEqual(dropping, ['shadowPages'])
 })

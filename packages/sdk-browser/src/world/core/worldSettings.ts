@@ -51,11 +51,8 @@ const WORLD_SETTINGS = {
   },
   antialiasing: flag(true, 'edgeSmoothing', 'pipeline', { invalidates: 'taaHistory' }),
   bounce: flag(false, 'indirectLight', 'resources'),
-  // Registered; their passes do not read the registry yet.
-  dynamicShadows: flag(true, 'shadows', 'frame', cache),
-  glass: flag(true, 'effects', 'frame'),
-  particles: flag(true, 'effects', 'frame'),
-  postProcessing: flag(true, 'imageEffects', 'frame'),
+  // Registered; their passes do not read the registry yet (the texture sampling, the shadow
+  // grant): no switch is published that no pass obeys.
   maxAnisotropy: count(MAX_ANISOTROPY, [1, MAX_ANISOTROPY], 'textures', 'uniform'),
   // The pool shrinks to an eighth at most, as the grant does (`vsmGrant.ts`).
   shadowPages: count(
