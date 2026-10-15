@@ -11,8 +11,7 @@ import {
  * THE WORLD'S TIME ON THE DISPLAY'S GRID. A frame's timestamp is when its display frame began, the
  * rAF timestamp the refresh clock measures the display on (`frameStart`), and an image is shown a
  * whole number of refreshes after the one before: motion advanced by the timestamps' own interval
- * carries their jitter into the image, and a delta that never repeats takes no animation sample
- * ahead (`animationAhead.ts`). So, while the display's refresh is known, a frame's time is
+ * carries their jitter into the image. So, while the display's refresh is known, a frame's time is
  * `t_n = start + round((now − start) / period) · period` and its delta `t_n − t_{n−1}`, a whole
  * number of periods computed as such — one period on time, two for a frame the display dropped —,
  * the same number bit for bit from frame to frame.
