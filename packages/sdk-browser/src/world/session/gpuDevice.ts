@@ -1,5 +1,6 @@
 import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
 import { BLOCK_FEATURES } from '../../texture/blockFormats.ts'
+import { addressParam } from '../../host/addressFlag.ts'
 
 /**
  * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
@@ -20,17 +21,19 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   ...Object.values(BLOCK_FEATURES),
 ]
 
+/** The features the address's test switch names off (`trillion3dGpuFeaturesOff`), as written. */
+export const featuresOffIn = (params: URLSearchParams) =>
+  params.get('trillion3dGpuFeaturesOff')?.split(',') ?? []
+/** Those of the page's address, read through the one address reader (`addressParam`). */
+const gpuFeaturesOff = addressParam(featuresOffIn, [] as string[])
+
 /**
  * The WebGPU device of a session: the optional features the adapter offers, minus those the host
  * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the proof, on a
  * machine that has them, of each shader variant written without them), and the adapter's own limits up to what the engine binds
  * (`WEBGPU_REQUIRED_LIMITS`).
  */
-export async function requestExplorerDevice(
-  adapter: GPUAdapter,
-  search = typeof location === 'undefined' ? '' : location.search,
-) {
-  const off = new URLSearchParams(search).get('trillion3dGpuFeaturesOff')?.split(',') ?? []
+export async function requestExplorerDevice(adapter: GPUAdapter, off = gpuFeaturesOff()) {
   const features = OPTIONAL_GPU_FEATURES.filter(
     (feature) => adapter.features.has(feature) && !off.some((name) => name.trim() === feature),
   )
