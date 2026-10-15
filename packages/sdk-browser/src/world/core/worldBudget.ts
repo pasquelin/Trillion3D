@@ -124,16 +124,8 @@ export function worldBudget(
   const split = () => splitOf(pools)
   /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const {
-      shadowPool,
-      bounceProbes,
-      cutTables,
-      effectTargets,
-      frameTargets = 0,
-      ...shares
-    } = split()
-    const left = gpuOf(pools) - shadowPool - bounceProbes - cutTables - effectTargets - frameTargets
-    return clamp(left - (pools[other] ?? shares[other]), 1, ceiling)
+    const shares = split()
+    return clamp(gpuOf(pools) - shares.fixed - (pools[other] ?? shares[other]), 1, ceiling)
   }
   /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
   const redraw = (gpu: number, canvas = pools.canvas) => {
