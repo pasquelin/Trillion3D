@@ -32,7 +32,7 @@ import {
 /** The reflection group's layout (`reflectionBindingsWgsl`), once a device: the view uniform, the
  *  radiance pyramid's sampler, then the depth pyramid (`hizDepthEntries`), the lighting's view and
  *  the radiance pyramid, every level of it in one texture — the lit image itself at its level 0
- *  (`hdrTargetDescriptor`) —, the front depth and the proxy, read by compute and fragment stages. */
+ *  (`hdrTargetDescriptor`) —, the front depth, read by compute and fragment stages, and the proxy, by the compute stage alone. */
 export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
   const visibility = COMPUTE | GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
@@ -48,8 +48,9 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
       // The transparents' front depth, a depth texture read as the float it holds.
       computeTextureEntry(REFLECTION_FRONT_BINDING, 'unfilterable-float', '2d', visibility),
-      // The proxy every program that reads the chain walks (`proxy.ts`).
-      ...sceneLayoutEntries(REFLECTION_SCENE_BINDINGS, visibility),
+      // The proxy the trace's rays walk (`proxy.ts`): the compute stage alone, as the forward
+      // fragments read the trace's front layer and the field, never a ray of their own.
+      ...sceneLayoutEntries(REFLECTION_SCENE_BINDINGS, COMPUTE),
     ],
   })
 })

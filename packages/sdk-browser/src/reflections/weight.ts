@@ -6,7 +6,7 @@ import { LTC_WGSL } from '../lighting/direct/rectLightWgsl.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
-import { reflectedRadianceWgsl } from './wgsl.ts'
+import { REFLECTION_FIELD_STAGE_WGSL, reflectedRadianceWgsl } from './wgsl.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
@@ -51,6 +51,20 @@ ${
 }`,
   )
 
+/** The lobe a surface of roughness `rough` reflects through (`reflectionLobe`): the long axis
+ *  `setLobes` left — its direction and αt where the material is anisotropic —, a round lobe elsewhere. */
+export const reflectionLobeWgsl = (lobes: boolean) =>
+  wgslBlock(
+    `reflectionLobeWgsl(${lobes})`,
+    [LOBE_AXIS_WGSL],
+    lobes
+      ? `fn reflectionLobe(rough:f32)->vec4f{
+ if(lobes.on){return vec4f(lobes.T,lobes.at);}
+ return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
+}`
+      : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}`,
+  )
+
 /**
  * How a surface traces what its lobes reflect (`reflectionTrace`), the radiance of each traced once
  * (`Reflected`): the base lobe's, along the lobe the lights read (`reflectionLobe`: the long axis
@@ -68,14 +82,11 @@ export const reflectionShareWgsl = (group: number, lobes: boolean) =>
       reflectedRadianceWgsl(group),
       REFLECTION_SAMPLE_WGSL,
       reflectionWeighWgsl(lobes),
+      reflectionLobeWgsl(lobes),
       LOBE_AXIS_WGSL,
     ],
     lobes
-      ? `fn reflectionLobe(rough:f32)->vec4f{
- if(lobes.on){return vec4f(lobes.T,lobes.at);}
- return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
-}
-fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
+      ? `fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
  reflectionHit=REFLECTION_FAR;
  var traced=Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
  if(lobes.on&&lobes.coat>0.0){
@@ -88,8 +99,7 @@ fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
  }
  return traced;
 }`
-      : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}
-fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
+      : `fn reflectionTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,u:vec2f)->Reflected{
  return Reflected(reflectionLobeRadiance(P,N,V,lobeAlpha(rough),reflectionLobe(rough),u),vec3f(0.0));
 }`,
   )
@@ -106,10 +116,11 @@ const FRONT_DEPTH_MATCH = 8 * depthLayerUnits(TRANSPARENT_DEPTH_LAYER) * 2 ** -2
  * (`frontLayer.ts`). `forwardTrace` is what a fragment's lobes reflect: where it is the front surface
  * of its pixel — its depth the front pass's there, in an image whose trace answered the front —, the
  * radiance the trace's last pass wrote for that pixel, one load — the one chain, cached; anywhere else —
- * a surface behind the front, an image whose trace did not answer it —, the same chain inline
- * (`reflectionTrace`): its lobes sampled by a `u` turning per pixel and per image (`reflectionSampleAt`,
- * on a sequence of its own, `FORWARD_SAMPLE_LAYER`, beside the trace's two surfaces), the screen, the
- * proxy, the probes and the environment, averaged over the images by the temporal accumulation. `surfaceReflection` is the blend's, weighed on the
+ * a surface behind the front, an image whose trace did not answer it —, the chain's last stage alone
+ * (`reflectionField`): the probes and the environment through each lobe, as the reference engine lights
+ * every translucent layer behind its traced front one from its stored radiance. No forward fragment
+ * casts a ray: the proxy is the trace's alone, and the fragment stage keeps within the sixteen sampled
+ * textures WebGPU guarantees. `surfaceReflection` is the blend's, weighed on the
  * reflectance `f0` as the opaque trace's is; the water traces once (`forwardTrace`) and weighs the one
  * trace on two reflectances (`reflectionShare`).
  */
@@ -117,14 +128,15 @@ export const forwardReflectionWgsl = (group: number, lobes: boolean, traced: num
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes}, ${traced})`,
     [
-      reflectionShareWgsl(group, lobes),
+      reflectionWeighWgsl(lobes),
+      reflectionLobeWgsl(lobes),
+      REFLECTION_FIELD_STAGE_WGSL,
       reflectionFrontWgsl(group),
       surfaceReflects,
       FRONT_PACK_WGSL,
     ],
     `@group(0) @binding(${traced}) var frontTraced:texture_2d<u32>;
 const FRONT_DEPTH_MATCH:f32=${wgslF32(FRONT_DEPTH_MATCH)};
-const FORWARD_SAMPLE_LAYER:u32=2u;
 /** What a fragment at framebuffer \`position\` reflects of \`P\`, of normal \`N\` and roughness \`rough\`, seen from
  *  \`V\`: the front's traced radiance where \`front\` lets it be the front surface and its depth is that one's. */
 fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Reflected{
@@ -133,7 +145,17 @@ fn forwardTrace(P:vec3f,N:vec3f,V:vec3f,rough:f32,position:vec4f,front:bool)->Re
   let t=textureLoad(frontTraced,at,0);
   return Reflected(frontUnpack(t.x),frontUnpack(t.y));
  }
- return reflectionTrace(P,N,V,rough,reflectionSampleAt(vec2u(at),FORWARD_SAMPLE_LAYER));
+ let alpha=lobeAlpha(rough);
+ var seen=Reflected(reflectionField(P,N,reflectionLobeOf(reflect(-V,N),alpha,reflectionLobe(rough))),vec3f(0.0));${
+   lobes
+     ? `
+ if(lobes.on&&lobes.coat>0.0){
+  let c=lobeAlpha(lobes.coatRough);
+  seen.coat=reflectionField(P,lobes.coatN,reflectionLobeOf(reflect(-V,lobes.coatN),c,vec4f(0.0,0.0,0.0,c)));
+ }`
+     : ''
+ }
+ return seen;
 }
 fn surfaceReflection(f0:vec3f,rough:f32,N:vec3f,V:vec3f,P:vec3f,position:vec4f)->vec3f{
  if(!surfaceReflects(surfaceModel)){return vec3f(0.0);}

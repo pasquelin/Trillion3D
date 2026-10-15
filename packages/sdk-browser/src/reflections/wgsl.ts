@@ -11,7 +11,8 @@
  *
  * - the screen (`reflectionSeen`): the previous lit image, at the point the ray meets in the depth;
  * - the proxy (`reflectionProxied`): the scene's coarse geometry, past what the screen sees, one ray a
- *   lobe the screen left, in every program — the reflection group binds it (`REFLECTION_SCENE_BINDINGS`);
+ *   lobe the screen left, in the trace's kernels — the reflection group binds it to the compute stage
+ *   (`REFLECTION_SCENE_BINDINGS`); a forward fragment reads the trace's front layer, or the field;
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
  *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
  *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes;
@@ -102,6 +103,21 @@ const reflectionSeenWgsl = (group: number) =>
 }`,
   )
 
+/** The chain's last stage (`reflectionField`), what a lobe reflects where neither the screen nor the
+ *  proxy answered: the probes' field through the lobe added to the radiance around the scene, as far
+ *  as the probes answer, the surroundings alone past them. The trace's rays end on it, and a forward
+ *  fragment that is not the front surface reads it alone (`forwardTrace`, `weight.ts`). */
+export const REFLECTION_FIELD_STAGE_WGSL = wgslBlock(
+  'REFLECTION_FIELD_STAGE_WGSL',
+  [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL],
+  `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
+ let around=reflectionEnvironment();
+ let gathered=reflectionProbesGathered(P,N,lobe);
+ let confidence=min(gathered.w,1.0);
+ return confidence*(around+gathered.xyz)+(1.0-confidence)*around;
+}`,
+)
+
 /**
  * `reflectedRadianceAlong`: the radiance a surface at `P`, of normal `N`, seen from `V`, reflects
  * along `R` through a lobe of width `alpha` — the one function of every program, the chain of the
@@ -123,8 +139,7 @@ export const reflectedRadianceWgsl = (group: number) =>
       reflectionSeenWgsl(group),
       reflectionProxyWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
-      REFLECTION_ENVIRONMENT_WGSL,
-      REFLECTION_PROBES_WGSL,
+      REFLECTION_FIELD_STAGE_WGSL,
       REFLECTION_CONE_WGSL,
       LOBE_AXIS_WGSL,
     ],
@@ -154,12 +169,7 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,w
  // @cut screen -> radiance+vec3f(rest) keep: ;
  if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width,bound),&radiance,&rest);}
  // @cut proxy -> radiance+vec3f(rest) keep: ;
- if(rest>REFLECTION_EPSILON){
-  let around=reflectionEnvironment();
-  let gathered=reflectionProbesGathered(P,N,ellipse);
-  let confidence=min(gathered.w,1.0);
-  radiance+=rest*(confidence*(around+gathered.xyz)+(1.0-confidence)*around);
- }
+ if(rest>REFLECTION_EPSILON){radiance+=rest*reflectionField(P,N,ellipse);}
  return radiance;
 }`,
   )
