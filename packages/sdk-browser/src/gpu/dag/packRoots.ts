@@ -152,7 +152,7 @@ export function allocatePacking(capacity: DagCapacity, shared: PackShared): Pack
     // and `rootBases` keeps the node it takes back.
     rootNodes: new Uint32Array(worldSlots).fill(NO_INDEX),
     rootBases: new Uint32Array(worldSlots).fill(NO_INDEX),
-    // The whole frame word: the mark's bits, and the deformation reach above them (`markReach`).
+    // The whole frame word: the mark's bits, and the deformation reach above them (`rootMark`).
     mark: new Uint32Array(worldSlots),
     cutLinks: [],
     live: { pages: 0, nodes: 0, worlds: 0, entries: 0 },

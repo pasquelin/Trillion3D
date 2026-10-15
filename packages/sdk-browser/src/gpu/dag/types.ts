@@ -110,7 +110,7 @@ export type PackedDag = {
   /** Root node of each primitive, parked or not: what `rootNodes` takes back when a row returns. */
   rootBases: Uint32Array
   /** One per primitive: the word the kernel reads its mark from — its root's mark (`DagRoot.mark`)
-   *  in the low sixteen bits, the deformation reach as a half float above (`markReach`) —, as
+   *  in the low sixteen bits, the deformation reach as a half float above (`rootMark`) —, as
    *  `markWorld` last wrote it, else the root's mark. */
   mark: Uint32Array
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its

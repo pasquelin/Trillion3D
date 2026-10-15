@@ -59,7 +59,7 @@ fn grownPlane(p:vec4f,reach:f32)->vec4f{return vec4f(p.xyz,p.w+reach*(abs(p.x)+a
 /** How far the current primitive's GPU deformation moves a vertex this frame, in its units
  *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
 var<private> deformReach:f32;
-/** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`markReach\`). */
+/** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`rootMark\`). */
 fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}

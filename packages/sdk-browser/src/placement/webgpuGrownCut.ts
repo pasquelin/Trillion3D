@@ -9,7 +9,7 @@ import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
-import { markReach } from '../deformation/halfFloat.ts'
+import { rootMark } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -143,7 +143,7 @@ function swapCut(
   }
   layout.selectionRoots.forEach((root, rank) => {
     cut.parkWorld(rank, !!root.parked)
-    cut.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
+    cut.markWorld(rank, rootMark(root))
   })
   // The poses named since the cut was packed — it holds them as they were then —: replayed.
   replayMoves(rt, cut, added, first)

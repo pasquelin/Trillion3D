@@ -131,7 +131,7 @@ export const treeNodeCount = (tree?: PlacementTree) =>
 /** Relative margin a box grows by: far above both tests' single-precision rounding (2⁻²⁴). */
 export const MARGIN = 2 ** -16
 
-/** A deformation reach's bits from an infinite half up: past every finite reach (`markReach`). */
+/** A deformation reach's bits from an infinite half up: past every finite reach (`rootMark`). */
 export const REACH_UNBOUNDED = 0x7c00
 
 /** Whether a placement of mark `mark` is drawn whatever the view: never culled, or deformed past

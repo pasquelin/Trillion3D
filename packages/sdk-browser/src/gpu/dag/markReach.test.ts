@@ -1,4 +1,4 @@
-// A deformed root's mark word carries its reach in its high sixteen bits (`markReach`): the
+// A deformed root's mark word carries its reach in its high sixteen bits (`rootMark`): the
 // cut holds the whole word, so the same word written again each image — the deformation writes it
 // every frame (`deformation/webgpuFrame.ts`) — voids no cut and the image can be held, and the
 // primitive's frame words, made again whole from the held words, keep the reach the kernel grows
@@ -11,7 +11,7 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from './worlds.ts'
-import { markReach } from '../../deformation/halfFloat.ts'
+import { rootMark } from '../../deformation/halfFloat.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 import { MARK_WORD } from './frameTable.ts'
@@ -23,7 +23,7 @@ test('a reach written again keeps the cut in hand, and the frame words keep the 
   const { device } = mockDagDevice(dag)
   const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
-  const word = markReach(SHADOWLESS_ROOT, 1.66)
+  const word = rootMark({ mark: SHADOWLESS_ROOT, reach: 1.66 })
   assert.ok(word > 0xffff, 'the reach lies above the mark')
   selection.markWorld(0, word)
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
@@ -39,7 +39,7 @@ test('a reach written again keeps the cut in hand, and the frame words keep the 
     word,
     'the frame words made again keep the reach',
   )
-  selection.markWorld(0, markReach(SHADOWLESS_ROOT, 0))
+  selection.markWorld(0, rootMark({ mark: SHADOWLESS_ROOT, reach: 0 }))
   assert.equal(selection.peek(), null, 'another reach is another cut')
   selection.dispose()
   fixture.geometry.dispose()

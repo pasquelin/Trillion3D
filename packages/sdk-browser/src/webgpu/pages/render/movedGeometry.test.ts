@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { noteRewritten } from './movedGeometry.ts'
 import { runtime, scene, selectionRoot } from '../../core/transformShear.fixture.ts'
-import { markReach } from '../../../deformation/halfFloat.ts'
+import { rootMark } from '../../../deformation/halfFloat.ts'
 import { growClusterBox } from '../../shadow/spheres.ts'
 import { ROW_LOD_FLOATS } from '../../shadow/rowLodWords.ts'
 import { writeRowLod } from '../../shadow/rowLodWords.fixture.ts'
@@ -61,11 +61,11 @@ test("a rewrite's reach is held by its roots and marked for the GPU cut: this re
   const { rt, roots, attributes, marks, motions } = dynamicRoots()
   noteRewritten(rt, attributes, box(0, 0, 0, 1, 1, 1.5), 0.5)
   assert.equal(roots[0].reach, 0.5)
-  assert.deepEqual(marks, [markReach(0, 0.5)], 'the GPU cut grows its bounds by it')
+  assert.deepEqual(marks, [rootMark({ mark: 0, reach: 0.5 })], 'the GPU cut grows its bounds by it')
   assert.equal(motions.length, 1, 'the moved box stales its shadow pages')
   noteRewritten(rt, attributes, box(0, 0, 0, 1, 1, 1.25), 0.25)
   assert.equal(roots[0].reach, 0.25, 'the vertices came back: the reach with them')
-  assert.deepEqual(marks, [markReach(0, 0.5), markReach(0, 0.25)])
+  assert.deepEqual(marks, [rootMark({ mark: 0, reach: 0.5 }), rootMark({ mark: 0, reach: 0.25 })])
   noteRewritten(rt, {}, box(0, 0, 0, 1, 1, 9), 9)
   assert.equal(roots[0].reach, 0.25, 'another geometry moves none of its roots')
 })

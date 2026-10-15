@@ -183,7 +183,7 @@ export type GpuSelection = {
   proxyCopies(copies: readonly ProxyCopy[]): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
-  /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
+  /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `rootMark`). */
   markWorld(world: number, mark: number): void
   /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
    *  for it where its object's group suffices (`../dag/worldFollow.ts`); nothing without a world. */

@@ -15,6 +15,8 @@ function halfAtLeast(x: number) {
   return bits
 }
 
-/** `mark` with `reach` in its high sixteen bits, as the GPU cut reads it (`reachOf`). */
-export const markReach = (mark: number, reach: number) =>
+/** THE MARK WORD A ROOT SENDS THE GPU CUT (`markWorld`): its `mark` with its deformation `reach`
+ *  in the high sixteen bits, as the cut reads it (`reachOf`). Every sender builds it here: a word
+ *  without the reach would shrink a deformed root's bounds on the GPU. */
+export const rootMark = ({ mark = 0, reach = 0 }: { mark?: number; reach?: number }) =>
   ((mark & 0xffff) | (halfAtLeast(reach) << 16)) >>> 0
