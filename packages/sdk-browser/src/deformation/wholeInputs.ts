@@ -1,6 +1,6 @@
 import { skinStreams } from '../../../sdk-core/src/world/geometry/skin.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
-import { readComponent } from '../../../sdk-core/src/world/geometry/bounds.ts'
+import { morphDelta } from '../../../sdk-core/src/world/geometry/drawnDeformation.ts'
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
 
 /** Simulated vertices a soft source id may name, unless the caller gives its own bound. */
@@ -52,19 +52,9 @@ export function wholeDeformationInputs(
       at += 2 * width
     }
     for (let t = 0; t < targets.length; t++) {
-      const normal = geometry.morphAttributes.normal?.[t]
       for (let c = 0; c < 3; c++) {
-        data[at + c] =
-          readComponent(geometry, targets[t], vertex, c) -
-          (geometry.morphTargetsRelative
-            ? 0
-            : readComponent(geometry, geometry.attributes.position, vertex, c))
-        if (normal)
-          data[at + WHOLE_TARGET.normal + c] =
-            readComponent(geometry, normal, vertex, c) -
-            (geometry.morphTargetsRelative || !geometry.attributes.normal
-              ? 0
-              : readComponent(geometry, geometry.attributes.normal, vertex, c))
+        data[at + c] = morphDelta(geometry, t, vertex, c, false)
+        data[at + WHOLE_TARGET.normal + c] = morphDelta(geometry, t, vertex, c, true)
       }
       at += WHOLE_TARGET.floats
     }
