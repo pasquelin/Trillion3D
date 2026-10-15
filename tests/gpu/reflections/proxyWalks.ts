@@ -5,12 +5,13 @@ import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { runtimeSceneWgsl } from '../../../packages/sdk-browser/src/bounce/runtimeSceneWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import type { ProxyResources } from '../../../packages/sdk-browser/src/gpu/dag/cutReaders.ts'
 
 /** Words of a hit as the kernel writes it. */
 export const HIT_WORDS = 6
-/** The bindings: the proxy's buffer, the records' table — worlds and instances — and the tree's, the
- *  rays and the hits. */
-const B = { proxy: 0, worlds: 1, rays: 2, hits: 3, tree: 5 } as const
+/** The bindings: the proxy's buffer, the records' table — worlds and instances — the rays, the hits
+ *  and the tree's table. */
+const B = { proxy: 0, worlds: 1, rays: 2, hits: 3, tree: 4 } as const
 
 const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f>;
 @group(0) @binding(${B.hits}) var<storage,read_write> hits:array<u32>;
@@ -31,24 +32,16 @@ const KERNEL = `@group(0) @binding(${B.rays}) var<storage,read> rays:array<vec4f
 }`
 
 /** The walk the engine ships: the worlds, the instances and the tree read in their record tables. */
-export const NEW_WALK = wgslProgram(KERNEL, [
+const WALK = wgslProgram(KERNEL, [
   runtimeSceneWgsl({ group: 0, proxy: B.proxy, worlds: B.worlds, tree: B.tree }),
 ])
 
-/** What a walk binds: the proxy's buffer and the record tables. */
-type WalkInputs = {
-  proxy: GPUBuffer
-  worlds?: GPUTextureView
-  tree?: GPUTextureView
-}
-
-/** `code`'s walk of `rays` (two vec4s each: origin and reach, direction) over `inputs` on `device`:
- *  each hit's words. */
+/** The shipped walk of `rays` (two vec4s each: origin and reach, direction) over `proxy` — its
+ *  buffer and its record tables — on `device`: each hit's words. */
 export async function walk(
   device: GPUDevice,
-  code: string,
   rays: Float32Array<ArrayBuffer>,
-  inputs: WalkInputs,
+  proxy: ProxyResources,
 ) {
   const count = rays.length / 8,
     bytes = count * HIT_WORDS * 4
@@ -63,15 +56,15 @@ export async function walk(
   })
   const pipeline = await device.createComputePipelineAsync({
     layout: 'auto',
-    compute: { module: device.createShaderModule({ code }), entryPoint: 'main' },
+    compute: { module: device.createShaderModule({ code: WALK }), entryPoint: 'main' },
   })
   const entries: GPUBindGroupEntry[] = [
-    { binding: B.proxy, resource: { buffer: inputs.proxy } },
+    { binding: B.proxy, resource: { buffer: proxy.buffer } },
     { binding: B.rays, resource: { buffer: rayBuffer } },
     { binding: B.hits, resource: { buffer: hits } },
+    { binding: B.worlds, resource: proxy.worlds },
+    { binding: B.tree, resource: proxy.tree },
   ]
-  if (inputs.worlds) entries.push({ binding: B.worlds, resource: inputs.worlds })
-  if (inputs.tree) entries.push({ binding: B.tree, resource: inputs.tree })
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)

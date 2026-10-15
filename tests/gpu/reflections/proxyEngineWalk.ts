@@ -4,7 +4,7 @@
 // its budget on the first members of the tree's order, never reaching the rest. The session's leaves
 // writer (`placement/treeLeaves.ts`) is stood in for by the leaves it writes (`leafBoxes`, proven
 // word for word against it), sent once, whole.
-import { walk, NEW_WALK } from './proxyWalks.ts'
+import { walk } from './proxyWalks.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { cubeCut } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
@@ -71,13 +71,7 @@ export async function engineWalk(
   selection.dispatch(cameraSelectionUniforms(engineCamera(frontCamera(16, 200)), 1, [1280, 720]))
   await selection.flush()
   const proxy = selection.proxy()
-  const hits =
-    proxy &&
-    (await walk(device, NEW_WALK, cast, {
-      proxy: proxy.buffer,
-      worlds: proxy.worlds,
-      tree: proxy.tree,
-    }))
+  const hits = proxy && (await walk(device, cast, proxy))
   selection.dispose()
   return { refused, hits }
 }
