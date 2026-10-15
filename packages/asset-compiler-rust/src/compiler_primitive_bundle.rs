@@ -1,14 +1,13 @@
 use super::*;
 use crate::dag::{DagCluster, DagGroup};
-use trillion3d_math::{aabb::extend_aabb, vec3::point};
+use trillion3d_page_codec::culling::CullingCluster;
 
 mod pack;
 pub(crate) use pack::{index_bytes, pack_bundles, pack_primitive};
 
 pub(super) fn bundle_dag_pages(
     o: &Options,
-    dag: &[DagCluster],
-    groups: &[DagGroup],
+    (dag, groups, boxes): (&[DagCluster], &[DagGroup], &[CullingCluster]),
     order: &[usize],
     pos: &[f32],
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
@@ -47,8 +46,8 @@ pub(super) fn bundle_dag_pages(
             for &rank in members {
                 let cluster = &dag[order[rank]];
                 let offset = payload.len();
-                // The box grows in the pass that writes the indices.
-                let (mut min, mut max) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+                // The box is the hierarchy's (`dag::bounds::culling_clusters`), measured once.
+                let CullingCluster { min, max, .. } = boxes[order[rank]];
                 {
                     let _t = perf::Timer::new(perf::Phase::PageBytes);
                     for &id in &cluster.indices {
@@ -56,7 +55,6 @@ pub(super) fn bundle_dag_pages(
                             return Err(invalid("Invalid cluster index"));
                         }
                         payload.extend_from_slice(&id.to_le_bytes());
-                        extend_aabb(&mut min, &mut max, point(pos, id));
                     }
                 }
                 let bytes = &payload[offset..];
