@@ -311,6 +311,9 @@ void setBars(Vehicle &v, float dt) {
   }
 }
 
+/// The body's speed along its forward axis, m/s: negative rolling back.
+float forwardSpeed(const Body &body) { return (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD); }
+
 /// The vehicle's engine, whichever its controller.
 VehicleEngine &vehicleEngine(Vehicle &v) {
   VehicleController *controller = v.constraint->GetController();
@@ -344,7 +347,7 @@ float holdParked(Vehicle &v) {
 /// Jolt lets it sleep (`parkedVehicles.test.ts`). Driven then released, it coasts until it stops.
 void applyInput(Vehicle &v, float dt) {
   const Body &body = *v.constraint->GetVehicleBody();
-  float speed = (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD);
+  float speed = forwardSpeed(body);
   float turn = dt * v.steerRate;
   v.steered += Clamp(v.steer - v.steered, -turn, turn);
   float forward = v.throttle, brake = v.brake;
@@ -419,11 +422,7 @@ void driveVehicles(float dt) {
 
 void writeVehicles() {
   state.clear();
-  auto put = [](float value) {
-    uint32_t word;
-    std::memcpy(&word, &value, 4);
-    state.push_back(word);
-  };
+  auto put = [](float value) { putF32(&state.emplace_back(), value); };
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
     const Body &body = *vehicle.constraint->GetVehicleBody();
@@ -436,7 +435,7 @@ void writeVehicles() {
     uint32_t count = uint32_t(vehicle.constraint->GetWheels().size());
     state.push_back(vehicle.id);
     state.push_back(count);
-    put((body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD));
+    put(forwardSpeed(body));
     put(engine.GetCurrentRPM());
     put(float(gearbox.GetCurrentGear()));
     for (uint32_t i = 0; i < count; ++i) {
