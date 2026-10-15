@@ -16,13 +16,10 @@ import {
   type RowsOwner,
 } from './worldPoseState.ts'
 import { writeSeat } from './worldPoseSeat.ts'
-import {
-  composeEnded,
-  followParent,
-  linkChildren,
-  rewriteModel,
-  writeModel,
-} from './worldPoseLinks.ts'
+import { composeEnded, followParent, linkChildren, writeModel } from './worldPoseLinks.ts'
+
+/** The seats of a write outside a frame's walk: none read. */
+const NO_SEATS: ReadonlyMap<Mesh, Seat> = new Map()
 
 /** Whether `node` is a loaded model. */
 const isModel = (node: Object3D): node is LoadedModel =>
@@ -62,9 +59,13 @@ export function createWorldPoses() {
     touchRows(state, owner, from, to)
   return {
     touch: (batch: Batch, row: number) => touchRange(batch, row, row),
-    /** Every row of `model`'s meshes written from the model as it stands (`WorldModels.pose`). */
-    writeModel: (models: WorldModels, model: LoadedModel, shown: boolean) =>
-      rewriteModel(state, models, model, shown),
+    /** Every row of `model`'s meshes written from the model as it stands, outside a frame's walk
+     *  (`writeModel` with no composer): the CPU's, whole; a link the session holds for them is let
+     *  go at the next walk and made again. */
+    writeModel(models: WorldModels, model: LoadedModel, shown: boolean) {
+      writeModel(state, { seats: NO_SEATS, models, composer: undefined }, model, shown, false)
+      state.moved.add(model)
+    },
     touchRange,
     writeSeat: (mesh: Mesh, seat: Seat, shown: boolean) => writeSeat(state, mesh, seat, shown),
     /** A node's pose, visibility or `castShadow` moved: it and its subtree are written before the

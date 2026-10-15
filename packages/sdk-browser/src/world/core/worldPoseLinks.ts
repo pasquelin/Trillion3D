@@ -2,7 +2,6 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Seat } from './worldBatches.ts'
 import type { LoadedModel } from './loadedModel.ts'
-import type { WorldModels } from './worldModels.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { NONE, touchRows, type PoseFrame, type PoseState } from './worldPoseState.ts'
 import { writeSeat } from './worldPoseSeat.ts'
@@ -49,21 +48,6 @@ export function writeModel(
   if (draws?.world) touchRows(state, draws.world, 0, 0)
   if (accepted) state.composed.set(model, shown)
   else if (state.composed.delete(model)) state.dropped.add(model)
-}
-
-/** `model`'s rows written outside a frame's walk (`WorldPoses.writeModel`): the CPU's, whole. A
- *  link the session holds for them is let go at the next walk and made again. */
-export function rewriteModel(
-  state: PoseState,
-  models: WorldModels,
-  model: LoadedModel,
-  shown: boolean,
-) {
-  const draws = models.pose(model, shown)
-  for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
-  if (draws?.world) touchRows(state, draws.world, 0, 0)
-  if (state.composed.delete(model)) state.dropped.add(model)
-  state.moved.add(model)
 }
 
 /**
