@@ -1,5 +1,5 @@
 import { judgeCadence, resetCadence, type Cadence } from './cadence.ts'
-import { GRID_TOLERANCE, SUPPORT, type createRefreshClock } from './refreshClock.ts'
+import { samePeriod, SUPPORT, type createRefreshClock } from './refreshClock.ts'
 import {
   displayMoved,
   HISTORY,
@@ -42,7 +42,7 @@ export interface DrawnImage {
 function readHeldInterval(w: ScaleWindow, refresh: ScaleParts['refresh']) {
   const gap = refresh.gap,
     free = w.holding && !w.fresh,
-    agrees = Math.abs(gap - w.heldGap) <= GRID_TOLERANCE * w.heldGap
+    agrees = samePeriod(gap, w.heldGap)
   w.agreeing = !free ? 0 : agrees ? w.agreeing + 1 : 1
   w.heldGap = free ? gap : Number.NaN
   if (w.agreeing >= SUPPORT) w.measured = true
@@ -80,7 +80,7 @@ function countFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
     gap = refresh.gap,
     period = refresh.display,
     auto = w.bounds.auto
-  if (refresh.settled && !(Math.abs(period - w.at) <= GRID_TOLERANCE * w.at)) {
+  if (refresh.settled && !samePeriod(period, w.at)) {
     w.at = period
     forgetThreshold(w, period)
     resetCadence(cadence)

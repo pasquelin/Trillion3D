@@ -1,4 +1,3 @@
-import { cpuNow } from './stopwatch.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
@@ -81,7 +80,6 @@ export class FrameProfile {
   private readonly intervals: Float64Array
   private intervalCount = 0
   private intervalHead = 0
-  private lastTime = 0
   private lastMetrics: FrameMetrics | null = null
   private sourceTriangles = 0
   private totalClusters = 0
@@ -105,17 +103,15 @@ export class FrameProfile {
     this.totalClusters = metadata.totalNodes || 0
   }
 
-  /** Records one frame's metrics. */
-  record(metrics: FrameMetrics, now = cpuNow()) {
-    if (this.lastTime > 0) {
-      const dt = now - this.lastTime
-      if (dt > 0 && dt < 1000) {
-        this.intervals[this.intervalHead] = dt
-        this.intervalHead = (this.intervalHead + 1) % this.intervals.length
-        if (this.intervalCount < this.intervals.length) this.intervalCount++
-      }
+  /** Records one frame's metrics: its display interval the refresh clock measured
+   *  (`rafIntervalMs`, none after a pause), never one of its own. */
+  record(metrics: FrameMetrics) {
+    const dt = metrics.rafIntervalMs
+    if (dt != null && dt > 0) {
+      this.intervals[this.intervalHead] = dt
+      this.intervalHead = (this.intervalHead + 1) % this.intervals.length
+      if (this.intervalCount < this.intervals.length) this.intervalCount++
     }
-    this.lastTime = now
     this.lastMetrics = metrics
   }
 

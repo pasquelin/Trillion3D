@@ -1,4 +1,3 @@
-import { cpuNow } from './stopwatch.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
@@ -74,8 +73,8 @@ export class EngineProfiler {
   }
 
   /** Records one frame's metrics. */
-  record(metrics: FrameMetrics, now = cpuNow()) {
-    this.code()?.record(metrics, now)
+  record(metrics: FrameMetrics) {
+    this.code()?.record(metrics)
   }
 
   /** A summary of the recent frames. */
