@@ -92,7 +92,6 @@ export function startInteractiveExplorer(
 ) {
   const { canvas, options, ownedControls } = runtime
   const view = canvas.ownerDocument.defaultView!
-  const controls = original.ownControls === false ? undefined : explorer.controls()
   const fail = (error: unknown) => reportFailure(view, events, error)
   const captures: Captures = { count: 0 }
   const loop: LoopWiring = { original, runtime, explorer, view, fail }
@@ -104,11 +103,9 @@ export function startInteractiveExplorer(
     dispose() {
       scheduler.dispose()
       resizing.dispose()
-      controls?.removeEventListener('change', invalidate)
       options.signal?.removeEventListener('abort', abort)
     },
   })
-  controls?.addEventListener('change', invalidate)
   resizing.watch()
   options.signal?.addEventListener('abort', abort, { once: true })
   options.signal?.throwIfAborted()

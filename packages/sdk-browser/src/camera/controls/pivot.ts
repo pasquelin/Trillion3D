@@ -9,17 +9,18 @@ import type { ControlCamera, PivotCameraControls } from './types.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /**
- * THE PIVOT CORE, shared by the trackball and the planar pan-zoom: a camera, a point it keeps
+ * THE PIVOT CORE, shared by the orbit, the trackball and the planar pan-zoom: a camera, a point it keeps
  * at a bounded distance, and the two gestures that do not depend on how the camera turns —
  * panning the pivot across the view plane, and dollying towards it.
  *
- * It differs from the orbit controller on purpose: orbit REBUILDS the orientation from its two
- * angles, which is what makes it a turntable, whereas here the orientation is whatever the
- * camera carries — the trackball rotates it, the pan-zoom never touches it. Both read the pose
- * back before every gesture, so a host that moves the camera itself is obeyed.
+ * The orbit is built on it too, and REBUILDS the orientation from its two angles before `apply`,
+ * which is what makes it a turntable; elsewhere the orientation is whatever the camera carries —
+ * the trackball rotates it, the pan-zoom never touches it. Each reads the pose back before every
+ * gesture, so a host that moves the camera itself is obeyed.
  */
 export interface PivotCore {
   base: ControlBase
+  pose: ControlPose
   api: PivotCameraControls
   /** Eye, pivot, eye-to-pivot offset and orientation, refreshed by `sample`. */
   position: Float64Array
@@ -73,6 +74,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   })
   return {
     base,
+    pose,
     api,
     position,
     center,

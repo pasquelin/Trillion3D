@@ -48,7 +48,7 @@ function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
 }
 
 export function createExplorerApi(inputs: Inputs) {
-  const { options, camera, center, radius, canvas, check, state, ownedControls } = inputs
+  const { options, camera, center, canvas, state } = inputs
   const materialReleases: (() => void)[] = []
   return {
     ...{ capabilities: inputs.capabilities, preparationMs: inputs.preparationMs },
@@ -69,7 +69,7 @@ export function createExplorerApi(inputs: Inputs) {
     },
     ...{ setPose: inputs.setPose, awaitPages: inputs.awaitPages, flush: inputs.flush },
     ...engineApis(inputs, (release) => materialReleases.push(release)),
-    ...createExplorerCameraApi({ check, options, camera, center, radius, canvas, ownedControls }),
+    ...createExplorerCameraApi({ options, camera, center }),
     get diagnostic() {
       return state.diagnostic
     },

@@ -1,9 +1,6 @@
 import { PI, TAU } from '../../../../math/src/constants.ts'
-import { boxEquals } from '../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
-import { createChangeGate, createControlBase } from './base.ts'
-import { keptDistance, panCenter, pivotControlsApi, trackPivotGestures } from './pivot.ts'
-import { controlPose, readVector, writeVector } from './pose.ts'
+import { createPivotControls, keptDistance, panCenter, trackPivotGestures } from './pivot.ts'
 import { clampAzimuth, dollyDistance, orbitOrientation } from './math.ts'
 import { fromSpherical, POLAR_EPSILON, toSpherical } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
@@ -15,10 +12,12 @@ import type { ControlCamera, PivotCameraControls } from './types.ts'
  * rotates, secondary drag or two fingers pan, wheel and pinch zoom between `minDistance` and
  * `maxDistance`. No damping: a pointer that stops, stops the camera, and the scene is still.
  *
- * THE POSE IS THE STATE. Every gesture starts by reading `object.position` and `target` back
- * into spherical coordinates, and ends by writing them out again. A host that moves the
- * camera itself — zoom buttons, say — is therefore understood on the next
- * `update()`, and the round trip is what `math.test.ts` pins down.
+ * BUILT ON THE PIVOT CORE (`pivot.ts`): its pose, pivot, pan, gestures and change gate, the
+ * orientation rebuilt from two angles where the core keeps the camera's own. The turntable keeps
+ * its angles and distance as its state, read back from `object.position` and `target` only when
+ * the pose is not the one it last wrote: a host that moves the camera itself — zoom buttons, say
+ * — is understood on the next `update()`, and a still scene, its angles never re-derived from a
+ * pose one ULP off a bound, emits nothing. The round trip is what `math.test.ts` pins down.
  *
  * THE ANGLES ARE BOUNDED like the distance, on every drag and every `update()`: the polar
  * angle between `minPolarAngle` and `maxPolarAngle`, the azimuth on the arc from
@@ -63,52 +62,21 @@ export function createOrbitCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): OrbitCameraControls {
-  const pose = controlPose(camera),
-    base = createControlBase()
-  const position = new Float64Array(3),
-    center = new Float64Array(3),
-    offset = new Float64Array(3),
-    spherical = new Float64Array(3),
-    orientation = new Float64Array(4),
-    facing = new Float64Array(4),
-    moved = new Float64Array(6),
-    bounds = new Float64Array(6),
-    applied = new Float64Array(6)
+  const core = createPivotControls(camera, surface)
+  const { base, pose, position, center, offset, orientation } = core
+  const spherical = new Float64Array(3),
+    /** Eye, pivot and orientation as last written, and as read back. */
+    written = new Float64Array(10),
+    seen = new Float64Array(10)
   let posed = false
-  const gate = createChangeGate(base, 6)
-  const height = () => surface.clientHeight || 1
   const sample = () => {
-    pose.readPosition(position)
-    readVector(center, api.target)
-    for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i]
-    toSpherical(spherical, offset)
-  }
-  const readBounds = () => {
-    bounds[0] = api.minDistance
-    bounds[1] = api.maxDistance
-    bounds[2] = api.minPolarAngle
-    bounds[3] = api.maxPolarAngle
-    bounds[4] = api.minAzimuthAngle
-    bounds[5] = api.maxAzimuthAngle
-  }
-  /**
-   * Whether the sampled pose — position and orientation — is the one last written, under the
-   * bounds it was written with; a host that only turned the camera is aimed back at the target.
-   * Re-clamping it would not be a no-op: an angle read back from a pose on a bound lands one
-   * ULP to either side of it, and a still scene would emit on every `update()`.
-   */
-  const still = () => {
-    readBounds()
-    if (!posed) return false
-    for (let i = 0; i < 3; i++)
-      if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false
-    if (!boxEquals(bounds, 0, applied, 0)) return false
-    return sameValues(pose.readOrientation(facing), orientation)
+    core.sample()
+    seen.set(position)
+    seen.set(center, 3)
+    seen.set(orientation, 6)
+    if (!posed || !sameValues(seen, written)) toSpherical(spherical, offset)
   }
   const apply = () => {
-    readBounds()
-    applied.set(bounds)
-    posed = true
     spherical[0] = keptDistance(api, spherical[0])
     spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
     spherical[2] = clampCompare(
@@ -117,24 +85,25 @@ export function createOrbitCameraControls(
       Math.min(api.maxPolarAngle, PI - POLAR_EPSILON),
     )
     fromSpherical(offset, spherical)
-    for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i]
-    pose.write(position, orbitOrientation(orientation, spherical))
-    writeVector(api.target, center)
-    moved.set(position)
-    moved.set(center, 3)
-    return gate(moved)
+    orbitOrientation(orientation, spherical)
+    const changed = core.apply()
+    written.set(position)
+    written.set(center, 3)
+    written.set(orientation, 6)
+    posed = true
+    return changed
   }
   const rotate = (dx: number, dy: number) => {
     sample()
-    spherical[1] -= (TAU * dx * api.rotateSpeed) / height()
-    spherical[2] -= (TAU * dy * api.rotateSpeed) / height()
+    spherical[1] -= (TAU * dx * api.rotateSpeed) / core.height()
+    spherical[2] -= (TAU * dy * api.rotateSpeed) / core.height()
     apply()
   }
   const panBy = (dx: number, dy: number) => {
     if (!api.enablePan) return
     sample()
     orbitOrientation(orientation, spherical)
-    panCenter(center, orientation, pose, spherical[0], height(), dx, dy)
+    panCenter(center, orientation, pose, spherical[0], core.height(), dx, dy)
     apply()
   }
   const dolly = (steps: number) => {
@@ -146,20 +115,15 @@ export function createOrbitCameraControls(
   let spinning = true
   const update = (delta = 0) => {
     sample()
-    const turn = spinning ? api.autoRotate * Math.max(0, delta) : 0
-    if (turn) spherical[1] += turn
-    else if (still()) return false
+    if (spinning) spherical[1] += api.autoRotate * Math.max(0, delta)
     return apply()
   }
-  // Unbounded angles by default: only the poles are out of reach.
-  const api: OrbitCameraControls = Object.assign(pivotControlsApi(base, pose, update), {
-    ...ORBIT_DEFAULTS,
-    update,
-  })
+  // Unbounded angles by default: only the poles are out of reach. The core's own contract,
+  // turned into the orbit's: its distance bounds are the ones `apply` reads.
+  const api: OrbitCameraControls = Object.assign(core.api, { ...ORBIT_DEFAULTS, update })
   const interrupt = () => void (spinning = false)
   base.listen(surface, 'pointerdown', interrupt)
   base.listen(surface, 'wheel', interrupt)
-  // A wheel notch is 5 % of the distance.
   trackPivotGestures(
     surface,
     base,

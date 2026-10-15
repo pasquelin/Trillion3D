@@ -55,7 +55,6 @@ test("a session's own loop: the frame waits for its pools' code, neither stepped
   const explorer = { render: () => (done.push('draw'), {}), resize() {} }
   const config = {
     manifestUrl: '',
-    ownControls: false,
     pixelRatio: 1,
     beforeFrame: () => done.push('step'),
   }

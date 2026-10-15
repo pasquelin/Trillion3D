@@ -59,6 +59,5 @@ export const sessionOptions = (
   pixelRatio: options.pixelRatio,
   signal: options.signal,
   importedLights: false,
-  ownControls: false,
   ...held,
 })
