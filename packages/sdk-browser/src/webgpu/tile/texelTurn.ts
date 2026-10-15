@@ -62,13 +62,11 @@ const programOf = oncePerDevice((device: GPUDevice) => {
 export const turnFlags = (map: Texture) =>
   (map.flipY ? TEXEL_FLIP : 0) | (map.premultiplyAlpha ? TEXEL_PREMULTIPLY : 0)
 
-/** Compiles off the thread, before the first picture turns, the turn program when one of
- *  `textures` is a host texture of raw texels to flip or premultiply; resolves once it has, a
- *  refused one compiled where it is used. */
+/** Compiles off the thread, before the first picture goes up, the turn program when one of
+ *  `textures` is a host texture of raw texels — every one goes up through it, turned or not;
+ *  resolves once it has, a refused one compiled where it is used. */
 export function prepareTexelTurn(device: GPUDevice, textures: readonly TileTexture[]) {
-  const turns = textures.some(
-    ({ source }) => source.kind === 'host' && turnFlags(source.map) && textureRgba(source.map),
-  )
+  const turns = textures.some(({ source }) => source.kind === 'host' && textureRgba(source.map))
   if (!turns) return Promise.resolve()
   return programOf(sharedGpuDevice(device))
     .pipeline.prepare()

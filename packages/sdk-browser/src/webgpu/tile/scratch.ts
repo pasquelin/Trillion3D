@@ -5,7 +5,6 @@ import type { MipChain } from '../../texture/mipGroups.ts'
 import { materialMipTexture } from '../../texture/mips.ts'
 import { mipLevelCountFor } from '../../texture/tiles.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
-import { writeRgba } from './write.ts'
 import { createTexelTurn, turnFlags, type TexelTurn } from './texelTurn.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
@@ -84,9 +83,8 @@ function scratchDescriptor({ width, height, format }: ScratchOptions): GPUTextur
 }
 
 /** Sends the picture as it is now into `texture`, its mips not built, under the host texture's
- *  `flipY` and `premultiplyAlpha`: the picture's last row lands at v = 0 (#362). Raw texels to turn
- *  go through `held.turned`, made at the first such picture; a turn is encoded in `encoder` when
- *  given. */
+ *  `flipY` and `premultiplyAlpha`: the picture's last row lands at v = 0 (#362). Raw texels go
+ *  through `held.turned`, made at the first picture; a turn is encoded in `encoder` when given. */
 function uploadPicture(
   device: GPUDevice,
   texture: GPUTexture,
@@ -99,13 +97,11 @@ function uploadPicture(
     const refusal = texelsRefusal(map)
     if (refusal) throw new Error(refusal)
     if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE')
-    // Turned on the GPU, never texel by texel here.
-    const flags = turnFlags(map)
-    if (!flags) writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height)
-    else {
-      held.turned ??= createTexelTurn(device, texture, width, height)
-      held.turned.upload(rgba.data, flags, encoder)
-    }
+    // One upload: the texels go up as they are and the GPU turn stores them into level 0, flipped
+    // and premultiplied as the texture asks — with neither, the same buffer-to-texture store a
+    // queue write makes, never texel by texel here.
+    held.turned ??= createTexelTurn(device, texture, width, height)
+    held.turned.upload(rgba.data, turnFlags(map), encoder)
   } else {
     const image = map.image as GPUCopyExternalImageSource | undefined
     if (!image) throw new Error(errorCode)
