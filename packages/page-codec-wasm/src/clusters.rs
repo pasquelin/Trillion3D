@@ -8,8 +8,9 @@
 //! (`split::bisect_least_cost`), at the rank that leaves each side a whole number of clusters: as
 //! few clusters as the caps allow, each a compact patch whatever the index order. Held to the
 //! source order (`keep_order`: the paint order of a blended surface, the coplanar layer of lines
-//! and sprites), the cut is the rank of least cost along that order: every cluster is a run of
-//! consecutive triangles, and a run that would reach across the mesh is cut where it jumps.
+//! and sprites), the cut is the rank of least cost along that order among those that leave each
+//! side whole clusters: every cluster is a run of consecutive triangles, as few as the caps allow,
+//! and a run that would reach across the mesh is cut where it jumps.
 //! A cluster lists its triangles in their source order; the result is the same on every build.
 //! `O(T log T)` for `T` triangles, whatever the size of the vertex buffer.
 use crate::encode::vertices::first_use;
@@ -84,13 +85,14 @@ pub fn cluster(positions: &[f32], indices: &[u32], caps: Caps, keep_order: bool)
             ends.push(out.len());
             continue;
         }
+        // As few clusters as the caps allow: `k`, each side of the cut a whole number of them.
+        let k = n
+            .div_ceil(caps.triangles)
+            .max(held.div_ceil(caps.vertices))
+            .max(2);
         let at = if keep_order {
-            cut_in_order(slice, &boxes)
+            cut_in_order(slice, &boxes, n.div_ceil(k))
         } else {
-            let k = n
-                .div_ceil(caps.triangles)
-                .max(held.div_ceil(caps.vertices))
-                .max(2);
             let at = ((n * (k / 2) + k / 2) / k).clamp(1, n - 1);
             bisect_least_cost(slice, &centres, |t| boxes[t], at);
             at
@@ -101,9 +103,11 @@ pub fn cluster(positions: &[f32], indices: &[u32], caps: Caps, keep_order: bool)
     Clustered { indices: out, ends }
 }
 
-/// The rank, in `part`'s own order, that cuts it in two at the least cost: each side's count times
-/// the squared diagonal of its boxes. A cost no number can say keeps the middle.
-fn cut_in_order(part: &[usize], boxes: &[Box3]) -> usize {
+/// The rank, in `part`'s own order, that cuts it in two at the least cost — each side's count times
+/// the squared diagonal of its boxes — among the multiples of `unit`, the size of a whole cluster:
+/// the runs stay as few as the caps allow, and the cut still falls where the order jumps. A cost
+/// no number can say keeps the middle multiple.
+fn cut_in_order(part: &[usize], boxes: &[Box3], unit: usize) -> usize {
     let join = |(low, high): Box3, (l, h): Box3| -> Box3 {
         (
             [0, 1, 2].map(|k| low[k].min(l[k])),
@@ -116,9 +120,14 @@ fn cut_in_order(part: &[usize], boxes: &[Box3]) -> usize {
     for i in (0..n).rev() {
         after[i] = join(after[i + 1], boxes[part[i]]);
     }
-    let (mut before, mut best) = (empty, (f64::INFINITY, n / 2));
+    let unit = unit.clamp(1, n - 1);
+    let middle = (n / 2 / unit).max(1) * unit;
+    let (mut before, mut best) = (empty, (f64::INFINITY, middle.min(n - 1)));
     for at in 1..n {
         before = join(before, boxes[part[at - 1]]);
+        if !at.is_multiple_of(unit) {
+            continue;
+        }
         let side = |count: usize, (low, high): Box3| count as f64 * distance2(high, low);
         let cost = side(at, before) + side(n - at, after[at]);
         if cost < best.0 {
