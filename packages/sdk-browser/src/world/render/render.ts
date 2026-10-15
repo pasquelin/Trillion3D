@@ -28,7 +28,8 @@ type Inputs = {
   /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
   frameBudget: FrameClock
   drawFrame: () => void
-  fillMetrics: () => void
+  /** Fills the frame's metrics; returns the queue's numbers it read (`streamer.stats()`). */
+  fillMetrics: () => ReturnType<PageStreaming['stats']>
   metricsScratch: FrameMetrics
   profiler: EngineProfiler
   pageIdByUrl: Map<string, number>
@@ -64,7 +65,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     engine.cpuStep('arrivalsMs', msSince(arrivalStart))
     // The engine draws and presents its own surface; an error is the caller's, never hidden.
     drawFrame()
-    fillMetrics()
+    const stream = fillMetrics()
     const frameEnd = cpuNow()
     metricsScratch.cpuFrameMs = frameEnd - start
     engine.frameCpuMs(metricsScratch.cpuFrameMs)
@@ -83,6 +84,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
       metricsScratch,
       pageIdByUrl,
       streamer,
+      stream,
       scope,
       frameNumber,
       diagnose,

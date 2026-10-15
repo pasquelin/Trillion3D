@@ -55,6 +55,7 @@ function harness(options: {
     },
     fillMetrics: () => {
       metricsScratch.totalSubmittedTriangles = options.counted ?? null
+      return { resident: 0, evictions: 0 } as never
     },
     metricsScratch,
     profiler: { record: (metrics: unknown) => options.recorded?.push(metrics) } as never,
