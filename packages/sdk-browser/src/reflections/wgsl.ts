@@ -106,7 +106,7 @@ const reflectionSeenWgsl = (group: number) =>
  * α along it (`w`; `alpha` on a round lobe): the material's anisotropic GGX parameters
  * (`reflectionLobeOf`). It leaves in `reflectionHit` the distance of what answered the larger share
  * of it — the screen's hit or the proxy's —, `REFLECTION_FAR` where the field and the environment
- * did: what the temporal accumulation reprojects a mirror's reflection by (`temporalWgsl.ts`).
+ * did: what the spatial reuse reaches by (`reflectionReuseReach`, `spatialWgsl.ts`).
  * The lobe's centre, the mirror direction about `N`, is `reflectionCentreRadiance` (`sampleWgsl.ts`).
  * With `scene`, the proxy's bindings, the chain holds the proxy's stage; without, it has none.
  */

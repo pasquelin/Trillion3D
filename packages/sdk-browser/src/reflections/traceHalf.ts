@@ -36,7 +36,8 @@ import { reflectionShareWgsl } from './weight.ts'
  *    lets a ray go), then the probes' field and the environment. It writes the fresh texel whole: the
  *    pixel it traced, the distance of what answered and its reuse radius (`texelWgsl.ts`).
  * 2. SPATIAL (`spatialWgsl.ts`): a glossy texel averages its ray with its sampled neighbours' on the same
- *    surface, depth and normal weighted, over a radius that grows with the roughness.
+ *    surface, depth and normal weighted, as far as the lobe's width at the rays' hits covers the
+ *    distance between them (`reflectionReuseReach`).
  * 3. TEMPORAL (`temporalWgsl.ts`): each texel blends its fresh radiance with its history reprojected
  *    through the last image's view-projection (a mirror by its reflection's virtual point), rejected by
  *    depth and normal, clamped to the fresh neighbourhood on an image drawn for a change, frozen once a
@@ -118,9 +119,10 @@ fn traceTexel(block:vec2u,layer:u32)->vec4u{
  let coord=halfPixel(vec2i(block),pick);
  let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
  let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(block,layer));
- // A sampled lobe's ray is shared with the neighbours a rougher one reaches; a mirror's is its own.
- let reach=min(REFLECTION_REUSE_RADIUS,u32(ceil(f32(REFLECTION_REUSE_RADIUS)*own.rough)));
- return freshPack(traced,reflectionHit,pick,select(0u,reach,reflectionSampled(lobeAlpha(own.rough))));
+ // A sampled lobe's ray is shared as far as its width at its hit covers; a mirror's is its own.
+ let reach=reflectionReuseReach(own.P,lobeAlpha(own.rough),reflectionHit);
+ let radius=u32(min(0.5*reach,f32(REFLECTION_REUSE_RADIUS)));
+ return freshPack(traced,reflectionHit,pick,select(0u,radius,reflectionSampled(lobeAlpha(own.rough))));
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn traceSurface(@builtin(global_invocation_id) id:vec3u){
