@@ -102,7 +102,7 @@ export function createPageStreamer(
   const reads = createStreamingQueue(context, transfer, streaming)
   const { forget, keep } = reads
   const { read, watch } = createReadWatch(reads.subscribe)
-  const readBytes = (url: string, signal: AbortSignal, priority = 0) => {
+  const readBytes = (url: string, signal: AbortSignal, priority?: number) => {
     state.requested++
     return read(url, signal, priority)
   }
@@ -157,7 +157,7 @@ export function createPageStreamer(
         requested: urls.length,
         unique: unique.length,
       }))
-      const { signal, priority = 1, onPage } = options
+      const { signal, priority, onPage } = options
       const landed = await Promise.allSettled(
         unique.map((url) => read(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
       )

@@ -1,4 +1,5 @@
 import type { Job, StreamContext } from './types.ts'
+import { PRIORITY_VISIBLE } from './priority.ts'
 import type { Landed } from './fetch.ts'
 import { waitShared } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import { createPump } from './queueTransfer.ts'
@@ -38,7 +39,8 @@ export function createStreamingQueue(
   const subscribe = (
     url: string,
     requestSignal: AbortSignal,
-    priority = 1,
+    // The one default of every read (`readBytes`, `request`, `subscribe`): a visible page's.
+    priority = PRIORITY_VISIBLE,
   ): Promise<Uint8Array> => {
     emit?.('page-request', 'Page request received', () => ({ version: 1, url, priority }))
     if (state.disposed || abort.signal.aborted)
