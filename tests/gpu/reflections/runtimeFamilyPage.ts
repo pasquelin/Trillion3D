@@ -1,7 +1,6 @@
 // The page of the run-time proxy's family proof: the world of one case (`runtimeFamilyWorld.ts`) drawn until
 // it is held — a moving case moved and held again —, the reflection target the engine wrote read back at a
 // grid of its pixels, and the frames timed.
-import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { proofCanvas } from '../kit/renderHarness.ts'
 import { animationFrame } from '../kit/frame.ts'
 import { lastFrameOf } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
@@ -10,6 +9,7 @@ import { readTexture } from '../kit/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
 import { familyCase, GRID } from './runtimeFamilyCases.ts'
 import { familyWorld } from './runtimeFamilyWorld.ts'
+import { rgbAt } from './rigFrame.ts'
 
 export type FamilyReading = {
   width: number
@@ -57,10 +57,7 @@ async function draw(index: number, limit: number) {
   const half = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2)
   const samples: number[] = []
   for (let j = GRID >> 1; j < height; j += GRID)
-    for (let i = GRID >> 1; i < width; i += GRID) {
-      const at = (j * width + i) * 4
-      samples.push(fromHalf(half[at]), fromHalf(half[at + 1]), fromHalf(half[at + 2]))
-    }
+    for (let i = GRID >> 1; i < width; i += GRID) samples.push(...rgbAt(half, j * width + i))
   world.dispose()
   canvas.remove()
   return {
