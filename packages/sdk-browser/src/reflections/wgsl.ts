@@ -20,10 +20,10 @@
  *   as radiance, the last word.
  *
  * Every confidence is continuous in what it reads: a stage whose share of the radiance is left under
- * `REFLECTION_EPSILON` is not evaluated. In the trace, whose images the history averages, the screen's
- * confidence is taken whole or not at all, as often as it holds (`reflectionDither`, a hash of the
- * point, the ray and the image's turn): its mean over the images is the continuous chain's, and the
- * proxy walks for the rays the screen leaves alone, never for the sliver a sure hit leaves, and no
+ * `REFLECTION_EPSILON` is not evaluated. The screen's confidence, in every program, is taken whole or
+ * not at all, as often as it holds (`reflectionDither`, a hash of the point, the ray and the image's
+ * turn): its mean over the images — the trace's history, the temporal accumulation over the forward
+ * fragments — is the continuous chain's, and the proxy walks for the rays the screen leaves alone, never for the sliver a sure hit leaves, and no
  * further than the surface the screen met (`bound`). The chain reads no history of its own, so two
  * images of a still view — its turn held — give the same bits.
  *
@@ -132,7 +132,7 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       REFLECTION_PROBES_WGSL,
       REFLECTION_CONE_WGSL,
       LOBE_AXIS_WGSL,
-      ...(scene ? [mixWord] : []),
+      mixWord,
     ],
     `var<private> reflectionHit:f32;
 var<private> reflectionDirection:vec3f;
@@ -143,15 +143,11 @@ fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<fu
  if(*rest>0.5&&*rest*(1.0-answer.confidence)<=0.5){reflectionHit=answer.distance;}
  *rest*=1.0-answer.confidence;
 }
-${
-  scene
-    ? `fn reflectionDither(P:vec3f,R:vec3f)->f32{
+fn reflectionDither(P:vec3f,R:vec3f)->f32{
  let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^reflectionView.temporal.x))));
  return f32(w>>8u)*${wgslF32(2 ** -24)};
 }
-`
-    : ''
-}fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
+fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
  var rest=1.0;
@@ -162,13 +158,14 @@ ${scene ? ' var bound=REFLECTION_FAR;\n' : ''} if(reflectionView.traced.x!=0u&&d
   var onScreen=reflectionSeen(P,N,ellipse,pixel,2.0*reflectionConeTangent(width));
 ${
   scene
-    ? `  // Taken whole or not at all, as often as it is sure: the proxy walks for a miss alone, never for the
-  // sliver a sure hit leaves, and no further than the surface the screen met.
+    ? `  // The proxy walks no further than the surface the screen met.
   if(onScreen.confidence>0.0){bound=onScreen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+R*onScreen.distance);}
-  onScreen.confidence=select(0.0,1.0,reflectionDither(P,R)<onScreen.confidence);
 `
     : ''
-}  reflectionTake(onScreen,&radiance,&rest);
+}  // Taken whole or not at all, as often as it is sure: the next stages answer a miss alone, never the
+  // sliver a sure hit leaves.
+  onScreen.confidence=select(0.0,1.0,reflectionDither(P,R)<onScreen.confidence);
+  reflectionTake(onScreen,&radiance,&rest);
  }
  // @cut screen -> radiance+vec3f(rest) keep: ;
 ${
