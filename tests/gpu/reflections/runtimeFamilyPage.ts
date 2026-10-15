@@ -7,7 +7,8 @@ import { lastFrameOf } from '../../../packages/sdk-browser/src/world/core/worldS
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
-import { familyCase, GRID } from './runtimeFamilyCases.ts'
+import { familyCase, gridPixels } from './runtimeFamilyCases.ts'
+import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import { familyWorld } from './runtimeFamilyWorld.ts'
 import { rgbAt } from './rigFrame.ts'
 
@@ -53,11 +54,9 @@ async function draw(index: number, limit: number) {
   const target = latestMade(textures, (label) => /^Trillion3D reflection( @t3d:\d+)?$/.test(label))
   if (!target) throw new Error(`no reflection target among ${[...textures.keys()].join(' | ')}`)
   const { width, height } = target
-  const raw = await readTexture(canvasDevice(canvas), target, 8)
+  const raw = await readTexture(canvasDevice(canvas), target, texelBytesOf(target.format))
   const half = new Uint16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2)
-  const samples: number[] = []
-  for (let j = GRID >> 1; j < height; j += GRID)
-    for (let i = GRID >> 1; i < width; i += GRID) samples.push(...rgbAt(half, j * width + i))
+  const samples = gridPixels(width, height).flatMap(([i, j]) => rgbAt(half, j * width + i))
   world.dispose()
   canvas.remove()
   return {

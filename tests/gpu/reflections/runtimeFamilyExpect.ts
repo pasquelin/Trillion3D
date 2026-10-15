@@ -11,7 +11,7 @@ import { REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflec
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import { halton } from '../../../packages/math/src/sequence/halton.ts'
-import { GRID, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
+import { gridPixels, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
 import { crossings, radiance, type Vec } from './runtimeFamilyRays.ts'
 
 /**
@@ -72,54 +72,52 @@ export function expectedFloor(
   const mirror = (d: Vec): Vec => [d[0], -d[1], d[2]]
   const rough = c.floor.roughness
   const out: Decided[] = []
-  let index = 0
-  for (let j = GRID >> 1; j < height; j += GRID)
-    for (let i = GRID >> 1; i < width; i += GRID, index++) {
-      const here = floorPoint(primary(i, j))
-      if (!here) continue
-      const first = (p: Vec, d: Vec) => radiance(c, p, mirror(d)).first
-      const own = first(here, primary(i, j))
-      let rim = false
-      for (const [di, dj] of [
-        [-1, 0],
-        [1, 0],
-        [0, -1],
-        [0, 1],
-      ]) {
-        const d = primary(i + di, j + dj),
-          p = floorPoint(d)
-        if (!p || first(p, d) !== own) rim = true
-      }
-      if (rim) continue
-      const d = primary(i, j),
-        v: Vec = [-d[0], -d[1], -d[2]],
-        nov = v[1]
-      const alpha = Math.max(rough * rough, 1e-4)
-      const total: Rgb = [0, 0, 0]
-      const count = reflectionSampled(alpha) ? lobeSamples : 1
-      for (let k = 0; k < count; k++) {
-        // The half vector of the lobe's D·cosθ, on a Hammersley set.
-        const u = (k + 0.5) / count
-        const cosT = count === 1 ? 1 : Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
-          sinT = Math.sqrt(1 - cosT * cosT),
-          phi = TAU * halton(k, 2)
-        // The eye's direction mirrored about the half vector: the light's.
-        const l = reflect(scale(v, -1), [sinT * Math.cos(phi), cosT, sinT * Math.sin(phi)])
-        if (l[1] <= 0) continue
-        const { rgb } = radiance(c, here, l)
-        for (let m = 0; m < 3; m++) total[m] += rgb[m] / count
-      }
-      const f0 = c.floor.metal ? 1 : 0.04,
-        w = splitSum(f0, rough, nov)
-      out.push({
-        index,
-        expected: total.map((e) => e * w) as Rgb,
-        at: [i, j],
-        hit: own,
-        point: here,
-        view: v,
-      })
+  for (const [index, [i, j]] of gridPixels(width, height).entries()) {
+    const here = floorPoint(primary(i, j))
+    if (!here) continue
+    const first = (p: Vec, d: Vec) => radiance(c, p, mirror(d)).first
+    const own = first(here, primary(i, j))
+    let rim = false
+    for (const [di, dj] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
+      const d = primary(i + di, j + dj),
+        p = floorPoint(d)
+      if (!p || first(p, d) !== own) rim = true
     }
+    if (rim) continue
+    const d = primary(i, j),
+      v: Vec = [-d[0], -d[1], -d[2]],
+      nov = v[1]
+    const alpha = Math.max(rough * rough, 1e-4)
+    const total: Rgb = [0, 0, 0]
+    const count = reflectionSampled(alpha) ? lobeSamples : 1
+    for (let k = 0; k < count; k++) {
+      // The half vector of the lobe's D·cosθ, on a Hammersley set.
+      const u = (k + 0.5) / count
+      const cosT = count === 1 ? 1 : Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
+        sinT = Math.sqrt(1 - cosT * cosT),
+        phi = TAU * halton(k, 2)
+      // The eye's direction mirrored about the half vector: the light's.
+      const l = reflect(scale(v, -1), [sinT * Math.cos(phi), cosT, sinT * Math.sin(phi)])
+      if (l[1] <= 0) continue
+      const { rgb } = radiance(c, here, l)
+      for (let m = 0; m < 3; m++) total[m] += rgb[m] / count
+    }
+    const f0 = c.floor.metal ? 1 : 0.04,
+      w = splitSum(f0, rough, nov)
+    out.push({
+      index,
+      expected: total.map((e) => e * w) as Rgb,
+      at: [i, j],
+      hit: own,
+      point: here,
+      view: v,
+    })
+  }
   return out
 }
 
