@@ -62,8 +62,7 @@ fn vsmTransmissionRelease(index:u32,slice:u32){
  if((redrawn||!allocated)&&b!=${NO_INDEX}u){
   table[key]=${NO_INDEX}u;
   for(var n=0u;n<VSM_T_CHAIN&&b<frame.blocks;n++){
-   let at=atomicAdd(&pool[0],1u);
-   atomicStore(&pool[2u+at],b);
+   vsmTBlocksPush(b);
    b=links[b];
   }
   if(!redrawn){atomicStore(&build[VSM_T_DIRTY+atomicAdd(&build[VSM_TC_DIRTY],1u)],key);}

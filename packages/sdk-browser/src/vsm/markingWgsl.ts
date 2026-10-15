@@ -526,12 +526,10 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
   let hasMargin=VSM_MARK_MARGIN>0.0;
   let marginOffset=VSM_MARK_MARGIN*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
-  let cell=pixelCell(vec2f(localPosition)+0.5,deviceZ);
-  if(cell==TILE_NO_SLICE){return;}
-  let slice=cellSlice(cell);
+  // The lighting's one rule of a missing list (`cellSlice`): every light, as the resolve walks.
+  let slice=cellSlice(pixelCell(vec2f(localPosition)+0.5,deviceZ));
   for(var index=0u;index<slice.y;index++){
-   var lightIndex=index;
-   if(slice.x!=TILE_NO_SLICE){lightIndex=tileLights[slice.x+index];}
+   let lightIndex=listedLight(slice,index);
    let handle=vsmHandleFromId(bitcast<u32>(vsmLightIds[lightIndex]));
    if(!vsmHandleIsValid(handle)){continue;}
    let light=directLights.items[lightIndex];
@@ -543,8 +541,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
    // The source radius: a point/spot's emitter radius, a rect's half width.
    let sourceRadius=select(light.shape.x,length(light.shape.xyz),rect);
    if(backfaceCull&&vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)){continue;}
-   let spot=abs(light.params.x-KIND_SPOT)<0.5;
-   vsmMarkPageLocal(lightShiftedPosition,!spot,handle,shiftedPosition,sceneDepth,hasMargin,marginOffset);
+   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset);
   }
  }
 }

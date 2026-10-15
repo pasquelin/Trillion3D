@@ -71,9 +71,9 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     tileDepths: maxPages * VSM_TILE_DEPTHS_PER_PAGE * 4,
     clearArgs: 16,
     tileArgs: 2 * 16,
-    // The pool sort's words, the free pages' count and the pages, then the sort's scratch, the
-    // whole pool a burst (`freePages`).
-    freePages: (POOL_SORT_WORDS + 1 + maxPages + poolScratchWords(maxPages, maxPages)) * 4,
+    // The pool sort's words, the free pages' count, their shortfall and the pages, then the sort's
+    // scratch, the whole pool a burst (`freePages`).
+    freePages: (POOL_SORT_WORDS + 2 + maxPages + poolScratchWords(maxPages, maxPages)) * 4,
   }
 }
 

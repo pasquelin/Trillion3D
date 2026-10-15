@@ -1,4 +1,5 @@
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
+import { freeStackWgsl } from './freePagesWgsl.ts'
 import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
@@ -163,13 +164,16 @@ export const VSM_T_COMMAND_GROUP_WGSL = wgslConst(
 )
 
 /** The persistent tables, group \`group\` from binding \`first\`: page × slice → first block, the
- *  block pool [free count, spare, free blocks…], each block's next in its chain. */
+ *  block pool [free count, spare, free blocks…] — the shadow pools' one free stack
+ *  (\`freeStackWgsl\`), a short take counted in the host's \`build\` words (\`blocksShort\`) —, each
+ *  block's next in its chain. */
 export const transmissionTablesWgsl = (group: number, first: number) =>
   wgslBlock(
     `transmissionTables(${group}, ${first})`,
-    [],
+    [freeStackWgsl('vsmTBlocks', 'pool', '0u', '2u')],
     `
 @group(${group}) @binding(${first}) var<storage,read_write> table:array<u32>;
 @group(${group}) @binding(${first + 1}) var<storage,read_write> pool:array<atomic<u32>>;
-@group(${group}) @binding(${first + 2}) var<storage,read_write> links:array<u32>;`,
+@group(${group}) @binding(${first + 2}) var<storage,read_write> links:array<u32>;
+fn vsmTBlocksShort(n:u32){atomicAdd(&build[VSM_TC_BLOCKSSHORT],n);}`,
   )
