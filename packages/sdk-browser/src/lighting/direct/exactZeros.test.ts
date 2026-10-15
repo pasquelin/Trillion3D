@@ -21,7 +21,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
-  /var transmitted=vec3f\(0\.0\);\n if\(any\(thinSubsurface!=vec3f\(0\.0\)\)\)\{transmitted=(thinSubsurface\*thinTransmission\([^;]*\));\}/
+  /var transmitted=vec3f\(0\.0\);\n if\(thinSurface\(\)\)\{transmitted=(thinSubsurface\*thinTransmission\([^;]*\));\}/
 const EARLY = /\n if\(NdotL==0\.0\)\{return vec3f\(0\.0\);\}/
 /** Develop's text: the thin skip, the early zero, or both undone. */
 const UNDO = {
@@ -39,6 +39,7 @@ const NAMES = [
   'isRect',
   'modelLight',
   'thinTransmission',
+  'thinSurface',
   'lambertAlbedoMul',
   'lobeThrough',
   'coatCosine',

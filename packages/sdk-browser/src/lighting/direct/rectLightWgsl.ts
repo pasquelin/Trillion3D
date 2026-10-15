@@ -119,7 +119,7 @@ fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLo
 )
 
 /** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
- *  included: the diffuse of its exact irradiance, the specular of its fitted lobe (\`rectBase\`,
+ *  included, its view \`r\` from the point (\`rectView\`): the diffuse of its exact irradiance, the specular of its fitted lobe (\`rectBase\`,
  *  stretched where the pixel's lobes skew it), under what a coat lets through, plus the coat's
  *  fitted lobe (\`rectCoat\`) — a lobeless program's hooks the plain lobe, one and zero
  *  (\`lobesWgsl.ts\`). Its view of the rectangle serves the coat and the base. */
@@ -144,8 +144,7 @@ fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
  return ltcSplitSum(f0,rough,NdotV)*lobe;
 }
-fn rectLight(light:DirectLight,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- let r=rectView(light,P);
+fn rectLight(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,ao:f32)->vec3f{
  let tint=light.colorIntensity.rgb;
  // The coat lights from its own normal, whatever the base's face: zero without lobes (\`rectCoat\`).
  let coat=rectCoat(r,V,light.colorIntensity.w)*tint;

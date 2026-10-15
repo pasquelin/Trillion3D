@@ -1,5 +1,4 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
-import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 
@@ -47,7 +46,7 @@ export const declaredLightWgsl = (
     surface = term === 'surface'
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
-    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(key.rectless || !surface ? [] : [INVERSE_PI])],
+    pair ? [LIGHT_PAIR_WGSL] : [],
     surface
       ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
@@ -55,7 +54,7 @@ export const declaredLightWgsl = (
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`).
  var transmitted=vec3f(0.0);
- if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
+ if(thinSurface()){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
@@ -128,19 +127,22 @@ const terms = (pair: boolean, of: (rgb: string, metal: string, shading: string) 
     ? `LightPair(${of('rgb', 'metal', 'shading')},${of('vec3f(0.0)', '0.0', 'dielectric')})`
     : of('rgb', 'metal', 'shading')
 
-/** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. */
+/** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. Its
+ *  view from the point serves its front and, on a thin surface, its back (\`thinTransmission\` of
+ *  the back's irradiance, as a punctual light's). */
 const rectBranch = (pair: boolean) => `
  if(isRect(light)){
+  let r=rectView(light,P);
   var transmitted=vec3f(0.0);
-  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*INVERSE_PI*light.colorIntensity.rgb*light.colorIntensity.w;}
-  return ${terms(pair, (rgb, metal, shading) => `rectLight(light,${shading},${rgb},${metal},rough,N,V,P,ao)+transmitted`)};
+  if(thinSurface()){transmitted=thinSubsurface*thinTransmission(-rectIrradianceOf(r,-N).w,light.colorIntensity.w)*light.colorIntensity.rgb;}
+  return ${terms(pair, (rgb, metal, shading) => `rectLight(light,r,${shading},${rgb},${metal},rough,N,V,ao)+transmitted`)};
  }`
 
 const shadeStatement = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
  // trace is skipped (\`shadowFactor\`). Toon bands light it.
  let toward=normalize(incidence.xyz);
- let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
+ let back=thinSurface()&&dot(N,incidence.xyz)<0.0;
  let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
  let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,shadowBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
  if(shade<=0.0){return ${zero(pair)};}`

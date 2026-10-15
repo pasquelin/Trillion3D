@@ -68,7 +68,7 @@ const BOUNCE_SURFACE_WGSL = wgslBlock(
   'BOUNCE_SURFACE_WGSL',
   [BOUNCE_APPLY_WGSL, FULLSCREEN_VERTEX, ...contractSurface(true)],
   `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
- if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
+ if(!thinSurface()){return vec3f(0.0);}
  return bounceLighting(thinSubsurface,0.0,-N,P,ao);
 }`,
 )

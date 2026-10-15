@@ -79,7 +79,7 @@ fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  var r:VsmPixel;
  r.pos=vsmTracePixel;
  r.inRect=true;
- r.info=VsmSurfaceInfo(true,any(thinSubsurface>vec3f(0.0)),n,n);
+ r.info=VsmSurfaceInfo(true,thinSurface(),n,n);
  r.shifted=(P+vsmView.originShiftHigh)+vsmView.originShiftLow;
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*r.sceneDepth)+vsmView.screenRayScale.zw).y;

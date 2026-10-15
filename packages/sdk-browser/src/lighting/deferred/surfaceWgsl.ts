@@ -78,7 +78,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,cell);
  var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb);
- if(any(thinSubsurface>vec3f(0.0))){rgb+=${thin}environmentLighting(thinSubsurface,0.0,-N,emissive.a);}${CAMERA_FOG}
+ if(thinSurface()){rgb+=${thin}environmentLighting(thinSubsurface,0.0,-N,emissive.a);}${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

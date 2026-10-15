@@ -93,6 +93,7 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       'ggxDistribution',
       'modelLight',
       'thinTransmission',
+      'thinSurface',
       // The maths library's, which the lobe and the lamp's diffuse call.
       'ndotvClamped',
       'f0Of',

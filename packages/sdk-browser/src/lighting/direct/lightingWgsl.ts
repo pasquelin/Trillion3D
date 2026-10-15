@@ -118,6 +118,8 @@ export const lightingBase = (
     ],
     `
 var<private> thinSubsurface:vec3f=vec3f(0.0);
+/** Whether the surface is thin and two-sided, the one test every term of its back reads. */
+fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}
 /** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
  * A Lambert lobe on the back side: the light that reaches the surface from behind, as the two-sided foliage contract asks. */
 fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*INVERSE_PI;}
