@@ -30,7 +30,7 @@ export const BOUNCE_LIGHT_CELL_WGSL = wgslBlock(
   `
 fn bounceLightSlice(P:vec3f)->vec2u{
  let start=bounce.lists.x;
- if(bounce.counts.y==0u||start==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
+ if(bounce.counts.y==0u||start==TILE_NO_SLICE){return cellSlice(TILE_NO_SLICE);}
  let last=bounce.counts.y-1u;
  let side=bounce.counts.x;
  let at=floor((P-bounceLevelLow(last))/bounce.levels[last].spacing);

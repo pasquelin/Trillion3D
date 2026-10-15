@@ -13,7 +13,7 @@ import { bindingsLabel, lightingBase, type LightingBindings } from './lightingWg
  * the number of lights walked, hence the number of shadow-atlas reads.
  *
  * With no list — a device that could not fit the grid pass, or a pixel past the grid —, the loop
- * falls back on the declared lights, every one of them.
+ * walks every declared light, the one rule of the opaque resolve too (`cellSlice`).
  *
  * With `pair`, `declaredLightingPair`: the two sums of one walk, on the surface and on a null
  * albedo (`declaredLightWgsl`), each that of its own walk bit for bit — the water lights its pixel
@@ -36,10 +36,7 @@ export const declaredLightingWgsl = (
     [lightingBase(bindings, key, { pair })],
     `
 fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{
- let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
  vsmTraceAt(pixel);
- var slice=vec2u(TILE_NO_SLICE,directLights.count);
- if(cell!=TILE_NO_SLICE){slice=cellSlice(cell);}
- return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,slice);
+ return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
 }`,
   )

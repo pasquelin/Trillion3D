@@ -57,5 +57,9 @@ test("cellShadowed reads its cell count's high bit: set where the list holds a s
     [0, 1, 2].map((cell) => cellShadowed(cell * K.TILE_STRIDE)),
     [false, true, false],
   )
-  assert.equal(cellShadowed(K.TILE_NO_SLICE), false, 'past the grid, or no light')
+  assert.equal(
+    cellShadowed(K.TILE_NO_SLICE),
+    true,
+    'no list: every light walked, the shadow set up',
+  )
 })

@@ -34,5 +34,5 @@ test('every listed cell, shadowed or not, takes the full sum of its list', () =>
   for (const cell of [0, 3, 0x80000002]) contractLighting(0, 0, 0, 0, 0, 0, 0, cell)
   assert.deepEqual(sums, [[0], [3], [0x80000002]])
   contractLighting(0, 0, 0, 0, 0, 0, 0, K.TILE_NO_SLICE)
-  assert.equal(sums.length, 3, 'a pixel with no list sums nothing')
+  assert.deepEqual(sums[3], [K.TILE_NO_SLICE], 'a pixel with no list walks every light')
 })

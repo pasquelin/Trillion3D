@@ -21,8 +21,8 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
  * The mask carries the opaque shadow from the receiver the projection read
  * (`vsm/projectionWgsl.ts`): without translucent casters nothing reads the rest, so a pixel loads
  * no receiver offset.
- * Set only where the pixel's cell lists a shadowed light (`cellShadowed`): nothing else reads
- * it.
+ * Set only where the pixel's cell lists a shadowed light, or has no list and walks every light
+ * (`cellShadowed`): nothing else reads it.
  */
 const SHADOW_SETUP_WGSL = wgslBlock(
   'SHADOW_SETUP_WGSL',

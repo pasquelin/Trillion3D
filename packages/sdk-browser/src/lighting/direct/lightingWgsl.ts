@@ -32,8 +32,11 @@ export const TILE_SLICE_WGSL = wgslBlock(
   [],
   `
 /** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
- *  many (#1369). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+ *  many (#1369). The one rule of a missing list, for every reader: \`TILE_NO_SLICE\` — no grid this
+ *  image, a pixel past it, or a cell the pool had no room for — walks every declared light of the
+ *  scene, a light no list holds reaching no point of the cell, so the sum is the listed one. */
 fn cellSlice(base:u32)->vec2u{
+ if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }`,
@@ -48,15 +51,13 @@ export const pixelCellWgsl = (shadowed = true) =>
     `pixelCellWgsl(${shadowed})`,
     [],
     `
-/** The record of the pixel's cell at depth \`z\`, \`TILE_NO_SLICE\` with no list: no light, or past
- *  the grid. The surface reads it once, for its shadow setup and its lighting. */
-fn pixelCell(pixel:vec2f,z:f32)->u32{
- if(u32(view.lightParams.x)==0u){return TILE_NO_SLICE;}
- return gridCell(pixel,z,vec2u(view.lightParams.yz));
-}
+/** The record of the pixel's cell at depth \`z\` on the deferred view's grid, \`TILE_NO_SLICE\` with
+ *  no list (\`cellSlice\`): the view's columns are zero on an image whose lists were not encoded.
+ *  The surface reads it once, for its shadow setup and its lighting. */
+fn pixelCell(pixel:vec2f,z:f32)->u32{return gridCell(pixel,z,vec2u(view.lightParams.yz));}
 /** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
- *  of its count. */
-fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`,
+ *  of its count; with no list, every light is walked, so the shadow is set up. */
+fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell==TILE_NO_SLICE||(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`,
   )
 /**
  * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
@@ -175,10 +176,9 @@ export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
       pixelCellWgsl(!key.unshadowed),
     ],
     `
-/** Contribution of the contract lights to the pixel, light by light of its cell's list: the full
- *  sum, moving or still. */
+/** Contribution of the contract lights to the pixel, light by light of its cell's list (every light
+ *  with none, \`cellSlice\`): the full sum, moving or still. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,cell:u32)->vec3f{
- if(cell==TILE_NO_SLICE){return vec3f(0.0);}
  return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(cell));
 }`,
   )
