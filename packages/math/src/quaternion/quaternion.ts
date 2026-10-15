@@ -190,44 +190,6 @@ export function turnByAngularVelocity(
   )
 }
 
-/**
- * The angular velocity that turns the quaternion at `a[ai]` into the one at `b[bi]` in the time
- * `time`, about one axis at one rate along their shorter arc (`arc[arcAt]`, their `slerpArc`),
- * into `out` at `outAt`: the axis of `b ⊗ a⁻¹` at the rate `2A / time`, `A` the arc's angle — the
- * velocity `turnByAngularVelocity` goes on along that arc with, as `slerpOnArc` past its end. Where
- * the arc is a line (its sine under 1e-6, `slerpOnArc`'s threshold), its limit `2 (b ⊗ a⁻¹)_xyz /
- * time`.
- */
-export function arcAngularVelocity(
-  out: Float64Array,
-  outAt: number,
-  a: ArrayLike<number>,
-  ai: number,
-  b: ArrayLike<number>,
-  bi: number,
-  arc: ArrayLike<number>,
-  arcAt: number,
-  time: number,
-) {
-  const ax = a[ai],
-    ay = a[ai + 1],
-    az = a[ai + 2],
-    aw = a[ai + 3],
-    bx = b[bi],
-    by = b[bi + 1],
-    bz = b[bi + 2],
-    bw = b[bi + 3]
-  const sign = arc[arcAt],
-    angle = arc[arcAt + 1],
-    sin = arc[arcAt + 2],
-    scale = (sign * (sin < 1e-6 ? 2 : (2 * angle) / sin)) / time
-  // The vector part of b ⊗ conj(a): the turn's axis times sin A, signed to the shorter arc.
-  out[outAt] = (aw * bx - bw * ax - (by * az - bz * ay)) * scale
-  out[outAt + 1] = (aw * by - bw * ay - (bz * ax - bx * az)) * scale
-  out[outAt + 2] = (aw * bz - bw * az - (bx * ay - by * ax)) * scale
-  return out
-}
-
 /** The arc `slerpQuaternion` follows, rewritten per call. */
 const arcOf = new Float64Array(3)
 
