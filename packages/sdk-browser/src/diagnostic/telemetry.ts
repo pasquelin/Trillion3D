@@ -1,90 +1,66 @@
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
-import type { FrameProfile } from './frameProfile.ts'
-import { debugMode, setDebugMode } from '../host/debugMode.ts'
-import { families } from '../host/families.ts'
+import { formatFrameReport, frameReport } from './frameProfile.ts'
+import { setDebugMode } from '../host/debugMode.ts'
 import { log } from './log.ts'
 
-/** What the report says before the debug code has arrived. */
-const WAITING = 'Waiting for the debug code'
-/** The report before the debug code has arrived: no frame counted, nothing measured. */
-const waitingReport = (): TelemetryReport => ({
-  timestamp: Date.now(),
-  fps: null,
-  p50Ms: null,
-  p95Ms: null,
-  p99Ms: null,
-  stutters: null,
-  cpuFrameMs: 0,
-  cpuSubmitMs: null,
-  vramMb: null,
-  triangles: { source: 0, selected: null, submitted: null, cullingRatePercent: null },
-  clusters: { total: 0, visible: null, frustumCulled: null },
-  streaming: {
-    residentPages: null,
-    pageLoads: 0,
-    pageBytesReadMb: 0,
-    pagesRequested: null,
-    pagesLoading: null,
-    cacheHitRate: null,
-  },
-  bottleneck: 'healthy',
-  bottleneckMessage: WAITING,
-})
-
 /**
- * Watches frame after frame and says how smoothly the engine runs, and what slows it. As a
- * shipping build strips its stat tools, the core holds only this facade: its code is the
- * measurement's chunk (`FrameProfile`, `../host/families.ts`), fetched once debug mode turns on or
- * the profiler is first used. Until it has arrived a frame is not counted and the report says it
- * waits (`docs/SDK.md`).
+ * THE ENGINE'S ONE PROFILER: it watches frame after frame and says how smoothly the engine runs,
+ * and what slows it. Its frames are the display intervals the refresh clock measured
+ * (`rafIntervalMs`), kept in a ring — one write per frame, never a shift of the whole array —, and
+ * its report is computed when asked (`frameReport`). A page files frames into it only in debug
+ * mode (`../world/render/render.ts`), so a shipping page records nothing.
  */
 export class EngineProfiler {
-  private readonly maxIntervals: number
-  private profile: FrameProfile | undefined
-  private metadata: ClusterManifest | undefined
+  private readonly intervals: Float64Array
+  private intervalCount = 0
+  private intervalHead = 0
+  private lastMetrics: FrameMetrics | null = null
+  private sourceTriangles = 0
+  private totalClusters = 0
   private autoLogTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(maxIntervals = 120) {
-    this.maxIntervals = maxIntervals
-    if (debugMode()) this.code()
-  }
-
-  /** The profile once the measurement's code has arrived; until then, asks for it. */
-  private code() {
-    if (this.profile) return this.profile
-    const code = families.measurement.get()
-    if (!code) return undefined
-    this.profile = new code.FrameProfile(this.maxIntervals)
-    if (this.metadata) this.profile.setMetadata(this.metadata)
-    return this.profile
+    this.intervals = new Float64Array(Math.max(1, maxIntervals))
   }
 
   /** Kept intervals, from oldest to newest: what `frameStatistics` receives. */
   orderedIntervals(): number[] {
-    return this.code()?.orderedIntervals() ?? []
+    const size = this.intervals.length,
+      ordered = new Array<number>(this.intervalCount)
+    const first = this.intervalCount === size ? this.intervalHead : 0
+    for (let i = 0; i < this.intervalCount; i++) ordered[i] = this.intervals[(first + i) % size]
+    return ordered
   }
 
   /** Tells it which model is loaded. */
   setMetadata(metadata: ClusterManifest) {
-    this.metadata = metadata
-    this.profile?.setMetadata(metadata)
+    this.sourceTriangles = metadata.sourceTriangles || 0
+    this.totalClusters = metadata.totalNodes || 0
   }
 
-  /** Records one frame's metrics. */
+  /** Records one frame's metrics: its display interval the refresh clock measured
+   *  (`rafIntervalMs`, none after a pause), never one of its own. */
   record(metrics: FrameMetrics) {
-    this.code()?.record(metrics)
+    const dt = metrics.rafIntervalMs
+    if (dt != null && dt > 0) {
+      this.intervals[this.intervalHead] = dt
+      this.intervalHead = (this.intervalHead + 1) % this.intervals.length
+      if (this.intervalCount < this.intervals.length) this.intervalCount++
+    }
+    this.lastMetrics = metrics
   }
 
   /** A summary of the recent frames. */
   getReport(): TelemetryReport {
-    return this.code()?.getReport() ?? waitingReport()
+    const { lastMetrics, sourceTriangles, totalClusters } = this
+    return frameReport(this.orderedIntervals(), lastMetrics, sourceTriangles, totalClusters)
   }
 
   /** That summary as text. */
   formatReport(): string {
-    return this.code()?.formatReport() ?? `Trillion3D telemetry: ${WAITING}`
+    return formatFrameReport(this.getReport())
   }
 
   /** Prints that summary to the console. */
@@ -111,6 +87,8 @@ export class EngineProfiler {
   /** Stops and forgets everything. */
   dispose() {
     this.stopAutoLog()
-    this.profile?.dispose()
+    this.intervalCount = 0
+    this.intervalHead = 0
+    this.lastMetrics = null
   }
 }

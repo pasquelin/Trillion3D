@@ -1,8 +1,4 @@
 // The measurement's code, a family on demand (`../host/families.ts`, #1353): the build provenance
-// table a listened session reports (`buildProvenance.ts`, written by the build), the frame report
-// (`EngineProfiler`'s code) and the pass table of the public pass mapping
-// (`../diagnostic/gpuPasses.ts`), one module so that the CDN bundle makes one chunk of it.
+// table a listened session reports (`buildProvenance.ts`, written by the build). The frame report
+// and the pass table are the core's own (`../diagnostic/telemetry.ts`, `../stage/mapping.ts`).
 export { SDK_BUILD_PROVENANCE } from './buildProvenance.ts'
-export { FrameProfile } from '../diagnostic/frameProfile.ts'
-export { gpuPassBlockTotals } from '../gpu/core/passBlocks.ts'
-export { gpuPassBlockOf, gpuPassStageOf } from '../stage/mapping.ts'

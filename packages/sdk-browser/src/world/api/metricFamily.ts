@@ -1,4 +1,4 @@
-import { gpuPassBlockTotals } from '../../diagnostic/gpuPasses.ts'
+import { gpuPassBlockTotals } from '../../gpu/core/passBlocks.ts'
 import { lastFrameOf } from '../core/worldSession.ts'
 import { NOT_DRAWN } from '../core/worldFrames.ts'
 

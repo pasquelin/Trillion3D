@@ -1,8 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineProfiler } from './telemetry.ts'
-import { FrameProfile } from './frameProfile.ts'
-import { families } from '../host/families.ts'
 import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
@@ -10,7 +8,7 @@ import { MIB } from '../../../math/src/constants.ts'
 import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
 
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
-  const profiler = new FrameProfile()
+  const profiler = new EngineProfiler()
   const manifest: ClusterManifest = {
     schema: 1,
     status: 'ready',
@@ -64,7 +62,7 @@ test('the frame report records frames and produces accurate statistics and bottl
 })
 
 test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget', () => {
-  const profiler = new FrameProfile()
+  const profiler = new EngineProfiler()
   const heavyMetrics: FrameMetrics = {
     rafIntervalMs: 35.0,
     cpuFrameMs: 25.4,
@@ -90,7 +88,7 @@ test('the frame report diagnoses CPU bound state when cpuFrameMs exceeds budget'
 
 test('the main thread chokes past a frame of a 60 Hz display, the engine one 60 Hz frame', () => {
   const bottleneck = (cpuFrameMs: number) => {
-    const profiler = new FrameProfile()
+    const profiler = new EngineProfiler()
     profiler.record({ cpuFrameMs } as FrameMetrics)
     return profiler.getReport().bottleneck
   }
@@ -103,7 +101,7 @@ test('the main thread chokes past a frame of a 60 Hz display, the engine one 60 
 // `../../../../bench/oracles/browser/telemetry.ts`.
 test('the circular interval buffer matches push+shift after wraparound and frames with no interval', () => {
   const max = 5
-  const profiler = new FrameProfile(max)
+  const profiler = new EngineProfiler(max)
   // A frame after a pause has no interval (`null`), nor one drawn twice in a display frame (0).
   const intervals = [null, 10, 0, null, 12, 8, 9, 11, 7, 13]
   for (const dt of intervals) profiler.record({ rafIntervalMs: dt } as never)
@@ -116,20 +114,16 @@ test('the circular interval buffer matches push+shift after wraparound and frame
 })
 
 test('a profiler that never records a valid interval reports an empty, not undefined, list', () => {
-  const profiler = new FrameProfile(3)
+  const profiler = new EngineProfiler(3)
   profiler.record({ rafIntervalMs: null } as never)
   profiler.record({ rafIntervalMs: 0 } as never)
   assert.deepEqual(profiler.orderedIntervals(), referenceIntervals(3, [0]))
   assert.deepEqual(profiler.orderedIntervals(), [])
 })
 
-test('EngineProfiler, the core facade, reports nothing until the debug code arrives, then its frames', async () => {
+test('the profiler reports from its first frame, no code to wait for', () => {
   const profiler = new EngineProfiler(),
     frame = { cpuFrameMs: 2, rafIntervalMs: 10 } as never
-  profiler.record(frame)
-  assert.equal(profiler.getReport().fps, null, 'a frame before the code is not counted')
-  assert.match(profiler.formatReport(), /Waiting for the debug code/)
-  await families.measurement.load()
   for (let i = 0; i < 10; i++) profiler.record(frame)
   assert.equal(profiler.getReport().fps, 100)
   assert.deepEqual(profiler.orderedIntervals(), Array(10).fill(10))
