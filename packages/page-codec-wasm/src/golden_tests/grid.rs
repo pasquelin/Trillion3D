@@ -46,7 +46,7 @@ pub(crate) fn twins() -> [Twin; 4] {
         Twin {
             file: "grid",
             name: "uv_grid_exponent",
-            about: "the texture grid of a primitive whose texture coordinates span `span`: the format's 2^-14, or for a blended one the finest grid that span fits, never coarser (page-codec-wasm bits/grid.rs uv_grid_exponent, run by the SDK module, wasm_encode.rs)",
+            about: "the texture grid of a primitive whose pages each hold a texture-coordinate span `span`: a blended one the finest grid that span fits, any other the format's 2^-14, coarser only where the span would not fit a page's field (page-codec-wasm bits/grid.rs uv_grid_exponent, run by the SDK module, wasm_encode.rs)",
             inputs: "span: f64, blended: u32",
             outputs: "1 i32",
             ulps: 0,

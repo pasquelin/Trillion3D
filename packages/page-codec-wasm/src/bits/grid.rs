@@ -85,21 +85,11 @@ pub fn primitive_grid_exponent(
     }
 }
 
-/// The texture grid of a primitive whose texture coordinates span `span` at most: the format's,
-/// or for a `blended` one the finest grid that span fits, never coarser than the format's.
+/// The texture grid of a primitive whose pages must each hold a texture-coordinate span of `span`:
+/// the one rule of both cuts. A `blended` primitive takes the finest grid that span fits, one grid
+/// however it is cut; any other the format's, coarser only where the span would not fit a page's
+/// field. No span (none measured, or none carried): the format's.
 pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
-    if blended && span > 0.0 {
-        finest_exponent(span).min(UV_EXPONENT)
-    } else {
-        UV_EXPONENT
-    }
-}
-
-/// The texture grid of drawn triangles, whose widest page's coordinates span `span`: the run-time
-/// cut's rule alone, no compiled primitive takes it. A `blended` primitive takes the finest grid
-/// that span fits; any other the format's, coarser only where the span would not fit a page's
-/// field; no span, the format's.
-pub fn drawn_uv_grid_exponent(span: f64, blended: bool) -> i32 {
     match (span > 0.0, blended) {
         (false, _) => UV_EXPONENT,
         (true, true) => finest_exponent(span),

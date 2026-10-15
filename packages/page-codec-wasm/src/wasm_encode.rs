@@ -5,9 +5,7 @@
 //! A page is written by `encode_page` from one request block of `REQUEST_WORDS` words and held for
 //! the loader (`held.rs`): its length is known only once written.
 
-use crate::bits::grid::{
-    drawn_uv_grid_exponent, primitive_grid_exponent, tile_log2, uv_grid_exponent,
-};
+use crate::bits::grid::{primitive_grid_exponent, tile_log2, uv_grid_exponent};
 use crate::encode::deformation::{Deformation, MorphTarget};
 use crate::encode::{encode_deformed, Attribute};
 use crate::held::hold;
@@ -176,14 +174,9 @@ pub extern "C" fn grid_position_exponent(
     primitive_grid_exponent(extent, known, blended != 0, tile_log2)
 }
 
-/// The texture grid of a compiled primitive whose coordinates span `span` (`uv_grid_exponent`).
+/// The texture grid of a primitive whose pages each hold a coordinate span `span`
+/// (`uv_grid_exponent`), compiled or drawn.
 #[no_mangle]
 pub extern "C" fn grid_uv_exponent(span: f64, blended: u32) -> i32 {
     uv_grid_exponent(span, blended != 0)
-}
-
-/// The texture grid of drawn triangles (`drawn_uv_grid_exponent`).
-#[no_mangle]
-pub extern "C" fn grid_drawn_uv_exponent(span: f64, blended: u32) -> i32 {
-    drawn_uv_grid_exponent(span, blended != 0)
 }

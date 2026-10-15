@@ -9,9 +9,8 @@ pub struct SimplifiedMesh {
     pub error_object: f64,
     pub triangles: usize,
 }
-/// Region-local vertex buffer plus the table that maps a local index back to its source index.
-/// The dense table is used whenever it is not much larger than the index list; a hash map covers
-/// the case of a small region inside a very large vertex buffer.
+/// Region-local vertex buffer plus the table that maps a local index back to its source index,
+/// renumbered through one hash map sized by the region's corners, whatever the mesh around it.
 pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
     let vertex_count = positions.len() / 3;
     // Region cannot renumber more vertices than corners or mesh
@@ -29,40 +28,18 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
         }
         remap.push(source);
     };
-    if indices.len() * 4 >= vertex_count {
-        let mut table = vec![u32::MAX; vertex_count];
-        for &source in indices {
-            let slot = table.get_mut(source as usize);
-            let id = match slot {
-                Some(entry) if *entry != u32::MAX => *entry,
-                Some(entry) => {
-                    let id = remap.len() as u32;
-                    *entry = id;
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-                None => {
-                    let id = remap.len() as u32;
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-            };
-            compact_idx.push(id);
-        }
-    } else {
-        let mut map = word_map(indices.len());
-        for &source in indices {
-            let id = match map.get(&source) {
-                Some(&id) => id,
-                None => {
-                    let id = remap.len() as u32;
-                    map.insert(source, id);
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-            };
-            compact_idx.push(id);
-        }
+    let mut map = word_map(indices.len());
+    for &source in indices {
+        let id = match map.get(&source) {
+            Some(&id) => id,
+            None => {
+                let id = remap.len() as u32;
+                map.insert(source, id);
+                push(source, &mut compact_pos, &mut remap);
+                id
+            }
+        };
+        compact_idx.push(id);
     }
     (compact_pos, compact_idx, remap)
 }
