@@ -75,7 +75,7 @@ function worldStream(
   url: string,
   dag: StreamPage | undefined,
   read: (page: StreamPage) => Promise<Uint8Array>,
-  pages: (bundle: number, signal: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
+  pages: (bundle: number, signal?: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
 ) {
   let stream: WorldStream | undefined
   const open = async () => {
@@ -92,10 +92,7 @@ function worldStream(
       source: worldPageServer(table, url, pages, landed.emit),
     })
   }
-  return {
-    open,
-    keptBytes: (held: { has(bundle: number): boolean }) => stream?.source.keptBytes(held) ?? 0,
-  }
+  return { open }
 }
 
 /** The pinned top of `table`'s binary at `url`, read for a load on `signal` through `queue`, its
@@ -241,10 +238,9 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     cover: bundles.cover,
     /** The session's queue the bundles are read through, bound by each session. */
     bind: bundles.bind,
-    /** Every byte held here: the pinned top's, the placed cells' bundles', the bundles the source
-     *  keeps for a page in flight, and the DAG a world draws. */
-    bytes: () =>
-      table.pinnedTopBytes + bundles.bytes() + stream.keptBytes(bundles) + roots.drawnBytes,
+    /** Every byte held here: the pinned top's, the bundles the placed cells and the pages in flight
+     *  hold (`worldBundles.ts`), and the DAG a world draws. */
+    bytes: () => table.pinnedTopBytes + bundles.bytes() + roots.drawnBytes,
   }
   return roots
 }

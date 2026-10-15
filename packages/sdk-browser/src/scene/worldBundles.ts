@@ -231,7 +231,7 @@ export function createWorldBundles(
     /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a cell
      *  holds it, till `signal` — its askers' — lets it go, and let go once read (the GPU page pool
      *  keeps what it uploads). */
-    async pages(bundle: number, signal: AbortSignal, priority?: number) {
+    async pages(bundle: number, signal?: AbortSignal, priority?: number) {
       if (bundle < table.pinned) return top[bundle]
       const own = take(bundle)
       try {
