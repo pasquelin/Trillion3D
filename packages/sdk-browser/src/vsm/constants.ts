@@ -2,7 +2,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { focalScale } from '../../../math/src/projection/camera.ts'
 
 /**
@@ -286,7 +286,6 @@ export const VSM_SUN_DEPTH_KEEP = 0.9
 
 // Local lights.
 export const VSM_LOCAL_LEVEL_BIAS = 0
-export const VSM_LOCAL_LEVEL_BIAS_MOVING = 1
 /** Point/spot face near plane: a reversed-Z perspective of half field π/4, width and height 1, near 1 cm, far the light's radius. */
 export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 
@@ -311,12 +310,6 @@ export const VSM_PRESSURE_LOAD = 0.85
 export const VSM_PRESSURE_RISE = 0.5
 export const VSM_PRESSURE_FALL = 0.1
 export const VSM_PRESSURE_CALM_FRAMES = 10
-
-/** Interpolates the resolution bias between the resting and moving values by the mobility factor. */
-export function vsmMovingBias(stillBias: number, movingBias: number, movingShare: number) {
-  const b = Math.max(stillBias, movingBias)
-  return lerp(stillBias, b, movingShare)
-}
 
 /** WGSL mirror of the constants every VSM shader needs. */
 export const VSM_CONSTANTS_WGSL = wgslBlock(

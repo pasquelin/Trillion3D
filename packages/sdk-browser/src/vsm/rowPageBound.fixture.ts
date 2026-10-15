@@ -85,7 +85,7 @@ export function sunAt(eye: number[], cache = new VsmCacheManager()) {
 export function localAt(input: Omit<VsmLocalLightInput, 'id'>, cache = new VsmCacheManager()) {
   const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
   const view = vsmLocalViewData(camera, { width: 1024, height: 1024 })
-  const { cacheEntry } = addVsmLocalLightShadow(cache, { id: 'lamp', ...input }, [view], 0)
+  const { cacheEntry } = addVsmLocalLightShadow(cache, { id: 'lamp', ...input }, [view])
   const light: VsmBoundLight = {
     kind: input.kind,
     firstId: 0,

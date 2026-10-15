@@ -84,7 +84,6 @@ function setupLocalLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   localViews.length = 0
   for (const { light } of casting) {
@@ -101,7 +100,7 @@ function setupLocalLights(
     input.innerConeAngle =
       light.coneAngle !== undefined ? light.coneAngle * (1 - (light.penumbra ?? 1)) : undefined
     input.sourceRadius = light.emitterRadius
-    const setup = addVsmLocalLightShadow(state.cache, input, localViews, mobilityOf(light.id))
+    const setup = addVsmLocalLightShadow(state.cache, input, localViews)
     locals.push(light)
     setups.push(setup)
   }
@@ -133,10 +132,9 @@ export function allocateFrameLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   suns.length = clipmaps.length = locals.length = setups.length = 0
   setupDirectionalLights(state, casting, camera, viewport)
-  setupLocalLights(state, casting, camera, viewport, mobilityOf)
+  setupLocalLights(state, casting, camera, viewport)
   return allocateLightIds(state)
 }

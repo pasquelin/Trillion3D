@@ -7,11 +7,9 @@ import {
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
   VSM_LOCAL_LEVEL_BIAS,
-  VSM_LOCAL_LEVEL_BIAS_MOVING,
   VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
-  vsmMovingBias,
 } from './constants.ts'
 import { vsmShadowUvMatrix, vsmShadowUvNormalMatrix } from './projectionData.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
@@ -180,16 +178,12 @@ export function addVsmLocalLightShadow(
   cache: VsmCacheManager,
   light: VsmLocalLightInput,
   views: readonly VsmLocalViewData[],
-  movingShare: number,
 ): VsmLocalLightSetup {
   const isSpot = light.kind === 'spot'
   const radius = light.range
   const origin = light.position
   for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
-  const localLevelBias = Math.fround(
-    vsmMovingBias(VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING, movingShare) +
-      (light.levelBias ?? 0),
-  )
+  const localLevelBias = Math.fround(VSM_LOCAL_LEVEL_BIAS + (light.levelBias ?? 0))
 
   // Light rotation (the world-to-light rotation, no translation): a spot's X axis is its direction; a
   // point light's faces are world-aligned and its rotation is the identity.

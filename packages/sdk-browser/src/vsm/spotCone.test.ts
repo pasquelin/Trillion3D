@@ -23,7 +23,7 @@ function scale(inner: number, outer: number) {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
     ...{ range: 6, coneAngle: outer, innerConeAngle: inner },
   }
-  const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view], 0)
+  const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view])
   const m = setup.cacheEntry.mapCaches[0].projectionData.lightViewToClip
   assert.equal(m[0], m[5])
   return m[0]
@@ -85,7 +85,7 @@ test('a spot of no depth range (its range rounds to 0.001 m) takes a finite proj
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
     ...{ range: 0.001, coneAngle: 0.6, innerConeAngle: 0 },
   }
-  const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view], 0)
+  const setup = addVsmLocalLightShadow(new VsmCacheManager(), spot, [view])
   const m = setup.cacheEntry.mapCaches[0].projectionData.lightViewToClip
   assert.equal(m[10], 0, 'the spot meets near === far')
   assert.ok(Array.from(m).every(Number.isFinite))

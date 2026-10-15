@@ -18,7 +18,7 @@ import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import type { VsmCameraInput, VsmClipmap, VsmViewport } from './clipmap.ts'
 import type { VsmLocalLightSetup } from './localLight.ts'
 import type { VsmMapIds } from './mapIds.ts'
-import { trackLightShapes, type VsmFrameState } from './frameState.ts'
+import { dropRemovedLights, type VsmFrameState } from './frameState.ts'
 import { allocateFrameLights } from './frameLights.ts'
 import { uploadNextMaps, uploadProjectionData } from './frameUploads.ts'
 import { vsmShadowed } from './seenLights.ts'
@@ -102,14 +102,13 @@ export function planVirtualShadowFrame(
   state.frameStamp++
   cache.frameStamp = state.frameStamp
   cache.poolPages = layout.poolPages
-  trackLightShapes(state, lights)
-  const mobilityOf = (id: string) => state.lightShapes.get(id)?.mobilityFactor ?? 0
+  dropRemovedLights(state, lights)
   // The distant light refresh schedule.
   cache.scheduleFarLights()
   const casting = castingScratch
   casting.length = 0
   for (const l of lights) if (vsmShadowed(l)) casting.push(l)
-  const { ids, allocations } = allocateFrameLights(state, casting, camera, viewport, mobilityOf)
+  const { ids, allocations } = allocateFrameLights(state, casting, camera, viewport)
   const uniforms = frameUniforms(state, ids)
   const fullMaps = Math.max(ids.fullMapCount, ids.nextMapCount - VSM_SINGLE_PAGE_MAP_SLOTS)
   if (fullMaps > layout.fullMapCapacity && grow?.(fullMaps)) layout = resources.layout

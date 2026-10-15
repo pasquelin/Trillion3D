@@ -10,7 +10,7 @@ import {
   VSM_LIGHT_KEEP_FRAMES,
   VSM_MAP_UNSEEN,
 } from './constants.ts'
-import { VsmCacheManager, advanceLightMobility, newLightMobility } from './cacheManager.ts'
+import { VsmCacheManager } from './cacheManager.ts'
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts'
 
 test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 calm frames, in [0, 2]', () => {
@@ -50,16 +50,6 @@ test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 c
     bias = cache.readPoolFeedback(2048, cache.pressureBias)
   }
   assert.ok(bias >= 0 && bias < 1e-6)
-})
-
-test("a light's mobility factor: 1 when it changes, down to 0 over the next 10 frames", () => {
-  const sun = newLightMobility()
-  const factors: number[] = []
-  // The first frame is a new light's, an update.
-  for (let n = 0; n < 12; n++) factors.push(advanceLightMobility(sun, n === 0, n))
-  assert.deepEqual(factors.slice(0, 3), [1, Math.fround(0.9), Math.fround(0.8)])
-  assert.deepEqual(factors.slice(10), [0, 0])
-  assert.equal(advanceLightMobility(sun, true, 12), 1, 'moved again')
 })
 
 test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes', () => {

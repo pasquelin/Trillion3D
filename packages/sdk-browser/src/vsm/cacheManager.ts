@@ -1,6 +1,6 @@
 /**
  * CPU side of the virtual shadow map cache: the array-level cache manager, the per-light cache
- * entries and the per-map cache entries, plus the light mobility factor.
+ * entries and the per-map cache entries.
  *
  * What it holds across frames: one entry per light, keyed by its scene id, each with one
  * entry per shadow map (clipmap levels, 6 cube faces or 1 spot map) carrying the cached projection
@@ -29,12 +29,9 @@ import {
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createReadbackRing, type ReadbackRing } from '../gpu/core/readbackRing.ts'
-import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import type { VsmLocalLightSetup } from './localLight.ts'
-
-/** Frames a light stays active after its last change: its mobility factor falls over them. */
-const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
 
 /** The next-frame map data, 16 bytes on the GPU (`VsmNextMap`). */
 export interface VsmNextMap {
@@ -235,49 +232,6 @@ export class VsmLightCache {
       copyInto(k.shape, key.shape)
     }
   }
-}
-
-/** A light's mobility state, which the scene renderer reads as its factor: `firstActiveFrame` the
- *  frame its activity began, −1 before the first frame that reads it. */
-export interface LightMobility {
-  firstActiveFrame: number
-  mobilityFactor: number
-  active: boolean
-}
-
-/** A light's mobility state at the start: not active. */
-export const newLightMobility = (): LightMobility => ({
-  firstActiveFrame: -1,
-  mobilityFactor: 0,
-  active: false,
-})
-
-/**
- * Advances a light's mobility at `frame`, once per frame per light, with `updated` true when the
- * light was added or changed: the factor is 1 then, and falls to 0 over the next
- * `VSM_LIGHT_ACTIVE_FRAME_COUNT` frames. Returns the factor. Lights are movable (stationary lights
- * are treated as movable).
- */
-export function advanceLightMobility(m: LightMobility, updated: boolean, frame: number) {
-  if (updated) {
-    m.firstActiveFrame = -1
-    m.active = true
-    m.mobilityFactor = 1
-  }
-  if (m.active) {
-    if (m.firstActiveFrame === -1) {
-      m.firstActiveFrame = frame
-      m.mobilityFactor = 1
-    } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
-      m.mobilityFactor = Math.fround(
-        1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
-      )
-    } else {
-      m.active = false
-      m.mobilityFactor = 0
-    }
-  }
-  return m.active ? m.mobilityFactor : 0
 }
 
 interface VsmCacheManagerOptions {

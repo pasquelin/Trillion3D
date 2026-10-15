@@ -9,7 +9,6 @@ import {
   VSM_SUN_DEPTH_SPAN,
   VSM_SUN_LEVEL_BIAS,
   VSM_LOCAL_LEVEL_BIAS,
-  VSM_LOCAL_LEVEL_BIAS_MOVING,
 } from './constants.ts'
 import { createVsmClipmap, type VsmClipmap, type VsmViewport } from './clipmap.ts'
 import { VsmCacheManager } from './cacheManager.ts'
@@ -25,9 +24,9 @@ test('the levels: 6 to 22, a radius of 2^(L+1) cm, coarse 15 to 18', () => {
   assert.deepEqual([VSM_SUN_DEPTH_SPAN, VSM_SUN_DEPTH_KEEP], [1000, 0.9])
 })
 
-test("the sun's LOD bias is the clipmap level's, -1.5; local lights keep 0 and 1", () => {
+test("the sun's LOD bias is the clipmap level's, -1.5; local lights keep 0", () => {
   assert.equal(VSM_SUN_LEVEL_BIAS, -1.5)
-  assert.deepEqual([VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING], [0, 1])
+  assert.equal(VSM_LOCAL_LEVEL_BIAS, 0)
   const { config } = frame(new VsmCacheManager(), [0, 0, 0])
   assert.equal(config.levelBias, -1.5)
 })
@@ -98,7 +97,7 @@ test("the display's floor is the sun's alone: a local light keeps the drawn size
     coneAngle: 0.6,
   }
   const setup = (viewport: VsmViewport) =>
-    addVsmLocalLightShadow(new VsmCacheManager(), spot, [vsmLocalViewData(camera, viewport)], 0)
+    addVsmLocalLightShadow(new VsmCacheManager(), spot, [vsmLocalViewData(camera, viewport)])
   const data = (viewport: VsmViewport) => {
     const s = setup(viewport)
     return [s.finestMip, s.cacheEntry.mapCaches.map((entry) => entry.projectionData)]
