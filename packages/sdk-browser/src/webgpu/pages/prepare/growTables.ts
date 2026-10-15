@@ -8,6 +8,7 @@ import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
 import { forgetReflectedImages } from '../../../reflections/forget.ts'
 import { gpuGrowth } from './growGpuTables.ts'
 import { queueTableGrowth } from './growthQueue.ts'
+import { restSourcesOf } from './drawSources.ts'
 import type { TableGrowthReport } from '../../../residency/pools.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -148,14 +149,7 @@ function follow(rt: WebgpuPagesRuntime) {
   }
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
   if (gpuDraw && gpuHiz && gpuPartition)
-    vis.gpuRestCompact?.rebind({
-      state: gpuPartition.state,
-      perRow: gpuDraw.perRow,
-      instances: gpuDraw.instanceBuffer,
-      indirect: gpuDraw.indirectBuffer,
-      slotOffsets: gpuDraw.slotOffsetsBuffer,
-      flags: gpuHiz.flags,
-    })
+    vis.gpuRestCompact?.rebind(restSourcesOf(gpuDraw, gpuHiz, gpuPartition))
   vis.gpuRaster?.dispose()
   vis.gpuRaster = undefined
   invalidateOccluderHistory(run)
