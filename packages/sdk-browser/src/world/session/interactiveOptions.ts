@@ -2,13 +2,13 @@ import { isImageSize } from '../../../../math/src/scalar/integers.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { MeasuredWorldOptions } from './options.ts'
-import { devicePixels } from '../../engine/common.ts'
+import { devicePixels, pixelRatioOf } from '../../engine/common.ts'
 
 /** CSS owns layout; drawing-buffer attributes must never resize the observed layout. */
 export function interactiveSize(canvas: HTMLCanvasElement, options: MeasuredWorldOptions) {
   const width = options.width ?? Math.floor(canvas.clientWidth)
   const height = options.height ?? Math.floor(canvas.clientHeight)
-  const pixelRatio = options.pixelRatio ?? canvas.ownerDocument.defaultView?.devicePixelRatio ?? 1
+  const pixelRatio = pixelRatioOf(options, canvas.ownerDocument.defaultView)
   if (!isImageSize(width, height))
     throw new EngineError(
       'INVALID_VIEWPORT',
