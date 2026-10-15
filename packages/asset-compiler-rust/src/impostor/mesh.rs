@@ -3,7 +3,7 @@
 //! material, texture coordinates and vertex normals. The alpha-aware hit filter lives here:
 //! a hit on a cut texel lets the ray through, as the engine's mask discards it.
 use super::surface::Surface;
-use crate::dag::bounds::bounding_sphere;
+use crate::dag::bounds::point_sphere;
 use crate::proxy::tracer::{normal_of, trace_where, World};
 use trillion3d_math::triangle::barycentric_weights;
 use trillion3d_math::vec3::normalized_or;
@@ -58,7 +58,7 @@ impl Traceable {
         surfaces: Vec<Surface>,
     ) -> Self {
         let corners_count = (triangles.len() / 3) as u32;
-        let sphere = bounding_sphere(&triangles, &(0..corners_count).collect::<Vec<_>>());
+        let sphere = point_sphere(&triangles, &(0..corners_count).collect::<Vec<_>>());
         let (centre, radius) = ([sphere[0], sphere[1], sphere[2]], sphere[3]);
         let (nodes, order) = bvh::build_ordered(&mut triangles, &mut tags);
         let (node_bounds, node_links) = bvh::flatten(&nodes);

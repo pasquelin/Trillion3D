@@ -2,7 +2,7 @@
 //!
 //! A reduction's error measures how far what it keeps moves from the surface it replaces; it says
 //! nothing of a disconnected part it removes whole. Removing one is a simplification like any
-//! other, and costs at least the part's own extent, the diameter of its bounds in the source mesh:
+//! other, and costs at least the part's own extent, the diameter of its smallest ball in the source mesh:
 //! a part drops only at the level whose error covers it, and since a group's error is never below
 //! its children's, a column or an arch stays until the error is as wide as it is. The
 //! simplifier's error alone let a part go at a level that publishes less: on a building of
@@ -14,7 +14,7 @@
 //! and half the rest on the next, all at the same 0.4 m: its coarsest level kept 1.8 % of its area
 //! on a log house. Measured to the surface kept, a roof of parts keeps a cover
 //! within its error.
-use super::bounds::bounding_sphere;
+use super::bounds::point_sphere;
 use crate::join::Join;
 use std::collections::BTreeMap;
 use trillion3d_page_codec::hash::WordMap;
@@ -58,9 +58,9 @@ pub(super) fn part_extents(positions: &[f32], indices: &[u32], weld: &[u32]) -> 
     extents
 }
 
-/// The extent of a part, the diameter of the bounds of its corners.
+/// The extent of a part, the diameter of the smallest ball of its corners.
 pub(crate) fn extent(positions: &[f32], part: &[u32]) -> f64 {
-    2.0 * bounding_sphere(positions, part)[3]
+    2.0 * point_sphere(positions, part)[3]
 }
 
 /// What removing the parts of `source` of which `kept` holds no vertex costs: the largest of their

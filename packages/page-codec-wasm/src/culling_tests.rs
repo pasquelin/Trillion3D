@@ -3,7 +3,6 @@ use super::*;
 use crate::split::{bisect_least_cost, sort_along};
 use trillion3d_math::aabb::half_area;
 use trillion3d_math::random::xorshift64;
-use trillion3d_math::sphere::enclosing_sphere;
 
 /// `n` centres from `seed`, on a lattice of `cells` steps per axis so that many coincide, with a
 /// NaN coordinate every `nan` centres (none for 0).
@@ -171,5 +170,8 @@ fn node_bounds_merges_a_rejection_node_from_its_clusters() {
     assert_eq!(root.min, [0.0, 0.0, 0.0]);
     assert_eq!(root.max, [11.0, 11.0, 10.0]);
     assert_eq!(root.max_parent_error, 5.0);
-    assert_eq!(root.sphere, enclosing_sphere(&[sphere_a, sphere_b]));
+    assert_eq!(root.sphere, ball_of_balls(&[sphere_a, sphere_b]));
+    // The two spheres' own ball: on their axis, reaching both far sides (17.32 / 2 + 0.75).
+    let reach = (300.0f64.sqrt() + 1.5) / 2.0;
+    assert!((root.sphere[3] - reach).abs() < 1e-9);
 }

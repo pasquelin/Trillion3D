@@ -74,10 +74,7 @@ fn by_columns(n: usize) -> (Vec<f32>, Vec<u32>) {
 }
 
 fn mean_radius(positions: &[f32], clusters: &[Vec<u32>]) -> f64 {
-    let total: f64 = clusters
-        .iter()
-        .map(|c| bounding_sphere(positions, c)[3])
-        .sum();
+    let total: f64 = clusters.iter().map(|c| point_sphere(positions, c)[3]).sum();
     total / clusters.len() as f64
 }
 

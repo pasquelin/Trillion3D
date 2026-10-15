@@ -19,6 +19,18 @@ fn holds(outer: [f64; 4], c: [f64; 3], r: f64, slack: f64) -> bool {
     length(sub(c, [outer[0], outer[1], outer[2]])) + r <= outer[3] * (1.0 + slack)
 }
 
+/// The oracle the smallest ball is checked against: the box centre and its farthest vertex.
+fn box_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
+    let points: Vec<[f64; 3]> = indices.iter().map(|&v| point(positions, v)).collect();
+    let (low, high) = trillion3d_math::aabb::aabb_of(points.iter().copied());
+    let c = trillion3d_math::aabb::centre(low, high);
+    let r = points
+        .iter()
+        .map(|&p| length(sub(p, c)))
+        .fold(0.0, f64::max);
+    [c[0], c[1], c[2], r]
+}
+
 fn holds_vertices(sphere: [f64; 4], positions: &[f32], indices: &[u32]) -> bool {
     indices
         .iter()
@@ -62,7 +74,7 @@ fn a_point_sphere_holds_every_vertex_and_is_never_larger_than_the_box_one() {
         let indices: Vec<u32> = (0..n as u32).chain(0..n as u32 / 2).collect();
         let (sphere, base) = (
             point_sphere(&positions, &indices),
-            bounds::bounding_sphere(&positions, &indices),
+            box_sphere(&positions, &indices),
         );
         assert!(holds_vertices(sphere, &positions, &indices), "case {case}");
         // The smallest ball, up to the rounding of its re-measured radius.

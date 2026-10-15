@@ -1,26 +1,8 @@
-use trillion3d_math::aabb::{aabb_of, centre};
+use trillion3d_math::aabb::aabb_of;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::CullingCluster;
 use trillion3d_page_codec::min_ball::min_ball;
-
-/// AABB centre plus the farthest vertex. Conservative and deterministic.
-pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
-    let (min, max) = aabb_of(indices.iter().map(|&id| point(positions, id)));
-    if !min[0].is_finite() {
-        return [0.0, 0.0, 0.0, 0.0];
-    }
-    let centre = centre(min, max);
-    let mut radius = 0.0_f64;
-    for &id in indices {
-        let p = point(positions, id);
-        let d = length(sub(p, centre));
-        if d > radius {
-            radius = d;
-        }
-    }
-    [centre[0], centre[1], centre[2], radius]
-}
 
 /// The smallest sphere of `indices`' vertices (`min_ball`), the one sphere a level-0 cluster is
 /// projected with: its radius re-measured in float64 from the final centre, so every vertex is

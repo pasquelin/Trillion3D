@@ -1,14 +1,15 @@
 //! The smallest ball enclosing a set of points, by randomised incremental construction in its
 //! iterative form: one nested scan per support point, over a deterministic shuffle of the points
 //! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
-//! takes the ball of the unit face normals; it is the one smallest-ball solver, beside the
-//! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`; with it, the ball of balls a DAG
-//! group and a culling node (`culling.rs`) enclose their children's with (`ball_of_balls`).
-use trillion3d_math::aabb::{aabb_of_boxes, centre};
+//! takes the ball of the unit face normals; it is the one smallest-ball solver, for points and for
+//! the ball of balls a DAG group and a culling node (`culling.rs`) enclose their children's with
+//! (`ball_of_balls`), its support sets solved by `through`.
+use through::through;
 use trillion3d_math::random::xorshift64;
-use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vec3::cross;
-use trillion3d_math::vecn::{add, dot, length, lerp, scale, sub};
+use trillion3d_math::vecn::{add, dot, length, scale, sub};
+
+mod through;
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);
@@ -85,12 +86,12 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
     }
 }
 
-/// Reorders `points` by a Fisher–Yates shuffle driven by a xorshift seeded with their count:
+/// Reorders `items` by a Fisher–Yates shuffle driven by a xorshift seeded with their count:
 /// the order the expected linear time needs, and the same order on every run.
-fn shuffle(points: &mut [[f64; 3]]) {
-    let mut state = 0x2545_f491_4f6c_dd1du64 ^ points.len() as u64;
-    for i in (1..points.len()).rev() {
-        points.swap(i, (xorshift64(&mut state) % (i as u64 + 1)) as usize);
+fn shuffle<T>(items: &mut [T]) {
+    let mut state = 0x2545_f491_4f6c_dd1du64 ^ items.len() as u64;
+    for i in (1..items.len()).rev() {
+        items.swap(i, (xorshift64(&mut state) % (i as u64 + 1)) as usize);
     }
 }
 
@@ -126,13 +127,11 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
     Some(ball.0)
 }
 
-/// Iterations of the centre pull toward the farthest ball, with a shrinking step.
-const WALK_STEPS: usize = 64;
-/// Relative margin a tightened sphere is inflated by, of its coordinates' magnitude: containment
+/// Relative margin the ball of balls is inflated by, of its coordinates' magnitude: containment
 /// then survives the float64 rounding of any re-check (8.5e-14 m outside without it at 1 km).
 const CONTAINMENT_MARGIN: f64 = 1e-12;
 
-/// The radius a sphere centred on `c` needs to enclose every live sphere of `spheres`.
+/// The radius a sphere centred on `c` needs to enclose every sphere of `spheres`.
 fn radius_for(c: [f64; 3], spheres: &[[f64; 4]]) -> f64 {
     spheres
         .iter()
@@ -140,59 +139,52 @@ fn radius_for(c: [f64; 3], spheres: &[[f64; 4]]) -> f64 {
         .fold(0.0, f64::max)
 }
 
-/// A sphere enclosing `spheres` (those of negative radius are absent), never larger than
-/// [`enclosing_sphere`]'s: the smallest of that merge's centre, the centre of the spheres' box
-/// and the steps of a centre pull toward the far point of the farthest ball. Each radius is
-/// recomputed as `max |c_i - C| + r_i`, the rule the runtime's containment proof reads.
+/// The smallest sphere enclosing `spheres` (those of negative radius are absent), by the same
+/// randomised incremental construction as `min_ball`, each support set solved by `through`. Its
+/// radius is then re-measured as `max |c_i - C| + r_i` from the final centre — the rule the
+/// runtime's containment proof reads —, so every sphere is inside by construction, not by the
+/// solver, and raised by `CONTAINMENT_MARGIN`. No sphere gives the zero sphere; one, itself.
 pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
-    let merged = enclosing_sphere(spheres);
-    let live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
-    if live.len() < 2 {
-        return merged;
+    let mut live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
+    match live.len() {
+        0 => return [0.0; 4],
+        1 => return live[0],
+        _ => {}
     }
-    let mut best = merged;
-    let consider = |c: [f64; 3], best: &mut [f64; 4]| {
-        let r = radius_for(c, &live);
-        if r < best[3] {
-            *best = [c[0], c[1], c[2], r];
-        }
+    shuffle(&mut live);
+    let s = &live;
+    let holds = |ball: &[f64; 4], b: &[f64; 4]| {
+        let d = sub([b[0], b[1], b[2]], [ball[0], ball[1], ball[2]]);
+        length(d) + b[3] <= ball[3] * (1.0 + SLACK) + 1e-300
     };
-    consider([merged[0], merged[1], merged[2]], &mut best);
-    let (lo, hi) = aabb_of_boxes(live.iter().map(|s| {
-        (
-            [0, 1, 2].map(|a| s[a] - s[3]),
-            [0, 1, 2].map(|a| s[a] + s[3]),
-        )
-    }));
-    consider(centre(lo, hi), &mut best);
-    // Pull the centre toward the far point of the farthest ball, by 1/(k + 1) of the way at step k.
-    let mut c = [best[0], best[1], best[2]];
-    for k in 1..=WALK_STEPS {
-        let far = live
-            .iter()
-            .map(|s| (length(sub([s[0], s[1], s[2]], c)) + s[3], s))
-            .max_by(|a, b| a.0.total_cmp(&b.0))
-            .map(|(_, s)| *s)
-            .expect("two live spheres");
-        let dir = sub([far[0], far[1], far[2]], c);
-        let l = length(dir);
-        let reach = if l > 0.0 { far[3] / l } else { 0.0 };
-        let target = [0, 1, 2].map(|a| far[a] + dir[a] * reach);
-        let t = 1.0 / (k as f64 + 1.0);
-        c = lerp(c, target, t);
-        consider(c, &mut best);
+    let mut ball = s[0];
+    for i in 1..s.len() {
+        if holds(&ball, &s[i]) {
+            continue;
+        }
+        ball = s[i];
+        for j in 0..i {
+            if holds(&ball, &s[j]) {
+                continue;
+            }
+            ball = through(&[s[i], s[j]]);
+            for k in 0..j {
+                if holds(&ball, &s[k]) {
+                    continue;
+                }
+                ball = through(&[s[i], s[j], s[k]]);
+                for l in 0..k {
+                    if !holds(&ball, &s[l]) {
+                        ball = through(&[s[i], s[j], s[k], s[l]]);
+                    }
+                }
+            }
+        }
     }
-    let magnitude = best[0]
-        .abs()
-        .max(best[1].abs())
-        .max(best[2].abs())
-        .max(best[3]);
-    best[3] += magnitude * CONTAINMENT_MARGIN;
-    if best[3] < merged[3] {
-        best
-    } else {
-        merged
-    }
+    let c = [ball[0], ball[1], ball[2]];
+    let r = radius_for(c, &live);
+    let magnitude = c[0].abs().max(c[1].abs()).max(c[2].abs()).max(r);
+    [c[0], c[1], c[2], r + magnitude * CONTAINMENT_MARGIN]
 }
 
 #[cfg(test)]
