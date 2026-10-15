@@ -11,7 +11,7 @@
 //! surface itself resists the halving (`unreducible`). The reruns only diagnose: their result is
 //! dropped, the group stays stalled and the DAG is the one built without them.
 use super::border::live_triangles;
-use super::reduce::attempt;
+use super::solved::{attempt, Hold};
 use super::stopped::Stop;
 use super::*;
 
@@ -57,8 +57,12 @@ pub(super) fn cause(
     children: usize,
     stop: Stop,
 ) -> Result<StallCause> {
+    let unlocked = Hold {
+        locked: false,
+        seams: true,
+    };
     let advances = |indices: &[u32]| -> Result<bool> {
-        Ok(matches!(attempt(input, indices, false)?, Ok(a) if a.progresses(children)))
+        Ok(attempt(input, indices, unlocked, children, 0.0)?.is_ok())
     };
     Ok(match stop {
         Stop::TooSmall => StallCause::TooSmall,

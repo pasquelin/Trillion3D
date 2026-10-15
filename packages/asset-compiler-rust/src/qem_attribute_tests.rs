@@ -1,6 +1,6 @@
 //! The simplifier's attribute-aware options: normals and texture sets in the error, the
 //! error clamped to the region, protected seams, pruned parts.
-use super::tests::{CUBE_INDICES, CUBE_POSITIONS};
+use super::tests::{simplify, Kept, CUBE_INDICES, CUBE_POSITIONS};
 use super::*;
 
 /// A flat `n` by `n` grid on z = 0, one vertex per corner, `u` running with x.
@@ -38,10 +38,8 @@ fn normals_count_in_the_error() {
         width: 3,
         weight: 0.5,
     }];
-    let flat =
-        simplify_with_locked_vertices(&positions, &[], &indices, 64, true, &|_| 0).expect("plane");
-    let shaded = simplify_with_locked_vertices(&positions, &attributes, &indices, 64, true, &|_| 0)
-        .expect("plane");
+    let flat = simplify(&positions, &[], &indices, 64, true, &|_| 0).expect("plane");
+    let shaded = simplify(&positions, &attributes, &indices, 64, true, &|_| 0).expect("plane");
     assert!(
         shaded.error_object > flat.error_object * 2.0,
         "the normals cost {} over {}",
@@ -60,8 +58,7 @@ fn the_error_is_clamped_to_the_region_extent() {
         width: 3,
         weight: 1000.0,
     }];
-    let reduced = simplify_with_locked_vertices(&positions, &attributes, &indices, 8, true, &|_| 0)
-        .expect("plane");
+    let reduced = simplify(&positions, &attributes, &indices, 8, true, &|_| 0).expect("plane");
     assert!(reduced.triangles < indices.len() / 3);
     assert!(reduced.error_object > 0.0 && reduced.error_object <= 16.0);
 }
@@ -100,15 +97,14 @@ fn a_protected_seam_keeps_its_charts_apart() {
         weight: 1.0,
     }];
     let on_seam = |v: u32| v >= right_copy || v as usize % w == n / 2;
-    let reduced =
-        simplify_with_locked_vertices(&positions, &attributes, &indices, 32, true, &|v| {
-            if on_seam(v) {
-                VERTEX_PROTECT
-            } else {
-                0
-            }
-        })
-        .expect("plane");
+    let reduced = simplify(&positions, &attributes, &indices, 32, true, &|v| {
+        if on_seam(v) {
+            VERTEX_PROTECT
+        } else {
+            0
+        }
+    })
+    .expect("plane");
     assert!(reduced.triangles < indices.len() / 3);
     for tri in reduced.indices.as_chunks::<3>().0 {
         assert!(
@@ -126,12 +122,10 @@ fn pruning_removes_a_small_part_locks_or_not() {
     let first = (positions.len() / 3) as u32;
     positions.extend(CUBE_POSITIONS.iter().map(|&c| 30.0 + c * 0.01));
     indices.extend(CUBE_INDICES.iter().map(|&i| first + i));
-    let small = |reduced: &SimplifiedMesh| reduced.indices.iter().any(|&v| v >= first);
+    let small = |reduced: &Kept| reduced.indices.iter().any(|&v| v >= first);
     let locked = |v: u32| if v >= first { VERTEX_LOCK } else { 0 };
-    let kept =
-        simplify_with_locked_vertices(&positions, &[], &indices, 2, false, &locked).expect("plane");
-    let pruned =
-        simplify_with_locked_vertices(&positions, &[], &indices, 2, true, &locked).expect("plane");
+    let kept = simplify(&positions, &[], &indices, 2, false, &locked).expect("plane");
+    let pruned = simplify(&positions, &[], &indices, 2, true, &locked).expect("plane");
     assert!(small(&kept), "without pruning the locked part stays");
     assert!(!small(&pruned), "pruning removes it all the same");
 }

@@ -39,7 +39,7 @@ impl Grown {
     }
     /// Appends the vertices `reduction` placed, if any, after those already placed at its level,
     /// whose vertex count was `base`; the reduction's clusters and the welds follow. The first
-    /// placement copies the source's arrays once; a solve whose survivors all snapped back, never.
+    /// placement copies the source's arrays once; a solve that moved nothing, never.
     pub(super) fn place(
         grown: &mut Option<Grown>,
         welds: &mut Welds,
