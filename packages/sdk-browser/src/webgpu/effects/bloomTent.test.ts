@@ -1,7 +1,7 @@
 // The bloom's tent (`tent`, `bloomLevel.ts`) is the 3×3 tent of nine bilinear taps spread by the
-// radius, read in pairs of texels: a pixel's axis puts on texel `n` the weights its three taps give
-// it, and two neighbouring texels are one bilinear read at their weighted centre. Four reads up to
-// a radius of 1, nine at most past it. The sampler clamps each texel's index, so the edges fold
+// radius, each tap's own bilinear split: where the middle tap's two texels are its neighbours',
+// it folds into them, each read at its weighted centre. Four reads up to a radius of 1, nine at
+// most past it. The sampler clamps each texel's index, so the edges fold
 // alike.
 // Here the shipped text runs in doubles (`shaderRun`) against the CPU oracle's nine taps,
 // over every pair of sizes a bloom draws the tent between, edges and one-texel axes included, and
@@ -44,7 +44,7 @@ function tentsOver([w, h]: Size, radius: number, seed: number, weightBits?: numb
   }
   const tents = shaderRun<Record<'tent', Tent>>(
     BLOOM_WGSL,
-    ['fetchLevel', 'tentHat', 'tentTexel', 'tentAxis', 'tent'],
+    ['fetchLevel', 'tentAxis', 'tent'],
     scope,
   )
   const published = (x: number, y: number) =>
@@ -167,17 +167,18 @@ test("the sampler's rounding of the read fractions moves the tent within a state
   }
 })
 
-test('the composition reads the level through the one tent, a pair of weight zero unread', () => {
+test('the composition reads the level through the one tent, a folded middle tap unread', () => {
   const texts = [
     BLOOM_WGSL,
     ...[CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS].flatMap(({ bloom }) => Object.values(bloom)),
   ]
   for (const source of texts) {
+    assert.equal(functionsOf(source, ['tent']).match(/c\+=fetchLevel\(/g)?.length, 9, 'nine slots')
     assert.equal(
-      functionsOf(source, ['tent']).match(
-        /if\(x\.weight\.[xyz]>0\.0&&y\.weight\.[xyz]>0\.0\)\{c\+=fetchLevel\(/g,
-      )?.length,
-      9,
+      functionsOf(source, ['tent']).match(/if\([xy]\.weight\.y>0\.0(&&y\.weight\.y>0\.0)?\)\{c\+=/g)
+        ?.length,
+      5,
+      'only the slots of a middle tap are gated',
     )
     assert.match(
       functionsOf(source, ['fetchLevel']),

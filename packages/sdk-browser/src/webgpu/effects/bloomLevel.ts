@@ -47,14 +47,16 @@ export function writeBloomSlot(
 export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
 
 const [EDGE, MIDDLE] = BLOOM_UP_ROW
-/** The tent's nine weighted reads, `x` the pairs of one axis and `y` of the other (`tentAxis`), a
- *  pair of weight zero read by none. */
+/** The tent's weighted reads, `x` the taps of one axis and `y` of the other (`tentAxis`): nine
+ *  slots, a middle tap folded into its neighbours — of weight zero — read by none. */
 const TENT_READS = ['x', 'y', 'z']
   .flatMap((j) =>
-    ['x', 'y', 'z'].map(
-      (i) =>
-        `if(x.weight.${i}>0.0&&y.weight.${j}>0.0){c+=fetchLevel(vec2f(x.at.${i},y.at.${j})*bloom.inTexel)*(x.weight.${i}*y.weight.${j});}`,
-    ),
+    ['x', 'y', 'z'].map((i) => {
+      // Only a middle tap can be folded away: the outer two always read.
+      const gate = [i === 'y' && 'x.weight.y>0.0', j === 'y' && 'y.weight.y>0.0'].filter(Boolean)
+      const read = `c+=fetchLevel(vec2f(x.at.${i},y.at.${j})*bloom.inTexel)*(x.weight.${i}*y.weight.${j});`
+      return gate.length ? `if(${gate.join('&&')}){${read}}` : read
+    }),
   )
   .join('\n')
 
@@ -67,17 +69,17 @@ const TENT_READS = ['x', 'y', 'z']
  *
  * THE TENT, ONE RULE AT EVERY RADIUS. Per axis it is three bilinear taps at `t − r`, `t`, `t + r`
  * texels of the level (`t` the pixel's position, texel `n`'s centre at `n`; `r` the radius) of
- * weights `BLOOM_UP_ROW`: texel `n` takes `Σ_k w_k · max(0, 1 − |t + k·r − n|)` (`tentTexel`), the
- * two axes multiplied. Two neighbouring texels of non-negative weights are one bilinear read at
- * their weighted centre, so the axis is read in pairs: the pair from texel
- * `n_p = max(floor(t − r) + 2p, floor(t + (p − 1)·r))`, `p = 0, 1, 2`. Below a radius of 2 the
- * texels of weight run from `floor(t − r)` over at most six, three pairs from the first; from 2 on
- * the three taps share no texel and each pair is a tap's own two; the `max` is the one of the two
- * that holds, both equal at 2. A pair of weight zero is not read: up to a radius of 1 the texels of
- * weight are four at most, and the tent costs four reads; past it, nine at most. The sampler clamps
- * each texel's index, so the edges fold as the taps do. Exact in real arithmetic; the sampler holds
- * a read's fraction to a few bits, which moves the result by at most `2^-bits` times the largest
- * step between neighbouring texels read (`bloomTent.test.ts`).
+ * weights `BLOOM_UP_ROW` `(e, m, e)`, the two axes multiplied. Each tap's own bilinear split is
+ * the rule: the middle one puts `l = m·(1 − f)` on texel `b = floor(t)` and `h = m·f` on `b + 1`.
+ * Where its two texels are its neighbours' — the outer taps' floors two apart at most, always up to
+ * a radius of 1 — it folds into them: the left read takes `e + l` at its weighted centre
+ * `b + e·(t − r − b) / (e + l)`, the right one `e + h` at `b + (e·(t + r − b) + h) / (e + h)`, each
+ * still within its own two texels; else the three taps are read as they are. Four reads up to a
+ * radius of 1 — at 1 the very positions and weights of the closed form `i + (f − 1)/(3 − 2f)`,
+ * `(3 − 2f)/4` —, nine at most past it. The sampler clamps each texel's index, so the edges fold
+ * as the taps do. Exact in real arithmetic; the sampler holds a read's fraction to a few bits,
+ * which moves the result by at most `2^-bits` times the largest step between neighbouring texels
+ * read (`bloomTent.test.ts`).
  */
 export const bloomLevelWgsl = (group: number) =>
   wgslBlock(
@@ -89,13 +91,12 @@ ${BLOOM_UNIFORM.wgsl}
 @group(${group}) @binding(1) var linearClamp:sampler;
 @group(${group}) @binding(2) var<uniform> bloom:Bloom;
 fn fetchLevel(uv:vec2f)->vec4f{return textureSampleLevel(level,linearClamp,uv,0.0);}
-fn tentHat(x:vec3f)->vec3f{return max(vec3f(0.0),1.0-abs(x));}
-fn tentTexel(t:f32,r:f32,n:vec3f)->vec3f{return ${wgslF32(EDGE)}*(tentHat(t-r-n)+tentHat(t+r-n))+${wgslF32(MIDDLE)}*tentHat(t-n);}
 struct TentAxis{weight:vec3f,at:vec3f,}
 fn tentAxis(t:f32,r:f32)->TentAxis{
-let n=max(floor(t-r)+vec3f(0.0,2.0,4.0),floor(vec3f(t-r,t,t+r)));
-let near=tentTexel(t,r,n);let far=tentTexel(t,r,n+1.0);let weight=near+far;
-return TentAxis(weight,n+0.5+far/select(vec3f(1.0),weight,weight>vec3f(0.0)));
+let a=t-r;let c=t+r;
+if(floor(c)-floor(a)>2.0){return TentAxis(vec3f(${wgslF32(EDGE)},${wgslF32(MIDDLE)},${wgslF32(EDGE)}),vec3f(a,t,c)+0.5);}
+let b=floor(t);let h=${wgslF32(MIDDLE)}*(t-b);let wl=${wgslF32(EDGE + MIDDLE)}-h;let wr=${wgslF32(EDGE)}+h;
+return TentAxis(vec3f(wl,0.0,wr),b+vec3f(${wgslF32(EDGE)}*(a-b)/wl,0.0,(${wgslF32(EDGE)}*(c-b)+h)/wr)+0.5);
 }
 fn tent(uv:vec2f)->vec4f{
 let t=uv/bloom.inTexel-0.5;let x=tentAxis(t.x,bloom.radius);let y=tentAxis(t.y,bloom.radius);
