@@ -91,9 +91,10 @@ export const REFLECTION_COUNTS = {
    *  a glossy lobe's ray stops descending at the level its cone covers. A mirror ray of floors and
    *  waves seen from 0.5° to 89° took 16 on average and 35 at the 99th percentile before the descent
    *  gained ground (`budget.test.ts`). A ray that passes behind thin surfaces — poles, fences, a pane's
-   *  edge — descends and climbs again at each, a few levels apiece: one past 50 hands its answer to the
-   *  next stage, faded over the last quarter. 50 is the whole cost bound of a ray's screen march, a
-   *  32-thread wave's included. */
+   *  edge — descends and climbs again at each, a few levels apiece: over the budget's last levels'
+   *  worth of iterations the march descends one level less each (`screenMarch`'s floor), so a ray
+   *  always crosses the screen, its precision falling gradually, never its answer at once. 50 is the
+   *  whole cost bound of a ray's screen march, a 32-thread wave's included. */
   REFLECTION_MARCH_STEPS: 50,
   /** The units a reflection's proxy ray walks at most, on every image (`proxy.ts`): an eighth of a
    *  ray's budget (`RAY_WORK`), the placement tree walked nearest first (`treeWalkWgsl.ts`), so the

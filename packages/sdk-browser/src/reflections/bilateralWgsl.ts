@@ -10,13 +10,15 @@ import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './traceBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_SPATIAL_WGSL } from './spatialWgsl.ts'
+import { REFLECTION_TEMPORAL_WGSL } from './temporalWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
 import { reflectionWeighWgsl } from './weight.ts'
 
 /**
  * THE LAST PASS, a pixel a thread (`bilateralOpaque`, `bilateralFront`): every pixel averages its
  * history (`bilateralIn`, this image's accumulation) with its neighbours' on a disc of the lobe's own
- * reach (`reflectionReuseReach` at the far scene, `REFLECTION_REUSE_RADIUS` pixels at most), each
+ * reach (`reflectionReuseReach` at this image's hit, `temporalIn`, `REFLECTION_REUSE_RADIUS` pixels at
+ * most), each
  * weighed by the same-surface test, by how short the pixel's history is — one minus its count over
  * `REFLECTION_HISTORY` — and by how full the neighbour's is — its count over the same. A pixel whose
  * history holds a dozen images keeps its own; one whose history was just rejected — a disocclusion, a
@@ -35,6 +37,7 @@ export const REFLECTION_BILATERAL_WGSL = wgslBlock(
     REFLECTION_SURFACES_WGSL,
     REFLECTION_TEXEL_WGSL,
     REFLECTION_SPATIAL_WGSL,
+    REFLECTION_TEMPORAL_WGSL,
     reflectionWeighWgsl(true),
     FRONT_PACK_WGSL,
     surfaceReflects,
@@ -53,7 +56,11 @@ fn bilateralTexel(coord:vec2i,own:ReflectingPixel)->Reflected{
  if(count==0u){return Reflected(vec3f(0.0),vec3f(0.0));}
  let mine=reflectionDenoised(texelReflected(t));
  let lack=1.0-min(f32(count)/f32(REFLECTION_HISTORY),1.0);
- let radius=min(reflectionReuseReach(own.P,lobeAlpha(own.rough),REFLECTION_FAR),f32(REFLECTION_REUSE_RADIUS));
+ // The lobe's reach at this image's own hit (the spatial reuse's texel keeps it): a mirror's is under a
+ // pixel, and it keeps its history alone.
+ let fresh=textureLoad(temporalIn,coord,0);
+ let hit=select(REFLECTION_FAR,freshHit(fresh),freshValid(fresh));
+ let radius=min(reflectionReuseReach(own.P,lobeAlpha(own.rough),hit),f32(REFLECTION_REUSE_RADIUS));
  var sum=mine;
  var total=1.0;
  if(lack>0.0&&radius>=1.0){

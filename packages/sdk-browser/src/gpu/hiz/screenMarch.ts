@@ -36,22 +36,24 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * consumes the pixel and goes on: it passes behind a thin surface, never in front of the surface
  * it stood on (the first pixel boundary opens the march).
  *
- * A CONE (`spread`, the width a ray's cone gains a pixel it travels on the screen, zero for an exact
- * ray): a cell no wider than the cone there — level `⌊log₂(spread · s)⌋` or finer after `s` pixels
- * travelled — that the ray does not consume, where the ray stands at or behind the surface of the pixel
- * under it, is its hit, that pixel's plane the hit's: the ray is between the cell's nearest depth and
- * its farthest slab's back, and the surface it meets lies within its cone. A ray still in front of
- * that pixel descends as an exact one: a cone never meets the surface it leaves. A glossy lobe's ray
- * passing behind a body stops there, in a cell as wide as the blur its lobe gives, never pixel by pixel.
+ * A FLOOR LEVEL: the march never descends below the level whose cell the ray's cone covers there —
+ * `⌊log₂(spread · s)⌋` after `s` pixels travelled, `spread` the width the cone gains a pixel, zero for
+ * an exact ray — nor, over the budget's last levels' worth of iterations, below one more level each,
+ * so that every ray crosses the screen within its budget and none is cut short. A cell of the floor
+ * that the ray does not consume is met where the ray lies within the slab of the pixel under it (at or
+ * behind its surface, in front of its back: level 0's slab, so a thin surface stays thin), at the point
+ * the ray crossed that pixel's plane — a hit as sharp as level 0's —, and crossed elsewhere: what the
+ * cell holds beside that pixel is within the cone's width, or the budget's. A ray in front of the pixel
+ * under it crosses the cell: a cone never meets the surface it leaves.
  *
  * The iterations are bounded by the screen distance the ray covers, not by the pyramid
  * (`screenMarchBudget`): each cell of a level is crossed once, two levels' worth of ascents and
  * descents around each pixel the ray crosses, and the levels once more; a ray in front of the
  * surfaces climbs a level an iteration, so `n` iterations cover up to 2ⁿ pixels of empty screen, and
  * a ray that leaves its surface takes O(log reach) of them. A pixel a ray crosses is never stepped
- * over, whatever its width: the cells are exact bounds, never samples. A caller holds the march to
- * fewer iterations (`cap`): a ray that spends them meets nothing on the screen, and its answer is the
- * next stage's.
+ * over below the floor level: the cells are exact bounds, never samples. A caller holds the march to
+ * fewer iterations (`cap`): the floor rises over the last of them, so the ray's precision falls
+ * gradually where the budget runs short, never its answer at once.
  *
  * `slab` is the geometry of a surface's thickness (`screenSlab`): the world size of a pixel at a
  * unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness spans
@@ -98,8 +100,11 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f
  var level=0;
  for(var k=0u;k<steps;k++){
   if(t>=end){break;}
-  // The widest level whose cell the cone's width covers here.
-  let floorLevel=min(i32(floor(log2(max(travel*t,1.0)))),top);
+  let start=t;
+  // The widest level a cell may be met at: the one the cone's width covers here, or — over the budget's
+  // last levels' worth of iterations — one more each, so that a ray always crosses the screen.
+  let coneLevel=i32(floor(log2(max(travel*t,1.0))));
+  let floorLevel=min(max(coneLevel,i32(k)+top+1-i32(steps)),top);
   let size=exp2(f32(level));
   let p=o.xy+d.xy*t;
   let cell=floor(p/size);
@@ -140,11 +145,22 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f
    continue;
   }
   t=entry;
-  // Within the cone's width, a ray at or behind the surface of the pixel under it has met the cell.
+  // A cell no finer than the floor is met where the ray lies inside the slab of the pixel under it — at
+  // or behind its surface, not past its back, level 0's slab, so a thin surface stays thin —, and
+  // crossed elsewhere: what it holds beside that pixel is within the cone's width, or the budget's.
   if(level<=floorLevel){
    let under=floor(o.xy+d.xy*t);
    let plane=hizPlane(vec2i(under));
-   if(plane.x>0.0&&z<=plane.x){return ScreenHit(t,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);}
+   let s=plane.x+dot(o.xy+d.xy*t-under-vec2f(0.5),plane.yz);
+   if(s>0.0&&z<=s&&z>=screenBack(s,thickness,slab)){
+    // Where the ray crossed that plane, within the cell: the hit as sharp as level 0's.
+    let dh=d.z-dot(d.xy,plane.yz);
+    let at=select(t,max(start,t-(z-s)/dh),dh<0.0);
+    return ScreenHit(at,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);
+   }
+   t=across;
+   level=min(level+1,top);
+   continue;
   }
   level-=1;
  }

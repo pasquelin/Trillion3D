@@ -108,7 +108,12 @@ function surfaceGroups(
       }),
     ),
     bilateral: parities((p) =>
-      group(last.layout, { ...last.out, flags, bilateralIn: grids.turn[p] }),
+      group(last.layout, {
+        ...last.out,
+        flags,
+        temporalIn: grids.scratch,
+        bilateralIn: grids.turn[p],
+      }),
     ),
   }
 }

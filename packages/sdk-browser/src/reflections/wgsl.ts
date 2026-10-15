@@ -53,11 +53,11 @@ import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 /** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, as coarse as a cone widening by `spread` a pixel allows
  *  (`screenMarch`), the hit on its plane, its footprint (`reflectionFootprint`)
- *  and its confidence: the fades of the image's border (in this image and in the one the radiance
- *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`) and of the screen
- *  march's iterations over the last quarter of its cap (`REFLECTION_MARCH_STEPS`: a ray that
- *  needed nearly all of them hands its answer over gradually, never a line where the cap falls),
- *  times the share of the depth-weighted reads the image covers. A hit has no fade of its own, neither by its
+ *  and its confidence: whether the screen answers — the fades of the image's border (in this image and
+ *  in the one the radiance is read from) and of the footprint's pyramid level (`reflectionLevelTrust`),
+ *  taken whole or not at all as often as they hold (`reflectionDither`) —, then the share of the
+ *  depth-weighted reads the image covers, continuous: a bright body's silhouette is a partial answer,
+ *  never a dithered one. The march's budget cuts no ray (`screenMarch`'s floor level). A hit has no fade of its own, neither by its
  *  depth in the slab nor by the side its plane faces: either gate turns on and off between
  *  neighbouring pixels at a thin surface, whose plane and slab depth jump from one to the next,
  *  and breaks the reflection of a body the ray passes through into shards of its edges. */
@@ -70,8 +70,13 @@ const reflectionSeenWgsl = (group: number) =>
       reflectionRayWgsl(group),
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
+      mixWord,
     ],
-    `fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f32)->RadianceAnswer{
+    `fn reflectionDither(P:vec3f,R:vec3f)->f32{
+ let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^reflectionView.temporal.x))));
+ return f32(w>>8u)*${wgslF32(2 ** -24)};
+}
+fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f32)->RadianceAnswer{
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
@@ -86,10 +91,9 @@ const reflectionSeenWgsl = (group: number) =>
  let edge=reflectionEdgeFade(H.xy,size)*reflectionEdgeFade(Q,reflectionView.radiance.xy);
  let pixel=reflectionPixelAt(hit);
  let cone=reflectionConeAt(distance(hit,P),pixel,lobe);
- let confidence=edge
-  *reflectionLevelTrust(cone.level,reflectionView.radiance.z)
-  *(1.0-smoothstep(0.75*f32(REFLECTION_MARCH_STEPS),f32(REFLECTION_MARCH_STEPS),f32(marched.steps)));
- if(confidence==0.0){return seen;}
+ // Whether the hit is the screen's to answer, taken whole or not at all as often as it is sure.
+ let trust=edge*reflectionLevelTrust(cone.level,reflectionView.radiance.z);
+ if(!(reflectionDither(P,lobe.R)<trust)){return seen;}
  let ratio=size/reflectionView.radiance.xy;
  let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionImage))*ratio);
  // The hit's surface: its plane across the image, a footprint's width deep on either side.
@@ -97,7 +101,7 @@ const reflectionSeenWgsl = (group: number) =>
  let taps=reflectionFootprint(Q,hit,pixel,lobe,cone,toView,surface);
  if(!(taps.color.a>0.0)){return seen;}
  seen.color=taps.color.rgb/taps.color.a;
- seen.confidence=confidence*min(taps.color.a/taps.weight,1.0);
+ seen.confidence=min(taps.color.a/taps.weight,1.0);
  seen.distance=distance(hit,P);
  return seen;
 }`,
@@ -128,7 +132,6 @@ export const reflectedRadianceWgsl = (group: number) =>
       REFLECTION_PROBES_WGSL,
       REFLECTION_CONE_WGSL,
       LOBE_AXIS_WGSL,
-      mixWord,
     ],
     `var<private> reflectionHit:f32;
 var<private> reflectionDirection:vec3f;
@@ -138,10 +141,6 @@ fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<fu
  *radiance+=*rest*answer.confidence*answer.color;
  if(*rest>0.5&&*rest*(1.0-answer.confidence)<=0.5){reflectionHit=answer.distance;}
  *rest*=1.0-answer.confidence;
-}
-fn reflectionDither(P:vec3f,R:vec3f)->f32{
- let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^reflectionView.temporal.x))));
- return f32(w>>8u)*${wgslF32(2 ** -24)};
 }
 fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
@@ -155,9 +154,6 @@ fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,w
   var onScreen=reflectionSeen(P,N,ellipse,pixel,2.0*reflectionConeTangent(width));
   // The proxy walks no further than the surface the screen met.
   if(onScreen.confidence>0.0){bound=onScreen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+R*onScreen.distance);}
-  // Taken whole or not at all, as often as it is sure: the next stages answer a miss alone, never the
-  // sliver a sure hit leaves.
-  onScreen.confidence=select(0.0,1.0,reflectionDither(P,R)<onScreen.confidence);
   reflectionTake(onScreen,&radiance,&rest);
  }
  // @cut screen -> radiance+vec3f(rest) keep: ;

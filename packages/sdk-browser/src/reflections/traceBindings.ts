@@ -99,6 +99,7 @@ export const traceLayouts = (device: GPUDevice) => {
     ]),
     bilateral: layout([
       flags(),
+      computeTextureEntry(B.temporalIn, 'uint'),
       computeBufferEntry(B.lights, 'read-only-storage'),
       computeTextureEntry(B.bilateralIn, 'uint'),
       computeTextureEntry(B.base, 'unfilterable-float'),
@@ -106,6 +107,7 @@ export const traceLayouts = (device: GPUDevice) => {
     ]),
     bilateralFront: layout([
       flags(),
+      computeTextureEntry(B.temporalIn, 'uint'),
       computeTextureEntry(B.bilateralIn, 'uint'),
       computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT),
     ]),
