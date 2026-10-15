@@ -36,8 +36,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const bootstrapState = createBootstrapFor(rt, hasBytes)
   const room = () => Math.max(0, rt.setup.slots - residencySets.coverSlots)
   // The lower tier: the pages ahead of the camera.
-  const aheadTier = createLowerTier({ keyOf: tracking.keyOf, room, closeOver: closure.closeOver }),
-    lowerTiers = [aheadTier]
+  const aheadTier = createLowerTier({ keyOf: tracking.keyOf, room, closeOver: closure.closeOver })
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,
@@ -49,10 +48,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   coverHeldRoots(rt, residencySets, room)
   // The pages a world bundle read lands beside the one asked go to the pool's free slots.
   takeLandedPages(rt)
-  const parts = { residencySets, closure, hasBytes, lowerTiers, room }
+  const parts = { residencySets, closure, hasBytes, lowerTier: aheadTier, room }
   const { ensureResident, residency } = createResidencyFor(rt, parts)
-  const tiers = { all: lowerTiers, ahead: aheadTier }
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, tiers)
+  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier)
   const { syncRows, followCut, rowsOwed, blendCasters, rowWords, followRowOrder } = rowSync
   return {
     syncRows,

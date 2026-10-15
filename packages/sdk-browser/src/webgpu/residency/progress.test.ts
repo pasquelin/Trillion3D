@@ -14,12 +14,7 @@ test('the ensurer hears each camera page it lands, never a lower tier page', asy
   const cache = orderedPool(4)
   await cache.load('a')
   let landed = 0
-  const ensure = tierEnsurer(
-    tracking,
-    cache,
-    () => [],
-    () => [pages[3]],
-  )
+  const ensure = tierEnsurer(tracking, cache, () => [pages[3]])
   await ensure(
     camera,
     1,

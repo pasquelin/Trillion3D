@@ -6,6 +6,7 @@ import type { GpuPageCache } from '../../gpu/page/pages.ts'
 import { pageAddress } from '../row/pageSlots.ts'
 import type { WebgpuPageTracking } from '../row/pageTracking.ts'
 import type { createAdmissionReads, createPageAdmission } from './admission.ts'
+import { admitInOrder, type AdmitStep } from './ensureBurst.ts'
 
 /**
  * A lower residency tier: pages a cut asked for below the camera's own — the pages ahead of the
@@ -47,12 +48,10 @@ export function createLowerTier(options: {
   }
   return {
     pages,
-    /** Advanced by every report: the merge of the tiers is remade only then (`createLowerMerge`). */
+    /** Advanced by every report: the copy a job walks is remade only then (`createLowerCopy`). */
     get revision() {
       return revision
     },
-    /** True when the last report names this key: a page this tier still wants. */
-    has: (key: number) => named.has(key),
     /** Bytes of the tier's tables, read in constant time: its keys, and one 8-byte slot per entry
      *  of its list — bounded by the pool, never the catalogue. */
     get hostBytes() {
@@ -66,39 +65,29 @@ export function createLowerTier(options: {
   }
 }
 
-/** A tier as the residency ensurer reads it: its pages, the keys it names — true when its last
- *  report names the key, a page it still wants —, and a revision each report advances. */
+/** A tier as the residency ensurer reads it: its pages, and a revision each report advances. */
 export type LowerList = {
   pages: readonly PageRec[]
-  has: (key: number) => boolean
   revision: number
 }
 
 /**
- * One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
- * ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place by
- * every report taken while a job loads, and a loop resumed on another list keeps neither its order
- * nor its count of free slots. One list, made anew only when a tier reported since: the jobs that
- * follow one another between two reports read it as it is, and a job still walking the one before
- * — a capture's `ensureResident` runs beside the queue — keeps it whole.
+ * The tier's pages as one job walks them: a copy, as its last report left them. The tier's list is
+ * rewritten in place by every report taken while a job loads, and a loop resumed on another list
+ * keeps neither its order nor its count of free slots. Made anew only when the tier reported since:
+ * the jobs that follow one another between two reports read it as it is, and a job still walking
+ * the one before — a capture's `ensureResident` runs beside the queue — keeps it whole.
  */
-function createLowerMerge(keyOf: (page: PageRec) => number) {
-  let list: PageRec[] = []
-  let seen: (readonly [LowerList, number])[] = []
-  const current = (tiers: readonly LowerList[]) =>
-    seen.length === tiers.length &&
-    tiers.every((tier, t) => seen[t][0] === tier && seen[t][1] === tier.revision)
-  return (tiers: readonly LowerList[]): readonly PageRec[] => {
-    if (current(tiers)) return list
-    seen = tiers.map((tier) => [tier, tier.revision] as const)
-    list = []
-    for (let t = 0; t < tiers.length; t++)
-      for (const rec of tiers[t].pages) {
-        const key = keyOf(rec)
-        let named = false
-        for (let earlier = 0; earlier < t && !named; earlier++) named = tiers[earlier].has(key)
-        if (!named) list.push(rec)
-      }
+function createLowerCopy(tier: () => LowerList) {
+  let list: readonly PageRec[] = [],
+    seen: LowerList | undefined,
+    revision = -1
+  return (): readonly PageRec[] => {
+    const now = tier()
+    if (now === seen && now.revision === revision) return list
+    seen = now
+    revision = now.revision
+    list = now.pages.slice()
     return list
   }
 }
@@ -110,7 +99,8 @@ export type LowerPassOptions = {
   signal?: AbortSignal
   hasBytes: (page: PageRec) => boolean
   isLost: () => boolean
-  lowerTiers: () => readonly LowerList[]
+  /** The lower tier: the pages ahead of the camera (`createLowerTier`). */
+  lowerTier: () => LowerList
   admit: ReturnType<typeof createPageAdmission>
   budget: FrameClock
   /** The share step (`share.ts`): the next share to await once the clock's share is spent. */
@@ -119,12 +109,12 @@ export type LowerPassOptions = {
 }
 type LowerPass = LowerPassOptions & { skips: (rec: PageRec) => boolean }
 
-/** The lower tiers' pass of the residency ensurer (`residentEnsurer.ts`): their merged list, its
- *  load into what the camera left, and whether it leaves work. */
+/** The lower tier's pass of the residency ensurer (`residentEnsurer.ts`): its list as a job walks
+ *  it, its load into what the camera left, and whether it leaves work. */
 export function createLowerPass(options: LowerPassOptions) {
-  const { tracking, bootstrapKey, hasBytes, lowerTiers } = options
-  const mergeLower = createLowerMerge(tracking.keyOf)
-  /** Whether a lower tier page is not the tiers' to load: wanted by the camera, pinned, or without
+  const { tracking, bootstrapKey, hasBytes, lowerTier } = options
+  const listed = createLowerCopy(lowerTier)
+  /** Whether a lower tier page is not the tier's to load: wanted by the camera, pinned, or without
    *  its bytes. */
   const skips = (rec: PageRec) => {
     const key = tracking.keyOf(rec)
@@ -132,58 +122,51 @@ export function createLowerPass(options: LowerPassOptions) {
   }
   const pass: LowerPass = { ...options, skips }
   return {
-    list: () => mergeLower(lowerTiers()),
+    list: listed,
     load: (
       lower: readonly PageRec[],
       cache: GpuPageCache,
       cameraWaiting: () => boolean,
       reads: AbortSignal,
-    ) => loadLowerTiers(pass, lower, cache, cameraWaiting, reads),
-    /** True when every lower tier page is held, or left to the camera: the tiers leave no work. */
+    ) => loadLowerTier(pass, lower, cache, cameraWaiting, reads),
+    /** True when every lower tier page is held, or left to the camera: the tier leaves no work. */
     held: (cache: GpuPageCache) =>
-      mergeLower(lowerTiers()).every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
+      listed().every((rec) => skips(rec) || !!cache.get(pageAddress(rec))),
   }
 }
 
 /**
- * What the camera left: the lower tiers' pages — the pages ahead of the camera —, loaded only
- * into the free slots and those of the OLD pages the GPU's order gives up — older than any page the
- * view ahead asks for (`../../gpu/page/eviction.ts`). They are never pinned: a camera page evicts
- * them, they never evict a page any view used of late, and an object on screen is never coarsened
- * for a view to come. The view ahead stamps every page its list still names (`stampAhead`), so a
- * wanted page is never evicted and reloaded each frame (#1016).
+ * What the camera left: the lower tier's pages — the pages ahead of the camera —, loaded only into
+ * the free slots and those of the OLD pages the GPU's order gives up — older than any page the view
+ * ahead asks for (`../../gpu/page/eviction.ts`), through the one admission loop (`admitInOrder`).
+ * They are never pinned: a camera page evicts them, they never evict a page any view used of late,
+ * and an object on screen is never coarsened for a view to come. The view ahead stamps every page
+ * its list still names (`stampAhead`), so a wanted page is never evicted and reloaded each frame
+ * (#1016). Past a share the job leaves if a camera cut asked for pages meanwhile: the queue serves
+ * the camera first and runs the tier again. A job only ends on a tier pass nobody interrupted, so
+ * every wait on it finds the tier posted (#281). The camera's own burst taking the last slot
+ * meanwhile (`POOL_FULL`) leaves the tier waiting, as it does.
  */
-async function loadLowerTiers(
+async function loadLowerTier(
   pass: LowerPass,
   lower: readonly PageRec[],
   cache: GpuPageCache,
   cameraWaiting: () => boolean,
   reads: AbortSignal,
 ) {
-  const { skips, budget, signal } = pass
+  const { skips, signal } = pass
   let spare = cache.room(true)
   pass.readAhead?.(lower, spare, (rec) => !skips(rec), cache, reads, PRIORITY_PREFETCH)
-  // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
-  // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
-  // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
-  for (let i = 0; i < lower.length && spare > 0; i++) {
-    const shared = pass.share()
-    if (shared) {
-      await shared
-      if (cameraWaiting()) return
-    }
-    const rec = lower[i],
-      address = pageAddress(rec)
-    if (skips(rec) || cache.get(address)) continue
+  const before = (rec: PageRec): AdmitStep => {
+    if (spare <= 0) return 'leave'
+    if (skips(rec) || cache.get(pageAddress(rec))) return 'skip'
     signal?.throwIfAborted()
-    if (pass.isLost() || pass.getCache() !== cache) return
-    try {
-      spare -= Math.max(0, await pass.admit(rec, PRIORITY_PREFETCH))
-      budget.spend()
-    } catch (error) {
-      // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
-      if (String(error).includes('POOL_FULL')) return
-      throw error
-    }
+    return pass.isLost() || pass.getCache() !== cache ? 'leave' : 'admit'
   }
+  await admitInOrder(pass, lower, {
+    before,
+    resumed: (rec) => (cameraWaiting() ? 'leave' : before(rec)),
+    admitted: (taken) => (spare -= Math.max(0, taken)),
+    priority: PRIORITY_PREFETCH,
+  })
 }

@@ -127,19 +127,19 @@ export const ensurerOptions = (
   isLost: () => false,
   traceEnabled: false,
   traceDiagnostic: () => {},
-  lowerTiers: () => [],
+  lowerTier: () => ({ pages: [], revision: 0 }),
   bytesRevision: () => 0,
   clock: createFrameBudget(MAIN_THREAD_FRAME_MS),
 })
 
-/** The lower pass's options over `cache`, as the ensurer builds them, `lowerTiers` its tiers: no
+/** The lower pass's options over `cache`, as the ensurer builds them, `lowerTier` its tier: no
  *  read ahead, and a share that never waits. */
 export function lowerPassOptions(
   tracking: WebgpuPageTracking,
   cache: unknown,
-  lowerTiers: () => readonly LowerList[],
+  lowerTier: () => LowerList,
 ): LowerPassOptions {
-  const options = { ...ensurerOptions(tracking, cache), lowerTiers }
+  const options = { ...ensurerOptions(tracking, cache), lowerTier }
   return {
     ...options,
     admit: createPageAdmission(options),
@@ -149,19 +149,13 @@ export function lowerPassOptions(
   }
 }
 
-/** An ensurer over `cache` whose first lower tier is `firstPages`, and the second `nextPages`. */
+/** An ensurer over `cache` whose lower tier is `tierPages`. */
 export const tierEnsurer = (
   tracking: WebgpuPageTracking,
   cache: unknown,
-  firstPages: () => readonly PageRec[],
-  nextPages: () => readonly PageRec[] = () => [],
+  tierPages: () => readonly PageRec[],
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
-    lowerTiers: () =>
-      [firstPages(), nextPages()].map((pages) => ({
-        pages,
-        has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
-        revision: 0,
-      })),
+    lowerTier: () => ({ pages: tierPages(), revision: 0 }),
   })

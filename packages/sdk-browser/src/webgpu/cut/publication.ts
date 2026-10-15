@@ -31,16 +31,13 @@ export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
   residencySets: WebgpuResidencySets,
   closure: GroupClosure,
-  /** The lower tiers in order (`../residency/lowerTier.ts`), each counted in the host tables; the
-   *  view ahead's requests go to `ahead`, below the camera's. */
-  tiers: {
-    all: readonly { readonly hostBytes: number }[]
-    ahead: { offerIds(ids: ArrayLike<number>): void }
-  },
+  /** The lower tier (`../residency/lowerTier.ts`), counted in the host tables: the view ahead's
+   *  requests, below the camera's. */
+  ahead: { offerIds(ids: ArrayLike<number>): void; readonly hostBytes: number },
 ) {
   const { run, gpu, views } = rt
   const p = publicationOf(rt, residencySets, closure)
-  const cutAdopter = cutAdopterOf(p, tiers.ahead)
+  const cutAdopter = cutAdopterOf(p, ahead)
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   // Read here and not retained: this publication's lifetime is that of the engine, and a list that
   // only serves bootstrap has no reason to stay hooked on it. No GPU snapshot ever held it: the
@@ -62,7 +59,7 @@ export function createWebgpuCutPublication(
     followEvictions: createEvictionFeed(rt.layout.packedPages, () => gpu.cache),
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending: p.cutPending,
-    hostTableBytes: () => publicationBytes(p, tiers.all),
+    hostTableBytes: () => publicationBytes(p, ahead),
     adoptGpuCut: adoptMain,
     adoptAsideCut: adoptAside,
     /** The drawn view adopts its readback: the main cut's, or its own beside it. */
@@ -136,8 +133,8 @@ function cutAdopterOf(p: Publication, ahead: { offerIds(ids: ArrayLike<number>):
   })
 }
 
-/** Bytes of the cut's host tables, the lower tiers' and another view's differences included. */
-function publicationBytes(p: Publication, tiers: readonly { readonly hostBytes: number }[]) {
+/** Bytes of the cut's host tables, the lower tier's and another view's differences included. */
+function publicationBytes(p: Publication, ahead: { readonly hostBytes: number }) {
   const { run, views } = p.rt
   return (
     p.closure.hostBytes +
@@ -146,7 +143,7 @@ function publicationBytes(p: Publication, tiers: readonly { readonly hostBytes: 
     p.cutDelta.hostBytes +
     p.drawnDelta.hostBytes +
     p.cutPending.hostBytes +
-    tiers.reduce((bytes, tier) => bytes + tier.hostBytes, 0) +
+    ahead.hostBytes +
     // Another view's differences, counted while it is drawn: a capture's live only for its call.
     (views.active === views.main
       ? 0

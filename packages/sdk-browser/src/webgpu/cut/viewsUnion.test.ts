@@ -53,10 +53,7 @@ function bench() {
     adopt: () => undefined,
     worldRevision: 0,
   } as unknown as typeof run.gpuSelection
-  const publication = createWebgpuCutPublication(rt, scene.sets, scene.closure, {
-    all: [ahead],
-    ahead,
-  })
+  const publication = createWebgpuCutPublication(rt, scene.sets, scene.closure, ahead)
   const { main } = rt.views,
     side = createWebgpuView(1, 1)
   // A view the page draws beside the main one: its readbacks join the union (`viewReadbacks`).

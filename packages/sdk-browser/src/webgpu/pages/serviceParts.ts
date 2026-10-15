@@ -105,7 +105,7 @@ export function createBootstrapFor(rt: WebgpuPagesCore, hasBytes: (rec: PageRec)
   })
 }
 
-/** The upload side of residency: the pins, the ensurer over the queue and the lower tiers, the
+/** The upload side of residency: the pins, the ensurer over the queue and the lower tier, the
  *  queue itself. */
 export function createResidencyFor(
   rt: WebgpuPagesCore,
@@ -113,14 +113,14 @@ export function createResidencyFor(
     residencySets: WebgpuResidencySets
     closure: GroupClosure
     hasBytes: (rec: PageRec) => boolean
-    lowerTiers: readonly LowerList[]
+    lowerTier: LowerList
     room: () => number
   },
 ) {
   const { run, gpu, diag, context } = rt,
     { tracking, bootstrapKey, geometryUrls } = rt.setup,
     { rows } = rt.layout,
-    { residencySets, closure, hasBytes, lowerTiers } = parts
+    { residencySets, closure, hasBytes, lowerTier } = parts
   const parentsOf = createPageParents(
     rt.layout.selectionRoots,
     rt.layout.placement,
@@ -146,7 +146,7 @@ export function createResidencyFor(
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
-    lowerTiers: () => lowerTiers,
+    lowerTier: () => lowerTier,
     bytesRevision: rows.touchRevision,
     coverMissing: residencySets.coverMissing,
     coverLacking: residencySets.coverLacking,

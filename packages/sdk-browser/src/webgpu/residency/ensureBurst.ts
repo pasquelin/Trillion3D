@@ -20,9 +20,9 @@ export type EnsureOptions = {
   isLost: () => boolean
   traceEnabled: boolean
   traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
-  /** The lower tiers, served after the camera's: the casters the light cuts asked for, then the
-   *  pages ahead of the camera, each highest priority first, without repeats (`lowerTier.ts`). */
-  lowerTiers: () => readonly LowerList[]
+  /** The lower tier, served after the camera's: the pages ahead of the camera, highest priority
+   *  first, without repeats (`lowerTier.ts`). */
+  lowerTier: () => LowerList
   /** Starts a page's bytes read ahead of its admission, at PRIORITY_PREFETCH for the lower tiers. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void
   /** Advanced whenever a page's bytes arrive or leave (`../row/journal.ts`, `touchRevision`). */
@@ -80,12 +80,30 @@ export async function admitWanted(
     s.readAhead?.(wanted, run.cache.room(), wants, run.cache, reads)
   }
   readAhead()
-  for (const rec of covering)
-    if (needsAdmit(s, run, rec) && !(await admitOne(s, run, rec, landed))) return
-  for (let i = 0; i < wanted.length; i++) {
-    readAhead()
-    if (needsAdmit(s, run, wanted[i]) && !(await admitOne(s, run, wanted[i], landed))) return
+  const walk: AdmitWalk = {
+    before: (rec) => (needsAdmit(s, run, rec) ? 'admit' : 'skip'),
+    // Past a share the page is read again against `wanted` and the pool, which a camera that moved
+    // in between may have changed.
+    resumed(rec) {
+      run.cache = currentCache(s)
+      if (asked(s, rec) && !run.cache.get(pageAddress(rec))) return 'admit'
+      run.missing--
+      return 'skip'
+    },
+    // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+    admitted(taken) {
+      if (taken > 0) {
+        landed()
+        run.missing--
+      }
+      run.cache = currentCache(s)
+    },
   }
+  // Pool full of pages the image holds: the burst stops there, without dropping anything. What
+  // stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`) only reports
+  // that the image asks for more than the slots hold.
+  run.full =
+    !(await admitInOrder(s, covering, walk)) || !(await admitInOrder(s, wanted, walk, readAhead))
 }
 
 /** Whether the image still asks for `rec` — the queue or the root cover. */
@@ -105,36 +123,52 @@ function needsAdmit(s: EnsureState, run: EnsureRun, rec: PageRec) {
   return s.hasBytes(rec)
 }
 
-/** One page of the burst admitted (`needsAdmit` said so), unless the image no longer asks for it
- *  or the pool holds it once the share resumes; false once the pool is full. */
-async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: () => void) {
-  // The share (`share.ts`): past it the burst resumes after a task, nothing dropped — the page
-  // read again against `wanted` and the pool, which a camera that moved in between may have changed.
-  const shared = s.share()
-  if (shared) {
-    await shared
-    run.cache = currentCache(s)
-    if (!asked(s, rec) || run.cache.get(pageAddress(rec))) {
-      run.missing--
-      return true
+/** What a walk of `admitInOrder` does with a page: admits it, passes it over, or ends the walk. */
+export type AdmitStep = 'admit' | 'skip' | 'leave'
+/** How a tier walks `admitInOrder`: a page's step before it (`before`) and once a share was awaited
+ *  (`resumed`), what its admission took (`admitted`: the slots, -1 for a page whose parents lack
+ *  their bytes), and the priority of its reads — the camera's own unless given. */
+export type AdmitWalk = {
+  before: (rec: PageRec) => AdmitStep
+  resumed: (rec: PageRec) => AdmitStep
+  admitted: (taken: number) => void
+  priority?: number
+}
+
+/**
+ * THE ONE ADMISSION LOOP of the residency queue, the camera's burst and the lower tiers' fill
+ * alike: `list` in order, `each` called before every page, each page the walk admits loaded through
+ * the install order (`./admission.ts`). The share (`share.ts`) is awaited before an admission: past
+ * it the job resumes after a task, nothing dropped, and the page is asked again (`resumed`). False
+ * once the pool is full of pages the image holds: the walk stops there.
+ */
+export async function admitInOrder(
+  s: Pick<LowerPassOptions, 'share' | 'admit' | 'budget'>,
+  list: readonly PageRec[],
+  walk: AdmitWalk,
+  each?: () => void,
+) {
+  for (let i = 0; i < list.length; i++) {
+    each?.()
+    const rec = list[i]
+    let step = walk.before(rec)
+    if (step === 'admit') {
+      const shared = s.share()
+      if (shared) {
+        await shared
+        step = walk.resumed(rec)
+      }
+    }
+    if (step === 'leave') return true
+    if (step === 'skip') continue
+    try {
+      walk.admitted(await s.admit(rec, walk.priority))
+      s.budget.spend()
+    } catch (error) {
+      if (!String(error).includes('POOL_FULL')) throw error
+      return false
     }
   }
-  try {
-    // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
-    if ((await s.admit(rec)) > 0) {
-      landed()
-      run.missing--
-    }
-    s.budget.spend()
-  } catch (error) {
-    if (!String(error).includes('POOL_FULL')) throw error
-    // Pool full of pages the image holds: the burst stops there, without dropping anything.
-    // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
-    // only reports that the image asks for more than the slots hold.
-    run.full = true
-    return false
-  }
-  run.cache = currentCache(s)
   return true
 }
 

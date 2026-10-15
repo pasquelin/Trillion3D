@@ -39,7 +39,7 @@ test('reading ahead admits the same pages in the same order as develop, on rando
 test('with room for every page, the camera reads are its loads, all issued before the first', async () => {
   for (let seed = 1; seed <= 400; seed++) {
     const scene = world(seed)
-    scene.tiers = [[], []]
+    scene.tier = []
     const { log, loads, reads } = await run(scene, true, scene.pages.length)
     const first = log.findIndex((entry) => entry.startsWith('load'))
     assert.ok(first < 0 || log.slice(first).every((entry) => entry.startsWith('load')))
@@ -60,7 +60,7 @@ test('edge cases: nothing wanted, a full pool, a parent without bytes, a page al
     slots: 3,
     resident: [other],
     camera: [] as PageRec[],
-    tiers: [[], []] as PageRec[][],
+    tier: [] as PageRec[],
   }
   assert.deepEqual((await run(scene, true)).log, [], 'an empty job reads nothing')
   scene.camera = [leaf, other]
@@ -119,7 +119,7 @@ test('the lower tiers read ahead at prefetch priority, the camera at its own', a
   const asked: [string, number | undefined][] = []
   await createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, orderedPool(2)),
-    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier), revision: 0 }],
+    lowerTier: () => ({ pages: [tier], revision: 0 }),
     prefetch: (page, _signal, priority) => asked.push([page.url, priority]),
   })([seen], 1, 1)
   assert.deepEqual(asked, [
