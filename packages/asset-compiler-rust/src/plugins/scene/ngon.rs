@@ -10,12 +10,14 @@
 //! The polygon is read in its own plane, that of its Newell normal: the dominant axis of that
 //! normal is left aside, and the other two carry the cut. A polygon with no plane — vertices
 //! all colinear, zero area, non-finite coordinates — has no ear to cut: it comes out as a fan,
-//! and the cut says so to the caller, which counts it under its own name.
+//! and the cut says so to the caller, which counts it (`codes::NGON_UNCUT`).
 //!
-//! A strictly convex ring is recognised in one pass, and the one ear cut then skips its
-//! containment scan: every corner is an ear, so the cut walks the fan from the first corner in
-//! linear time (`convex` says why).
+//! The cut (`ears`) walks a linked ring, so taking an ear costs nothing, and tests an ear only
+//! against the corners that can lie in it — those that do not turn strictly convex — found
+//! through a grid over the projected ring: a convex ring is cut in linear time, a large concave
+//! one far under the quadratic scan. The cancellation token is reread inside a face too.
 mod convex;
+mod ears;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -23,7 +25,6 @@ mod tests_convex;
 use super::cancel;
 use std::sync::atomic::AtomicBool;
 use trillion3d_math::triangle::newell;
-use trillion3d_math::vec2::double_area;
 
 /// A reusable cutter: the ring, its projection, the ranks still alive and the triangles serve
 /// from one face to the next, so a mesh of a thousand faces does not allocate a thousand times.
@@ -31,9 +32,16 @@ use trillion3d_math::vec2::double_area;
 pub(super) struct Ngon {
     ring: Vec<[f64; 3]>,
     flat: Vec<[f64; 2]>,
-    alive: Vec<usize>,
+    /// The living ring as links: the corner before and after each, and whether it still lives.
+    prev: Vec<usize>,
+    next: Vec<usize>,
+    alive: Vec<bool>,
+    /// The corners an ear may contain — those that do not turn strictly convex — and the grid
+    /// that finds them under a triangle (`ears::Grid`).
+    candidate: Vec<bool>,
+    grid: ears::Grid,
     triangles: Vec<[usize; 3]>,
-    /// Faces this cutter has already cut: it is this count that bounds rereading the
+    /// Faces and ears this cutter has already cut: it is this count that bounds rereading the
     /// cancellation token, once per slice.
     done: usize,
 }
@@ -67,34 +75,7 @@ impl Ngon {
             self.fan();
             return Some(false);
         };
-        let convex = convex::fan_is_exact(&self.flat, turn);
-        Some(self.ears(turn, convex))
-    }
-
-    /// Ear cut of the projected ring, walked in the sense `turn`: true when every triangle
-    /// was an ear, false when one had to be forced. On a `convex` ring every corner of positive
-    /// area is an ear (`convex`): the containment scan is skipped, the walk stays the same, and
-    /// the cut is the fan from the first corner at linear cost.
-    fn ears(&mut self, turn: f64, convex: bool) -> bool {
-        self.alive.clear();
-        self.alive.extend(0..self.ring.len());
-        let mut exact = true;
-        let mut at = 1;
-        while self.alive.len() > 3 {
-            let found = (0..self.alive.len())
-                .map(|step| (at + step) % self.alive.len())
-                .find(|rank| self.is_ear(*rank, turn, convex));
-            let rank = found.unwrap_or_else(|| self.widest(turn));
-            exact &= found.is_some();
-            let (before, after) = self.neighbours(rank);
-            self.triangles
-                .push([self.alive[before], self.alive[rank], self.alive[after]]);
-            self.alive.remove(rank);
-            at = rank % self.alive.len();
-        }
-        self.triangles
-            .push([self.alive[0], self.alive[1], self.alive[2]]);
-        exact
+        self.ears(turn, cancelled)
     }
 
     /// Triangles of the last cut, as corner ranks of the ring.
@@ -130,61 +111,5 @@ impl Ngon {
         // Signed area of the projection is the `axis` component of the Newell normal, already
         // finite and non-zero: its sign is the walk sense.
         Some(normal[axis].signum())
-    }
-
-    /// Ranks that frame a living rank.
-    fn neighbours(&self, rank: usize) -> (usize, usize) {
-        let sides = self.alive.len();
-        ((rank + sides - 1) % sides, (rank + 1) % sides)
-    }
-
-    /// Triangle of a living rank, in the cut plane.
-    fn ear(&self, rank: usize) -> [[f64; 2]; 3] {
-        let (before, after) = self.neighbours(rank);
-        [
-            self.flat[self.alive[before]],
-            self.flat[self.alive[rank]],
-            self.flat[self.alive[after]],
-        ]
-    }
-
-    /// Is this rank an ear? Its corner must not turn into the polygon, and no other living
-    /// vertex must fall in its triangle, border included: a vertex sitting on the diagonal
-    /// stays there after the cut, on the wrong side of the remaining edge, and the next
-    /// triangle starts backwards. An aligned or duplicated corner passes: its triangle has
-    /// zero area, so it adds no surface, contains nothing, and the cut always advances.
-    fn is_ear(&self, rank: usize, turn: f64, convex: bool) -> bool {
-        let [a, b, c] = self.ear(rank);
-        let area = turn * double_area(a, b, c);
-        if area < 0.0 {
-            return false;
-        }
-        if area == 0.0 || convex {
-            return true;
-        }
-        let (before, after) = self.neighbours(rank);
-        let corners = [self.alive[before], self.alive[rank], self.alive[after]];
-        !self.alive.iter().any(|other| {
-            !corners.contains(other) && {
-                let point = self.flat[*other];
-                ![a, b, c].contains(&point)
-                    && turn * double_area(a, b, point) >= 0.0
-                    && turn * double_area(b, c, point) >= 0.0
-                    && turn * double_area(c, a, point) >= 0.0
-            }
-        })
-    }
-
-    /// Most salient rank, cut by force when no ear presents itself: a self-intersecting
-    /// polygon has none, and the cut must finish. The first wins on a tie.
-    fn widest(&self, turn: f64) -> usize {
-        let saliency = |rank: &usize| {
-            let [a, b, c] = self.ear(*rank);
-            turn * double_area(a, b, c)
-        };
-        (0..self.alive.len())
-            .rev()
-            .max_by(|x, y| saliency(x).total_cmp(&saliency(y)))
-            .unwrap_or_default()
     }
 }
