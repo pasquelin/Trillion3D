@@ -64,6 +64,21 @@ pub(super) fn check_acyclic(g: &Value) -> Result<()> {
     Ok(())
 }
 
+/// Hierarchy roots: the nodes no other cites as a child, in index order. A node cited by two
+/// parents is refused — a hierarchy is a forest. The one reading of roots for the compiler's scene,
+/// its world matrices and every driver's tables.
+pub(crate) fn hierarchy_roots(nodes: &[Value]) -> Result<Vec<usize>> {
+    let mut is_child = vec![false; nodes.len()];
+    for id in 0..nodes.len() {
+        for child in children_of(nodes, id)? {
+            if std::mem::replace(&mut is_child[child], true) {
+                return Err(invalid("A node is the child of two parents"));
+            }
+        }
+    }
+    Ok((0..nodes.len()).filter(|id| !is_child[*id]).collect())
+}
+
 /// Roots of the rendered scene. glTF 2.0 §3.5: a document renders only one scene
 /// — the one `scene` names, otherwise the first declared. Without `scenes`, or with an
 /// empty one, the document names none: the compiler then takes every hierarchy root.
@@ -73,13 +88,7 @@ pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
         .and_then(Value::as_array)
         .filter(|scenes| !scenes.is_empty())
     else {
-        let mut is_child = vec![false; nodes.len()];
-        for id in 0..nodes.len() {
-            for child in children_of(nodes, id)? {
-                is_child[child] = true;
-            }
-        }
-        return Ok((0..nodes.len()).filter(|id| !is_child[*id]).collect());
+        return hierarchy_roots(nodes);
     };
     let named = match g.get("scene") {
         Some(value) => required_index(Some(value), "scene")?,

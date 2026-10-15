@@ -92,7 +92,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         ));
     }
     let tables = borrowed_tables!(importer.scene);
-    let mut gltf = tables.document(plugin, &importer.scene.roots());
+    let mut gltf = tables.document(plugin, &importer.scene.roots()?);
     let lights = &importer.scene.lights;
     crate::import::attach_lights(&mut gltf, lights);
     for (field, table) in [

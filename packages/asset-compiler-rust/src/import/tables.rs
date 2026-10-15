@@ -134,17 +134,9 @@ impl SceneTables {
         (meshes.count(), triangles.sum())
     }
 
-    /// Scene roots: nodes uncited as child by any other.
-    pub(crate) fn roots(&self) -> Vec<usize> {
-        let mut child = vec![false; self.nodes.len()];
-        for node in &self.nodes {
-            for id in node["children"].as_array().map_or(&[][..], Vec::as_slice) {
-                if let Some(id) = id.as_u64() {
-                    child[id as usize] = true;
-                }
-            }
-        }
-        (0..self.nodes.len()).filter(|id| !child[*id]).collect()
+    /// Scene roots: nodes uncited as child by any other (`hierarchy_roots`).
+    pub(crate) fn roots(&self) -> Result<Vec<usize>> {
+        crate::compiler_nodes::hierarchy_roots(&self.nodes)
     }
 }
 
@@ -159,7 +151,7 @@ impl SceneOutput for SceneTables {
     ) -> Result<PathBuf> {
         Converted {
             tables: borrowed_tables!(self),
-            roots: &self.roots(),
+            roots: &self.roots()?,
             lights: &self.lights,
             report: &self.report,
             counts: &self.counts,

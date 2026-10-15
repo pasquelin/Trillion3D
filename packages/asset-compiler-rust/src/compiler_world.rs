@@ -52,17 +52,8 @@ pub(super) fn local_matrix(node: &Value) -> Result<Mat4> {
 pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
     let nodes = values(g, "nodes")?;
     let mut world = vec![IDENTITY; nodes.len()];
-    let mut is_child = vec![false; nodes.len()];
-    for id in 0..nodes.len() {
-        for child in crate::compiler_nodes::children_of(nodes, id)? {
-            if is_child[child] {
-                return Err(invalid("A node is the child of two parents"));
-            }
-            is_child[child] = true;
-        }
-    }
-    let mut stack: Vec<(usize, Mat4, usize)> = (0..nodes.len())
-        .filter(|id| !is_child[*id])
+    let mut stack: Vec<(usize, Mat4, usize)> = crate::compiler_nodes::hierarchy_roots(nodes)?
+        .into_iter()
         .map(|id| (id, IDENTITY, 0usize))
         .collect();
     while let Some((id, parent, depth)) = stack.pop() {
