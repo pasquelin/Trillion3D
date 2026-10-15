@@ -38,7 +38,7 @@ export const blendReflects = (mat: Pick<VisMaterial, 'lit' | 'model'>) => {
  * and clear-coat lobes under `PHYSICAL_SURFACE_FLAG` (`blendLobedTexel`). A fragment that does neither
  * discards; of the others, the pass's depth test keeps the nearest. No colour, no feedback.
  */
-export const frontStageWgsl = (outputs: FrontOutputs) => {
+const frontStageWgsl = (outputs: FrontOutputs) => {
   const lobes = outputs === 2,
     reflects = outputs > 0
   const fields = [

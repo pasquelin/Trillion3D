@@ -41,7 +41,7 @@ export type FamilyCase = {
 
 const KINDS: ShapeKind[] = ['sphere', 'box', 'torus', 'post', 'quad', 'disc', 'morph', 'skinned']
 /** The pixels between two read ones of the image, along each axis. */
-export const GRID = 12
+const GRID = 12
 
 /** The grid's pixels of a `width × height` image, `[i, j]` row by row, `GRID` apart from the middle
  *  of a cell: the order the page reads them in and the expectation decides them in. */
