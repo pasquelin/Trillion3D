@@ -78,7 +78,6 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
   let view = false
   return {
     buffer,
-    bytes: packed.byteLength,
     /** Irradiance diagnostic view: it travels in the same uniform as the cascades. */
     setIrradianceView(on: boolean) {
       if (view === on) return
