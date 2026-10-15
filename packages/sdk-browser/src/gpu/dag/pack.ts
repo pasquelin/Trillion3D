@@ -17,7 +17,7 @@ import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
 import { packPlacementTree } from './placementTreePack.ts'
 import { allocatePacking, emptyShared, placeRoot, type Packing } from './packRoots.ts'
-import { packPlan, roomAhead, type DagCapacity } from './packCapacity.ts'
+import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
 
 /**
  * Pack the cluster bands, their cone/box records and the per-primitive culling nodes, at
@@ -119,18 +119,10 @@ function recordTables(
   roots.forEach((root, w) =>
     content.place(root, p.cutLinks[w].pageBase, (p.cutLinks[w].pageBase + p.recordShift[w]) >>> 0),
   )
-  const recordSlots = Math.max(
-      records.count,
-      room?.records ?? 0,
-      room?.ahead ? roomAhead(records.count) : 0,
-    ),
-    keys = Math.max(content.count, room?.keys ?? 0, room?.ahead ? roomAhead(content.count) : 0),
-    groups = Math.max(
-      content.groups,
-      room?.groups ?? 0,
-      room?.ahead ? roomAhead(content.groups) : 0,
-    ),
-    edges = Math.max(content.edges, room?.edges ?? 0, room?.ahead ? roomAhead(content.edges) : 0),
+  const recordSlots = roomFor(records.count, room?.records, room),
+    keys = roomFor(content.count, room?.keys, room),
+    groups = roomFor(content.groups, room?.groups, room),
+    edges = roomFor(content.edges, room?.edges, room),
     shape = {
       pageCount: pages,
       recordCount: recordSlots,
