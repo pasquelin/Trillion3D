@@ -46,6 +46,16 @@ inline JPH::Mat44 inverseInertia(const JPH::Body &body) {
 inline float inverseMassAlong(const JPH::Body &body, JPH::Vec3 arm) {
   return inverseMass(body) + arm.Dot(inverseInertia(body).Multiply3x3(arm));
 }
+/// Jolt keeps at most four points of a manifold (`PruneContactPoints`).
+constexpr uint32_t MANIFOLD_POINTS = 4;
+/// THE ONE CONTACT IMPULSE ESTIMATE, before the solver runs: the normal impulse that stops the
+/// approach `target[i]` of each of `count` points at once, `k` the inverse mass matrix of the
+/// non-penetration constraint at those points — the inelastic contact problem `K λ ≥ v, λ ≥ 0,
+/// λ·(K λ − v) = 0`, solved by projected Gauss–Seidel; its total `Σ λ`. A rigid pair's manifold
+/// gives its points (`contacts.cpp`), a soft body's touch its vertices as one lump
+/// (`softContacts.cpp`): one point, whose impulse is `max(0, v) / k`.
+float normalImpulse(uint32_t count, const float target[MANIFOLD_POINTS],
+                    const float k[MANIFOLD_POINTS][MANIFOLD_POINTS]);
 /// The approach speed along the normal the solver takes out of a contact: all of `speed`, and
 /// `restitution` times more when it comes faster than `threshold` (it bounces back).
 inline float bounced(float speed, float restitution, float threshold) {

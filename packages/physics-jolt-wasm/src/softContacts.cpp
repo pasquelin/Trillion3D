@@ -87,11 +87,13 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
       Vec3 arm = Vec3(RVec3(point) - b.GetCenterOfMassPosition()).Cross(normal);
-      float inverse = 1.0f / t.mass + inverseMassAlong(b, arm);
+      // Jolt's soft solver bounces past `2 g` times its substep (`SoftBodyMotionProperties`), as
+      // the rigid one past its own restitution speed.
+      const float k[MANIFOLD_POINTS][MANIFOLD_POINTS] = {{1.0f / t.mass + inverseMassAlong(b, arm)}};
       float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
       float substep = world().dt / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
-      float speed = bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep);
-      impulse = inverse > 0 ? std::max(0.0f, speed) / inverse : 0.0f;
+      const float speed[MANIFOLD_POINTS] = {bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep)};
+      impulse = normalImpulse(1, speed, k);
     }
     Float3 at;
     point.StoreFloat3(&at);
