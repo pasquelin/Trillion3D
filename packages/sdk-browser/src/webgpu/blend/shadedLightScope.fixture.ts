@@ -1,5 +1,7 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 
+/** The functions a light loop and its pair share, which a test of either runs beside it. */
+export const LIGHT_LOOP_SHARED = ['directIncidence', 'rangeWindow', 'isSun', 'isSunKind', 'isRect']
 /** A light loop's sum, run as JavaScript: one colour. */
 export type Sum = (...args: unknown[]) => number[]
 /** A light loop's pair of sums, run as JavaScript: the lit colour and the specular one. */

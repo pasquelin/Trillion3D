@@ -13,7 +13,13 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import { randomLampScope, same, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
+import {
+  LIGHT_LOOP_SHARED,
+  randomLampScope,
+  same,
+  type Pair,
+  type Sum,
+} from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -28,11 +34,7 @@ const SINGLE = wgslModule(
 )
 const K = wgslConstants(LOBED)
 const SHARED = [
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
+  ...LIGHT_LOOP_SHARED,
   'modelLight',
   'lambertAlbedoMul',
   'thinTransmission',
