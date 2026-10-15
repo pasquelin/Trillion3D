@@ -9,7 +9,7 @@ import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 test('the shading biases along the receiver plane, handed to the read', () => {
   assert.ok(
     wgslSource(declaredLightWgsl()).includes(
-      'shadowBiasNormal(select(N,-N,back),shadowReceiverPlane)',
+      'vsmBiasNormal(select(N,-N,back),shadowReceiverPlane)',
     ),
   )
 })

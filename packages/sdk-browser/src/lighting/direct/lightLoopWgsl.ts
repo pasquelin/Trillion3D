@@ -104,7 +104,7 @@ const shadeStatement = (pair: boolean) => `
  let toward=normalize(incidence.xyz);
  let back=thinSurface()&&dot(N,incidence.xyz)<0.0;
  let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,shadowBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
  if(shade<=0.0){return ${zero(pair)};}`
 
 /**

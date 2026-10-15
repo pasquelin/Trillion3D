@@ -87,10 +87,6 @@ const shadowFactorWgsl = (read: string) => `
 var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 var<private> shadowReceiverPlane:vec3f=vec3f(0.0);
 var<private> shadowTransmission:vec3f=vec3f(1.0);
-fn shadowBiasNormal(n:vec3f,g:vec3f)->vec3f{
- if(dot(g,g)==0.0){return n;}
- return select(g,-g,dot(g,n)<0.0);
-}
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
  shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}

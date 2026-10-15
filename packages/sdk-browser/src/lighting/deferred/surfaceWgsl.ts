@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
-import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
+import { receiverTargetReadWgsl } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -56,7 +56,11 @@ export const contractSurfaceBody = (bounce: boolean) => {
   const { bounce: bounced, thin, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
-    [receiverOffsetWgsl(DEFERRED_BINDINGS.receiver), SURFACE_EMISSIVE_AO_WGSL, SHADOW_SETUP_WGSL],
+    [
+      receiverTargetReadWgsl(0, DEFERRED_BINDINGS.receiver),
+      SURFACE_EMISSIVE_AO_WGSL,
+      SHADOW_SETUP_WGSL,
+    ],
     `${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return vec4f(0.0);}

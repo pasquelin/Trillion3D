@@ -95,7 +95,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][Math.floor(round / 3) % 3],
           shadowReceiverOffset: [0, 0, 0],
           shadowReceiverPlane: [0, 0, 0],
-          shadowBiasNormal: (normal: number[]) => normal,
+          vsmBiasNormal: (normal: number[]) => normal,
           shadowTransmission: [1, 1, 1],
           shadowFactor: () => 1,
         }

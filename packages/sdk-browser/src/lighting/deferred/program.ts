@@ -9,7 +9,6 @@ import { createCompositions, type CompositionSources } from './compositions.ts'
 import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import type { ReceiverResources } from '../../webgpu/visibility/receiver.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { bindLight, type ProgramParts, type ProgramState } from './lightGroup.ts'
 
@@ -44,7 +43,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
-  receiver?: ReceiverResources // what the receiver offset reads
+  receiver?: GPUTextureView // the resolve's shadow receiver target
 }
 export interface DeferredSources {
   /** The lighting program (`contractLightingProgram`). */

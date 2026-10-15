@@ -161,7 +161,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined
   contractResources.bounceGrid = bounce?.uniform
   contractResources.probes = bounce?.probes
-  // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
+  // The shadow receiver the resolve wrote (`receiverTargetWgsl.ts`).
   contractResources.receiver = active ? receiverResources(rt) : undefined
   // The share of the radiance the opaque trace wrote this image (`../../../reflections/frame.ts`).
   contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined

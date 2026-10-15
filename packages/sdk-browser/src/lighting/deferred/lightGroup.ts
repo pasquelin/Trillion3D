@@ -3,7 +3,6 @@
  * by its stand-in, and the group made again only when one of them was replaced.
  */
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
 import {
@@ -144,12 +143,12 @@ function contractEntries(
     mask: GPUTextureView
     maskTiles: GPUTextureView
     vsmTransmission: GPUTextureView
-    receiver: ReceiverResources
+    receiver: GPUTextureView
     reflection: GPUTextureView
   },
 ): GPUBindGroupEntry[] {
   return [
-    ...receiverEntries(DEFERRED_BINDINGS.receiver, r.receiver),
+    { binding: DEFERRED_BINDINGS.receiver, resource: r.receiver },
     { binding: DEFERRED_BINDINGS.subsurface, resource: surface.subsurfaceView },
     { binding: DEFERRED_BINDINGS.lobes, resource: surface.lobesView },
     ...namedEntries(DEFERRED_BINDINGS, {

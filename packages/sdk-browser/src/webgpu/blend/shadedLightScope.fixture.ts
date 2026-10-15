@@ -56,7 +56,7 @@ export function shadedLightScope(
     surfaceModel: [MODEL_FLAG.physical, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
     shadowReceiverOffset: [0, 0, 0],
     shadowReceiverPlane: [0, 0, 0],
-    shadowBiasNormal: (vector: number[]) => vector,
+    vsmBiasNormal: (vector: number[]) => vector,
     shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
   }
   return { normal, scope }
