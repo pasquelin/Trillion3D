@@ -10,7 +10,9 @@ import {
   frameTargetBytes,
 } from './surfaceBuffer.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
-import { EMISSIVE_AO_SURFACE_FLAG, SURFACE_MODEL } from './surfaceModel.ts'
+import { EMISSIVE_AO_SURFACE_FLAG, MODEL_SHIFT, SURFACE_MODEL, modelFlag } from './surfaceModel.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 
 test('a surface rejects an invalid or off-device size, and nothing else: no byte ceiling', () => {
@@ -82,6 +84,12 @@ function flagExpressions(shader: string) {
 test('every flag the resolve writes fits the r8uint flags target unchanged', () => {
   assert.equal(SURFACE_FORMATS[3], 'r8uint')
   const select = (f: number, t: number, c: boolean) => (c ? t : f)
+  // The model lane's flag, as the shader maps it (`modelFlag`), run as shipped.
+  const lane = shaderRun<{ modelFlag: (flags: number) => number }>(
+    wgslModule(modelFlag),
+    ['modelFlag'],
+    {},
+  )
   const written = new Set<number>()
   for (const expression of flagExpressions(SHADE_SHADER)) {
     const run = new Function(
@@ -90,15 +98,26 @@ test('every flag the resolve writes fits the r8uint flags target unchanged', () 
       'page',
       'flag',
       'emissiveAoFlag',
+      'modelFlag',
       'emissive',
       'ao',
       `return ${expression.replace(/(\d)u\b/g, '$1')};`,
     )
+    // The page's flags: unlit or lit, its model in its lane.
     for (const model of Object.values(SURFACE_MODEL))
-      for (const flags of [0, 1])
+      for (const lit of [0, 1])
         for (const flag of [1, 2, 4, 5])
           for (const mark of [0, EMISSIVE_AO_SURFACE_FLAG])
-            written.add(run(select, model, { flags }, flag, () => mark) as number)
+            written.add(
+              run(
+                select,
+                model,
+                { flags: lit | (model << MODEL_SHIFT) },
+                flag,
+                () => mark,
+                lane.modelFlag,
+              ) as number,
+            )
   }
   // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set; a surface
   // shown unlit or lit with its emission-and-occlusion mark.
