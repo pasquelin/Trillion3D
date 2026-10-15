@@ -3,6 +3,7 @@ import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_SCENE_BINDINGS, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
+import { REFLECTION_DITHER_WGSL } from './sampleWgsl.ts'
 import { runtimeRadianceWgsl } from '../bounce/runtimeRadianceWgsl.ts'
 
 /**
@@ -28,6 +29,7 @@ export const reflectionProxyWgsl = (group: number) =>
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_REACH_WGSL,
+      REFLECTION_DITHER_WGSL,
       runtimeRadianceWgsl({ ...REFLECTION_SCENE_BINDINGS, group }),
     ],
     `fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,pixel:f32,width:f32,bound:f32)->RadianceAnswer{
@@ -36,15 +38,20 @@ export const reflectionProxyWgsl = (group: number) =>
  let lift=rtProxy.error;
  if(reach<=lift){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  let tangent=reflectionReadTangent(lobe);
+ // Where the field takes over (a reach short of the scene's), a hit over the last stretch of the ray
+ // stands less and less often, the field answering the rest: the ray's end is drawn there once, by
+ // the inverse of that fade, so a ray pays one answer — its hit's light or the field's gather —,
+ // never both, and never a line where the two sources meet.
+ var rayEnd=reach;
+ if(reach<reflectionSceneReach()){
+  let fade=0.5-sin(asin(2.0*reflectionDither(P,lobe.R,1u)-1.0)/3.0);
+  rayEnd=mix(REFLECTION_REACH_FADE*reach,reach,fade);
+ }
  // Never past the surface the screen met, its slab and the proxy's error on either side of it.
- let far=min(reach,bound+2.0*lift);
+ let far=min(rayEnd,bound+2.0*lift);
+ if(far<=lift){return RadianceAnswer(vec3f(0.0),0.0,0.0);}
  var seen=rtRadiance(P+N*lift,lobe.R,far-lift,tangent,REFLECTION_PROXY_WORK);
  seen.distance+=lift;
- // Where the field takes over (a reach short of the scene's), the proxy's answer fades into it over the
- // last stretch of the ray: a body at the reach's end is never a line where the two sources meet.
- if(reach<reflectionSceneReach()){
-  seen.confidence*=1.0-smoothstep(REFLECTION_REACH_FADE*reach,reach,seen.distance);
- }
  return seen;
 }`,
   )

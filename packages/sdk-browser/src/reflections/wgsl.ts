@@ -47,8 +47,7 @@ import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
-import { mixWord } from '../../../math/src/wgsl/sampling.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { REFLECTION_DITHER_WGSL } from './sampleWgsl.ts'
 
 /** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
  *  `lobe` — the march along its centre, as coarse as a cone widening by `spread` a pixel allows
@@ -70,13 +69,9 @@ const reflectionSeenWgsl = (group: number) =>
       reflectionRayWgsl(group),
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
-      mixWord,
+      REFLECTION_DITHER_WGSL,
     ],
-    `fn reflectionDither(P:vec3f,R:vec3f)->f32{
- let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^reflectionView.temporal.x))));
- return f32(w>>8u)*${wgslF32(2 ** -24)};
-}
-fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f32)->RadianceAnswer{
+    `fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f32)->RadianceAnswer{
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
@@ -93,7 +88,7 @@ fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f3
  let cone=reflectionConeAt(distance(hit,P),pixel,lobe);
  // Whether the hit is the screen's to answer, taken whole or not at all as often as it is sure.
  let trust=edge*reflectionLevelTrust(cone.level,reflectionView.radiance.z);
- if(!(reflectionDither(P,lobe.R)<trust)){return seen;}
+ if(!(reflectionDither(P,lobe.R,0u)<trust)){return seen;}
  let ratio=size/reflectionView.radiance.xy;
  let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionImage))*ratio);
  // The hit's surface: its plane across the image, a footprint's width deep on either side.

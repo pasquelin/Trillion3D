@@ -52,10 +52,10 @@ export const REFLECTION_CONSTANTS = {
    *  so every highlight a display shows is averaged whole, and a firefly a thousand times brighter than
    *  its neighbours weighs ten. */
   REFLECTION_DENOISER_RANGE: 10,
-  /** Where along a proxy ray cut short for the field (`reach.ts`) its answer starts fading into the
-   *  field's, a share of its reach (`proxy.ts`): over the last quarter a body met weighs less and less,
-   *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
-   *  distance — shows no seam between the two sources. */
+  /** Where along a proxy ray cut short for the field (`reach.ts`) its end starts being drawn, a share
+   *  of its reach (`proxy.ts`): over the last quarter a body met stands less and less often — the ray
+   *  ends there by the inverse of a smoothstep of a dither —, the field answering the rest, so the
+   *  reach's end — a curve on a floor — shows no seam, and a ray pays one answer, never two. */
   REFLECTION_REACH_FADE: 3 / 4,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's

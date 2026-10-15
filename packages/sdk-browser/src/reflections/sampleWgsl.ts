@@ -8,6 +8,7 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 /**
  * EVERY LOBE, SAMPLED (`reflectionLobeRadiance`, every program's — the trace's kernels and the forward
@@ -74,5 +75,22 @@ fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)-
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
  let thin=lobeAlpha(0.0);
  return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin),min(alpha,lobe.w));
+}`,
+)
+
+/**
+ * THE CHAIN'S ONE DITHER (`reflectionDither`): a number in [0, 1) of the point `P`, the ray `R`, the
+ * stage `stage` and the image's turn (`ReflectionView.temporal.x`), with which a stage of the chain
+ * takes its answer whole or not at all, as often as it is sure — the screen whether it answers
+ * (`wgsl.ts`), the proxy whether its hit stands where its reach fades into the field (`proxy.ts`). A
+ * ray then pays one answer, never two blended; the images average the choice. Each stage draws its
+ * own number: the two choices are independent.
+ */
+export const REFLECTION_DITHER_WGSL = wgslBlock(
+  'REFLECTION_DITHER_WGSL',
+  [reflectionBindingsWgsl(REFLECTION_GROUP), mixWord, GOLDEN_U32],
+  `fn reflectionDither(P:vec3f,R:vec3f,stage:u32)->f32{
+ let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^mixWord(reflectionView.temporal.x^(stage*GOLDEN_U32))))));
+ return f32(w>>8u)*${wgslF32(2 ** -24)};
 }`,
 )
