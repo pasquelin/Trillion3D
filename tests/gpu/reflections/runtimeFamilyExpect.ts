@@ -21,10 +21,11 @@ import { crossings, radiance, type Vec } from './runtimeFamilyRays.ts'
  * along its centre.
  */
 const LOBE_SAMPLES = 4096
-/** Whether the engine samples a lobe of width `alpha` (`reflectionSampled`, run as shipped). */
+/** Whether the engine samples a lobe of width `alpha` (`reflectionSampled`, run as shipped, with the cone's
+ *  tangent it reads). */
 const { reflectionSampled } = shaderRun<{ reflectionSampled: (alpha: number) => boolean }>(
   wgslModule(REFLECTION_SAMPLE_WGSL),
-  ['reflectionSampled'],
+  ['reflectionSampled', 'reflectionConeTangent'],
   {},
 )
 /** The error the proof declares: relative to the expected value, plus an absolute floor. */
