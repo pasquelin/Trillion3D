@@ -1,5 +1,4 @@
 import * as surfaceModel from '../../scene/surfaceModel.ts'
-import { FLAG_DIAGNOSTIC_VIEW, FLAG_LIT, FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { LINE_DASH_WGSL } from '../../visibility/shader/lineWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -11,7 +10,7 @@ import { fragmentMembersWgsl, fragmentZeroWgsl } from '../../gpu/core/fragmentOu
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { blendVertexWgsl } from './vertexWgsl.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
-import { blendSurfaceWgsl } from './shaderSurface.ts'
+import { blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 
 /** How far behind its surface a covering fragment writes its depth into the Hi-Z front layer: a ray leaving
@@ -47,6 +46,7 @@ const frontStageWgsl = (outputs: FrontOutputs) => {
     `frontStageWgsl(${outputs})`,
     [
       blendSurfaceWgsl(lobes),
+      blendLit,
       surfaceModel.modelFlag,
       surfaceModel.surfaceReflects,
       LINE_DASH_WGSL,
@@ -56,10 +56,7 @@ const frontStageWgsl = (outputs: FrontOutputs) => {
     `struct FrontOut{${fragmentMembersWgsl(written)}}
 const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};
 /** Whether a blend of item flags \`flags\` is lit by a lit view, of a model that reflects. */
-fn frontReflects(flags:u32)->bool{
- let lit=(flags&${FLAG_LIT}u)!=0u&&(flags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)==0u;
- return lit&&surfaceReflects(modelFlag(flags));
-}
+fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelFlag(flags));}
 @fragment fn fsFront(in:VSOut,@builtin(front_facing) front:bool)->FrontOut{
  let g=blendGrads(in);
  let base=blendBase(in,g);

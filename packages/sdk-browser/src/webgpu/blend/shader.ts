@@ -5,7 +5,7 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { BLEND_BINDINGS, BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import * as itemFlags from '../../visibility/types.ts'
-import { blendSurfaceWgsl } from './shaderSurface.ts'
+import { blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { DISPLAY_MASK_GROUP, DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
@@ -72,6 +72,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(DISPLAY_MASK_GROUP),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
+      blendLit,
       surfaceModel.modelFlag,
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
@@ -96,7 +97,7 @@ ${BLEND_DIAGNOSTIC}
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=s.rough;
  if(!unlit){
-  if((flags&${itemFlags.FLAG_LIT}u)!=0u){
+  if(blendLit(flags)){
    let m=s.metal;
    surfaceModel=modelFlag(flags);
    thinSubsurface=s.subsurface;

@@ -1,12 +1,29 @@
-import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
+import {
+  FLAG_DIAGNOSTIC_VIEW,
+  FLAG_DOUBLE,
+  FLAG_HAS_NORMAL,
+  FLAG_LIT,
+  FLAG_SAMPLED,
+  FLAG_UNLIT_VIEW,
+} from '../../visibility/types.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
+
+/** Whether a blend of item flags `flags` is lit by a lit view: its material lit, the view neither
+ *  unlit nor a diagnostic. The one rule of the blend fragment's lighting and of the front stage's
+ *  reflecting surface (`frontReflects`): the front writes a reflecting surface exactly where the
+ *  blend fragment reads the front's radiance. */
+export const blendLit = wgslFn(
+  'blendLit',
+  [],
+  `fn blendLit(flags:u32)->bool{return (flags&${FLAG_LIT}u)!=0u&&(flags&${FLAG_UNLIT_VIEW | FLAG_DIAGNOSTIC_VIEW}u)==0u;}`,
+)
 
 const BLEND_SURFACE_NORMAL_WGSL = wgslBlock(
   'BLEND_SURFACE_NORMAL_WGSL',
