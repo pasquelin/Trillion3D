@@ -30,8 +30,8 @@ import { ROW_BINS_WGSL } from '../../vsm/rowBinsWgsl.ts'
 
 /** Every virtual shadow map module, for the layout the engine makes for one sun
  *  (`../../webgpu/pages/render/vsm/vsmEncode.ts`) at WebGPU's default binding size: the projection
- *  with and without subgroups and the receiver target, the page management with and without its
- *  counters. The transmission's cull is the opaque cull with its dirty marking left out: fewer
+ *  (one module, its kinds specialised by `VSM_TRACE_KINDS`), the page management with and without
+ *  its counters. The transmission's cull is the opaque cull with its dirty marking left out: fewer
  *  names, no new one. */
 export function vsmVariants() {
   const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
@@ -56,11 +56,7 @@ export function vsmVariants() {
     VSM_TRANSMISSION_RESOLVE: vsmTransmissionResolveWgsl(layout),
     ROW_BINS_WGSL,
   }
-  for (const subgroups of [false, true])
-    for (const receiver of [false, true]) {
-      variants[`VSM_PROJECTION${subgroups ? '_SUBGROUPS' : ''}${receiver ? '_RECEIVER' : ''}`] =
-        vsmProjectionWgsl(layout, { subgroups, receiver })
-    }
+  variants.VSM_PROJECTION = vsmProjectionWgsl(layout)
   // The marking's clears (`vsmMarkingClears`): every map's tables, and a receiver mask of the
   // suns'.
   const suns = vsmMarkingClears({ ...layout, coverMode: 'directional' })

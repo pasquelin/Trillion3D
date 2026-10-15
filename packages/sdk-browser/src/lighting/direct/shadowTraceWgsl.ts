@@ -84,7 +84,7 @@ fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*r.sceneDepth)+vsmView.screenRayScale.zw).y;
  r.noise=vsmNoiseOne(r.pos,vsmView.frameIndex);
- return vsmProjectLight(channel,r,true,false).shadowFactor;
+ return vsmProjectLight(channel,r,true).shadowFactor;
 }`,
   )
 

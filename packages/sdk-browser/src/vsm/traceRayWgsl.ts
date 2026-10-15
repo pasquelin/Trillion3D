@@ -31,12 +31,13 @@ export const vsmTraceRayWgsl = (pool: WgslDecl) =>
       perspectiveDivide,
     ],
     `
-/** A ray's line on one map: its start (UV, depth biased by the receiver's plane) and its step to the
+/** A ray's line on one map: its start (UV, depth biased by the receiver's plane: \`planeBias\` less the
+ *  depth the start gained over the receiver's own point \`origin\`, never below 0) and its step to the
  *  far end, the clip w at both ends, and the steepest slope the march extends an occluder with — a
  *  clipmap level's \`VSM_TRACE_SLOPE_CAP_SUN\` in its centimetre arithmetic (·${CM}), a perspective
  *  map's a share of the line's own depth step. */
 struct VsmRayLine{uvz:vec3f,step:vec3f,w:vec2f,slopeCap:f32,}
-fn vsmRayLine(h:VsmHandle,clipmap:bool,start:vec3f,end:vec3f,clampStart:bool,depthBias:f32)->VsmRayLine{
+fn vsmRayLine(h:VsmHandle,clipmap:bool,origin:vec3f,start:vec3f,end:vec3f,clampStart:bool,planeBias:f32)->VsmRayLine{
  let pd=vsmProjectionOf(h);
  let s4=pd.shiftedToMapUv*vec4f(start,1.0);
  let e4=pd.shiftedToMapUv*vec4f(end,1.0);
@@ -45,7 +46,8 @@ fn vsmRayLine(h:VsmHandle,clipmap:bool,start:vec3f,end:vec3f,clampStart:bool,dep
  r.step=perspectiveDivide(e4)-a;
  r.uvz=a;
  if(clampStart){r.uvz=vec3f(saturate(a.xy),a.z);}
- r.uvz.z+=depthBias;
+ let gained=abs(a.z-perspectiveDivide(pd.shiftedToMapUv*vec4f(origin,1.0)).z);
+ r.uvz.z+=max(0.0,planeBias-gained);
  r.w=vec2f(s4.w,e4.w);
  r.slopeCap=select(VSM_TRACE_SLOPE_CAP_LOCAL*r.step.z,abs(VSM_TRACE_SLOPE_CAP_SUN*${CM}*pd.lightViewToClip[2][2]),clipmap);
  return r;
@@ -54,7 +56,7 @@ fn vsmRayLine(h:VsmHandle,clipmap:bool,start:vec3f,end:vec3f,clampStart:bool,dep
  *  face's, which the march takes over where the far face holds no more sample (\`inFar\` false). A
  *  ray on one map clamps its start into the map's square. */
 struct VsmRay{far:VsmHandle,near:VsmHandle,clipmap:bool,mip:u32,crosses:bool,inFar:bool,farLine:VsmRayLine,nearLine:VsmRayLine,}
-fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,depthBias:f32)->VsmRay{
+fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,origin:vec3f,start:vec3f,end:vec3f,planeBias:f32)->VsmRay{
  var r:VsmRay;
  r.clipmap=m.clipmap;
  r.mip=m.mip;
@@ -67,9 +69,9 @@ fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,dept
  }
  r.crosses=r.far.id!=r.near.id;
  r.inFar=true;
- r.farLine=vsmRayLine(r.far,r.clipmap,start,end,!r.crosses,depthBias);
+ r.farLine=vsmRayLine(r.far,r.clipmap,origin,start,end,!r.crosses,planeBias);
  r.nearLine=r.farLine;
- if(r.crosses){r.nearLine=vsmRayLine(r.near,r.clipmap,start,end,false,depthBias);}
+ if(r.crosses){r.nearLine=vsmRayLine(r.near,r.clipmap,origin,start,end,false,planeBias);}
  return r;
 }
 /** One sample of the march: whether a texel holds it, the depth stored there and the ray's own. */

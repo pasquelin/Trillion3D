@@ -6,7 +6,7 @@ import { holdWebgpuFrame } from './hold.ts'
 import { metricsOf } from '../pages/io/metrics.ts'
 import { heldFrame } from './holdMetrics.fixture.ts'
 import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
-import { VSM_PROJECTION_PASS } from '../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_PASS } from '../../vsm/projectionPipelines.ts'
 
 test('a cut page waiting for its bytes forbids holding the frame', () => {
   const { rt, device } = heldFrame()

@@ -10,7 +10,7 @@ import {
   vsmProjectionBytesToMake,
   vsmProjectionHeldBytes,
   vsmProjectionReserve,
-} from './projectionPass.ts'
+} from './projectionStore.ts'
 
 const OPTIONS = { fullMapCapacity: 63, poolPages: 256 }
 

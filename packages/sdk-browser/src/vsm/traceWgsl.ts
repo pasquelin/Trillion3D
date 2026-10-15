@@ -32,6 +32,11 @@ import { transformPoint } from '../../../math/src/wgsl/projection.ts'
 import { vsmScreenSegmentWgsl } from './traceScreenWgsl.ts'
 import { Frame3, frameAround, intoFrame, outOfFrame } from '../../../math/src/wgsl/basis.ts'
 
+/** The values of `VSM_TRACE_KINDS`: the suns alone, the local lights alone, both. */
+export const VSM_TRACE_KINDS_SUN = 1
+export const VSM_TRACE_KINDS_LOCAL = 2
+export const VSM_TRACE_KINDS_BOTH = 3
+
 /** A light of the projection, as its view uniform holds it (`projectionView.ts`): the traces' and
  *  the region test's (`vsmLightParticipates`). `radius` and `cosCone` are the lighting's range and
  *  cone (`localLightReaches`), `direction` points towards the light. */
@@ -39,7 +44,14 @@ export const VSM_TRACE_LIGHT_WGSL = wgslBlock(
   'VSM_TRACE_LIGHT_WGSL',
   [VSM_CONSTANTS_WGSL],
   `${VSM_PROJECTION_LIGHT_STRUCT}
-fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{return light.kind==LIGHT_KIND_DIRECTIONAL;}`,
+/** The kinds of light a pipeline traces, one module's specialisation (\`VSM_TRACE_KINDS_*\`): the
+ *  suns alone, the local lights alone, or both (the default, every fragment host's). A pipeline of
+ *  one kind folds the other kind's map, ray lines and reach away: its registers are that kind's
+ *  alone. The same light either way. */
+override VSM_TRACE_KINDS:u32=${VSM_TRACE_KINDS_BOTH}u;
+fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{
+ return VSM_TRACE_KINDS==${VSM_TRACE_KINDS_SUN}u||(VSM_TRACE_KINDS==${VSM_TRACE_KINDS_BOTH}u&&light.kind==LIGHT_KIND_DIRECTIONAL);
+}`,
 )
 
 /** What a host gives the trace (`vsmReceiverTraceWgsl`). */
@@ -104,7 +116,7 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
  var uvDepthSlope=vec2f(0.0);
  var ditherWorld=0.0;
  var ditherCap=0.0;
- var biasCap=0.0;
+ var planeBias=0.0;
  var eyeDistance=0.0;
  var spread=0.0;
  var startOffset=pixel.screenRayWorld;
@@ -128,7 +140,8 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
   let texel=vsmReceiverPixelSize(pd,pixel.sceneDepth);
   ditherWorld=VSM_TRACE_DITHER*pd.ditherTexels*texel;
   ditherCap=VSM_TRACE_PLANE_BIAS_CAP*ditherWorld;
-  biasCap=VSM_TRACE_PLANE_BIAS_CAP*texel*vsmDepthPerDistance(pd,pInMap);
+  let texelUv=1.0/f32(select(vsmTexelsAtLevel(lightMap.mip),VSM_LEVEL0_TEXELS,lightMap.clipmap));
+  planeBias=vsmPlaneBias(uvDepthSlope,texelUv,VSM_TRACE_PLANE_BIAS_CAP*texel*vsmDepthPerDistance(pd,pInMap));
   spread=vsmRaySpread(axis,n,viewPosition);
  }
  var missCount=0u;
@@ -155,9 +168,7 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,P:vec3f,participating:b
    // The 1e-6 is centimetres.
    let t0=min(startOffset,reach-1e-6*${VSM_UNIT_PER_CM});
    let rayStart=start+dir*t0;
-   var depthBias=0.0;
-   if(biasCap>0.0){depthBias=min(biasCap,vsmTexelPlaneBias(lightMap,rayStart,uvDepthSlope));}
-   var ray=vsmRayBegin(light,lightMap,rayStart,start+dir*reach,depthBias);
+   var ray=vsmRayBegin(light,lightMap,start,rayStart,start+dir*reach,planeBias);
    let jitter=vsmRayJitter(pixel.noise,i);
    // The projection proves its first ray alone (\`vsmRayMisses\`): a later one runs in a half where a
    // lane hit, whose march its lanes wait for, so a proof would save nothing.

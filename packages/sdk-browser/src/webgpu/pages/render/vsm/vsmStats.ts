@@ -6,7 +6,7 @@ import { VSM_PASS_PREFIX } from '../../../../stage/passLabels.ts'
 import { gpuTotalsBy } from '../../../../stage/mapping.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { heldMaskBytes } from './vsmMask.ts'
-import { vsmProjectionHeldBytes } from '../../../../vsm/projectionPass.ts'
+import { vsmProjectionHeldBytes } from '../../../../vsm/projectionStore.ts'
 import { vsmRenderContextBytes, type VsmRenderStats } from '../../../../vsm/renderPass.ts'
 import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext.ts'
 

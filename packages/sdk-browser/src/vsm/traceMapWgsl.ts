@@ -70,11 +70,11 @@ fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f)->VsmLightMap{
  r.mip=vsmProjectionOf(r.handle).finestMip;
  return r;
 }
-/** The texel a sample at \`uv\` of map \`h\` reads: its pool texel, the bias and inverse scale its raw
- *  depth takes to \`h\`'s depth (\`vsmMapTexelDepth\`: a coarser clipmap level's; 0 and 1 for a local
- *  map's coarser mip, the same projection), and the offset from the sample to the texel's centre in
- *  \`h\`'s UV. Invalid outside the map's square and where no level or mip maps it. */
-struct VsmMapTexel{valid:bool,poolTexel:vec2u,depthBias:f32,depthInverse:f32,uvToMid:vec2f,}
+/** The texel a sample at \`uv\` of map \`h\` reads: its pool texel and the bias and inverse scale its
+ *  raw depth takes to \`h\`'s depth (\`vsmMapTexelDepth\`: a coarser clipmap level's; 0 and 1 for a
+ *  local map's coarser mip, the same projection). Invalid outside the map's square and where no
+ *  level or mip maps it. */
+struct VsmMapTexel{valid:bool,poolTexel:vec2u,depthBias:f32,depthInverse:f32,}
 fn vsmMapTexel(h:VsmHandle,clipmap:bool,mip:u32,uv:vec2f)->VsmMapTexel{
  var r:VsmMapTexel;
  if(any(uv!=saturate(uv))){return r;}
@@ -84,15 +84,12 @@ fn vsmMapTexel(h:VsmHandle,clipmap:bool,mip:u32,uv:vec2f)->VsmMapTexel{
   r.poolTexel=t.poolTexel;
   r.depthBias=t.depthLevelBias;
   r.depthInverse=t.depthLevelInverse;
-  // The level's texel, in its own UV, taken to h's by the inverse of its scale (\`depthLevelInverse\`).
-  r.uvToMid=(vec2f(t.mapTexelXY)+0.5-t.mapTexelPos)/f32(VSM_LEVEL0_TEXELS)*t.depthLevelInverse;
   return r;
  }
  let page=vsmLocalPageAt(h,uv,mip);
  r.valid=page.valid;
  r.poolTexel=page.poolTexel;
  r.depthInverse=1.0;
- r.uvToMid=(vec2f(page.mapTexelXY)+0.5-page.mapTexelPos)/f32(vsmTexelsAtLevel(page.coarserLevels));
  return r;
 }
 /** A raw pool depth of \`t\` as its map reads it: (raw − bias)·inverse, which no greater raw depth
@@ -104,13 +101,16 @@ fn vsmDepthGradientUv(pd:VsmProjectionData,pointInMap:vec3f,n:vec3f)->vec2f{
  let planeUv=pd.planesToMapUv*vec4f(n,-dot(n,pointInMap));
  return -planeUv.xy/planeUv.z;
 }
-/** The receiver-plane bias of a ray starting at \`startInMap\` in its map: the depth the receiver's
- *  plane (\`uvDepthSlope\`) climbs from the start to the centre of the texel it reads, doubled, never
- *  below 0 — 0 where no texel is mapped there. */
-fn vsmTexelPlaneBias(m:VsmLightMap,startInMap:vec3f,uvDepthSlope:vec2f)->f32{
- let uv=perspectiveDivide(vsmProjectionOf(m.handle).shiftedToMapUv*vec4f(startInMap,1.0)).xy;
- let t=vsmMapTexel(m.handle,m.clipmap,m.mip,uv);
- return 2.0*max(0.0,dot(uvDepthSlope,t.uvToMid));
+/**
+ * THE RECEIVER-PLANE BIAS OF A LIGHT'S RAYS, every light's one rule, known before any ray: the
+ * depth the receiver's plane (\`uvDepthSlope\`) climbs across one texel of the map's finest mip
+ * (\`texelUv\` wide) — the most it climbs from any start to the centre of the texel it reads,
+ * |sx|·t/2 + |sy|·t/2, doubled —, held to \`cap\`. The ray line takes off it the depth its start
+ * already gained toward the light (\`vsmRayLine\`): a start the screen segment moved past the
+ * receiver needs less.
+ */
+fn vsmPlaneBias(uvDepthSlope:vec2f,texelUv:f32,cap:f32)->f32{
+ return min(cap,(abs(uvDepthSlope.x)+abs(uvDepthSlope.y))*texelUv);
 }
 /** The depth a unit of view depth takes in the map at \`pointInMap\`: |M22·M33 − M32·M23| / w², the
  *  derivative of the map's z/w — an orthographic map's |M22|, a perspective one's |M32| / w². */
