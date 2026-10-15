@@ -1,12 +1,12 @@
-import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { probeWorldDevice } from '../capability/worldReady.ts'
-import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 
 /**
  * The one WebGPU device a world holds for its life: every session it opens draws on it. A device
  * lost for any reason but its own `destroy` — a driver reset, a GPU process restarted — is asked
  * for again the way the first one was (`probeWorldDevice`), and `regranted` then reopens the
- * session on what was granted, told when the loss happened; a machine that grants none any more
+ * session on what was granted, told when the loss happened — the reopen's notice measures the
+ * recovery from it, with the pages the world's cache kept (`worldReopen.ts`); a machine that grants none any more
  * fails that grant by name (`WEBGPU_UNAVAILABLE`). `ready` settles with the first grant, `pending`
  * with the one asked last. `probe` stands for the machine's own.
  */
@@ -51,29 +51,4 @@ export function holdWorldDevice(
       gpuDevice?.destroy()
     },
   }
-}
-
-/**
- * A world whose device was lost, then granted again (`holdWorldDevice`): its session reopens on the
- * new device, rebuilt from what the world keeps — its scene, and its decoded-page cache, so no page
- * or bundle it holds is fetched again (`pageCache.ts`) —, and the page is never reloaded. The time
- * from the loss to the first frame drawn after it is said once per recovery, under
- * `gpu-device-recovered`, with the pages the cache still held.
- */
-export function worldRecovered(
-  runtime: { renew(cause: 'device-lost'): void },
-  frames: { add(hook: () => void): () => void },
-  notices: WorldNotices,
-  kept: { readonly pageCount: number },
-  lostAt: number,
-) {
-  const keptPages = kept.pageCount
-  runtime.renew('device-lost')
-  const remove = frames.add(() => {
-    remove()
-    notices.say('gpu-device-recovered', 'The world drew again on a device granted after a loss', {
-      recoveryMs: msSince(lostAt),
-      keptPages,
-    })
-  })
 }

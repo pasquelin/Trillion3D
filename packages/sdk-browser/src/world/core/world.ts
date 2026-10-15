@@ -3,7 +3,7 @@ import { DEFAULT_EXPOSURE } from '../../../../sdk-core/src/scene/core/environmen
 import { cameraAdopter } from './worldLink.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
-import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
+import { holdWorldDevice } from './worldDevice.ts'
 import { createWorldFrames } from './worldFrames.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
 import { Scene } from './scene.ts'
@@ -69,9 +69,7 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
     animating: false,
     disposed: false,
   }
-  const device = holdWorldDevice((lostAt) =>
-    worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
-  )
+  const device = holdWorldDevice((lostAt) => runtime.renew('device-lost', lostAt))
   const loader = worldModelLoader(
     device.ready,
     options.signal,

@@ -28,7 +28,12 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
     lights = createWorldLights(scene),
     background = createWorldBackground(scene)
   const placeCamera = followPageCamera(camera, canvas)
-  const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request())
+  const track = worldReopens(
+    canvas,
+    inputs.diagnostic.notices,
+    () => reopens.request(),
+    () => inputs.options().pageCache?.pageCount ?? 0,
+  )
   const state: WorldRuntimeState = {
     explorer: null,
     resolving: null,
@@ -133,7 +138,8 @@ function runtimeHandle(
     invalidate: parts.invalidate,
     /** A move by name the world offers its page (`world.setTransform`, #972). */
     moveNamed: parts.moveNamed,
-    /** A session option changed, or the device was lost: the next opening takes it. */
+    /** A session option changed, or the device was lost (`at` the loss): the next opening takes
+     *  it, and its notice measures from `at`. */
     renew: track.request,
     /** Whether a session is open or opening. */
     get holdsSession() {

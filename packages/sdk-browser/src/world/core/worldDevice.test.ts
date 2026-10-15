@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { probeWorldDevice } from '../capability/worldReady.ts'
-import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
+import { holdWorldDevice } from './worldDevice.ts'
+import { worldReopens } from './worldReopen.ts'
 import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -98,31 +99,35 @@ test('a session opened while a device is asked again waits on it, and a refused 
   held.dispose()
 })
 
-test('a recovered world reopens its session and says the time to its first frame, once', async () => {
+test('a recovered world reopens its session and says, once, the time from the loss to its first frame', async () => {
   const said: Array<{ phase: string; context: Record<string, unknown> }> = []
   const stop = worldNoticeListeners.subscribe((notice) =>
     said.push(notice as (typeof said)[number]),
   )
   const notices = createWorldNotices()
-  const hooks = new Set<() => void>()
-  const frames = {
-    add: (hook: () => void) => (hooks.add(hook), () => void hooks.delete(hook)),
-    draw: () => [...hooks].forEach((hook) => hook()),
-  }
   const cache = createPageCache()
   cache.put('kept.bin', new Uint8Array(4))
-  let renewed = 0
-  worldRecovered({ renew: () => renewed++ }, frames, notices, cache, performance.now() - 5)
-  assert.equal(renewed, 1, 'the session reopens on the device granted again')
-  frames.draw()
-  frames.draw()
+  const canvas = { getContext: () => null } as unknown as HTMLCanvasElement
+  let passes = 0
+  const track = worldReopens(
+    canvas,
+    notices,
+    () => passes++,
+    () => cache.pageCount,
+  )
+  track.request('device-lost', performance.now() - 5)
+  assert.equal(passes, 1, 'the session reopens on the device granted again')
+  track.closing({})
+  track.drew()
+  track.drew()
   await new Promise(setImmediate)
   notices.close()
   stop()
   assert.deepEqual(
     said.map((notice) => notice.phase),
-    ['gpu-device-recovered'],
+    ['session-reopen'],
   )
-  assert.ok(Number(said[0].context.recoveryMs) >= 5)
+  assert.equal(said[0].context.cause, 'device-lost')
+  assert.ok(Number(said[0].context.durationMs) >= 5)
   assert.equal(said[0].context.keptPages, 1)
 })
