@@ -1,46 +1,53 @@
 import type { PageQueue } from '../../streaming/types.ts'
+import { createFrameKept } from '../../streaming/frameKept.ts'
 
 /** Who hears a read the view asks land or fail, once, as it settles. */
 export type AskHeard = { land(url: string, bytes: Uint8Array): void; fail(error: unknown): void }
 
-/** A read the view asks: what lets it go, its priority, its landing, whether it settled, and the
- *  frame that last asked it. */
+/** What the asker reads with and holds by: the streamer's read and its counted pin. */
+type Io = Pick<PageQueue, 'readBytes'> & { pin(url: string): void; unpin(url: string): void }
+
+/** A read the view asks: what lets it go, its priority, its landing, and whether it settled. */
 type Ask = {
+  url: string
   stop: AbortController
   priority: number
   read: Promise<void>
   settled: boolean
-  frame: number
 }
 
 /**
- * The reads the frames' view asks of `queue`, one asker a url, each with a signal of its own: a
- * url the next frame asks again keeps its read — lifted once it turns visible —, one it no longer
- * asks is let go, so the queue drops it while it waits, its failure's wait included. A frame waits
- * on the reads it asks, whether they are new or on their way since an earlier frame. One asked
- * again after its read settled finds its page gone from the cache — the plan pins the pages it
- * asks until they are taken (`../../partition/planPins.ts`) —: it is read again.
+ * The reads the frames' view asks of `io`, one asker a url, each with a signal of its own and one
+ * pin in the cache: a url the next frame asks again keeps its read and its page — lifted once it
+ * turns visible —, one it no longer asks is let go and unpinned, so the queue drops it while it
+ * waits, its failure's wait included. A page landed therefore waits in the cache, whatever the
+ * cache holds, for the frame that takes it. A frame waits on the reads it asks, whether they are new
+ * or on their way since an earlier frame. One asked again after its read settled is read again.
  *
  * THE ONE ASKER OF THE VIEW'S READS: the cells' (`partitionFrame.ts`) and the engine's missing
- * pages (`../render/draw.ts`) alike, one cancel rule — only what left the plan is let go.
+ * pages (`streaming.ts`) alike, one cancel rule — only what left the plan is let go
+ * (`../../streaming/frameKept.ts`).
  *
- * Cost: O(u) a frame for the u urls it asks, O(a) for the a asks it ends; nothing per landing.
+ * Cost: O(u) a frame for the u urls it asks, O(a) for the a asks it holds; nothing per landing.
  */
-export function createViewAsks(queue: Pick<PageQueue, 'readBytes'>) {
-  const asks = new Map<string, Ask>()
-  let frame = 0
+export function createViewAsks(io: Io) {
+  let reason: unknown
+  const asks = createFrameKept<string, Ask>((own) => {
+    own.stop.abort(reason)
+    io.unpin(own.url)
+  })
   return {
     /** Asks `urls` at `priority` in the frame under way: their landings, settled either way;
      *  `heard` hears each read made now land or fail. */
     ask(urls: readonly string[], priority: number, heard?: AskHeard) {
       const reads: Promise<void>[] = []
       for (const url of urls) {
-        let own = asks.get(url)
+        let own = asks.touch(url)
         if (!own || own.settled || priority < own.priority) {
           const stop = new AbortController()
-          const ask: Ask = { stop, priority, read: Promise.resolve(), settled: false, frame }
+          const ask: Ask = { url, stop, priority, read: Promise.resolve(), settled: false }
           const settle = () => void (ask.settled = true)
-          ask.read = queue.readBytes(url, stop.signal, priority).then(
+          ask.read = io.readBytes(url, stop.signal, priority).then(
             (bytes) => {
               settle()
               if (!stop.signal.aborted) heard?.land(url, bytes)
@@ -50,28 +57,23 @@ export function createViewAsks(queue: Pick<PageQueue, 'readBytes'>) {
               if (!stop.signal.aborted) heard?.fail(error)
             },
           )
-          // The more urgent asker joins before the other leaves: the read is lifted, never dropped.
-          own?.stop.abort()
+          // The more urgent asker joins before the other leaves: the read is lifted, never
+          // dropped, and the page keeps its one pin.
+          if (own) own.stop.abort()
+          else io.pin(url)
           asks.set(url, (own = ask))
         }
-        own.frame = frame
         reads.push(own.read)
       }
       return reads
     },
-    /** Every read let go, for `reason`: the asker is closed. */
-    drop(reason: unknown) {
-      for (const own of asks.values()) own.stop.abort(reason)
+    /** Every read let go, for `why`: the asker is closed. */
+    drop(why: unknown) {
+      reason = why
       asks.clear()
+      reason = undefined
     },
     /** The frame is over: the reads it did not ask again are let go. */
-    end() {
-      for (const [url, own] of asks)
-        if (own.frame !== frame) {
-          own.stop.abort()
-          asks.delete(url)
-        }
-      frame++
-    },
+    end: asks.end,
   }
 }
