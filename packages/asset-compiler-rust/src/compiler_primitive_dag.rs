@@ -89,17 +89,13 @@ pub(super) fn build_dag_primitive(
     let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
     // One box per cluster, over the drawn positions, for the hierarchy and the page record alike.
     let clusters = crate::dag::bounds::culling_clusters(pos, &dag);
-    let (order, culling) = {
-        let _t = perf::Timer::new(perf::Phase::Culling);
-        build_culling_bvh(&clusters)
-    };
+    let culled = perf::Timer::new(perf::Phase::Culling);
+    let (order, culling) = build_culling_bvh(&clusters);
+    drop(culled);
     laps.lap("cullingMs");
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let mut page_of = vec![0usize; dag.len()];
-    order
-        .iter()
-        .enumerate()
-        .for_each(|(rank, &slot)| page_of[slot] = rank);
+    (order.iter().enumerate()).for_each(|(rank, &slot)| page_of[slot] = rank);
     // The collider and the pages read the same DAG and neither reads what the other writes: they
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
     // the serial cook's, and the cook's error still comes first.
