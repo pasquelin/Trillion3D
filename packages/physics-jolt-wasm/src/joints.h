@@ -4,6 +4,7 @@
 
 #include <Jolt/Jolt.h>
 
+#include <Jolt/Physics/Body/BodyID.h>
 #include <Jolt/Physics/Constraints/MotorSettings.h>
 #include <Jolt/Physics/Constraints/TwoBodyConstraint.h>
 
@@ -27,6 +28,11 @@ struct GearOrder {
   bool aFirst = false, inPhase = false;
 };
 GearOrder gearOrder(uint32_t kind, const uint32_t *extra, uint32_t count);
+/// A joint end's frame from the JOINT words at `w` for the body `engine` names (`jointSettings.cpp`).
+Frame frameOf(const uint32_t *w, uint32_t engine);
+/// The body a joint end names, or the world when it names none (`BodyID()`); false when the slot
+/// holds no body (refused, or removed since): the joint is not made.
+bool bodyOf(uint32_t engine, JPH::BodyID &id);
 
 /// The settings of joint kind `kind` (`jointSettings.cpp`) between the page's `b` frame `f1` and
 /// its `a` frame `f2` (a gear or a rack swaps them when `order.aFirst`). `v` is `min, max,
@@ -37,9 +43,9 @@ JPH::Ref<JPH::TwoBodyConstraintSettings> jointSettings(uint32_t kind, const Fram
                                                        const uint32_t *v, const uint32_t *extra, uint32_t count,
                                                        JPH::Vec3 anchor1, GearOrder order);
 /// Drives a hinge (radians), a slider (metres), a swing-twist, a six-DOF's `axis` (0 to 5) or a
-/// path by its motor, with at most `limit` (N·m or N) (`jointMotors.cpp`); false for a kind
-/// without one.
-bool driveJoint(JPH::Constraint *constraint, uint32_t kind, JPH::EMotorState state, float target, float limit,
+/// path by its motor in `mode` (layout.h MotorMode), with at most `maxForce` (N·m or N; 0 is no
+/// bound), and wakes it (`jointMotors.cpp`); a kind without one is left as it is.
+void driveJoint(JPH::Constraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce,
                 uint32_t axis);
 /// Gives a gear its wheels' hinges and a rack and pinion its pinion's hinge and rack's slider, in
 /// Jolt's body order (null when one is missing): Jolt's position correction reads their angle and

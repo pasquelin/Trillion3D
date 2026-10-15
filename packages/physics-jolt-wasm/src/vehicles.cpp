@@ -48,8 +48,8 @@ struct Vehicle {
   Ref<VehicleConstraint> constraint;
   /** The body's shape before its centre of mass was lowered, given back when the vehicle leaves. */
   RefConst<Shape> shape;
-  /** The page's vehicle id, the body's slot, the kind. */
-  uint32_t id = 0, body = 0, kind = 0;
+  /** The page's vehicle id, the body's slot, the kind, its position in `onBody`'s list there. */
+  uint32_t id = 0, body = 0, kind = 0, onBodyAt = 0;
   /** The driver's input (DRIVE), and the wheel as the hand has turned it so far. */
   float throttle = 0, brake = 0, steer = 0, handbrake = 0, steered = 0;
   /** Of full lock per second, and a tracked vehicle's inner track ratio (vehicleSpec.ts). */
@@ -257,7 +257,7 @@ void lower(Body &body, const uint32_t *w) {
 
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
-    onBody.remove(vehicle.body, uint32_t(&vehicle - vehicles.data()));
+    if (const uint32_t *moved = onBody.removeAt(vehicle.body, vehicle.onBodyAt)) vehicles[*moved].onBodyAt = vehicle.onBodyAt;
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
     reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape, vehicle.shape);
@@ -283,7 +283,7 @@ void add(const uint32_t *w) {
   // motorcycle's cast does): leaned, it rolls on its shoulder rather than on an edge.
   else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
-  onBody.add(slotIndex, index);
+  vehicle.onBodyAt = onBody.add(slotIndex, index);
   float steerTime = f32(w + 5 + 29);
   vehicle.steerRate = steerTime > 0 ? 1.0f / steerTime : FLT_MAX;
   vehicle.trackTurn = Clamp(f32(w + 5 + 31), 0.01f, 1.0f);

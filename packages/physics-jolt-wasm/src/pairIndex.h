@@ -61,7 +61,7 @@ class PairIndex {
     soft.push_back(key);
     return &pair.count;
   }
-  /// Every soft pair, in the order they began (but for those that ended since).
+  /// Every soft pair, in no order.
   const std::vector<uint64_t> &softPairs() const { return soft; }
 
  private:

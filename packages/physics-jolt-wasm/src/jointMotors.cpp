@@ -2,6 +2,7 @@
 // motor; a gear or rack linked to the hinges and sliders that keep its teeth in phase; and the
 // impulse each kind gave its bodies, its break force's measure. `joints.cpp` makes, keeps and
 // breaks the joints; `jointSettings.cpp` builds them.
+#include "binding.h"
 #include "joints.h"
 
 #include <Jolt/Physics/Constraints/ConeConstraint.h>
@@ -24,7 +25,10 @@ using namespace JPH;
 
 namespace trillion {
 
-bool driveJoint(Constraint *constraint, uint32_t kind, EMotorState state, float target, float limit, uint32_t axis) {
+namespace {
+
+/// Drives a joint of `kind` by its motor in `state`; false for a kind without one.
+bool driveMotor(Constraint *constraint, uint32_t kind, EMotorState state, float target, float limit, uint32_t axis) {
   switch (kind) {
     case HINGE: {
       auto *hinge = static_cast<HingeConstraint *>(constraint);
@@ -84,6 +88,15 @@ bool driveJoint(Constraint *constraint, uint32_t kind, EMotorState state, float 
     }
     default: return false;
   }
+}
+
+}  // namespace
+
+void driveJoint(Constraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce, uint32_t axis) {
+  float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
+  EMotorState state = mode == MOTOR_VELOCITY ? EMotorState::Velocity : mode == MOTOR_POSITION ? EMotorState::Position : EMotorState::Off;
+  if (driveMotor(constraint, kind, state, target, limit, axis))
+    world().system->GetBodyInterfaceNoLock().ActivateConstraint(constraint);
 }
 
 void linkGear(Constraint *constraint, uint32_t kind, const Constraint *first, const Constraint *second) {

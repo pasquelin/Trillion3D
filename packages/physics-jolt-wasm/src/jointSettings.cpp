@@ -2,6 +2,7 @@
 // swing-twist, six-DOF, path, pulley, gear and rack-and-pinion constraints — from the JOINT
 // command's words and its kind's own (layout.ts JOINT). `joints.cpp` makes, keeps and breaks them;
 // `jointMotors.cpp` drives and weighs them.
+#include "binding.h"
 #include "joints.h"
 #include "words.h"
 
@@ -60,6 +61,28 @@ float ratioOf(const uint32_t *extra, uint32_t count) {
 }
 
 }  // namespace
+
+/// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
+/// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
+Frame frameOf(const uint32_t *w, uint32_t engine) {
+  Vec3 point = vec3(w);
+  if (engine != MISS) {
+    const Slot &slot = world().slots[engine & INDEX_MASK];
+    point -= world().system->GetBodyInterfaceNoLock().GetShape(slot.id)->GetCenterOfMass();
+  }
+  return {point, vec3(w + 3).NormalizedOr(Vec3::sAxisY()), vec3(w + 6).NormalizedOr(Vec3::sAxisX())};
+}
+
+/// The body a joint end names, or the world when it names none (`BodyID()`); false when the slot
+/// holds no body (refused, or removed since): the joint is not made.
+bool bodyOf(uint32_t engine, BodyID &id) {
+  if (engine == MISS) return (id = BodyID(), true);
+  uint32_t index = engine & INDEX_MASK;
+  const std::vector<Slot> &slots = world().slots;
+  if (index >= slots.size() || !slots[index].used || slots[index].engine != engine || slots[index].soft)
+    return false;
+  return (id = slots[index].id, true);
+}
 
 GearOrder gearOrder(uint32_t kind, const uint32_t *extra, uint32_t count) {
   if (kind == RACK_AND_PINION) return {true, true};
