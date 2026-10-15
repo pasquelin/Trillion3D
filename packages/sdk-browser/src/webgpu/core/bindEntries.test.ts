@@ -130,7 +130,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
 
   // The constructor of `visBindGroupLayout`: the group of an indirect slot.
   ensureWebgpuVisibilityBindings(rt)
-  assert.ok(visGroupFor(rt, device, BASE_SLOTS, false), 'the slot group is built')
+  assert.ok(visGroupFor(rt, device, BASE_SLOTS), 'the slot group is built')
   // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device)
   // PageInfo is a tightly packed storage array, not a dynamically offset binding per row.

@@ -14,10 +14,9 @@ const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['none', 'ccw'],
   ['front', 'ccw'],
 ]
-const VIS_LAYER_CULLS = LAYER_CULLS.length
-const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2
-export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
-  (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull
+/** A coplanar layer's pipeline of face mode `cull`, in `visLayerPipelines`. */
+export const visLayerPipelineIndex = (layer: number, cull: number) =>
+  (layer - 1) * LAYER_CULLS.length + cull
 /** `run` under a validation scope; its pipelines compile off the thread, together. */
 export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
   const { value, error } = await validationScope(device, run)
@@ -39,9 +38,8 @@ export const VIS_DEPTH: GPUDepthStencilState = {
  * Each occluder pipeline's twin for a draw that holds no cutout row: the same states, the same
  * vertex stage and fragment stage, its mask test compiled out (`VIS_UNMASKED`): it neither reads
  * the page nor discards. Keyed by the pipeline itself, a twin follows its pipeline wherever it is replaced or
- * dropped. A tested pipeline (`vis_hiz_vs`) has none: the tested half draws with the occluders'
- * once compacted. Nor under a diagnostic variant of the raster stage, which imposes its one stage
- * on every draw.
+ * dropped. None under a diagnostic variant of the raster stage, which imposes its one stage on
+ * every draw.
  */
 const opaqueTwins = new WeakMap<GPURenderPipeline, GPURenderPipeline>()
 export const opaqueTwin = (pipeline: GPURenderPipeline) => opaqueTwins.get(pipeline)
@@ -68,17 +66,16 @@ function visBuild(
     twins,
   }
 }
-/** The occluder (`rest` false) or tested pipeline of a face mode, and an occluder's twin. */
+/** The pipeline of a face mode, both halves', and its twin. */
 async function visPipeline(
   build: VisBuild,
-  rest: boolean,
   [cullMode, frontFace]: [GPUCullMode, GPUFrontFace],
   depthStencil = VIS_DEPTH,
 ) {
   const { device, layout, module } = build
   const descriptor = (constants?: Record<string, number>): GPURenderPipelineDescriptor => ({
     layout,
-    vertex: { module, entryPoint: rest ? 'vis_hiz_vs' : 'vis_vs' },
+    vertex: { module, entryPoint: 'vis_vs' },
     fragment: {
       module,
       entryPoint: build.fragment,
@@ -90,13 +87,13 @@ async function visPipeline(
   })
   const [pipeline, twin] = await Promise.all([
     buildRenderPipeline(device, descriptor()),
-    !rest && build.twins && buildRenderPipeline(device, descriptor(VIS_UNMASKED)),
+    build.twins && buildRenderPipeline(device, descriptor(VIS_UNMASKED)),
   ])
   if (twin) opaqueTwins.set(pipeline, twin)
   return pipeline
 }
 
-/** Layer 0's pipelines: the occluders' three face modes, then their Hi-Z-tested twins. */
+/** Layer 0's pipelines: one per face mode, for both halves. */
 export function createWebgpuVisibilityRasterPipelines(
   device: GPUDevice,
   visModule: GPUShaderModule,
@@ -105,19 +102,10 @@ export function createWebgpuVisibilityRasterPipelines(
 ) {
   const build = visBuild(device, visModule, bindGroupLayout, variant)
   return scoped(device, async () => {
-    const [occluders, tested] = await Promise.all(
-      [false, true].map((rest) =>
-        Promise.all(LAYER_CULLS.map((cull) => visPipeline(build, rest, cull))),
-      ),
+    const [back, none, front] = await Promise.all(
+      LAYER_CULLS.map((cull) => visPipeline(build, cull)),
     )
-    return {
-      visPipelineBack: occluders[0],
-      visPipelineNone: occluders[1],
-      visPipelineFront: occluders[2],
-      visHizRestBack: tested[0],
-      visHizRestNone: tested[1],
-      visHizRestFront: tested[2],
-    }
+    return { visPipelineBack: back, visPipelineNone: none, visPipelineFront: front }
   })
 }
 /**
@@ -136,12 +124,11 @@ export function createWebgpuCoplanarLayerPipelines(
   return scoped(device, () => {
     const pipelines: Promise<GPURenderPipeline>[] = []
     for (let layer = 1; layer < layerSlots; layer++)
-      for (const rest of [false, true])
-        for (const cull of LAYER_CULLS)
-          // Reversed depth: moving closer to the eye ADDS units.
-          pipelines.push(
-            visPipeline(build, rest, cull, { ...VIS_DEPTH, depthBias: depthLayerUnits(layer) }),
-          )
+      for (const cull of LAYER_CULLS)
+        // Reversed depth: moving closer to the eye ADDS units.
+        pipelines.push(
+          visPipeline(build, cull, { ...VIS_DEPTH, depthBias: depthLayerUnits(layer) }),
+        )
     return Promise.all(pipelines)
   })
 }

@@ -31,7 +31,6 @@ export const PARTITION_SHADER = wgslProgram(
 @group(0) @binding(${PARTITION_BINDING.rowData}) var<storage, read_write> rowData:array<u32>;
 @group(0) @binding(${PARTITION_BINDING.tested}) var<storage, read_write> tested:array<u32>;
 @group(0) @binding(${PARTITION_BINDING.restBits}) var<storage, read_write> restBits:array<atomic<u32>>;
-@group(0) @binding(${PARTITION_BINDING.slotUsed}) var<storage, read_write> slotUsed:array<atomic<u32>>;
 @group(0) @binding(${PARTITION_BINDING.state}) var<storage, read_write> state:array<atomic<u32>>;
 @group(0) @binding(${PARTITION_BINDING.uniforms}) var<uniform> uni:Uni;
 @group(0) @binding(${PARTITION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;

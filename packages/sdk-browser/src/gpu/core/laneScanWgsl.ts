@@ -19,7 +19,7 @@ import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
  * its offset, the lane walks the run handing each item its cursor.
  *
  * Shared by the draw prefix (`../draw/shader.ts`), the drawable-page prefix
- * (`../dag/shader/compactWgsl.ts`), the tested-half compaction (`../raster/restCompactWgsl.ts`),
+ * (`../dag/shader/compactWgsl.ts`),
  * the blend expansion (`../../webgpu/blend/expandWgsl.ts`), the light grid's room in its pool
  * (`../../lighting/tiles/compactWgsl.ts`).
  */

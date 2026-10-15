@@ -14,7 +14,7 @@ import { PARTITION_SHADER } from './shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
 import { createGpuPartition } from './factory.ts'
 import * as C from './contract.ts'
-import { HALF_SLOTS, slotCount } from '../draw/contract.ts'
+import { HALF_SLOTS } from '../draw/contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -57,8 +57,6 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     rowData: [...frame.rowData],
     flags: [...frame.flags],
     restBits: new Array<number>(bitWords(rows)).fill(0),
-    // `uni.layerTop` 1: two layers' slots.
-    slotUsed: new Array<number>(slotCount(2)).fill(0),
     state: new Array<number>(C.STATE_WORDS).fill(0),
     tested: [] as number[],
     tally: new Array<number>(C.ST_REJECTED_TRIANGLES + 1).fill(0),
@@ -167,7 +165,7 @@ test('the partition copies its counters on the frame that counted, and only then
   let at = 0
   // A frame from 40 to 44 has no pyramid: it runs no kernel, counts nothing, and its sample waits.
   const partition = (await createGpuPartition(device, 4, {
-    ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r'), slotUsed: buffer('s') },
+    ...{ items: buffer('i'), flags: buffer('f'), restBits: buffer('r') },
     pyramid: () => (at < 40 || at > 44 ? ({} as GPUTextureView) : undefined),
   }))!
   /** The frames whose encoding copied. */

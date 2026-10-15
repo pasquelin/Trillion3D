@@ -4,7 +4,14 @@ import type { GpuDraw } from './contract.ts'
 import { constructGpuResources, validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { drawBindEntries, drawShader } from './shader.ts'
-import { drawBindGroup, encodeDraw, growDraw, uploadDrawItems, type Draw } from './drawOps.ts'
+import {
+  drawBindGroup,
+  encodeDraw,
+  encodeDrawTested,
+  growDraw,
+  uploadDrawItems,
+} from './drawOps.ts'
+import type { Draw, DrawKernels } from './drawOps.ts'
 import { buildComputeStages } from '../core/computeStages.ts'
 
 /**
@@ -39,6 +46,8 @@ export async function createGpuDraw(
     const held = allocated
     d = {
       ...made,
+      testedGroup: undefined,
+      testedBound: [],
       device,
       slotCap,
       layerSlots,
@@ -47,7 +56,7 @@ export async function createGpuDraw(
       held,
       disposed: false,
       boundMask: held.itemsBuf,
-      bindGroup: drawBindGroup(device, made.layout, held, held.itemsBuf),
+      bindGroup: drawBindGroup(device, made.occluders.layout, held, held.itemsBuf),
       uniData: new Uint32Array(UNIFORM_BYTES / 4),
     }
     return drawApi(d, release)
@@ -61,24 +70,36 @@ export async function createGpuDraw(
   }
 }
 
-/** The compact's three kernels, under one validation scope. */
+/** Each half's three kernels, under one validation scope. */
 function compileDraw(device: GPUDevice, layerSlots: number) {
   return validated(device, async () => {
-    const layout = device.createBindGroupLayout({ entries: drawBindEntries() })
-    const module = device.createShaderModule({ code: drawShader(layerSlots) })
-    if (await shaderFailed(module)) return undefined
-    const stages = await buildComputeStages(device, [layout], module, [
-      'countGroups',
-      'prefixGroups',
-      'scatterGroups',
-    ])
-    return {
-      layout,
-      countPipeline: stages.countGroups,
-      prefixPipeline: stages.prefixGroups,
-      scatterPipeline: stages.scatterGroups,
-    }
+    const [occluders, tested] = await Promise.all(
+      [false, true].map((half) => compileHalf(device, layerSlots, half)),
+    )
+    return occluders && tested ? { occluders, tested } : undefined
   })
+}
+
+/** The kernels of the occluder half, or of the tested one (`drawShader`). */
+async function compileHalf(
+  device: GPUDevice,
+  layerSlots: number,
+  tested: boolean,
+): Promise<DrawKernels | undefined> {
+  const layout = device.createBindGroupLayout({ entries: drawBindEntries(tested) })
+  const module = device.createShaderModule({ code: drawShader(layerSlots, tested) })
+  if (await shaderFailed(module)) return undefined
+  const stages = await buildComputeStages(device, [layout], module, [
+    'countGroups',
+    'prefixGroups',
+    'scatterGroups',
+  ])
+  return {
+    layout,
+    count: stages.countGroups,
+    prefix: stages.prefixGroups,
+    scatter: stages.scatterGroups,
+  }
 }
 
 /** The compact's face (`GpuDraw`) over `d`; `release` destroys the buffers held. */
@@ -86,15 +107,13 @@ function drawApi(d: Draw, release: () => void): GpuDraw {
   return {
     uploadItems: (items, from, to) => uploadDrawItems(d, items, from, to),
     encode: (open, count, selection) => encodeDraw(d, open, count, selection),
+    encodeTested: (open, pages, flags) => encodeDrawTested(d, open, pages, flags),
     grow: (rows) => growDraw(d, rows),
     get itemsBuffer() {
       return d.held.itemsBuf
     },
     get restBitsBuffer() {
       return d.held.restBuf
-    },
-    get slotUsedBuffer() {
-      return d.held.slotUsedBuf
     },
     get indirectBuffer() {
       return d.held.indirectBuffer

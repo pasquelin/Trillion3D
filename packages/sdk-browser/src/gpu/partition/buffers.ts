@@ -11,7 +11,7 @@ import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings
 
 /**
  * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
- * Rest bits and per-slot counts are NOT here — they belong to the draw compact, which the
+ * The rest bits are NOT here — they belong to the draw compact, which the
  * partition writes in their place.
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
@@ -65,7 +65,6 @@ const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = 
   rowData: 'storage',
   tested: 'storage',
   restBits: 'storage',
-  slotUsed: 'storage',
   state: 'storage',
   uniforms: 'uniform',
 }

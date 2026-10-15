@@ -15,7 +15,7 @@ import {
   rasterEntry,
 } from './contract.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
+import { VERDICT_KEPT, VERDICT_OCCLUDER } from '../partition/contract.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
@@ -57,16 +57,18 @@ fn rowVerdict(page:PageInfo)->u32{
  if(page.hizSlot==NO_INDEX){return ${VERDICT_OCCLUDER}u;}
  return hizFlags[page.hizSlot];
 }
-fn modeKeeps(mode:u32,verdict:u32)->bool{
- if(mode==${MODE_DEPTH_OCCLUDER}u){return verdict==${VERDICT_OCCLUDER}u;}
- if(mode==${MODE_DEPTH_REST}u){return verdict==${VERDICT_KEPT}u;}
- return verdict!=${VERDICT_REJECTED}u;
+/** Whether \`mode\` draws \`page\`: one half's verdict, or, for the identifiers, what draws in
+ *  every pass — the one reject rule's negation (\`hizRejected\`). */
+fn modeKeeps(mode:u32,page:PageInfo)->bool{
+ if(mode==${MODE_DEPTH_OCCLUDER}u){return rowVerdict(page)==${VERDICT_OCCLUDER}u;}
+ if(mode==${MODE_DEPTH_REST}u){return rowVerdict(page)==${VERDICT_KEPT}u;}
+ return !hizRejected(page.hizSlot);
 }
 /** A list entry becomes the triangle it names again, if the current mode draws it. */
 fn triOf(entry:u32,mode:u32)->Tri{
  var t:Tri;t.ok=0u;
  let row=entry>>8u;let page=pages[row];
- if(!modeKeeps(mode,rowVerdict(page))){return t;}
+ if(!modeKeeps(mode,page)){return t;}
  return setupTriangle(row,entry&0xffu,pageTransform(page),pageWinding(page));
 }
 // The threads of a binning group share the same page: thread zero computes for them the two

@@ -14,7 +14,6 @@ import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { RESOLVE, rasterSource } from '../raster/shader.ts'
-import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
@@ -82,6 +81,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
   DRAW_SHADER: drawShader(2),
+  DRAW_TESTED_SHADER: drawShader(2, true),
   HIZ_SHADER,
   REFLECTION_TRACE_SHADER,
   REFLECTION_CLASSIFY_SHADER,
@@ -97,7 +97,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTITION_SHADER,
   RASTER: rasterSource(4096, 16),
   RESOLVE,
-  REST_COMPACT_SHADER,
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,

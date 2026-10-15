@@ -11,7 +11,6 @@ export type PartitionSources = {
   items: GPUBuffer
   flags: GPUBuffer
   restBits: GPUBuffer
-  slotUsed: GPUBuffer
   pyramid: () => GPUTextureView | undefined
 }
 

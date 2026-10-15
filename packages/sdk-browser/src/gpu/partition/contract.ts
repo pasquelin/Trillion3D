@@ -105,7 +105,7 @@ fn flushTally(lane:u32){
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
- *  kept back to rejected; everything that draws — vertex stage, tested-half compaction, compute
+ *  kept back to rejected; everything that draws — the tested half's compaction, the compute
  *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,
@@ -127,26 +127,16 @@ export const PARTITION_BINDING = {
   rowData: 3,
   tested: 4,
   restBits: 5,
-  slotUsed: 6,
-  state: 7,
-  uniforms: 8,
-  pyramid: 9,
+  state: 6,
+  uniforms: 7,
+  pyramid: 8,
 } as const
 /** What each kernel binds: each layout names only the resources its entry point reads or
  *  writes. */
 export const PARTITION_KERNEL_BINDINGS = {
-  clearRows: ['restBits', 'slotUsed', 'state', 'uniforms'],
+  clearRows: ['restBits', 'state', 'uniforms'],
   projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],
-  classifyRows: [
-    'items',
-    'flags',
-    'rowData',
-    'tested',
-    'restBits',
-    'slotUsed',
-    'state',
-    'uniforms',
-  ],
+  classifyRows: ['items', 'flags', 'rowData', 'tested', 'restBits', 'state', 'uniforms'],
 } as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>
 
 /**

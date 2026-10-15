@@ -77,9 +77,6 @@ export async function prepareRasterPipelines(
     visPipelineBack: vis.visPipelineBack,
     visPipelineNone: vis.visPipelineNone,
     visPipelineFront: vis.visPipelineFront,
-    visHizRestBack: vis.visHizRestBack,
-    visHizRestNone: vis.visHizRestNone,
-    visHizRestFront: vis.visHizRestFront,
   } = rasterPipelines)
 }
 

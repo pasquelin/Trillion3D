@@ -8,7 +8,6 @@ import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
 import { forgetReflectedImages } from '../../../reflections/forget.ts'
 import { gpuGrowth } from './growGpuTables.ts'
 import { queueTableGrowth } from './growthQueue.ts'
-import { restSourcesOf } from './drawSources.ts'
 import type { TableGrowthReport } from '../../../residency/pools.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -141,15 +140,13 @@ async function growTables(
  *  history describes the new rows. */
 function follow(rt: WebgpuPagesRuntime) {
   const { vis, run } = rt,
-    { gpuDraw, gpuHiz, gpuPartition } = vis,
+    { gpuHiz, gpuPartition } = vis,
     floats = rt.layout.rows.pageTableFloats
   if (floats && vis.pageTable && vis.pageTable.size < floats.byteLength && rt.gpu.device) {
     vis.pageTable.destroy()
     vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength)
   }
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
-  if (gpuDraw && gpuHiz && gpuPartition)
-    vis.gpuRestCompact?.rebind(restSourcesOf(gpuDraw, gpuHiz, gpuPartition))
   vis.gpuRaster?.dispose()
   vis.gpuRaster = undefined
   invalidateOccluderHistory(run)

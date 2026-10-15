@@ -121,12 +121,12 @@ export function beginPartitionFrame(
 export function encodePartition(p: Partition, open: OpenPass) {
   if (p.disposed || !p.running) return
   // Nothing is held from frame to frame but the history, which lives in `rowData`:
-  // counters, rest bits and per-slot counts start from zero, cleared by the pass's first
+  // counters and rest bits start from zero, cleared by the pass's first
   // dispatch; then each row is projected, then classified.
   const pass = open.pass,
     rows = p.kept.rows,
     rowGroups = workgroupCount(rows, WORKGROUP_THREADS)
-  const clearThreads = partitionClearThreads(rows, p.inputs.slotUsed.size / 4)
+  const clearThreads = partitionClearThreads(rows)
   const clearGroups = ceilDiv(clearThreads, WORKGROUP_THREADS)
   for (let k = 0; k < KERNELS.length; k++) {
     pass.setPipeline(p.pipelines[k])

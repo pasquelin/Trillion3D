@@ -1,6 +1,6 @@
 // S19.2: the visibility raster's vertex stages hand their UV on only where the cutout reads it — a
-// row with UVs that is masked —, never on every row with UVs. The shipped `vis_vs`, `vis_hiz_vs` and
-// `maskKeep` are run on every combination of the flags the cutout reads: each fragment keeps the
+// row with UVs that is masked —, never on every row with UVs. The shipped `vis_vs` and `maskKeep`
+// are run on every combination of the flags the cutout reads: each fragment keeps the
 // verdict it had when every row with UVs handed them on.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,7 +15,6 @@ type Vec = number[]
 type Out = { tc: Vec }
 type Run = {
   vis_vs: (vertex: number, instance: number) => Out
-  vis_hiz_vs: (vertex: number, instance: number) => Out
   maskKeep: (page: object, uv: Vec, alpha: number, ddx: Vec, ddy: Vec) => boolean
 }
 /** The UV a vertex reads, and its vertex alpha: off zero, so a stage that drops them shows. */
@@ -42,10 +41,9 @@ const pages: object[] = [],
   reads = { uv: 0 }
 const run = shaderRun<Run>(
   VIS_SHADER,
-  ['vis_vs', 'vis_hiz_vs', 'hardwareIdle', 'maskKeep', 'lineDash', 'floorMod'],
+  ['vis_vs', 'hardwareIdle', 'maskKeep', 'lineDash', 'floorMod'],
   {
     pages,
-    hizFlags: [],
     uni: { viewProj: IDENTITY, computeSpan: 0 },
     drawBatch: () => [0, 0],
     pageHeaderFor: () => ({}),
@@ -54,7 +52,6 @@ const run = shaderRun<Run>(
     materialAt: (record: object) => record,
     hardwareCorner: (_page: unknown, _h: unknown, vertex: number) => vertex,
     NO_INDEX,
-    hizRejected: () => false,
     pagePosition: () => [0, 0, 0],
     pageUv: () => (reads.uv++, [...UV]),
     pageMaskAlpha: () => ALPHA,
@@ -78,9 +75,9 @@ test('a vertex reads its UV only on a masked row with UVs, and every cutout verd
         const page = (pages[0] = pageOf(flags, cut, dashed))
         const was = everyUv(flags),
           wasKept = run.maskKeep(page, was.slice(0, 2), was[2], [0, 0], [0, 0])
-        for (const stage of [run.vis_vs, run.vis_hiz_vs]) {
+        {
           reads.uv = 0
-          const { tc } = stage(0, 0)
+          const { tc } = run.vis_vs(0, 0)
           const where = `flags ${flags}, cut ${cut}, dashed ${dashed}`
           assert.equal(reads.uv, (flags & READ) === READ ? 1 : 0, `UV read: ${where}`)
           assert.equal(tc[2], was[2], `vertex alpha: ${where}`)

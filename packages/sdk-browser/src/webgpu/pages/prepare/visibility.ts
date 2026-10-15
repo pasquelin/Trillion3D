@@ -7,10 +7,9 @@ import type { GpuHiz } from '../../../gpu/hiz/types.ts'
 import { validated } from '../../../gpu/core/errorScope.ts'
 import { createGpuDraw } from '../../../gpu/draw/factory.ts'
 import { createGpuPartition } from '../../../gpu/partition/factory.ts'
-import { createGpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { prepareTransparentOcclusion } from '../../transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { partitionSourcesOf, restSourcesOf } from './drawSources.ts'
+import { partitionSourcesOf } from './drawSources.ts'
 import {
   bindShade,
   prepareBlendPipelines,
@@ -91,7 +90,5 @@ async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz
   })
   if (!partition) throw new Error('WEBGPU_PARTITION_UNAVAILABLE')
   vis.gpuPartition = partition
-  // The tested half's compaction reads the pyramid verdict and draw compaction's list: both.
-  vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, restSourcesOf(gpuDraw, hiz, partition))
   hiz.attach(partition.tested, partition.state)
 }

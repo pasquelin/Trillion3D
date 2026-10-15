@@ -9,7 +9,6 @@ import {
   materialDeclarations,
 } from '../../webgpu/tile/wgsl.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
@@ -23,18 +22,14 @@ import { visTriangle } from '../visWords.ts'
 export const VIS_FRAGMENT = 'vis_hiz_fs'
 export const VIS_UNMASKED = { MASKED: 0 }
 
-/** The vertex stage of the hardware raster: `hiz` also drops a page whose slot the Hi-Z test rejected
- *  (`HIZ_REJECTED_WGSL`), before a vertex reads a word of it. */
-const visVertex = (name: string, hiz: boolean) => {
-  const hizDrop = hiz
-    ? ' if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}\n'
-    : ''
-  return `@vertex fn ${name}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
+/** The vertex stage of the hardware raster, both halves': a row the Hi-Z test rejected never
+ *  reaches it (`GpuDraw.encodeTested`). */
+const VIS_VERTEX = `@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
  let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
-${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let shape=pageShape(page);
  let id=hardwareCorner(page,h,corner,shape);
@@ -50,7 +45,6 @@ ${hizDrop} if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out
  return out;
 }
 `
-}
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
@@ -63,7 +57,6 @@ export const visShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
     `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
 ${PAGE_BINDING.uniforms}
 ${materialDeclarations()}
 ${PAGE_BINDING.instances}
@@ -86,7 +79,7 @@ fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape)
  if(computeTakes(pageClip(vp,page,h,ia,shape),pageClip(vp,page,h,ib,shape),pageClip(vp,page,h,ic,shape))){return NO_INDEX;}
  return corners[vertexIndex%3u];
 }
-${visVertex('vis_vs', false)}${visVertex('vis_hiz_vs', true)}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
+${VIS_VERTEX}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 // A slot that holds no cutout row (no \`FLAG_MASK\`) is drawn with \`MASKED\` false: \`maskKeep\` keeps
 // every pixel of such a row, so the pipeline's constant removes the page read and the discard
 // before the stage is compiled, and a tile GPU's hidden-surface removal resolves its overdraw
@@ -103,7 +96,6 @@ override MASKED:bool=true;
 `,
     [
       PAGE_INFO_WGSL,
-      HIZ_REJECTED_WGSL,
       TILE_POOL_WGSL,
       COLOR_SAMPLE_WGSL,
       PAGE_LOOKUP_WGSL,

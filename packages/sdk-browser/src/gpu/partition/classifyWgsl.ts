@@ -1,4 +1,3 @@
-import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import {
   FLAG_CLIP,
@@ -53,9 +52,8 @@ fn classifyRow(i:u32){
  flags[i]=select(${VERDICT_OCCLUDER}u,${VERDICT_KEPT}u,rest!=0u);
  if(rest!=0u){atomicOr(&restBits[bitWord(i)],bitMask(i));}
  else{tallyAdd(${ST_OCCLUDERS}u,1u);}
- let item=items[i];
- atomicAdd(&slotUsed[rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,uni.layerTop)],1u);
  if(rest==0u){return;}
+ let item=items[i];
  // Only a box the pyramid can judge travels to the test, naming the row it answers for, its
  // rectangle the one pick (\`hizRectPick\`) in texels of its mip: a row cut by the near plane, off
  // screen or wider than every mip stays at the kept verdict written above.

@@ -66,7 +66,7 @@ test('drawShader(k) computes a slot as bin + HALF_SLOTS*rest + BASE_SLOTS*layer,
     const slotOfBody = /fn slotOf\([^)]*\)->u32\{return ([^;]+);\}/.exec(drawShader(k))
     assert.equal(
       slotOfBody![1],
-      `restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${k - 1}u)`,
+      `rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${k - 1}u)`,
     )
   }
 })

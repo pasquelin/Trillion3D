@@ -1,12 +1,5 @@
 import type { PageRec } from '../../../page/selection/types.ts'
-import {
-  BASE_SLOTS,
-  BIN_BACK,
-  BIN_FRONT,
-  BIN_NONE,
-  CULL_BINS,
-  HALF_SLOTS,
-} from '../../../gpu/draw/contract.ts'
+import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE, CULL_BINS } from '../../../gpu/draw/contract.ts'
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts'
 import { windingCw } from '../render/winding.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
@@ -14,16 +7,9 @@ import type { WebgpuPagesCore } from '../runtime.ts'
 /** The layout's selection roots, ranked by the layout's index (`rootOfPacked`). */
 type Roots = Parameters<typeof windingCw>[0]
 
-/** Layer 0's pipelines by half and face mode: the three untested ones, then their Hi-Z-tested
- *  twins. */
-const VIS_SLOTS = [
-  'visPipelineBack',
-  'visPipelineNone',
-  'visPipelineFront',
-  'visHizRestBack',
-  'visHizRestNone',
-  'visHizRestFront',
-] as const
+/** Layer 0's pipelines by face mode: both halves draw with them, the tested half once the
+ *  rejected rows left its compaction (`GpuDraw.encodeTested`). */
+const VIS_SLOTS = ['visPipelineBack', 'visPipelineNone', 'visPipelineFront'] as const
 
 /** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
  *  its depth bias. A slot's face rank is its bin's face mode: a cutout slot draws with its face
@@ -31,11 +17,9 @@ const VIS_SLOTS = [
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   const { vis } = rt
   const layer = Math.floor(slot / BASE_SLOTS),
-    within = slot % BASE_SLOTS,
-    rest = within >= HALF_SLOTS,
-    cull = within % CULL_BINS
-  if (layer === 0) return vis[VIS_SLOTS[(rest ? CULL_BINS : 0) + cull]]
-  return vis.visLayerPipelines[visLayerPipelineIndex(layer, rest, cull)]
+    cull = (slot % BASE_SLOTS) % CULL_BINS
+  if (layer === 0) return vis[VIS_SLOTS[cull]]
+  return vis.visLayerPipelines[visLayerPipelineIndex(layer, cull)]
 }
 
 export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {

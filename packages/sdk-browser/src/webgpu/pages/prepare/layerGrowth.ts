@@ -6,8 +6,8 @@
  * deeper than the session's slots — a model compiled with coplanar surfaces, joining a world opened
  * on none — is granted the slots it needs by the open's own functions: the compaction, the layers'
  * pipelines and the uniforms are made beside the running ones, and put in place in one step between
- * two images, the partition and the tested half's compaction reading the new compaction
- * (`partitionSourcesOf`, `restSourcesOf`), the draw records written again (`refreshDrawItemWords`).
+ * two images, the partition reading the new compaction
+ * (`partitionSourcesOf`), the draw records written again (`refreshDrawItemWords`).
  * Queued behind the growths of the tables (`queueTableGrowth`): both read the compaction.
  *
  * Cost of a grant from L to L' layers over R rows: the compaction's buffers for L' (R·(5+perRow)
@@ -21,7 +21,7 @@ import { visUniformLayout } from '../../core/bindLayout.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { partitionSourcesOf, restSourcesOf } from './drawSources.ts'
+import { partitionSourcesOf } from './drawSources.ts'
 import { queueTableGrowth } from './growthQueue.ts'
 import { buildLayerPipelines } from './visibilitySteps.ts'
 import { depthLayerSlots } from './visibility.ts'
@@ -42,10 +42,9 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
   const { vis, layout, setup, run, signal } = rt
   // Granted meanwhile, by another source's growth ahead of this one in the queue.
   if (slots <= vis.drawLayerSlots) return true
-  const { gpuHiz: hiz, gpuPartition: partition, gpuRestCompact: rest, gpuDraw: held } = vis
+  const { gpuHiz: hiz, gpuPartition: partition, gpuDraw: held } = vis
   const { visModule, visBindGroupLayout } = vis
-  if (!hiz || !partition || !rest || !held || !visModule || !visBindGroupLayout || run.lost)
-    return false
+  if (!hiz || !partition || !held || !visModule || !visBindGroupLayout || run.lost) return false
   const [draw, pipelines] = await Promise.all([
     createGpuDraw(device, layout.drawSlots, slots, setup.maxCorners),
     buildLayerPipelines(
@@ -81,7 +80,6 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
   vis.visLayerPipelines = pipelines
   uniform.commit()
   partition.rebind(() => partitionSourcesOf(draw, hiz))
-  rest.rebind(restSourcesOf(draw, hiz, partition))
   held.dispose()
   // The compute raster reads the compaction: made again at the next image; no occluder history
   // describes the new one.

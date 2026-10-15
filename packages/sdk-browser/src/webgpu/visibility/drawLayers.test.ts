@@ -99,7 +99,7 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       mapsSampler: {},
       zeroFlags: {},
       gpuHiz: undefined,
-      visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
+      visSlotGroups: new Array(MAX_DRAW_SLOTS).fill(undefined),
       gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, slotOffsetsBuffer: {} },
       visBundles,
       // The surfaces' records a slot's group binds (`../material/materialTable.ts`).

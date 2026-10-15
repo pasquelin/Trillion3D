@@ -38,17 +38,11 @@ function dropGpuHiz(rt: WebgpuPagesRuntime) {
   dropGpuPartition(rt)
   vis.gpuHiz?.dispose()
   vis.gpuHiz = undefined
-  vis.visHizRestBack = undefined
-  vis.visHizRestNone = undefined
-  vis.visHizRestFront = undefined
   invalidateOccluderHistory(rt.run)
 }
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {
   dropGpuPartition(rt)
-  // Compaction of the tested half names only the draw-compaction buffers.
-  rt.vis.gpuRestCompact?.dispose()
-  rt.vis.gpuRestCompact = undefined
   rt.vis.gpuDraw?.dispose()
   rt.vis.gpuDraw = undefined
 }
