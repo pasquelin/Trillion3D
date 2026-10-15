@@ -3,6 +3,7 @@ import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceB
 import { probeFieldWgsl } from '../bounce/gridWgsl.ts'
 import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
+import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
 /**
@@ -83,7 +84,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
  */
 export const REFLECTION_LOBE_WGSL = wgslBlock(
   'REFLECTION_LOBE_WGSL',
-  [REFLECTION_BANDS_WGSL, REFLECTION_CONE_WGSL],
+  [REFLECTION_BANDS_WGSL, REFLECTION_CONE_WGSL, vectorRejection],
   `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,tangents:vec2f,}
 fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  let s=reflectionBands(alpha);
@@ -91,7 +92,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  var t=s;
  var tt=ts;
  if(lobe.w!=alpha){t=reflectionBands(lobe.w);tt=reflectionConeTangent(lobe.w);}
- let across=lobe.xyz-R*dot(lobe.xyz,R);
+ let across=vectorRejection(lobe.xyz,R);
  let T=across*inverseSqrt(max(dot(across,across),REFLECTION_FLOOR));
  return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(ts,tt));
 }

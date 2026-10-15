@@ -2,6 +2,7 @@ import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { GOLDEN_U32, TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { additive2d, mixWord } from '../../../math/src/wgsl/sampling.ts'
 import { tangentFallback } from '../../../math/src/wgsl/basis.ts'
+import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_CONE_WGSL } from './field.ts'
@@ -72,6 +73,7 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     mixWord,
     additive2d,
     tangentFallback,
+    vectorRejection,
     LOBE_AXIS_WGSL,
     reflectionCentreRadiance,
   ],
@@ -83,7 +85,7 @@ fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  return additive2d(shift,reflectionView.temporal.x);
 }
 fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->vec3f{
- var T=axis-N*dot(axis,N);
+ var T=vectorRejection(axis,N);
  if(dot(T,T)<1e-12){T=tangentFallback(N);}
  T=normalize(T);
  let B=cross(N,T);
