@@ -1,13 +1,10 @@
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 // Thin surfaces before a lit wall, on a mirror floor (`boxFrame.ts`, `rig.ts`): a pole one pixel
 // wide, a fence four, and a box deeper than the thickness the march assumes. A floor pixel whose
 // exact mirror ray meets the wall, and whose path on the screen crosses the pole's or the fence's
 // pixels from behind them, must show the wall: the ray passes behind a surface thinner than its
 // slab. One whose exact ray meets the box must show the box: the box, deeper than the slab, stops it.
-import {
-  camera,
-  castBoxes,
-  type V3,
-} from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera, castBoxes } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { BOX_FOV, type Block } from './boxFrame.ts'
@@ -17,9 +14,9 @@ const WIDTH = 320,
   HEIGHT = 180
 /** The march's slab thickness as the shaders read it. */
 const THICKNESS = REFLECTION_CONSTANTS.REFLECTION_THICKNESS
-const EYE: V3 = [0, 6, 4]
+const EYE: Vec3 = [0, 6, 4]
 /** Where the eye looks: down onto the floor at 31°, so that the mirror rays drift across the screen. */
-const TARGET: V3 = [0, 0, -6]
+const TARGET: Vec3 = [0, 0, -6]
 /** One pixel of the view, in metres, at the pole's distance (10.5 m): the view's pixel at a unit
  *  depth (`scale`), 2 · tan(25°) / 180, times 10.5. */
 const PIXEL = camera(EYE, TARGET, WIDTH, HEIGHT, BOX_FOV).scale * 10.5
@@ -31,7 +28,7 @@ const FLOOR: Block = {
 }
 const WALL: Block = { box: { low: [-14, 0, -16], high: [14, 12, -15.8] }, color: [0.9, 0.35, 0.1] }
 /** The poles, one pixel wide at 10.5 m, and the fences, four, in a row across the view. */
-const THIN_COLOR: Record<string, V3> = { pole: [0.1, 0.9, 0.2], fence: [0.9, 0.9, 0.1] }
+const THIN_COLOR: Record<string, Vec3> = { pole: [0.1, 0.9, 0.2], fence: [0.9, 0.9, 0.1] }
 const POLES: Block[] = [2, 4, 6].map((x) => ({
   box: { low: [x - PIXEL / 2, 0, -6 - PIXEL / 2], high: [x + PIXEL / 2, 3, -6 + PIXEL / 2] },
   color: THIN_COLOR.pole,
@@ -108,7 +105,7 @@ export function run() {
       let behind = false
       for (let s = 1; s <= 400; s++) {
         const t = (hit.t * s) / 400
-        const point: V3 = [o[0] + R[0] * t, o[1] + R[1] * t, o[2] + R[2] * t]
+        const point: Vec3 = [o[0] + R[0] * t, o[1] + R[1] * t, o[2] + R[2] * t]
         const [px, py, , w] = view.project(point)
         const at = Math.floor(py) * WIDTH + Math.floor(px)
         if (px < 0 || py < 0 || px >= WIDTH || py >= HEIGHT) continue
