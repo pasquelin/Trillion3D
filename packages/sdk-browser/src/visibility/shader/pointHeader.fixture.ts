@@ -8,7 +8,6 @@ import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
-import type { Vec } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -116,7 +115,6 @@ export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow']
 )
 export const VIS_VS_SCOPE = {
   ...{ NO_INDEX, pageSprite: () => [0, 0, 0, 1] },
-  ScreenBox: (lo: Vec, hi: Vec, q0: Vec, q1: Vec, span: number) => ({ lo, hi, q0, q1, span }),
 }
 const { words, pages, pool, uvs } = scene()
 export { pages }

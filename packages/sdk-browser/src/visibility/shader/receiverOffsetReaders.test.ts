@@ -80,7 +80,6 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
     textureDimensions: () => [8, 8],
     textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
     textureLoad: () => texel,
-    ShadowReceiver: (offset: number[], plane: number[]) => ({ offset, plane }),
   }
   const { storeReceiver } = shaderRun<{
     storeReceiver: (pos: number[], offset: number[], plane: number[]) => void

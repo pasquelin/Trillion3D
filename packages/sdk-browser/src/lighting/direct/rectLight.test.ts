@@ -28,8 +28,6 @@ const shader = shaderRun<{
   {
     ...F32_SCOPE,
     rangeWindow: () => 1,
-    RectView: (a: V, b: V, c: V, d: V, window: number) => ({ a, b, c, d, window }),
-    Outline: (F: V, exit: V, entry: V) => ({ F, exit, entry }),
   },
 )
 

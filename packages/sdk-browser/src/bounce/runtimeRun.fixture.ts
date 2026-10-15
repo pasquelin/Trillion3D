@@ -79,31 +79,6 @@ export function runOver(w: ReturnType<typeof world>) {
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec) => tint,
-    RtSurface: (tint: Vec, opacity: number, emission: Vec, blended: boolean) => ({
-      tint,
-      opacity,
-      emission,
-      blended,
-    }),
-    Box: (low: Vec, high: Vec) => ({ low, high }),
-    ProxyChild: (box: unknown, offset: number, count: number, present: boolean) => ({
-      box,
-      offset,
-      count,
-      present,
-    }),
-    InvT3: (adj: unknown, scale: number, regular: boolean) => ({ adj, scale, regular }),
-    PlacedRay: (origin: Vec, direction: Vec, regular: boolean) => ({
-      origin,
-      direction,
-      regular,
-    }),
-    RtHit: (distance: number, placement: number, triangle: number, found: boolean) => ({
-      distance,
-      placement,
-      triangle,
-      found,
-    }),
   })
 }
 

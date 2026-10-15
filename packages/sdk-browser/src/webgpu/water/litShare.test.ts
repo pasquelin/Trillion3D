@@ -85,7 +85,6 @@ function runner(text: string) {
       view: { camera: [0, 1, 0, 0], viewport: [8, 8, 0, 0], jitter: [0, 0, 0, 0] },
       uni: { viewFlags: 0, eye: [0, 1, 0, 0] },
       viewToEye: () => [0, 0.6, 0.8],
-      Reflected: (base: number[], coat: number[]) => ({ base, coat }),
       // No front pass this image: the chain traces the pixel's lobes.
       reflectionView: { front: [0, 0, 0, 0] },
       faceForward: (normal: number[]) => normal,

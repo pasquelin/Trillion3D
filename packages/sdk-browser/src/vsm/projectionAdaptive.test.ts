@@ -63,7 +63,6 @@ function trace(hits: (i: number) => boolean, others: boolean, depth = 0.5) {
       rays++
       return { hitFound: hits(ray++), occluderDepth: 0.5 + depth }
     },
-    VsmTraceResult: (shadowFactor: number, rayCount: number) => ({ shadowFactor, rayCount }),
     vsmVoteAllTrue: (mine: boolean) => mine && others,
     vsmGroupVoted: (voted: boolean) => voted,
   })

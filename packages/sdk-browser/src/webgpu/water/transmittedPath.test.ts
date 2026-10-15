@@ -62,7 +62,6 @@ function seen(pose: Vec[]) {
       exitPixel: (P: Vec, dir: Vec, dist: number, straight: Vec) => ((advanced = dist), straight),
       refract,
       mat3x3f: (...columns: Vec[]) => columns,
-      Transmitted: (color: Vec, coverage: number) => ({ color, coverage }),
       view: { viewport: [8, 8, 0, 0] },
       items: [{ world: pose }],
     },

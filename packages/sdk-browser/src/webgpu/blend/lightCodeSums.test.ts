@@ -87,7 +87,6 @@ test('each forward variant sums what the program with every code path sums, bit 
           shadowTransmission: items.some((item) => item.params[1] >= 0)
             ? [0.9, 0.7, 0.5]
             : [1, 1, 1],
-          LightPair: (a: number[], b: number[]) => ({ lit: a, specular: b }),
         }
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
         const sum = (text: string, slice: number[]) =>

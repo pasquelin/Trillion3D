@@ -29,8 +29,6 @@ const scope = {
   // WGSL's 3×3 by its columns, and its determinant, in binary32.
   mat3x3f: (...columns: V[]) => columns,
   determinant: (m: V[]) => dot(m[0], cross(m[1], m[2])),
-  InvT3: (adj: V[], scale: number, regular: boolean) => ({ adj, scale, regular }),
-  RowFrame: (invT: Frame['invT'], positive: boolean) => ({ invT, positive }),
   bitcast_vec3f: builtins.bitcast_f32,
 }
 const PIXEL = shaderRun<{

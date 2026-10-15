@@ -74,7 +74,6 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     const scope = {
       ...shared,
       shadowTransmission: [0.9, 0.7, 0.5],
-      LightPair: (a: number[], b: number[]) => ({ lit: a, specular: b }),
     }
     const { grazing, ...set } = lobesOf(u, r, N, V)
     const alpha = rough * rough

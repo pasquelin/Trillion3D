@@ -129,21 +129,6 @@ export function reader(memory: Map<string, V>): Read {
           [0, 0, 0, 1],
         ],
       }),
-      VsmTReceiver: (p: V, directional: boolean, axis: V, d: number, at: V) => ({
-        p,
-        directional,
-        axis,
-        d,
-        at,
-      }),
-      VsmTHit: (distance: number, key: number, through: V) => ({ distance, key, through }),
-      VsmTScan: (count: number, product: V, next: V, nextCount: number, nextThrough: V) => ({
-        count,
-        product,
-        next,
-        nextCount,
-        nextThrough,
-      }),
     },
   )
 }

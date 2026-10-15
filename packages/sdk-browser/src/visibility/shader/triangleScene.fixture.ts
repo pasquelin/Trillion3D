@@ -2,8 +2,8 @@
 // five rows — two quantized pages, one carrying its deformation tail in the page pool, a
 // source-buffer page, one deformed in the float pool, a sprite — and a visibility buffer of big
 // triangles, slivers, lone pixels, the background, rows past the table and triangles past their
-// page. With the stand-ins `shaderRun` lacks: WGSL's 3×3, the structures the text builds by name,
-// integer division for the page decode (`homesDecode.test.ts`).
+// page. With the stand-ins `shaderRun` lacks: WGSL's 3×3 and integer division for the page decode
+// (`homesDecode.test.ts`).
 import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
@@ -36,15 +36,8 @@ export const times = (m: Mat3, v: V) =>
 export const STRUCTS = {
   mat3x3f,
   determinant: (m: Mat3) => F32_SCOPE.dot(m[0], F32_SCOPE.cross(m[1], m[2])),
-  InvT3: (adj: Mat3, scale: number, regular: boolean) => ({ adj, scale, regular }),
-  RowFrame: (invT: unknown, positive: boolean) => ({ invT, positive }),
-  PageShape: (sprite: V, lineWidth: number) => ({ sprite, lineWidth }),
   // A scene's row holds its surface's record itself in its material word.
   materialAt: (record: unknown) => record,
-  PixelTriangle: (...v: V[]) =>
-    Object.fromEntries(
-      'p0 p1 p2 w0 w1 w2 n0 n1 n2 uva uvb uvc iw'.split(' ').map((k, i) => [k, v[i]]),
-    ),
   bitcast_vec2f: builtins.bitcast_f32,
   bitcast_vec3f: builtins.bitcast_f32,
   bitcast_vec4f: builtins.bitcast_f32,

@@ -41,7 +41,6 @@ function forward(texel: number[], depth: number, answered = true) {
       reflectionFront: { load: () => [depth, 0, 0, 0] },
       reflectionView: { front: [answered ? 1 : 0, 0, 0, 0] },
       reflectionTrace: () => chain,
-      Reflected: (base: Vec, coat: Vec) => ({ base, coat }),
     },
   )
   return (z: number, front = true) =>

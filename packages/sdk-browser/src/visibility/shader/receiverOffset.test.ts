@@ -167,7 +167,6 @@ const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V
     ...scope,
     PixelTriangle: STRUCTS.PixelTriangle,
     PageShape: STRUCTS.PageShape,
-    ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }),
   },
 )
 const { storedOffset } = shaderRun<{ storedOffset: (pixel: V) => V }>(

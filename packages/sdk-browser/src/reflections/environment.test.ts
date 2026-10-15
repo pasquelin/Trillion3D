@@ -41,13 +41,6 @@ const environmentRun = (environment: number[][], surroundings: number[]) =>
     {
       directLights: { environment },
       reflectionView: { surroundings },
-      ReflectionLobe: (
-        R: number[],
-        T: number[],
-        bands: number[],
-        widths: number[],
-        tangents: number[],
-      ) => ({ R, T, bands, widths, tangents }),
     },
   )
 const zero = () => Array.from({ length: 9 }, () => [0, 0, 0, 0])

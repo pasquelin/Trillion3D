@@ -21,7 +21,6 @@ export const ROUTE_FUNCTIONS = ['displayRoute', 'displayValue', 'linearToSrgb', 
 /** What they run with: the pipeline's `DISPLAY_ROUTE` `kind`, the mask `mask` at a pixel. */
 export const routeScope = (kind: 0 | 1 | 2, mask: (at: number[]) => number = () => 1) => ({
   DISPLAY_ROUTE: kind,
-  Route: (keep: number, tint: Rgba, add: Rgba): Route => ({ keep, tint, add }),
   toneMap: (rgb: number[], curve: number) =>
     curve === TONE_MAPPING_RANK.none ? rgb : (assert.equal(curve, ACES), filmic(rgb)),
   displayMask: (at: number[]) => [mask(at), 0, 0, 0],
@@ -75,6 +74,4 @@ export const displayFilterRun = (
       assert.deepEqual([sampler, level], ['linear', 0]),
       map(uv)
     ),
-    Screen: (position: number[], uv: number[]): Screen => ({ position, uv }),
-    Both: (capture: Rgba, canvas: Rgba): Both => ({ capture, canvas }),
   })

@@ -50,7 +50,6 @@ const run = <T>(names: string[], extra: object, source: string) =>
     shadowTransmission: [1, 1, 1],
     shadowCamera: [0, 0, 0],
     vsmView: VIEW,
-    VsmLocated: (sm: object, clipmap: boolean, fromMap: V) => ({ sm, clipmap, fromMap }),
     vsmEmptyRead: () => ({ valid: false }),
     vsmHandleOffset: (h: { id: number }, offset: number) => ({ ...h, id: h.id + offset }),
     ...extra,

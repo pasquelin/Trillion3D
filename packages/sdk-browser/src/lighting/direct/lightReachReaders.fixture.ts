@@ -33,7 +33,6 @@ export function shadesOf(code: string) {
   }>(code, ['directIncidence', 'isSun', 'isSunKind', 'rangeWindow', 'rectView'], {
     ...F32_SCOPE,
     ...wgslConstants(code),
-    RectView: (a: V3, b: V3, c: V3, d: V3, window: number) => ({ a, b, c, d, window }),
   })
   return (light: SceneLight, r: LightRecord, P: V3) =>
     light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0
@@ -111,7 +110,6 @@ export function listsOf(bounce: string) {
       ...K,
       lights: listed,
       view: { origin: [corner * spacing, corner * spacing, corner * spacing, spacing] },
-      Column: (low: number[], high: number[]) => ({ low, high }),
     },
   )
   const { bounceLightSlice } = shaderRun<{ bounceLightSlice: (P: V3) => number[] }>(
