@@ -1,4 +1,14 @@
 import {
+  CULL_CEIL,
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_MAX,
+  CULL_MIN,
+  CULL_PAGE_COUNT,
+  CULL_STRIDE,
+} from '../../gpu/dag/types.ts'
+import {
   clusterSphereValid,
   pageCarriesClusterError,
   type CullingHierarchy,
@@ -27,27 +37,32 @@ export function cullingNodes(
   pageCount: number,
   quantizationError = 0,
 ) {
-  if (!culling || !Array.isArray(culling.nodes) || culling.stride < 15 || culling.count < 1)
+  if (
+    !culling ||
+    !Array.isArray(culling.nodes) ||
+    culling.stride < CULL_STRIDE ||
+    culling.count < 1
+  )
     return undefined
   if (culling.nodes.length !== culling.count * culling.stride)
     throw new Error('Inconsistent culling hierarchy')
   const nodes = Float64Array.from(culling.nodes)
   for (let node = 0; node < culling.count; node++) {
     const base = node * culling.stride,
-      children = nodes[base + 12]
+      children = nodes[base + CULL_CHILD_COUNT]
     // -1 says the subtree holds a cluster nothing replaces; a bound is raised, a sentinel is not.
-    if (nodes[base + 10] >= 0) nodes[base + 10] += quantizationError
+    if (nodes[base + CULL_CEIL] >= 0) nodes[base + CULL_CEIL] += quantizationError
     // A node encloses the boxes of its clusters, which the grid moved by the same length.
     for (let axis = 0; axis < 3; axis++) {
-      nodes[base + axis] -= quantizationError
-      nodes[base + 3 + axis] += quantizationError
+      nodes[base + CULL_MIN + axis] -= quantizationError
+      nodes[base + CULL_MAX + axis] += quantizationError
     }
     if (children > 0) {
-      if (nodes[base + 11] + children > culling.count)
+      if (nodes[base + CULL_FIRST_CHILD] + children > culling.count)
         throw new Error('Inconsistent culling hierarchy')
       continue
     }
-    if (nodes[base + 13] + nodes[base + 14] > pageCount)
+    if (nodes[base + CULL_FIRST_PAGE] + nodes[base + CULL_PAGE_COUNT] > pageCount)
       throw new Error('Inconsistent culling hierarchy')
   }
   return { nodes, stride: culling.stride }

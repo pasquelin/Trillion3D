@@ -1,3 +1,9 @@
+import {
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_PAGE_COUNT,
+} from '../../gpu/dag/types.ts'
 import { sphereUnion } from '../../../../math/src/geometry/sphere.ts'
 import type { ClusterCut } from '../selection/math.ts'
 
@@ -52,15 +58,15 @@ export function cullingBounds(
       at = node * BOUND_STRIDE
     values[at + OWN_FLOOR] = Infinity
     values[at + OWN_SPHERE + 3] = -1
-    const children = nodes[base + 12]
+    const children = nodes[base + CULL_CHILD_COUNT]
     if (children > 0) {
-      const first = nodes[base + 11]
+      const first = nodes[base + CULL_FIRST_CHILD]
       for (let child = 0; child < children; child++)
         foldChild(values, at, (first + child) * BOUND_STRIDE)
       continue
     }
-    const firstPage = nodes[base + 13],
-      pageCount = nodes[base + 14]
+    const firstPage = nodes[base + CULL_FIRST_PAGE],
+      pageCount = nodes[base + CULL_PAGE_COUNT]
     for (let i = 0; i < pageCount; i++) foldPage(values, at, pages[firstPage + i])
   }
   return values
