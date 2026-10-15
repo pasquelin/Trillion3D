@@ -50,6 +50,21 @@ export function fieldLayout<T extends FieldTable>(name: string, table: T, tail =
   return { name, at: at as Readonly<typeof at>, words: alignUp(end, align), align, wgsl }
 }
 
+/** `count` words of a word array, as a flat record (a frame, a key record) lays them: no WGSL
+ *  struct reads it, the layout alone does. */
+export const u32Words = (count: number): FieldType => ({
+  wgsl: `array<u32,${count}>`,
+  words: count,
+  align: 1,
+})
+/** `count` emulated doubles in a word array: two words each, on an even word
+ *  (`math/src/wgsl/doubleWords.ts`). */
+export const doubleWords = (count: number): FieldType => ({
+  wgsl: `array<vec2u,${count}>`,
+  words: 2 * count,
+  align: 2,
+})
+
 /** The field type of `count` records of the struct `of` lays out: WGSL strides an array of a
  *  struct by the struct's words, already rounded to its alignment. */
 export function arrayOf(

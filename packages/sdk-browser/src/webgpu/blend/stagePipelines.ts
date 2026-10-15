@@ -22,7 +22,9 @@ import { CULL_MODES } from './planCull.ts'
 export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal
 
 /** The pipelines a plan entry picks by cull rank (`plan.ts`), one per `CULL_MODES`. */
-export type BlendPipelines = { readonly [K in keyof typeof CULL_MODES]: GPURenderPipeline }
+export type BlendPipelines = PerCullMode<typeof CULL_MODES>
+/** One pipeline for each entry of a cull-mode table: a tuple of its length. */
+type PerCullMode<T extends readonly unknown[]> = { readonly [K in keyof T]: GPURenderPipeline }
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
  *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
