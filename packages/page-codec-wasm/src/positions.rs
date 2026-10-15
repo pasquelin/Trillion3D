@@ -5,7 +5,7 @@
 //! stores one position per vertex and no link. Either way a vertex decodes to the same
 //! floats: the link only says where its position lies.
 
-use crate::bits::{bits_for, dequant, BitReader};
+use crate::bits::{bits_for, dequant, le_words, stream_words, BitReader};
 use crate::{Header, Layout};
 
 impl Header {
@@ -22,18 +22,16 @@ impl Header {
 
 /// Every link names a stored position — the gate a reader that decodes in place relies on, as
 /// for the block records. `body` is the page after its header, the layout already matched to it;
-/// a link, at most 16 bits, lies within three bytes of its first.
+/// the link stream is read by the decoder's own `BitReader`.
 pub(crate) fn links_fit(body: &[u8], layout: &Layout, h: &Header) -> bool {
     if !h.links_positions() {
         return true;
     }
-    let (bits, stream) = (h.link_bits() as usize, &body[layout.links * 4..]);
-    (0..h.vertex_count).all(|i| {
-        let at = i * bits;
-        let window = stream[at / 8..].iter().take(3).rev();
-        let bytes = window.fold(0usize, |acc, &b| acc << 8 | usize::from(b));
-        (bytes >> (at % 8) & ((1 << bits) - 1)) < h.position_count
-    })
+    let (bits, start) = (h.link_bits(), layout.links * 4);
+    let end = start + stream_words(h.vertex_count, bits) * 4;
+    let words: Vec<u32> = le_words(&body[start..end]).collect();
+    let mut links = BitReader::at(&words, 0);
+    (0..h.vertex_count).all(|_| (links.read(bits) as usize) < h.position_count)
 }
 
 /// The vertices' positions, each dequantized in place from the stored one its link names —
