@@ -93,8 +93,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
- // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
- ouvreTotaux(lid);
+ // group crosses the barrier: a thread with no cluster does not return early, it does nothing.
  let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=liveWorld(s);
@@ -109,12 +108,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
    // matrix product, no projection, no sphere read again.
    draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
-  noteImage(r,clusterFlags,draw);
+  tallyDrawn(r,clusterFlags,draw);
   // Drawn count of this page's block, held here rather than reread later page by page; its bit is
   // the draw mask every reader takes (\`compactWgsl.ts\`).
   if(draw){atomicAdd(&work[blockBase()+i/WORKGROUP_THREADS],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
  }
- verseTotaux(lid);
+ flushTally(lid);
 }
 `,
   [

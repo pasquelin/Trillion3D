@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { workgroupTallyWgsl } from '../core/workgroupTallyWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { fieldLayout } from '../core/fieldLayout.ts'
 
@@ -84,22 +85,16 @@ export const ST_TESTED = 0,
 const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1
 /**
  * The frame's counters, kept on a sampled frame only (`uni.counting`: the `countsDue` answer that
- * also encodes their copy, `counters.ts`), as one atomic per workgroup and counter: a workgroup sums
- * its rows' in workgroup memory, then its lane `k` adds counter `k` to `state`. u32 sums wrap and
- * are associative: `state` holds what one atomic per row gave, term for term. A module that holds
- * `state` and a uniform `uni.counting` declares it; its entry point calls `flushTally` from uniform
- * control flow. `ST_TESTED`, the tested boxes' allocator, is never tallied.
+ * also encodes their copy, `counters.ts`), summed per workgroup (`workgroupTallyWgsl`) into
+ * `state`. A module that holds `state` and a uniform `uni.counting` declares it. `ST_TESTED`, the
+ * tested boxes' allocator, is never tallied.
  */
-export const STATE_TALLY_WGSL = wgslBlock(
+export const STATE_TALLY_WGSL = workgroupTallyWgsl(
   'STATE_TALLY_WGSL',
-  [],
-  `var<workgroup> tally:array<atomic<u32>,${TALLY_WORDS}>;
-fn tallyAdd(word:u32,n:u32){if(uni.counting!=0u){atomicAdd(&tally[word],n);}}
-fn flushTally(lane:u32){
- if(uni.counting==0u){return;}
- workgroupBarrier();
- if(lane>${ST_TESTED}u&&lane<${TALLY_WORDS}u){let n=atomicLoad(&tally[lane]);if(n!=0u){atomicAdd(&state[lane],n);}}
-}`,
+  TALLY_WORDS,
+  'uni.counting!=0u',
+  'atomicAdd(&state[lane],n);',
+  ST_TESTED + 1,
 )
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
