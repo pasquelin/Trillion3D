@@ -4,7 +4,8 @@
 import { mipLevelCountFor } from '../texture/tiles.ts'
 
 /** The HDR colour: what the lighting writes, and the transparents, the effects and the temporal
- *  antialiasing read and write. */
+ *  antialiasing read and write; the reflection target the upsample writes holds it at the lit
+ *  image's precision (`../reflections/gpu.ts`). */
 export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The HDR colour's usages: drawn into, sampled, copied from (the water's backdrop) and into (the
  *  proofs that lay a lit image). Both HDR targets that take turns have them

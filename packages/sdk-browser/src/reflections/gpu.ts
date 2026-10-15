@@ -2,7 +2,7 @@ import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 import type { GpuHiz, HizDepth } from '../gpu/hiz/types.ts'
 import { hizDepthBindEntries } from '../gpu/hiz/pyramidTexture.ts'
-import { REFLECTION_FORMAT } from './constants.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
@@ -57,7 +57,7 @@ export function createScreenReflection(
   const target = device.createTexture({
     label: 'Trillion3D reflection',
     size: [width, height],
-    format: REFLECTION_FORMAT,
+    format: HDR_FORMAT,
     usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
   })
   const uniform = device.createBuffer({

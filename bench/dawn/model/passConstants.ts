@@ -109,7 +109,7 @@ export const MARCH_ITERATIONS = 16,
  *  pixel's depth and normal, four history texels and, on a changed image, nine fresh ones, and writes
  *  16 bytes (`temporalOpaque`). The upsample of a reflecting pixel reads its flags, depth, normal,
  *  lobes and base colour, then four history texels, which carry their depth and normal
- *  (`upsampleOpaque`), and writes 8 bytes (`REFLECTION_FORMAT`). */
+ *  (`upsampleOpaque`), and writes 8 bytes (`HDR_FORMAT`). */
 export const TRACE_LOADS = 4 + 3,
   HIT_LOADS = 2 + 2,
   HIT_TAPS = 4,

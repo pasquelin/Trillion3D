@@ -4,7 +4,7 @@ import {
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
 import type { SceneBindings } from '../bounce/sceneBindings.ts'
-import { REFLECTION_FORMAT } from './constants.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -98,7 +98,7 @@ export const halfLayouts = (device: GPUDevice) => {
       computeBufferEntry(B.lights, 'read-only-storage'),
       computeTextureEntry(B.upsampleIn, 'uint'),
       computeTextureEntry(B.base, 'unfilterable-float'),
-      computeStorageTextureEntry(B.target, REFLECTION_FORMAT),
+      computeStorageTextureEntry(B.target, HDR_FORMAT),
     ]),
     upsampleFront: layout([
       computeTextureEntry(B.upsampleIn, 'uint'),

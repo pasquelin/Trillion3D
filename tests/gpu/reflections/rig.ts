@@ -21,6 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/reflections/image.ts'
 import type { ReflectionFrame } from '../../../packages/sdk-browser/src/reflections/viewWrite.ts'
 import {
+  HDR_FORMAT,
   hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
@@ -40,7 +41,6 @@ import { readTexture } from '../kit/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
-import { REFLECTION_FORMAT } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
@@ -168,13 +168,13 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       device.queue.writeTexture(
         { texture: reflection.target },
         new Uint16Array(width * height * 4).fill(word),
-        { bytesPerRow: width * texelBytesOf(REFLECTION_FORMAT) },
+        { bytesPerRow: width * texelBytesOf(HDR_FORMAT) },
         [width, height],
       )
     },
     /** The reflection target, its raw half-float words. */
     async read() {
-      const bytes = await readTexture(device, reflection.target, texelBytesOf(REFLECTION_FORMAT))
+      const bytes = await readTexture(device, reflection.target, texelBytesOf(HDR_FORMAT))
       return new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
     },
     dispose() {

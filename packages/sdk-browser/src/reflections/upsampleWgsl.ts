@@ -2,7 +2,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { surfaceReflects } from '../scene/surfaceModel.ts'
 import { SHARED_EXPONENT_WGSL } from '../bounce/sharedExponentWgsl.ts'
-import { REFLECTION_FORMAT, REFLECTION_SIDE } from './constants.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
+import { REFLECTION_SIDE } from './constants.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
@@ -36,7 +37,7 @@ export const REFLECTION_UPSAMPLE_WGSL = wgslBlock(
   ],
   `@group(0) @binding(${B.upsampleIn}) var upsampleIn:texture_2d<u32>;
 @group(0) @binding(${B.base}) var traceBase:texture_2d<f32>;
-@group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d<${REFLECTION_FORMAT},write>;
+@group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d<${HDR_FORMAT},write>;
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
 /** The radiance the surface \`layer\` reflects at pixel \`coord\`, its point \`P\`, normal \`N\`, seen from \`V\`. */
 fn upsampled(layer:u32,coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{

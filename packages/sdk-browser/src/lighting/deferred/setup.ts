@@ -9,7 +9,7 @@ import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/const
 import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
-import { REFLECTION_FORMAT } from '../../reflections/constants.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
 export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
@@ -54,7 +54,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   const reflection = device.createTexture({
     label: 'Trillion3D empty reflection',
     size: [1, 1],
-    format: REFLECTION_FORMAT,
+    format: HDR_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   return {
