@@ -35,7 +35,7 @@ export function marcher(
         t,
         plane,
         front: transparent,
-      } = run.screenMarch(o, d, end, run.thickness, run.slab, 2 ** 32 - 1)
+      } = run.screenMarch(o, d, end, run.thickness, run.slab, 2 ** 32 - 1, 0)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
       return {
         at,

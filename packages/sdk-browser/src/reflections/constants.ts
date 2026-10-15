@@ -85,24 +85,22 @@ export const REFLECTION_COUNTS = {
    *  the pixel's own ray and a history of `REFLECTION_HISTORY` images, about a hundred samples of a lobe
    *  while anything changes. */
   REFLECTION_REUSE_TAPS: 8,
-  /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`): the march's own
-   *  bound grows with the screen distance, to 1091 at 1080p, while a mirror ray of floors and waves
-   *  seen from 0.5° to 89° takes 16 on average and 35 at the 99th percentile (`budget.test.ts`). A ray
-   *  that passes behind thin surfaces — poles, fences, a pane's edge — descends to the pixel and climbs
-   *  again at each, a dozen iterations apiece: 48 cut such rays short (`thin.gpu.ts`, `glass.gpu.ts`),
-   *  their screen answer handed to the next stage. 128, four times the 99th percentile, keeps them: the
-   *  cap bounds the tail alone, a ray past it costing 128 iterations, an eighth of the bound at 1080p. */
-  REFLECTION_MARCH_STEPS: 128,
-  /** The share of a ray's budget (`RAY_WORK`) a reflection's proxy
-   *  ray walks on an image drawn for a change, one over this (`proxy.ts`): 512 / 8 = 64 units, the
-   *  placement tree walked nearest first (`treeWalkWgsl.ts`). That image is replaced by the next; a
-   *  ray that spends its share is no answer, its share the field's. A still view's quiet images walk
-   *  the whole budget: they are the images it holds, a ray exhausted there would darken the held
-   *  image, and their cost is bounded — `REFLECTION_STILL` + 1 images, then the view freezes and
-   *  traces nothing. Measured at 2056×1144 on the bench's open world, M2 class: the trace 2.95 ms in
-   *  orbit (5.0 ms with the tree walked in index order, the walk 66 % of it), the walk 3.4·10⁹ units
-   *  a second; a still view frozen 0.48 ms, frames held, the trace 0. */
-  REFLECTION_MOVING_SHARE: 8,
+  /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`), whatever the
+   *  screen distance: a ray in front of the surfaces climbs a level an iteration, so a dozen cross a
+   *  4K image; a descent moves the ray to the cell's nearest depth first, so it always gains ground;
+   *  a glossy lobe's ray stops descending at the level its cone covers. A mirror ray of floors and
+   *  waves seen from 0.5° to 89° took 16 on average and 35 at the 99th percentile before the descent
+   *  gained ground (`budget.test.ts`). A ray that passes behind thin surfaces — poles, fences, a pane's
+   *  edge — descends and climbs again at each, a few levels apiece: one past 50 hands its answer to the
+   *  next stage, faded over the last quarter. 50 is the whole cost bound of a ray's screen march, a
+   *  32-thread wave's included. */
+  REFLECTION_MARCH_STEPS: 50,
+  /** The units a reflection's proxy ray walks at most, on every image (`proxy.ts`): an eighth of a
+   *  ray's budget (`RAY_WORK`), the placement tree walked nearest first (`treeWalkWgsl.ts`), so the
+   *  first bodies along the ray are met within it. A ray that spends it is no answer, its share the
+   *  field's. Measured at 2056×1144 on the bench's open world, M2 class: the walk 3.4·10⁹ units a
+   *  second, so a miss costs 64 / 3.4·10⁹ ≈ 19 ns of the GPU at most, spread over its threads. */
+  REFLECTION_PROXY_WORK: 64,
 } as const
 
 /** The period of the per-image sample sequence (`sampleWgsl.ts`, `spatialWgsl.ts`): the turn wraps

@@ -107,7 +107,7 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,thickness:f
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin,1.0),size);
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0),size);
  let d=stop-start;
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab,0xffffffffu);
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab,0xffffffffu,0.0);
  // A transparent surface is no occluder here: the maps' transmission is its shadow.
  if(hit.t<0.0||hit.front){return rayLength;}
  return rayLength*max(0.0,hit.t-1.5/max(max(abs(d.x),abs(d.y)),1e-6));

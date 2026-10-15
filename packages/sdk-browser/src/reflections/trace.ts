@@ -53,22 +53,26 @@ import { reflectionShareWgsl } from './weight.ts'
  * no case of motion, roughness, resolution or surface chooses between two ways to one result.
  *
  * DISTANCE. A ray goes as far as the eye can tell it from the next stage, never a count of metres: the
- * screen's march ends at the image's edge or `REFLECTION_MARCH_STEPS` iterations, its answer fading
- * over the image's border; the proxy's ray ends where the probes' field stands for its lobe within one
- * 8-bit step (`reach.ts`), and never past the field's last cascade, the scene's extent.
+ * screen's march ends at the image's edge or `REFLECTION_MARCH_STEPS` iterations, as coarse as the
+ * lobe's cone allows; its answer is taken whole as often as it is sure (`reflectionDither`, the fades
+ * of the image's border and of the march's last iterations dithered over the images), so the proxy walks
+ * for the misses alone, no further than the surface the screen met, `REFLECTION_PROXY_WORK` units at
+ * most; it ends where the probes' field stands for its lobe within one 8-bit step (`reach.ts`), and
+ * never past the field's last cascade, the scene's extent.
  *
- * COST. N pixels, R the reflecting ones (opaque and front), T the tiles listed, K̄ the march's mean
- * iterations, p_miss the share of rays the screen leaves, W̄ their mean walk:
+ * COST. N pixels, R the rays (one a lobe of a reflecting pixel, opaque and front), T the tiles listed,
+ * K̄ ≤ 50 the march's mean iterations, p_miss the share of rays whose screen answer is not taken, W̄ ≤ 64
+ * their mean walk in units; r_m, r_w the iterations and units the GPU runs a second:
  * - classify: N flag reads, two cleared texels a pixel of an unlisted tile, two atomics a listed tile;
- * - trace: 64·T threads, R rays a lobe, each ≤ `REFLECTION_MARCH_STEPS` iterations and ≤ `RAY_WORK` /
- *   `REFLECTION_MOVING_SHARE` units on an image drawn for a change (`RAY_WORK` on a still view's quiet
- *   images), a proxy hit one read of its radiance, then 8 probes a cascade;
+ * - trace: 64·T threads; R · K̄ march iterations (one nearest read each, a farthest where the ray is
+ *   not in front, a plane at the pixel), R · p_miss · W̄ walk units, a proxy hit one read of its
+ *   radiance, then 8 probes a cascade;
  * - spatial: R · `REFLECTION_REUSE_TAPS` texels, depths, normals and directions; temporal: R · (4
  *   history + 21 fresh texels); bilateral: R · `REFLECTION_REUSE_TAPS` history texels where a history
  *   is short, one where it is full.
- * - t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w + c_s + c_t + c_b), bounded by the view's pixels, never by the
- *   scene nor its lights. A still view pays it for `REFLECTION_STILL` + 1 images, then nothing: its
- *   targets are held, no kernel runs.
+ * - t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + R · (c_s + c_t + c_b), bounded by the view's pixels — at
+ *   most R · (50 / r_m + 64 / r_w) for the rays —, never by the scene nor its lights. A still view pays
+ *   it for `REFLECTION_STILL` + 1 images, then nothing: its targets are held, no kernel runs.
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;

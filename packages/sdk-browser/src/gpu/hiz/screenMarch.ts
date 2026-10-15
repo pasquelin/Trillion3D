@@ -28,19 +28,30 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * A cell is crossed by the ray over `[t, across]`, whose depths lie between two bounds. Entirely in
  * front of the cell's nearest depth, or entirely behind the back of its farthest slab (which lies
  * behind every other slab of the cell), the ray meets nothing in it: the cell is consumed, and the
- * march goes one level up. Else it goes one level down. At level 0 the ray meets the slab where it
+ * march goes one level up. Else the ray first moves to where it reaches the cell's nearest depth —
+ * before that point it is in front of every surface the cell holds, so nothing can be met there, and
+ * a descent always gains ground — and goes one level down. At level 0 the ray meets the slab where it
  * enters it: from its front, where the ray crosses the plane inside the pixel, or through the
  * pixel's side, where it is already within the slab at the pixel's edge. A ray behind the slab
  * consumes the pixel and goes on: it passes behind a thin surface, never in front of the surface
  * it stood on (the first pixel boundary opens the march).
  *
+ * A CONE (`spread`, the width a ray's cone gains a pixel it travels on the screen, zero for an exact
+ * ray): a cell no wider than the cone there — level `⌊log₂(spread · s)⌋` or finer after `s` pixels
+ * travelled — that the ray does not consume, where the ray stands at or behind the surface of the pixel
+ * under it, is its hit, that pixel's plane the hit's: the ray is between the cell's nearest depth and
+ * its farthest slab's back, and the surface it meets lies within its cone. A ray still in front of
+ * that pixel descends as an exact one: a cone never meets the surface it leaves. A glossy lobe's ray
+ * passing behind a body stops there, in a cell as wide as the blur its lobe gives, never pixel by pixel.
+ *
  * The iterations are bounded by the screen distance the ray covers, not by the pyramid
  * (`screenMarchBudget`): each cell of a level is crossed once, two levels' worth of ascents and
- * descents around each pixel the ray crosses, and the levels once more; a ray that leaves its
- * surface climbs the levels, and takes O(log reach) of them. A pixel a ray crosses is never
- * stepped over, whatever its width: the cells are exact bounds, never samples. A caller may hold
- * the march to fewer iterations (`cap`): a ray that spends them meets nothing on the screen, and its
- * answer is the next stage's.
+ * descents around each pixel the ray crosses, and the levels once more; a ray in front of the
+ * surfaces climbs a level an iteration, so `n` iterations cover up to 2ⁿ pixels of empty screen, and
+ * a ray that leaves its surface takes O(log reach) of them. A pixel a ray crosses is never stepped
+ * over, whatever its width: the cells are exact bounds, never samples. A caller holds the march to
+ * fewer iterations (`cap`): a ray that spends them meets nothing on the screen, and its answer is the
+ * next stage's.
  *
  * `slab` is the geometry of a surface's thickness (`screenSlab`): the world size of a pixel at a
  * unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness spans
@@ -72,7 +83,7 @@ fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
 fn screenMarchBudget(d:vec3f,end:f32,levels:i32)->u32{
  return u32(ceil(4.0*(abs(d.x)+abs(d.y))*end))+6u*u32(levels)+1u;
 }
-fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
+fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,spread:f32)->ScreenHit{
  let tiny=vec2f(1e-6);
  let ahead=d.xy>=vec2f(0.0);
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
@@ -82,10 +93,13 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->Screen
  let top=levels-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
  let steps=min(screenMarchBudget(d,end,levels),cap);
+ let travel=length(d.xy)*spread;
  var t=min(first.x,first.y);
  var level=0;
  for(var k=0u;k<steps;k++){
   if(t>=end){break;}
+  // The widest level whose cell the cone's width covers here.
+  let floorLevel=min(i32(floor(log2(max(travel*t,1.0)))),top);
   let size=exp2(f32(level));
   let p=o.xy+d.xy*t;
   let cell=floor(p/size);
@@ -111,10 +125,26 @@ fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->Screen
    continue;
   }
   // The nearest first: a ray in front of every surface of the cell never reads its farthest.
-  if(min(z0,z1)>hizCellNearest(vec2i(cell),level)||max(z0,z1)<screenBack(hizCellFarthest(vec2i(cell),level),thickness,slab)){
+  let nearest=hizCellNearest(vec2i(cell),level);
+  if(min(z0,z1)>nearest){
    t=across;
    level=min(level+1,top);
    continue;
+  }
+  // In front of every surface of the cell until it reaches the nearest depth: it moves there.
+  let entry=select(t,mix(t,across,(z0-nearest)/(z0-z1)),z0>nearest);
+  let z=o.z+d.z*entry;
+  if(max(z,z1)<screenBack(hizCellFarthest(vec2i(cell),level),thickness,slab)){
+   t=across;
+   level=min(level+1,top);
+   continue;
+  }
+  t=entry;
+  // Within the cone's width, a ray at or behind the surface of the pixel under it has met the cell.
+  if(level<=floorLevel){
+   let under=floor(o.xy+d.xy*t);
+   let plane=hizPlane(vec2i(under));
+   if(plane.x>0.0&&z<=plane.x){return ScreenHit(t,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);}
   }
   level-=1;
  }

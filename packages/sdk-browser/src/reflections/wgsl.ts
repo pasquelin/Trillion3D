@@ -19,10 +19,13 @@
  * - the environment (`reflectionEnvironment`): the background the screen draws around the scene,
  *   as radiance, the last word.
  *
- * Every confidence is continuous in what it reads, there is no hit or miss: a stage whose share
- * of the radiance is left under `REFLECTION_EPSILON` is not evaluated. Nothing of the chain reads a
- * count of images, a seed or a history of its own, the proxy's stage included (every ray cast again
- * each image, `proxy.ts`), so two images of a still view give the same bits.
+ * Every confidence is continuous in what it reads: a stage whose share of the radiance is left under
+ * `REFLECTION_EPSILON` is not evaluated. In the trace, whose images the history averages, the screen's
+ * confidence is taken whole or not at all, as often as it holds (`reflectionDither`, a hash of the
+ * point, the ray and the image's turn): its mean over the images is the continuous chain's, and the
+ * proxy walks for the rays the screen leaves alone, never for the sliver a sure hit leaves, and no
+ * further than the surface the screen met (`bound`). The chain reads no history of its own, so two
+ * images of a still view — its turn held — give the same bits.
  *
  * - `gpu/hiz/screenMarch.ts`: the engine's hierarchical march of the depth pyramid, and where it hits;
  * - `footprint.ts`: the cone of the lobe, the footprint it reads of the radiance pyramid
@@ -45,9 +48,13 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
+import { REFLECTION_CONE_WGSL } from './field.ts'
+import { mixWord } from '../../../math/src/wgsl/sampling.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 /** `reflectionSeen`: the screen's answer to a surface at `P`, of normal `N`, reflecting through
- *  `lobe` — the march along its centre, the hit on its plane, its footprint (`reflectionFootprint`)
+ *  `lobe` — the march along its centre, as coarse as a cone widening by `spread` a pixel allows
+ *  (`screenMarch`), the hit on its plane, its footprint (`reflectionFootprint`)
  *  and its confidence: the fades of the image's border (in this image and in the one the radiance
  *  is read from), of the footprint's pyramid level (`reflectionLevelTrust`) and of the screen
  *  march's iterations over the last quarter of its cap (`REFLECTION_MARCH_STEPS`: a ray that
@@ -66,11 +73,11 @@ const reflectionSeenWgsl = (group: number) =>
       SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
       clipToFramebuffer,
     ],
-    `fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32)->RadianceAnswer{
+    `fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,surfacePixel:f32,spread:f32)->RadianceAnswer{
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
- let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab,REFLECTION_MARCH_STEPS);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab,REFLECTION_MARCH_STEPS,spread);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
@@ -123,7 +130,9 @@ export const reflectedRadianceWgsl = (group: number, scene?: SceneBindings) =>
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_ENVIRONMENT_WGSL,
       REFLECTION_PROBES_WGSL,
+      REFLECTION_CONE_WGSL,
       LOBE_AXIS_WGSL,
+      ...(scene ? [mixWord] : []),
     ],
     `var<private> reflectionHit:f32;
 var<private> reflectionDirection:vec3f;
@@ -134,20 +143,37 @@ fn reflectionTake(answer:RadianceAnswer,radiance:ptr<function,vec3f>,rest:ptr<fu
  if(*rest>0.5&&*rest*(1.0-answer.confidence)<=0.5){reflectionHit=answer.distance;}
  *rest*=1.0-answer.confidence;
 }
-fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
+${
+  scene
+    ? `fn reflectionDither(P:vec3f,R:vec3f)->f32{
+ let w=mixWord(bitcast<u32>(P.x)^mixWord(bitcast<u32>(P.y)^mixWord(bitcast<u32>(P.z)^mixWord(bitcast<u32>(R.x)^reflectionView.temporal.x))));
+ return f32(w>>8u)*${wgslF32(2 ** -24)};
+}
+`
+    : ''
+}fn reflectedRadianceAlong(P:vec3f,N:vec3f,V:vec3f,R:vec3f,alpha:f32,lobe:vec4f,width:f32)->vec3f{
  let ellipse=reflectionLobeOf(R,alpha,lobe);
  var radiance=vec3f(0.0);
  var rest=1.0;
  reflectionHit=REFLECTION_FAR;
  reflectionDirection=R;
  let pixel=reflectionPixelAt(P);
- if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
-  reflectionTake(reflectionSeen(P,N,ellipse,pixel),&radiance,&rest);
+${scene ? ' var bound=REFLECTION_FAR;\n' : ''} if(reflectionView.traced.x!=0u&&dot(N,V)>0.0){
+  var onScreen=reflectionSeen(P,N,ellipse,pixel,2.0*reflectionConeTangent(width));
+${
+  scene
+    ? `  // Taken whole or not at all, as often as it is sure: the proxy walks for a miss alone, never for the
+  // sliver a sure hit leaves, and no further than the surface the screen met.
+  if(onScreen.confidence>0.0){bound=onScreen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+R*onScreen.distance);}
+  onScreen.confidence=select(0.0,1.0,reflectionDither(P,R)<onScreen.confidence);
+`
+    : ''
+}  reflectionTake(onScreen,&radiance,&rest);
  }
  // @cut screen -> radiance+vec3f(rest) keep: ;
 ${
   scene
-    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width),&radiance,&rest);}
+    ? ` if(rest>REFLECTION_EPSILON){reflectionTake(reflectionProxied(P,N,ellipse,pixel,width,bound),&radiance,&rest);}
  // @cut proxy -> radiance+vec3f(rest) keep: ;
 `
     : ''
