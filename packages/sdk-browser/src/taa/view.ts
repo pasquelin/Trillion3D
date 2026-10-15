@@ -9,6 +9,7 @@ import {
 
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
+import { historyWeightMax } from './layers.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
@@ -68,9 +69,8 @@ export function writeTaaView(
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
   writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display)
-  // The current image's share is the resolve's own: a still pixel's from the weights its average
-  // holds (`stillAverage`), a moving one's from its history (`historyCap`, `shadingConfidence`).
-  packed[T.params] = 0
+  // The most weight a history holds, the frame's own (`historyWeightMax`).
+  packed[T.params] = historyWeightMax(render[0], display[0])
   packed[T.params + 1] = state.hasHistory ? 1 : 0
   packed[T.params + 2] = moved ? 1 : 0
   packed[T.params + 3] = layers ? 1 : 0

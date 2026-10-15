@@ -10,16 +10,16 @@ import { PAGE_INFO } from '../visibility/pageInfo.ts'
 /** The resolve with an as-is share, the frame's usual one. */
 const TAA_SHADER = taaResolveShader(true)
 
-/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousUv`. */
+/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousProjected`. */
 const TAA_REPROJECT_WGSL = TAA_SHADER.slice(
   TAA_SHADER.indexOf('fn placementOf('),
-  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousUv(')) + 2,
+  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousProjected(')) + 2,
 )
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the temporal shader assembles each fragment once, on the shared page record', () => {
-  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousUv('])
+  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousProjected('])
     assert.equal(occurrences(TAA_SHADER, fragment), 1)
   assert.match(TAA_SHADER, /@vertex fn fullscreen\(/)
   assert.match(TAA_SHADER, /@fragment fn resolve\(/)
@@ -108,13 +108,4 @@ test('the flagless resolve is the flag-reading one without its share, written as
     )
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line))
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
-})
-
-// `previousUv` takes the identifier its caller read once, never the texel to read it at.
-test('every reprojection hands previousUv the identifier it read', () => {
-  const calls = [...TAA_SHADER.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
-    .map((call) => call[1].split(',').at(-1))
-    .filter((last) => last !== 'id:u32')
-  assert.ok(calls.length > 0)
-  for (const last of calls) assert.equal(last, 'id')
 })

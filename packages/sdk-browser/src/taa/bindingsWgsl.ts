@@ -86,7 +86,8 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  * the sample, a position relative to the eye; the previous one takes it as-is — the same
  * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
  * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
- * 1/height) of the display, which the history has; `params` = (unread, history valid, a placement
+ * 1/height) of the display, which the history has; `params` = (the most weight a history holds,
+ * `historyWeightMax`, history valid, a placement
  * moved, the layers' history is the last image's); `render` = the same four of the grid the frame
  * was drawn in, and `jitter` its offset in render pixels (`resolveWgsl.ts`), then whether the image
  * moves and the image's rank among eight, which

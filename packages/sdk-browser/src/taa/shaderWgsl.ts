@@ -76,13 +76,7 @@ fn previousProjected(position:vec4f)->vec4f{
  let uv=clipToUv(previous);
  let inside=all(uv>=vec2f(0.0))&&all(uv<=vec2f(1.0));
  return vec4f(uv,previous.z/previous.w,select(0.0,1.0,inside));
-}
-fn previousSample(coord:vec2i,depthValue:f32,id:u32)->vec4f{
- return previousProjected(pointBefore(pixelPoint(coord,depthValue),id));
-}
-fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
- let p=previousSample(coord,depthValue,id);return vec3f(p.xy,p.w);
-}`,
+}}`,
 )
 
 /** What the resolve measures once its 3×3 is read and `filtered` known (`shadingHistoryWgsl.ts`):

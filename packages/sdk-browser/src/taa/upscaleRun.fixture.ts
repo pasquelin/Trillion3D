@@ -5,6 +5,7 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import { Mat } from '../texture/shaderRunMatrix.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { taaResolveShader } from './resolveWgsl.ts'
+import { historyWeightMax } from './layers.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   moireStored,
@@ -114,7 +115,12 @@ export function upscaleRun(
       prevViewProj: frame.prevViewProj ?? IDENTITY,
       invViewProj: IDENTITY,
       viewport: [W, H, 1 / W, 1 / H],
-      params: [0, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
+      params: [
+        historyWeightMax(w, W),
+        frame.history ? 1 : 0,
+        frame.motion ? 1 : 0,
+        frame.layerHistory ? 1 : 0,
+      ],
       render: [w, h, 1 / w, 1 / h],
       jitter: [...jitter, frame.moving ? 1 : 0, 0],
       eye: [0, 0, 0, 0],

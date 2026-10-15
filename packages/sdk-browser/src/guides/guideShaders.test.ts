@@ -12,7 +12,7 @@ import {
   toPixels,
 } from '../visibility/shader/lineProjection.fixture.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
-import { depthStep } from '../../../math/src/wgsl/sampling.ts'
+import { surfaceSlopeOf } from '../../../math/src/wgsl/sampling.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { nearly } from '../../../math/src/float/near.fixture.ts'
 
@@ -63,8 +63,8 @@ test('the shader applies the slack on its depth test, from the one depth step, b
     GUIDE_WGSL,
     /if \(in\.position\.z < scene - jitterSlack\(p, scene\)\) \{ discard; \}/,
   )
-  assert.ok(GUIDE_WGSL.includes(depthStep.text), 'the shared depth step, not a copy')
-  assert.match(GUIDE_WGSL, /depthStep\(centre, sceneAt\(p - axis\), sceneAt\(p \+ axis\)\)/)
+  assert.ok(GUIDE_WGSL.includes(surfaceSlopeOf.text), 'the shared slope rule, not a copy')
+  assert.match(GUIDE_WGSL, /surfaceSlopeOf\(centre, sceneAt\(p - axis\)/)
   assert.match(GUIDE_WGSL, /abs\(view\.viewport\.z\) \* stepAlong\(p, vec2i\(1, 0\), centre\)/)
   assert.match(GUIDE_WGSL, /abs\(view\.viewport\.w\) \* stepAlong\(p, vec2i\(0, 1\), centre\)/)
 })

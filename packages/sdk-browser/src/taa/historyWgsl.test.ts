@@ -41,21 +41,17 @@ test('a reactive value raises the current share to at least itself, never above 
   assert.equal(currentShare(0, 0.4, false), 0.4, 'even for a sample of no weight')
 })
 
-type Cap = { historyCap: (uv: number[], coord: number[], now: number, kept: number) => number }
-const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {
-  view: { viewport: [64, 64, 1 / 64, 1 / 64] },
-})
-/** The history read `pixels` away along x from display pixel 10,10. */
-const away = (pixels: number) => [(10.5 + pixels) / 64, 10.5 / 64]
+type Cap = { historyCap: (speed: number, now: number, kept: number) => number }
+const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {})
 
 test('a moving history keeps four samples beside the current one at a pixel a frame', () => {
-  assert.ok(historyCap(away(0), [10, 10], 0.5, 0.5) >= 16, 'still: the full sixteen')
-  assert.equal(historyCap(away(1), [10, 10], 0.5, 0.5), 5, 'a display pixel a frame: 4 + 1')
-  assert.equal(historyCap(away(3), [10, 10], 0.5, 0.5), 5, 'faster: no fewer')
-  assert.equal(historyCap(away(0.5), [10, 10], 0.5, 0.5), 11, 'linear below: 10 + 1 at half')
+  assert.ok(historyCap(0, 0.5, 0.5) >= 16, 'still: the full sixteen')
+  assert.equal(historyCap(1, 0.5, 0.5), 5, 'a display pixel a frame: 4 + 1')
+  assert.equal(historyCap(3, 0.5, 0.5), 5, 'faster: no fewer')
+  assert.equal(historyCap(0.5, 0.5, 0.5), 11, 'linear below: 10 + 1 at half')
   // A high-contrast edge keeps that share of the full history: |dL| / max(L).
-  assert.ok(Math.abs(historyCap(away(1), [10, 10], 1, 0.2) - (1 + 16 * 0.8)) < 1e-9)
-  assert.equal(historyCap(away(1), [10, 10], 0, 0), 5, 'black: no contrast')
+  assert.ok(Math.abs(historyCap(1, 1, 0.2) - (1 + 16 * 0.8)) < 1e-9)
+  assert.equal(historyCap(1, 0, 0), 5, 'black: no contrast')
 })
 
 /** A history of 8×8 texels read bilinearly, clamped to its edge: a step from 0 to 1 at column 4,

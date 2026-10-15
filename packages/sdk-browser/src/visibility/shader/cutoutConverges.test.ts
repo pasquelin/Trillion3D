@@ -5,25 +5,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts'
+import { taaWindow } from '../../taa/filterWeights.ts'
 import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 
 const SIDE = 24,
   THRESHOLD = 0.5,
   SUB = 16
-/** The resolve's window at the display's size (`BLACKMAN_HARRIS_WGSL`), normalised over the 3×3, for
- *  each jitter rank: the sample at `(−jx, +jy)` from the centre. */
-const window = (d: number) => {
-  if (d >= 1) return 0
-  const x = d * Math.PI + Math.PI
-  return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x)
-}
+/** The resolve's window at the display's size (`taaWindow`), normalised over the 3×3, for each
+ *  jitter rank: the sample at `(−jx, +jy)` from the centre. */
 const weights = Array.from({ length: TAA_SAMPLES }, (_, sample) => {
   const [jx, jy] = taaJitter(sample, new Float64Array(2))
   const w = new Float32Array(9)
   let k = 0
   for (let dy = -1; dy <= 1; dy++)
-    for (let dx = -1; dx <= 1; dx++) w[k++] = window(Math.hypot(dx - jx!, dy + jy!))
+    for (let dx = -1; dx <= 1; dx++) w[k++] = taaWindow((dx - jx!) ** 2 + (dy + jy!) ** 2)
   const sum = w.reduce((a, b) => a + b, 0)
   return w.map((v) => v / sum)
 })

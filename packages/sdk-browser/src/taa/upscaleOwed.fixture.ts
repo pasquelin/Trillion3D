@@ -2,18 +2,12 @@
 // `upscaleRun.fixture.ts`'s runs are checked against.
 import type { UpscaleFrame } from './upscaleRun.fixture.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
-
-/** The four-term Blackman-Harris window on a radius of one, from its definition. */
-const kernel = (d: number) => {
-  if (d >= 1) return 0
-  const x = d * Math.PI + Math.PI
-  return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x)
-}
+import { taaWindow } from './filterWeights.ts'
 
 /**
  * What a display pixel is owed, from the definition: its place `r` in the render grid (texel
  * centres at integers), each of the 3×3 texels around it weighed by the window, over `footprint`
- * (one render pixel while the history is resampled, one display pixel at rest), of the distance from
+ * (one display pixel while the history is kept, one render pixel where it is refused), of the distance from
  * where this frame sampled it — its centre moved by `(−jx, +jy)` — to `r`, then clamped to the
  * `bounds` of the 3×3 (`box`) or left as it is (`none`).
  */
@@ -29,7 +23,9 @@ export function owed(frame: UpscaleFrame, px: number, py: number, bounds = 'none
   for (let dy = -1; dy <= 1; dy++)
     for (let dx = -1; dx <= 1; dx++) {
       const [x, y] = inGrid(Math.floor(r[0] + 0.5) + dx, Math.floor(r[1] + 0.5) + dy)
-      const weight = kernel(Math.hypot(x - jx - r[0], y + jy - r[1]) * footprint)
+      const weight = taaWindow(
+        ((x - jx - r[0]) ** 2 + (y + jy - r[1]) ** 2) * footprint * footprint,
+      )
       frame.color(x, y).forEach((c, i) => {
         sum[i] += c * weight
         lo[i] = Math.min(lo[i], c)

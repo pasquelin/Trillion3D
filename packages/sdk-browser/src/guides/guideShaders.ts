@@ -1,7 +1,7 @@
 import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { clampToExtent, depthStep } from '../../../math/src/wgsl/sampling.ts'
+import { clampToExtent, surfaceSlopeOf } from '../../../math/src/wgsl/sampling.ts'
 
 /**
  * The guide program: every instance is a segment `a → b` (a point is a segment of zero length)
@@ -60,7 +60,7 @@ fn sceneAt(p: vec2i) -> f32 {
   return textureLoad(sceneDepth, clampToExtent(p, vec2i(view.scene)), 0);
 }
 fn stepAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
-  return depthStep(centre, sceneAt(p - axis), sceneAt(p + axis));
+  return abs(surfaceSlopeOf(centre, sceneAt(p - axis), sceneAt(p + axis), sceneAt(p - 2 * axis), sceneAt(p + 2 * axis)));
 }
 // The scene depth is off by at most the jitter times its step across a texel, per axis.
 fn jitterSlack(p: vec2i, centre: f32) -> f32 {
@@ -77,5 +77,5 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   return in.color;
 }
 `,
-  [GUIDE_CORNER_WGSL, clampToExtent, depthStep],
+  [GUIDE_CORNER_WGSL, clampToExtent, surfaceSlopeOf],
 )

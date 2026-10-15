@@ -1,6 +1,6 @@
 import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
+import { surfaceSlopeOf } from '../../../../math/src/wgsl/sampling.ts'
 import { HIZ_TEST_WGSL } from './testWgsl.ts'
 import { TESTED_BOX } from '../partition/contract.ts'
 import {
@@ -186,5 +186,5 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  }
 }
 `,
-  [HIZ_TEST_WGSL, HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, SURFACE_SLOPE_WGSL],
+  [HIZ_TEST_WGSL, HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf],
 )
