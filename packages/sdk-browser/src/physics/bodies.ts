@@ -7,7 +7,7 @@ import { resolveShape } from '../../../sdk-core/src/physics/shape.ts'
 import { TRIANGLE_BYTES, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
+import { worldPoseOf } from './bodyFrame.ts'
 import { hasBody, type Bodied } from './bodied.ts'
 import { addSoftBody, fits } from './softBodies.ts'
 import { createBodyLedger } from './bodyLedger.ts'
@@ -49,7 +49,7 @@ export function createPhysicsBodies(
   /** Whether `mesh`'s soft body, taken out at another scale, is back at the one it was made at. */
   const back = (mesh: Bodied) => {
     const scale = retired.get(mesh.physics)
-    return !!scale && fits(worldScaleOf(mesh), scale)
+    return !!scale && fits(worldPoseOf(mesh).scale, scale)
   }
   const add = (mesh: Bodied) => {
     const p = mesh.physics
@@ -65,7 +65,7 @@ export function createPhysicsBodies(
     ledger.admit(owner, 0, 0)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
-      size = worldScaleOf(mesh)
+      size = pose.scale
     if (isSoftType(p.type)) {
       owner.scale = [size.x, size.y, size.z]
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)

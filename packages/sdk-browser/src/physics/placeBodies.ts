@@ -3,7 +3,7 @@ import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { flagsOf, type createPhysicsBodies } from './bodies.ts'
 import { hasBody } from './bodied.ts'
-import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
+import { worldPoseOf } from './bodyFrame.ts'
 import { fits, rescaledSoft } from './softBodies.ts'
 
 /**
@@ -28,13 +28,13 @@ export function placeBodies(
       return
     }
     const { name, physics } = child
-    if (owner.scale && !fits(worldScaleOf(child), owner.scale)) {
+    const { position, quaternion, scale } = worldPoseOf(child)
+    if (owner.scale && !fits(scale, owner.scale)) {
       bodies.retire(physics._index, owner.scale)
       failed(rescaledSoft(`"${name}"`, owner.scale, { name }))
       changed = true
       return
     }
-    const { position, quaternion } = worldPoseOf(child)
     const move = physics.type === 'kinematic' ? 'moveKinematic' : 'teleport'
     writer[move](physics._index, position, quaternion)
     writer.flags(physics._index, flagsOf(child))
