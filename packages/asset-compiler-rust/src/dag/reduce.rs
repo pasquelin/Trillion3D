@@ -34,7 +34,7 @@ use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
 use retries::{with_lock_retries, Endpoint};
-use trillion3d_math::sphere::enclosing_sphere;
+use trillion3d_page_codec::min_ball::ball_of_balls;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
@@ -62,7 +62,10 @@ pub(super) fn reduce_group(
         child_error = child_error.max(child.lod_error);
         source_rank = source_rank.min(child.source_rank);
     }
-    let sphere = enclosing_sphere(&spheres);
+    // The group's sphere encloses its children's final ones: a level-0 cluster's smallest ball and
+    // every earlier group's, so each parent holds its children, the invariant the cut's
+    // monotonicity rests on.
+    let sphere = ball_of_balls(&spheres);
     let mut own: WordMap<u32, u32> = WordMap::default();
     let corners = children.iter().flat_map(|c| c.indices.iter());
     let live = live_triangles(corners.map(|&v| *own.entry(input.exact[v as usize]).or_insert(v)));

@@ -90,7 +90,7 @@ pub(super) fn grouped(n: usize) -> Grouped {
     let adjacency = cluster_adjacency(&lists);
     let spheres: Vec<[f64; 4]> = clusters
         .iter()
-        .map(|c| bounding_sphere(&positions, c))
+        .map(|c| point_sphere(&positions, c))
         .collect();
     let groups = group_clusters(&spheres, &adjacency, DAG_GROUP_MAX);
     Grouped {

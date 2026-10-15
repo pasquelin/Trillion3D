@@ -2,6 +2,7 @@ use trillion3d_math::aabb::{aabb_of, centre};
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::CullingCluster;
+use trillion3d_page_codec::min_ball::min_ball;
 
 /// AABB centre plus the farthest vertex. Conservative and deterministic.
 pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
@@ -19,6 +20,30 @@ pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
         }
     }
     [centre[0], centre[1], centre[2], radius]
+}
+
+/// The smallest sphere of `indices`' vertices (`min_ball`), the one sphere a level-0 cluster is
+/// projected with: its radius re-measured in float64 from the final centre, so every vertex is
+/// inside by construction, not by the solver. No vertex, or one that is not a number, gives the
+/// zero sphere.
+pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
+    let mut ids = indices.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    // `min_ball` reorders the points; the radius re-measured below does not depend on their order.
+    let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| point(positions, v)).collect();
+    let Some((c, _)) = min_ball(&mut points) else {
+        return [0.0; 4];
+    };
+    let radius = points
+        .iter()
+        .map(|&p| length(sub(p, c)))
+        .fold(0.0, f64::max);
+    if c.iter().all(|v| v.is_finite()) && radius.is_finite() {
+        [c[0], c[1], c[2], radius]
+    } else {
+        [0.0; 4]
+    }
 }
 
 /// Box of the vertices a cluster's triangles use; an empty cluster, or one whose low x is not

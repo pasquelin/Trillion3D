@@ -1,6 +1,6 @@
 use super::*;
 
-/// `triangle_cone` of the mesh of `a_mesh_takes_the_narrowest_cone_the_mean_one_keeping_the_runtime_bits`.
+/// `triangle_cone` of the mesh of `a_mesh_takes_the_narrowest_cone`.
 const NARROWEST_BITS: [u64; 4] = [
     0xbfcbf36eb7e7de25,
     0xbfe62fc5fca715b1,
@@ -14,28 +14,15 @@ fn holds(cone: [f64; 4], pos: &[f32], indices: &[u32]) -> bool {
 }
 
 #[test]
-fn a_mesh_takes_the_narrowest_cone_the_mean_one_keeping_the_runtime_bits() {
-    // Positions, indices and the four words `triangleCone` returns in Node for them; the last
-    // triangle is degenerate and left out, as the TypeScript leaves it out. fdlibm's arccosine
-    // gives Node's angle here, so the mean cone is that angle, the margin up.
+fn a_mesh_takes_the_narrowest_cone() {
+    // The last triangle is degenerate and left out. The axis points at the centre of the smallest
+    // ball of the unit normals: 0.64 rad narrower than the summed normals' cone of the same faces.
     let pos: [f32; 18] = [
         0.0, 0.0, 0.0, 1.0, 0.0, 0.1, 0.3, 1.0, -0.2, -0.7, 0.4, 0.5, 0.2, -0.9, 0.3, 0.5, 0.5, 0.5,
     ];
     let indices = [0, 1, 2, 0, 2, 3, 0, 4, 1, 1, 5, 2, 0, 0, 1];
-    let mean = mean_cone(&faces(&pos, &indices));
-    assert_eq!(
-        mean.map(f64::to_bits),
-        [
-            0xbfafcd5945b39c98,
-            0x3f9bd3ae78eabf1c,
-            0x3fefed269ba2a178,
-            0x3ffbff6614ce2016 + ANGLE_MARGIN_ULPS as u64
-        ]
-    );
-    // The narrowest cone of the same faces: another axis, an angle 0.64 rad narrower.
     let cone = triangle_cone(&pos, &indices);
     assert_eq!(cone.map(f64::to_bits), NARROWEST_BITS);
-    assert!(cone[3] < mean[3]);
     assert!(holds(cone, &pos, &indices));
 }
 
@@ -86,16 +73,13 @@ fn a_range_or_an_index_outside_the_input_writes_nothing() {
     assert_eq!(out, [7.0; 4]);
 }
 
-/// The equivalence (CMP-03) on bumpy sheets to free clouds, signed zeros and
-/// non-finite positions: the cone holds every face and is never looser than the mean one, which
-/// it is bit for bit when not narrower.
+/// Bumpy sheets to free clouds, signed zeros and non-finite positions: the cone holds every face.
 #[test]
-fn a_random_mesh_gets_a_cone_holding_every_face_never_looser_than_the_mean_one() {
+fn a_random_mesh_gets_a_cone_holding_every_face() {
     let mut state = 0x2545_f491_4f6c_dd1du64;
     let mut next = move || {
         (trillion3d_math::random::xorshift64(&mut state) >> 40) as f32 / (1u32 << 23) as f32 - 1.0
     };
-    let mut narrowed = 0;
     let odd = [0.0, -0.0, f32::NAN, f32::INFINITY, f32::MAX];
     for case in 0..400 {
         let (bump, vertices) = ([0.05, 0.3, 1.0, 10.0][case % 4], 3 + case % 40);
@@ -109,20 +93,7 @@ fn a_random_mesh_gets_a_cone_holding_every_face_never_looser_than_the_mean_one()
         let indices: Vec<u32> = (0..vertices as u32 * 3)
             .map(|i| (i * 7 + i / 5) % vertices as u32)
             .collect();
-        let (cone, mean) = (
-            triangle_cone(&pos, &indices),
-            mean_cone(&faces(&pos, &indices)),
-        );
-        if cone[3] < mean[3] {
-            narrowed += 1;
-            assert!(holds(cone, &pos, &indices), "case {case}: {cone:?}");
-        } else {
-            assert_eq!(
-                cone.map(f64::to_bits),
-                mean.map(f64::to_bits),
-                "case {case}"
-            );
-        }
+        let cone = triangle_cone(&pos, &indices);
+        assert!(holds(cone, &pos, &indices), "case {case}: {cone:?}");
     }
-    assert!(narrowed > 80, "{narrowed} cones narrowed");
 }

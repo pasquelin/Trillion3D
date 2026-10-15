@@ -8,7 +8,7 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         .expect("clusters")
         .into_iter()
         .map(|indices| {
-            let sphere = bounding_sphere(positions, &indices);
+            let sphere = point_sphere(positions, &indices);
             DagCluster::leaf(indices, 0.0, sphere, 0)
         })
         .collect();
