@@ -56,8 +56,6 @@ struct Vehicle {
   float throttle = 0, brake = 0, steer = 0, handbrake = 0, steered = 0;
   /** Of full lock per second, and a tracked vehicle's inner track ratio (vehicleSpec.ts). */
   float steerRate = 4, trackTurn = 0.6f;
-  /** Steps its state was written since its body last rested (`REST_WRITES`). */
-  uint32_t restWrites = 0;
   /** Not driven since it was made or last stood still: it holds its brakes (`applyInput`). */
   bool parked = true;
 };
@@ -392,7 +390,8 @@ void driveVehicles(float dt) {
     // Past its rest writes, its wheels are not cast while inactive (0; the default 1 casts every
     // step): the running gear is part of the body's own shape (`lower`), so what moves into the
     // wheels meets the body and wakes it, and the wheels are cast again once it is awake.
-    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);
+    const Slot &slot = world().slots[vehicle.body];
+    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(slot.restWrites >= REST_WRITES ? 0 : 1);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
       bodies.ActivateBody(vehicle.constraint->GetVehicleBody()->GetID());
@@ -406,9 +405,7 @@ void writeVehicles() {
     if (!vehicle.constraint) continue;
     const Body &body = *vehicle.constraint->GetVehicleBody();
     // At rest, its state is written `REST_WRITES` times, then not until it moves.
-    if (body.IsActive()) vehicle.restWrites = 0;
-    else if (vehicle.restWrites >= REST_WRITES) continue;
-    else ++vehicle.restWrites;
+    if (world().slots[vehicle.body].rests(body.IsActive(), REST_WRITES)) continue;
     const VehicleEngine &engine = vehicleEngine(vehicle);
     const VehicleTransmission &gearbox = vehicleGearbox(vehicle);
     uint32_t count = uint32_t(vehicle.constraint->GetWheels().size());

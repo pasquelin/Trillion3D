@@ -86,8 +86,6 @@ struct Soft {
   uint32_t index = 0, engine = 0;
   Vec3 origin = Vec3::sZero(), inverseScale = Vec3::sReplicate(1);
   Quat inverse = Quat::sIdentity();
-  /** Written at the last step: once it rests, it is written one last time. */
-  bool awake = true;
   /** The diagonal of its rest bounds in Jolt's frame of its vertices, m: its size, which its speed
    *  and its spread are held to (`SOFT_FALL`, `SOFT_SPREAD`). */
   float rest = 0;
@@ -510,20 +508,17 @@ void writeSoft() {
     Body &body = lock.GetBody();
     const bool hidden = (slot.flags & HIDDEN) != 0, active = body.IsActive();
     // Hidden by the page, it sends no vertex; shown again, it is written once, asleep or not.
-    if (!active && (hidden || !soft.awake)) {
-      soft.awake = soft.awake || hidden;
-      continue;
-    }
+    // Shown, it is written while it moves and once at rest (`Slot::rests`).
+    if (hidden) slot.restWrites = 0;
+    if (hidden ? !active : slot.rests(active, 1)) continue;
     Gauge gauge;
     settle(soft, body, world.dt);
     if (hidden) {
-      soft.awake = true;
       gauge.measure(body);
       if (diverges(soft, body, gauge, world.dt)) recover(soft, body);
       else keep(soft, body, gauge, world.dt);
       continue;
     }
-    soft.awake = active;
     const size_t start = state.size();
     bool finite = written(soft, body, start, active ? &gauge : nullptr);
     // Brought back to a good state, it is written where it now is.

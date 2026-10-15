@@ -34,13 +34,10 @@ struct Slot {
   uint32_t flags = 0;
   /** The step whose pose buffer holds this body's record: one record per body and step. */
   uint32_t sent = 0;
-  bool used = false;
-  /** Its shape was refused: commands naming it are skipped until the page removes it. */
-  bool refused = false;
-  /** Listed in `World::waiting`. */
-  bool waiting = false;
-  /** A pose was withheld (out of view): it is sent once the body is seen again. */
-  bool withheld = false;
+  /** In use; its shape refused (commands naming it skipped until the page removes it). */
+  bool used = false, refused = false;
+  /** Listed in `World::waiting`; a pose withheld (out of view), sent once it is seen again. */
+  bool waiting = false, withheld = false;
   /** Deactivated beyond the range; its velocities are kept here and given back on return. */
   bool frozen = false;
   /** A soft body (`soft.cpp`): a teleport carries its vertices; it takes no kinematic move,
@@ -48,6 +45,12 @@ struct Slot {
   bool soft = false;
   /** Its place in `soft.cpp`'s list, kept in step with it: a teleport finds it without a scan. */
   uint32_t softAt = 0;
+  /** Writes since it rested: a soft body's vertices, a vehicle's state, go while it moves and
+   *  `writes` times at rest; `rests` says when to skip. */
+  uint32_t restWrites = 0;
+  bool rests(bool active, uint32_t writes) {
+    return active ? (restWrites = 0, false) : restWrites >= writes || (++restWrites, false);
+  }
   /** Frozen beyond the range: surely still beyond it while `World::travel` stays below this and
    *  `World::viewEpoch` is `farEpoch` (the eye came no nearer than it travelled; `report.cpp`). */
   double farUntil = -1;
@@ -114,12 +117,9 @@ struct World {
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
-  uint32_t capacity[3] = {0, 0, 0};
-  uint32_t eventWords = 0;
-  uint32_t error = NONE;
+  uint32_t capacity[3] = {0, 0, 0}, eventWords = 0, error = NONE;
   /** What the last `PhysicsSystem::Update` could not hold (`EPhysicsUpdateError` bits). */
-  uint32_t updateError = 0;
-  uint32_t step = 0;
+  uint32_t updateError = 0, step = 0;
   float dt = 0;
   /** The page's fixed step, s (`jolt_init`): what a soft body's bend floor and calm are reckoned
    *  with (`soft.cpp`), whatever a command's own step. */
