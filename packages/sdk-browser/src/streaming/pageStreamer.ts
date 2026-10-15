@@ -195,11 +195,11 @@ export function createPageStreamer(
         failed: failures.count(),
       }))
       abort.abort(abortError())
+      // The cache is its owner's, for the next session: the session's pins and transfers give
+      // their holds back before the jobs are let go.
+      streaming.close()
       jobs.clear()
       queue.clear()
-      // The cache is its owner's, for the next session.
-      streaming.close()
-      pinned.clear()
       failures.clear()
     },
   }

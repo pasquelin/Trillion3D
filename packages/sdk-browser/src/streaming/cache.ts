@@ -5,31 +5,16 @@ import { createStreamingPins } from './streamingPins.ts'
 /** A session's side of the page cache: its reserve and its holds. Its reserve — its manifest
  *  tables, its transfer queue and the engine's host tables, beside its pages — is told the cache
  *  each time it moves; the cache evicts (`PageCache.fit`), and tells the session each page that
- *  left. */
+ *  left. Every owner of a page — a pin, a transfer — holds it in the cache's one refcount
+ *  (`cacheEntries.ts`) directly; the session only lists them (`pinned`, `jobs`) to give them back
+ *  at its close. */
 export function createStreamingCache(context: StreamContext) {
   const { store, state, pinned, jobs, emit, onEvict, maxTransferBytes } = context
-  /** The pages this session holds in the cache: those the frame keeps and those in flight, one
-   *  hold each, whatever keeps it. */
-  const holding = new Set<string>()
-  /** `url`'s hold follows its pin and its transfer: taken when one starts, given back when both
-   *  ended. */
-  const sync = (url: string) => {
-    const wanted = pinned.has(url) || jobs.has(url)
-    if (wanted === holding.has(url)) return
-    if (wanted) {
-      holding.add(url)
-      store.acquire(url)
-    } else {
-      holding.delete(url)
-      store.release(url)
-    }
-  }
-  /** The page at `url` leaves the cache, its hold with it: taken again while the session still
-   *  pins or reads it. */
+  /** The page at `url` leaves the cache, its holds with it: each taken again that the session's
+   *  pins and transfer still own. */
   const drop = (url: string) => {
     store.drop(url)
-    holding.delete(url)
-    sync(url)
+    for (let n = (pinned.get(url) ?? 0) + (jobs.has(url) ? 1 : 0); n > 0; n--) store.acquire(url)
   }
   const evicted = (url: string) => {
     state.evictions++
@@ -76,13 +61,15 @@ export function createStreamingCache(context: StreamContext) {
   }
   /** The session reads through the cache from now on, its reserve off the total. */
   const open = () => void (seat = store.open(session, reserved()))
-  /** The session's holds end with it: what it pinned or read stays cached for the next one. */
+  /** The session's holds end with it, its pins' and its transfers': what it pinned or read stays
+   *  cached for the next one. */
   const close = () => {
-    for (const url of holding) store.release(url)
-    holding.clear()
+    for (const [url, owners] of pinned) for (let n = owners; n > 0; n--) store.release(url)
+    for (const url of jobs.keys()) store.release(url)
+    pinned.clear()
     seat?.leave()
     seat = undefined
   }
-  const { pin, unpin, retainRanks } = createStreamingPins(context, sync, evict)
-  return { evict, sync, drop, tables, open, close, pin, unpin, retainRanks, reserve }
+  const { pin, unpin, retainRanks } = createStreamingPins(context, evict)
+  return { evict, drop, tables, open, close, pin, unpin, retainRanks, reserve }
 }
