@@ -9,11 +9,14 @@ import { resized } from '../../../math/src/sequence/resized.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { composedRoot } from './gpuComposeState.ts'
 
-/** Words of a root's world, sixteen doubles; of its world box, six; of its local box, six doubles
- *  and whether it has one (`rootBoxesWgsl.ts`). */
+/** Doubles of a root's world box, six, then the stretch of its world; of its local box, six, then
+ *  whether it has one (`rootBoxesWgsl.ts`). */
+export const ROOT_BOX_DOUBLES = 7,
+  ROOT_LOCAL_DOUBLES = 7
+/** Words of a root's world, sixteen doubles; of its world box; of its local box. */
 export const ROOT_WORLD_WORDS = 32,
-  ROOT_BOX_WORDS = 12,
-  ROOT_LOCAL_WORDS = 14
+  ROOT_BOX_WORDS = ROOT_BOX_DOUBLES * 2,
+  ROOT_LOCAL_WORDS = ROOT_LOCAL_DOUBLES * 2
 /** Roots one write sends at most: the scratch a run is packed in stays this size. */
 const RUN_ROOTS = 1024
 
@@ -69,7 +72,7 @@ export function sendLocals(rt: WebgpuPagesRuntime, device: GPUDevice, from: numb
     const { localBox, worldBox } = rootAt(rt, from + k)
     if (!localBox || !worldBox || !(localBox[3] >= localBox[0])) continue
     packDoubles(held.localWords, k * ROOT_LOCAL_WORDS, localBox, 0, 6)
-    held.localWords[k * ROOT_LOCAL_WORDS + 12] = 1
+    held.localWords[k * ROOT_LOCAL_WORDS + (ROOT_LOCAL_DOUBLES - 1) * 2] = 1
   }
   const at = from * ROOT_LOCAL_WORDS * 4
   device.queue.writeBuffer(held.locals!, at, held.localWords, 0, count * ROOT_LOCAL_WORDS)

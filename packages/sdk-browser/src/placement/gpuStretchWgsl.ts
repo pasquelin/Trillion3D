@@ -109,16 +109,17 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
 )
 
 /**
- * The single-precision bits of `maxStretch` of the world whose sixteen doubles are `m`, the bits
- * the root boxes pass writes into the frame words' `Stretch` field (`../gpu/dag/frameTable.ts`) —
- * those a `Float32Array` stores of the CPU's; all ones for a number that is no finite one, where
- * the CPU refuses the matrix (the stretch is then left as it was).
+ * The single-precision bits of `stretch`, the `maxStretchOf` of the world whose sixteen doubles are
+ * `m`: the bits the root boxes pass writes into the frame words' `Stretch` field
+ * (`../gpu/dag/frameTable.ts`) — those a `Float32Array` stores of the CPU's; all ones for a world
+ * holding a number that is no finite one, where the CPU refuses the matrix (the stretch is then
+ * left as it was).
  */
 export const STRETCH_WGSL = wgslBlock(
   'STRETCH_WGSL',
-  [toF32, STRETCH_DOUBLE_WGSL],
-  `fn maxStretchBits(m:array<vec2u,16>)->u32{
+  [toF32],
+  `fn stretchBits(m:array<vec2u,16>,stretch:vec2u)->u32{
  for(var k=0u;k<16u;k++){if((m[k].x&0x7ff00000u)==0x7ff00000u){return 0xffffffffu;}}
- return toF32(maxStretchOf(m));
+ return toF32(stretch);
 }`,
 )

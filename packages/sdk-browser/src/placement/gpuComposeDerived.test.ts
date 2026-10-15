@@ -4,7 +4,7 @@
 // oracle `writeRowLod`) and the root's world box (`rootWorldBox`). Generated families: rotations, uneven, negative and sheared
 // worlds near and far from the origin, boxes and spheres of every size, a reach and a dynamic
 // box now and then, every combination of the cut rule's residency, rows with and without a
-// coarser form, roots with and without a box.
+// coarser form, roots with and without a box. The detail reads the stretch the root's words hold.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -17,6 +17,7 @@ import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { ROOT_BOXES_WGSL } from './rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from './rowWordsWgsl.ts'
 import { LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
+import { ROOT_BOX_DOUBLES } from './rootWorldSends.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
@@ -24,7 +25,7 @@ import type { PageRec } from '../page/selection/types.ts'
 
 const FAMILY = 400
 const SPLIT = ['dSub', 'toF32', 'fromF32', 'splitDouble', 'affineAxis']
-const STRETCH = ['dDiv', 'dLess', 'dRsqrt', 'dSqrt', 'chebyshevRoot', 'maxStretchOf']
+const STRETCH = ['dDiv', 'dRsqrt', 'dSqrt', 'chebyshevRoot', 'maxStretchOf']
 
 const rows = {
   inputs: [] as Pair[],
@@ -40,7 +41,7 @@ const derived = shaderRun<{
   [
     ...DOUBLE_HELPERS,
     ...SPLIT,
-    ...STRETCH,
+    'dSqrt',
     'writeCorners',
     'composeCorners',
     'lodCentre',
@@ -51,11 +52,14 @@ const derived = shaderRun<{
   },
 )
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
-const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): void }>(
+const boxes = shaderRun<{ composeRoot(rank: number, world: Pair[]): Pair }>(
   ROOT_BOXES_WGSL,
   [
     ...DOUBLE_HELPERS,
+    ...STRETCH,
     ...[
+      'toF32',
+      'fromF32',
       'affineAxis',
       'dLess',
       'dIsZero',
@@ -64,7 +68,7 @@ const boxes = shaderRun<{ composeBox(rank: number, at: number, world: Pair[]): v
       'dMin',
       'dMax',
       'carriedBox',
-      'composeBox',
+      'composeRoot',
     ],
   ],
   roots,
@@ -134,7 +138,7 @@ test('the corners, the detail and the world box a world derives are the CPU form
     // The box is one the root's local box carries: its inputs as the root boxes pass reads them.
     roots.rootInputs.splice(0, 7, ...[...local, 0].map((v) => pair(v)))
     roots.rootInputs[6] = [root.worldBox ? 1 : 0, 0]
-    boxes.composeBox(0, 0, doubles)
+    boxes.composeRoot(0, doubles)
     if (root.worldBox) {
       withBox++
       assert.deepEqual(
@@ -143,7 +147,7 @@ test('the corners, the detail and the world box a world derives are the CPU form
         `world box, case ${i}`,
       )
     }
-    rows.rootBoxes.splice(0, 6, ...roots.rootBoxes.slice(0, 6))
+    rows.rootBoxes.splice(0, ROOT_BOX_DOUBLES, ...roots.rootBoxes.slice(0, ROOT_BOX_DOUBLES))
     rows.corners.length = CORNER_VALUES
     derived.composeCorners(0, doubles)
     assert.deepEqual(
@@ -177,7 +181,7 @@ test('a box with a bound not finite is carried as the CPU carries it: every boun
     }
     roots.rootInputs.splice(0, 7, ...[...local, 1].map((v) => pair(v)))
     roots.rootBoxes.length = 0
-    boxes.composeBox(0, 0, Array.from(world, pair))
+    boxes.composeRoot(0, Array.from(world, pair))
     const cpu = [...rootWorldBox(root as never)!]
     assert.ok(cpu.every(Number.isNaN), `the CPU's box, ${local}`)
     assert.deepEqual(roots.rootBoxes.slice(0, 6).map(doubleOf), cpu, `${local}`)

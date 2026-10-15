@@ -2,17 +2,19 @@
  * THE ROOT BOXES PASS (`rootBoxes.ts`): a thread a root whose world moved — one the host moved,
  * whose world the CPU sent (`rootWorlds.ts`), or one a parent composes, whose world the compose
  * worlds pass wrote —, reading its world where every pass reads it, the roots' double worlds. It
- * writes the two things a root's world decides of the root itself: its world box, its local box
- * carried by that world (`composeBox`), which its rows' detail reads the radius of its object from,
- * and its stretch (`maxStretchBits`), in the stretch field of the cut's frame words, which every cut
- * projects its errors through. The one writer of both on the GPU: no CPU box, no CPU stretch at a
- * move, and a row the host sends again never takes the stretch back (`../gpu/dag/frameTable.ts`).
+ * writes the two things a root's world decides of the root itself (`composeRoot`): its world box,
+ * its local box carried by that world, and its stretch, solved once a root: both beside the box,
+ * where its rows' detail reads them (`composeLod`), the stretch also in the stretch field of the
+ * cut's frame words (`stretchBits`), which every cut projects its errors through. The one writer of
+ * both on the GPU: no CPU box, no CPU stretch at a move, and a row the host sends again never takes
+ * the stretch back (`../gpu/dag/frameTable.ts`).
  *
  *   params      uniform        the roots, the roots listed, and whether every root is (`whole`:
  *                              thread `j` is root `j`)
  *   rootWorlds  array<vec2u>   sixteen doubles a root
  *   rootInputs  array<vec2u>   seven doubles a root: its local box, then whether it has one
- *   rootBoxes   array<vec2u>   six doubles a root, its world box, none when it has no box
+ *   rootBoxes   array<vec2u>   seven doubles a root: its world box, zero when it has no box, then
+ *                              its stretch
  *   ranks       array<u32>     the roots listed
  *   frames      r32uint        the cut's frame words, written alone (`../gpu/dag/frameTable.ts`):
  *                              a root's stretch, its own field
@@ -38,9 +40,7 @@ export const ROOT_BOXES_WGSL = wgslProgram(
 fn deriveRoot(rank:u32){
  var world:array<vec2u,16>;
  for(var k=0u;k<16u;k++){world[k]=rootWorlds[rank*16u+k];}
- if(rootInputs[rank*7u+6u].x!=0u){composeBox(rank,rank*7u,world);}
- else{for(var k=0u;k<6u;k++){rootBoxes[rank*6u+k]=vec2u(0u,0u);}}
- let stretch=maxStretchBits(world);
+ let stretch=stretchBits(world,composeRoot(rank,world));
  if(stretch!=0xffffffffu){framesSetStretch(rank,stretch);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${ROOT_BOXES_ENTRY}(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
