@@ -10,7 +10,12 @@ import type { VsmBindingSpec } from './resources.ts'
 import { type VsmPmKernel, vsmPmKernel } from './physicalPagesWgsl.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import {
+  VSM_COVER_GATHER_WGSL,
+  VSM_HANDLE_WGSL,
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
+} from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -63,6 +68,7 @@ function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_COVER_GATHER_WGSL,
     ],
@@ -83,10 +89,8 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
  let flag=vsmPageMarksLoad(vsmPageMarkIndex(tableAt.tableXY,0u))&VSM_PAGE_MARK_MASK;
  if(flag==0u){return;}
  let projectionData=vsmProjectionOf(handle);
- var mipLevel=pageInfo.mipLevel;
+ let mipLevel=pageInfo.mipLevel;
  let pageAddress=pageInfo.pageAddress;
- // A single-page map is only valid at the last mip: its rect bounds go there.
- if(handle.isSinglePage){mipLevel=VSM_MIPS-1u;}
  // Min/max rect of active pages.
  let b=(handle.id*VSM_MIPS+mipLevel)*4u;
  atomicMin(&vsmMappedRects[b+0u],pageAddress.x);
@@ -100,7 +104,6 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
   atomicMax(&vsmStaleRects[b+2u],pageAddress.x);
   atomicMax(&vsmStaleRects[b+3u],pageAddress.y);
  }
- if(handle.isSinglePage){return;}
  // H levels over each page-table mip; level 0 of this hierarchy is the page-table mip itself.
  // Up to the first level that already held the flag: another page carries it on from there.
  let levelsAbove=min(VSM_MIPS-mipLevel,6u);
@@ -144,6 +147,7 @@ function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_PER_PAGE_DISPATCH_WGSL,
@@ -210,7 +214,7 @@ fn pmFallbacksLocal(setup:VsmMapWalk){
 @compute @workgroup_size(${g},${g})
 fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
  let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
- if(!setup.valid||setup.handle.isSinglePage){return;}
+ if(!setup.valid){return;}
  let projectionData=vsmProjectionOf(setup.handle);
  if(projectionData.lightKind==LIGHT_KIND_DIRECTIONAL){
   pmFallbacksDirectional(setup,projectionData);

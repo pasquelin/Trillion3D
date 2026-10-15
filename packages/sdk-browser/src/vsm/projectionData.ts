@@ -8,8 +8,8 @@
  * uploaded by the words that changed (`writeChanged`), and the words between two changed ones
  * go up with them: the words a light keeps while it lives (its kind, emitter, finest mip and level)
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
- * origin, which move with the eye every frame, lie together, and the corner, the range and the pad
- * close it.
+ * origin, which move with the eye every frame, lie together, and the corner, the range and the
+ * table's origin close it.
  *
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
@@ -39,6 +39,7 @@ const RECORD_OFFSET = {
   ditherTexels: 268,
   cornerSteps: 272,
   lightRange: 280,
+  tableOrigin: 284,
 } as const
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
@@ -66,6 +67,9 @@ export interface VsmProjectionDataValues {
   flags: number
   ditherTexels: number
   finestMip: number
+  /** Where the map's page table lies in the global one (x | y << 16, `tableBlocks.ts`), the
+   *  frame's. */
+  tableOrigin: number
 }
 
 /** Default record, every array its own. */
@@ -87,6 +91,7 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     flags: 0,
     ditherTexels: 0,
     finestMip: 0,
+    tableOrigin: 0,
   }
 }
 
@@ -125,8 +130,7 @@ export function writeVsmProjectionData(
   u[base + O.flags / 4] = d.flags >>> 0
   f[base + O.ditherTexels / 4] = d.ditherTexels
   u[base + O.finestMip / 4] = d.finestMip
-  // The word after the range, the pad that closes the record: zero.
-  u[base + O.lightRange / 4 + 1] = 0
+  u[base + O.tableOrigin / 4] = d.tableOrigin >>> 0
 }
 
 /** Clip space to shadow UV: x·0.5+0.5, y·−0.5+0.5, z kept, column-vector form. */

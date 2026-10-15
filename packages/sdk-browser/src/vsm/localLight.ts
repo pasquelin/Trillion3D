@@ -81,8 +81,6 @@ export function vsmLocalViewData(camera: VsmCameraInput, viewport: VsmViewport):
 export interface VsmLocalLightSetup {
   cacheEntry: VsmLightCache
   finestMip: number
-  /** Whether the light renders a virtual shadow map. */
-  drawsThisFrame: boolean
 }
 
 /** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
@@ -164,13 +162,13 @@ const X_AXIS = [1, 0, 0],
   preShadow: [number, number, number] = [0, 0, 0],
   shape: [number, number, number] = [0, 0, 0],
   worldToLight = new Float64Array(16),
-  localKey = { worldToLight, lightOriginShift: preShadow, isCachedFarLight: false, shape },
+  localKey = { worldToLight, lightOriginShift: preShadow, shape },
   spotView = new Float64Array(16),
   spotCentre = new Float64Array(3),
   viewToClip = new Float64Array(16)
 
 /**
- * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level and the distant-light state, and
+ * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
  * refreshes the cached projection data of each of its maps. The setup returned is the one the
  * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it.
  */
@@ -251,22 +249,15 @@ export function addVsmLocalLightShadow(
       ),
     )
 
-  const isCachedFarLight = finestMip === VSM_MIPS - 1
-
   const numMaps = isSpot ? 1 : 6
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
   const forceInvalidate = !cache.cacheEnabled
 
-  localKey.isCachedFarLight = isCachedFarLight
   shape[0] = isSpot ? 1 : 0
   shape[1] = radius
   shape[2] = outerCone
   cacheEntry.updateLocal(localKey, forceInvalidate)
-  if (isCachedFarLight && cacheEntry.scheduledFrame === (cache.frameStamp | 0))
-    cacheEntry.invalidate()
-
-  const drawsThisFrame = !cacheEntry.isFullyCached()
 
   let flags = cacheEntry.isUncached ? VSM_MAP_UNCACHED : 0
   flags |= cacheEntry.useCover ? VSM_MAP_COVERAGE : 0
@@ -301,8 +292,7 @@ export function addVsmLocalLightShadow(
     data.finestMip = finestMip
   }
 
-  const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip, drawsThisFrame })
+  const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip })
   setup.finestMip = finestMip
-  setup.drawsThisFrame = drawsThisFrame
   return setup
 }

@@ -154,7 +154,7 @@ export function encodeVsmPageMapping(
   encodePoolSort(pass, ctx.poolSort, res.layout.poolPages, groupWidth(ctx.device.limits))
   runPerPage(ctx, res, pass, 'grantPages')
   run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN)
-  if (frame.fullMapCount > 0) runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
+  runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
   run(ctx, res, pass, 'listClears', SLOT_MAIN)
   bind(ctx, res, pass, 'clearPages', SLOT_MAIN)
   pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)

@@ -94,7 +94,7 @@ export const run = (source: string, names: string[], more: object = {}) =>
   })
 
 /** A map's handle: a full map's or, one in eight, a single page's. */
-export const handle = (d: Draw) => ({ id: d.int(0, 40), isSinglePage: d.int(0, 7) === 0 })
+export const handle = (d: Draw) => ({ id: d.int(0, 40) })
 /** A rect within `size` (pages or pixels), some empty or reversed, one in sixteen the
  *  invalidation's empty bounds. */
 export function pageRect(d: Draw, size: number) {

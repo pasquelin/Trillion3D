@@ -58,11 +58,6 @@ export const VSM_MAP_COVERAGE = 1 << 3
  *  does not redraw them every frame. */
 export const VSM_MAP_COARSE_KEEPS_DYNAMIC = 1 << 4
 
-/** Declared: the single-page (distant light) maps a frame holds, ids [0, 8192); full maps start at
- *  8192. A capacity, not a quantity: 64 rows of the first page-table block, which the full maps
- *  skip; a light past it is refused, and each slot is a projection record of the frame. */
-export const VSM_SINGLE_PAGE_MAP_SLOTS = 1024 * 8
-
 // The page counters the engine reads back (`engineVsm.ts` readVsmStats), one word each, in a row.
 export const VSM_COUNT_WANTED = 0
 export const VSM_COUNT_STATIC_KEPT = 1
@@ -74,10 +69,10 @@ export const VSM_FEEDBACK_POOL = 0
 
 /**
  * Bytes of a map's projection record (`projectionData.ts`, `VsmProjectionRecord`): its three 4×4
- * float matrices, four rows of a 3-vector and a word, and seven words (four scalars, the two-word
- * corner, the range), rounded up to the 16-byte alignment its matrices give the struct.
+ * float matrices, four rows of a 3-vector and a word, and eight words (four scalars, the two-word
+ * corner, the range, the table's origin), at the 16-byte alignment its matrices give the struct.
  */
-export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(7 * 4, 16) // 288
+export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(8 * 4, 16) // 288
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
 export const VSM_UNIFORMS_BYTES = 144
 
@@ -322,7 +317,6 @@ ${wgslConsts({
   VSM_MAP_COARSE,
   VSM_MAP_COVERAGE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
-  VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_NEXT_KEEPS_PAGES,
   VSM_PAGE_WANTED,
   VSM_PAGE_DYNAMIC_STALE,

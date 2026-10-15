@@ -6,6 +6,7 @@ import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from './constants.ts'
 import type { VsmResources } from './resources.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { VSM_NEXT_MAP_BYTES, VsmMapIds } from './mapIds.ts'
+import { VsmTableBlocks } from './tableBlocks.ts'
 import type { VsmFrameLight } from './frameSetup.ts'
 
 export interface VsmFrameState {
@@ -23,6 +24,8 @@ export interface VsmFrameState {
   uniformsImage: ArrayBuffer
   /** The id allocator, emptied each frame (`VsmMapIds.reset`). */
   ids: VsmMapIds
+  /** The tables' packing, emptied each frame (`VsmTableBlocks.reset`). */
+  tableBlocks: VsmTableBlocks
 }
 
 export function createVsmFrameState(
@@ -47,6 +50,7 @@ export function createVsmFrameState(
     nextMapsHeldCount: 0,
     uniformsImage: new ArrayBuffer(VSM_UNIFORMS_BYTES),
     ids: new VsmMapIds(),
+    tableBlocks: new VsmTableBlocks(),
   }
 }
 

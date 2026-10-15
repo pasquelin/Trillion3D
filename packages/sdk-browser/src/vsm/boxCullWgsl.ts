@@ -3,7 +3,11 @@ import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import { floorLog2 } from '../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
+import {
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_PAGE_MARKS_GATHER_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
+} from './pageTableWgsl.ts'
 /**
  * The cull of a box and of its pages that the cache invalidation (`invalidationWgsl.ts`) and the
  * render cull (`renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
@@ -22,6 +26,7 @@ export const VSM_BOX_CULL_WGSL = wgslBlock(
     FLOAT32_MAX,
     VSM_CONSTANTS_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
     VSM_PAGE_MARKS_GATHER_WGSL,
     perspectiveDivide,
     floorLog2,

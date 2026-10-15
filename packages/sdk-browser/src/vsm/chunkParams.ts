@@ -57,7 +57,6 @@ export function vsmRenderViews(lights: readonly VsmBoundLight[], views: number[]
   views.length = 0
   let viewMips = 0
   for (const light of lights) {
-    if (!light.shouldRender) continue
     const directional = light.kind === 'directional'
     for (let k = 0; k < light.count; k++) {
       const mips = directional ? 1 : VSM_MIPS

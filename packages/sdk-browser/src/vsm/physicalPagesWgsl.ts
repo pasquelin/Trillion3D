@@ -26,7 +26,7 @@ import {
   VSM_COUNT_STATIC_KEPT,
   VSM_PAGE_KEEP_FRAMES,
 } from './constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
@@ -148,10 +148,12 @@ function carryPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
     { resource: 'nextMaps', binding: 2 },
     { resource: 'pageRequests', binding: 3, prev: true },
+    // The previous frame's records: where its tables lay (\`vsmTableLevelOrigin\`).
+    { resource: 'projectionData', binding: 4, prev: true, name: 'vsmProjectionData' },
   ]
   const body = wgslBlock(
     'carryPages',
-    [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL],
+    [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL],
     `
 @compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
@@ -221,6 +223,7 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
     ],
     `
@@ -258,10 +261,9 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
      var nextMarks=VSM_PAGE_WANTED;
      let requestFine=requestWord&VSM_PAGE_FINE;
      let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u;
-     let keepDynamic=handle.isSinglePage
-      ||(requestFine==0u&&projection.coarseDynamicCached&&!staticStale);
-     // A single-page map, or a coarse page of a map whose coarse pages keep their dynamic layer,
-     // is not redrawn for a stale bit.
+     let keepDynamic=requestFine==0u&&projection.coarseDynamicCached&&!staticStale;
+     // A coarse page of a map whose coarse pages keep their dynamic layer is not redrawn for a
+     // stale bit.
      if(!keepDynamic){
       if((prevMeta&VSM_META_ANY_STALE)!=0u){
        if((prevMeta&VSM_META_STATIC_STALE)==0u){
@@ -346,6 +348,7 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_PER_PAGE_DISPATCH_WGSL,
     ],

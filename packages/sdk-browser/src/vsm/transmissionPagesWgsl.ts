@@ -6,17 +6,20 @@ import {
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_RENDER_COMMAND_WGSL } from './renderExpandWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { VSM_T_COMMAND_GROUP_WGSL, frameWgsl } from './transmissionShared.ts'
 
-/** Group 0 of `vsmTransmissionPages`: the VSM uniforms, page table and page marks. */
+/** Group 0 of `vsmTransmissionPages`: the VSM uniforms, page table, page marks and the records
+ *  that say where each map's table lies (`vsmTableLevelOrigin`). */
 export const VSM_TRANSMISSION_PAGES_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 0 },
   { resource: 'pageTable', binding: 1 },
   { resource: 'pageMarks', binding: 2 },
+  { resource: 'projectionData', binding: 3 },
 ]
 
 /**
@@ -91,6 +94,7 @@ fn vsmTPageKey(levelOffset:VsmTableLevel,mip:u32,vPage:vec2u,markMask:u32,slice:
     [
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       vsmBindingsWgsl(0, VSM_TRANSMISSION_PAGES_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PAGE_MARKS_GATHER_WGSL,

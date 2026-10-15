@@ -44,13 +44,10 @@ export interface VsmRowSpheres {
   motion: RowMotion
 }
 
-/** The lights as the bound reads them: a sun's clipmap, a local light's single page or its maps'
- *  projection data (`entry`). */
-export type VsmBoundLight = Pick<
-  VsmLightAllocation,
-  'kind' | 'firstId' | 'count' | 'shouldRender'
-> &
-  Partial<Pick<VsmLightAllocation, 'singlePage' | 'clipmap' | 'entry'>>
+/** The lights as the bound reads them: a sun's clipmap, a local light's maps' projection data
+ *  (`entry`). */
+export type VsmBoundLight = Pick<VsmLightAllocation, 'kind' | 'firstId' | 'count'> &
+  Partial<Pick<VsmLightAllocation, 'clipmap' | 'entry'>>
 
 /** A chunk of the raster: its rows, and the most commands and pairs any k rows make. */
 export interface VsmChunk {
@@ -158,13 +155,12 @@ export function vsmBoundChunk(
     bins.read = landed.seq
     bins.latency = Math.max(1, motion.commits - landed.commits)
   }
-  // The rows beside the bins: the single-page maps', and the full maps' the bins do not hold.
+  // The rows beside the bins: the maps' the bins do not hold.
   frame.pairs = frame.cmds = 0
   frame.lamps = lamps
   for (const light of lights) {
-    if (!light.shouldRender || light.kind === 'directional') continue
-    if (light.singlePage) frame.pairs += light.count
-    else if (!lamps) frame.pairs += worst.pages
+    if (light.kind === 'directional') continue
+    if (!lamps) frame.pairs += worst.pages
     else continue
     frame.cmds += light.count * VSM_MIPS
   }

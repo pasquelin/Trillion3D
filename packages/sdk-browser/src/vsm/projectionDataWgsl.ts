@@ -18,7 +18,12 @@
  *   (`vsmPoolLoadOf`, `resources.ts`) or a consumer's (`../lighting/direct/shadowWgsl.ts`).
  */
 import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from './constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from './pageTableWgsl.ts'
+import {
+  VSM_HANDLE_WGSL,
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_PAGE_LOOKUP_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
+} from './pageTableWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 
@@ -46,6 +51,7 @@ struct VsmProjectionRecord{
  ditherTexels:f32,
  cornerSteps:vec2i,
  lightRange:f32,
+ tableOrigin:u32,
 }
 struct VsmProjectionData{
  lightKind:u32,
@@ -65,6 +71,7 @@ struct VsmProjectionData{
  ditherTexels:f32,
  cornerSteps:vec2i,
  lightRange:f32,
+ tableOrigin:u32,
  handle:VsmHandle,
  uncached:bool,
  lightUnseen:bool,
@@ -93,6 +100,7 @@ fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
  r.ditherTexels=raw.ditherTexels;
  r.cornerSteps=raw.cornerSteps;
  r.lightRange=raw.lightRange;
+ r.tableOrigin=raw.tableOrigin;
  r.uncached=(r.flags&VSM_MAP_UNCACHED)!=0u;
  r.lightUnseen=(r.flags&VSM_MAP_UNSEEN)!=0u;
  r.coarseLevel=(r.flags&VSM_MAP_COARSE)!=0u;
@@ -198,6 +206,7 @@ export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       VSM_PAGE_LOOKUP_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       pow2FromExponent,
     ],

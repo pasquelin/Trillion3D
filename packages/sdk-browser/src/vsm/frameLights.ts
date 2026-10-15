@@ -39,8 +39,6 @@ const localInput: VsmLocalLightInput = { id: '', kind: 'point', position: [], ra
 function allocation(
   light: SceneLight,
   entry: VsmLightCache,
-  singlePage: boolean,
-  shouldRender: boolean,
   clipmap: VsmClipmap | undefined,
   local: VsmLocalLightSetup | undefined,
 ) {
@@ -49,8 +47,6 @@ function allocation(
   record.kind = light.kind
   record.firstId = entry.mapId
   record.count = entry.mapCaches.length
-  record.singlePage = singlePage
-  record.shouldRender = shouldRender
   record.entry = entry
   record.clipmap = clipmap
   record.local = local
@@ -113,13 +109,13 @@ function allocateLightIds(state: VsmFrameState) {
   for (let i = 0; i < suns.length; i++) {
     const entry = clipmaps[i].cacheEntry
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
-    allocation(suns[i], entry, false, true, clipmaps[i], undefined)
+    allocation(suns[i], entry, clipmaps[i], undefined)
   }
   for (let i = 0; i < locals.length; i++) {
     const setup = setups[i],
       entry = setup.cacheEntry
-    entry.moveToMapId(ids.allocateLocal(entry.isCachedFarLight(), entry.mapCaches.length))
-    allocation(locals[i], entry, entry.isCachedFarLight(), setup.drawsThisFrame, undefined, setup)
+    entry.moveToMapId(ids.allocateLocal(entry.mapCaches.length))
+    allocation(locals[i], entry, undefined, setup)
   }
   state.cache.carryUnseenLights(ids)
   lightIds.ids = ids

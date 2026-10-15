@@ -111,11 +111,12 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
  }
  if(!visible){return;}
- var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS);
  let deformsNow=(cand.flags&VSM_RENDER_CAND_DEFORMING)!=0u;
  ${marksDirty ? 'let dirtyFlags=vsmRasterMarkBits(staticLayer,deformsNow);' : 'let dirtyFlags=0u;'}
  let mips=min(view.y,VSM_MIPS);
- for(var mipLevel=0u;mipLevel<mips;mipLevel++){
+ // The map's mips from its finest on: its table holds no finer one (\`vsmTableLevelOrigin\`).
+ var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS>>pd.finestMip);
+ for(var mipLevel=pd.finestMip;mipLevel<mips;mipLevel++){
   let levelTexels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
   var pixels=vsmRectPixels(vec4i(0,0,levelTexels,levelTexels),cull);
   let fineCaster=vsmIsFineCaster(staticLayer,pixelRadius);

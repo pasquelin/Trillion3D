@@ -18,6 +18,7 @@ import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
@@ -115,11 +116,6 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);
  let staleBits=select(VSM_META_DYNAMIC_STALE,VSM_META_STATIC_STALE,staticBox);
  let staleStatic=(staleBits&VSM_META_STATIC_STALE)!=0u;
- if(pd.handle.isSinglePage){
-  // Invalidate the one page (always as static).
-  vsmMarkStale(vsmTableEntryOf(pd.handle,VSM_MIPS-1u,vec2u(0u)),VSM_META_STATIC_STALE);
-  return;
- }
  let mipCount=select(1,i32(VSM_MIPS),pd.levelsLeft<=0);
  for(var mipLevel=i32(pd.finestMip);mipLevel<mipCount;mipLevel++){
   let mip=u32(mipLevel);
@@ -163,6 +159,7 @@ export function vsmInvalidationProgram(
     VSM_CONSTANTS_WGSL,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
     VSM_PROJECTION_DATA_WGSL,
     vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
     VSM_PROJECTION_DATA_READ_WGSL,

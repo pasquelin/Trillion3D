@@ -41,9 +41,9 @@ export interface VsmNextMap {
 
 /** What the per-light setup needs of the id allocator (see `frameSetup.ts`). */
 export interface VsmIdAllocator {
-  allocateUnreferenced(singlePage: boolean, count: number): number
+  allocateUnreferenced(count: number): number
   writeNextMap(prevMapId: number, data: VsmNextMap): void
-  readonly mapSlotCount: number
+  readonly mapCount: number
 }
 
 /** A clipmap level's cache state, centimetres. */
@@ -117,7 +117,6 @@ interface VsmSunCacheKey {
 interface VsmLocalLightCacheKey {
   worldToLight: ArrayLike<number>
   lightOriginShift: [number, number, number]
-  isCachedFarLight: boolean
   shape: [number, number, number]
 }
 
@@ -130,7 +129,6 @@ function copyInto(to: number[], from: ArrayLike<number>) {
 /** One light's cache entry. */
 export class VsmLightCache {
   renderedFrame = -1
-  scheduledFrame = -1
   prevMapId = -1
   mapId = -1
   isUncached = false
@@ -142,7 +140,6 @@ export class VsmLightCache {
   private localCacheKey: VsmLocalLightCacheKey & { worldToLight: number[] } = {
     worldToLight: [],
     lightOriginShift: [0, 0, 0],
-    isCachedFarLight: false,
     shape: [Number.NaN, Number.NaN, Number.NaN],
   }
   private clipmapCacheKey: VsmSunCacheKey = { lightDirection: [NaN, NaN, NaN], firstLevel: 0 }
@@ -158,13 +155,6 @@ export class VsmLightCache {
     this.mapCaches = Array.from({ length: mapCount }, () => new VsmMapCache())
   }
 
-  /** A distant light that has been rendered: all its pages are mapped and rendered. */
-  isFullyCached() {
-    return this.localCacheKey.isCachedFarLight && this.renderedFrame >= 0
-  }
-  isCachedFarLight() {
-    return this.localCacheKey.isCachedFarLight
-  }
   markRendered(frameIndex: number) {
     this.renderedFrame = frameIndex
   }
@@ -174,13 +164,10 @@ export class VsmLightCache {
   isInvalidated() {
     return this.renderedFrame < 0
   }
-  /** The collector's filter: an entry that may hold cached
-   *  pages to invalidate — not fully cached, uncached or invalidated, and given an id. */
+  /** The collector's filter: an entry that may hold cached pages to invalidate — neither
+   *  uncached nor invalidated, and given an id. */
   mayHoldCachedPages() {
-    return !(this.isFullyCached() || this.isUncached || this.isInvalidated()) && this.mapId >= 0
-  }
-  markScheduled(frameIndex: number) {
-    this.scheduledFrame = frameIndex
+    return !(this.isUncached || this.isInvalidated()) && this.mapId >= 0
   }
   moveToMapId(next: number) {
     this.prevMapId = this.mapId
@@ -221,13 +208,11 @@ export class VsmLightCache {
     const changed =
       !sameValues(key.worldToLight, k.worldToLight) ||
       !sameValues(key.lightOriginShift, k.lightOriginShift) ||
-      key.isCachedFarLight !== k.isCachedFarLight ||
       !sameValues(key.shape, k.shape)
     this.updateCommon(changed, forceInvalidate, false)
     if (changed) {
       copyInto(k.worldToLight, key.worldToLight)
       copyInto(k.lightOriginShift, key.lightOriginShift)
-      k.isCachedFarLight = key.isCachedFarLight
       copyInto(k.shape, key.shape)
     }
   }
@@ -250,12 +235,8 @@ export class VsmCacheManager {
   private lastFrameOverBudget = 0
   /** The scene frame number of the frame being set up. */
   frameStamp = 0
-  /** Previous frame's uniform counts; null = no cache data . */
-  prevFrame: {
-    mapSlotCount: number
-    fullMapCount: number
-    singlePageMapCount: number
-  } | null = null
+  /** Previous frame's map count; null = no cache data. */
+  prevFrame: { mapCount: number } | null = null
 
   constructor(options: VsmCacheManagerOptions = {}) {
     this.cacheEnabled = options.cacheEnabled ?? true
@@ -268,7 +249,7 @@ export class VsmCacheManager {
 
   /** The invalidations run only over a previous frame's maps: cache data and slots. */
   acceptsInvalidations() {
-    return this.hasPreviousFrame() && (this.prevFrame?.mapSlotCount ?? 0) > 0
+    return this.hasPreviousFrame() && (this.prevFrame?.mapCount ?? 0) > 0
   }
 
   /** Finds or creates a light's cache entry. */
@@ -295,11 +276,11 @@ export class VsmCacheManager {
     for (const [key, entry] of this.entries) {
       let keep = true
       if (entry.seenThisFrame) {
-        if (entry.mapId + entry.mapCaches.length > ids.mapSlotCount)
+        if (entry.mapId + entry.mapCaches.length > ids.mapCount)
           throw new Error('VSM: referenced cache entry id out of range')
       } else if (((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES) {
         const numMaps = entry.mapCaches.length
-        entry.moveToMapId(ids.allocateUnreferenced(entry.isCachedFarLight(), numMaps))
+        entry.moveToMapId(ids.allocateUnreferenced(numMaps))
         for (const map of entry.mapCaches) {
           map.update(entry)
           map.projectionData.flags = (map.projectionData.flags | VSM_MAP_UNSEEN) >>> 0
@@ -327,13 +308,7 @@ export class VsmCacheManager {
    * Extracts the frame data (CPU part): a frame that allocated shadow data replaces the previous
    * frame's (`frame`); a frame without (`null`) keeps it.
    */
-  keepFrameForNext(
-    frame: {
-      mapSlotCount: number
-      fullMapCount: number
-      singlePageMapCount: number
-    } | null,
-  ) {
+  keepFrameForNext(frame: { mapCount: number } | null) {
     if (frame) this.prevFrame = this.cacheEnabled ? { ...frame } : null
     for (const entry of this.entries.values()) entry.seenThisFrame = false
   }
@@ -346,23 +321,6 @@ export class VsmCacheManager {
   /** Processes the removed lights: entries of removed lights go (their ids may be reused). */
   dropRemovedLights(isRemoved: (lightId: string) => boolean) {
     for (const [key, entry] of this.entries) if (isRemoved(entry.lightId)) this.entries.delete(key)
-  }
-
-  /** The distant (fully cached) light to refresh this frame: the oldest scheduled, one at most. */
-  scheduleFarLights() {
-    if (!this.cacheEnabled) return
-    const frame = this.frameStamp | 0
-    let oldest: VsmLightCache | null = null,
-      oldestAge = 0
-    for (const entry of this.entries.values()) {
-      if (!entry.isFullyCached()) continue
-      const age = (frame - (entry.scheduledFrame | 0)) | 0
-      if (oldest === null || age > oldestAge) {
-        oldest = entry
-        oldestAge = age
-      }
-    }
-    oldest?.markScheduled(frame)
   }
 
   /** Free AVAILABLE pages of the last status message read back (diagnostics). */

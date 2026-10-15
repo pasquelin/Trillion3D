@@ -75,7 +75,6 @@ export function sunAt(eye: number[], cache = new VsmCacheManager()) {
     kind: 'directional',
     firstId: 0,
     count: LEVELS,
-    shouldRender: true,
     clipmap,
   }
   return { cache, clipmap, light }
@@ -90,8 +89,6 @@ export function localAt(input: Omit<VsmLocalLightInput, 'id'>, cache = new VsmCa
     kind: input.kind,
     firstId: 0,
     count: cacheEntry.mapCaches.length,
-    shouldRender: true,
-    singlePage: false,
     entry: cacheEntry,
   }
   return { cache, light }

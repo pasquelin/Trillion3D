@@ -34,10 +34,8 @@ interface VsmPageManagementOptions {
 
 export interface VsmPageManagementFrame {
   device: GPUDevice
-  /** Full + single-page maps this frame. Nothing runs at 0. */
+  /** The frame's maps. Nothing runs at 0. */
   mapCount: number
-  /** Full maps this frame: the mapped-mip propagation only runs when > 0. */
-  fullMapCount: number
   /** This frame's per-page dispatcher bins (`VsmMarkingFrame.perPage.all`, ids already in `res.perPageIds`). */
   perPageBins?: readonly VsmPerPageBin[]
   /** Entries uploaded to `res.nextMaps`, for the page address remap. */

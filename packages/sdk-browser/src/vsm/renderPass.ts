@@ -79,7 +79,7 @@ export interface VsmRenderScene {
 
 export interface VsmRenderFrame {
   device: GPUDevice
-  /** This frame's lights (`VsmFramePlan.lights`); only `shouldRender` ones are drawn. */
+  /** This frame's lights (`VsmFramePlan.lights`), every one drawn. */
   lights: readonly VsmBoundLight[]
 }
 
