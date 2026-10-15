@@ -2,7 +2,7 @@
  * Unit quaternions on flat numbers, `(x, y, z, w)`: the rotation arithmetic the camera
  * controllers and the scene objects share. No allocation beyond the caller's buffers.
  */
-import { hypot4 } from '../float/hypot.ts'
+import { hypot4, squares4 } from '../float/hypot.ts'
 import { fdlibmAcos, fdlibmSin } from '../float/trig.ts'
 import { HALF_PI } from '../constants.ts'
 import type { NumberSink } from '../matrix/matrix4.ts'
@@ -135,11 +135,7 @@ export function normalizeQuaternionAt(
   z: number,
   w: number,
 ) {
-  const sum = x * x + y * y,
-    compensation = sum - x * x - y * y,
-    summand = z * z - compensation,
-    third = sum + summand,
-    squared = third + (w * w - (third - sum - summand))
+  const squared = squares4(x, y, z, w)
   const length =
     squared >= SQUARED_MIN && squared <= SQUARED_MAX ? Math.sqrt(squared) : hypot4(x, y, z, w) || 1
   out[at] = x / length

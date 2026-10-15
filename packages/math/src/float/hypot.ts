@@ -66,14 +66,16 @@ export function hypot4(x: number, y: number, z: number, w: number): number {
   if (max === Infinity) return Infinity
   if (x !== x || y !== y || z !== z || w !== w) return NaN
   if (max === 0) return 0
-  const a = ax / max,
-    b = ay / max,
-    c = az / max,
-    d = aw / max
+  return Math.sqrt(squares4(ax / max, ay / max, az / max, aw / max)) * max
+}
+
+/** `a² + b² + c² + d²` summed with each step's loss taken back from the next square: the sum
+ *  `hypot4` roots once scaled, and `normalizeQuaternionAt`'s unscaled. */
+export function squares4(a: number, b: number, c: number, d: number) {
   const sum = a * a + b * b,
     compensation = sum - a * a - b * b,
     summand = c * c - compensation,
     third = sum + summand
   // The third step's loss, `(third - sum) - summand`, taken back from the fourth square.
-  return Math.sqrt(third + (d * d - (third - sum - summand))) * max
+  return third + (d * d - (third - sum - summand))
 }
