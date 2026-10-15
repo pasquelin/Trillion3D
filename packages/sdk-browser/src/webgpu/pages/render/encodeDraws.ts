@@ -78,7 +78,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   run.gpuComputeDispatches = 0
   run.blendDrawCalls = 0
   run.blendFrustumRejected = 0
-  timing.transparentEncodeMs = 0
   timing.transparentPrepareMs = 0
   timing.transparentDrawMs = 0
   timing.transparentSpanUploadBytes = 0

@@ -60,7 +60,6 @@ export function prepareBlend(
   run.blendFrustumRejected = blendState.expand?.counts.rejected ?? 0
   const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
-  timing.transparentEncodeMs += elapsed
   return true
 }
 
@@ -81,7 +80,6 @@ export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice) {
   voidStaleBlendGroups(rt, blendLightResources(rt, contract))
   const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
-  timing.transparentEncodeMs += elapsed
   return contract
 }
 
@@ -105,9 +103,7 @@ export function encodeBlend(
   // composition follows — the slice draws as one more blend.
   if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes, contract))
     drawBlendPass(rt, device, encoder, true, contract)
-  const finished = cpuNow()
-  timing.transparentDrawMs += finished - prepared
-  timing.transparentEncodeMs += finished - prepared
+  timing.transparentDrawMs += cpuNow() - prepared
   if (diag.traceEnabled)
     diag.traceDiagnostic(
       'transparent-encoding',
@@ -117,7 +113,7 @@ export function encodeBlend(
         submission: run.imageRevision,
         ...transparentCounts(rt),
         transmissiveMeshes: blendState.transmissive,
-        encodeMs: timing.transparentEncodeMs,
+        encodeMs: timing.transparentPrepareMs + timing.transparentDrawMs,
         passes: blendState.seeds[1].length ? 2 : 1,
       }),
     )
