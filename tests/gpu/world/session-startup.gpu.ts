@@ -1,9 +1,10 @@
 // An interactive session on Dawn: opened on a canvas by its id, it sizes its drawing buffer from
 // the canvas's CSS box and the device pixel ratio, draws on the WebGPU page raster, settles, and
 // then schedules no frame at all; a drag on the orbit a world mounts (its change asks a frame)
-// moves the camera and it settles again; a new pixel ratio resizes it; once disposed, a resize schedules nothing. Then the targets and the job and abort
-// paths (`sessionTargets.ts`). A box hidden or sized by its own drawing buffer needs a layout the
-// bench's page does not compute (`world/session/interactive.ts` reads `clientWidth`).
+// moves the camera and it settles again; a new pixel ratio resizes it; once disposed, a resize
+// schedules nothing. Then the targets and the job and abort paths (`sessionTargets.ts`). A box
+// hidden or sized by its own drawing buffer needs a layout the bench's page does not compute
+// (`world/session/interactive.ts` reads `clientWidth`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
