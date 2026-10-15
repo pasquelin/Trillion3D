@@ -13,8 +13,9 @@ import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext
 /** The diagnostics of a set's last frame (`EngineVsm.stats`). */
 export interface VsmEngineStats {
   lights: number
-  fullMaps: number
-  singlePageMaps: number
+  /** The frame's maps and the page-table blocks their tables take (`tableBlocks.ts`). */
+  maps: number
+  tableBlocks: number
   projectionPasses: number
   render: VsmRenderStats | undefined
   invalidationThreads: number
@@ -30,8 +31,8 @@ export interface VsmEngineStats {
 /** A set's diagnostics before its first frame. */
 export const createVsmEngineStats = (): VsmEngineStats => ({
   lights: 0,
-  fullMaps: 0,
-  singlePageMaps: 0,
+  maps: 0,
+  tableBlocks: 0,
   projectionPasses: 0,
   render: undefined,
   invalidationThreads: 0,
@@ -102,7 +103,7 @@ export function vsmFrameMetrics(rt: WebgpuPagesRuntime, sample: GpuPassTimings |
     // once the fill falls). 0 when the full pool draws every page at the level asked.
     shadowResolutionBias: s ? rt.lights.memory.bias + s.pressureBiasStat : null,
     shadowVsmLights: s?.lights ?? null,
-    shadowVsmMaps: s ? s.fullMaps + s.singlePageMaps : null,
+    shadowVsmMaps: s ? s.maps : null,
     shadowVsmPagesRequested: counted?.requestedPages ?? null,
     shadowVsmPagesAllocated: counted?.allocatedPages ?? null,
     shadowVsmPagesCached: counted?.cachedPages ?? null,

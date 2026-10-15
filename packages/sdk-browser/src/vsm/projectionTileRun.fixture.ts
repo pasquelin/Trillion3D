@@ -38,7 +38,7 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
   const scope = {
     ...PROJECTION_SCOPE,
     VSM_PROJECTION_ONE_LIGHT: oneLight,
-    VSM_PROJECTION_KINDS: kinds,
+    VSM_TRACE_KINDS: kinds || 3,
     vsmView: { lights, lightCount: lights.length },
     vsmTileBounds: [0, 0, 0, 0, 0, 0],
     vsmTileHeld: 0,
@@ -90,7 +90,7 @@ export function reference(pixels: Pixel[], lights: Light[], oneLight: boolean) {
     ],
     {
       ...PROJECTION_SCOPE,
-      VSM_PROJECTION_KINDS: 0,
+      VSM_TRACE_KINDS: 3,
       vsmView: { lights },
     },
   )

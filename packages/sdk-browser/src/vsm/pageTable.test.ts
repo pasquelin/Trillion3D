@@ -7,7 +7,6 @@ import assert from 'node:assert/strict'
 import {
   VSM_LEVEL0_PAGES,
   VSM_MIPS,
-  VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_PAGE_TEXELS,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
   VSM_LEVEL0_TEXELS,
@@ -18,6 +17,5 @@ test('the page and table sizes, and where single-page maps end', () => {
   assert.equal(VSM_LEVEL0_PAGES, 128)
   assert.equal(VSM_MIPS, 8)
   assert.equal(VSM_LEVEL0_TEXELS, 16384)
-  assert.equal(VSM_SINGLE_PAGE_MAP_SLOTS, 8192)
   assert.equal(VSM_PAGE_TABLE_BLOCK_HEIGHT, 192)
 })

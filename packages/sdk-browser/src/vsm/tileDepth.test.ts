@@ -132,5 +132,5 @@ test("the pool's writers are the three that mark their pages dirty", () => {
   const own = Object.values(kernels)
     .filter((k) => k.specs.some((s) => s.resource === 'pagePool' && s.access === 'read_write'))
     .map((k) => k.label)
-  assert.deepEqual(own.sort(), ['ClearPages', 'MergeStatic'])
+  assert.deepEqual(own.sort(), ['ClearPages'])
 })

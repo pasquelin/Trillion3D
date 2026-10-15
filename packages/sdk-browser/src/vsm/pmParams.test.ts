@@ -97,7 +97,6 @@ function encodeAll(alignment = 256) {
       const frame = {
         device: fake.device,
         mapCount: 5,
-        fullMapCount: 3,
         nextMapCount: 7,
         perPageBins,
         options: { stats },

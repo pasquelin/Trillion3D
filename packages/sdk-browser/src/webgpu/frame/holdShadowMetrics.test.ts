@@ -29,8 +29,8 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
     countersOn: true,
     stats: {
       lights: 2,
-      fullMaps: 16,
-      singlePageMaps: 1,
+      maps: 17,
+      tableBlocks: 16,
       requestedPages: 211,
       allocatedPages: 64,
       cachedPages: 147,

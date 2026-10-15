@@ -31,7 +31,6 @@ test('one store a layer the tile holds a light of, under bounds the view gives: 
     entry,
     /textureStore\(vsmShadowMaskTiles,groupId\.xy,vec4u\(vsmTileLayers\(tile\),0u,0u,0u\)\);/,
   )
-  assert.match(entry, /let lightCount=select\(vsmView\.lightCount,1u,VSM_PROJECTION_ONE_LIGHT\);/)
   // The trace loops are bounded by the uniform count and skip on the uniform tile words alone.
   assert.match(tile, /for\(var layer=0u;layer<ceilDiv\(lightCount,4u\);layer\+\+\)\{/)
   assert.match(tile, /if\(held==0u\)\{continue;\}/)

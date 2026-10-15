@@ -34,9 +34,7 @@ test('the cache has data once a frame is extracted, until it is invalidated', ()
   const cache = new VsmCacheManager()
   assert.equal(cache.hasPreviousFrame(), false)
   cache.keepFrameForNext({
-    mapSlotCount: 1,
-    fullMapCount: 0,
-    singlePageMapCount: 1,
+    mapCount: 1,
   })
   assert.equal(cache.hasPreviousFrame(), true)
   cache.invalidate()

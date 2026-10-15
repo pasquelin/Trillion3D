@@ -53,7 +53,7 @@ export function noteVsmFrame(
   let cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias
   settle.lodBias = lodBias
   for (const light of plan.lights)
-    if (light.shouldRender && (light.entry.isUncached || light.entry.isInvalidated())) cause = true
+    if (light.entry.isUncached || light.entry.isInvalidated()) cause = true
   if (cause) settle.causeFrame = frame
   // A frame with no map draws nothing and reads no count: it is its own answer.
   if (plan.overflow || plan.projectionCount === 0) {

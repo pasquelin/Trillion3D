@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   createVsmRowBound,
-  vsmBoundChunk,
+  vsmChunkRows,
   type VsmBoundLight,
   type VsmRowBound,
 } from './rowPageBound.ts'
@@ -33,7 +33,7 @@ function ask(rows: SceneRows, lights: VsmBoundLight[], bound: VsmRowBound, bin =
   // A worst case of 64 rows a chunk: the scenes' few hundred rows take several.
   const worst = { ...worstOf(), rows: 64, cmdsPerRow },
     range = { first: 0, end, candidates: end }
-  const chunk = vsmBoundChunk(bound, rows.spheres, range, lights, worst)
+  const chunk = vsmChunkRows(bound, rows.spheres, range, lights, worst)
   if (bin) landBins(bound, rows, range, lights)
   return chunk
 }
@@ -127,7 +127,7 @@ test('a light’s weights follow the physical pages they are capped at', () => {
   holds(rows, [lamp], bound)
   const range = { first: 0, end: 300, candidates: 300 }
   const more = { rows: 256, cmdsPerRow: 48, pages: 8192, cap: 1 << 21 }
-  assert.equal(vsmBoundChunk(bound, rows.spheres, range, [lamp], more)!.pairs(1), 8192)
+  assert.equal(vsmChunkRows(bound, rows.spheres, range, [lamp], more)!.pairs(1), 8192)
 })
 
 test('lamps whose rows cannot beat the worst case are binned no more until they change', () => {
@@ -140,7 +140,7 @@ test('lamps whose rows cannot beat the worst case are binned no more until they 
     range = { first: 0, end: 3000, candidates: 3000 }
   const bound = createVsmRowBound()
   const frame = () => {
-    const chunk = vsmBoundChunk(bound, rows.spheres, range, lamps, worst)
+    const chunk = vsmChunkRows(bound, rows.spheres, range, lamps, worst)
     landBins(bound, rows, range, lamps)
     return chunk
   }

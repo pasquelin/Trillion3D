@@ -59,7 +59,7 @@ test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes'
   cache.keepFrameForNext(null)
   let next = 9000
   const ids = {
-    mapSlotCount: 9000,
+    mapCount: 9000,
     allocateUnreferenced: (_single: boolean, count: number) => ((next += count), next - count),
     writeNextMap: () => {},
   }

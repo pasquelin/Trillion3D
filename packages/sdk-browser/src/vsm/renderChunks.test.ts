@@ -31,7 +31,7 @@ function encodeRows(device: GPUDevice, encoder: GPUCommandEncoder) {
   return encodeVsmRender(
     encoder,
     res,
-    { device, lights: [{ kind: 'directional', firstId: 8192, count: 17, shouldRender: true }] },
+    { device, lights: [{ kind: 'directional', firstId: 8192, count: 17 }] },
     {
       rowCount: 200_000,
       ...{ pageTable: rows, spheres: rows, mobility: rows, rowLods: rows },
