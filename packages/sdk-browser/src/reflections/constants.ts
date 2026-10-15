@@ -41,6 +41,12 @@ export const REFLECTION_CONSTANTS = {
   /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
    *  a texel: a history further from their mean than this is pulled back to it. */
   REFLECTION_CLAMP: 1.25,
+  /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
+   *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
+   *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair
+   *  off the reflection, a neighbour's faint weight, a slab at a far depth —, where 1e-20 would
+   *  shorten the normalised vector or scale the weighted mean down instead of normalising it. */
+  REFLECTION_FLOOR: 1e-30,
 } as const
 
 /**

@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
+import { DIVISOR_FLOOR } from '../../../math/src/wgsl/constants.ts'
 import { REFLECTION_CONE_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { reflectionBindingsWgsl } from './viewLayout.ts'
 
@@ -32,12 +32,18 @@ import { reflectionBindingsWgsl } from './viewLayout.ts'
 export const reflectionFootprintWgsl = (group: number) =>
   wgslBlock(
     `reflectionFootprintWgsl(${group})`,
-    [reflectionBindingsWgsl(group), REFLECTION_CONE_WGSL, REFLECTION_LOBE_WGSL, clipToFramebuffer],
+    [
+      reflectionBindingsWgsl(group),
+      REFLECTION_CONE_WGSL,
+      REFLECTION_LOBE_WGSL,
+      clipToFramebuffer,
+      DIVISOR_FLOOR,
+    ],
     `struct ReflectionTaps{color:vec4f,weight:f32,}
 struct ReflectionSurface{pixel:vec2f,plane:vec3f,thickness:f32,}
 struct ReflectionCone{short:f32,long:f32,level:f32,}
 fn reflectionConeAt(distance:f32,pixel:f32,lobe:ReflectionLobe)->ReflectionCone{
- let reach=2.0*distance/max(pixel,1e-30);
+ let reach=2.0*distance/max(pixel,DIVISOR_FLOOR);
  let short=max(reach*lobe.tangents.x,1.0);
  let long=max(reach*lobe.tangents.y,short);
  return ReflectionCone(short,long,log2(max(reach*reflectionReadTangent(lobe),1.0)));
@@ -87,7 +93,7 @@ fn reflectionFootprint(Q:vec2f,hit:vec3f,pixel:f32,lobe:ReflectionLobe,cone:Refl
   return sum;
  }
  let toward=clipToFramebuffer(reflectionView.radianceViewProj*vec4f(hit+lobe.T*pixel,1.0),reflectionView.radiance.xy).xy-Q;
- let span=(cone.long-exp2(cone.level))*toward*inverseSqrt(max(dot(toward,toward),1e-30));
+ let span=(cone.long-exp2(cone.level))*toward*inverseSqrt(max(dot(toward,toward),REFLECTION_FLOOR));
  for(var k=0.0;k<taps;k+=1.0){
   reflectionRadianceAt(&sum,(Q+span*((k+0.5)/taps-0.5))*texel,level,1.0,toView,surface);
  }

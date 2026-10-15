@@ -89,7 +89,7 @@ const reflectionSeenWgsl = (group: number) =>
  let ratio=size/reflectionView.radiance.xy;
  let toView=vec4f(marched.pixel-Q*ratio,vec2f(textureDimensions(reflectionImage))*ratio);
  // The hit's surface: its plane across the image, a footprint's width deep on either side.
- let surface=ReflectionSurface(marched.pixel,marched.plane,max(depth-screenBack(depth,cone.long,reflectionView.slab),1e-30));
+ let surface=ReflectionSurface(marched.pixel,marched.plane,max(depth-screenBack(depth,cone.long,reflectionView.slab),REFLECTION_FLOOR));
  let taps=reflectionFootprint(Q,hit,pixel,lobe,cone,toView,surface);
  if(!(taps.color.a>0.0)){return seen;}
  seen.color=taps.color.rgb/taps.color.a;

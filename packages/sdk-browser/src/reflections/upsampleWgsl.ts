@@ -51,7 +51,7 @@ fn upsampled(coord:vec2i,P:vec3f,N:vec3f,V:vec3f)->Reflected{
  if(g.sharpWeight>REFLECTION_EPSILON){
   return Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight);
  }
- let n=max(g.nearWeight,1e-30);
+ let n=max(g.nearWeight,REFLECTION_FLOOR);
  return Reflected(g.near.base/n,g.near.coat/n);
 }
 /** What the pixel \`own\` of a surface at \`coord\` reflects: its mirror lobes traced, its

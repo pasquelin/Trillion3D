@@ -93,7 +93,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  var tt=ts;
  if(lobe.w!=alpha){t=reflectionBands(lobe.w);tt=reflectionConeTangent(lobe.w);}
  let across=lobe.xyz-R*dot(lobe.xyz,R);
- let T=across*inverseSqrt(max(dot(across,across),1e-30));
+ let T=across*inverseSqrt(max(dot(across,across),REFLECTION_FLOOR));
  return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(alpha,lobe.w),vec2f(ts,tt));
 }
 fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
