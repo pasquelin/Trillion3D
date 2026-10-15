@@ -120,16 +120,8 @@ export async function createGpuBounceProbes(
     get sweepFrames() {
       return Math.max(schedule.sweepFrames, 1)
     },
-    /** Probes the occupancy map keeps at the finest level, on its cells. */
-    get activeProbes() {
-      return occupancy.marked
-    },
     get lastProbes() {
       return updates
-    },
-    /** Source radiance version for consumers with independent temporal histories. */
-    get encodedFrames() {
-      return frame
     },
     get lastRays() {
       return updates * BOUNCE_SETTINGS.raysPerProbe
