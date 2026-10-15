@@ -45,8 +45,8 @@ function trianglesReport(
   m: FrameMetrics | null | undefined,
   sourceTriangles: number,
 ): TelemetryReport['triangles'] {
-  const source = sourceTriangles || m?.triangles || 0
-  const submitted = m?.submittedTriangles ?? m?.triangles ?? null
+  const source = sourceTriangles || m?.totalSubmittedTriangles || 0
+  const submitted = m?.submittedTriangles ?? m?.totalSubmittedTriangles ?? null
   const cullingRate =
     source > 0 && submitted != null ? clamp((1 - submitted / source) * 100, 0, 100) : null
   return {

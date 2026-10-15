@@ -69,10 +69,6 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameEnd = cpuNow()
     metricsScratch.cpuFrameMs = frameEnd - start
     engine.frameCpuMs(metricsScratch.cpuFrameMs)
-    // Submitted triangles of this frame: those the engine counted, and only those. `null` when
-    // it has not counted them — a zero published here would read as an empty frame, and that is
-    // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.
-    metricsScratch.triangles = metricsScratch.totalSubmittedTriangles ?? null
     auditFrame(frameNumber, metricsScratch)
     if (debugMode()) profiler.record(metricsScratch) // the frame report is a debug tool
     const { pageIdByUrl, streamer } = inputs

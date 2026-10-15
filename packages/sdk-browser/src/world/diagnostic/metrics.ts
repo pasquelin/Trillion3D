@@ -32,7 +32,6 @@ export const UNMEASURED: FrameMetrics = {
   cpuSelectNodesTested: null,
   cpuSubmitMs: null,
   drawCalls: null,
-  triangles: null,
   clusters: null,
   selectedTriangles: null,
   residentPages: null,

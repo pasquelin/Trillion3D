@@ -1,7 +1,6 @@
-// `metricsScratch.triangles` (`FrameMetrics.triangles: number | null` contract): the engine's
-// own count of the frame, `totalSubmittedTriangles`, and nothing else — the engine alone draws
-// and counts. When the engine has not counted, `createExplorerRender` must publish
-// `null`, never `0` — a zero would read as an empty frame.
+// A frame of `createExplorerRender`: the engine's error is the caller's, the followed guides move
+// once before it draws within the frame's budget, and the frame report files only in debug mode.
+// The triangles a frame submitted are the engine's own count, `totalSubmittedTriangles`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createExplorerRender } from './render.ts'
@@ -65,24 +64,12 @@ function harness(options: {
   return { render, metricsScratch }
 }
 
-test('triangles stays null when the engine has not counted', () => {
-  const { render, metricsScratch } = harness({})
-  render()
-  assert.equal(metricsScratch.triangles, null, 'a zero would read as an empty frame')
-})
-
-test('triangles publishes the engine submitted total as soon as it exists', () => {
-  const { render, metricsScratch } = harness({ counted: 1234 })
-  render()
-  assert.equal(metricsScratch.triangles, 1234)
-})
-
 // The engine is the session's one path: an error it throws is the caller's, never swapped for
 // another engine's image.
 test('an engine error leaves the frame, nothing drawn in its place', () => {
   const { render, metricsScratch } = harness({ drawFails: true, counted: 7 })
   assert.throws(render, /draw failed/)
-  assert.equal(metricsScratch.triangles, undefined, 'no metric of a frame not drawn')
+  assert.equal(metricsScratch.cpuFrameMs, undefined, 'no metric of a frame not drawn')
 })
 
 // The guides that follow a node are moved once per frame, before it draws. The frame's
