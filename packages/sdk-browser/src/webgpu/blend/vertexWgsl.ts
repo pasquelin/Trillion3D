@@ -2,7 +2,7 @@ import { VERTEX_LISTS_WGSL, VERTEX_READS_WGSL, vsOutWgsl } from './vertexReadsWg
 import * as itemFlags from '../../visibility/types.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
-import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
+import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_UV1_WGSL } from '../../visibility/shader/pageUv1Wgsl.ts'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
@@ -63,7 +63,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       ...layout.read,
       VERTEX_LISTS_WGSL,
       vsOutWgsl(layout.uv, layout.ids),
-      mixWord,
+      TRIANGLE_PALETTE_WGSL,
       FACING_WGSL,
       lowBits,
     ],
@@ -104,10 +104,8 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  out.tri=0u;
  out.diagId=0u;
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTER_VIEWS}u)!=0u){out.diagId=clusterId;}
- if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){
-  let a=mixWord(corners.x);let b=mixWord(corners.y);let c=mixWord(corners.z);
-  out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
- }
+ // The triangle's identity as the opaque resolve colours its edges (\`stableTriangleId\`).
+ if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){out.tri=stableTriangleId(clusterId,local/3u);}
  let corner=local%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  out.normal=vec4f(vec3f(0.0),out.normal.w);
