@@ -65,7 +65,7 @@ export function createPlacementWrites(
   const pending = new Map<Object3D, PlacementLink[]>()
   const slotWorld = new Float64Array(MATRIX_VALUES),
     product = new Float64Array(MATRIX_VALUES)
-  const stale = new Set<Object3D | PlacedMesh>()
+  const stale = new Set<PlacedMesh>()
   const heldWorld = (node: Object3D) => {
     let world = worlds.get(node)
     if (world) return world
@@ -170,8 +170,7 @@ export function createPlacementWrites(
       }
       if (!stale.size) return
       for (const placements of held)
-        for (const at of placements)
-          if (stale.has(at.parent) || stale.has(at.mesh)) write(at, false)
+        for (const at of placements) if (stale.has(at.mesh)) write(at, false)
     },
   }
 }

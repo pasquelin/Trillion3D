@@ -23,8 +23,10 @@ import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
 import type { CellFrame } from './follow.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
+import { primeFrames, type CellBudget, type CellFrameIo, type CellPrimeIo } from './cellsPrime.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
 import { inCellFrame } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
@@ -34,7 +36,6 @@ import { createCellHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { PlacementRows } from '../placement/rows.ts'
-import type { StreamPage } from '../streaming/types.ts'
 
 type Inputs = {
   partition: TablePartition
@@ -61,7 +62,7 @@ export function createPartitionCells(inputs: Inputs) {
     sized = -1,
     wanted = -1
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
-  const framed = new Float64Array(16)
+  const framed = new Float64Array(MATRIX_VALUES)
   /** The scene root's world, in the frame it hangs in (`pose`). */
   const rootWorld = () => {
     const world = resolveCameraWorld(root).worldMatrix,
@@ -117,38 +118,7 @@ export function createPartitionCells(inputs: Inputs) {
      *  near pages and cells are asked, those read handed to the page worker pool, those decoded opened
      *  or placed while the frame's `budget` admits them. True when a page or cell within reach is
      *  left for a later frame. */
-    frame(
-      eye: ArrayLike<number>,
-      reach: number,
-      /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
-       *  thread, those refused for good, requests (`ahead`: before needed), catalogue, rows, else
-       *  the owner told. */
-      io: {
-        bytes(url: string): Uint8Array | undefined
-        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
-        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-        /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
-        failed(url: string): boolean
-        request(urls: readonly string[], ahead: boolean): void
-        admit(pages: readonly StreamPage[]): void
-        forget(urls: readonly string[]): void
-        update(rows: PlacementRows, from: number, to: number): void
-        grow?: PlacementGrowth
-        /** The session's composition (`Engine.composePlacements`): rows linked to the scene's frame
-         *  follow it on the GPU (`CellFrame`). */
-        compose?: CellFrame['compose']
-        outgrown?: () => void
-        /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
-        lens?: {
-          pixelScale: [number, number]
-          pixelError: number
-          near: number
-          perspective?: number
-          slope: number
-        }
-      },
-      budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
-    ) {
+    frame(eye: ArrayLike<number>, reach: number, io: CellFrameIo, budget: CellBudget) {
       frame.compose = io.compose
       rows.follow()
       const local = view(eye, reach)
@@ -183,44 +153,18 @@ export function createPartitionCells(inputs: Inputs) {
       return later
     },
     /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
-     *  frame asked (every node unless `owned`), then runs `frame` to completion on an unbounded
-     *  budget, what it asks within reach read through `io.read` — a failure throws, the open
-     *  fails —, nothing ahead; the bytes read. */
-    async prime(
-      eye: ArrayLike<number>,
-      reach: number,
-      /** Kept internal as `frame`'s: the streamer's verified read, the decodes, the catalogue. */
-      io: {
-        read(url: string): Promise<Uint8Array>
-        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
-        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-        admit(pages: readonly StreamPage[]): void
-        forget(urls: readonly string[]): void
-      },
-      owned: boolean,
-    ) {
+     *  frame asked (every node unless `owned`), then runs `frame` to completion (`primeFrames`);
+     *  the bytes read. */
+    async prime(eye: ArrayLike<number>, reach: number, io: CellPrimeIo, owned: boolean) {
       const local = view(eye, reach)
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS)
-      let bytes = 0
-      const landed = new Map<string, Uint8Array>(),
-        reads: Promise<void>[] = []
-      const read = (url: string) =>
-        io.read(url).then((got) => void ((bytes += got.byteLength), landed.set(url, got)))
-      const port = {
-        ...io,
-        bytes: (url: string) => landed.get(url),
-        failed: () => false,
-        request(urls: readonly string[], ahead: boolean) {
-          if (!ahead) for (const url of urls) if (!landed.has(url)) reads.push(read(url))
-        },
-        update() {},
-      }
-      for (;;) {
-        const later = partitionCells.frame(eye, reach, port, { admits: () => true, spend() {} })
-        const waits = [...reads.splice(0), ...partitionCells.decodes()]
-        if (!later && !waits.length) break
-        await Promise.all(waits)
-      }
+      const bytes: number = await primeFrames(
+        eye,
+        reach,
+        io,
+        partitionCells.frame,
+        partitionCells.decodes,
+      )
       touched.clear()
       return bytes
     },

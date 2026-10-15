@@ -3,6 +3,7 @@
 // reader module (`placement/composeReaders.ts`), every row written at each send.
 import { holdReaders, rebindReaders, type Readers } from '../placement/composeReaders.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { PlacementLink } from '../placement/gpuCompose.ts'
 
@@ -21,13 +22,19 @@ export function composeStandIn(update?: (rows: PlacementRows, from: number, to: 
     if (whole) readers.delete(slot)
     holdReaders(readers, slot, parent, links)
     const held = readers.get(slot) ?? [],
-      before = held.map(({ rows, index }) => rows.matrices.slice(index * 16, index * 16 + 16))
+      before = held.map(({ rows, index }) =>
+        rows.matrices.slice(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
+      )
     const parentWorld = Float64Array.from(world)
     for (const { rows, index, local } of held)
       if (index < rows.capacity)
-        multiplyMatrix4(rows.matrices.subarray(index * 16, index * 16 + 16), parentWorld, local)
+        multiplyMatrix4(
+          rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
+          parentWorld,
+          local,
+        )
     held.forEach(({ rows, index }, k) => {
-      const now = rows.matrices.subarray(index * 16, index * 16 + 16)
+      const now = rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES)
       if (now.some((v, at) => v !== before[k][at])) update?.(rows, index, index)
     })
   }

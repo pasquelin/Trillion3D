@@ -9,7 +9,7 @@
  * (`around`). How far each parent stretches the root's frame (`stretch`) is what the rows are sized
  * by (`sizing.ts`).
  */
-import { boxTransform, boxUnion } from '../../../math/src/geometry/box.ts'
+import { BOX_VALUES, boxTransform, boxUnion } from '../../../math/src/geometry/box.ts'
 import { determinantMatrix4, multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
@@ -23,7 +23,7 @@ import { resolveCameraWorld } from '../camera/world.ts'
 const rootInverse = new Float64Array(MATRIX_VALUES),
   relative = new Float64Array(MATRIX_VALUES),
   inverse = new Float64Array(MATRIX_VALUES),
-  carried = new Float64Array(6)
+  carried = new Float64Array(BOX_VALUES)
 /** A box holding all space: a page under a parent moved off a flat declared frame. */
 const UNBOUNDED = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity]
 
@@ -35,17 +35,12 @@ export type Stretch = readonly [least: number, most: number]
 const flatFrame = (matrix: ArrayLike<number>, back: Float64Array) =>
   determinantMatrix4(matrix) === 0 || !back.every(Number.isFinite)
 
-/** The least `matrix` stretches a distance, its smallest singular value `1 / σmax(M⁻¹)`, read from
- *  `back`, its inverse; a flat frame (`flatFrame`) stretches it by 0. Never its shortest column,
- *  which a shear leaves long. */
-export const leastStretchOf = (matrix: ArrayLike<number>, back: Float64Array) =>
-  flatFrame(matrix, back) ? 0 : 1 / maxStretch(back)
-
-/** The least and the most `matrix` stretches a distance — its smallest and largest singular
- *  values (`leastStretchOf`, `maxStretch`). */
-export function stretchOf(matrix: ArrayLike<number>): Stretch {
-  const most = maxStretch(matrix)
-  return [leastStretchOf(matrix, invertMatrix4(inverse, matrix)), most]
+/** The least and the most `matrix` stretches a distance — its smallest singular value
+ *  `1 / σmax(M⁻¹)`, read from `back`, its inverse (`invertMatrix4`), and its largest
+ *  (`maxStretch`). A flat frame (`flatFrame`) stretches some distance by 0. Never its shortest
+ *  column, which a shear leaves long. */
+export function stretchOf(matrix: ArrayLike<number>, back: Float64Array): Stretch {
+  return [flatFrame(matrix, back) ? 0 : 1 / maxStretch(back), maxStretch(matrix)]
 }
 
 /** What carries boxes — a cell —: its `[core rank, box]` per parent, its boxes in the root's frame
@@ -56,7 +51,7 @@ export type Parts = readonly (readonly [number | null, ArrayLike<number>])[]
 /** A `Boxed` over `parents`, never written. */
 export const boxed = (parents: Parts): Boxed => ({
   parents,
-  bounds: new Float64Array(6 * parents.length),
+  bounds: new Float64Array(BOX_VALUES * parents.length),
   written: -1,
 })
 /** A page of the cell index as it is boxed: at the declared poses, the core ranks its cells hang
@@ -104,7 +99,7 @@ export function createCellBoxes(
     const back = invertMatrix4(new Float64Array(MATRIX_VALUES), declared)
     const flat = flatFrame(declared, back)
     frames.set(rank, { matrix: declared.slice(), declared, back: flat ? null : back, moved: 0 })
-    stretch.set(rank, [leastStretchOf(declared, back), maxStretch(declared)])
+    stretch.set(rank, stretchOf(declared, back))
   }
   let now = 0
   const refresh = () => {
@@ -113,7 +108,7 @@ export function createCellBoxes(
     for (const [rank, frame] of frames) {
       if (keepNumbers(frame.matrix, relativeInto(relative, parents[rank]))) continue
       frame.moved = now
-      stretch.set(rank, stretchOf(relative))
+      stretch.set(rank, stretchOf(relative, invertMatrix4(inverse, relative)))
       if (sameMatrixBits(frame.declared, relative)) displaced.delete(rank)
       else if (!frame.back) displaced.set(rank, null)
       else {
@@ -129,8 +124,8 @@ export function createCellBoxes(
     if (item.written >= 0 && !item.parents.some(([rank]) => moved(rank, item.written)))
       return item.bounds
     item.parents.forEach(([rank, box], part) => {
-      if (rank === null) item.bounds.set(box, 6 * part)
-      else boxTransform(item.bounds, 6 * part, box, 0, frames.get(rank)!.matrix)
+      if (rank === null) item.bounds.set(box, BOX_VALUES * part)
+      else boxTransform(item.bounds, BOX_VALUES * part, box, 0, frames.get(rank)!.matrix)
     })
     item.written = now
     return item.bounds

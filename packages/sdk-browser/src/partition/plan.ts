@@ -24,6 +24,7 @@ import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { transformAffinePoint, length3 } from '../../../math/src/vector/vector.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import {
   drawnView,
   frustumCornerDistance,
@@ -72,9 +73,8 @@ export function cellReach(optics: PartitionOptics) {
  * needs; a flattened root, which stretches some distance by 0, reads every cell.
  */
 export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
-  const [least] = stretchOf(world)
+  const [least] = stretchOf(world, invertMatrix4(inverse, world))
   if (!least) return { eye: [0, 0, 0], reach: Infinity } // flattened: no eye there, every cell
-  invertMatrix4(inverse, world)
   const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2])
   return { eye: local, reach: reach / least }
 }
@@ -83,7 +83,7 @@ export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, re
  *  six values each; 0 inside one. */
 export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   let nearest = Infinity
-  for (let at = 0; at < bounds.length; at += 6)
+  for (let at = 0; at < bounds.length; at += BOX_VALUES)
     nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]))
   return nearest
 }

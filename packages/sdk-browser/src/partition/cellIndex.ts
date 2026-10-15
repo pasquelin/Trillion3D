@@ -12,6 +12,7 @@
 import type { readCellPage, TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { TableSlot } from '../../../sdk-core/src/scene/core/tablePages.ts'
 import type { StreamPage } from '../streaming/types.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts'
 import { boxDistance } from './plan.ts'
 
@@ -34,7 +35,7 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     slot: { ...page, url: new URL(page.url, base).href },
     declared: bounds,
     parents,
-    box: new Float64Array(6),
+    box: new Float64Array(BOX_VALUES),
     written: -1,
     body: null,
   })
