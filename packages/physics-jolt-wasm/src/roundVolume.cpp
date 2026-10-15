@@ -1,7 +1,7 @@
-// Jolt measures the water under a capsule, a cylinder or a tapered cylinder by the box of its
-// bounds (`ConvexShape::GetSubmergedVolume`): a horizontal log a third under is 19 % too buoyant
-// and rolls where it should not, a cone's box hangs below its tip. Here they are measured exactly,
-// whole or a slice across their axis. Along the axis y each section is a disc of radius r(y); the
+// The round leaves of the one submerged-volume integrator (`submerged.cpp`) — a sphere, a capsule,
+// a cylinder, a tapered cylinder — measured exactly, whole or a slice across their axis (Jolt
+// measures all but the sphere by the box of its bounds: a horizontal log a third under 19 % too
+// buoyant, a cone's box hanging below its tip). Along the axis y each section is a disc of radius r(y); the
 // water plane crosses it along a chord at a signed distance d(y) from its centre, and the wet part
 // is the disc's segment: area r² g(u), u = d / r, g(u) = π − acos u + u √(1 − u²), and first
 // moment across the chord −(2/3) (r² − d²)^(3/2). Volume, centre and the whole's volume are those
@@ -13,7 +13,7 @@
 
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
-#include <Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/TaperedCylinderShape.h>
 
 #include <algorithm>
@@ -127,30 +127,28 @@ void addStretch(const Stretch &s, const Cut &cut, double lo, double hi, Sums &su
 
 }  // namespace
 
-bool roundOf(const Shape &shape, Round &round, Vec3 &offset) {
-  const Shape *inner = &shape;
-  offset = Vec3::sZero();
-  if (shape.GetSubType() == EShapeSubType::OffsetCenterOfMass) {
-    const auto &moved = static_cast<const OffsetCenterOfMassShape &>(shape);
-    inner = moved.GetInnerShape();
-    offset = -moved.GetOffset();
-  }
-  switch (inner->GetSubType()) {
+bool roundOf(const Shape &shape, Round &round) {
+  switch (shape.GetSubType()) {
+    case EShapeSubType::Sphere: {
+      float radius = static_cast<const SphereShape &>(shape).GetRadius();
+      round = {0, 0, radius, radius, radius};
+      return true;
+    }
     case EShapeSubType::Capsule: {
-      const auto &capsule = static_cast<const CapsuleShape &>(*inner);
+      const auto &capsule = static_cast<const CapsuleShape &>(shape);
       float half = capsule.GetHalfHeightOfCylinder(), radius = capsule.GetRadius();
       round = {-half, half, radius, radius, radius};
       return true;
     }
     case EShapeSubType::Cylinder: {
-      const auto &cylinder = static_cast<const CylinderShape &>(*inner);
+      const auto &cylinder = static_cast<const CylinderShape &>(shape);
       float half = cylinder.GetHalfHeight(), radius = cylinder.GetRadius();
       round = {-half, half, radius, radius, 0};
       return true;
     }
     case EShapeSubType::TaperedCylinder: {
       // Its frame is its centre of mass, which sits `GetCenterOfMass` off its middle.
-      const auto &tapered = static_cast<const TaperedCylinderShape &>(*inner);
+      const auto &tapered = static_cast<const TaperedCylinderShape &>(shape);
       float half = tapered.GetHalfHeight(), middle = -tapered.GetCenterOfMass().GetY();
       round = {middle - half, middle + half, tapered.GetBottomRadius(), tapered.GetTopRadius(), 0};
       return true;
@@ -160,30 +158,10 @@ bool roundOf(const Shape &shape, Round &round, Vec3 &offset) {
   }
 }
 
-AABox roundBounds(const Round &round, float from, float to) {
-  // The radius rises to the side and falls past it: its largest is at an end or where the side
-  // starts or stops.
-  auto radius = [&](float y) {
-    if (y < round.bottom) return std::sqrt(std::max(0.0f, Square(round.cap) - Square(y - round.bottom)));
-    if (y > round.top) return std::sqrt(std::max(0.0f, Square(round.cap) - Square(y - round.top)));
-    float t = round.top > round.bottom ? (y - round.bottom) / (round.top - round.bottom) : 0.0f;
-    return round.bottomRadius + t * (round.topRadius - round.bottomRadius);
-  };
-  float widest = std::max({radius(from), radius(to), radius(Clamp(round.bottom, from, to)),
-                           radius(Clamp(round.top, from, to))});
-  return AABox(Vec3(-widest, from, -widest), Vec3(widest, to, widest));
-}
-
-void roundSubmerged(const Round &round, float from, float to, Mat44Arg transform, const Plane &surface,
-                    float &total, float &submerged, Vec3 &centre) {
-  // The plane in the round's own frame.
-  Vec3 normal = transform.Multiply3x3Transposed(surface.GetNormal());
-  Vec3 origin = transform.GetTranslation(), world = surface.GetNormal();
+void roundSubmerged(const Round &round, float from, float to, Vec3 normal, float constant, float &total,
+                    float &submerged, Vec3 &centre) {
   double nx = normal.GetX(), nz = normal.GetZ();
-  Cut cut{normal.GetY(),
-          double(surface.GetConstant()) + double(world.GetX()) * origin.GetX() +
-              double(world.GetY()) * origin.GetY() + double(world.GetZ()) * origin.GetZ(),
-          std::sqrt(nx * nx + nz * nz)};
+  Cut cut{normal.GetY(), constant, std::sqrt(nx * nx + nz * nz)};
   Stretch stretches[3];
   Sums sums{};
   for (int i = 0, count = stretchesOf(round, stretches); i < count; ++i) {
@@ -199,7 +177,7 @@ void roundSubmerged(const Round &round, float from, float to, Mat44Arg transform
   }
   // The chord's moment points against the plane's normal, across the axis.
   double lateral = cut.across > 0 ? sums.lateral / (sums.volume * cut.across) : 0;
-  centre = transform * Vec3(float(lateral * nx), float(sums.axial / sums.volume), float(lateral * nz));
+  centre = Vec3(float(lateral * nx), float(sums.axial / sums.volume), float(lateral * nz));
 }
 
 }  // namespace trillion
