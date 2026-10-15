@@ -140,8 +140,7 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
 
 /**
  * The smallest box around `count` points read from `points` at `at`, one every `stride` numbers,
- * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point, the six bounds held in locals
- * and written once. `Math.min` and `Math.max` decide, so a NaN coordinate makes its bounds NaN,
+ * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point, the engine's one fold. `Math.min` and `Math.max` decide, so a NaN coordinate makes its bounds NaN,
  * `-0` sits below `+0`, and no point leaves the box empty. `out` must not be `points`.
  */
 export function boxFromPoints(
@@ -152,28 +151,9 @@ export function boxFromPoints(
   count: number,
   stride = 3,
 ) {
-  // The six-bound fold `boxTransform` also runs over its corners, spelled out in each: shared, the
-  // bounds would live in memory instead of registers, the cost these locals remove.
-  // jscpd:ignore-start
-  let loX = Infinity,
-    loY = Infinity,
-    loZ = Infinity,
-    hiX = -Infinity,
-    hiY = -Infinity,
-    hiZ = -Infinity
-  for (let i = 0, p = at; i < count; i++, p += stride) {
-    const x = points[p],
-      y = points[p + 1],
-      z = points[p + 2]
-    loX = Math.min(loX, x)
-    loY = Math.min(loY, y)
-    loZ = Math.min(loZ, z)
-    hiX = Math.max(hiX, x)
-    hiY = Math.max(hiY, y)
-    hiZ = Math.max(hiZ, z)
-  }
-  // jscpd:ignore-end
-  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
+  boxEmpty(out, o)
+  for (let i = 0, p = at; i < count; i++, p += stride)
+    boxExpandByPoint(out, o, points[p], points[p + 1], points[p + 2])
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed):
@@ -275,10 +255,9 @@ export function boxCornersInto(
  * empty box stays as is, bounds included. `out` can be `box`: bounds are read
  * before the first write.
  *
- * Each corner is computed into locals and folded at once into the six bounds, with the
- * `Math.min`/`Math.max` of `boxExpandByPoint`, corners in the order of `boxCornersInto`, from an
- * empty box: the bits of the union of `boxCornersInto`'s corners, with no scratch buffer
- * (`box.test.ts`). Where `unitW` holds, the divide by `w` is skipped as there.
+ * Each corner is computed into locals and folded into `out` by `boxExpandByPoint`, corners in the
+ * order of `boxCornersInto`, from an empty box: the bits of the union of `boxCornersInto`'s
+ * corners (`box.test.ts`). Where `unitW` holds, the divide by `w` is skipped as there.
  */
 export function boxTransform(
   out: Float64Array,
@@ -313,13 +292,9 @@ export function boxTransform(
     m13 = m[13],
     m14 = m[14],
     m15 = m[15]
-  let loX = Infinity,
-    loY = Infinity,
-    loZ = Infinity,
-    hiX = -Infinity,
-    hiY = -Infinity,
-    hiZ = -Infinity
   const affine = unitW(m, minX, minY, minZ, maxX, maxY, maxZ)
+  // The bounds are held in locals, so `out` may be `box`: emptied, then grown corner by corner.
+  boxEmpty(out, o)
   for (let i = 0; i < 8; i++) {
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
@@ -333,14 +308,8 @@ export function boxTransform(
       y *= mw
       z *= mw
     }
-    loX = Math.min(loX, x)
-    loY = Math.min(loY, y)
-    loZ = Math.min(loZ, z)
-    hiX = Math.max(hiX, x)
-    hiY = Math.max(hiY, y)
-    hiZ = Math.max(hiZ, z)
+    boxExpandByPoint(out, o, x, y, z)
   }
-  writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }
 
 /** The length of the diagonal of the box of bounds `min…max`, `length3(max − min)` axis by axis.
