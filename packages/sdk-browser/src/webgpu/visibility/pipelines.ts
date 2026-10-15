@@ -2,11 +2,8 @@ import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
 import { validationScope } from '../../gpu/core/errorScope.ts'
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
-import {
-  variesVisibility,
-  visOpaqueFragment,
-  visVariantFragment,
-} from '../../diagnostic/gpuGeometry.ts'
+import { variesVisibility, visVariantFragment } from '../../diagnostic/gpuGeometry.ts'
+import { VIS_OPAQUE_FRAGMENT } from '../../visibility/shader/visWgsl.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
@@ -40,7 +37,7 @@ export const VIS_DEPTH: GPUDepthStencilState = {
 
 /**
  * Each occluder pipeline's twin for a draw that holds no cutout row: the same states, the same
- * vertex stage, the fragment stage `visOpaqueFragment` names, which neither reads the page nor
+ * vertex stage, the fragment stage `VIS_OPAQUE_FRAGMENT`, which neither reads the page nor
  * discards. Keyed by the pipeline itself, a twin follows its pipeline wherever it is replaced or
  * dropped. A tested pipeline (`vis_hiz_vs`) has none: the tested half draws with the occluders'
  * once compacted. Nor under a diagnostic variant of the raster stage, which imposes its one stage
@@ -68,7 +65,7 @@ function visBuild(
     ...{ device, module },
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     fragment: visVariantFragment(variant),
-    opaque: twins ? visOpaqueFragment() : undefined,
+    opaque: twins ? VIS_OPAQUE_FRAGMENT : undefined,
   }
 }
 /** The occluder (`rest` false) or tested pipeline of a face mode, and an occluder's twin. */
