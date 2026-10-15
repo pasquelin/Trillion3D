@@ -65,7 +65,7 @@ fn traverse(
         .filter_map(|prim| visit::visit(&mut world, prim, 0, unit))
         .collect();
     let root = json!({
-        "name": "usd-root",
+        "name": crate::plugins::scene::axes::ROOT_NAME,
         "matrix": crate::plugins::scene::axes::root(unit, layer::z_up(stage)),
         "children": children,
     });

@@ -31,7 +31,7 @@ fn wrap(world: &mut World<'_>, shader: &usd::Prim, axis: &str) -> u32 {
         "mirror" => MIRRORED_REPEAT,
         "" | "repeat" => REPEAT,
         _ => {
-            world.refuse(world::TEXTURE_WRAP);
+            world.refuse(crate::plugins::scene::codes::TEXTURE_WRAP_UNSUPPORTED);
             REPEAT
         }
     }

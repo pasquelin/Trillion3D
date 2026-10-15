@@ -29,7 +29,10 @@ pub(super) fn kind_of(meta: &str) -> Kind {
         ("AbcGeom_PolyMesh", Kind::Mesh),
         ("AbcGeom_SubD", Kind::SubD),
         ("AbcGeom_FaceSet", Kind::FaceSet),
-        ("AbcGeom_Curve", Kind::Skipped("alembic-curves-unsupported")),
+        (
+            "AbcGeom_Curve",
+            Kind::Skipped(crate::plugins::scene::codes::CURVES_UNSUPPORTED),
+        ),
         (
             "AbcGeom_Points",
             Kind::Skipped("alembic-points-unsupported"),
@@ -40,9 +43,12 @@ pub(super) fn kind_of(meta: &str) -> Kind {
         ),
         (
             "AbcGeom_Camera",
-            Kind::Skipped("alembic-camera-unsupported"),
+            Kind::Skipped(crate::plugins::scene::codes::CAMERA_UNSUPPORTED),
         ),
-        ("AbcGeom_Light", Kind::Skipped("alembic-light-unsupported")),
+        (
+            "AbcGeom_Light",
+            Kind::Skipped(crate::plugins::scene::codes::LIGHT_UNSUPPORTED),
+        ),
     ] {
         if schema.starts_with(prefix) {
             return kind;

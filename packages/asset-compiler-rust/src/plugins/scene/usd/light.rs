@@ -4,7 +4,7 @@
 //! area source) and `DistantLight` (directional), plus the `ShapingAPI` that makes a light a
 //! spotlight, and the `ShadowAPI` that says whether it carries a shadow. Any other `UsdLux`
 //! type — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, and filters — stays
-//! counted by `world::LIGHT`, for lack of a punctual equivalent.
+//! counted by `crate::plugins::scene::codes::LIGHT_UNSUPPORTED`, for lack of a punctual equivalent.
 //!
 //! **Units.** `UsdLux` is radiometric and relative: a light emits the radiance
 //! `inputs:intensity · 2^inputs:exposure`, which `inputs:normalize` divides by the source area.
@@ -59,7 +59,7 @@ pub(super) fn build(
     scale: f64,
 ) -> Option<usize> {
     let Some(shape) = shape(type_name) else {
-        world.refuse(world::LIGHT);
+        world.refuse(crate::plugins::scene::codes::LIGHT_UNSUPPORTED);
         return None;
     };
     let radiance = number(world, prim, "inputs:intensity", 1.0)

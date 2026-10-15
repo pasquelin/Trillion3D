@@ -39,7 +39,10 @@ impl World<'_> {
     /// its parent does not count it among its children.
     pub(super) fn visit(&mut self, object: &Object, depth: usize) -> Result<Vec<usize>> {
         if depth > MAX_DEPTH {
-            self.scene.tables.report.add("alembic-hierarchy-too-deep");
+            self.scene
+                .tables
+                .report
+                .add(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
             return Ok(Vec::new());
         }
         if self.cancelled.load(Ordering::Relaxed) {
@@ -82,7 +85,10 @@ impl World<'_> {
             if matrix != trillion3d_math::matrix::IDENTITY && xform::is_finite(&matrix) {
                 node["matrix"] = json!(matrix);
             } else if !xform::is_finite(&matrix) {
-                self.scene.tables.report.add("alembic-transform-invalid");
+                self.scene
+                    .tables
+                    .report
+                    .add(crate::plugins::scene::codes::TRANSFORM_INVALID);
             }
             inherits = properties
                 .sample(self.archive, ".inherits", POD_BOOL, Some(1))?
@@ -122,12 +128,18 @@ impl World<'_> {
             .transpose()?
             .flatten()
         else {
-            self.scene.tables.report.add("alembic-mesh-invalid");
+            self.scene
+                .tables
+                .report
+                .add(crate::plugins::scene::codes::MESH_INVALID);
             return Ok(attached);
         };
         self.animated(&geom, "P");
         let Some(geometry) = Geometry::read(self.archive, &geom)? else {
-            self.scene.tables.report.add("alembic-mesh-invalid");
+            self.scene
+                .tables
+                .report
+                .add(crate::plugins::scene::codes::MESH_INVALID);
             return Ok(attached);
         };
         for reason in &geometry.dropped {
@@ -141,14 +153,18 @@ impl World<'_> {
         self.scene
             .report
             .add_count("alembic-face-in-two-facesets", counted.overlaps);
-        self.scene
-            .report
-            .add_count("alembic-degenerate-face", counted.degenerate);
+        self.scene.report.add_count(
+            crate::plugins::scene::codes::DEGENERATE_FACE,
+            counted.degenerate,
+        );
         self.scene
             .report
             .add_count(crate::plugins::scene::codes::NGON_UNCUT, counted.uncut);
         if parts.is_empty() {
-            self.scene.tables.report.add("alembic-mesh-empty");
+            self.scene
+                .tables
+                .report
+                .add(crate::plugins::scene::codes::MESH_EMPTY);
             return Ok(attached);
         }
         let mesh = self.scene.mesh(&object.name, &parts, &facesets);

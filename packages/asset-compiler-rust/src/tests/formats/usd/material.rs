@@ -160,7 +160,7 @@ fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cance
     );
     assert_eq!(pbr(&gltf)["roughnessFactor"], 1.0);
     assert_eq!(
-        unsupported(&run)["usd-texture-channel-unsupported"],
+        unsupported(&run)["texture-channel-unsupported"],
         Value::Null
     );
 }
@@ -176,7 +176,7 @@ fn a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name() {
         &layer(inputs, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
-    assert_eq!(unsupported(&run)["usd-texture-channel-unsupported"], 1);
+    assert_eq!(unsupported(&run)["texture-channel-unsupported"], 1);
     let (_, gltf) = run.prepared("usd");
     assert_eq!(
         pbr(&gltf)["metallicRoughnessTexture"]["index"],

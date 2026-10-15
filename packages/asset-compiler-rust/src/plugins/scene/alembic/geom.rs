@@ -100,8 +100,20 @@ impl Geometry {
             uv: None,
             dropped: Vec::new(),
         };
-        out.normals = out.param(archive, geom, "N", 3, "alembic-normals-dropped")?;
-        out.uv = out.param(archive, geom, "uv", 2, "alembic-uv-dropped")?;
+        out.normals = out.param(
+            archive,
+            geom,
+            "N",
+            3,
+            crate::plugins::scene::codes::NORMALS_DROPPED,
+        )?;
+        out.uv = out.param(
+            archive,
+            geom,
+            "uv",
+            2,
+            crate::plugins::scene::codes::UV_DROPPED,
+        )?;
         Ok(Some(out))
     }
 

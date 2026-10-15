@@ -57,7 +57,10 @@ fn an_alpha_from_another_channel_or_another_image_falls_back_to_the_factor() {
         surgery::put(&mut elsewhere, at, &metallic.to_le_bytes());
     }
     for (bytes, code) in [
-        (channel, "blend-texture-channel-unsupported"),
+        (
+            channel,
+            crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED,
+        ),
         (elsewhere, "blend-alpha-texture-unsupported"),
     ] {
         let (gltf, manifest) = output::compiled(&bytes, "alpha-repli");

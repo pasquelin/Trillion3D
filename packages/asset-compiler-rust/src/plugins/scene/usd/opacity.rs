@@ -50,7 +50,7 @@ pub(super) fn of(
         .split_property()
         .is_some_and(|(_, name)| name == ALPHA_CHANNEL)
     {
-        world.refuse(world::TEXTURE_CHANNEL);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         return written;
     }
     Opacity {

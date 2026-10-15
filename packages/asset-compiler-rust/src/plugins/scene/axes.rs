@@ -1,6 +1,9 @@
 //! The scene root of every driver whose format is not glTF's frame: the file's unit into metres,
 //! then its up axis onto glTF's `Y`.
 
+/// The name of the scene-root node that carries that matrix, whatever the format.
+pub(super) const ROOT_NAME: &str = "root";
+
 /// The centimetre, the implicit unit of the formats that declare a unit and default it (a USD
 /// layer, a Maya scene): reading such a file as metres enlarges it a hundredfold.
 pub(super) const CENTIMETRE: f64 = 0.01;

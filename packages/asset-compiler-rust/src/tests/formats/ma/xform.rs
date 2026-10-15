@@ -141,7 +141,7 @@ fn a_node_that_does_not_inherit_its_transform_leaves_its_parent_behind() {
         "the node without inheritance no longer hangs under its parent"
     );
     assert!(
-        children("ma-root").contains(&(rank("Libre") as u64)),
+        children("root").contains(&(rank("Libre") as u64)),
         "it hangs under the scene root, which carries only the unit"
     );
     assert_eq!(

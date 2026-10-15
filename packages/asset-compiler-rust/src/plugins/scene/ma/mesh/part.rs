@@ -30,7 +30,7 @@ pub(super) fn emit(world: &mut World<'_>, node: usize, surface: &Surface) -> Opt
         primitives.push(value);
     }
     if primitives.is_empty() {
-        world.refuse(report::MESH_EMPTY);
+        world.refuse(crate::plugins::scene::codes::MESH_EMPTY);
         return None;
     }
     let name = world.document.nodes[node].name.clone();
@@ -104,7 +104,7 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     let carried = |face: &usize| surface.uv_slots.get(*face).is_some_and(|uv| !uv.is_empty());
     let textured = !surface.uvs.is_empty() && part.faces.iter().all(carried);
     if !textured && !surface.uvs.is_empty() {
-        world.refuse(report::UV_DROPPED);
+        world.refuse(crate::plugins::scene::codes::UV_DROPPED);
     }
     let mut out: Corners<[u32; 3]> = Corners::new(Vertices::default());
     let cancelled = world.cancelled;

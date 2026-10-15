@@ -23,23 +23,11 @@ pub(super) const PARENT_UNSUPPORTED: &str = "ma-parent-unsupported";
 /// A node name the file writes without a path while several nodes carry it: Maya would have
 /// required the full path. It is the first written node that matches, and the mismatch is counted.
 pub(super) const NAME_AMBIGUOUS: &str = "ma-name-ambiguous";
-/// A `transform` node whose numbers are not finite: it stays at identity.
-pub(super) const TRANSFORM_INVALID: &str = "ma-transform-invalid";
-/// A hierarchy deeper than this driver walks, a circular parent chain included: the branch is
-/// cut there, without overflowing the stack.
-pub(super) const HIERARCHY_TOO_DEEP: &str = "ma-hierarchy-too-deep";
 /// A matrix written otherwise than by its sixteen numbers — the long `xform` form of `setAttr`:
 /// it is not guessed, and the node keeps the pose its other attributes give it.
 pub(super) const MATRIX_UNSUPPORTED: &str = "ma-matrix-unsupported";
 /// An intermediate shape: the input of a construction history, which Maya never displays.
 pub(super) const SHAPE_INTERMEDIATE: &str = "ma-shape-intermediate";
-/// A mesh whose tables contradict each other: corner outside the edge table, edge outside the
-/// vertex table, or `.vt` missing.
-pub(super) const MESH_INVALID: &str = "ma-mesh-invalid";
-/// A mesh that yields no triangle: no face, or all degenerate.
-pub(super) const MESH_EMPTY: &str = "ma-mesh-empty";
-/// A face of fewer than three corners: nothing to triangulate.
-pub(super) const DEGENERATE_FACE: &str = "ma-degenerate-face";
 /// A face declares a hole. A fan from its first corner would fill it, so the face is left: the
 /// silhouette of a hole is not guessed.
 pub(super) const FACE_HOLE: &str = "ma-face-hole-unsupported";
@@ -47,11 +35,6 @@ pub(super) const FACE_HOLE: &str = "ma-face-hole-unsupported";
 pub(super) const FACE_RECORD_IGNORED: &str = "ma-face-record-ignored";
 /// A face record that the writing does not hang onto any face.
 pub(super) const FACE_INVALID: &str = "ma-face-record-invalid";
-/// Texture coordinates dropped: `mu` without a face, UV set beyond the first, or rank outside
-/// the `.uvst[0].uvsp` table.
-pub(super) const UV_DROPPED: &str = "ma-uv-dropped";
-/// Normals dropped: `.n` counts neither one vector per vertex nor one per face corner.
-pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
 /// No written normals: they are computed from geometry and each edge's hardness flag, the only
 /// smoothing mark a `.ma` carries — smooth from one end of a soft edge to the other, cut on a
 /// hard edge.

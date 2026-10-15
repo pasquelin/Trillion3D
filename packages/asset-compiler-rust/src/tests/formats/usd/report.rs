@@ -55,11 +55,11 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
         unsupported(&run),
         json!({
             "usd-point-instancer-unsupported": 1,
-            "usd-curves-unsupported": 1,
+            "curves-unsupported": 1,
             "usd-volume-unsupported": 1,
             "usd-skel-unsupported": 1,
-            "usd-camera-unsupported": 1,
-            "usd-light-unsupported": 1,
+            "camera-unsupported": 1,
+            "light-unsupported": 1,
             "usd-subdivision-unsupported": 1,
         }),
         "the menagerie report has moved"

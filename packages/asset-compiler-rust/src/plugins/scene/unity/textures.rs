@@ -24,7 +24,6 @@ const FILTERS: [[u32; 2]; 3] = [
     [LINEAR, LINEAR_MIPMAP_NEAREST],
     DEFAULT_FILTER,
 ];
-const WRAP_UNSUPPORTED: &str = "unity-texture-wrap-unsupported";
 const FILTER_UNSUPPORTED: &str = "unity-texture-filter-unsupported";
 
 #[derive(Default)]
@@ -100,7 +99,9 @@ fn wrap(importer: &Yaml, keys: &[&str], scene: &mut SceneTables) -> u32 {
         Some(mode) => match WRAPS.get(mode) {
             Some(wrap) => *wrap,
             None => {
-                scene.report.add(WRAP_UNSUPPORTED);
+                scene
+                    .report
+                    .add(crate::plugins::scene::codes::TEXTURE_WRAP_UNSUPPORTED);
                 REPEAT
             }
         },

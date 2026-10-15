@@ -158,7 +158,7 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
                 .is_some_and(|(_, name)| name == channel)
         });
         if !placed {
-            world.refuse(world::TEXTURE_CHANNEL);
+            world.refuse(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         }
     }
 }

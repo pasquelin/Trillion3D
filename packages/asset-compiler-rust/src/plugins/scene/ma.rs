@@ -29,6 +29,7 @@
 //! **What it counts on the report without returning it**: see the `ma-*` constants of `report.rs`.
 use super::*;
 use crate::import::{Report, SceneTables};
+use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
 use crate::CompilerError;
 use serde_json::json;
 use std::{collections::HashMap, fs, sync::atomic::Ordering, time::Instant};
@@ -65,12 +66,6 @@ pub(super) struct Ma;
 const NAME: &str = "ma";
 /// First line Autodesk writes at the front of a Maya ASCII file.
 const HEADER: &str = "//Maya ASCII";
-
-/// The file is not a Maya ASCII: its first line does not announce it, or a string literal is
-/// never closed — a file cut in the middle of a name is not read through to the end.
-pub(super) const FILE_INVALID: &str = "ma-file-invalid";
-/// The file, or one of its arrays, exceeds the driver's allocation ceiling.
-pub(super) const SIZE_UNSUPPORTED: &str = "ma-size-unsupported";
 
 /// Ceiling of the file read: a command text beyond it is not loaded into memory.
 const MAX_BYTES: u64 = 512 * 1024 * 1024;

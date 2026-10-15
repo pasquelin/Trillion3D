@@ -52,7 +52,7 @@ pub(super) fn local(node: &Node, degrees_per_unit: f64, report: &mut Report) -> 
         out = multiply_matrix4_from_zero(&out, &step);
     }
     if !out.iter().all(|value| value.is_finite()) {
-        report.add(report::TRANSFORM_INVALID);
+        report.add(crate::plugins::scene::codes::TRANSFORM_INVALID);
         return None;
     }
     (out != IDENTITY).then_some(out)

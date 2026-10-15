@@ -9,18 +9,10 @@ use super::*;
 /// A `PointInstancer`: its instances are described by parallel arrays and an indexed prototype,
 /// which this driver does not unfold.
 pub(super) const POINT_INSTANCER: &str = "usd-point-instancer-unsupported";
-/// Curves (`BasisCurves`, `NurbsCurves`, `HermiteCurves`): a curve is not a surface.
-pub(super) const CURVES: &str = "usd-curves-unsupported";
 /// A volume (`Volume`, OpenVDB or field3d fields): not a surface either.
 pub(super) const VOLUME: &str = "usd-volume-unsupported";
 /// A skeleton or skeleton animation (`SkelRoot`, `Skeleton`, `SkelAnimation`, `BlendShape`).
 pub(super) const SKEL: &str = "usd-skel-unsupported";
-/// A camera: an imported scene does not bring one, the host places its own.
-pub(super) const CAMERA: &str = "usd-camera-unsupported";
-/// A `UsdLux` schema that does not fold into a glTF point light — `DomeLight`, `CylinderLight`,
-/// `GeometryLight`, `PortalLight`, and every `LightFilter`. Spheres, disks, rectangles and
-/// distant lights, on the other hand, are imported.
-pub(super) const LIGHT: &str = "usd-light-unsupported";
 /// A parametric surface this driver does not tile (`NurbsPatch`).
 pub(super) const PATCH: &str = "usd-patch-unsupported";
 /// A `Mesh` whose `subdivisionScheme` is not `none`: polygons are yielded **flat**, without the
@@ -34,8 +26,6 @@ pub(super) const COMPOSITION: &str = "usd-composition-invalid";
 /// An attribute read at its first time sample, for lack of a default value: the scene is frozen
 /// on that value, no animation is carried.
 pub(super) const TIME_SAMPLE: &str = "usd-animation-first-sample";
-/// A `Mesh` whose required tables are missing or contradict each other.
-pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
 /// A face a `Mesh` declares and that its tables do not carry: an index outside the point table,
 /// a negative index, fewer than three corners, or a primvar index that leaves its table. It is
 /// removed from the surface rather than folded onto the first point.
@@ -54,14 +44,6 @@ pub(super) const SURFACE_UNSUPPORTED: &str = "usd-surface-unsupported";
 /// `baseColorTexture`, and two distinct images do not fold into it without recomposing a third.
 /// The material then keeps the written opacity, and nothing of the opacity image is poured.
 pub(super) const OPACITY_TEXTURE: &str = "usd-opacity-texture-unsupported";
-/// An input wired onto a channel glTF does not read at that slot: its metal/roughness map takes
-/// metal in the blue channel and roughness in the green. The map is carried as-is and the
-/// mismatch is counted.
-pub(super) const TEXTURE_CHANNEL: &str = "usd-texture-channel-unsupported";
-/// A wrap mode glTF does not have — `black`, which borders the image with transparent, or
-/// `useMetadata`, which lets the file decide: the texture is repeated, as USD does by default,
-/// and the mismatch is counted.
-pub(super) const TEXTURE_WRAP: &str = "usd-texture-wrap-unsupported";
 /// A texture `scale` or `bias` that a glTF factor does not carry: glTF multiplies its texture by
 /// a factor and adds nothing, so a non-zero `bias`, a `scale` that differs from one colour
 /// channel to another, or an alpha `scale` that is not one stay out of the scene.
@@ -118,10 +100,12 @@ impl World<'_> {
 pub(super) fn refusal(type_name: &str) -> Option<&'static str> {
     Some(match type_name {
         "PointInstancer" => POINT_INSTANCER,
-        "BasisCurves" | "NurbsCurves" | "HermiteCurves" => CURVES,
+        "BasisCurves" | "NurbsCurves" | "HermiteCurves" => {
+            crate::plugins::scene::codes::CURVES_UNSUPPORTED
+        }
         "Volume" | "OpenVDBAsset" | "Field3DAsset" => VOLUME,
         "SkelRoot" | "Skeleton" | "SkelAnimation" | "BlendShape" => SKEL,
-        "Camera" => CAMERA,
+        "Camera" => crate::plugins::scene::codes::CAMERA_UNSUPPORTED,
         "NurbsPatch" => PATCH,
         _ => return None,
     })
