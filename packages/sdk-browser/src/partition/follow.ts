@@ -11,6 +11,7 @@
  * A host mesh whose `castShadow` changed has its rows' flags written again.
  */
 import type { PlacementLink } from '../placement/gpuCompose.ts'
+import { writePlacementRow } from '../placement/rows.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -105,32 +106,27 @@ export function createPlacementWrites(
       unslotted.delete(parent)
     }
   }
-  const flags = ({ mesh, row }: Placement) =>
+  /** Row `placement` on each link of its mesh, by the one row writer (`writePlacementRow`): shown,
+   *  casting as its host mesh says, at `pose` when one is given. */
+  const writeRow = ({ mesh, row }: Placement, pose: Float64Array | null) =>
     mesh.links.forEach((link, at) => {
-      const rows = link.placements!
-      rows.live[row] = 1
-      rows.shadowless[row] = mesh.nodes[at]?.castShadow === false ? 1 : 0
+      const casts = mesh.nodes[at]?.castShadow !== false
+      writePlacementRow(link.placements!, row, pose, true, casts)
       touched.touch(link, row)
     })
-  /** The pose a row opens the session on, `parent · local`: written only while no composition
-   *  exists to give it (`prime` places the cells before any engine reads the rows). Once the
-   *  session composes, the row is linked and this module writes none. */
-  const writeOpeningPose = (placement: Placement) => {
-    const { mesh, row, parent, local } = placement
-    multiplyMatrix4(product, worldOf(parent), local)
-    for (const link of mesh.links) link.placements!.matrices.set(product, row * 16)
-  }
-  /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next `settle`;
-   *  its opening pose while no composition exists yet. */
+  /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next
+   *  `settle`. While no composition exists yet (`prime` places the cells before any engine reads
+   *  the rows) it takes the pose the session opens on, `parent · local`; once the session
+   *  composes, the row is linked and this module writes no pose. */
   const write = (placement: Placement, linking = true) => {
     const { mesh, row, parent, local } = placement
     heldWorld(parent)
-    if (!frame.compose) writeOpeningPose(placement)
-    else if (linking) {
+    if (!frame.compose) return writeRow(placement, multiplyMatrix4(product, worldOf(parent), local))
+    if (linking) {
       const list = pending.get(parent) ?? pending.set(parent, []).get(parent)!
       for (const link of mesh.links) list.push(linkOf(link, row, local))
     }
-    flags(placement)
+    writeRow(placement, null)
   }
   /** The parents a `settle` opens slots for. */
   const opening = new Set<Object3D>()
