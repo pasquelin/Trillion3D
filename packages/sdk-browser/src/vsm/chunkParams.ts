@@ -53,13 +53,19 @@ export const vsmCandidatesEntries = () => [
  * mip, clamp to near plane), one per local light face / map (8 mip views); and
  * the mip views they hold in all.
  */
+/** The mips the raster draws of one map of a light of `kind`: a clipmap level's one, a local map's
+ *  every mip. The one rule of the raster's views and of their bound before the frame's lights are
+ *  set up (`renderViewBound`). */
+export const vsmMapViewMips = (kind: VsmBoundLight['kind']) =>
+  kind === 'directional' ? 1 : VSM_MIPS
+
 export function vsmRenderViews(lights: readonly VsmBoundLight[], views: number[] = []) {
   views.length = 0
   let viewMips = 0
   for (const light of lights) {
     const directional = light.kind === 'directional'
     for (let k = 0; k < light.count; k++) {
-      const mips = directional ? 1 : VSM_MIPS
+      const mips = vsmMapViewMips(light.kind)
       views.push(light.firstId + k, mips, directional ? VSM_RENDER_VIEW_DIRECTIONAL : 0, 0)
       viewMips += mips
     }
