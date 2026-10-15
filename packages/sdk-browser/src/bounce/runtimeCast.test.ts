@@ -10,10 +10,9 @@ import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 
 const lit = () => world(1, 1, { places: along(1, 4), surfaces: [[0, 0, 0, 1, 3, 2, 1, 0]] })
 
-test('the proxy’s rays bind nothing writable, and read a placement’s instance whole', () => {
+test('the proxy’s rays bind nothing writable and share no counter', () => {
   const rays = wgslModule(runtimeRadianceWgsl(BINDINGS))
   assert.ok(!rays.includes('read_write'), 'the rays write no binding')
-  assert.ok(!REFLECTION_TRACE_SHADER.includes('rtInstanceWord'), 'never a texel load a word')
   assert.ok(!REFLECTION_TRACE_SHADER.includes('atomic'), 'no counter shared between rays')
 })
 

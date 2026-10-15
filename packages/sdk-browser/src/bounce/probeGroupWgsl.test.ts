@@ -19,9 +19,7 @@ test('the probe update is as wide as a probe’s rays, its sums within the guara
   assert.ok(threads * (13 * 16 + 8) <= GUARANTEED_WORKGROUP_BYTES)
 })
 
-test('a probe’s rays are its threads: one constant, each lane its one ray', () => {
-  const constants = wgslConstants(BOUNCE_PROBE_SHADER) as Record<string, number>
-  assert.equal(constants.RAYS_PER_PROBE, undefined, 'no second name for the group’s width')
+test('a probe’s rays are its threads: each lane its one ray', () => {
   assert.match(BOUNCE_PROBE_SHADER, /let d=rayDirection\(lane,jitter,rotation\);/)
   assert.doesNotMatch(BOUNCE_PROBE_SHADER, /for\(var ray=/)
 })

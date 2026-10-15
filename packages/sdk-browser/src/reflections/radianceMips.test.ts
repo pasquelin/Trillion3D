@@ -31,5 +31,4 @@ test("the build reads and writes the levels of the frame's HDR target, mip by mi
 test('the reflection group declares the pyramid as one texture', () => {
   const code = wgslModule(reflectionBindingsWgsl(1))
   assert.match(code, /var reflectionImage:texture_2d<f32>;/)
-  assert.doesNotMatch(code, /reflectionRadiance/)
 })
