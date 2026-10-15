@@ -67,7 +67,7 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
  ${t.start}
  ${t.empty}
  let inverse=rayInverseDirection(direction);
- var stack:array<u32,${t.stack ?? BOUNCE_SETTINGS.traversalStack}>;
+ var stack:array<u32,${stackBound(t)}>;
  var depth=0u;
  var node=${t.root ?? '0u'};
  let steps=${t.steps};
