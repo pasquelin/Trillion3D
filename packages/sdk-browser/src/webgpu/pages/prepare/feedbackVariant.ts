@@ -1,7 +1,6 @@
 import { FEEDBACK_BYTES } from '../../../scene/surfaceBuffer.ts'
 import { SHADE_SHADER } from '../../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
-import { shadeWithoutFeedbackCode } from '../../visibility/shaders.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
 import { blendWritesShare } from './asIsShareTarget.ts'
 import { blendContext } from './contractLight.ts'
@@ -108,9 +107,7 @@ async function feedbackPipelines(
   feedback: boolean,
 ): Promise<FeedbackPipelines> {
   const { vis, blendState } = rt
-  const module = device.createShaderModule({
-    code: feedback ? SHADE_SHADER : shadeWithoutFeedbackCode(),
-  })
+  const module = device.createShaderModule({ code: SHADE_SHADER })
   const shadeMade = createWebgpuShadePipelines(
     device,
     module,

@@ -2,11 +2,9 @@
 // stage of the first scene that transmits (`../blend/pipelines.ts`). Its frame side is
 // `pass.ts`.
 import type { BlendPipelines } from '../blend/stagePipelines.ts'
-import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import { createWaterFrame, type WaterFrame } from './frame.ts'
 import { createWaterSurfacePipelines } from './pipelines.ts'
 import { createLobedWaterStage, type LobedWaterStage } from './lobedStage.ts'
-import { waterSurfaceOutputs } from './surfaceTargets.ts'
 import { createWaterRect, type WaterRect } from './rect.ts'
 import type { Reach } from '../blend/reach.ts'
 import type { ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
@@ -19,26 +17,6 @@ export interface WaterPass {
   lobed: LobedWaterStage
   frame: WaterFrame
   rect: WaterRect
-}
-
-/** The blend module's `code`, carrying `fsWater` — and `fsWaterLobed` with `lobes`
- *  (`waterSurfaceWgsl`) —, with their entries that write no feedback, as the blend entries have
- *  theirs. */
-export function waterWithoutFeedback(code: string, lobes: boolean) {
-  const entry = (from: string, lobed: boolean) => {
-    const name = lobed ? 'WaterLobed' : 'Water'
-    const input = 'in:VSOut,@builtin(front_facing) front:bool'
-    return feedbackFreeEntry(
-      from,
-      `fs${name}`,
-      `${name}Out`,
-      waterSurfaceOutputs(false, lobed),
-      input,
-      'in,front',
-    )
-  }
-  const plain = entry(code, false)
-  return lobes ? entry(plain, true) : plain
 }
 
 /** What the pass is told of the lobes: the blend module that holds the lobed stage

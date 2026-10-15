@@ -21,7 +21,7 @@ import {
   DIAGNOSTIC_BLEND_WGSL,
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts'
-import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
+import { feedbackConstants } from '../tile/requestWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
@@ -37,10 +37,6 @@ export type BlendedSurface = Pick<BlendGpuItem, 'surface' | 'transmissive'>
 
 /** A blend program: its module, and the pipelines drawn with it. */
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
-
-/** The blend fragment's values, in their order: what a feedback-free entry keeps. */
-const BLEND_OUT = ['color', 'asIs', 'tint', 'add'].map((name) => ({ name, wgsl: 'vec4f' }))
-const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const
 
 /** The transmission code a scene that transmits imports (`families.transmission`). */
 type WaterCode = Awaited<ReturnType<typeof families.transmission.load>>
@@ -138,18 +134,12 @@ async function blendWater(
 /** The blend module's text lit with the code `key` leaves in: the water surface stage, which lights
  *  nothing, is an entry of a twin's module alone — its lobed entry of the lobed one's. */
 function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
-  const { waterCode, variant, feedback } = setup
+  const { waterCode, variant } = setup
   const surface = isTwin(key) ? waterCode : undefined
-  let code = blendShader(key, {
+  return blendShader(key, {
     stage: surface?.waterSurfaceWgsl(!key.lobeless),
     diagnostic: variant ? DIAGNOSTIC_BLEND_WGSL : undefined,
   })
-  if (!feedback) {
-    for (const entry of ['fs', 'fsFiltered'])
-      code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN)
-    if (surface) code = surface.waterWithoutFeedback(code, !key.lobeless)
-  }
-  return code
 }
 
 /** The module lit with the code `key` leaves in, and its pipelines: two lazy sets (#365), with no
@@ -158,8 +148,8 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   const { device, layout, variant, feedback, share, reach } = setup
   // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant)
-  const entryPoint = feedback ? selected.entryPoint : 'fsWithoutFeedback'
-  const { writeMask } = selected
+  const { entryPoint, writeMask } = selected
+  const constants = feedbackConstants(feedback)
   const label = `BLEND${variantLabel(key)}`
   const module = device.createShaderModule({ label, code: blendModuleCode(setup, key) })
   const sets = [false, true].map((withShare) => ({
@@ -168,7 +158,12 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
         device,
         module,
         layout,
-        { module, entryPoint, targets: blendTargets(mode, writeMask, feedback, false, withShare) },
+        {
+          module,
+          entryPoint,
+          constants,
+          targets: blendTargets(mode, writeMask, feedback, false, withShare),
+        },
         false,
       ),
     ),

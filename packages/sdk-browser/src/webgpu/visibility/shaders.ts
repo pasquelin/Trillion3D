@@ -15,7 +15,6 @@ import {
   variesVisibility,
 } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
-import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 import {
   computeBufferEntry,
   computeSamplerEntry,
@@ -61,34 +60,14 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
   ]
 }
 
-/** The resolve module whose `shade_fsWithoutFeedback` writes the four surfaces alone: the same
- *  `shade_fs` body, its request dropped (`feedbackFreeEntry`). A scene that wears no texture, and
- *  the feedback A/B's arm without the target, resolve with it. */
-export const shadeWithoutFeedbackCode = () =>
-  feedbackFreeEntry(
-    SHADE_SHADER,
-    'shade_fs',
-    'SurfaceOut',
-    [
-      { name: 'baseMetal', wgsl: 'vec4f' },
-      { name: 'normalRough', wgsl: 'vec4f' },
-      { name: 'emissiveAo', wgsl: 'vec4f' },
-      { name: 'flags', wgsl: 'u32' },
-    ],
-    '@builtin(position) pos:vec4f',
-    'pos',
-  )
-
-/** Allocates visibility uniforms and validates both shader modules before pipeline creation.
- *  `feedback` false makes the resolve module the one without a feedback output
- *  (`shadeWithoutFeedbackCode`); the feedback A/B gets that one beside the other. */
+/** Allocates visibility uniforms and validates both shader modules before pipeline creation. The
+ *  resolve module serves its pipelines with the feedback target and without it alike: its request
+ *  is folded by their `FEEDBACK` constant (`feedbackConstants`). */
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
   drawSlots: number,
   slotCount = 7,
   variant?: DiagnosticGpuVariant,
-  feedbackAB = false,
-  feedback = true,
 ) {
   const shadeUniform = device.createBuffer({
     label: 'Trillion3D resolve uniform',
@@ -109,21 +88,13 @@ export async function createWebgpuVisibilityShaders(
   const visModule = device.createShaderModule({
     code: variesVisibility(variant) ? visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }) : VIS_SHADER,
   })
-  const withoutFeedback = () => device.createShaderModule({ code: shadeWithoutFeedbackCode() })
-  const shadeModule = feedback
-    ? device.createShaderModule({
-        code: variesShade(variant)
-          ? shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL })
-          : SHADE_SHADER,
-      })
-    : withoutFeedback()
-  const shadeWithoutFeedback = feedbackAB ? withoutFeedback() : undefined
+  const shadeModule = device.createShaderModule({
+    code: variesShade(variant) ? shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }) : SHADE_SHADER,
+  })
   if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER')
   const shadeErrors = await shaderErrors(shadeModule)
   if (shadeErrors.length)
     throw new Error('SHADE_SHADER: ' + shadeErrors.map((message) => message.message).join(' | '))
-  if (shadeWithoutFeedback && (await shaderErrors(shadeWithoutFeedback)).length)
-    throw new Error('SHADE_WITHOUT_FEEDBACK_SHADER')
   return {
     shadeUniform,
     visBindGroupLayout,
@@ -131,6 +102,5 @@ export async function createWebgpuVisibilityShaders(
     visUniform,
     visModule,
     shadeModule,
-    shadeWithoutFeedback,
   }
 }

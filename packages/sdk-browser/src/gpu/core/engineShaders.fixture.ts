@@ -59,7 +59,6 @@ import {
 import '../../impostor/lent.fixture.ts'
 import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
 import { cardTileWgsl } from '../../webgpu/tile/cardReads.ts'
-import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 
 /**
@@ -140,8 +139,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
-  // The resolve of a scene that wears no texture (`feedbackVariant.ts`).
-  SHADE_WITHOUT_FEEDBACK: shadeWithoutFeedbackCode(),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
   BLEND_WATER: blendShader({}, { stage: waterSurfaceWgsl(true) }),

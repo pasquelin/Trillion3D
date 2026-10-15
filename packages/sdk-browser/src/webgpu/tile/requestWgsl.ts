@@ -97,6 +97,10 @@ export const FEEDBACK_RULE_WGSL = wgslBlock(
   'FEEDBACK_RULE_WGSL',
   [FEEDBACK_STRIDE_WGSL],
   `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
+/** The pipeline writes the feedback target: false, folded at pipeline creation, every request is
+ *  zero and none of its code is reached — one module serves the pipelines with the target and
+ *  without it, whose targets leave the request's location empty. */
+override FEEDBACK:bool=true;
 fn feedbackMissing(p:vec2f,word:u32)->bool{return feedbackEvery(word)&&((u32(p.y)+word)&1u)==0u;}
 /** The pixel speaks this image: it is its square's speaking pixel (\`feedbackStride\`). */
 fn feedbackPhase(p:vec2f,word:u32)->bool{return all((vec2u(p)&vec2u(feedbackStride(word)-1u))==feedbackOffset(word));}
@@ -109,8 +113,12 @@ fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(po
 fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`,
 )
 
+/** The pipeline constants of a fragment stage writing the feedback target or not (`FEEDBACK`): the
+ *  one switch of every pass that asks tiles — opaque resolve, blends, water surfaces, cards. */
+export const feedbackConstants = (feedback: boolean) => ({ FEEDBACK: feedback ? 1 : 0 })
+
 /** What a surface's request loop is made of (`requestLoopWgsl`): its function's head, the pixel
- *  position and feedback word it speaks by, the lines that make the word (`before`) and those a
+ *  position and feedback word it speaks by, the lines a surface runs before its phase (`before`) and those a
  *  speaking pixel needs (`setup`), its count of picks, and its pick's call on a pick and `missing`. */
 type RequestLoop = {
   head: string
@@ -130,6 +138,7 @@ type RequestLoop = {
  */
 export const requestLoopWgsl = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
   `${head}{
+ if(!FEEDBACK){return 0u;}
 ${before ? ` ${before}\n` : ''} if(!feedbackPhase(${pos},${word})){return 0u;}
 ${setup ? ` ${setup}\n` : ''} let choices=${choices};
  if(feedbackMissing(${pos},${word})){

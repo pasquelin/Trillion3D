@@ -133,12 +133,10 @@ test('the list holds the text of every call that compiles a module', () => {
     if (read.length !== text.split(/create(?:Checked)?ShaderModule\(/).length - 1)
       unlisted.push(`${file}: a call not read`)
     for (const [, checked, plain] of read) {
-      // The blend module appends checked feedback-free entries to listed source texts, in its
-      // own helper (`blendModuleCode`).
+      // The blend module's text is built by its own helper (`blendModuleCode`) from listed texts.
       const helper = /^blendModuleCode\(/.test(plain?.trim() ?? '')
       if (file === 'webgpu/blend/pipelines.ts' && helper) {
-        assert.match(text, /let code\s*=\s*blendShader\(/)
-        assert.match(text, /code = feedbackFreeEntry\(/)
+        assert.match(text, /return blendShader\(/)
         continue
       }
       const names = (checked ?? plain).match(/\b[A-Za-z_]\w*\b/g) ?? []

@@ -1,5 +1,6 @@
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { waterSurfaceEntry, waterSurfaceTargets } from './surfaceTargets.ts'
+import { feedbackConstants } from '../tile/requestWgsl.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { blendStagePipelines, stageDescriptors } from '../blend/stagePipelines.ts'
@@ -14,8 +15,9 @@ import { variantLabel, type ContractKey } from '../../lighting/deferred/contract
 /** The surface stage's fragment: its entry and targets, with the lobes or not (`surfaceWgsl.ts`). */
 const waterSurfaceFragment = (module: GPUShaderModule, feedback: boolean, lobes = false) => ({
   module,
-  entryPoint: waterSurfaceEntry(feedback, lobes),
+  entryPoint: waterSurfaceEntry(lobes),
   targets: waterSurfaceTargets(feedback, lobes),
+  constants: feedbackConstants(feedback),
 })
 
 /**

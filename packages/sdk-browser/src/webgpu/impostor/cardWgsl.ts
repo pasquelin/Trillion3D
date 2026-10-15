@@ -7,7 +7,8 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { frameAround } from '../../../../math/src/wgsl/basis.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { requestLoopWgsl } from '../tile/requestWgsl.ts'
-import { fragmentMembers, type FragmentField } from '../../gpu/core/fragmentOutputs.ts'
+import { fragmentMembers } from '../../gpu/core/fragmentOutputs.ts'
+import { REQUEST_OUTPUT, SURFACE_OUTPUTS } from '../../scene/surfaceOutputs.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the camera's own, both
  *  at the eye, then the eye in two singles a component — the high words with the focal length's
@@ -15,14 +16,6 @@ import { fragmentMembers, type FragmentField } from '../../gpu/core/fragmentOutp
 export const CARD_VIEW_FLOATS = 40
 /** Maps a pixel may ask a tile of: colour and coverage, normal and depth, ORM. */
 const CARD_MAPS = 3
-/** The four opaque surfaces a card pixel writes, in their targets' order: what its surface stage
- *  writes without the feedback target (`feedbackFreeEntry`, `pipelines.ts`). */
-export const CARD_SURFACE_FIELDS: readonly FragmentField[] = [
-  { name: 'baseMetal', wgsl: 'vec4f' },
-  { name: 'normalRough', wgsl: 'vec4f' },
-  { name: 'emissiveAo', wgsl: 'vec4f' },
-  { name: 'flags', wgsl: 'u32' },
-]
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
 const LIT_SURFACE_FLAG = 2
 
@@ -44,7 +37,7 @@ const LIT_SURFACE_FLAG = 2
  * material passes, `card_fs` writes its surface where the identifier kept is its own — an integer
  * the visibility stage wrote, which no rounding of a depth formula reaches —, so the lighting, the
  * shadows and every later pass read it as they read a cluster, and posts the tile its pixel reads
- * (`cardRequest`); its entry without the feedback target is derived (`feedbackFreeEntry`).
+ * (`cardRequest`), folded away by `FEEDBACK` where the pipeline writes no feedback target.
  */
 export const cardPassWgsl = (reads: WgslDecl) =>
   wgslProgram(
@@ -158,8 +151,7 @@ fn cardPick(px:CardPixel,p:RequestPick,lod:f32,missing:bool)->u32{
 ${requestLoopWgsl({
   head: 'fn cardRequest(px:CardPixel,pos:vec2f,lod:f32)->u32',
   pos: 'pos',
-  word: 'word',
-  before: 'let word=bitcast<u32>(view.eyeLow.w);',
+  word: 'bitcast<u32>(view.eyeLow.w)',
   setup: 'let at=impLod(px.maps.colour,lod);',
   choices: `${CARD_MAPS}u`,
   pick: (p, missing) => `cardPick(px,${p},at,${missing})`,
@@ -186,7 +178,7 @@ fn cardSurface(in:CardVary,px:CardPixel)->CardSurface{
  return CardSurface(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag);
 }
 fn cardKept(in:CardVary)->bool{return textureLoad(cardIds,vec2i(in.clip.xy),0).r==cardId(in.card);}
-struct CardOut{${fragmentMembers([...CARD_SURFACE_FIELDS, { name: 'feedback', wgsl: 'u32' }])}}
+struct CardOut{${fragmentMembers([...SURFACE_OUTPUTS, REQUEST_OUTPUT])}}
 @fragment fn card_fs(in:CardVary)->CardOut{
  if(!cardKept(in)){discard;}
  let px=cardPixel(in);let s=cardSurface(in,px);

@@ -5,6 +5,7 @@ import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { shadeTargetFormats } from './shadeTargets.ts'
+import { feedbackConstants } from '../tile/requestWgsl.ts'
 import { createMaterialTiles, materialTileDrawLayout } from '../core/materialTiles.ts'
 
 /** The resolve's class pipelines: one per class key (`../../visibility/shader/materialClass.ts`),
@@ -47,7 +48,9 @@ export function createWebgpuShadePipelines(
     bindGroupLayouts: [shadeBindGroupLayout, tileDrawLayout],
   })
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' }
-  const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback'
+  // One entry with the feedback target or without it: its request folded by `FEEDBACK`.
+  const entryPoint = shadeVariantFragment(variant)
+  const fed = feedbackConstants(feedback)
   /** Class features derive from the key; a single class draws full screen, every other the tiles
    *  its pixels are in. */
   const shadeDescriptor = (
@@ -69,7 +72,7 @@ export function createWebgpuShadePipelines(
       fragment: {
         module: shadeModule,
         entryPoint,
-        constants,
+        constants: { ...constants, ...fed },
         // The surfaces, then the tile request the image's feedback target receives.
         targets: shadeTargetFormats(feedback).map((format, at) =>
           at === 2 && !layer ? null : { format },

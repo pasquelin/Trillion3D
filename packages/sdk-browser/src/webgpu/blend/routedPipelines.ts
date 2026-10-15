@@ -5,6 +5,7 @@ import { displayMaskLayout, MASK_FORMAT } from './displayFilter.ts'
 import { displayRoute, filtersDisplay } from './equations.ts'
 import { pipelinesByMode, stageDescriptors } from './stagePipelines.ts'
 import { cullOf, modeOf } from './planCull.ts'
+import { feedbackConstants } from '../tile/requestWgsl.ts'
 
 /**
  * The blend pass's pipelines in an image with display layers (`displayFilter.ts`): each mode's
@@ -19,7 +20,7 @@ export function createRoutedPipelines(
   feedback: boolean,
   targets: (mode: Blending) => (GPUColorTargetState | null)[],
 ) {
-  const suffix = feedback ? '' : 'WithoutFeedback'
+  const constants = feedbackConstants(feedback)
   const filtered = pipelinesByMode(device, (mode) =>
     stageDescriptors(
       device,
@@ -27,22 +28,24 @@ export function createRoutedPipelines(
       layout,
       {
         module,
-        entryPoint: `fsFiltered${suffix}`,
+        entryPoint: 'fsFiltered',
         targets: targets(mode),
-        constants: { DISPLAY_ROUTE: displayRoute(mode) },
+        constants: { ...constants, DISPLAY_ROUTE: displayRoute(mode) },
       },
       false,
       displayMaskLayout(device),
     ),
   )
-  const slot = feedback ? 3 : 2
+  // The tint's slot: the request's location stays, its target left empty without the feedback.
+  const slot = 3
   const culls = stageDescriptors(
     device,
     module,
     layout,
     {
       module,
-      entryPoint: `fs${suffix}`,
+      entryPoint: 'fs',
+      constants,
       targets: [...Array(slot).fill(null), { format: MASK_FORMAT }],
     },
     false,

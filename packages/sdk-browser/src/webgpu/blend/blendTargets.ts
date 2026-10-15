@@ -19,7 +19,8 @@ export const blendTargets = (
     writeMask: filtered && filtersDisplay(mode) ? 0 : mask,
     blend: COVERAGE_EQUATIONS[mode],
   },
-  ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
+  // The request's location: its target, or an empty slot where the pipeline writes no feedback.
+  feedback ? { format: FEEDBACK_FORMAT } : null,
   share ? SHARE_TARGET : null, // every mode covers it at its alpha, green included
   ...(filtered ? displayTargets(mode) : [null, null]),
 ]

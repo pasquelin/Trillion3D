@@ -7,6 +7,7 @@ import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { RECEIVER_TARGET_BYTES } from '../visibility/shader/receiverTargetWgsl.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { DEPTH_FORMAT, DISPLAY_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from './targetFormats.ts'
+import { SURFACE_OUTPUTS } from './surfaceOutputs.ts'
 
 /** Bytes of one texel of each of `formats`, summed (`texelBytesOf`). */
 const texelSum = (...formats: GPUTextureFormat[]) =>
@@ -15,13 +16,8 @@ const texelSum = (...formats: GPUTextureFormat[]) =>
 /** Version 1: opaque/masked material properties in linear space, before lighting.
  * No velocity or GI representation is claimed by this contract. The flags hold a model of 0 to 5
  * and three marks (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep
- * every one. */
-export const SURFACE_FORMATS: GPUTextureFormat[] = [
-  'rgba16float',
-  'rgba16float',
-  'rgba16float',
-  'r8uint',
-]
+ * every one. The four surfaces' formats, in their order (`SURFACE_OUTPUTS`). */
+export const SURFACE_FORMATS: GPUTextureFormat[] = SURFACE_OUTPUTS.map(({ format }) => format)
 /** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
  *  the virtual shadow maps' projection (`../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_BYTES_PER_PIXEL = texelSum(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES

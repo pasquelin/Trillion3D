@@ -178,8 +178,8 @@ export async function bindShade(
   // The row table at its one size, made by its one maker: the shade group binds it.
   ensurePageTable(rt, gpuDevice)
   ensureWebgpuShadeBindings(rt, gpuDevice)
-  const ab = shaders.shadeWithoutFeedback && (await families.diagnostics.load()) // a view's
-  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback!, classes)
+  const ab = rt.context.feedbackTargetAB === true && (await families.diagnostics.load()) // a view's
+  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeModule, classes)
   // The engine draws through the visibility pass alone (#1483): without it nothing draws.
   if (!vis.visTexture || !vis.shadeBindGroup || !vis.shadeClasses || !vis.visPipelineBack)
     throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE')
