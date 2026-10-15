@@ -141,15 +141,16 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         ...switches.held,
         ...sessionPools(pools),
-        beforeFrame: () => (parts.step(), runtime.beforeFrame()),
-        onFrame: (metrics) => {
-          frames.dispatch(metrics)
-          // A clip still playing asks for the next; the last pauses.
-          if (state.animating) parts.invalidate()
-        },
+        // The session's own loop runs the world's frame: its prologue and epilogue, as `render`.
+        beforeFrame: () => runtime.beforeFrame(parts.step),
+        onFrame: (metrics) => runtime.afterDraw(metrics),
       }),
     opened: (explorer) => diagnostic.apply(explorer),
-    frame: frames.dispatch,
+    frame: (metrics) => {
+      frames.dispatch(metrics)
+      // A clip still playing asks for the next; the last pauses.
+      if (state.animating) parts.invalidate()
+    },
     drawn: () => frames.last !== null,
     display: () => ({
       exposure: state.exposure,

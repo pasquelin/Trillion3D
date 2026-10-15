@@ -1,7 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandover.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
-import type { MeasuredWorldOptions } from '../session/options.ts'
 
 /** Why a world's session opens again: a lost device, or an option the engine cannot take in place
  *  (a budget split, a scope). Content never does: every mesh, material, model and partition joins
@@ -60,11 +59,6 @@ export function worldReopens(
   const drew = () => settle(true)
   return {
     request,
-    /** A session's options: its frames end the reopen. */
-    options: (given: MeasuredWorldOptions): MeasuredWorldOptions => ({
-      ...given,
-      onFrame: (metrics) => (drew(), given.onFrame?.(metrics)),
-    }),
     /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
     closing(previous: object | null) {
       const causes = [...wanted]

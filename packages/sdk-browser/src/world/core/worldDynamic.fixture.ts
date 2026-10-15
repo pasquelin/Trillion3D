@@ -14,7 +14,7 @@ import '../../wasm/sdkWasm.fixture.ts'
  *  carried and `boxes` a copy of its pages' boxes; `served` counts its pages,
  *  `placed` the row ranges sent it (`updatePlacements`).
  *  `frame` draws as a host's `render()` does, `loop` as the session's own loop: `beforeFrame`, the
- *  draw, then the `onFrame` it was opened with (`interactive.ts`). */
+ *  draw, then `afterDraw`, the `onFrame` a world opens its sessions with (`world.ts`). */
 export function dynamicWorld() {
   const { session } = sessionStandIn()
   const rewrites: VertexRange[][] = [],
@@ -54,7 +54,7 @@ export function dynamicWorld() {
     await runtime.settled()
     runtime.beforeFrame()
     const metrics = session.render() as FrameMetrics
-    opened.at(-1)!.onFrame?.(metrics)
+    runtime.afterDraw(metrics)
     return metrics
   }
   const end = () => ((URL.createObjectURL = serve), runtime.dispose())

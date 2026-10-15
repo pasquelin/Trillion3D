@@ -8,6 +8,7 @@ import type { worldReopens } from './worldReopen.ts'
 import type { followPageCamera } from './worldCamera.ts'
 import type { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts'
 import { vertexUploads } from './worldDynamicRanges.ts'
 import { noticeRefused } from '../diagnostic/worldNotices.ts'
@@ -78,14 +79,9 @@ export function worldOpening(parts: WorldRuntimeParts) {
     try {
       const scope = built.source.metadata.scope // its first model's scope, or the default
       await inputs.ready() // a lost device is asked again: it opens on what is granted, or fails
-      const given = inputs.options()
-      // The session's own loop hands its frames on as `render()` does: bytes told (#573).
-      const onFrame: typeof given.onFrame = (m) => (
-        contents.cuts.dynamic.drew(m),
-        given.onFrame?.(m)
-      )
-      const options = track.options({
-        ...{ ...given, scope, onFrame },
+      const options: MeasuredWorldOptions = {
+        ...inputs.options(),
+        scope,
         onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
         onPartitionOutgrown: () =>
           noticeRefused(
@@ -93,7 +89,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
             'partition rows',
             'the view outgrew the rows and the engine cannot grow them in place: the cells past them wait',
           ),
-      })
+      }
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = state.explorer = await open(canvas, options, {
         ...built.source,

@@ -9,6 +9,7 @@ import { followPageCamera } from './worldCamera.ts'
 import { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { askedFrame } from './worldAskedFrame.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import {
   worldApply,
   worldOpening,
@@ -88,41 +89,47 @@ function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: ()
   }
 }
 
-/** Before a frame, every change applied and the canvas and camera followed; and the frame
- *  `render` draws: `ahead` steps, every change since the last frame is applied. */
+/** THE WORLD'S FRAME, whoever leads it: `beforeFrame` steps (`ahead`), applies every change since
+ *  the last frame and follows the canvas and camera; `afterDraw` hands the metrics on — the
+ *  dynamic uploads told, a reopen said, the world's hooks run. The session's own loop calls both
+ *  around its draw; `draw`, the frame `render` asks, calls them around its own. */
 function worldFrame(parts: WorldRuntimeParts, apply: () => void) {
   const { inputs, state, contents, track, led, placeCamera } = parts
-  const beforeFrame = () => {
+  const beforeFrame = (ahead?: () => void) => {
+    ahead?.()
     apply()
     if (!state.explorer) return
     if (led) state.explorer.followCanvas()
     placeCamera(state.explorer.camera)
   }
-  const draw = (ahead?: () => void) => {
-    if (!state.explorer) return null
-    ahead?.()
-    beforeFrame() // what it applies may close the session: that frame has no image
-    if (!state.explorer) return null
-    const metrics = state.explorer.render()
+  const afterDraw = (metrics: FrameMetrics) => {
     contents.cuts.dynamic.drew(metrics)
     track.drew()
     inputs.frame(metrics)
+  }
+  const draw = (ahead?: () => void) => {
+    if (!state.explorer) return null
+    beforeFrame(ahead) // what it applies may close the session: that frame has no image
+    if (!state.explorer) return null
+    const metrics = state.explorer.render()
+    afterDraw(metrics)
     return metrics
   }
-  return { beforeFrame, draw }
+  return { beforeFrame, afterDraw, draw }
 }
 
 /** What a world reads of its runtime. */
 function runtimeHandle(
   parts: WorldRuntimeParts,
   reopens: WorldReopens,
-  { beforeFrame, draw }: ReturnType<typeof worldFrame>,
+  { beforeFrame, afterDraw, draw }: ReturnType<typeof worldFrame>,
   relight: () => void,
 ) {
   const { inputs, state, contents, track } = parts
   const { canvas, scene } = inputs
   return {
     beforeFrame,
+    afterDraw,
     invalidate: parts.invalidate,
     /** A move by name the world offers its page (`world.setTransform`, #972). */
     moveNamed: parts.moveNamed,
