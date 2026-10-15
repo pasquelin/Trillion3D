@@ -1,10 +1,11 @@
-//! Octahedral maps of the unit sphere onto a square: a direction projected onto the octahedron
-//! `|x| + |y| + |z| = 1`, its lower half folded over the upper one. Two maps, kept apart:
+//! The octahedral map of the unit sphere onto a square: a direction projected onto the octahedron
+//! `|x| + |y| + |z| = 1`, its lower half folded over the upper one, `+Z` the upper pole
+//! (`project`, `unproject`; the shaders' `octEncode`, `octDecode`). Its users:
 //!
-//! - `oct_encode`, `oct_decode`: a normal on two bytes and back, in `f32`, `+Z` the upper pole —
-//!   the page format's normals;
+//! - `oct_encode`, `oct_decode`: a normal on two bytes and back, in `f32` — the page format's;
 //! - `octahedral_encode`, `octahedral_decode`: a direction on `[-1, 1]²` (the grid `[0, 1]²` back),
-//!   in `f64`, `+Y` the upper pole, the full sphere or its upper half — the impostor atlas.
+//!   in `f64` — the impostor atlas, `+Y` its pole: the same map with `y` and `z` swapped, or the
+//!   upper hemi-octahedron.
 
 use crate::real::Real;
 use crate::vec3::unit_or_itself;
@@ -22,8 +23,7 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
     if sum == 0.0 || !sum.is_finite() {
         return 128 | (128 << 8);
     }
-    let (px, py) = (x / sum, y / sum);
-    let [px, py] = if z < 0.0 { fold([px, py]) } else { [px, py] };
+    let [px, py] = project(normal);
     let cell = |v: f32| ((v + 1.0) * 127.5).floor().clamp(0.0, 254.0) as u32;
     let (bx, by) = (cell(px), cell(py));
     let length = length(normal);
@@ -46,12 +46,34 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
 /// Two octahedral bytes (`x` low, `y` high) back to a unit vector: each byte times `OCT_SCALE`
 /// less one, the lower half unfolded, divided by `√((x² + y²) + z²)`.
 pub fn oct_decode(q: u32) -> [f32; 3] {
-    let x = (q & 255) as f32 * OCT_SCALE - 1.0;
-    let y = ((q >> 8) & 255) as f32 * OCT_SCALE - 1.0;
-    let z = 1.0 - x.abs() - y.abs();
-    let [x, y] = if z < 0.0 { fold([x, y]) } else { [x, y] };
+    let [x, y, z] = unproject([
+        (q & 255) as f32 * OCT_SCALE - 1.0,
+        ((q >> 8) & 255) as f32 * OCT_SCALE - 1.0,
+    ]);
     let length = length([x, y, z]);
     [x / length, y / length, z / length]
+}
+
+/// `v` on the octahedron, `(x, y) / (|x| + |y| + |z|)`, the lower half (`z < 0`) folded: the one
+/// map, `+Z` its pole. No zero or non-finite test: each caller has its own.
+#[inline]
+fn project<T: Real + PartialOrd>([x, y, z]: [T; 3]) -> [T; 2] {
+    let sum = x.abs() + y.abs() + z.abs();
+    let p = [x / sum, y / sum];
+    if z < T::ZERO {
+        fold(p)
+    } else {
+        p
+    }
+}
+
+/// `project`'s point `e` back on the octahedron, not made unit: `z = 1 − |x| − |y|`, the lower
+/// half unfolded.
+#[inline]
+fn unproject<T: Real + PartialOrd>(e: [T; 2]) -> [T; 3] {
+    let z = T::ONE - e[0].abs() - e[1].abs();
+    let [x, y] = if z < T::ZERO { fold(e) } else { e };
+    [x, y, z]
 }
 
 /// The lower half folded over the upper one: each axis `1 − |other|`, on its own side, `+` at zero
@@ -63,8 +85,8 @@ fn fold<T: Real + PartialOrd>([a, b]: [T; 2]) -> [T; 2] {
     [(T::ONE - b.abs()) * side(a), (T::ONE - a.abs()) * side(b)]
 }
 
-/// Direction `d` to the plane `[-1, 1]²`, `(x, z)` on the octahedron: the full octahedron, its
-/// lower half folded, or the upper hemi-octahedron (`hemi`), turned an eighth, where a direction
+/// Direction `d` to the plane `[-1, 1]²`, `(x, z)` on the octahedron: the full octahedron
+/// (`project` with `y` and `z` swapped), or the upper hemi-octahedron (`hemi`), turned an eighth, where a direction
 /// below the horizon is first flattened onto it. A zero direction on the upper half gives `(0, 0)`.
 pub fn octahedral_encode(d: [f64; 3], hemi: bool) -> [f64; 2] {
     if hemi {
@@ -76,11 +98,7 @@ pub fn octahedral_encode(d: [f64; 3], hemi: bool) -> [f64; 2] {
         let o = scale(d, 1.0 / norm);
         return [o[0] + o[2], o[2] - o[0]];
     }
-    let o = scale(d, 1.0 / (d[0].abs() + d[1].abs() + d[2].abs()));
-    if o[1] < 0.0 {
-        return fold([o[0], o[2]]);
-    }
-    [o[0], o[2]]
+    project([d[0], d[2], d[1]])
 }
 
 /// Grid coordinates `f ∈ [0, 1]²` back to a unit direction (`unit_or_itself`), the inverse of
@@ -90,13 +108,8 @@ pub fn octahedral_decode(f: [f64; 2], hemi: bool) -> [f64; 3] {
         let (x, z) = (f[0] - f[1], f[0] + f[1] - 1.0);
         return unit_or_itself([x, 1.0 - x.abs() - z.abs(), z]);
     }
-    let (u, v) = (f[0] * 2.0 - 1.0, f[1] * 2.0 - 1.0);
-    let y = 1.0 - u.abs() - v.abs();
-    if y < 0.0 {
-        let [x, z] = fold([u, v]);
-        return unit_or_itself([x, y, z]);
-    }
-    unit_or_itself([u, y, v])
+    let [x, z, y] = unproject([f[0] * 2.0 - 1.0, f[1] * 2.0 - 1.0]);
+    unit_or_itself([x, y, z])
 }
 
 #[cfg(test)]
