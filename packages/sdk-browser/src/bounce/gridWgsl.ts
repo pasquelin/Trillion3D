@@ -28,7 +28,6 @@ ${BOUNCE_LEVEL.wgsl}
 ${BOUNCE_GRID.wgsl}
 ${wgslConsts({ CASCADE_LEVELS: BOUNCE_SETTINGS.cascadeLevels })}
 /** The w lanes that carry a probe's state, slot by slot. */
-const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
 /** The held cell occupies three consecutive slots from this one: x, then y, then z. */
 const PROBE_CELL:u32=3u;

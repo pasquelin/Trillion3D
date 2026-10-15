@@ -127,7 +127,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  if(updates<0.5){blend=1.0;count=1.0;}
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
  var state=array<f32,9>();
- state[0]=count;state[PROBE_CHANGE]=change;state[PROBE_VALID]=usable;
+ state[0]=count;state[PROBE_VALID]=usable;
  state[PROBE_CELL]=f32(cell.x);state[PROBE_CELL+1u]=f32(cell.y);state[PROBE_CELL+2u]=f32(cell.z);
  state[PROBE_IDLE]=select(0.0,f32(bounce.frame.x),asleep);
  for(var k=0u;k<9u;k++){
