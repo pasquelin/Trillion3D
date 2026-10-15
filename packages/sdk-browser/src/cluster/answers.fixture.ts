@@ -1,6 +1,7 @@
 import type { TestContext } from 'node:test'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { refusedStatus } from './checked.ts'
+import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
 
 /** An answer `answering` gives: a status, a whole answer, `'network'` — a failed request —, or
  *  `'hang'` — no answer until the request aborts. */
@@ -8,15 +9,6 @@ export type Answer = number | Response | 'network' | 'hang'
 
 /** One request `answering` heard: its address and its options. */
 type Asked = { url: string; init: RequestInit }
-
-/** A request held until `signal` aborts, already aborted or later: it then rejects with the
- *  signal's reason, as `fetch` does. */
-const untilAborted = (signal: AbortSignal | null | undefined) =>
-  new Promise<never>((_, reject) => {
-    const fail = () => reject(signal?.reason ?? new DOMException('Aborted', 'AbortError'))
-    if (signal?.aborted) fail()
-    else signal?.addEventListener('abort', fail, { once: true })
-  })
 
 /**
  * Stubs `fetch` for the test `t`: a request whose address ends in `name` gets the next of
@@ -37,7 +29,8 @@ export function answering(
     if (!url.endsWith(name)) return other(url)
     asked.push({ url, init })
     const answer = answers[Math.min(asked.length, answers.length) - 1]
-    if (answer === 'hang') return untilAborted(init.signal)
+    // Held until its signal aborts, then rejected with its reason, as `fetch` is (`waited`).
+    if (answer === 'hang') return waited(new Promise<never>(() => {}), init.signal ?? undefined)
     if (answer === 'network') throw new TypeError('Failed to fetch')
     if (answer instanceof Response) return answer
     if (answer !== 200) return new Response('refused', { status: answer })
