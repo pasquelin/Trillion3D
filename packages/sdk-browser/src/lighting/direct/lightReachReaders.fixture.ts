@@ -30,10 +30,14 @@ export function shadesOf(code: string) {
   const run = shaderRun<{
     directIncidence: (light: object, P: V3) => number[]
     rectView: (light: object, P: V3) => { window: number }
-  }>(code, ['directIncidence', 'isSun', 'isSunKind', 'rangeWindow', 'rectView'], {
-    ...F32_SCOPE,
-    ...wgslConstants(code),
-  })
+  }>(
+    code,
+    ['directIncidence', 'isSun', 'isSunKind', 'rangeWindow', 'rectView', 'localLightReaches'],
+    {
+      ...F32_SCOPE,
+      ...wgslConstants(code),
+    },
+  )
   return (light: SceneLight, r: LightRecord, P: V3) =>
     light.kind === 'rect' ? run.rectView(r, P).window > 0 : run.directIncidence(r, P)[3] > 0
 }

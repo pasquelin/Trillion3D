@@ -16,9 +16,9 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 export const TILE_STRIDE_WORDS = 2
 
 /**
- * Whether a local light may light a point at `offset` from it (its centre minus the point): the
- * shadow passes' test, at their own points, of where the lighting gives it energy — `directIncidence`
- * and `rectView`, zero past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
+ * Whether a local light may light a point at `offset` from it (its centre minus the point): the one
+ * test of where a light gives energy, read by the lighting (`directIncidence`, `rectView`) and by the
+ * shadow passes at their own points — zero at or past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
  * `cosEdge` around `forward` (its fade), and on a rectangle's (`rect`) back, `forward` the direction
  * it emits along. No divide: the range on the squared distance, the cone against the distance
  * scaled by its cosine, tested only for a light that has one — `cosEdge` is −2 for any other, which
@@ -29,7 +29,7 @@ export const localLightReaches = wgslFn(
   [],
   `fn localLightReaches(offset:vec3f,range:f32,cosEdge:f32,forward:vec3f,rect:bool)->bool{
  let lengthSquared=dot(offset,offset);
- if(lengthSquared>range*range){return false;}
+ if(lengthSquared>=range*range){return false;}
  if(rect){return !(dot(offset,forward)>=0.0);}
  if(cosEdge<-1.0){return true;}
  return !(dot(-offset,forward)<=cosEdge*sqrt(lengthSquared));
@@ -46,7 +46,7 @@ export const localLightReaches = wgslFn(
 export const directLightWgsl = (slots?: number) =>
   wgslBlock(
     `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL],
+    [RECT_LIGHT_WGSL, localLightReaches],
     `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
@@ -101,9 +101,9 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // The contract has already normalized it.
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
- let distance=length(offset);
  let range=light.positionRange.w;
- if(distance>=range){return vec4f(0.0);}
+ if(!localLightReaches(offset,range,-2.0,vec3f(0.0),false)){return vec4f(0.0);}
+ let distance=length(offset);
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.
  var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);

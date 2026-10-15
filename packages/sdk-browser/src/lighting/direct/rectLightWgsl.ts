@@ -77,14 +77,15 @@ fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
  if(!(ll>0.0)){return vec4f(0.0);}
  return vec4f(F*(sign(E)*inverseSqrt(ll)),abs(E));
 }
-/** The rectangle's corners relative to P, and its range window there; a zero window behind its
- *  face or beyond its range. The centre is taken relative to P first: a corner then rounds at the
+/** The rectangle's corners relative to P, and its range window there; a zero window where it
+ *  does not reach P — behind its face or beyond its range (\`localLightReaches\`, which every program
+ *  holding this text holds through \`directLightWgsl\`). The centre is taken relative to P first: a corner then rounds at the
  *  light's distance, not at its world position's. */
 struct RectView{a:vec3f,b:vec3f,c:vec3f,d:vec3f,window:f32,}
 fn rectView(light:DirectLight,P:vec3f)->RectView{
  let o=light.positionRange.xyz-P;let n=light.directionCone.xyz;
  let U=light.shape.xyz;let W=normalize(cross(U,n))*light.shape.w;
- let window=select(rangeWindow(length(o),light.positionRange.w),0.0,dot(o,n)>=0.0);
+ let window=select(0.0,rangeWindow(length(o),light.positionRange.w),localLightReaches(o,light.positionRange.w,-2.0,n,true));
  return RectView(o-U-W,o+U-W,o+U+W,o-U+W,window);
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
