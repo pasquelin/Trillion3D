@@ -4,6 +4,7 @@ import {
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
 import type { SceneBindings } from '../bounce/sceneBindings.ts'
+import { atlasEntry } from '../bounce/atlas.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
@@ -80,7 +81,7 @@ const scene = () => [
   computeBufferEntry(B.lights, 'read-only-storage'),
   computeBufferEntry(B.lightLists, 'read-only-storage'),
   computeBufferEntry(B.bounceGrid, 'uniform'),
-  computeTextureEntry(B.probes, 'unfilterable-float', '2d-array'),
+  atlasEntry(B.probes),
   computeBufferEntry(B.proxy, 'read-only-storage'),
   computeTextureEntry(B.proxyWorlds, 'uint', '2d-array'),
   computeTextureEntry(B.proxyTree, 'uint', '2d-array'),
