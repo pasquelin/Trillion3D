@@ -3,10 +3,10 @@ import { SECOND_MS } from './scaleTargets.ts'
  *  period no interval of the last second stands for is gone (a window moved, a browser that slowed the
  *  page). */
 const REFRESH_WINDOW = 120
-/** An interval longer than this is a pause on the vsync grid, not a frame of it (under 10 fps): the
- *  clock reads no period from it, and the GPU timeline publishes no idle across it
- *  (`../gpu/timing/timeline.ts`). Not the render scale's pause (`INTERVAL_PAUSE_MS`): a slow frame
- *  under it is still a miss the scale must answer. */
+/** An interval longer than this says nothing of the vsync grid (under 10 fps): any period divides
+ *  it within the tolerance by chance, so the clock reads no period from it, and the GPU timeline
+ *  publishes no idle across it (`../gpu/timing/timeline.ts`). Not the loop's pause
+ *  (`loopPace.ts`): a slow frame of a running loop is still a miss the scale must answer. */
 export const PAUSE_MS = 100
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */

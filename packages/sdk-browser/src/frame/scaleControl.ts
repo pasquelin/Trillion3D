@@ -1,13 +1,8 @@
 import { createCadence, resetCadence, skipsDisplayFrame } from './cadence.ts'
 import { createRefreshClock } from './refreshClock.ts'
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
-import {
-  createTargetCap,
-  displayMoved,
-  FALLBACK_REFRESH_MS,
-  INTERVAL_PAUSE_MS,
-  PERIOD,
-} from './scaleTargets.ts'
+import { createTargetCap, displayMoved, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
+import { createLoopPace } from './loopPace.ts'
 import { createScaleMemory } from './scaleMemory.ts'
 import { tickScale } from './scaleTick.ts'
 import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './scaleWindow.ts'
@@ -63,7 +58,7 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * agree — four frames at the least —, `PERIOD` at most; `held`, whether the display frame that
  * began was held, the loop then asks the next at once; `hold`, the loop held it; `frameIntervalMs`,
  * the interval from the previous display frame `tick` read to the last (null before two or after a
- * pause); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing,
+ * pause, `loopPace.ts`); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing,
  * and the cadence at every refresh;
  * `wanted`, the scale an image is drawn at, the controller's or the fixed one; `allocated`,
  * `capMemory`, `uncapMemory`, `memoryCapped`, `memoryRefused` and `liftMemoryCap`, the render
@@ -83,7 +78,8 @@ export function createScaleControl(option: RenderScale | undefined) {
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
     cadence = createCadence(),
-    parts = { w, refresh, display, memory, cadence }
+    pace = createLoopPace(),
+    parts = { w, refresh, display, memory, cadence, pace }
   const control = {
     get bounds() {
       return w.bounds
@@ -103,7 +99,7 @@ export function createScaleControl(option: RenderScale | undefined) {
     hold: () => holdFrame(w),
     get frameIntervalMs() {
       const gap = refresh.gap
-      return gap > 0 && gap < INTERVAL_PAUSE_MS ? gap : null
+      return gap > 0 && !pace.paused ? gap : null
     },
     set(next: RenderScale | undefined) {
       w.bounds = renderScaleBounds(next)

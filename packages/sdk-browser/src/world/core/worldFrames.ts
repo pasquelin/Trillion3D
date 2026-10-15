@@ -2,6 +2,7 @@ import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts'
 import { frameStart } from '../../frame/scheduling.ts'
+import { createLoopPace } from '../../frame/loopPace.ts'
 import { createFrameGrid } from './worldFrameGrid.ts'
 import { UNMEASURED } from '../diagnostic/metrics.ts'
 
@@ -54,42 +55,6 @@ export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
   hizCulled: null,
 })
 
-/**
- * How many display intervals a frame may span and still count as the loop running: one frame
- * drawn late, the one after it on time. A longer gap is a pause — a still scene the loop slept
- * through, a hidden tab — and not time the scene lived. It is a ratio of the display's own
- * interval, not a duration: its only effect on a loop that really slowed down is how fast the
- * measured interval follows it, by this factor per frame.
- */
-const LATE_FRAMES = 2
-
-/**
- * THE DELTA IS BOUNDED BY THE DISPLAY'S OWN PACE. The loop sleeps in a still scene and the
- * browser stops it in a hidden tab, so the wall time since the last frame can be seconds long;
- * integrated as such, a held key, a cruising camera or a playing clip would leap. The first frame
- * after a pause therefore spans at most `LATE_FRAMES` of the last interval the loop measured, the
- * interval being the delta it last handed out; the first frame of all spans nothing.
- */
-function boundedDelta() {
-  let interval: number | null = null
-  const pace = {
-    /** Whether the last `read` was bounded: a pause, not an interval the loop ran. */
-    paused: false,
-    /** The seconds a frame `ms` after the last integrates; `first` for the world's first. */
-    read: (ms: number, first: boolean) => {
-      const raw = first ? 0 : ms / 1000
-      pace.paused = interval !== null && raw > LATE_FRAMES * interval
-      return pace.paused ? LATE_FRAMES * interval! : raw
-    },
-    /** A frame drew with `delta`: it is the interval the next pause is bounded by. Two frames
-     *  within one clock tick measure nothing, and a zero bound would never grow again. */
-    drawn(delta: number) {
-      if (delta > 0) interval = delta
-    },
-  }
-  return pace
-}
-
 /** Adds `hook` to `hooks`; returns the function that removes it. */
 function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
   hooks.add(hook)
@@ -109,7 +74,7 @@ export function createWorldFrames() {
     start: frameStart(),
     frame: 0,
     last: null,
-    pace: boundedDelta(),
+    pace: createLoopPace(),
     info: { delta: 0, time: 0, frame: 0, metrics: NOT_DRAWN },
     ahead: { delta: 0, time: 0 },
     steps: { first: true, taken: false, since: 0 },
@@ -153,7 +118,7 @@ type FramesState = {
   start: number
   frame: number
   last: WorldFrameMetrics | null
-  pace: ReturnType<typeof boundedDelta>
+  pace: ReturnType<typeof createLoopPace>
   info: FrameInfo
   ahead: BeforeFrameInfo
   /** Whether no step was taken yet, whether one was since the last frame drawn, and the seconds
@@ -164,8 +129,10 @@ type FramesState = {
 /** The controllers integrate from one step to the next, so each frame's render time is lived. */
 function advance({ grid, pace, steps }: FramesState) {
   grid.frame(frameStart())
-  const seconds = pace.read(grid.delta, steps.first)
-  if (pace.paused) grid.restart()
+  // The first frame of all spans nothing; one after a pause, one running interval (`loopPace.ts`):
+  // a held key, a cruising camera or a playing clip never leaps over the time the loop slept.
+  const seconds = steps.first ? 0 : pace.read(grid.delta / 1000)
+  if (!steps.first && pace.paused) grid.restart()
   steps.first = false
   steps.taken = true
   steps.since += seconds
@@ -209,7 +176,7 @@ function dispatch(state: FramesState, metrics: FrameMetrics) {
   const { info, steps, pace, grid } = state
   if (!steps.taken) advance(state)
   info.delta = steps.since
-  pace.drawn(info.delta)
+  pace.ran(info.delta)
   steps.taken = false
   steps.since = 0
   info.time = (grid.time - state.start) / 1000

@@ -8,7 +8,7 @@ import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
-test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
+test('a frame after a pause spans one interval the loop ran, a late one its own', (t) => {
   let now = 1000
   t.mock.method(performance, 'now', () => now)
   const frames = createWorldFrames()
@@ -23,10 +23,14 @@ test('the first frame after a pause spans at most two of the intervals the loop 
   now = 6532 // Five seconds of a still scene, or of a hidden tab.
   frames.advance()
   now = 11532
-  assert.equal(frames.advance(), 0.032)
+  assert.equal(frames.advance(), 0.016)
   frames.dispatch({ ...NOT_DRAWN })
   // The frame drawn is told what both steps since the last one integrated, each bounded.
-  assert.equal(deltas.at(-1), 0.064)
+  assert.equal(deltas.at(-1), 0.032)
+  // A frame three intervals late is a miss of a running loop, not a pause: its time is lived.
+  now = 11580
+  frames.dispatch({ ...NOT_DRAWN })
+  assert.equal(deltas.at(-1), 0.048)
 })
 
 test('the controllers integrate from step to step, the render time included', (t) => {
