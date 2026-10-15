@@ -26,12 +26,6 @@ bool due = false, grounded = false;
 /** `present, feet x y z, ground state, ground velocity x y z, ground friction` (layout.ts). */
 float state[CHARACTER_STATE_WORDS] = {};
 
-/// The inner capsule is placed, never simulated: kept asleep, it never counts as a body awake,
-/// so a world whose bodies all rest still stops stepping with a character in it.
-void rest() {
-  trillion::world().system->GetBodyInterfaceNoLock().DeactivateBody(character->GetInnerBodyID());
-}
-
 void create(const uint32_t *w) {
   World &world = trillion::world();
   // The inner body's engine id names the slot past the page's: no command or pose reaches it, and
@@ -68,7 +62,10 @@ void create(const uint32_t *w) {
   slot.used = true;
   world.engineOf[slot.id.GetIndex()] = engine;
   due = grounded = false;
-  rest();
+  // The inner capsule is placed, never simulated: put to sleep once (Jolt adds it awake), it stays
+  // asleep — Jolt places it without waking it and a contact wakes only dynamic bodies —, so it
+  // never counts as a body awake and a world whose bodies all rest still stops stepping.
+  world.system->GetBodyInterfaceNoLock().DeactivateBody(slot.id);
 }
 
 }  // namespace
@@ -96,7 +93,6 @@ void moveCharacter(float dt) {
   character->ExtendedUpdate(dt, world.system->GetGravity(), settings,
                             world.system->GetDefaultBroadPhaseLayerFilter(MOVING),
                             world.system->GetDefaultLayerFilter(MOVING), {}, {}, *world.temp);
-  rest();
 }
 
 void writeCharacter() {
