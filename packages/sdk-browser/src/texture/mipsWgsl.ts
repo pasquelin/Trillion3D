@@ -48,6 +48,13 @@ const LEVEL_WGSL = wgslBlock(
  * coverage (`coverageMips.ts`); without, the median stays as it was, byte for byte. A colour level
  * is read decoded through its sRGB view and averaged in linear light; an sRGB format has no
  * storage binding, so `srgb` encodes it again (`linearToSrgb`) into the `rgba8unorm` storage view.
+ *
+ * Level 0 of a host texture's raw texels that ask a turn (#362) is the batch's first step, on the
+ * same layout (`turnLevel`): the texels as `writeTexture` stored them, in an `rgba8unorm` texture
+ * of their own bound as `source`, stored into level 0 — the row read from the bottom under `FLIP`
+ * (the picture's last row at v = 0), the colour times the alpha rounded to the nearest byte under
+ * `PREMULTIPLY` (`(c·a + 127) / 255`, never a half) — before any level reads level 0. Bytes in and
+ * out exactly: a byte loaded is `b / 255`, `pack4x8unorm` gives `b` back.
  */
 export const MATERIAL_MIP_WGSL = wgslProgram(
   `
@@ -69,6 +76,19 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
   let c=level.extent.z;var t=0u;
   if(c!=0u){t=cover[level.base.z*256u];}
   textureStore(written,vec2i(id.xy),vec4f(rgb,reducedAlpha(a,c,t)));
+ }
+ override FLIP:bool=false;
+ override PREMULTIPLY:bool=false;
+ fn turnTimes(c:u32,a:u32)->u32{return (c*a+127u)/255u;}
+ @compute @workgroup_size(8,8) fn turnLevel(@builtin(global_invocation_id) id:vec3u){
+  let size=textureDimensions(written);
+  if(any(id.xy>=size)){return;}
+  var t=pack4x8unorm(textureLoad(source,vec2i(vec2u(id.x,select(id.y,size.y-1u-id.y,FLIP))),0));
+  if(PREMULTIPLY){
+   let a=t>>24u;
+   t=turnTimes(t&255u,a)|(turnTimes((t>>8u)&255u,a)<<8u)|(turnTimes((t>>16u)&255u,a)<<16u)|(a<<24u);
+  }
+  textureStore(written,vec2i(id.xy),unpack4x8unorm(t));
  }`,
   [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb],
 )

@@ -4,32 +4,28 @@ import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { TileCounters } from './counters.ts'
 import { rgbaBytes } from '../../texture/imageExtent.ts'
 
-/** The working texture of host texture `slot` of `atlas`, built now, its mips not yet; its picture
- *  in `encoder` when given (`TileScratch.settle` once submitted). */
+/** The working texture of host texture `slot` of `atlas`, built now — its picture up on the queue
+ *  —, its mips and any turn of its raw texels with its first reduction (`TileScratch.settle` once
+ *  submitted). */
 export function buildHostScratch(
   device: GPUDevice,
   counters: TileCounters,
   atlas: WebgpuTileAtlas,
   slot: number,
-  encoder?: GPUCommandEncoder,
 ) {
   const { layout, source } = atlas.textures[slot]
   if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST')
-  const scratch = createTileScratch(
-    device,
-    {
-      map: source.map,
-      width: layout.width,
-      height: layout.height,
-      format: atlas.poolOf(slot).texture.format,
-      errorCode:
-        atlas.kind === 'color'
-          ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-          : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-      coverage: source.coverage,
-    },
-    encoder,
-  )
+  const scratch = createTileScratch(device, {
+    map: source.map,
+    width: layout.width,
+    height: layout.height,
+    format: atlas.poolOf(slot).texture.format,
+    errorCode:
+      atlas.kind === 'color'
+        ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
+        : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+    coverage: source.coverage,
+  })
   counters.scratches++
   counters.uploadedBytes += rgbaBytes(layout.width, layout.height)
   return scratch
@@ -40,12 +36,8 @@ export function buildHostScratch(
  *  names its texture, which cannot be destroyed before. A live texture's is not counted. */
 const MAX_SCRATCHES = 2
 
-/** Builds host texture `slot`'s working texture, its picture in `encoder` when given. */
-export type Build = (
-  atlas: WebgpuTileAtlas,
-  slot: number,
-  encoder?: GPUCommandEncoder,
-) => TileScratch
+/** Builds host texture `slot`'s working texture (`buildHostScratch`). */
+export type Build = (atlas: WebgpuTileAtlas, slot: number) => TileScratch
 /** What the cache holds of an id, in one state: asked for the tiles of a feedback frame and not yet
  *  built; built off the frame, and whether a copy of this pass read it; or live (`refresh`). */
 type Entry =
@@ -67,7 +59,7 @@ function buildAsked(
   for (const [id, entry] of entries) {
     if (entry.state !== 'asked') continue
     try {
-      const scratch = build(entry.atlas, entry.slot, encoder)
+      const scratch = build(entry.atlas, entry.slot)
       entries.set(id, { state: 'built', scratch, frame: entry.frame, read: false })
       made.push(scratch)
     } catch (error) {
@@ -150,7 +142,7 @@ export function createScratches(
     },
     /** A new picture of host texture `slot` of `atlas`, its working texture `id` refilled — or
      *  built, the texture turning live, whatever state it was in —, then `copy` encoded: its
-     *  picture, its mips and its copies one submit. */
+     *  turn, its mips and its copies one submit; its raw texels kept for its next picture. */
     refresh(
       atlas: WebgpuTileAtlas,
       slot: number,
@@ -164,7 +156,7 @@ export function createScratches(
         scratch = held.scratch
         scratch.fill(encoder)
       } else {
-        scratch = build(atlas, slot, encoder)
+        scratch = build(atlas, slot)
         scratch.reduce(encoder)
       }
       if (held?.state !== 'live') {
@@ -174,7 +166,6 @@ export function createScratches(
       }
       copy(encoder, scratch.texture)
       device.queue.submit([encoder.finish()])
-      scratch.rest()
     },
     /** Bytes the live textures' working textures hold, mips included. */
     get liveBytes() {

@@ -116,8 +116,7 @@ export function createTileSources(options: SourcesOptions) {
       `texture-level-read-failed ${address.sha256}/${address.atlas}/${address.level}`,
       error,
     )
-  const build: Build = (atlas, slot, encoder) =>
-    buildHostScratch(device, counters, atlas, slot, encoder)
+  const build: Build = (atlas, slot) => buildHostScratch(device, counters, atlas, slot)
   const scratches = createScratches(device, build, options.onFailure)
   const sources: Sources = { device, encoding, levels, failed, build, scratches }
   return {

@@ -45,7 +45,6 @@ import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
 import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
 import { waterSurfaceWgsl } from '../../webgpu/water/surfaceWgsl.ts'
 import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../webgpu/particles/particlesWgsl.ts'
-import { TEXEL_TURN_WGSL } from '../../webgpu/tile/texelTurnWgsl.ts'
 import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts'
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
@@ -134,7 +133,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   MATERIAL_MIP_WGSL,
   COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
-  TEXEL_TURN_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
   SHADE_SHADER,

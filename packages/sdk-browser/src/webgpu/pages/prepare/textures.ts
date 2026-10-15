@@ -1,7 +1,6 @@
 import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { collectWebgpuMaterialTextures } from '../../core/materialTextures.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
-import { prepareTexelTurn } from '../../tile/texelTurn.ts'
 import { texturePoolFor } from '../../residency/memoryBudgets.ts'
 import { grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
@@ -51,14 +50,11 @@ export async function prepareWebgpuTextures(
   const textureStarted = cpuNow()
   const catalogues = textureCatalogues(rt, gpuDevice, census)
   const { choice, encoding, color, data } = catalogues
-  // What the atlases holding a host texture reduce its mips with, and turn its raw texels with,
-  // compiled off the thread beside the pools' grant, before the tails below are reduced
-  // (`../../../texture/mips.ts`, `../../tile/texelTurn.ts`); a scene of cooked chains alone
-  // reduces nothing on the device, and compiles none.
-  const reductions = Promise.all([
-    prepareHostReductions(gpuDevice, encoding, hostKinds({ color, data })),
-    prepareTexelTurn(gpuDevice, [...color, ...data]),
-  ])
+  // What the atlases holding a host texture reduce its mips with — the turn of its raw texels
+  // their first step —, compiled off the thread beside the pools' grant, before the tails below
+  // are reduced (`../../../texture/mips.ts`); a scene of cooked chains alone reduces nothing on
+  // the device, and compiles none.
+  const reductions = prepareHostReductions(gpuDevice, encoding, hostKinds({ color, data }))
   // The lanes settle here, where the textures are known: each pool is sized by what its lane holds,
   // never below the tails it keeps resident whole, one tile each.
   const demand = { color: laneDemand(color), data: laneDemand(data) }

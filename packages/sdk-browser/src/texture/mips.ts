@@ -6,6 +6,7 @@ import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import type { PoolEncoding } from './blockFormats.ts'
 import { prepareCoveragePipelines } from './coverageMips.ts'
 import { computeBufferEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 
 /** What decides a reduction's pipeline: the level's pool format, sRGB or not, and the colour
  *  rule — plain, or weighted by alpha. */
@@ -71,8 +72,28 @@ const materialProgram = oncePerDevice((device: GPUDevice) => {
       }),
     ({ srgb, weighted }) => `${Number(srgb)}/${Number(weighted)}`,
   )
-  return { layout, pipelines }
+  const turns = preparedPipelines(
+    (flags: number) =>
+      preparedComputeStage(device, pipelineLayout, module, 'turnLevel', {
+        FLIP: flags & TEXEL_FLIP ? 1 : 0,
+        PREMULTIPLY: flags & TEXEL_PREMULTIPLY ? 1 : 0,
+      }),
+    (flags) => `${flags}`,
+  )
+  return { layout, pipelines, turns }
 })
+
+/** The turns a host texture asks of raw texels, as bits (`turnFlags`). */
+export const TEXEL_FLIP = 1,
+  TEXEL_PREMULTIPLY = 2
+/** The turns host texture `map` asks of raw texels: none, the texels go up as they are. */
+export const turnFlags = (map: Texture) =>
+  (map.flipY ? TEXEL_FLIP : 0) | (map.premultiplyAlpha ? TEXEL_PREMULTIPLY : 0)
+
+/** The pipeline storing level 0 of raw texels turned by `flags` (`turnLevel`), on the material
+ *  layout, from `device`'s shared cache. */
+export const levelTurnPipeline = (device: GPUDevice, flags: number) =>
+  materialProgram(sharedGpuDevice(device)).turns.of(flags).get()
 
 /** A material chain's pipeline on `device`'s shared cache — its pool format, checked when its
  *  working texture was made (`materialMipTexture`), says whether it encodes sRGB —, and its
@@ -104,7 +125,8 @@ const hostMipKeys = (encoding: PoolEncoding, kinds: readonly HostKind[]) =>
   })
 
 /** Compiles off the thread what a host texture's mips take in the atlases `kinds` — their
- *  reductions, and for a colour one the coverage counts its readers' cutoff asks —, before any
+ *  reductions, the turns of raw texels, and for a colour one the coverage counts its readers'
+ *  cutoff asks —, before any
  *  such texture reduces; resolves once all have, a refused one asked again where it is used. */
 export const prepareHostReductions = (
   device: GPUDevice,
@@ -114,6 +136,10 @@ export const prepareHostReductions = (
   Promise.all([
     prepareMipPipelines(device, hostMipKeys(encoding, kinds)),
     kinds.includes('color') && prepareCoveragePipelines(device),
+    // Level 0 of raw texels a host texture asks to flip, premultiply or both (`turnLevel`).
+    ...[TEXEL_FLIP, TEXEL_PREMULTIPLY, TEXEL_FLIP | TEXEL_PREMULTIPLY].map((flags) =>
+      materialProgram(sharedGpuDevice(device)).turns.of(flags).prepare(),
+    ),
   ]).then(
     () => {},
     () => {},
