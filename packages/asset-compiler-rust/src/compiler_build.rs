@@ -142,6 +142,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             g,
             shown: &shown,
             mesh_map: &mesh_map,
+            mesh_scales: &mesh_scales,
             primitives: &primitives,
             cuts: &proxy_cuts,
             thresholds: &proxy_thresholds,

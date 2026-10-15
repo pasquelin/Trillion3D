@@ -174,7 +174,7 @@ fn stage_impostors(
         };
         let mut entry = entry(o, candidate, || {
             let traceable = Traceable::read(inputs.g, bin, mesh, inputs.previews)?;
-            let scale = placements.iter().map(longest_column).fold(0.0, f64::max);
+            let scale = inputs.mesh_scales.get(&mesh).copied().unwrap_or(0.0);
             let hemi = hemi(&traceable, &placements, b[1]);
             Ok((traceable, scale, hemi))
         })?;
