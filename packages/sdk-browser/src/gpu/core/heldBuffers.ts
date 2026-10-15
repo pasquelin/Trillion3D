@@ -1,6 +1,10 @@
 import { oncePerDevice } from './oncePerDevice.ts'
 import { sizedBuffer } from './sizedBuffer.ts'
 
+/** How long a hold keeps what no use took: a burst of uses (an A/B proof, rounds until a cut
+ *  lands) shares one; a use now and then holds nothing between. Every idle hold's time. */
+export const HOLD_IDLE_MS = 1000
+
 /**
  * Buffers a device holds between the uses that take them, one a slot, so a burst of uses
  * allocates once instead of a buffer made and destroyed each. Each holder keeps its own slots per

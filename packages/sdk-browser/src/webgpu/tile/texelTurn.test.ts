@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
+import { HOLD_IDLE_MS } from '../../gpu/core/heldBuffers.ts'
 import { createTexelTurn, prepareTexelTurn } from './texelTurn.ts'
 import { TEXEL_FLIP } from './texelTurnWgsl.ts'
 import { tileCatalogue } from './catalogue.ts'
@@ -40,7 +40,7 @@ test('static turns share the device’s ring and words, destroyed once idle', (t
     made.every((buffer) => !gpu.destroyed.includes(buffer)),
     'held between the turns',
   )
-  t.mock.timers.tick(READBACK_IDLE_MS)
+  t.mock.timers.tick(HOLD_IDLE_MS)
   assert.ok(
     made.every((buffer) => gpu.destroyed.includes(buffer)),
     'destroyed once idle',

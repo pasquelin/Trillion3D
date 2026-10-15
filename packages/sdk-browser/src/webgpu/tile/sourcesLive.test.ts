@@ -9,7 +9,7 @@ import { tileCatalogue } from './catalogue.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
+import { HOLD_IDLE_MS } from '../../gpu/core/heldBuffers.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -41,12 +41,12 @@ test('a live texture keeps its turn ring between pictures, given back once idle'
     turns.every((buffer) => !destroyed.includes(buffer)),
     'held between pictures',
   )
-  t.mock.timers.tick(READBACK_IDLE_MS)
+  t.mock.timers.tick(HOLD_IDLE_MS)
   assert.ok(
     turns.every((buffer) => !destroyed.includes(buffer)),
     'given back to the spares once no picture came',
   )
-  t.mock.timers.tick(READBACK_IDLE_MS)
+  t.mock.timers.tick(HOLD_IDLE_MS)
   assert.ok(
     turns.every((buffer) => destroyed.includes(buffer)),
     'destroyed once idle in the spares',

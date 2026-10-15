@@ -1,6 +1,5 @@
-import { giveReadback, takeReadback } from './heldReadback.ts'
+import { captureRead } from './heldReadback.ts'
 import { copyRowBytes } from './copyRowBytes.ts'
-import { mapStaging } from './readbackRing.ts'
 
 /**
  * The readbacks the proof tools and an explicit capture do, and that no frame does.
@@ -10,37 +9,6 @@ import { mapStaging } from './readbackRing.ts'
  * that wants to check what the GPU wrote calls them.
  */
 
-/**
- * The one held read: `bytes` taken from the device's held mapped buffer (`heldReadback.ts`) under
- * `label`, `encode` copying into it, submitted, mapped, `read` from its mapped range, given back —
- * a failed read's buffer destroyed instead. `signal` is checked once mapped.
- */
-async function heldRead<T>(
-  device: GPUDevice,
-  bytes: number,
-  label: string,
-  encode: (encoder: GPUCommandEncoder, staging: GPUBuffer) => void,
-  read: (mapped: ArrayBuffer) => T,
-  signal?: AbortSignal,
-) {
-  const staging = takeReadback(device, bytes, label)
-  let done = false
-  try {
-    const encoder = device.createCommandEncoder({ label })
-    encode(encoder, staging)
-    device.queue.submit([encoder.finish()])
-    await mapStaging(staging)
-    signal?.throwIfAborted()
-    const value = read(staging.getMappedRange())
-    staging.unmap()
-    done = true
-    return value
-  } finally {
-    if (done) giveReadback(device, staging)
-    else staging.destroy()
-  }
-}
-
 /** Copies `bytes` bytes of a GPU buffer from byte `offset`, `undefined` under four bytes. */
 export async function readGpuBuffer(
   device: GPUDevice,
@@ -49,12 +17,12 @@ export async function readGpuBuffer(
   offset = 0,
 ): Promise<Uint32Array | undefined> {
   if (bytes < 4) return undefined
-  return heldRead(
+  return captureRead(
     device,
     bytes,
     'Trillion3D buffer readback',
     (encoder, staging) => encoder.copyBufferToBuffer(source, offset, staging, 0, bytes),
-    (mapped) => new Uint32Array(mapped.slice(0)),
+    (mapped) => new Uint32Array(mapped.slice(0, bytes)),
   )
 }
 
@@ -79,8 +47,8 @@ export interface ReadImageOptions {
   topDown?: boolean
 }
 
-/** Explicit capture only, never a frame's: one texture copy into the device's held mapped buffer
- *  (`heldReadback.ts`; a failed capture's is destroyed), awaited, the frame never stalled on it.
+/** Explicit capture only, never a frame's: one texture copy through the device's capture ring
+ *  (`captureRead`), awaited, the frame never stalled on it.
  *  Copies WebGPU top-left rows to the bottom-left convention, unless `topDown`; its own array. */
 export async function readGpuImage(
   device: GPUDevice,
@@ -93,7 +61,7 @@ export async function readGpuImage(
   signal?.throwIfAborted()
   const bytesPerRow = copyRowBytes(width),
     row = width * 4
-  return heldRead(
+  return captureRead(
     device,
     bytesPerRow * height,
     'Trillion3D explicit capture',

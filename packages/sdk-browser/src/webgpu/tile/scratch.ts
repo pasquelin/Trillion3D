@@ -7,7 +7,7 @@ import { mipLevelCountFor } from '../../texture/tiles.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
 import { createTexelTurn, turnFlags, type TexelTurn } from './texelTurn.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
+import { HOLD_IDLE_MS } from '../../gpu/core/heldBuffers.ts'
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
@@ -48,7 +48,7 @@ export type TileScratch = {
   settle(): void
   /** A live texture's picture was submitted: its turn keeps its ring and words for the next
    *  picture — taken once, never again a picture —, and gives them back (`settle`) once no picture
-   *  came for `READBACK_IDLE_MS`, as the device's spares do (`heldBuffers`). */
+   *  came for `HOLD_IDLE_MS`, as the device's spares do (`heldBuffers`). */
   rest(): void
   destroy(): void
 }
@@ -114,7 +114,7 @@ function uploadPicture(
 }
 
 /** When the turn of `held` gives its ring and words back: at once (`settle`), or once no picture
- *  came for `READBACK_IDLE_MS` (`rest`). */
+ *  came for `HOLD_IDLE_MS` (`rest`). */
 function turnRelease(held: { turned?: TexelTurn }) {
   let idle: ReturnType<typeof setTimeout> | undefined
   const settle = () => {
@@ -124,7 +124,7 @@ function turnRelease(held: { turned?: TexelTurn }) {
   const rest = () => {
     clearTimeout(idle)
     if (!held.turned) return
-    idle = setTimeout(settle, READBACK_IDLE_MS)
+    idle = setTimeout(settle, HOLD_IDLE_MS)
     // A host process never waits on the hold.
     ;(idle as { unref?: () => void }).unref?.()
   }

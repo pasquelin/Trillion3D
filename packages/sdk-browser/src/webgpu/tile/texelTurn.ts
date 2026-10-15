@@ -4,7 +4,7 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { heldBuffers } from '../../gpu/core/heldBuffers.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
+import { HOLD_IDLE_MS } from '../../gpu/core/heldBuffers.ts'
 import { sharedGpuDevice } from '../../gpu/core/sessionHandle.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { storageBufferCap, uniformSlots, type UniformSlots } from '../../residency/pools.ts'
@@ -82,10 +82,10 @@ const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
  * The device's spare ring and words (`heldBuffers`), given back by a static picture's turn once its
  * first picture was submitted, and taken by the next turn: a burst of pictures at load allocates
  * them once — the larger of each kept —, never a ring of up to `TURN_RING_BYTES` made and destroyed
- * a texture. Destroyed once no turn gave any back for `READBACK_IDLE_MS`, the readback hold's idle
- * time (`heldReadback.ts`): a scene at rest holds no byte of them.
+ * a texture. Destroyed once no turn gave any back for `HOLD_IDLE_MS`, every hold's idle
+ * time (`heldBuffers.ts`): a scene at rest holds no byte of them.
  */
-const spares = heldBuffers(READBACK_IDLE_MS)
+const spares = heldBuffers(HOLD_IDLE_MS)
 const SOURCE = `${TEXEL_TURN_PASS} source`,
   WORDS = `${TEXEL_TURN_PASS} words`
 

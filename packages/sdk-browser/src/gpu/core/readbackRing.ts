@@ -44,6 +44,8 @@ export interface ReadbackRing<T = number> {
   available(): boolean
   /** Buffers taken and not back yet: copies not submitted, and mappings in flight. */
   held(): number
+  /** Buffers taken whose copy is not submitted yet. */
+  pending(): number
   /** Bytes the ring's buffers hold. */
   readonly bytes: number
   /** After `queue.submit` of the encoder the copy was recorded in: the taken buffer — `buffer`
@@ -181,6 +183,7 @@ export function createReadbackRing<T = number>(
     },
     available: () => !destroyed && ((!chain && pending.length > 0) || free.length > 0 || room()),
     held: () => pending.length + flying,
+    pending: () => pending.length,
     get bytes() {
       return all.reduce((sum, staging) => sum + staging.buffer.size, 0)
     },
