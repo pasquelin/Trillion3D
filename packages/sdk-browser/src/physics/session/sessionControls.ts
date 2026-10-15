@@ -38,7 +38,7 @@ export function createSessionControls(c: SessionParts) {
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      s.dirty = followNode(node, bodies, writer, tiles, c.poses.follow) || s.dirty
+      followNode(node, bodies, writer, tiles, c.poses.follow, c.failed)
     },
     /** Scene queries (`CAST_WORDS` each), answered after the frame's commands: hits in order. */
     async cast(queries: Uint32Array) {

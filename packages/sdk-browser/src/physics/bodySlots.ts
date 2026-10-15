@@ -6,8 +6,8 @@ import type { CookedMade } from './cookedSoft.ts'
 import { createSimulatedIds } from './simulatedIds.ts'
 import type { Model, Placed } from './tilePlace.ts'
 
-/** Who holds a body slot: a page's mesh with the `physics` it was made with, a soft one at its
- *  world `scale`, a dynamic one with the reach its tiles are loaded around (`reachOf`); a cooked
+/** Who holds a body slot: a page's mesh with the `physics` it was made with and the world `scale`
+ *  it was made at, a dynamic one with the reach its tiles are loaded around (`reachOf`); a cooked
  *  tile of a model; a cooked soft body of one; or a body one declares. */
 export type SlotOwner =
   | {

@@ -11,6 +11,7 @@ import { bodyNodes, countNodes, type BodyNodes } from './bodyNodes.ts'
 import { carriedFrom, driveCarried, type Carried } from './carriedBodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { followModel } from './cookedMoved.ts'
+import { fits } from './softBodies.ts'
 import {
   cookedHull,
   holdObjects,
@@ -159,8 +160,14 @@ export function createCookedBodies(parts: CookedParts) {
         ...{ made: opening.made, refused: opening.refused },
         entry: (one) => one.body,
         madeAt: (one) => one.scale,
-        again: (one, scale, refused) => remake(model, opening, one, scale, refused),
-        release: (one) => bodies.release(one.id & BODY_INDEX),
+        // Made again before it leaves; refused at a scale, tried again at any other.
+        remake(one, scale) {
+          const again = remake(model, opening, one, scale, false)
+          bodies.release(one.id & BODY_INDEX)
+          return again
+        },
+        tries: (one, scale) => !fits(scale, one.scale),
+        retry: (one, scale) => remake(model, opening, one, scale, true),
         place(one, { position, quaternion }) {
           const slot = one.id & BODY_INDEX
           if (one.carried) driveCarried(writer, one.carried, slot)

@@ -94,20 +94,27 @@ export function createCookedSoftBodies(parts: CookedParts) {
     },
     forget: held.forget,
     /** A model moved or hidden: its soft bodies carried where it now is, their simulation kept,
-     *  their flags written again (`followModel`); one rescaled is made again, which its cooked
-     *  scale refuses by name until it is back there. */
+     *  their flags written again (`followModel`); one rescaled is refused by name until its model
+     *  is back at its cooked scale. */
     moved(model: Model) {
       const opening = held.get(model)
       if (!opening) return
       followModel<CookedMade, Refused>(model, {
         ...{ made: opening.made, refused: opening.refused },
         entry: (one) => one.soft,
-        madeAt: (one) => ('physics' in one ? one.soft.scale : one.scale),
-        again(one) {
+        madeAt: (one) => one.soft.scale,
+        // Its cooked settings cannot be made at another scale: let go of and refused by name,
+        // made again only once its model is back at its cooked scale.
+        remake(one, [x, y, z]) {
+          bodies.release(one.id & BODY_INDEX)
+          refuse(opening, one.soft, { x, y, z })
+          return null
+        },
+        tries: (one, scale) => fits(scale, one.soft.scale),
+        retry(one) {
           start(model, opening, one.soft)
           return null
         },
-        release: (one) => bodies.release(one.id & BODY_INDEX),
         place(one, { position, quaternion }) {
           const slot = one.id & BODY_INDEX
           writer.teleport(slot, position, quaternion)

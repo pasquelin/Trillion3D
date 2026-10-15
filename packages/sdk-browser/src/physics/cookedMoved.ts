@@ -2,42 +2,61 @@ import type { CookedInstance } from '../../../sdk-core/src/physics/cooked.ts'
 import { fits } from './softBodies.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
-/**
- * A model's bodies of one kind as a move reads them: those made (`M`) and those a rescale refused
- * (`R`), each with its entry (placed in its model by `tilePose`) and the world scale it was made,
- * or refused, at; how one is made again at a scale (`again`: the body, or null — refused there and
- * listed among the refused by `again` itself, or on its way), let go of, and placed.
- */
-export type Following<M, R> = {
-  made: M[]
-  refused: R[]
-  entry(one: M | R): Omit<CookedInstance, 'collider'>
-  madeAt(one: M | R): ArrayLike<number>
-  again(one: M | R, scale: number[], refused: boolean): M | null
-  release(one: M): void
-  place(one: M, pose: ReturnType<typeof tilePose>): void
+/** Where a body's node now puts it: its world place, turn and scale. */
+export type Pose = {
+  position: ArrayLike<number>
+  quaternion: ArrayLike<number>
+  scale: { x: number; y: number; z: number }
+}
+
+/** A made body of one kind as a move reads it: the world scale it was made at, how it is made
+ *  again at another (the new body, made before the old one leaves, or null: refused and listed,
+ *  or on its way), and how it is placed. */
+export type Following<M> = {
+  madeAt(one: M): ArrayLike<number>
+  remake(one: M, scale: number[]): M | null
+  place(one: M, pose: Pose): void
 }
 
 /**
- * `model` moved: its bodies of one kind follow — THE ONE RESCALE RULE of a compiled model's
- * bodies, rigid and soft. One placed off the scale it was made at is let go of and made again at
- * once at its new one (the module scaling no body once made); one that cannot be made there (a
- * shape the scale bends, a cooked soft body away from its cooked scale) is refused by name and
- * waits, made again once its model is at another scale. The others are placed where it now puts
- * them. The lists are compacted in place: a model moved every frame makes no new one. A body
- * moving its node is not placed here: its node is followed with every node under the move
- * (`followMove`).
+ * THE ONE RESCALE RULE, every body's — a page's, a compiled model's, rigid or soft —: a body
+ * placed off the scale it was made at is made again at its new one, the module scaling no body
+ * once made (a page's soft body goes on from the old one, its simulation carried); one that
+ * cannot be made there is refused by name and waits (`followModel`). Any other is placed where its
+ * node now puts it. Returns the body that stays: it, the one made again, or null.
  */
-export function followModel<M, R>(model: Model, f: Following<M, R>) {
+export function followBody<M>(one: M, pose: Pose, f: Following<M>): M | null {
+  if (fits(pose.scale, f.madeAt(one))) return (f.place(one, pose), one)
+  return f.remake(one, [pose.scale.x, pose.scale.y, pose.scale.z])
+}
+
+/** A compiled model's bodies of one kind: those made (`M`), those a rescale refused (`R`), each
+ *  with its entry (placed in its model by `tilePose`); whether one refused can be made at a scale
+ *  now, and its making there. */
+export type ModelFollowing<M, R> = Following<M> & {
+  made: M[]
+  refused: R[]
+  entry(one: M | R): Omit<CookedInstance, 'collider'>
+  tries(one: R, scale: { x: number; y: number; z: number }): boolean
+  retry(one: R, scale: number[]): M | null
+}
+
+/**
+ * `model` moved: its bodies of one kind follow (`followBody`), and those refused that it can now
+ * make are made again. The lists are compacted in place: a model moved every frame makes no new
+ * one. A body moving its node is not placed here: its node is followed with every node under the
+ * move (`followMove`).
+ */
+export function followModel<M, R>(model: Model, f: ModelFollowing<M, R>) {
   const { made, refused } = f
   const waited = refused.length
   let waiting = 0
   for (let i = 0; i < waited; i++) {
     const one = refused[i]
     const { scale } = tilePose({ model, instance: f.entry(one) })
-    if (fits(scale, f.madeAt(one))) refused[waiting++] = one
+    if (!f.tries(one, scale)) refused[waiting++] = one
     else {
-      const again = f.again(one, [scale.x, scale.y, scale.z], true)
+      const again = f.retry(one, [scale.x, scale.y, scale.z])
       if (again) made.push(again)
     }
   }
@@ -46,15 +65,8 @@ export function followModel<M, R>(model: Model, f: Following<M, R>) {
   refused.length -= waited - waiting
   let kept = 0
   for (const one of made) {
-    const pose = tilePose({ model, instance: f.entry(one) })
-    if (!fits(pose.scale, f.madeAt(one))) {
-      f.release(one)
-      const again = f.again(one, [pose.scale.x, pose.scale.y, pose.scale.z], false)
-      if (again) made[kept++] = again
-      continue
-    }
-    f.place(one, pose)
-    made[kept++] = one
+    const stays = followBody(one, tilePose({ model, instance: f.entry(one) }), f)
+    if (stays) made[kept++] = stays
   }
   made.length = kept
 }

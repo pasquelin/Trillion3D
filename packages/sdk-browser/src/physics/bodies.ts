@@ -1,5 +1,11 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { BODY_INDEX, FLAG, LAYER, MOTION } from '../../../sdk-core/src/physics/layout.ts'
+import {
+  BODY_INDEX,
+  FLAG,
+  GENERATION_SHIFT,
+  LAYER,
+  MOTION,
+} from '../../../sdk-core/src/physics/layout.ts'
 import type { ObjectPhysics, PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
 import { isSoftType } from '../../../sdk-core/src/physics/soft.ts'
@@ -46,7 +52,9 @@ export function createPhysicsBodies(
   /** Bodies taken out: asleep decorative or refused ones, their mesh left where it came to rest,
    *  until their `physics` is set again. */
   const retired = new WeakSet<Bodied['physics']>()
-  const add = (mesh: Bodied) => {
+  /** Makes `mesh`'s body where the page puts it, at its world scale, recorded on its slot (the
+   *  scale it is made at: `followNode`); a soft one going on from the one `carries` names. */
+  const add = (mesh: Bodied, carries?: number) => {
     const p = mesh.physics
     if (p._host) return
     if (p.type !== 'static' && p.type !== 'kinematic' && mesh.parent !== root)
@@ -61,10 +69,11 @@ export function createPhysicsBodies(
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = pose.scale
+    owner.scale = [size.x, size.y, size.z]
     if (isSoftType(p.type)) {
-      owner.scale = [size.x, size.y, size.z]
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh), step))
+      const flags = flagsOf(mesh)
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flags, step, carries))
     }
     if (p.type === 'dynamic') owner.reach = reachOf(mesh, size)
     const matter = physicsMatterOf(mesh.material)
@@ -142,6 +151,25 @@ export function createPhysicsBodies(
     /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
+    /** The body in slot `index`, placed off the scale it was made at, made again at its new one
+     *  before it leaves (its REMOVE after the new body's command): a soft one goes on from it, its
+     *  simulation carried and scaled (`softPlacement.h`). Throws, the old body out, when the new
+     *  one is refused. */
+    remake(index: number) {
+      const p = physicsAt(index),
+        mesh = meshes[index]
+      if (!p || !mesh) return
+      const carries = isSoftType(p.type)
+        ? index | (slots.generation[index] << GENERATION_SHIFT)
+        : undefined
+      if (p.decorative) count.decorative--
+      p._detach()
+      try {
+        add(mesh, carries)
+      } finally {
+        release(index)
+      }
+    },
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again. */
     retire(index: number) {

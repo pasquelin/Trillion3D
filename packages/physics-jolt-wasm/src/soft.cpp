@@ -11,10 +11,9 @@
 // `World::diverged`). Carried further than `SOFT_TELEPORT`, it starts again in its rest shape.
 #include "binding.h"
 #include "blob.h"
+#include "softPlacement.h"
 #include "softSettings.h"
 
-#include <Jolt/Physics/Collision/CollidePointResult.h>
-#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
@@ -114,35 +113,6 @@ void hold(const Soft &soft, Body &body) {
   motion.SetMaxLinearVelocity(std::max(swing, damping > 0 ? pull / damping : JOLT_FASTEST));
 }
 
-/// Whether `point` lies inside `shape` with a margin: it and the six points `EMBEDDED` from it
-/// along the axes are all in it (Jolt's point query; a mesh by the parity of a ray). A point on a
-/// surface is not: a cloth laid on a table is not inside it.
-bool deepIn(const TransformedShape &shape, Vec3 point) {
-  constexpr float EMBEDDED = 1e-3f;
-  const Vec3 probes[] = {Vec3::sZero(), Vec3(EMBEDDED, 0, 0), Vec3(-EMBEDDED, 0, 0), Vec3(0, EMBEDDED, 0),
-                         Vec3(0, -EMBEDDED, 0), Vec3(0, 0, EMBEDDED), Vec3(0, 0, -EMBEDDED)};
-  for (Vec3 probe : probes) {
-    AnyHitCollisionCollector<CollidePointCollector> hit;
-    shape.CollidePoint(RVec3(point + probe), hit);
-    if (!hit.HadHit()) return false;
-  }
-  return true;
-}
-
-/// Whether the cloth near a pin of `soft` starts inside `other`: the middle of an edge from a pin,
-/// at rest where the soft body is placed, lies a millimetre deep in its shape (`deepIn`). Its pins
-/// then hang inside that body, which would push the cloth they hold out against them at every step.
-bool startsIn(const Soft &soft, const SoftBodySharedSettings &shared, const Body &other) {
-  const TransformedShape shape = other.GetTransformedShape();
-  const Quat turn = soft.inverse.Conjugated();
-  for (const SoftBodySharedSettings::Edge &e : shared.mEdgeConstraints) {
-    const SoftBodySharedSettings::Vertex &a = shared.mVertices[e.mVertex[0]], &b = shared.mVertices[e.mVertex[1]];
-    if ((a.mInvMass == 0) == (b.mInvMass == 0)) continue;
-    if (deepIn(shape, soft.origin + turn * (0.5f * (Vec3(a.mPosition) + Vec3(b.mPosition))))) return true;
-  }
-  return false;
-}
-
 /// Brings `soft` back to its rest shape, at rest, where the page placed it. Jolt's bounds follow
 /// at the next step.
 void bringBack(const Soft &soft, Body &body) {
@@ -169,8 +139,7 @@ bool written(const Soft &soft, const Body &body, size_t start) {
   // translation(−origin) · centre of mass. The vertices are those the per-vertex chain gave but
   // for float rounding, a few ulps of the world coordinate (`softWriteback.test.ts`), far below
   // a tenth of a pixel; the simulation never reads them back.
-  const Mat44 back = Mat44::sScale(soft.inverseScale) * Mat44::sRotation(soft.inverse) *
-                     Mat44::sTranslation(-soft.origin) * Mat44(body.GetCenterOfMassTransform());
+  const Mat44 back = toGeometry(soft.inverseScale, soft.inverse, soft.origin, body);
   uint32_t *out = state.data() + start + 2;
   bool finite = true;
   for (const SoftBodyVertex &v : vertices) {
@@ -233,6 +202,18 @@ bool addSoft(const uint32_t *w) {
   soft.inverse = quat(w + 5).Conjugated();
   // Its size, pull and damping bound its speed (`hold`).
   soft.rest = rest;
+  // A page's soft body made again at another scale goes on from the one it replaces, still in its
+  // slot until the REMOVE that follows (`carries`): its vertices' places and velocities carried,
+  // scaled from the old geometry frame into the new.
+  if (const uint32_t carries = w[22]; carries != MISS) {
+    const Slot &from = world.slots[carries & INDEX_MASK];
+    BodyLockRead old(world.system->GetBodyLockInterfaceNoLock(), from.id);
+    if (from.used && from.soft && from.engine == carries && old.Succeeded()) {
+      const Soft &was = softs[from.softAt];
+      carryVertices(old.GetBody(), toGeometry(was.inverseScale, was.inverse, was.origin, old.GetBody()), *body,
+                    toGeometry(soft.inverseScale, soft.inverse, soft.origin, *body));
+    }
+  }
   hold(soft, *body);
   return true;
 }
@@ -285,7 +266,7 @@ bool hangsOn(const Body &softBody, const Body &other) {
   const RVec3 at = other.GetPosition();
   const Quat turn = other.GetRotation();
   const auto judge = [&] {
-    return startsIn(soft, *static_cast<const SoftBodyMotionProperties *>(softBody.GetMotionProperties())->GetSettings(), other);
+    return startsIn(soft.origin, soft.inverse.Conjugated(), *static_cast<const SoftBodyMotionProperties *>(softBody.GetMotionProperties())->GetSettings(), other);
   };
   for (Support &s : soft.supports)
     if (s.engine == id) {

@@ -48,7 +48,14 @@ test('a declared dynamic body simulates, and its compiled node is drawn where it
   // Its model moved: the body is put where its node is now drawn.
   model.position.set(1, 0, 0)
   model.updateMatrixWorld(true)
-  followNode(model, bodies, writer, tiles, () => {})
+  followNode(
+    model,
+    bodies,
+    writer,
+    tiles,
+    () => {},
+    () => {},
+  )
   const moved = writer.take()
   // Commands of 9 words: the kinematic one driven by its model, the dynamic one by its node.
   const at = [0, 9].find((w) => moved[w] === OP.teleport)!

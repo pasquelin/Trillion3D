@@ -69,7 +69,14 @@ test('a kinematic body inside a dynamic body’s subtree follows its moving pare
   // Its model moved by the page: the lid goes where its node is drawn, not where the model puts it.
   model.position.set(3, 0, 0)
   model.updateMatrixWorld(true)
-  followNode(model, bodies, writer, tiles, () => {})
+  followNode(
+    model,
+    bodies,
+    writer,
+    tiles,
+    () => {},
+    () => {},
+  )
   // The model's own bodies first (`followModel`), then the nodes bodies move (`followMove`).
   const moved = writer.take()
   const [lidOp, , ...lidAt] = pose(moved)

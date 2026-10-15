@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BODY_INDEX, FLAG, OP } from '../../../sdk-core/src/physics/layout.ts'
+import { SOFT_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
 import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
@@ -9,8 +10,9 @@ import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts'
 import { fakePhysicsWorld, idleTick } from './worker.fixture.ts'
 
 // A page-built soft body the page moves is carried there as a cooked one is, its
-// simulation kept; placed at another scale, it is made again at the new one from its geometry
-// (`followNode`), which a cooked one, held to its cooked scale, cannot be.
+// simulation kept; placed at another scale, it is made again at the new one from its geometry,
+// its simulation carried and scaled (`followBody`), which a cooked one, held to its cooked
+// scale, cannot be.
 test('a page-built cloth moved is teleported with its flags; rescaled, made again at its new scale', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld()
   try {
@@ -36,12 +38,12 @@ test('a page-built cloth moved is teleported with its flags; rescaled, made agai
     cloth.scale.setScalar(2)
     physics.frame()
     assert.notEqual(physics.handle.error?.code, 'PHYSICS_FAILED', 'no refusal')
+    // Made again first, going on from the old body (`carries`, SOFT's last word before its
+    // vertices), which leaves after it: REMOVE is the buffer's last command.
     const rescaled = worker.words.at(-1)!
-    assert.deepEqual(
-      [rescaled[0], rescaled[1], rescaled[2]],
-      [OP.remove, index, OP.soft],
-      'out, made again',
-    )
+    assert.equal(rescaled[0], OP.soft, 'made again at the new scale')
+    assert.equal(rescaled[SOFT_WORDS - 1] & BODY_INDEX, index, 'carrying the old body')
+    assert.deepEqual([...rescaled.slice(-2)], [OP.remove, index], 'the old body out after it')
     assert.notEqual(physics.session()!.engineIdOf(cloth), -1)
     physics.dispose()
   } finally {
