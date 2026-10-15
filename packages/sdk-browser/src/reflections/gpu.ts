@@ -78,12 +78,10 @@ export function createScreenReflection(
     half,
     uniform,
     settle,
-    /** The reflections' turn (`ReflectionView.temporal`), the lights' epoch the last image was drawn
-     *  under — an image under others is drawn for a change —, and whether the image being drawn is
-     *  drawn from where the held one was (`stageReflectionImage`). */
+    /** The reflections' turn (`ReflectionView.temporal`) and the lights' epoch the last image was
+     *  drawn under — an image under others is drawn for a change (`stageReflectionImage`). */
     turn: 0,
     lightsSeen: NaN,
-    still: false,
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),

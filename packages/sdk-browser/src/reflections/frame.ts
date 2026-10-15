@@ -139,7 +139,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
   radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
   radianceInputs.hash = reflection.settle.hash
-  encodeImageRadiance(encoder, reflection, stages, radianceInputs, gpu.targetSize, viewProj)
+  encodeImageRadiance(encoder, reflection, stages, radianceInputs, frame)
 }
 
 /** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */

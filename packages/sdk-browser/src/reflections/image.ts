@@ -13,7 +13,7 @@ import type { ReflectionFrame } from './viewWrite.ts'
 /**
  * Stages the reflection view of the image `frame` describes (`ScreenReflection.writeView`), under
  * the lights of epoch `lights`. Whether the image is drawn from where the held one was — its size
- * and view-projection — is decided here, once (`drawnFromHeld`, kept as `reflection.still` for its
+ * and view-projection — is decided here, once (`drawnFromHeld`, kept as `frame.still` for its
  * radiance build). An image drawn from elsewhere, or under other lights, is drawn for a change: the
  * accumulation clamps on it, and the quiet images after it freeze the history (`temporalWgsl.ts`).
  * The turn moves on while the history fills, and holds once it is frozen: a still view writes nothing.
@@ -24,8 +24,8 @@ export function stageReflectionImage(
   lights: number,
 ) {
   const { held, levels } = reflection.radiance
-  reflection.still = drawnFromHeld(held, frame.size, frame.viewProjection)
-  if (!reflection.still || lights !== reflection.lightsSeen) reflection.settle.busy()
+  frame.still = drawnFromHeld(held, frame.size, frame.viewProjection)
+  if (!frame.still || lights !== reflection.lightsSeen) reflection.settle.busy()
   reflection.lightsSeen = lights
   frame.quiet = Math.min(reflection.settle.quiet, REFLECTION_COUNTS.REFLECTION_HISTORY)
   if (frame.quiet < REFLECTION_COUNTS.REFLECTION_HISTORY)
@@ -34,8 +34,8 @@ export function stageReflectionImage(
   reflection.writeView(frame, held, levels)
 }
 
-/** The radiance pyramid of the image's lit colour (`encodeRadiancePyramid`) drawn at `size` through
- *  `viewProjection`, in a compute pass of its own in `encoder`, hashed where the image is still and
+/** The radiance pyramid of the image's lit colour (`encodeRadiancePyramid`) of the staged `frame` —
+ *  its size, its view-projection, whether it is still —, in a compute pass of its own in `encoder`, hashed where the image is still and
  *  the view not yet settled — a settled view samples no hash —, then counted by the settle
  *  (`RadianceSettle.image`). */
 export function encodeImageRadiance(
@@ -43,8 +43,7 @@ export function encodeImageRadiance(
   reflection: ScreenReflection,
   stages: RadianceStages,
   inputs: RadianceInputs,
-  size: readonly [number, number],
-  viewProjection: ArrayLike<number>,
+  frame: ReflectionFrame,
 ) {
   const pass = encoder.beginComputePass({ label: REFLECTION_RADIANCE_PASS })
   encodeRadiancePyramid(
@@ -53,9 +52,9 @@ export function encodeImageRadiance(
     reflection.radiance,
     stages,
     inputs,
-    size,
-    viewProjection,
-    reflection.still,
+    frame.size,
+    frame.viewProjection,
+    !!frame.still,
     reflection.settle.verified,
   )
   pass.end()

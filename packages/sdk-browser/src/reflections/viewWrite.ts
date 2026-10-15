@@ -17,6 +17,9 @@ export type ReflectionFrame = {
   /** The reflections' turn and the images drawn since the last change (`ReflectionView.temporal`). */
   turn?: number
   quiet?: number
+  /** Whether the image is drawn from where the held one was — its size and view-projection —,
+   *  decided by its staging (`stageReflectionImage`), read by its radiance build. */
+  still?: boolean
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }

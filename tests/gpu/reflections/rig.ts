@@ -148,8 +148,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           reflection,
           pipelines,
           { texture: targets.hdrTexture, view: lightView.buffer, hash: reflection.settle.hash },
-          frame.size,
-          frame.viewProjection,
+          told,
         )
       }
       device.queue.submit([encoder.finish()])
