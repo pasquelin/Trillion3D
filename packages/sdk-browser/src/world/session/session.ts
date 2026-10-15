@@ -13,6 +13,25 @@ export type ExplorerEmitters = {
   diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void
 }
 
+/** Says a fatal by name: the blocking event (`code`, `detail`), then its diagnostic record —
+ *  `phase`, `message`, `context`. The one shape of a fatal every explorer module reports. */
+export function sayFatal(
+  emitters: ExplorerEmitters,
+  code: string,
+  detail: string,
+  record: { phase: string; message: string; context: Record<string, unknown> },
+) {
+  emitters.emit({
+    eventVersion: 1,
+    type: 'fatal',
+    audience: 'blocking',
+    recovered: false,
+    code,
+    detail,
+  })
+  emitters.diagnose(record.phase, record.message, record.context)
+}
+
 /** What one explorer shares from its manifest onwards; built once and handed to each module as is. */
 export type ExplorerSession = ExplorerEmitters & {
   canvas: HTMLCanvasElement

@@ -8,7 +8,7 @@ import {
 } from '../capability/capabilities.ts'
 import { grantedGpuFeatures } from './gpuDevice.ts'
 import { grantedDevice } from '../capability/worldReady.ts'
-import type { ExplorerSession } from './session.ts'
+import { sayFatal, type ExplorerSession } from './session.ts'
 
 /** What the machine offers, read before the scene. */
 export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>>
@@ -18,22 +18,13 @@ export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>
  *  programs need (`wgslRefusal`), is a fatal, said by name (`WEBGPU_UNAVAILABLE`)
  *  before anything is read for the scene: the engine draws with WebGPU only. */
 export async function probeExplorerCapabilities(session: ExplorerSession) {
-  const { options, scope, emit, diagnose } = session
+  const { options, scope, diagnose } = session
   const refuse = (reason: string): never => {
     const error = webgpuUnavailable(reason)
-    emit({
-      eventVersion: 1,
-      type: 'fatal',
-      audience: 'blocking',
-      recovered: false,
-      code: 'WEBGPU_UNAVAILABLE',
-      detail: error.message,
-    })
-    diagnose('error', 'WebGPU unavailable', {
-      kind: 'error',
-      code: 'WEBGPU_UNAVAILABLE',
-      reason,
-      scope,
+    sayFatal(session, 'WEBGPU_UNAVAILABLE', error.message, {
+      phase: 'error',
+      message: 'WebGPU unavailable',
+      context: { kind: 'error', code: 'WEBGPU_UNAVAILABLE', reason, scope },
     })
     throw error
   }

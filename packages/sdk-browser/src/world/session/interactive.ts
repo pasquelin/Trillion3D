@@ -2,7 +2,7 @@ import { createExplorerFrameScheduler } from '../render/frameScheduler.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 import type { createExplorerApi } from '../api/api.ts'
 import type { SessionRuntime } from '../render/sessionRuntime.ts'
-import type { ExplorerEmitters } from './session.ts'
+import { sayFatal, type ExplorerEmitters } from './session.ts'
 import { canvasFollower, interactiveResize, type ResizeWiring } from './interactiveResize.ts'
 
 type Explorer = ReturnType<typeof createExplorerApi>
@@ -19,16 +19,10 @@ type Captures = { count: number }
 function reportFailure(view: Window, events: ExplorerEmitters, error: unknown) {
   console.error('[trillion3d] Automatic rendering stopped', error)
   view.reportError?.(error)
-  events.emit({
-    eventVersion: 1,
-    type: 'fatal',
-    audience: 'blocking',
-    recovered: false,
-    code: 'INTERACTIVE_RENDER_FAILED',
-    detail: String(error),
-  })
-  events.diagnose('interactive-render-failed', 'Automatic rendering stopped', {
-    error: String(error),
+  sayFatal(events, 'INTERACTIVE_RENDER_FAILED', String(error), {
+    phase: 'interactive-render-failed',
+    message: 'Automatic rendering stopped',
+    context: { error: String(error) },
   })
 }
 
