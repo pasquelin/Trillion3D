@@ -12,7 +12,12 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import { VOLUME, waterRankOf } from '../transparent/transmission.ts'
-import { encloseTransform, ROUND, widenBox } from '../../../../math/src/geometry/boxEnclosure.ts'
+import {
+  encloseTransform,
+  ROUND,
+  stretchBound,
+  widenBox,
+} from '../../../../math/src/geometry/boxEnclosure.ts'
 
 function createWaterBounds() {
   return {
@@ -109,14 +114,6 @@ function affineSurface(
   return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1
 }
 
-/** `dStretchBound` of the GPU (`math/src/wgsl/doubleEnclosure.ts`), sum for sum: `max(‖M‖₁, ‖M‖∞)` of `m`. */
-function waterStretch(m: ArrayLike<number>, stretch = 0) {
-  const sum = (a: number, b: number, c: number) => Math.abs(m[a]) + Math.abs(m[b]) + Math.abs(m[c])
-  for (let k = 0; k < 3; k++)
-    stretch = Math.max(Math.max(stretch, sum(4 * k, 4 * k + 1, 4 * k + 2)), sum(k, 4 + k, 8 + k))
-  return stretch
-}
-
 /** Called only for the kept transmissive items that draw. Unknown geometry keeps full coverage,
  * including unsupported quantized-page water; a deformed whole copy crops by its grown box. */
 function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
@@ -156,7 +153,7 @@ function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Ar
   }
   // The declared thickness is the mesh's, at most its pose's stretch in the world. Normalization,
   // P + dir * path and the pixel conversion also round in binary32: the matrices' guard bounds them.
-  widenBox(b.reconstructed, Math.max(0, thickness) * waterStretch(b.matrix) * (1 + 16 * ROUND))
+  widenBox(b.reconstructed, Math.max(0, thickness) * stretchBound(b.matrix) * (1 + 16 * ROUND))
   if (!project(b, b.reconstructed)) full(b, b.backdrop)
   else {
     union(b.backdrop, b.rect)

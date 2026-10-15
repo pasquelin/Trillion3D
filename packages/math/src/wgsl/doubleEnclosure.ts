@@ -47,7 +47,7 @@ export const dWidenBox = wgslFn(
 /** How far the pose `m` stretches a length, bounded: the larger of its linear part's column and row
  *  sums of magnitudes, `max(‖M‖₁, ‖M‖∞)`, above its largest singular value; 1 for a rigid pose
  *  along the axes. A product's cofactors rounded in single precision may exceed the singular value
- *  but never this bound. */
+ *  but never this bound. The CPU's `stretchBound` (`../geometry/boxEnclosure.ts`), sum for sum. */
 export const dStretchBound = wgslFn(
   'dStretchBound',
   [dAdd, dAbs, dMathMax, D_ZERO],

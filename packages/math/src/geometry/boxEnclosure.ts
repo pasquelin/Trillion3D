@@ -58,3 +58,15 @@ export function encloseTransform(
   }
   return out.every(Number.isFinite)
 }
+
+/** How far the pose `m` (column-major) stretches a length, bounded: the larger of its linear
+ *  part's column and row sums of magnitudes, `max(‖M‖₁, ‖M‖∞)`, above its largest singular value;
+ *  1 for a rigid pose along the axes. The CPU twin of `dStretchBound`
+ *  (`../wgsl/doubleEnclosure.ts`), sum for sum. */
+export function stretchBound(m: ArrayLike<number>) {
+  const sum = (a: number, b: number, c: number) => Math.abs(m[a]) + Math.abs(m[b]) + Math.abs(m[c])
+  let stretch = 0
+  for (let k = 0; k < 3; k++)
+    stretch = Math.max(Math.max(stretch, sum(4 * k, 4 * k + 1, 4 * k + 2)), sum(k, 4 + k, 8 + k))
+  return stretch
+}
