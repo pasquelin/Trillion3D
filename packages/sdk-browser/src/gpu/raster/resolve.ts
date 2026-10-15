@@ -93,7 +93,7 @@ function resolvePipelines(device: GPUDevice, code: string) {
   })
   const module = device.createShaderModule({ code })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const vertex = { module, entryPoint: 'vs' }
+  const vertex = { module, entryPoint: 'fullscreen' }
   const primitive = { topology: 'triangle-list' as const }
   // Asked, compiled off the thread from now, the frames held on them, as the raster's own
   // (`raster.ts`).

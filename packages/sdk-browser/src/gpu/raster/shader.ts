@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
-import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
 import { COLOR_SAMPLE_WGSL, TILE_POOL_WGSL, tileDeclarations } from '../../webgpu/tile/wgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
@@ -79,12 +79,11 @@ ${rasterKernels(capacity)}`,
 export const RESOLVE = wgslProgram(
   `@group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
-@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
 struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
 @fragment fn one(@builtin(position) pos:vec4f)->One{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}return One(id,bitcast<f32>(frame[i]));}
 @fragment fn two(@builtin(position) pos:vec4f)->Two{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
 @fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[pixelOffset(vec2u(pos.xy))]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
-  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset, NO_INDEX],
+  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset, NO_INDEX, FULLSCREEN_VERTEX],
 )
