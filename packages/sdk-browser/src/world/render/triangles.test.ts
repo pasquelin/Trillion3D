@@ -12,7 +12,7 @@ import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts
 import { setDebugMode } from '../../host/debugMode.ts'
 
 /** A minimal set of inputs for `createExplorerRender`: mute draw, diagnostic off, audit
- *  off (no `trillion3dFrameAudit` in the test URL). Only the engine count varies. */
+ *  off (debug mode off). Only the engine count varies. */
 function harness(options: {
   counted?: number | null
   order?: string[]
