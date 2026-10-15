@@ -9,7 +9,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * target (`surfaceWgsl.ts`) by the fragment that set the pixel's word. Read only where the volume
  * says its surface carries a lobe (`VOLUME_LOBED`) — a pixel of another surface finds there the
  * opaque resolve's lobes, or an earlier image's — and where that texel holds one; its coat normal is
- * turned with the normal the composite lights (`waterFacing`).
+ * turned with the normal the composite lights (`faceForward`, `waterColorWgsl.ts`).
  *
  * Under the coat, as on a blend: each light (`lobeLight`, a dielectric's reflectance on the
  * specular's null albedo), the environment, the bounce and the transmitted backdrop, by what the

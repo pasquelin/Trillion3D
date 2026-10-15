@@ -88,7 +88,7 @@ function runner(text: string) {
       Reflected: (base: number[], coat: number[]) => ({ base, coat }),
       // No front pass this image: the chain traces the pixel's lobes.
       reflectionView: { front: [0, 0, 0, 0] },
-      waterFacing: (normal: number[]) => normal,
+      faceForward: (normal: number[]) => normal,
       declaredLightingPair: () => pixel.declared,
       bounceLighting: () => (lit++, pixel.bounce),
       environmentLighting: () => pixel.environment,

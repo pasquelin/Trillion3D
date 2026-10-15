@@ -189,6 +189,8 @@ export const builtins = {
     const d = 2 * vec(i).reduce((sum, x, k) => sum + x * vec(normal)[k], 0)
     return vec(i).map((x, k) => x - d * vec(normal)[k])
   },
+  faceForward: (e1: Value, e2: Value, e3: Value) =>
+    vec(e2).reduce((sum, x, k) => sum + x * vec(e3)[k], 0) < 0 ? vec(e1) : vec(e1).map((x) => -x),
   cross: (a: Value, b: Value) =>
     cross(vec(a) as Parameters<typeof cross>[0], vec(b) as Parameters<typeof cross>[1]),
   normalize: (v: Value) => vec(v).map((x) => x / Math.hypot(...vec(v))),

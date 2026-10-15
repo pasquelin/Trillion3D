@@ -4,7 +4,6 @@ import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission
 import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { FOG_WGSL } from '../../lighting/fogShader.ts'
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
-import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
 import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { f0Of, fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
@@ -21,7 +20,6 @@ export const WATER_COLOR_WGSL = wgslBlock(
     LOBE_AXIS_WGSL,
     WATER_UNPACK_WGSL,
     WORLD_AT_WGSL,
-    WATER_SHADOW_READ_WGSL,
     WATER_TRANSMITTED_WGSL,
     FOG_WGSL,
     VOLUME_MARKED_WGSL,
@@ -37,11 +35,12 @@ export const WATER_COLOR_WGSL = wgslBlock(
  let emissiveAo=textureLoad(emissiveAo,coord,0);
  let fragZ=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,fragZ);
- // Shadows read from the eye (\`shadowReadWgsl.ts\`); the normal of the side we look from, else
- // refraction would go the wrong way and Fresnel turn black.
+ // Shadows read from the eye; the normal of the side we look from — a single-sided surface, or a
+ // mesh with no normal attribute, can arrive turned the wrong way —, else refraction would go the
+ // wrong way and Fresnel turn black.
  shadowCamera=view.camera.xyz;
  let V=viewToEye(P);
- let Nv=waterFacing(normal.xyz,V);
+ let Nv=faceForward(normal.xyz,-V,normal.xyz);
  let rough=lobeRoughness(normal.a);
  let metal=clamp(base.a,0.0,1.0);
  let ao=emissiveAo.a;
