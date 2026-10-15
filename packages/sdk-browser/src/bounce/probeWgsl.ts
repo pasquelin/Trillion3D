@@ -68,7 +68,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let reach=bounce.reach.x;
  let rotation=hashUnit(rank*9781u+bounce.frame.z)*TWO_PI;
  let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
- var sums:array<vec3f,13>;
+ var sums:array<vec3f,PROBE_SUMS>;
  var travelled=0.0;
  var answered=0.0;
  // One thread per ray, the group as wide as the probe's rays (\`PROBE_THREADS\`): a probe at
@@ -90,18 +90,18 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  }
  // The group's thread sums gather by successive halves: one barrier per
  // round, and thread zero writes the probe.
- for(var k=0u;k<13u;k++){partial[k][lane]=sums[k];}
+ for(var k=0u;k<PROBE_SUMS;k++){partial[k][lane]=sums[k];}
  partialTravelled[lane]=vec2f(travelled,answered);
  for(var stride=PROBE_THREADS/2u;stride>0u;stride>>=1u){
   workgroupBarrier();
   if(lane<stride){
-   for(var k=0u;k<13u;k++){partial[k][lane]+=partial[k][lane+stride];}
+   for(var k=0u;k<PROBE_SUMS;k++){partial[k][lane]+=partial[k][lane+stride];}
    partialTravelled[lane]+=partialTravelled[lane+stride];
   }
  }
  workgroupBarrier();
  if(lane!=0u){return;}
- for(var k=0u;k<13u;k++){sums[k]=partial[k][0];}
+ for(var k=0u;k<PROBE_SUMS;k++){sums[k]=partial[k][0];}
  answered=partialTravelled[0].y;
  // No ray answered: the probe keeps what it holds.
  if(answered==0.0){return;}

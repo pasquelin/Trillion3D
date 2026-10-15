@@ -11,10 +11,15 @@ import { GUARANTEED_WORKGROUP_BYTES } from '../gpu/core/textureLimits.ts'
 test('the probe update is as wide as a probe’s rays, its sums within the guaranteed memory', () => {
   const body = BOUNCE_PROBE_SHADER.split('fn updateProbes(')[0]
   assert.match(body, /@compute @workgroup_size\(PROBE_THREADS\)\n$/)
-  assert.match(BOUNCE_PROBE_SHADER, /var<workgroup> partial:array<array<vec3f,PROBE_THREADS>,13>;/)
+  assert.match(
+    BOUNCE_PROBE_SHADER,
+    /var<workgroup> partial:array<array<vec3f,PROBE_THREADS>,PROBE_SUMS>;/,
+  )
   assert.match(BOUNCE_PROBE_SHADER, /var<workgroup> partialTravelled:array<vec2f,PROBE_THREADS>;/)
-  const threads = (wgslConstants(BOUNCE_PROBE_SHADER) as Record<string, number>).PROBE_THREADS
+  const constants = wgslConstants(BOUNCE_PROBE_SHADER) as Record<string, number>
+  const threads = constants.PROBE_THREADS
   assert.equal(threads, BOUNCE_SETTINGS.raysPerProbe)
+  assert.equal(constants.PROBE_SUMS, 13, 'nine basis sums and four of distance')
   assert.equal(threads & (threads - 1), 0, 'the sums gather by halves')
   assert.ok(threads * (13 * 16 + 8) <= GUARANTEED_WORKGROUP_BYTES)
 })

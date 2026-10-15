@@ -5,9 +5,11 @@ import { GOLDEN_ANGLE } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { GUARANTEED_WORKGROUP_BYTES } from '../gpu/core/textureLimits.ts'
 
-/** Bytes of workgroup memory a thread of the update holds: thirteen `vec3f` sums, 16 bytes each in
- *  an array, and one `vec2f` of travel. */
-const BYTES_PER_THREAD = 13 * 16 + 8
+/** The partial sums a thread of the update holds: nine basis accumulators and four of distance. */
+const PROBE_SUMS = 13
+/** Bytes of workgroup memory a thread of the update holds: its `PROBE_SUMS` `vec3f` sums, 16 bytes
+ *  each in an array, and one `vec2f` of travel. */
+const BYTES_PER_THREAD = PROBE_SUMS * 16 + 8
 
 /**
  * THE PROBE UPDATE'S GROUP (`probeWgsl.ts`): one probe a workgroup, one thread a ray — its width
@@ -29,8 +31,8 @@ if (
 export const PROBE_GROUP_WGSL = wgslBlock(
   'PROBE_GROUP_WGSL',
   [GOLDEN_ANGLE, sinFromCos],
-  `${wgslConsts({ PROBE_THREADS })}
-var<workgroup> partial:array<array<vec3f,PROBE_THREADS>,13>;
+  `${wgslConsts({ PROBE_THREADS, PROBE_SUMS })}
+var<workgroup> partial:array<array<vec3f,PROBE_THREADS>,PROBE_SUMS>;
 var<workgroup> partialTravelled:array<vec2f,PROBE_THREADS>;
 /** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
