@@ -20,16 +20,15 @@ import { RUNTIME_PROXY_WGSL } from './runtimeLayout.ts'
 const POSE_RECORD: DeformRecordSource = { source: 'pool', prefix: 'pose' }
 
 /** One pose's entry: the rest and the posed copy's first triangle and how many, the posed copy's first
- *  node and how many, the corner table's first word, and the record's first float in the pool plus one
+ *  node, the corner table's first word, and the record's first float in the pool plus one
  *  (zero: no record, the copy stays at rest). */
 export const POSE_ENTRY = {
   rest: 0,
   posed: 1,
   triangles: 2,
   node: 3,
-  nodes: 4,
-  corners: 5,
-  record: 6,
+  corners: 4,
+  record: 5,
 } as const
 export const POSE_WORDS = Object.keys(POSE_ENTRY).length
 /** Words of a level's parameters: the first of its nodes in the id list, how many, and the poses. */

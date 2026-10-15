@@ -8,10 +8,7 @@
  */
 import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
-import {
-  PROXY_NODE_WORDS,
-  PROXY_TRIANGLE_FLOATS,
-} from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+import { PROXY_TRIANGLE_FLOATS } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { heldBuffers } from '../core/heldBuffers.ts'
 import { writeChanged } from '../core/writeChanged.ts'
@@ -107,7 +104,6 @@ export function createProxyPose(device: GPUDevice) {
         table[at + POSE_ENTRY.posed] = entry.posedTriangle
         table[at + POSE_ENTRY.triangles] = entry.cut.triangles.length / PROXY_TRIANGLE_FLOATS
         table[at + POSE_ENTRY.node] = entry.posedNode
-        table[at + POSE_ENTRY.nodes] = entry.cut.nodeChildren.length / PROXY_NODE_WORDS
         table[at + POSE_ENTRY.corners] = entry.corners
         table[at + POSE_ENTRY.record] = entry.record
       })
