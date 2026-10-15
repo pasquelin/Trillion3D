@@ -74,7 +74,9 @@ test('one walk of the lights gives the two sums of two walks, bit for bit', () =
       lit += +(surface.some((v) => v > 0) && specular.some((v) => v > 0))
     }
   }
-  assert.ok(lit > 600, `${lit} of 1200 sums lit on both sides`)
+  // The shared lamp draw (`randomLampScope`) puts suns and tilted cones in the set, which light fewer
+  // pairs on both sides than point lamps alone: a third of them still checks the sums lit.
+  assert.ok(lit > 400, `${lit} of 1200 sums lit on both sides`)
 })
 
 test('every term of the pair is the single term, then the same on a null albedo', () => {
