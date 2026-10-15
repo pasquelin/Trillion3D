@@ -26,7 +26,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         "bytes":bytes,"formatVersion":archive.file.version}));
     let mut scene = Scene::new(plugin);
     let name = file.file_name().unwrap_or_default().to_string_lossy();
-    scene.read_file(&name, bytes, &hash_file(file)?);
+    scene.tables.read_file(&name, bytes, &hash_file(file)?);
     {
         let mut world = World {
             archive: &archive,
@@ -34,15 +34,15 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
             cancelled: request.cancelled,
         };
         let root = world.archive.root_object()?;
+        // What a top-level object attaches has no parent: the scene's roots, in walk order.
         for child in world.archive.children(&root)? {
-            let attached = world.visit(&child, 0)?;
-            world.scene.roots.extend(attached);
+            world.visit(&child, 0)?;
         }
     }
     // The key holds the digest of the file read: an unchanged archive is rewritten identically, at
     // the same place, and a modified archive never inherits what the previous one had written.
     super::finish(
-        scene,
+        scene.tables,
         request,
         plugin,
         file,

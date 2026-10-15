@@ -127,24 +127,11 @@ pub(crate) fn normalise(path: &Path) -> PathBuf {
     out
 }
 struct Importer<'a> {
-    nodes: Vec<Value>,
-    meshes: Vec<Value>,
-    mesh_triangles: Vec<usize>,
-    materials: Vec<Value>,
-    accessors: Vec<Value>,
-    images: Vec<Value>,
-    samplers: Vec<Value>,
-    textures: Vec<Value>,
-    sampler_ids: HashMap<(u32, u32), usize>,
-    lights: Vec<Value>,
+    /// The glTF tables every driver fills, its cache key and the files it read.
+    scene: SceneTables,
     /// The skins and clips of the scene (`motion.rs`).
     skins: Vec<Value>,
     animations: Vec<Value>,
-    bin: Bin,
-    report: Report,
-    triangles: usize,
-    mesh_nodes: usize,
-    files: Vec<Value>,
     /// Files opened besides the claimed inputs: they enter the cache key.
     externals: external::Externals,
     cancelled: &'a AtomicBool,
@@ -161,7 +148,7 @@ pub(crate) mod opacity;
 mod primitive;
 mod runner;
 mod scene;
-mod tables;
+pub(crate) mod tables;
 mod textures;
 mod write;
 

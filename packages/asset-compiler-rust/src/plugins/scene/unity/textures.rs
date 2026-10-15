@@ -7,16 +7,23 @@
 //! is the `.meta`'s `TextureImporter` that declares it, axis by axis for wrap and as a single
 //! setting for filtering.
 use super::*;
+use crate::gltf_codes::{
+    CLAMP_TO_EDGE, DEFAULT_FILTER, LINEAR, LINEAR_MIPMAP_NEAREST, MIRRORED_REPEAT, NEAREST,
+    NEAREST_MIPMAP_NEAREST, REPEAT,
+};
+use crate::import::tables::media::relative_under;
 use std::collections::HashMap;
 
-/// Default wrap of a Unity texture, that of the editor without a contrary mention.
-const REPEAT: u32 = 10497;
-/// glTF wrap modes, in the order Unity numbers them: repeat, clamp, mirror.
-const WRAPS: [u32; 3] = [REPEAT, 33071, 33648];
+/// glTF wrap modes, in the order Unity numbers them: repeat (the editor's default), clamp, mirror.
+const WRAPS: [u32; 3] = [REPEAT, CLAMP_TO_EDGE, MIRRORED_REPEAT];
 /// glTF `magFilter`, `minFilter` pairs, in the order of Unity `filterMode`: nearest, bilinear,
 /// trilinear — each with the mipmap chain the editor builds. The last is also the default
 /// filtering, the one a texture without a `.meta` keeps.
-const FILTERS: [[u32; 2]; 3] = [[9728, 9984], [9729, 9985], [9729, 9987]];
+const FILTERS: [[u32; 2]; 3] = [
+    [NEAREST, NEAREST_MIPMAP_NEAREST],
+    [LINEAR, LINEAR_MIPMAP_NEAREST],
+    DEFAULT_FILTER,
+];
 const WRAP_UNSUPPORTED: &str = "unity-texture-wrap-unsupported";
 const FILTER_UNSUPPORTED: &str = "unity-texture-filter-unsupported";
 
@@ -55,19 +62,13 @@ fn resolve(guid: &str, scene: &mut SceneTables, project: &Project) -> Option<usi
             .push(format!("texture outside the image registry: {name}"));
         return None;
     };
-    let Some(uri) = project.relative_uri(asset) else {
+    let Some(relative) = relative_under(&project.source_dir, asset) else {
         scene.report.add("unity-texture-outside-source");
         return None;
     };
     let sampler = sampler(asset, &name, scene);
-    scene
-        .images
-        .push(json!({"name":name,"mimeType":decoder.mime(),"uri":uri}));
-    scene
-        .textures
-        .push(json!({"source":scene.images.len()-1,"sampler":sampler}));
-    scene.count("textures", 1);
-    Some(scene.textures.len() - 1)
+    let image = scene.image(relative, decoder.mime());
+    Some(scene.texture(image, sampler))
 }
 
 /// Sampler the `.meta`'s `TextureImporter` declares. A missing setting keeps the editor

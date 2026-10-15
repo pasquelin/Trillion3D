@@ -6,6 +6,21 @@
 //! way cite same texture, regardless of writing driver.
 use super::*;
 
+/// The path of `path` relative to `root`, both made absolute and rid of `.` and `..`, its
+/// segments joined by `/`; `None` outside `root`. The one rule by which a driver names an image
+/// under the served root, before `SceneTables::image` escapes it as a URI.
+pub(crate) fn relative_under(root: &Path, path: &Path) -> Option<String> {
+    let relative = normalise(path)
+        .strip_prefix(normalise(root))
+        .ok()?
+        .to_path_buf();
+    let parts: Vec<String> = relative
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    Some(parts.join("/"))
+}
+
 /// MIME type of image driver claiming URI under root, when file present.
 pub(crate) fn readable(root: &Path, uri: &str) -> Option<&'static str> {
     let path = root.join(uri);
@@ -29,6 +44,14 @@ impl SceneTables {
         let index = self.images.len() - 1;
         self.images_by_uri.insert(relative, index);
         index
+    }
+
+    /// Rank of an image the source embeds, its bytes copied into the binary.
+    pub(crate) fn image_embedded(&mut self, name: &str, mime: &'static str, bytes: &[u8]) -> usize {
+        let view = self.bin.view(bytes, None);
+        self.images
+            .push(json!({"name":name,"mimeType":mime,"bufferView":view}));
+        self.images.len() - 1
     }
 
     /// Reports texture no image driver reads under root, by source path:

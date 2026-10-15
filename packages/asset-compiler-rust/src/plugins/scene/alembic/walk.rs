@@ -39,7 +39,7 @@ impl World<'_> {
     /// its parent does not count it among its children.
     pub(super) fn visit(&mut self, object: &Object, depth: usize) -> Result<Vec<usize>> {
         if depth > MAX_DEPTH {
-            self.scene.report.add("alembic-hierarchy-too-deep");
+            self.scene.tables.report.add("alembic-hierarchy-too-deep");
             return Ok(Vec::new());
         }
         if self.cancelled.load(Ordering::Relaxed) {
@@ -59,7 +59,7 @@ impl World<'_> {
             Kind::Mesh | Kind::SubD => self.mesh_node(object, kind, &children, attached),
             Kind::FaceSet => Ok(Vec::new()),
             Kind::Skipped(reason) => {
-                self.scene.report.add(reason);
+                self.scene.tables.report.add(reason);
                 Ok(attached)
             }
         }
@@ -82,7 +82,7 @@ impl World<'_> {
             if matrix != trillion3d_math::matrix::IDENTITY && xform::is_finite(&matrix) {
                 node["matrix"] = json!(matrix);
             } else if !xform::is_finite(&matrix) {
-                self.scene.report.add("alembic-transform-invalid");
+                self.scene.tables.report.add("alembic-transform-invalid");
             }
             inherits = properties
                 .sample(self.archive, ".inherits", POD_BOOL, Some(1))?
@@ -92,13 +92,16 @@ impl World<'_> {
         if !children.is_empty() {
             node["children"] = json!(children);
         }
-        self.scene.count("xforms", 1);
-        let id = self.scene.node(node);
+        self.scene.tables.count("xforms", 1);
+        let id = self.scene.tables.node(node);
         if inherits {
             return Ok(vec![id]);
         }
-        self.scene.report.add("alembic-transform-not-inherited");
-        self.scene.roots.push(id);
+        // Attached by no parent, the node is a scene root (`SceneTables` roots: nodes no other cites).
+        self.scene
+            .tables
+            .report
+            .add("alembic-transform-not-inherited");
         Ok(Vec::new())
     }
 
@@ -111,7 +114,7 @@ impl World<'_> {
         attached: Vec<usize>,
     ) -> Result<Vec<usize>> {
         if kind == Kind::SubD {
-            self.scene.report.add("alembic-subd-as-polygons");
+            self.scene.tables.report.add("alembic-subd-as-polygons");
         }
         let Some(geom) = self
             .top(object)?
@@ -119,19 +122,19 @@ impl World<'_> {
             .transpose()?
             .flatten()
         else {
-            self.scene.report.add("alembic-mesh-invalid");
+            self.scene.tables.report.add("alembic-mesh-invalid");
             return Ok(attached);
         };
         self.animated(&geom, "P");
         let Some(geometry) = Geometry::read(self.archive, &geom)? else {
-            self.scene.report.add("alembic-mesh-invalid");
+            self.scene.tables.report.add("alembic-mesh-invalid");
             return Ok(attached);
         };
         for reason in &geometry.dropped {
-            self.scene.report.add(reason);
+            self.scene.tables.report.add(reason);
         }
         if geometry.normals.is_none() {
-            self.scene.report.add("alembic-normals-missing");
+            self.scene.tables.report.add("alembic-normals-missing");
         }
         let facesets = self.facesets(children)?;
         let (parts, counted) = parts(&geometry, &facesets, self.cancelled)?;
@@ -145,7 +148,7 @@ impl World<'_> {
             .report
             .add_count("alembic-ngon-untriangulable", counted.uncut);
         if parts.is_empty() {
-            self.scene.report.add("alembic-mesh-empty");
+            self.scene.tables.report.add("alembic-mesh-empty");
             return Ok(attached);
         }
         let mesh = self.scene.mesh(&object.name, &parts, &facesets);
@@ -153,9 +156,9 @@ impl World<'_> {
         if !attached.is_empty() {
             node["children"] = json!(attached);
         }
-        self.scene.count("meshInstances", 1);
-        self.scene.count("faceSets", facesets.len());
-        Ok(vec![self.scene.node(node)])
+        self.scene.tables.count("meshInstances", 1);
+        self.scene.tables.count("faceSets", facesets.len());
+        Ok(vec![self.scene.tables.node(node)])
     }
 
     /// The face sets of a mesh, in the order the file declares them.
@@ -174,7 +177,7 @@ impl World<'_> {
                 .transpose()?
                 .flatten()
             else {
-                self.scene.report.add("alembic-faceset-invalid");
+                self.scene.tables.report.add("alembic-faceset-invalid");
                 continue;
             };
             out.push(FaceSet {
@@ -188,7 +191,7 @@ impl World<'_> {
     /// A property with several samples is animated: this driver reads the first and says so.
     fn animated(&mut self, properties: &Properties, name: &str) {
         if properties.find(name).is_some_and(|found| found.samples > 1) {
-            self.scene.report.add("alembic-animation-ignored");
+            self.scene.tables.report.add("alembic-animation-ignored");
         }
     }
 }

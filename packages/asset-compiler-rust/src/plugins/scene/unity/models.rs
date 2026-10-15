@@ -5,6 +5,7 @@
 //! imported only once, whatever the number of instances that cite it, and a model that would
 //! itself be a Unity scene is refused: a driver does not call itself.
 use super::*;
+use crate::import::tables::media::relative_under;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -101,7 +102,8 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     // the root given to the compiler, so they must be prefixed with that path.
     let prefix = asset
         .parent()
-        .and_then(|parent| world.project.relative_uri(parent))
+        .and_then(|parent| relative_under(&world.project.source_dir, parent))
+        .map(|relative| crate::uri::encode_relative(Path::new(&relative)))
         .unwrap_or_default();
     let parts = merge::merge(&gltf, binary.bytes(), &prefix, world.scene);
     world.scene.read_model(&name, plugin.name(), &key);

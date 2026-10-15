@@ -1,6 +1,7 @@
 //! What only the driver's interior can prove: the name a project asset carries in the
 //! intermediate scene. What the driver produces from a real project is proven in `src/tests/`.
 use super::*;
+use crate::import::tables::media::relative_under;
 
 /// A filename legal on disk and forbidden as-is in a URI.
 const AWKWARD: &str = "co%lor #1 rouge.png";
@@ -25,7 +26,8 @@ fn a_project_asset_is_named_by_an_escaped_uri() {
     let source = root.join("Assets");
     let project = Project::index(&source, &source, &AtomicBool::new(false)).expect("project");
     let asset = project.asset(GUID).expect("the image is indexed");
-    let uri = project.relative_uri(asset).expect("it is under the root");
+    let relative = relative_under(&project.source_dir, asset).expect("it is under the root");
+    let uri = crate::uri::encode_relative(Path::new(&relative));
     assert_eq!(uri, "Textures/co%25lor%20%231%20rouge.png");
     assert_eq!(
         crate::uri::decode(&uri).as_deref(),

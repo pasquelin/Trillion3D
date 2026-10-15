@@ -48,7 +48,7 @@ pub(super) fn mesh_json(
             return Err(cancel::refusal());
         };
         if !exact {
-            out.count(NGON_UNCUT, 1);
+            out.scene.count(NGON_UNCUT, 1);
         }
         let group = groups.entry(geometry.material[face]).or_default();
         for triangle in cutter.triangles() {
@@ -68,8 +68,8 @@ pub(super) fn mesh_json(
         let material = slots.get(slot as usize).copied().flatten();
         primitives.push(primitive(
             &group.vertices,
-            &mut out.bin,
-            &mut out.accessors,
+            &mut out.scene.bin,
+            &mut out.scene.accessors,
             material,
         ));
     }

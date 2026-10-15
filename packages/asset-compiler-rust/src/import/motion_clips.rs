@@ -50,7 +50,7 @@ impl Importer<'_> {
 
     /// A node an animation drives carries its pose as translation, rotation and scale.
     fn pose_by_parts(&mut self, node: usize) {
-        let Some(matrix) = self.nodes[node]
+        let Some(matrix) = self.scene.nodes[node]
             .as_object_mut()
             .and_then(|n| n.remove("matrix"))
         else {
@@ -77,7 +77,7 @@ impl Importer<'_> {
             m23: m[14],
         };
         let [translation, rotation, scale] = trs(&matrix);
-        let n = &mut self.nodes[node];
+        let n = &mut self.scene.nodes[node];
         (n["translation"], n["rotation"], n["scale"]) =
             (json!(translation), json!(rotation), json!(scale));
     }
@@ -125,16 +125,12 @@ impl Clip {
 
 /// An accessor of `values` of `kind`, with `extra` fields merged in.
 fn accessor(importer: &mut Importer<'_>, values: &[f32], kind: &str, mut extra: Value) -> usize {
-    let width = match kind {
-        "VEC3" => 3,
-        "VEC4" => 4,
-        _ => 1,
-    };
-    let view = importer.bin.view(&f32_bytes(values), None);
+    let width = crate::gltf_codes::element_shape(kind).map_or(1, |(_, rows)| rows);
+    let view = importer.scene.bin.view(&f32_bytes(values), None);
     extra["bufferView"] = json!(view);
     extra["componentType"] = json!(FLOAT);
     extra["count"] = json!(values.len() / width);
     extra["type"] = json!(kind);
-    importer.accessors.push(extra);
-    importer.accessors.len() - 1
+    importer.scene.accessors.push(extra);
+    importer.scene.accessors.len() - 1
 }

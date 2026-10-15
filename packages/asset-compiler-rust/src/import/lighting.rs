@@ -47,13 +47,13 @@ impl Importer<'_> {
             ufbx::LightType::Directional => "directional",
             ufbx::LightType::Spot => "spot",
             _ => {
-                self.report.add("light-area-or-volume");
+                self.scene.report.add("light-area-or-volume");
                 return;
             }
         };
         let matrix = light_matrix(node, light.local_direction);
         if !matrix_is_finite(&matrix) {
-            self.report.add("node-invalid-transform");
+            self.scene.report.add("node-invalid-transform");
             return;
         }
         // FBX carries no photometric unit: its intensity is a percentage, which the
@@ -66,16 +66,20 @@ impl Importer<'_> {
             colour: [light.color.x, light.color.y, light.color.z],
             intensity: light.intensity * crate::compiler_lights::fbx_intensity_scale(kind),
             // The outer half-angle travels as written: `compiler_lights` clamps every cone once.
-            cone: (kind == "spot")
-                .then(|| (light.inner_angle.to_radians(), light.outer_angle.to_radians())),
+            cone: (kind == "spot").then(|| {
+                (
+                    light.inner_angle.to_radians(),
+                    light.outer_angle.to_radians(),
+                )
+            }),
             casts_shadow: Some(light.cast_shadows),
             emitter_radius: None,
         };
-        self.lights.push(source.json());
-        self.nodes.push(crate::import::light_node(
+        self.scene.lights.push(source.json());
+        self.scene.nodes.push(crate::import::light_node(
             &node.element.name,
             json!(matrix),
-            self.lights.len() - 1,
+            self.scene.lights.len() - 1,
         ));
     }
 }

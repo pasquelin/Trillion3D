@@ -142,7 +142,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
             pbr_json["metallicRoughnessTexture"] = json!({"index":t});
         }
     } else if rough_texture.is_some() || metal_texture.is_some() {
-        textures.report.add("material-split-metal-roughness");
+        textures.scene.report.add("material-split-metal-roughness");
     }
     let mut out = json!({"name":&*material.element.name,"pbrMetallicRoughness":pbr_json,"emissiveFactor":[emissive[0].clamp(0.0,1.0),emissive[1].clamp(0.0,1.0),emissive[2].clamp(0.0,1.0)]});
     if let Some(t) = map_texture(&pbr.normal_map, textures) {
@@ -165,12 +165,15 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     if let Some(map) = opacity.texture {
         out["alphaMode"] = json!("BLEND");
         if texture_file(map) != texture_file(&pbr.base_color) {
-            textures.report.add("material-separate-opacity-texture");
+            textures
+                .scene
+                .report
+                .add("material-separate-opacity-texture");
         }
     } else if alpha < 1.0 {
         out["alphaMode"] = json!("BLEND");
     }
-    unconverted(material, &pbr.normal_map, textures.report);
-    map_options(material, textures.report);
+    unconverted(material, &pbr.normal_map, &mut textures.scene.report);
+    map_options(material, &mut textures.scene.report);
     out
 }

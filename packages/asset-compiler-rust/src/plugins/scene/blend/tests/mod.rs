@@ -149,7 +149,7 @@ fn a_concave_polygon_keeps_its_own_area() {
     )
     .expect("the mesh");
     assert_eq!(triangles, 6, "eight corners make six triangles");
-    assert_eq!(out.counts.get("blend-ngon-untriangulable"), None);
+    assert_eq!(out.scene.counts.get("blend-ngon-untriangulable"), None);
     let primitive = &mesh["primitives"][0];
     let positions: Vec<f32> = read(&out, &primitive["attributes"]["POSITION"])
         .as_chunks::<4>()
@@ -173,10 +173,16 @@ fn a_concave_polygon_keeps_its_own_area() {
 /// The bytes of an accessor of the scene under construction, by the binary view it cites.
 fn read<'a>(out: &'a Out, accessor: &Value) -> &'a [u8] {
     let rank = accessor.as_u64().expect("accessor") as usize;
-    let view = out.accessors[rank]["bufferView"].as_u64().expect("view") as usize;
-    let from = out.bin.views[view]["byteOffset"].as_u64().expect("start") as usize;
-    let length = out.bin.views[view]["byteLength"].as_u64().expect("length") as usize;
-    &out.bin.bytes[from..from + length]
+    let view = out.scene.accessors[rank]["bufferView"]
+        .as_u64()
+        .expect("view") as usize;
+    let from = out.scene.bin.views[view]["byteOffset"]
+        .as_u64()
+        .expect("start") as usize;
+    let length = out.scene.bin.views[view]["byteLength"]
+        .as_u64()
+        .expect("length") as usize;
+    &out.scene.bin.bytes[from..from + length]
 }
 
 /// Non-cancelled normal computation shared by the Blender geometry fixtures.

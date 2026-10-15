@@ -2,22 +2,26 @@
 //! publishes. Filters and wrapping are the sampler constants of glTF 2.0; a texture without a
 //! sampler takes the specification's defaults, the very ones the loader falls back to.
 use super::*;
+use crate::gltf_codes::{
+    CLAMP_TO_EDGE, LINEAR, LINEAR_MIPMAP_LINEAR, LINEAR_MIPMAP_NEAREST, MIRRORED_REPEAT, NEAREST,
+    NEAREST_MIPMAP_LINEAR, NEAREST_MIPMAP_NEAREST,
+};
 
 fn wrap(value: Option<&Value>) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(33071) => "clamp",
-        Some(33648) => "mirror",
+    match value.and_then(Value::as_u64).map(|code| code as u32) {
+        Some(CLAMP_TO_EDGE) => "clamp",
+        Some(MIRRORED_REPEAT) => "mirror",
         _ => "repeat",
     }
 }
 fn filter(value: Option<&Value>, default: &'static str) -> &'static str {
-    match value.and_then(Value::as_u64) {
-        Some(9728) => "nearest",
-        Some(9729) => "linear",
-        Some(9984) => "nearest-mip-nearest",
-        Some(9985) => "linear-mip-nearest",
-        Some(9986) => "nearest-mip-linear",
-        Some(9987) => "linear-mip-linear",
+    match value.and_then(Value::as_u64).map(|code| code as u32) {
+        Some(NEAREST) => "nearest",
+        Some(LINEAR) => "linear",
+        Some(NEAREST_MIPMAP_NEAREST) => "nearest-mip-nearest",
+        Some(LINEAR_MIPMAP_NEAREST) => "linear-mip-nearest",
+        Some(NEAREST_MIPMAP_LINEAR) => "nearest-mip-linear",
+        Some(LINEAR_MIPMAP_LINEAR) => "linear-mip-linear",
         _ => default,
     }
 }

@@ -1,55 +1,10 @@
-//! Writing the intermediate scene into the cache, and the digest that makes a repeated mesh
-//! one instance.
+//! The digest that makes a repeated mesh one instance.
 //!
 //! Two objects whose converted bytes are the same are the same mesh posed twice: that is
 //! instancing, read from the content and not from a field the format does not always write.
 use super::super::mesh::{FaceSet, Part};
-use super::super::*;
-use super::Scene;
 use crate::hash;
-use crate::import::{f32_bytes, scene_source, write_scene, Tables};
-use crate::plugins::scene::{scene_output_fields, SceneOutput};
-
-impl SceneOutput for Scene {
-    scene_output_fields!();
-    fn write(
-        self,
-        plugin: &dyn ScenePlugin,
-        directory: &Path,
-        source: &Path,
-        started: std::time::Instant,
-    ) -> Result<PathBuf> {
-        let tables = Tables {
-            nodes: &self.nodes,
-            meshes: &self.meshes,
-            materials: &self.materials,
-            accessors: &self.accessors,
-            images: &[],
-            samplers: &[],
-            textures: &[],
-            bin: &self.bin,
-        };
-        let gltf = serde_json::to_vec(&tables.document(plugin, &self.roots))?;
-        write_scene(
-            directory,
-            &gltf,
-            &self.bin,
-            self.instanced,
-            &self.report,
-            || {
-                scene_source(
-                    plugin,
-                    source,
-                    started,
-                    &self.counts,
-                    (self.meshes.len(), self.materials.len()),
-                    json!({}),
-                )
-            },
-        )?;
-        Ok(directory.to_path_buf())
-    }
-}
+use crate::import::f32_bytes;
 
 /// The digest of a mesh's content: its attribute bytes and the materials it names. Two objects
 /// that share it are the same mesh posed twice, whatever their names.

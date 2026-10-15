@@ -47,7 +47,7 @@ pub(super) fn build(
     out: &mut Out,
 ) -> Option<usize> {
     let Some(lamp) = lamp.filter(|data| data.layout.name == "Lamp") else {
-        out.report.add(MISSING);
+        out.scene.report.add(MISSING);
         return None;
     };
     let kind = lamp.int("type", -1);
@@ -56,7 +56,7 @@ pub(super) fn build(
         LA_SUN => ("directional", None),
         LA_SPOT => ("spot", Some(cone(&lamp))),
         _ => {
-            out.report.add(UNSUPPORTED);
+            out.scene.report.add(UNSUPPORTED);
             return None;
         }
     };
@@ -75,9 +75,9 @@ pub(super) fn build(
         casts_shadow: None,
         emitter_radius: radius(&lamp, kind, scale),
     };
-    out.lights.push(source.json());
-    out.count("lights", 1);
-    Some(out.lights.len() - 1)
+    out.scene.lights.push(source.json());
+    out.scene.count("lights", 1);
+    Some(out.scene.lights.len() - 1)
 }
 
 /// The lamp's power. Files where the current field is still called `energy` have no

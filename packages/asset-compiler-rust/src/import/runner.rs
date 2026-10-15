@@ -1,4 +1,5 @@
 use super::*;
+use crate::plugins::scene::SceneOutput;
 
 /// Can this driver reuse a converted scene folder as-is?
 fn reusable(directory: &Path, plugin: &dyn ScenePlugin) -> bool {
@@ -21,19 +22,6 @@ fn source_root(inputs: &[PathBuf]) -> PathBuf {
         .and_then(|input| input.parent())
         .unwrap_or(Path::new("."))
         .to_path_buf()
-}
-
-/// Key base: the driver, its version, the name and bytes of each claimed input.
-/// What import opens besides that — material libraries, caches — is added next.
-fn base_key(plugin: &dyn ScenePlugin, inputs: &[PathBuf], hashes: &[String]) -> String {
-    let mut material = format!("{}:{}", plugin.name(), plugin.version());
-    for (input, digest) in inputs.iter().zip(hashes) {
-        material.push('\n');
-        material.push_str(input.file_name().and_then(|s| s.to_str()).unwrap_or(""));
-        material.push(':');
-        material.push_str(digest);
-    }
-    hash(material.as_bytes())
 }
 
 /// Converts the files claimed by `plugin` into `<cache>/native/imports/<key>/` and
@@ -60,8 +48,15 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         .iter()
         .map(|input| crate::map_source(input))
         .collect::<Result<Vec<memmap2::Mmap>>>()?;
-    let hashes: Vec<String> = mapped.iter().map(|m| hash(m)).collect();
-    let base = base_key(plugin, inputs, &hashes);
+    // Key base: the driver, its version, the name, size and digest of each claimed input — the
+    // one rule of every driver (`SceneTables::read_file`). What import opens besides that —
+    // material libraries, caches — is added next.
+    let mut scene = SceneTables::new(plugin);
+    for (input, bytes) in inputs.iter().zip(&mapped) {
+        let name = input.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        scene.read_file(name, bytes.len(), &hash(bytes));
+    }
+    let base = scene.key();
     // Folder that resolves the source's dependencies: it, not the input bytes
     // alone, says which external files the read will open.
     let root = source_root(inputs);
@@ -77,23 +72,9 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         return Ok(directory);
     }
     let mut importer = Importer {
-        nodes: Vec::new(),
-        meshes: Vec::new(),
-        mesh_triangles: Vec::new(),
-        materials: Vec::new(),
-        accessors: Vec::new(),
-        images: Vec::new(),
-        samplers: Vec::new(),
-        textures: Vec::new(),
-        sampler_ids: HashMap::new(),
-        lights: Vec::new(),
+        scene,
         skins: Vec::new(),
         animations: Vec::new(),
-        bin: Bin::default(),
-        report: Report::default(),
-        triangles: 0,
-        mesh_nodes: 0,
-        files: Vec::new(),
         externals: external::Externals::default(),
         cancelled,
         progress,
@@ -101,27 +82,18 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     let total = inputs.len();
     for (index, input) in inputs.iter().enumerate() {
         importer.check()?;
-        importer.load(input, &mapped[index], &hashes[index], index, total)?;
+        importer.load(input, &mapped[index], index, total)?;
     }
-    if importer.mesh_nodes == 0 {
+    let (mesh_nodes, triangles) = importer.scene.stats();
+    if mesh_nodes == 0 {
         return Err(CompilerError::new(
             "IMPORT_EMPTY",
             "No visible mesh instance in the source",
         ));
     }
-    let tables = Tables {
-        nodes: &importer.nodes,
-        meshes: &importer.meshes,
-        materials: &importer.materials,
-        accessors: &importer.accessors,
-        images: &importer.images,
-        samplers: &importer.samplers,
-        textures: &importer.textures,
-        bin: &importer.bin,
-    };
-    let roots: Vec<usize> = (0..importer.nodes.len()).collect();
-    let mut gltf = tables.document(plugin, &roots);
-    let lights = &importer.lights;
+    let tables = borrowed_tables!(importer.scene);
+    let mut gltf = tables.document(plugin, &importer.scene.roots());
+    let lights = &importer.scene.lights;
     crate::import::attach_lights(&mut gltf, lights);
     for (field, table) in [
         ("skins", &importer.skins),
@@ -133,9 +105,8 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     }
     let gltf_bytes = serde_json::to_vec(&gltf)?;
     progress(
-        json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.bin.bytes.len()+gltf_bytes.len()}),
+        json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.scene.bin.bytes.len()+gltf_bytes.len()}),
     );
-    let (triangles, mesh_nodes) = (importer.triangles, importer.mesh_nodes);
     // The definitive key, that of the files actually opened: the scene lives under it.
     let externals = importer.externals.drain();
     let key = external::key(&base, &externals);
@@ -144,10 +115,10 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     write_scene(
         &directory,
         &gltf_bytes,
-        &importer.bin,
+        &importer.scene.bin,
         (mesh_nodes, triangles),
-        &importer.report,
-        || json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":importer.files,"external":external_json,"key":key,"meshes":importer.meshes.len(),"materials":importer.materials.len(),"images":importer.images.len(),"lights":lights.len(),"importMs":crate::shared_math::elapsed_ms(started)}),
+        &importer.scene.report,
+        || json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":importer.scene.files,"external":external_json,"key":key,"meshes":importer.scene.meshes.len(),"materials":importer.scene.materials.len(),"images":importer.scene.images.len(),"lights":lights.len(),"importMs":crate::shared_math::elapsed_ms(started)}),
     )?;
     external::write_probe(cache, &base, &root, &externals)?;
     progress(

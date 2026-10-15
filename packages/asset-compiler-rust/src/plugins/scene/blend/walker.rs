@@ -13,8 +13,8 @@ pub(super) struct Scene<'a> {
     pub(super) images: Images,
     /// The glTF rank of a material, by the address of its block.
     pub(super) materials: HashMap<u64, Option<usize>>,
-    /// The glTF rank of a mesh and its triangles, by the address of its block.
-    pub(super) meshes: HashMap<u64, Option<(usize, usize)>>,
+    /// The glTF rank of a mesh, by the address of its block.
+    pub(super) meshes: HashMap<u64, Option<usize>>,
     pub(super) root: &'a Path,
     pub(super) cancelled: &'a AtomicBool,
 }
@@ -33,7 +33,10 @@ impl Scene<'_> {
     /// An object: its mesh if it holds one, and what is not rendered, counted.
     pub(super) fn object(&mut self, object: &At<'_>) -> Result<()> {
         if object.pointer("instance_collection") != 0 || object.pointer("dup_group") != 0 {
-            self.out.report.add("blend-collection-instance-unsupported");
+            self.out
+                .scene
+                .report
+                .add("blend-collection-instance-unsupported");
         }
         let kind = object.int("type", -1);
         if kind == light::OB_LAMP {
@@ -41,20 +44,20 @@ impl Scene<'_> {
             return Ok(());
         }
         if kind != object::OB_MESH {
-            self.out.count("nonMeshObjects", 1);
+            self.out.scene.count("nonMeshObjects", 1);
             return Ok(());
         }
         if !object.list("modifiers").is_empty() {
-            self.out.report.add("blend-modifier-not-applied");
+            self.out.scene.report.add("blend-modifier-not-applied");
         }
         let Some(mesh) = object
             .follow("data")
             .filter(|data| data.layout.name == "Mesh")
         else {
-            self.out.report.add("blend-mesh-missing");
+            self.out.scene.report.add("blend-mesh-missing");
             return Ok(());
         };
-        let Some((index, triangles)) = self.mesh(&mesh)? else {
+        let Some(index) = self.mesh(&mesh)? else {
             return Ok(());
         };
         if self.overridden(object) {
@@ -66,13 +69,12 @@ impl Scene<'_> {
             "name": short(object, "Object"), "mesh": index,
             "matrix": object::world(object),
         });
-        self.out.nodes.push(node);
-        let rank = self.out.nodes.len() - 1;
-        if let Some(children) = self.out.nodes[0]["children"].as_array_mut() {
+        self.out.scene.nodes.push(node);
+        let rank = self.out.scene.nodes.len() - 1;
+        if let Some(children) = self.out.scene.nodes[0]["children"].as_array_mut() {
             children.push(json!(rank));
         }
-        self.out.triangles += triangles;
-        self.out.count("meshInstances", 1);
+        self.out.scene.count("meshInstances", 1);
         Ok(())
     }
 
@@ -89,26 +91,26 @@ impl Scene<'_> {
         self.out
             .nodes
             .push(crate::import::light_node(&name, json!(matrix), light));
-        let rank = self.out.nodes.len() - 1;
-        if let Some(children) = self.out.nodes[0]["children"].as_array_mut() {
+        let rank = self.out.scene.nodes.len() - 1;
+        if let Some(children) = self.out.scene.nodes[0]["children"].as_array_mut() {
             children.push(json!(rank));
         }
     }
 
     /// The glTF mesh of an `ME` block, poured on first request.
-    fn mesh(&mut self, mesh: &At<'_>) -> Result<Option<(usize, usize)>> {
+    fn mesh(&mut self, mesh: &At<'_>) -> Result<Option<usize>> {
         if let Some(known) = self.meshes.get(&mesh.old) {
             return Ok(*known);
         }
         let name = short(mesh, "Mesh");
-        let room = self.out.room.saturating_sub(self.out.bin.bytes.len());
+        let room = self.out.room.saturating_sub(self.out.scene.bin.bytes.len());
         let geometry = mesh::read(mesh, &name, room)?;
         let normals = normals::corners(&geometry.surface(), self.cancelled)
             .ok_or_else(cancel::refusal)?
             .normals;
-        self.out.count("normalsComputed", 1);
+        self.out.scene.count("normalsComputed", 1);
         let slots = self.slots(mesh)?;
-        let before = self.out.bin.bytes.len();
+        let before = self.out.scene.bin.bytes.len();
         let (json, triangles) = build::mesh_json(
             &geometry,
             &normals,
@@ -119,12 +121,13 @@ impl Scene<'_> {
         )?;
         // The geometry joins the scene binary under the same budget as the packed images. The
         // check follows the pour: it bounds the binary, not the peak of building this mesh.
-        let added = self.out.bin.bytes.len() - before;
+        let added = self.out.scene.bin.bytes.len() - before;
         self.out.fit("mesh", &name, before, added)?;
-        self.out.meshes.push(json);
-        let built = Some((self.out.meshes.len() - 1, triangles));
+        self.out.scene.meshes.push(json);
+        self.out.scene.mesh_triangles.push(triangles);
+        let built = Some(self.out.scene.meshes.len() - 1);
         self.meshes.insert(mesh.old, built);
-        self.out.count("meshes", 1);
+        self.out.scene.count("meshes", 1);
         Ok(built)
     }
 
@@ -157,8 +160,8 @@ impl Scene<'_> {
                     &mut self.images,
                     &mut self.out,
                 )?;
-                self.out.materials.push(json);
-                Ok(self.out.materials.len() - 1)
+                self.out.scene.materials.push(json);
+                Ok(self.out.scene.materials.len() - 1)
             })
             .transpose()?;
         self.materials.insert(pointer, found);

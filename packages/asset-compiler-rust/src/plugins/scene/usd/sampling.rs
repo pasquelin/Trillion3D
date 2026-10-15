@@ -6,10 +6,7 @@
 //! here — a driver that recomputed bytes would invent the image.
 use super::*;
 
-/// The three glTF wrap modes: repeat, clamp, mirror.
-const REPEAT: u32 = 10497;
-const CLAMP: u32 = 33071;
-const MIRROR: u32 = 33648;
+use crate::gltf_codes::{CLAMP_TO_EDGE, MIRRORED_REPEAT, REPEAT};
 
 /// The two colour spaces a `UsdUVTexture` names plainly; `auto` lets the file say.
 const RAW: &str = "raw";
@@ -30,8 +27,8 @@ fn wrap(world: &mut World<'_>, shader: &usd::Prim, axis: &str) -> u32 {
         .and_then(|(value, _)| read::text(&value))
         .unwrap_or_default();
     match mode.as_str() {
-        "clamp" => CLAMP,
-        "mirror" => MIRROR,
+        "clamp" => CLAMP_TO_EDGE,
+        "mirror" => MIRRORED_REPEAT,
         "" | "repeat" => REPEAT,
         _ => {
             world.refuse(world::TEXTURE_WRAP);

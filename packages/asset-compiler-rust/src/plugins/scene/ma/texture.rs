@@ -9,15 +9,13 @@
 //! here, and following it would leave the served directory: only its file name is kept, looked
 //! up at the image root then in `sourceimages`, the folder Maya gives a project's textures.
 use super::*;
+use crate::gltf_codes::{CLAMP_TO_EDGE, REPEAT};
 
 /// Directory a Maya project reserves for textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";
 /// What separates segments of a path Maya writes: the machine that exported may be a Windows
 /// machine, and the path it wrote then carries backslashes.
 const SEPARATORS: &[char] = &['/', '\\'];
-/// The two wrap modes of a glTF sampler: repeat, or clamp to the last texel.
-const REPEAT: u32 = 10497;
-const CLAMP: u32 = 33071;
 /// Placement components of a `place2dTexture` that a glTF without `KHR_texture_transform` does
 /// not carry, each with the value that moves nothing. Maya writes them as a block or component
 /// by component, and both writings say the same thing.
@@ -119,7 +117,7 @@ fn sampler(world: &mut World<'_>, node: usize) -> usize {
         .unwrap_or(true)
     {
         true => REPEAT,
-        false => CLAMP,
+        false => CLAMP_TO_EDGE,
     };
     world
         .scene

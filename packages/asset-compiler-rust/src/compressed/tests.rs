@@ -42,7 +42,10 @@ fn draco_reference_box_reaches_existing_accessors() {
     .unwrap();
     assert_eq!(positions.count, 24);
     assert_eq!(indices.count, 36);
-    let (positions, normals) = (positions.collect_f32().unwrap(), normals.collect_f32().unwrap());
+    let (positions, normals) = (
+        positions.collect_f32().unwrap(),
+        normals.collect_f32().unwrap(),
+    );
     for vertex in 0..24 {
         for axis in 0..3 {
             assert!((positions[vertex * 3 + axis].abs() - 0.5).abs() < 0.001);

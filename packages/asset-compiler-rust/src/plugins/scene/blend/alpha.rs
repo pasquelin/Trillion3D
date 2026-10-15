@@ -60,11 +60,11 @@ pub(super) fn of(
         .and_then(|socket| tree.link(socket))
         .is_some_and(|colour| colour.node.old == link.node.old);
     if !same || !coloured {
-        out.report.add(ALPHA_TEXTURE);
+        out.scene.report.add(ALPHA_TEXTURE);
         return declared;
     }
     if link.socket != ALPHA_CHANNEL {
-        out.report.add(TEXTURE_CHANNEL);
+        out.scene.report.add(TEXTURE_CHANNEL);
         return declared;
     }
     Alpha {
